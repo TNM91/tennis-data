@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase'
-import { recalculateDynamicRatings } from '../../lib/recalculateRatings'
+import { supabase } from '../../../lib/supabase'
+import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
 type MatchType = 'singles' | 'doubles'
 
@@ -228,12 +228,13 @@ export default function AddMatchPage() {
         <div style={navRowStyle}>
           <Link href="/" style={navLinkStyle}>Home</Link>
           <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-          <Link href="/add-match" style={navLinkStyle}>Add Match</Link>
-          <Link href="/csv-import" style={navLinkStyle}>CSV Import</Link>
-          <Link href="/paste-results" style={navLinkStyle}>Paste Results</Link>
           <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-          <Link href="/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-          <Link href="/manage-players" style={navLinkStyle}>Manage Players</Link>
+          <Link href="/admin" style={navLinkStyle}>Admin</Link>
+          <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
+          <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
+          <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
+          <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
+          <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
         </div>
       </div>
 
