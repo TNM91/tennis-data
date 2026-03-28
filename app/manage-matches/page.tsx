@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { recalculateDynamicRatings } from '../../lib/recalculateRatings'
 
@@ -23,7 +24,11 @@ type PlayerRow = {
   name: string
 }
 
+const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
+
 export default function ManageMatchesPage() {
+  const router = useRouter()
+
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,9 +49,28 @@ export default function ManageMatchesPage() {
   const [editOpponentId, setEditOpponentId] = useState('')
   const [editMatchType, setEditMatchType] = useState<MatchType>('singles')
 
+  const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
   useEffect(() => {
-    void loadData()
-  }, [])
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      setUser(user)
+      setAuthLoading(false)
+
+      if (!user || user.id !== ADMIN_ID) {
+        router.push('/admin')
+        return
+      }
+
+      await loadData()
+    }
+
+    checkUser()
+  }, [router])
 
   async function loadData() {
     setLoading(true)
@@ -321,6 +345,14 @@ export default function ManageMatchesPage() {
     if (!current) return players
     return players.filter((p) => p.id !== current.player_id)
   }, [editingId, matches, players])
+
+  if (authLoading) {
+    return <p style={{ padding: '24px' }}>Checking access...</p>
+  }
+
+  if (!user || user.id !== ADMIN_ID) {
+    return null
+  }
 
   return (
     <main style={mainStyle}>

@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { recalculateDynamicRatings } from '../../lib/recalculateRatings'
 
@@ -76,7 +77,11 @@ type PreviewState = {
   duplicateInDbCount: number
 }
 
+const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
+
 export default function PasteResultsPage() {
+  const router = useRouter()
+
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -84,6 +89,26 @@ export default function PasteResultsPage() {
   const [message, setMessage] = useState('')
   const [result, setResult] = useState<ImportResult | null>(null)
   const [preview, setPreview] = useState<PreviewState | null>(null)
+
+  const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      setUser(user)
+      setAuthLoading(false)
+
+      if (!user || user.id !== ADMIN_ID) {
+        router.push('/admin')
+      }
+    }
+
+    checkUser()
+  }, [router])
 
   async function handlePreview() {
     setPreviewLoading(true)
@@ -350,6 +375,14 @@ export default function PasteResultsPage() {
     () => preview?.previewRows.filter((row) => row.status === 'ready').length ?? 0,
     [preview]
   )
+
+  if (authLoading) {
+    return <p style={{ padding: '24px' }}>Checking access...</p>
+  }
+
+  if (!user || user.id !== ADMIN_ID) {
+    return null
+  }
 
   return (
     <main style={mainStyle}>

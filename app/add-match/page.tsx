@@ -57,6 +57,8 @@ function formatPlayerRating(player: Player, matchType: MatchType) {
   return Number(player.rating || 3.5).toFixed(2)
 }
 
+const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
+
 export default function AddMatchPage() {
   const router = useRouter()
 
@@ -70,9 +72,28 @@ export default function AddMatchPage() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
   useEffect(() => {
-    void fetchPlayers()
-  }, [])
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      setUser(user)
+      setAuthLoading(false)
+
+      if (!user || user.id !== ADMIN_ID) {
+        router.push('/admin')
+        return
+      }
+
+      await fetchPlayers()
+    }
+
+    checkUser()
+  }, [router])
 
   async function fetchPlayers() {
     const { data, error } = await supabase
@@ -182,6 +203,14 @@ export default function AddMatchPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  if (authLoading) {
+    return <p style={{ padding: '24px' }}>Checking access...</p>
+  }
+
+  if (!user || user.id !== ADMIN_ID) {
+    return null
   }
 
   return (

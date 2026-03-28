@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { recalculateDynamicRatings } from '../../lib/recalculateRatings'
 
@@ -30,7 +31,11 @@ type SnapshotRow = {
   dynamic_rating: number
 }
 
+const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
+
 export default function ManagePlayersPage() {
+  const router = useRouter()
+
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
@@ -45,9 +50,28 @@ export default function ManagePlayersPage() {
   const [mergeSourceId, setMergeSourceId] = useState('')
   const [mergeTargetId, setMergeTargetId] = useState('')
 
+  const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
   useEffect(() => {
-    void loadPlayers()
-  }, [])
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      setUser(user)
+      setAuthLoading(false)
+
+      if (!user || user.id !== ADMIN_ID) {
+        router.push('/admin')
+        return
+      }
+
+      await loadPlayers()
+    }
+
+    checkUser()
+  }, [router])
 
   async function loadPlayers() {
     setLoading(true)
@@ -127,7 +151,10 @@ export default function ManagePlayersPage() {
       }
 
       const staleOpponentRows = ((matchesToUpdate || []) as Array<{ id: string; opponent: string }>)
-        .filter((row) => normalizeName(row.opponent).toLowerCase() === normalizeName(oldName).toLowerCase())
+        .filter(
+          (row) =>
+            normalizeName(row.opponent).toLowerCase() === normalizeName(oldName).toLowerCase()
+        )
         .map((row) => ({
           id: row.id,
           opponent: trimmedName,
@@ -216,6 +243,14 @@ export default function ManagePlayersPage() {
       )
     })
   }, [players, search])
+
+  if (authLoading) {
+    return <p style={{ padding: '24px' }}>Checking access...</p>
+  }
+
+  if (!user || user.id !== ADMIN_ID) {
+    return null
+  }
 
   return (
     <main style={mainStyle}>
