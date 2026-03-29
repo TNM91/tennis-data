@@ -19,6 +19,24 @@ export const metadata: Metadata = {
   },
   description:
     "Track tennis ratings, rankings, matchup insights, and player trends across singles and doubles with TenAceIQ.",
+
+  // 🔥 Social preview (THIS USES og-image.png)
+  openGraph: {
+    title: "TenAceIQ",
+    description: "Smarter Tennis Ratings & Matchup Insights",
+    url: "https://tenaceiq.com",
+    siteName: "TenAceIQ",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    type: "website",
+  },
+
+  // 🔥 Favicon
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -28,22 +46,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <body
         style={{
-          minHeight: "100vh",
           margin: 0,
+          minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
+          fontFamily: "var(--font-geist-sans), Arial, sans-serif",
           background:
-            "radial-gradient(circle at top left, rgba(74,163,255,0.08), transparent 28%), radial-gradient(circle at top right, rgba(155,225,29,0.08), transparent 24%), #f8fafc",
+            "radial-gradient(circle at top left, rgba(74,163,255,0.08), transparent 30%), radial-gradient(circle at top right, rgba(155,225,29,0.08), transparent 30%), #f8fafc",
           color: "#0f172a",
         }}
       >
