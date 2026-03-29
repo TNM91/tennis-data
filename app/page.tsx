@@ -17,8 +17,6 @@ type Player = {
   id: string
   name: string
   location?: string | null
-  rating?: string | number | null
-  dynamic_rating?: number | null
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
@@ -48,8 +46,6 @@ export default function HomePage() {
           id,
           name,
           location,
-          rating,
-          dynamic_rating,
           overall_dynamic_rating,
           singles_dynamic_rating,
           doubles_dynamic_rating
@@ -114,20 +110,61 @@ export default function HomePage() {
     return sorted
   }, [players, searchText, locationFilter, sortField, sortDirection])
 
+  const topOverallPlayers = useMemo(() => {
+    return [...players]
+      .sort((a, b) => getRatingValue(b, 'overall') - getRatingValue(a, 'overall'))
+      .slice(0, 3)
+  }, [players])
+
+  const topOverall = players.length > 0
+    ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'overall'))))
+    : '—'
+
+  const topSingles = players.length > 0
+    ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'singles'))))
+    : '—'
+
+  const topDoubles = players.length > 0
+    ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'doubles'))))
+    : '—'
+
   return (
     <main style={mainStyle}>
       <div style={navRowStyle}>
-          <Link href="/" style={navLinkStyle}>Home</Link>
-  <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-  <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-  <Link href="/admin" style={navLinkStyle}>Admin</Link>
+        <Link href="/" style={navLinkStyle}>Home</Link>
+        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
+        <Link href="/admin" style={navLinkStyle}>Admin</Link>
       </div>
 
       <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '38px' }}>Tennis Ratings Hub</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '800px' }}>
-          Track player strength across overall, singles, and doubles. Search players, compare ratings, and manage your match database.
-        </p>
+        <div style={heroTopRowStyle}>
+          <div>
+            <div style={brandBadgeStyle}>TenAceIQ</div>
+            <h1 style={{ margin: '10px 0 0 0', fontSize: '42px', lineHeight: 1.05 }}>
+              Smarter Tennis Ratings
+            </h1>
+            <p style={heroTextStyle}>
+              TenAceIQ tracks player strength across singles, doubles, and overall.
+              Search players, compare matchups, and monitor your local tennis landscape.
+            </p>
+
+            <div style={heroButtonRowStyle}>
+              <Link href="/rankings" style={heroPrimaryLinkStyle}>
+                View Rankings
+              </Link>
+              <Link href="/matchup" style={heroSecondaryLinkStyle}>
+                Compare Players
+              </Link>
+            </div>
+          </div>
+
+          <div style={heroMiniPanelStyle}>
+            <div style={heroMiniLabelStyle}>Site</div>
+            <div style={heroMiniValueStyle}>TenAceIQ.com</div>
+            <div style={heroMiniSubtleStyle}>Tennis intelligence, ratings, and matchup insights.</div>
+          </div>
+        </div>
       </div>
 
       <div style={statsGridStyle}>
@@ -143,36 +180,48 @@ export default function HomePage() {
 
         <div style={statCardStyle}>
           <div style={statLabelStyle}>Top Overall</div>
-          <div style={statValueStyle}>
-            {players.length > 0
-              ? formatRating(
-                  Math.max(...players.map((player) => getRatingValue(player, 'overall')))
-                )
-              : '—'}
-          </div>
+          <div style={statValueStyle}>{topOverall}</div>
         </div>
 
         <div style={statCardStyle}>
           <div style={statLabelStyle}>Top Singles</div>
-          <div style={statValueStyle}>
-            {players.length > 0
-              ? formatRating(
-                  Math.max(...players.map((player) => getRatingValue(player, 'singles')))
-                )
-              : '—'}
-          </div>
+          <div style={statValueStyle}>{topSingles}</div>
         </div>
 
         <div style={statCardStyle}>
           <div style={statLabelStyle}>Top Doubles</div>
-          <div style={statValueStyle}>
-            {players.length > 0
-              ? formatRating(
-                  Math.max(...players.map((player) => getRatingValue(player, 'doubles')))
-                )
-              : '—'}
-          </div>
+          <div style={statValueStyle}>{topDoubles}</div>
         </div>
+      </div>
+
+      <div style={cardStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <h2 style={{ margin: 0 }}>Top Overall Snapshot</h2>
+            <p style={sectionSubtextStyle}>Quick look at the current leaders.</p>
+          </div>
+          <Link href="/rankings" style={sectionActionLinkStyle}>Full Rankings</Link>
+        </div>
+
+        {topOverallPlayers.length === 0 ? (
+          <p style={{ color: '#64748b' }}>No players available yet.</p>
+        ) : (
+          <div style={topCardsGridStyle}>
+            {topOverallPlayers.map((player, index) => (
+              <div key={player.id} style={topPlayerCardStyle}>
+                <div style={topPlayerRankStyle}>#{index + 1}</div>
+                <div style={topPlayerNameStyle}>{player.name}</div>
+                <div style={topPlayerMetaStyle}>{player.location || '—'}</div>
+                <div style={topPlayerRatingStyle}>
+                  {formatRating(getRatingValue(player, 'overall'))}
+                </div>
+                <Link href={`/players/${player.id}`} style={actionLinkStyle}>
+                  View Profile
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={cardStyle}>
@@ -312,40 +361,22 @@ export default function HomePage() {
 
 function getRatingValue(player: Player, view: SortField) {
   if (view === 'singles') {
-    return toRatingNumber(
-      player.singles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
+    return toRatingNumber(player.singles_dynamic_rating, 3.5)
   }
 
   if (view === 'doubles') {
-    return toRatingNumber(
-      player.doubles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
+    return toRatingNumber(player.doubles_dynamic_rating, 3.5)
   }
 
   if (view === 'overall') {
-    return toRatingNumber(
-      player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
+    return toRatingNumber(player.overall_dynamic_rating, 3.5)
   }
 
-  return toRatingNumber(player.rating, 3.5)
+  return 0
 }
 
-function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : fallback
+function toRatingNumber(value: number | null | undefined, fallback = 3.5) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 function formatRating(value: number) {
@@ -401,6 +432,88 @@ const heroCardStyle = {
   marginBottom: '22px',
 }
 
+const heroTopRowStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '18px',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap' as const,
+}
+
+const brandBadgeStyle = {
+  display: 'inline-block',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.16)',
+  border: '1px solid rgba(255,255,255,0.25)',
+  fontWeight: 800,
+  letterSpacing: '0.04em',
+}
+
+const heroTextStyle = {
+  margin: '14px 0 0 0',
+  color: '#dbeafe',
+  fontSize: '17px',
+  maxWidth: '800px',
+  lineHeight: 1.6,
+}
+
+const heroButtonRowStyle = {
+  display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap' as const,
+  marginTop: '20px',
+}
+
+const heroPrimaryLinkStyle = {
+  display: 'inline-block',
+  padding: '12px 16px',
+  borderRadius: '12px',
+  background: 'white',
+  color: '#1d4ed8',
+  textDecoration: 'none',
+  fontWeight: 800,
+}
+
+const heroSecondaryLinkStyle = {
+  display: 'inline-block',
+  padding: '12px 16px',
+  borderRadius: '12px',
+  background: 'rgba(255,255,255,0.12)',
+  color: 'white',
+  textDecoration: 'none',
+  fontWeight: 800,
+  border: '1px solid rgba(255,255,255,0.20)',
+}
+
+const heroMiniPanelStyle = {
+  minWidth: '240px',
+  maxWidth: '280px',
+  background: 'rgba(255,255,255,0.12)',
+  border: '1px solid rgba(255,255,255,0.20)',
+  borderRadius: '18px',
+  padding: '18px',
+}
+
+const heroMiniLabelStyle = {
+  color: '#bfdbfe',
+  fontSize: '13px',
+  marginBottom: '6px',
+}
+
+const heroMiniValueStyle = {
+  color: 'white',
+  fontSize: '24px',
+  fontWeight: 800,
+  marginBottom: '8px',
+}
+
+const heroMiniSubtleStyle = {
+  color: '#dbeafe',
+  fontSize: '14px',
+  lineHeight: 1.5,
+}
+
 const statsGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -435,6 +548,76 @@ const cardStyle = {
   boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
   border: '1px solid #e2e8f0',
   marginBottom: '22px',
+}
+
+const sectionHeaderStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '16px',
+  flexWrap: 'wrap' as const,
+  marginBottom: '16px',
+}
+
+const sectionSubtextStyle = {
+  margin: '6px 0 0 0',
+  color: '#64748b',
+}
+
+const sectionActionLinkStyle = {
+  display: 'inline-block',
+  padding: '10px 12px',
+  borderRadius: '10px',
+  background: '#eff6ff',
+  color: '#1d4ed8',
+  textDecoration: 'none',
+  fontWeight: 700,
+}
+
+const topCardsGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+}
+
+const topPlayerCardStyle = {
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '18px',
+  padding: '18px',
+}
+
+const topPlayerRankStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: '40px',
+  height: '40px',
+  borderRadius: '999px',
+  background: '#dbeafe',
+  color: '#1d4ed8',
+  fontWeight: 900,
+  marginBottom: '12px',
+}
+
+const topPlayerNameStyle = {
+  color: '#0f172a',
+  fontSize: '20px',
+  fontWeight: 800,
+  marginBottom: '4px',
+}
+
+const topPlayerMetaStyle = {
+  color: '#64748b',
+  fontSize: '14px',
+  marginBottom: '12px',
+}
+
+const topPlayerRatingStyle = {
+  color: '#1d4ed8',
+  fontSize: '28px',
+  fontWeight: 900,
+  marginBottom: '14px',
 }
 
 const toolbarStyle = {

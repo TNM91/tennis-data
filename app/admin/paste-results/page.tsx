@@ -85,6 +85,8 @@ export default function PasteResultsPage() {
   const router = useRouter()
 
   const [text, setText] = useState('')
+  const [defaultDate, setDefaultDate] = useState(getTodayLocalDate())
+  const [defaultSource, setDefaultSource] = useState('paste')
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [error, setError] = useState('')
@@ -109,7 +111,7 @@ export default function PasteResultsPage() {
       }
     }
 
-    checkUser()
+    void checkUser()
   }, [router])
 
   async function handlePreview() {
@@ -120,7 +122,7 @@ export default function PasteResultsPage() {
     setPreview(null)
 
     try {
-      const parsed = parsePasteTextWithInvalidRows(text)
+      const parsed = parsePasteTextWithInvalidRows(text, defaultDate, defaultSource)
 
       if (parsed.validRows.length === 0 && parsed.invalidRows.length === 0) {
         throw new Error('No rows found.')
@@ -326,7 +328,7 @@ export default function PasteResultsPage() {
         if (ratingsRecalculated) {
           messageParts.push('Ratings recalculated.')
         } else {
-          messageParts.push('Matches were imported, but rating recalculation still needs the new schema logic.')
+          messageParts.push('Matches were imported, but rating recalculation still needs review.')
         }
       }
 
@@ -370,27 +372,54 @@ export default function PasteResultsPage() {
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Paste Results</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Preview pasted singles or doubles matches, detect duplicates using match-level keys, create missing players automatically, and import into the new matches + match_players structure.
+          Paste natural singles or doubles result text, preview duplicates, create missing players automatically, and import into the matches + match_players structure.
         </p>
       </div>
 
       <div style={cardStyle}>
         <h2 style={{ marginTop: 0 }}>Paste Match Results</h2>
-        <p style={{ color: '#64748b' }}>Use one of these formats:</p>
+        <p style={{ color: '#64748b' }}>Supported examples:</p>
 
         <pre style={sampleStyle}>
-{`Nathan Meinert | John Doe | W 6-3 6-4 | 2026-03-22
-Nathan Meinert / Partner Name | John Doe / Partner Name | W 6-4 6-4 | 2026-03-25 | doubles
+{`Nathan Meinert def John Smith 6-3 6-4
+Nathan Meinert / Alex Smith def John Smith / Mike Lee 6-4 6-3
+John Smith d. Nathan Meinert 7-6 6-2
+Nathan Meinert / Alex Smith lost to John Smith / Mike Lee 4-6 4-6
 
-Optional extra fields:
-side_a | side_b | result | date | match_type | source | external_match_id | line_number`}
+Pipe format still works:
+Nathan Meinert | John Smith | W 6-3 6-4 | 2026-03-22
+Nathan Meinert / Alex Smith | John Smith / Mike Lee | W 6-4 6-3 | 2026-03-25 | doubles`}
         </pre>
+
+        <div style={settingsGridStyle}>
+          <div>
+            <label style={labelStyle}>Default Date</label>
+            <input
+              type="date"
+              value={defaultDate}
+              onChange={(e) => setDefaultDate(e.target.value)}
+              style={inputStyle}
+              disabled={loading || previewLoading}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Default Source</label>
+            <input
+              type="text"
+              value={defaultSource}
+              onChange={(e) => setDefaultSource(e.target.value)}
+              style={inputStyle}
+              disabled={loading || previewLoading}
+            />
+          </div>
+        </div>
 
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder={`Nathan Meinert | John Doe | W 6-3 6-4 | 2026-03-22
-Nathan Meinert / Partner Name | John Doe / Partner Name | W 6-4 6-4 | 2026-03-25 | doubles`}
+          placeholder={`Nathan Meinert def John Smith 6-3 6-4
+Nathan Meinert / Alex Smith def John Smith / Mike Lee 6-4 6-3`}
           style={textareaStyle}
           disabled={loading || previewLoading}
         />
@@ -612,7 +641,11 @@ Nathan Meinert / Partner Name | John Doe / Partner Name | W 6-4 6-4 | 2026-03-25
   )
 }
 
-function parsePasteTextWithInvalidRows(text: string): {
+function parsePasteTextWithInvalidRows(
+  text: string,
+  defaultDate: string,
+  defaultSource: string
+): {
   validRows: PreparedPasteRow[]
   invalidRows: InvalidPreviewRow[]
 } {
@@ -626,115 +659,178 @@ function parsePasteTextWithInvalidRows(text: string): {
 
   lines.forEach((line, index) => {
     const sourceIndex = index + 1
-    const parts = line.split('|').map((p) => p.trim())
 
-    if (parts.length < 4) {
-      invalidRows.push({
-        sourceIndex,
-        raw: line,
-        reason:
-          'Expected format: side_a | side_b | result | date | optional match_type | optional source | optional external_match_id | optional line_number',
-      })
-      return
-    }
-
-    const rawSideA = parts[0]
-    const rawSideB = parts[1]
-    const rawResult = normalizeResult(parts[2])
-    const rawDate = parts[3]
-    const rawMatchType = parts[4] ?? ''
-    const rawSource = parts[5] ?? 'paste'
-    const rawExternalMatchId = parts[6] ?? null
-    const rawLineNumber = parts[7] ?? null
-
-    const sideA = splitSide(rawSideA)
-    const sideB = splitSide(rawSideB)
-
-    if (sideA.length === 0) {
-      invalidRows.push({ sourceIndex, raw: line, reason: 'Missing Side A players' })
-      return
-    }
-
-    if (sideB.length === 0) {
-      invalidRows.push({ sourceIndex, raw: line, reason: 'Missing Side B players' })
-      return
-    }
-
-    const allNames = [...sideA, ...sideB]
-    const duplicateNames = findDuplicateNames(allNames)
-    if (duplicateNames.length > 0) {
-      invalidRows.push({
-        sourceIndex,
-        raw: line,
-        reason: `Player appears more than once in the same match: ${duplicateNames.join(', ')}`,
-      })
-      return
-    }
-
-    let matchType: MatchType
     try {
-      matchType = determineMatchType(rawMatchType, sideA, sideB)
+      const row = line.includes('|')
+        ? parsePipeFormatLine(line, sourceIndex, defaultDate, defaultSource)
+        : parseNaturalFormatLine(line, sourceIndex, defaultDate, defaultSource)
+
+      validatePreparedRow(row, line)
+      validRows.push(row)
     } catch (err) {
       invalidRows.push({
         sourceIndex,
         raw: line,
-        reason: err instanceof Error ? err.message : 'Invalid match type',
+        reason: err instanceof Error ? err.message : 'Invalid row',
       })
-      return
     }
-
-    if (matchType === 'singles' && (sideA.length !== 1 || sideB.length !== 1)) {
-      invalidRows.push({
-        sourceIndex,
-        raw: line,
-        reason: 'Singles must have exactly 1 player on each side',
-      })
-      return
-    }
-
-    if (matchType === 'doubles' && (sideA.length !== 2 || sideB.length !== 2)) {
-      invalidRows.push({
-        sourceIndex,
-        raw: line,
-        reason: 'Doubles must have exactly 2 players on each side',
-      })
-      return
-    }
-
-    const parsedResult = parseResult(rawResult)
-    if (!parsedResult) {
-      invalidRows.push({
-        sourceIndex,
-        raw: line,
-        reason: 'Result must start with W or L, for example: W 6-3 6-4',
-      })
-      return
-    }
-
-    let date = ''
-    try {
-      date = normalizeDate(rawDate)
-    } catch {
-      invalidRows.push({ sourceIndex, raw: line, reason: 'Invalid date' })
-      return
-    }
-
-    validRows.push({
-      sourceIndex,
-      sideA,
-      sideB,
-      rawResult,
-      score: parsedResult.score,
-      winnerSide: parsedResult.winnerSide,
-      date,
-      matchType,
-      source: normalizeSource(rawSource),
-      externalMatchId: normalizeNullableText(rawExternalMatchId),
-      lineNumber: normalizeNullableText(rawLineNumber),
-    })
   })
 
   return { validRows, invalidRows }
+}
+
+function parsePipeFormatLine(
+  line: string,
+  sourceIndex: number,
+  defaultDate: string,
+  defaultSource: string
+): PreparedPasteRow {
+  const parts = line.split('|').map((p) => p.trim())
+
+  if (parts.length < 4) {
+    throw new Error(
+      'Expected format: side_a | side_b | result | date | optional match_type | optional source | optional external_match_id | optional line_number'
+    )
+  }
+
+  const rawSideA = parts[0]
+  const rawSideB = parts[1]
+  const rawResult = normalizeResult(parts[2])
+  const rawDate = parts[3] || defaultDate
+  const rawMatchType = parts[4] ?? ''
+  const rawSource = parts[5] ?? defaultSource
+  const rawExternalMatchId = parts[6] ?? null
+  const rawLineNumber = parts[7] ?? null
+
+  const sideA = splitSide(rawSideA)
+  const sideB = splitSide(rawSideB)
+  const matchType = determineMatchType(rawMatchType, sideA, sideB)
+
+  const parsedResult = parsePrefixedResult(rawResult)
+  if (!parsedResult) {
+    throw new Error('Result must start with W or L, for example: W 6-3 6-4')
+  }
+
+  return {
+    sourceIndex,
+    sideA,
+    sideB,
+    rawResult,
+    score: parsedResult.score,
+    winnerSide: parsedResult.winnerSide,
+    date: normalizeDate(rawDate),
+    matchType,
+    source: normalizeSource(rawSource),
+    externalMatchId: normalizeNullableText(rawExternalMatchId),
+    lineNumber: normalizeNullableText(rawLineNumber),
+  }
+}
+
+function parseNaturalFormatLine(
+  line: string,
+  sourceIndex: number,
+  defaultDate: string,
+  defaultSource: string
+): PreparedPasteRow {
+  const normalizedLine = line.replace(/\s+/g, ' ').trim()
+
+  const separators = [
+    { pattern: /\s+def\.\s+/i, winnerIsLeft: true },
+    { pattern: /\s+def\s+/i, winnerIsLeft: true },
+    { pattern: /\s+d\.\s+/i, winnerIsLeft: true },
+    { pattern: /\s+beat\s+/i, winnerIsLeft: true },
+    { pattern: /\s+beats\s+/i, winnerIsLeft: true },
+    { pattern: /\s+won against\s+/i, winnerIsLeft: true },
+    { pattern: /\s+lost to\s+/i, winnerIsLeft: false },
+    { pattern: /\s+loses to\s+/i, winnerIsLeft: false },
+    { pattern: /\s+fell to\s+/i, winnerIsLeft: false },
+  ]
+
+  let matchedSeparator: { pattern: RegExp; winnerIsLeft: boolean } | null = null
+  let matchParts: RegExpExecArray | null = null
+
+  for (const separator of separators) {
+    const regex = new RegExp(`^(.*?)${separator.pattern.source}(.*)$`, 'i')
+    const candidate = regex.exec(normalizedLine)
+    if (candidate) {
+      matchedSeparator = separator
+      matchParts = candidate
+      break
+    }
+  }
+
+  if (!matchedSeparator || !matchParts) {
+    throw new Error(
+      'Could not parse line. Use natural format like "A def B 6-3 6-4" or pipe format.'
+    )
+  }
+
+  const leftRaw = matchParts[1].trim()
+  const rightWithScoreRaw = matchParts[2].trim()
+
+  const scoreMatch = rightWithScoreRaw.match(
+    /(\d{1,2}-\d{1,2}(?:\(\d+\))?(?:\s+\d{1,2}-\d{1,2}(?:\(\d+\))?)*)\s*$/
+  )
+
+  if (!scoreMatch) {
+    throw new Error('Could not detect score at the end of the line.')
+  }
+
+  const score = normalizeResult(scoreMatch[1])
+  const rightRaw = rightWithScoreRaw.slice(0, scoreMatch.index).trim()
+
+  if (!leftRaw || !rightRaw) {
+    throw new Error('Could not detect both sides of the match.')
+  }
+
+  const sideLeft = splitSide(leftRaw)
+  const sideRight = splitSide(rightRaw)
+  const matchType = determineMatchType('', sideLeft, sideRight)
+
+  const winnerSide: MatchSide = matchedSeparator.winnerIsLeft ? 'A' : 'B'
+
+  return {
+    sourceIndex,
+    sideA: sideLeft,
+    sideB: sideRight,
+    rawResult: normalizedLine,
+    score,
+    winnerSide,
+    date: normalizeDate(defaultDate),
+    matchType,
+    source: normalizeSource(defaultSource),
+    externalMatchId: null,
+    lineNumber: null,
+  }
+}
+
+function validatePreparedRow(row: PreparedPasteRow, rawLine: string) {
+  if (row.sideA.length === 0) {
+    throw new Error('Missing Side A players')
+  }
+
+  if (row.sideB.length === 0) {
+    throw new Error('Missing Side B players')
+  }
+
+  const allNames = [...row.sideA, ...row.sideB]
+  const duplicateNames = findDuplicateNames(allNames)
+
+  if (duplicateNames.length > 0) {
+    throw new Error(`Player appears more than once in the same match: ${duplicateNames.join(', ')}`)
+  }
+
+  if (row.matchType === 'singles' && (row.sideA.length !== 1 || row.sideB.length !== 1)) {
+    throw new Error('Singles must have exactly 1 player on each side')
+  }
+
+  if (row.matchType === 'doubles' && (row.sideA.length !== 2 || row.sideB.length !== 2)) {
+    throw new Error('Doubles must have exactly 2 players on each side')
+  }
+
+  if (!row.score) {
+    throw new Error(`Missing score: ${rawLine}`)
+  }
 }
 
 async function fetchPlayersByNames(names: string[]): Promise<Record<string, Player>> {
@@ -857,7 +953,7 @@ function determineMatchType(
   throw new Error('Could not infer match type. Add singles or doubles explicitly.')
 }
 
-function parseResult(result: string): { winnerSide: MatchSide; score: string } | null {
+function parsePrefixedResult(result: string): { winnerSide: MatchSide; score: string } | null {
   const trimmed = normalizeResult(result)
 
   if (!trimmed) return null
@@ -960,6 +1056,13 @@ function normalizeDate(date: string) {
   return `${year}-${month}-${day}`
 }
 
+function getTodayLocalDate() {
+  const now = new Date()
+  const offset = now.getTimezoneOffset()
+  const local = new Date(now.getTime() - offset * 60 * 1000)
+  return local.toISOString().slice(0, 10)
+}
+
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
   for (let i = 0; i < items.length; i += size) {
@@ -1023,6 +1126,31 @@ const sampleStyle = {
   padding: '14px',
   overflowX: 'auto' as const,
   color: '#334155',
+}
+
+const settingsGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '16px',
+  marginBottom: '16px',
+}
+
+const labelStyle = {
+  display: 'block',
+  marginBottom: '8px',
+  color: '#334155',
+  fontWeight: 600,
+}
+
+const inputStyle = {
+  width: '100%',
+  padding: '12px 14px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '12px',
+  fontSize: '15px',
+  boxSizing: 'border-box' as const,
+  fontFamily: 'inherit',
 }
 
 const textareaStyle = {
