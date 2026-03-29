@@ -78,12 +78,30 @@ function displayDate(value: string | null) {
 export default function UploadScorecardPage() {
   const [fileName, setFileName] = useState('')
   const [parsed, setParsed] = useState<ParsedScorecard | null>(null)
+  const [manualMatchDate, setManualMatchDate] = useState('')
+  const [manualHomeTeam, setManualHomeTeam] = useState('')
+  const [manualAwayTeam, setManualAwayTeam] = useState('')
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [loadingFile, setLoadingFile] = useState(false)
   const [importing, setImporting] = useState(false)
 
   const previewCount = useMemo(() => parsed?.lines.length ?? 0, [parsed])
+
+  const resolvedMatchDate = useMemo(() => {
+    if (manualMatchDate) return manualMatchDate
+    return formatDateForDb(parsed?.matchDate || null) || ''
+  }, [manualMatchDate, parsed])
+
+  const resolvedHomeTeam = useMemo(() => {
+    if (manualHomeTeam.trim()) return manualHomeTeam.trim()
+    return parsed?.homeTeam?.trim() || ''
+  }, [manualHomeTeam, parsed])
+
+  const resolvedAwayTeam = useMemo(() => {
+    if (manualAwayTeam.trim()) return manualAwayTeam.trim()
+    return parsed?.awayTeam?.trim() || ''
+  }, [manualAwayTeam, parsed])
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] || null
@@ -92,6 +110,9 @@ export default function UploadScorecardPage() {
     setStatus('')
     setParsed(null)
     setFileName(file?.name || '')
+    setManualMatchDate('')
+    setManualHomeTeam('')
+    setManualAwayTeam('')
 
     if (!file) return
 
@@ -154,9 +175,9 @@ export default function UploadScorecardPage() {
       return
     }
 
-    const matchDate = formatDateForDb(parsed.matchDate)
+    const matchDate = resolvedMatchDate
     if (!matchDate) {
-      setError('Could not determine a valid match date from the scorecard.')
+      setError('Could not determine a valid match date. Enter one manually before importing.')
       return
     }
 
@@ -212,8 +233,8 @@ export default function UploadScorecardPage() {
           'scorecard-upload',
           parsed.leagueName || null,
           parsed.matchNumber ? `match-${parsed.matchNumber}` : null,
-          parsed.homeTeam || null,
-          parsed.awayTeam || null,
+          resolvedHomeTeam || null,
+          resolvedAwayTeam || null,
         ].filter(Boolean)
 
         const { data: insertedMatch, error: matchInsertError } = await supabase
@@ -256,17 +277,13 @@ export default function UploadScorecardPage() {
       }
 
       if (result.inserted > 0) {
-        setStatus(
-          `Imported ${result.inserted} lines. Recalculating ratings now...`
-        )
+        setStatus(`Imported ${result.inserted} lines. Recalculating ratings now...`)
         await recalculateDynamicRatings()
         setStatus(
           `Import complete. Inserted ${result.inserted}, skipped ${result.skipped}, created ${result.createdPlayers} new players, and recalculated ratings.`
         )
       } else {
-        setStatus(
-          `No new lines were inserted. Skipped ${result.skipped} duplicates.`
-        )
+        setStatus(`No new lines were inserted. Skipped ${result.skipped} duplicates.`)
       }
     } catch (err) {
       console.error(err)
@@ -295,12 +312,19 @@ export default function UploadScorecardPage() {
       <div style={cardStyle}>
         <div style={fieldWrapStyle}>
           <label style={labelStyle}>Scorecard file</label>
+
           <input
+            id="scorecard-upload"
             type="file"
             accept=".xls,.html"
             onChange={onFileChange}
-            style={fileInputStyle}
+            style={hiddenFileInputStyle}
           />
+
+          <label htmlFor="scorecard-upload" style={filePickerButtonStyle}>
+            Choose Scorecard File
+          </label>
+
           <div style={helpTextStyle}>
             Supports HTML-based `.xls` scorecards and `.html` files.
           </div>
@@ -315,7 +339,7 @@ export default function UploadScorecardPage() {
           <>
             <div style={summaryGridStyle}>
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Match Date</div>
+                <div style={summaryLabelStyle}>Parsed Match Date</div>
                 <div style={summaryValueStyle}>{displayDate(parsed.matchDate)}</div>
               </div>
 
@@ -338,13 +362,47 @@ export default function UploadScorecardPage() {
             <div style={teamsRowStyle}>
               <div style={teamBadgeStyle}>
                 <span style={teamBadgeLabelStyle}>Home</span>
-                <strong>{parsed.homeTeam || 'Unknown'}</strong>
+                <strong>{resolvedHomeTeam || 'Unknown'}</strong>
               </div>
 
               <div style={teamBadgeStyle}>
                 <span style={teamBadgeLabelStyle}>Away</span>
-                <strong>{parsed.awayTeam || 'Unknown'}</strong>
+                <strong>{resolvedAwayTeam || 'Unknown'}</strong>
               </div>
+            </div>
+
+            <div style={manualSectionStyle}>
+              <label style={labelStyle}>Match date override</label>
+              <input
+                type="date"
+                value={manualMatchDate}
+                onChange={(e) => setManualMatchDate(e.target.value)}
+                style={dateInputStyle}
+              />
+              <div style={helpTextStyle}>
+                Leave blank to use the parsed date.
+              </div>
+              <div style={resolvedValueStyle}>
+                Import will use: <strong>{resolvedMatchDate || 'No valid date yet'}</strong>
+              </div>
+
+              <label style={{ ...labelStyle, marginTop: '12px' }}>Home team override</label>
+              <input
+                type="text"
+                value={manualHomeTeam}
+                onChange={(e) => setManualHomeTeam(e.target.value)}
+                placeholder="Enter home team if parser missed it"
+                style={textInputStyle}
+              />
+
+              <label style={{ ...labelStyle, marginTop: '12px' }}>Away team override</label>
+              <input
+                type="text"
+                value={manualAwayTeam}
+                onChange={(e) => setManualAwayTeam(e.target.value)}
+                placeholder="Enter away team if parser missed it"
+                style={textInputStyle}
+              />
             </div>
 
             <div style={{ marginTop: 22 }}>
@@ -385,10 +443,10 @@ export default function UploadScorecardPage() {
             <div style={actionRowStyle}>
               <button
                 onClick={importScorecard}
-                disabled={importing}
+                disabled={importing || !resolvedMatchDate}
                 style={{
                   ...primaryButtonStyle,
-                  ...(importing ? disabledButtonStyle : {}),
+                  ...((importing || !resolvedMatchDate) ? disabledButtonStyle : {}),
                 }}
               >
                 {importing ? 'Importing + Recalculating...' : 'Confirm Import'}
@@ -454,8 +512,44 @@ const labelStyle = {
   fontWeight: 700,
 }
 
-const fileInputStyle = {
+const hiddenFileInputStyle = {
+  display: 'none',
+}
+
+const filePickerButtonStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 'fit-content',
+  padding: '12px 16px',
+  borderRadius: '999px',
+  background: '#2563eb',
+  color: '#ffffff',
+  fontWeight: 700,
+  cursor: 'pointer',
+  border: '1px solid #2563eb',
+  boxShadow: '0 10px 20px rgba(37, 99, 235, 0.18)',
+}
+
+const dateInputStyle = {
+  width: '220px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '12px',
+  padding: '10px 12px',
   fontSize: '14px',
+  color: '#0f172a',
+  background: '#ffffff',
+}
+
+const textInputStyle = {
+  width: '100%',
+  maxWidth: '420px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '12px',
+  padding: '10px 12px',
+  fontSize: '14px',
+  color: '#0f172a',
+  background: '#ffffff',
 }
 
 const helpTextStyle = {
@@ -533,6 +627,22 @@ const teamBadgeStyle = {
 const teamBadgeLabelStyle = {
   fontSize: '12px',
   color: '#64748b',
+}
+
+const manualSectionStyle = {
+  marginTop: '18px',
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: '8px',
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '16px',
+  padding: '14px',
+}
+
+const resolvedValueStyle = {
+  color: '#334155',
+  fontSize: '14px',
 }
 
 const sectionTitleStyle = {

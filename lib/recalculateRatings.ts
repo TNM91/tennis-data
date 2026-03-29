@@ -307,19 +307,19 @@ function buildSnapshot(
 
 async function persistPlayerRatings(players: WorkingPlayer[]) {
   for (const chunk of chunkArray(players, 200)) {
-    const rows = chunk.map((player) => ({
-      id: player.id,
-      singles_dynamic_rating: roundRating(player.singlesDynamic),
-      doubles_dynamic_rating: roundRating(player.doublesDynamic),
-      overall_dynamic_rating: roundRating(player.overallDynamic),
-    }))
+    for (const player of chunk) {
+      const { error } = await supabase
+        .from('players')
+        .update({
+          singles_dynamic_rating: roundRating(player.singlesDynamic),
+          doubles_dynamic_rating: roundRating(player.doublesDynamic),
+          overall_dynamic_rating: roundRating(player.overallDynamic),
+        })
+        .eq('id', player.id)
 
-    const { error } = await supabase
-      .from('players')
-      .upsert(rows, { onConflict: 'id' })
-
-    if (error) {
-      throw new Error(`Failed to save recalculated player ratings: ${error.message}`)
+      if (error) {
+        throw new Error(`Failed to save recalculated player ratings: ${error.message}`)
+      }
     }
   }
 }
