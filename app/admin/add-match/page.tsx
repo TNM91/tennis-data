@@ -7,54 +7,11 @@ import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
 type MatchType = 'singles' | 'doubles'
+type MatchSide = 'A' | 'B'
 
 type Player = {
   id: string
   name: string
-  rating: string
-  dynamic_rating?: number | null
-  singles_dynamic_rating?: number | null
-  doubles_dynamic_rating?: number | null
-  overall_dynamic_rating?: number | null
-}
-
-type MatchInsertRow = {
-  player_id: string
-  opponent_id?: string | null
-  opponent: string
-  result: string
-  date: string
-  match_type: MatchType
-}
-
-function getTodayDateString() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function normalizeResult(result: string) {
-  return result.trim().replace(/\s+/g, ' ')
-}
-
-function reverseResult(result: string) {
-  const trimmed = normalizeResult(result)
-
-  if (trimmed.startsWith('W')) return trimmed.replace(/^W/, 'L')
-  if (trimmed.startsWith('L')) return trimmed.replace(/^L/, 'W')
-
-  return trimmed
-}
-
-function formatPlayerRating(player: Player, matchType: MatchType) {
-  const value =
-    matchType === 'singles'
-      ? player.singles_dynamic_rating ?? player.overall_dynamic_rating ?? player.dynamic_rating
-      : player.doubles_dynamic_rating ?? player.overall_dynamic_rating ?? player.dynamic_rating
-
-  if (value !== null && value !== undefined && Number.isFinite(Number(value))) {
-    return Number(value).toFixed(2)
-  }
-
-  return Number(player.rating || 3.5).toFixed(2)
 }
 
 const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
@@ -62,18 +19,30 @@ const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
 export default function AddMatchPage() {
   const router = useRouter()
 
-  const [players, setPlayers] = useState<Player[]>([])
-  const [playerId, setPlayerId] = useState('')
-  const [opponentId, setOpponentId] = useState('')
-  const [result, setResult] = useState('')
-  const [date, setDate] = useState(getTodayDateString())
-  const [matchType, setMatchType] = useState<MatchType>('singles')
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-  const [saving, setSaving] = useState(false)
-
   const [user, setUser] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
+
+  const [players, setPlayers] = useState<Player[]>([])
+  const [playersLoading, setPlayersLoading] = useState(true)
+
+  const [matchType, setMatchType] = useState<MatchType>('singles')
+  const [matchDate, setMatchDate] = useState('')
+  const [score, setScore] = useState('')
+  const [winnerSide, setWinnerSide] = useState<MatchSide>('A')
+  const [lineNumber, setLineNumber] = useState('')
+  const [source, setSource] = useState('manual')
+  const [externalMatchId, setExternalMatchId] = useState('')
+
+  const [sideA1, setSideA1] = useState('')
+  const [sideA2, setSideA2] = useState('')
+  const [sideB1, setSideB1] = useState('')
+  const [sideB2, setSideB2] = useState('')
+
+  const [createMissingPlayers, setCreateMissingPlayers] = useState(true)
+
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const checkUser = async () => {
@@ -86,123 +55,216 @@ export default function AddMatchPage() {
 
       if (!user || user.id !== ADMIN_ID) {
         router.push('/admin')
-        return
       }
-
-      await fetchPlayers()
     }
 
     checkUser()
   }, [router])
 
-  async function fetchPlayers() {
-    const { data, error } = await supabase
-      .from('players')
-      .select(
-        'id, name, rating, dynamic_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating'
-      )
-      .order('name')
+  useEffect(() => {
+    if (!user || user.id !== ADMIN_ID) return
 
-    if (error) {
-      setError(error.message)
-      return
+    const loadPlayers = async () => {
+      setPlayersLoading(true)
+
+      const { data, error } = await supabase
+        .from('players')
+        .select('id, name')
+        .order('name', { ascending: true })
+
+      if (error) {
+        setError(error.message)
+      } else {
+        setPlayers((data || []) as Player[])
+      }
+
+      setPlayersLoading(false)
     }
 
-    setPlayers((data || []) as Player[])
-  }
+    loadPlayers()
+  }, [user])
 
-  const availableOpponents = useMemo(
-    () => players.filter((player) => player.id !== playerId),
-    [players, playerId]
+  useEffect(() => {
+    if (matchType === 'singles') {
+      setSideA2('')
+      setSideB2('')
+    }
+  }, [matchType])
+
+  const playerOptions = useMemo(() => players.map((player) => player.name), [players])
+
+  const sideANames = useMemo(
+    () =>
+      [sideA1, sideA2]
+        .map(normalizeName)
+        .filter(Boolean)
+        .slice(0, matchType === 'singles' ? 1 : 2),
+    [sideA1, sideA2, matchType]
   )
 
-  const isSubmitDisabled =
-    saving ||
-    !playerId ||
-    !opponentId ||
-    !result.trim() ||
-    !date ||
-    playerId === opponentId
+  const sideBNames = useMemo(
+    () =>
+      [sideB1, sideB2]
+        .map(normalizeName)
+        .filter(Boolean)
+        .slice(0, matchType === 'singles' ? 1 : 2),
+    [sideB1, sideB2, matchType]
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setLoading(true)
     setError('')
     setMessage('')
-    setSaving(true)
 
     try {
-      if (!playerId || !opponentId || !result.trim() || !date) {
-        throw new Error('Please fill out all fields.')
+      validateMatchInput({
+        matchType,
+        matchDate,
+        score,
+        sideA: sideANames,
+        sideB: sideBNames,
+      })
+
+      const allNames = [...sideANames, ...sideBNames]
+      const existingPlayers = await fetchPlayersByNames(allNames)
+      const missingNames = allNames.filter((name) => !existingPlayers[name.toLowerCase()])
+
+      if (missingNames.length > 0 && !createMissingPlayers) {
+        throw new Error(`Missing players: ${missingNames.join(', ')}`)
       }
 
-      if (playerId === opponentId) {
-        throw new Error('Player and opponent must be different.')
+      if (missingNames.length > 0 && createMissingPlayers) {
+        await createPlayersByNames(missingNames)
       }
 
-      const player = players.find((p) => p.id === playerId)
-      const opponent = players.find((p) => p.id === opponentId)
+      const playerMap = await fetchPlayersByNames(allNames)
 
-      if (!player || !opponent) {
-        throw new Error('Could not find selected players.')
+      const preparedRow = {
+        date: normalizeDate(matchDate),
+        matchType,
+        score: normalizeScore(score),
+        winnerSide,
+        sideA: sideANames,
+        sideB: sideBNames,
+        source: normalizeSource(source),
+        externalMatchId: normalizeNullableText(externalMatchId),
+        lineNumber: normalizeNullableText(lineNumber),
       }
 
-      const normalizedResult = normalizeResult(result)
+      const dedupeKey = buildDedupeKey(preparedRow)
 
-      const rowsToInsert: MatchInsertRow[] = [
-        {
-          player_id: playerId,
-          opponent_id: opponentId,
-          opponent: opponent.name,
-          result: normalizedResult,
-          date,
-          match_type: matchType,
-        },
-        {
-          player_id: opponentId,
-          opponent_id: playerId,
-          opponent: player.name,
-          result: reverseResult(normalizedResult),
-          date,
-          match_type: matchType,
-        },
-      ]
-
-      const { data, error: insertError } = await supabase
+      const { data: existingMatch, error: existingMatchError } = await supabase
         .from('matches')
-        .upsert(rowsToInsert, {
-          onConflict: 'player_id,opponent_id,date,result,match_type',
-          ignoreDuplicates: true,
+        .select('id')
+        .eq('dedupe_key', dedupeKey)
+        .maybeSingle()
+
+      if (existingMatchError) {
+        throw new Error(existingMatchError.message)
+      }
+
+      if (existingMatch) {
+        throw new Error('This match already exists in the database.')
+      }
+
+      const { data: insertedMatch, error: matchError } = await supabase
+        .from('matches')
+        .insert({
+          match_date: preparedRow.date,
+          match_type: preparedRow.matchType,
+          score: preparedRow.score,
+          winner_side: preparedRow.winnerSide,
+          line_number: preparedRow.lineNumber,
+          source: preparedRow.source,
+          external_match_id: preparedRow.externalMatchId,
+          dedupe_key: dedupeKey,
         })
         .select('id')
+        .single()
 
-      if (insertError) {
-        throw new Error(insertError.message)
+      if (matchError) {
+        throw new Error(matchError.message)
       }
 
-      const insertedCount = data?.length ?? 0
+      const participantRows = [
+        ...preparedRow.sideA.map((name, index) => {
+          const player = playerMap[name.toLowerCase()]
+          if (!player) throw new Error(`Unable to resolve player: ${name}`)
+          return {
+            match_id: insertedMatch.id,
+            player_id: player.id,
+            side: 'A' as const,
+            seat: index + 1,
+          }
+        }),
+        ...preparedRow.sideB.map((name, index) => {
+          const player = playerMap[name.toLowerCase()]
+          if (!player) throw new Error(`Unable to resolve player: ${name}`)
+          return {
+            match_id: insertedMatch.id,
+            player_id: player.id,
+            side: 'B' as const,
+            seat: index + 1,
+          }
+        }),
+      ]
 
-      if (insertedCount === 0) {
-        setMessage('This match already exists. No new rows were added.')
-        return
+      const { error: matchPlayersError } = await supabase
+        .from('match_players')
+        .insert(participantRows)
+
+      if (matchPlayersError) {
+        await supabase.from('matches').delete().eq('id', insertedMatch.id)
+        throw new Error(matchPlayersError.message)
       }
 
-      await recalculateDynamicRatings()
-      await fetchPlayers()
+      let ratingsRecalculated = false
+      try {
+        await recalculateDynamicRatings()
+        ratingsRecalculated = true
+      } catch (recalcError) {
+        console.error('Rating recalculation failed:', recalcError)
+      }
 
-      setMessage(`Match added successfully as ${matchType}. Ratings updated.`)
-      setPlayerId('')
-      setOpponentId('')
-      setResult('')
-      setDate(getTodayDateString())
-      setMatchType('singles')
+      setMessage(
+        ratingsRecalculated
+          ? 'Match added successfully. Ratings recalculated.'
+          : 'Match added successfully. Ratings were not recalculated.'
+      )
 
-      router.refresh()
+      resetForm()
+      await refreshPlayers()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Something went wrong.'
-      setError(message)
+      setError(err instanceof Error ? err.message : 'Failed to add match.')
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
+  }
+
+  async function refreshPlayers() {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, name')
+      .order('name', { ascending: true })
+
+    if (!error) {
+      setPlayers((data || []) as Player[])
+    }
+  }
+
+  function resetForm() {
+    setMatchType('singles')
+    setMatchDate('')
+    setScore('')
+    setWinnerSide('A')
+    setLineNumber('')
+    setSource('manual')
+    setExternalMatchId('')
+    setSideA1('')
+    setSideA2('')
+    setSideB1('')
+    setSideB2('')
   }
 
   if (authLoading) {
@@ -214,39 +276,28 @@ export default function AddMatchPage() {
   }
 
   return (
-    <main
-      style={{
-        padding: '24px',
-        fontFamily: 'Arial, sans-serif',
-        maxWidth: '1000px',
-        margin: '0 auto',
-        background: '#f8fafc',
-        minHeight: '100vh',
-      }}
-    >
-      <div style={navScrollerStyle}>
-        <div style={navRowStyle}>
-          <Link href="/" style={navLinkStyle}>Home</Link>
-          <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-          <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-          <Link href="/admin" style={navLinkStyle}>Admin</Link>
-          <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
-          <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
-          <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
-          <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-          <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
-        </div>
+    <main style={mainStyle}>
+      <div style={navRowStyle}>
+        <Link href="/" style={navLinkStyle}>Home</Link>
+        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
+        <Link href="/admin" style={navLinkStyle}>Admin</Link>
+        <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
+        <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
+        <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
+        <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
+        <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
       </div>
 
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Add Match</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Add a singles or doubles result, prevent duplicates, and update ratings plus history.
+          Add a singles or doubles match into the new matches + match_players structure.
         </p>
       </div>
 
       <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>New Match</h2>
+        <h2 style={{ marginTop: 0 }}>Match Details</h2>
 
         <form onSubmit={handleSubmit}>
           <div style={formGridStyle}>
@@ -256,7 +307,7 @@ export default function AddMatchPage() {
                 value={matchType}
                 onChange={(e) => setMatchType(e.target.value as MatchType)}
                 style={inputStyle}
-                disabled={saving}
+                disabled={loading}
               >
                 <option value="singles">Singles</option>
                 <option value="doubles">Doubles</option>
@@ -264,118 +315,404 @@ export default function AddMatchPage() {
             </div>
 
             <div>
-              <label style={labelStyle}>Date</label>
+              <label style={labelStyle}>Match Date</label>
               <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                value={matchDate}
+                onChange={(e) => setMatchDate(e.target.value)}
                 style={inputStyle}
-                disabled={saving}
+                disabled={loading}
               />
             </div>
 
             <div>
-              <label style={labelStyle}>Player</label>
-              <select
-                value={playerId}
-                onChange={(e) => {
-                  const nextPlayerId = e.target.value
-                  setPlayerId(nextPlayerId)
-
-                  if (nextPlayerId && nextPlayerId === opponentId) {
-                    setOpponentId('')
-                  }
-                }}
+              <label style={labelStyle}>Score</label>
+              <input
+                type="text"
+                value={score}
+                onChange={(e) => setScore(e.target.value)}
+                placeholder="6-3 6-4"
                 style={inputStyle}
-                disabled={saving}
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Winner</label>
+              <select
+                value={winnerSide}
+                onChange={(e) => setWinnerSide(e.target.value as MatchSide)}
+                style={inputStyle}
+                disabled={loading}
               >
-                <option value="">Select player</option>
-                {players.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name} ({formatPlayerRating(player, matchType)})
-                  </option>
-                ))}
+                <option value="A">Side A</option>
+                <option value="B">Side B</option>
               </select>
             </div>
 
             <div>
-              <label style={labelStyle}>Opponent</label>
-              <select
-                value={opponentId}
-                onChange={(e) => setOpponentId(e.target.value)}
-                style={inputStyle}
-                disabled={saving}
-              >
-                <option value="">Select opponent</option>
-                {availableOpponents.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name} ({formatPlayerRating(player, matchType)})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={labelStyle}>Result</label>
+              <label style={labelStyle}>Line Number</label>
               <input
                 type="text"
-                value={result}
-                onChange={(e) => setResult(e.target.value)}
-                placeholder="W 6-3 6-4"
+                value={lineNumber}
+                onChange={(e) => setLineNumber(e.target.value)}
+                placeholder="1S or 2D"
                 style={inputStyle}
-                disabled={saving}
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Source</label>
+              <input
+                type="text"
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                placeholder="manual"
+                style={inputStyle}
+                disabled={loading}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>External Match ID</label>
+              <input
+                type="text"
+                value={externalMatchId}
+                onChange={(e) => setExternalMatchId(e.target.value)}
+                placeholder="Optional"
+                style={inputStyle}
+                disabled={loading}
               />
             </div>
           </div>
 
-          <div style={{ marginTop: '16px' }}>
+          <div style={{ marginTop: '24px' }}>
+            <h3 style={sectionTitleStyle}>Side A</h3>
+            <div style={formGridStyle}>
+              <div>
+                <label style={labelStyle}>Player 1</label>
+                <input
+                  list="player-options"
+                  value={sideA1}
+                  onChange={(e) => setSideA1(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Enter player name"
+                  disabled={loading || playersLoading}
+                />
+              </div>
+
+              {matchType === 'doubles' && (
+                <div>
+                  <label style={labelStyle}>Player 2</label>
+                  <input
+                    list="player-options"
+                    value={sideA2}
+                    onChange={(e) => setSideA2(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Enter player name"
+                    disabled={loading || playersLoading}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ marginTop: '24px' }}>
+            <h3 style={sectionTitleStyle}>Side B</h3>
+            <div style={formGridStyle}>
+              <div>
+                <label style={labelStyle}>Player 1</label>
+                <input
+                  list="player-options"
+                  value={sideB1}
+                  onChange={(e) => setSideB1(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Enter player name"
+                  disabled={loading || playersLoading}
+                />
+              </div>
+
+              {matchType === 'doubles' && (
+                <div>
+                  <label style={labelStyle}>Player 2</label>
+                  <input
+                    list="player-options"
+                    value={sideB2}
+                    onChange={(e) => setSideB2(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Enter player name"
+                    disabled={loading || playersLoading}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <datalist id="player-options">
+            {playerOptions.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+
+          <div style={checkboxRowStyle}>
+            <input
+              id="create-missing-players"
+              type="checkbox"
+              checked={createMissingPlayers}
+              onChange={(e) => setCreateMissingPlayers(e.target.checked)}
+              disabled={loading}
+            />
+            <label htmlFor="create-missing-players" style={checkboxLabelStyle}>
+              Automatically create missing players
+            </label>
+          </div>
+
+          {message && (
+            <div style={successBoxStyle}>
+              <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+            </div>
+          )}
+
+          {error && (
+            <div style={errorBoxStyle}>
+              <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+            </div>
+          )}
+
+          <div style={{ marginTop: '18px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button
               type="submit"
-              disabled={isSubmitDisabled}
               style={{
                 ...primaryButtonStyle,
-                opacity: isSubmitDisabled ? 0.65 : 1,
-                cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer',
               }}
+              disabled={loading}
             >
-              {saving ? 'Saving...' : 'Save Match'}
+              {loading ? 'Saving...' : 'Add Match'}
+            </button>
+
+            <button
+              type="button"
+              onClick={resetForm}
+              style={secondaryButtonStyle}
+              disabled={loading}
+            >
+              Clear
             </button>
           </div>
         </form>
-
-        <div style={{ marginTop: '16px' }}>
-          <p style={{ color: '#64748b', margin: 0 }}>
-            Result examples: <strong>W 6-3 6-4</strong>, <strong>L 4-6 6-7</strong>
-          </p>
-        </div>
-
-        {message && (
-          <div style={successBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
-          </div>
-        )}
-
-        {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
-          </div>
-        )}
       </div>
     </main>
   )
 }
 
-const navScrollerStyle = {
-  overflowX: 'auto' as const,
-  marginBottom: '24px',
-  paddingBottom: '4px',
+async function fetchPlayersByNames(names: string[]): Promise<Record<string, Player>> {
+  const playerMap: Record<string, Player> = {}
+  const uniqueNames = [...new Set(names.map(normalizeName))]
+
+  for (const chunk of chunkArray(uniqueNames, 500)) {
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, name')
+      .in('name', chunk)
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    for (const player of (data || []) as Player[]) {
+      playerMap[normalizeName(player.name).toLowerCase()] = player
+    }
+  }
+
+  return playerMap
+}
+
+async function createPlayersByNames(names: string[]) {
+  const uniqueNames = [...new Set(names.map(normalizeName))]
+
+  if (uniqueNames.length === 0) return
+
+  const { error } = await supabase
+    .from('players')
+    .insert(
+      uniqueNames.map((name) => ({
+        name,
+        singles_rating: 3.5,
+        singles_dynamic_rating: 3.5,
+        doubles_rating: 3.5,
+        doubles_dynamic_rating: 3.5,
+        overall_rating: 3.5,
+        overall_dynamic_rating: 3.5,
+      }))
+    )
+
+  if (error) {
+    const alreadyExists =
+      error.code === '23505' ||
+      error.message.toLowerCase().includes('duplicate') ||
+      error.message.toLowerCase().includes('unique')
+
+    if (!alreadyExists) {
+      throw new Error(error.message)
+    }
+  }
+}
+
+function validateMatchInput(params: {
+  matchType: MatchType
+  matchDate: string
+  score: string
+  sideA: string[]
+  sideB: string[]
+}) {
+  const { matchType, matchDate, score, sideA, sideB } = params
+
+  if (!matchDate.trim()) {
+    throw new Error('Match date is required.')
+  }
+
+  normalizeDate(matchDate)
+
+  if (!normalizeScore(score)) {
+    throw new Error('Score is required.')
+  }
+
+  if (matchType === 'singles') {
+    if (sideA.length !== 1 || sideB.length !== 1) {
+      throw new Error('Singles requires exactly 1 player on each side.')
+    }
+  }
+
+  if (matchType === 'doubles') {
+    if (sideA.length !== 2 || sideB.length !== 2) {
+      throw new Error('Doubles requires exactly 2 players on each side.')
+    }
+  }
+
+  const allNames = [...sideA, ...sideB]
+  if (allNames.some((name) => !name)) {
+    throw new Error('All player names are required.')
+  }
+
+  const duplicates = findDuplicateNames(allNames)
+  if (duplicates.length > 0) {
+    throw new Error(`A player appears more than once in the same match: ${duplicates.join(', ')}`)
+  }
+}
+
+function buildDedupeKey(row: {
+  date: string
+  matchType: MatchType
+  score: string
+  winnerSide: MatchSide
+  sideA: string[]
+  sideB: string[]
+}) {
+  const winningTeam =
+    row.winnerSide === 'A'
+      ? normalizeTeamForKey(row.sideA)
+      : normalizeTeamForKey(row.sideB)
+
+  const losingTeam =
+    row.winnerSide === 'A'
+      ? normalizeTeamForKey(row.sideB)
+      : normalizeTeamForKey(row.sideA)
+
+  return [
+    row.date,
+    row.matchType,
+    normalizeScore(row.score).toLowerCase(),
+    winningTeam,
+    losingTeam,
+  ].join('|')
+}
+
+function normalizeTeamForKey(names: string[]) {
+  return [...names]
+    .map((name) => normalizeName(name).toLowerCase())
+    .sort()
+    .join('+')
+}
+
+function findDuplicateNames(names: string[]) {
+  const seen = new Set<string>()
+  const duplicates = new Set<string>()
+
+  for (const name of names) {
+    const key = normalizeName(name).toLowerCase()
+    if (seen.has(key)) {
+      duplicates.add(name)
+    } else {
+      seen.add(key)
+    }
+  }
+
+  return [...duplicates]
+}
+
+function normalizeName(name: string) {
+  return name.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeScore(score: string) {
+  return score.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeSource(value: string) {
+  const normalized = value.trim()
+  return normalized || 'manual'
+}
+
+function normalizeNullableText(value: string | null | undefined) {
+  const normalized = (value ?? '').trim()
+  return normalized ? normalized : null
+}
+
+function normalizeDate(date: string) {
+  const value = date.trim()
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value
+  }
+
+  const parsed = new Date(value)
+
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`Invalid date: ${date}`)
+  }
+
+  const year = parsed.getUTCFullYear()
+  const month = String(parsed.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(parsed.getUTCDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
+const mainStyle = {
+  padding: '24px',
+  fontFamily: 'Arial, sans-serif',
+  maxWidth: '1100px',
+  margin: '0 auto',
+  background: '#f8fafc',
+  minHeight: '100vh',
 }
 
 const navRowStyle = {
-  display: 'inline-flex',
+  display: 'flex',
   gap: '12px',
-  minWidth: 'max-content' as const,
-  whiteSpace: 'nowrap' as const,
+  marginBottom: '24px',
+  flexWrap: 'wrap' as const,
 }
 
 const navLinkStyle = {
@@ -414,20 +751,35 @@ const formGridStyle = {
 
 const labelStyle = {
   display: 'block',
-  fontWeight: 700,
-  color: '#0f172a',
   marginBottom: '8px',
+  color: '#334155',
+  fontWeight: 600,
 }
 
 const inputStyle = {
   width: '100%',
   padding: '12px 14px',
   border: '1px solid #cbd5e1',
-  borderRadius: '14px',
+  borderRadius: '12px',
   fontSize: '15px',
   boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
+}
+
+const sectionTitleStyle = {
+  margin: '0 0 12px 0',
+  color: '#0f172a',
+}
+
+const checkboxRowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  marginTop: '20px',
+}
+
+const checkboxLabelStyle = {
+  color: '#334155',
+  fontWeight: 600,
 }
 
 const primaryButtonStyle = {
@@ -436,6 +788,16 @@ const primaryButtonStyle = {
   borderRadius: '14px',
   background: '#2563eb',
   color: 'white',
+  fontWeight: 700,
+  fontSize: '15px',
+}
+
+const secondaryButtonStyle = {
+  padding: '14px 18px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '14px',
+  background: 'white',
+  color: '#0f172a',
   fontWeight: 700,
   fontSize: '15px',
 }

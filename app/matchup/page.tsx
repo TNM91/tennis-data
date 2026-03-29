@@ -10,8 +10,6 @@ type Player = {
   id: string
   name: string
   location?: string | null
-  rating?: string | number | null
-  dynamic_rating?: number | null
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
@@ -41,8 +39,6 @@ export default function MatchupPage() {
           id,
           name,
           location,
-          rating,
-          dynamic_rating,
           overall_dynamic_rating,
           singles_dynamic_rating,
           doubles_dynamic_rating
@@ -101,10 +97,10 @@ export default function MatchupPage() {
   return (
     <main style={mainStyle}>
       <div style={navRowStyle}>
-          <Link href="/" style={navLinkStyle}>Home</Link>
-  <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-  <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-  <Link href="/admin" style={navLinkStyle}>Admin</Link>
+        <Link href="/" style={navLinkStyle}>Home</Link>
+        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
+        <Link href="/admin" style={navLinkStyle}>Admin</Link>
       </div>
 
       <div style={heroCardStyle}>
@@ -329,36 +325,18 @@ function RatingPill({
 
 function getSelectedRating(player: Player, view: RatingView) {
   if (view === 'singles') {
-    return toRatingNumber(
-      player.singles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
+    return toRatingNumber(player.singles_dynamic_rating, 3.5)
   }
 
   if (view === 'doubles') {
-    return toRatingNumber(
-      player.doubles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
+    return toRatingNumber(player.doubles_dynamic_rating, 3.5)
   }
 
-  return toRatingNumber(
-    player.overall_dynamic_rating ??
-      player.dynamic_rating ??
-      player.rating,
-    3.5
-  )
+  return toRatingNumber(player.overall_dynamic_rating, 3.5)
 }
 
-function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : fallback
+function toRatingNumber(value: number | null | undefined, fallback = 3.5) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
 function formatRating(value: number) {

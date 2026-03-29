@@ -6,29 +6,16 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
-type Player = {
+type PlayerRow = {
   id: string
   name: string
-  rating: string
-  dynamic_rating?: number | null
-  location?: string | null
-}
-
-type MatchRow = {
-  id: string
-  player_id: string
-  opponent_id: string | null
-  opponent: string
-  result: string
-  date: string
-}
-
-type SnapshotRow = {
-  id: string
-  player_id: string
-  match_id: string
-  snapshot_date: string
-  dynamic_rating: number
+  location: string | null
+  singles_rating: number | null
+  singles_dynamic_rating: number | null
+  doubles_rating: number | null
+  doubles_dynamic_rating: number | null
+  overall_rating: number | null
+  overall_dynamic_rating: number | null
 }
 
 const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
@@ -36,22 +23,32 @@ const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
 export default function ManagePlayersPage() {
   const router = useRouter()
 
-  const [players, setPlayers] = useState<Player[]>([])
+  const [user, setUser] = useState<any>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+
+  const [players, setPlayers] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [working, setWorking] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [recalculating, setRecalculating] = useState(false)
+
+  const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState<
+    | 'name'
+    | 'location'
+    | 'singles_rating'
+    | 'singles_dynamic_rating'
+    | 'doubles_rating'
+    | 'doubles_dynamic_rating'
+    | 'overall_rating'
+    | 'overall_dynamic_rating'
+  >('overall_dynamic_rating')
+
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  const [search, setSearch] = useState('')
-
-  const [renamePlayerId, setRenamePlayerId] = useState('')
-  const [renameValue, setRenameValue] = useState('')
-
-  const [mergeSourceId, setMergeSourceId] = useState('')
-  const [mergeTargetId, setMergeTargetId] = useState('')
-
-  const [user, setUser] = useState<any>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+  const [editedPlayers, setEditedPlayers] = useState<Record<string, Partial<PlayerRow>>>({})
 
   useEffect(() => {
     const checkUser = async () => {
@@ -64,185 +61,245 @@ export default function ManagePlayersPage() {
 
       if (!user || user.id !== ADMIN_ID) {
         router.push('/admin')
-        return
       }
-
-      await loadPlayers()
     }
 
     checkUser()
   }, [router])
 
-  async function loadPlayers() {
-    setLoading(true)
+  useEffect(() => {
+    if (!user || user.id !== ADMIN_ID) return
+    loadPlayers()
+  }, [user])
+
+  async function loadPlayers(showRefreshing = false) {
+    if (showRefreshing) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+
     setError('')
-    setMessage('')
 
     try {
       const { data, error } = await supabase
         .from('players')
-        .select('id, name, rating, dynamic_rating, location')
-        .order('name', { ascending: true })
+        .select(`
+          id,
+          name,
+          location,
+          singles_rating,
+          singles_dynamic_rating,
+          doubles_rating,
+          doubles_dynamic_rating,
+          overall_rating,
+          overall_dynamic_rating
+        `)
 
       if (error) {
         throw new Error(error.message)
       }
 
-      setPlayers((data || []) as Player[])
+      setPlayers((data || []) as PlayerRow[])
+      setEditedPlayers({})
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load players')
+      setError(err instanceof Error ? err.message : 'Failed to load players.')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
-  async function handleRenamePlayer() {
+  function getPlayerValue(player: PlayerRow, field: keyof PlayerRow) {
+    const editedValue = editedPlayers[player.id]?.[field]
+    return editedValue !== undefined ? editedValue : player[field]
+  }
+
+  function updatePlayerField(
+    playerId: string,
+    field: keyof Pick<
+      PlayerRow,
+      'name' | 'location' | 'singles_rating' | 'doubles_rating' | 'overall_rating'
+    >,
+    value: string
+  ) {
+    setEditedPlayers((prev) => {
+      const next = { ...prev }
+      const existing = { ...(next[playerId] || {}) }
+
+      if (field === 'name' || field === 'location') {
+        existing[field] = value
+      } else {
+        existing[field] = value === '' ? null : Number(value)
+      }
+
+      next[playerId] = existing
+      return next
+    })
+  }
+
+  function isPlayerDirty(playerId: string) {
+    return !!editedPlayers[playerId]
+  }
+
+  async function handleSavePlayer(player: PlayerRow) {
+    const changes = editedPlayers[player.id]
+    if (!changes) return
+
+    setSavingId(player.id)
     setError('')
     setMessage('')
 
     try {
-      if (!renamePlayerId) {
-        throw new Error('Select a player to rename.')
+      const payload: Partial<PlayerRow> = {}
+
+      if (changes.name !== undefined) {
+        const normalizedName = normalizeName(String(changes.name))
+        if (!normalizedName) {
+          throw new Error('Player name is required.')
+        }
+        payload.name = normalizedName
       }
 
-      const trimmedName = normalizeName(renameValue)
-
-      if (!trimmedName) {
-        throw new Error('Enter a new player name.')
+      if (changes.location !== undefined) {
+        payload.location = normalizeNullableText(String(changes.location))
       }
 
-      const existingSameName = players.find(
-        (player) =>
-          player.id !== renamePlayerId &&
-          normalizeName(player.name).toLowerCase() === trimmedName.toLowerCase()
-      )
-
-      if (existingSameName) {
-        throw new Error(
-          `A player named "${trimmedName}" already exists. Use merge instead of rename.`
-        )
-      }
-
-      setWorking(true)
-
-      const player = players.find((p) => p.id === renamePlayerId)
-      if (!player) {
-        throw new Error('Could not find selected player.')
-      }
-
-      const oldName = player.name
-
-      const { error: updatePlayerError } = await supabase
-        .from('players')
-        .update({ name: trimmedName })
-        .eq('id', renamePlayerId)
-
-      if (updatePlayerError) {
-        throw new Error(updatePlayerError.message)
-      }
-
-      const { data: matchesToUpdate, error: fetchMatchesError } = await supabase
-        .from('matches')
-        .select('id, opponent')
-        .eq('opponent_id', renamePlayerId)
-
-      if (fetchMatchesError) {
-        throw new Error(fetchMatchesError.message)
-      }
-
-      const staleOpponentRows = ((matchesToUpdate || []) as Array<{ id: string; opponent: string }>)
-        .filter(
-          (row) =>
-            normalizeName(row.opponent).toLowerCase() === normalizeName(oldName).toLowerCase()
-        )
-        .map((row) => ({
-          id: row.id,
-          opponent: trimmedName,
-        }))
-
-      for (const chunk of chunkArray(staleOpponentRows, 500)) {
-        if (chunk.length === 0) continue
-
-        const { error } = await supabase
-          .from('matches')
-          .upsert(chunk, { onConflict: 'id' })
-
-        if (error) {
-          throw new Error(error.message)
+      for (const field of ['singles_rating', 'doubles_rating', 'overall_rating'] as const) {
+        if (changes[field] !== undefined) {
+          const rawValue = changes[field]
+          if (rawValue === null) {
+            payload[field] = 3.5
+          } else {
+            const numericValue = Number(rawValue)
+            if (Number.isNaN(numericValue)) {
+              throw new Error(`${field} must be a valid number.`)
+            }
+            payload[field] = numericValue
+          }
         }
       }
 
-      setMessage(`Renamed "${oldName}" to "${trimmedName}".`)
-      setRenamePlayerId('')
-      setRenameValue('')
-      await loadPlayers()
+      const { error } = await supabase
+        .from('players')
+        .update(payload)
+        .eq('id', player.id)
+
+      if (error) {
+        throw new Error(error.message)
+      }
+
+      let ratingsRecalculated = false
+      try {
+        await recalculateDynamicRatings()
+        ratingsRecalculated = true
+      } catch (recalcError) {
+        console.error('Rating recalculation failed:', recalcError)
+      }
+
+      setMessage(
+        ratingsRecalculated
+          ? 'Player updated and ratings recalculated.'
+          : 'Player updated, but ratings were not recalculated.'
+      )
+
+      await loadPlayers(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Rename failed')
+      setError(err instanceof Error ? err.message : 'Failed to save player.')
     } finally {
-      setWorking(false)
+      setSavingId(null)
     }
   }
 
-  async function handleMergePlayers() {
+  async function handleDeletePlayer(player: PlayerRow) {
+    const confirmed = window.confirm(
+      `Delete ${player.name}? This can fail if the player is still referenced by matches.`
+    )
+    if (!confirmed) return
+
+    setDeletingId(player.id)
     setError('')
     setMessage('')
 
     try {
-      if (!mergeSourceId || !mergeTargetId) {
-        throw new Error('Select both source and target players.')
+      const { error } = await supabase
+        .from('players')
+        .delete()
+        .eq('id', player.id)
+
+      if (error) {
+        throw new Error(
+          error.message.includes('reference')
+            ? 'Cannot delete this player because they are still used in matches.'
+            : error.message
+        )
       }
 
-      if (mergeSourceId === mergeTargetId) {
-        throw new Error('Source and target players must be different.')
+      let ratingsRecalculated = false
+      try {
+        await recalculateDynamicRatings()
+        ratingsRecalculated = true
+      } catch (recalcError) {
+        console.error('Rating recalculation failed:', recalcError)
       }
 
-      const source = players.find((p) => p.id === mergeSourceId)
-      const target = players.find((p) => p.id === mergeTargetId)
-
-      if (!source || !target) {
-        throw new Error('Could not find selected players.')
-      }
-
-      const confirmed = window.confirm(
-        `Merge "${source.name}" into "${target.name}"?\n\nThis will:\n- move match rows\n- move snapshots\n- update opponent references\n- delete the source player\n- rebuild ratings`
+      setMessage(
+        ratingsRecalculated
+          ? 'Player deleted and ratings recalculated.'
+          : 'Player deleted, but ratings were not recalculated.'
       )
 
-      if (!confirmed) return
-
-      setWorking(true)
-
-      await moveMatchesFromSourceToTarget(source, target)
-      await updateOpponentReferences(source, target)
-      await moveSnapshotsFromSourceToTarget(source, target)
-      await removeDuplicateMatches()
-      await removeDuplicateSnapshots()
-      await deleteSourcePlayer(source.id)
-      await recalculateDynamicRatings()
-
-      setMessage(`Merged "${source.name}" into "${target.name}" successfully.`)
-      setMergeSourceId('')
-      setMergeTargetId('')
-      await loadPlayers()
+      await loadPlayers(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Merge failed')
+      setError(err instanceof Error ? err.message : 'Failed to delete player.')
     } finally {
-      setWorking(false)
+      setDeletingId(null)
+    }
+  }
+
+  async function handleRecalculateRatings() {
+    setRecalculating(true)
+    setError('')
+    setMessage('')
+
+    try {
+      await recalculateDynamicRatings()
+      setMessage('Ratings recalculated successfully.')
+      await loadPlayers(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to recalculate ratings.')
+    } finally {
+      setRecalculating(false)
     }
   }
 
   const filteredPlayers = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const normalizedSearch = search.trim().toLowerCase()
 
-    return players.filter((player) => {
-      if (!q) return true
+    const filtered = players.filter((player) => {
+      if (!normalizedSearch) return true
 
-      return (
-        player.name.toLowerCase().includes(q) ||
-        String(player.dynamic_rating ?? player.rating ?? '').toLowerCase().includes(q) ||
-        String(player.location ?? '').toLowerCase().includes(q)
-      )
+      const haystack = [
+        player.name,
+        player.location || '',
+      ]
+        .join(' ')
+        .toLowerCase()
+
+      return haystack.includes(normalizedSearch)
     })
-  }, [players, search])
+
+    return [...filtered].sort((a, b) => {
+      const aValue = a[sortBy]
+      const bValue = b[sortBy]
+
+      if (sortBy === 'name' || sortBy === 'location') {
+        return String(aValue || '').localeCompare(String(bValue || ''))
+      }
+
+      return Number(bValue || 0) - Number(aValue || 0)
+    })
+  }, [players, search, sortBy])
 
   if (authLoading) {
     return <p style={{ padding: '24px' }}>Checking access...</p>
@@ -269,116 +326,70 @@ export default function ManagePlayersPage() {
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Manage Players</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Rename players, merge duplicate player records, and keep match history plus ratings clean.
+          View, search, edit, and delete players using the new singles, doubles, and overall ratings structure.
         </p>
-      </div>
-
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Rename Player</h2>
-
-        <div style={formGridStyle}>
-          <select
-            value={renamePlayerId}
-            onChange={(e) => {
-              const nextId = e.target.value
-              setRenamePlayerId(nextId)
-
-              const selected = players.find((p) => p.id === nextId)
-              setRenameValue(selected?.name ?? '')
-            }}
-            style={inputStyle}
-            disabled={working}
-          >
-            <option value="">Select player</option>
-            {players.map((player) => (
-              <option key={player.id} value={player.id}>
-                {player.name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            placeholder="New player name"
-            style={inputStyle}
-            disabled={working}
-          />
-
-          <button
-            onClick={() => void handleRenamePlayer()}
-            style={{
-              ...primaryButtonStyle,
-              opacity: working ? 0.7 : 1,
-              cursor: working ? 'not-allowed' : 'pointer',
-            }}
-            disabled={working}
-          >
-            {working ? 'Working...' : 'Rename Player'}
-          </button>
-        </div>
-      </div>
-
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Merge Players</h2>
-
-        <p style={{ color: '#64748b', marginTop: 0 }}>
-          Choose the duplicate player as the source, and the player record you want to keep as the target.
-        </p>
-
-        <div style={formGridStyle}>
-          <select
-            value={mergeSourceId}
-            onChange={(e) => setMergeSourceId(e.target.value)}
-            style={inputStyle}
-            disabled={working}
-          >
-            <option value="">Source player to merge from</option>
-            {players.map((player) => (
-              <option key={player.id} value={player.id}>
-                {player.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={mergeTargetId}
-            onChange={(e) => setMergeTargetId(e.target.value)}
-            style={inputStyle}
-            disabled={working}
-          >
-            <option value="">Target player to keep</option>
-            {players.map((player) => (
-              <option key={player.id} value={player.id}>
-                {player.name}
-              </option>
-            ))}
-          </select>
-
-          <button
-            onClick={() => void handleMergePlayers()}
-            style={{
-              ...dangerButtonStyle,
-              opacity: working ? 0.7 : 1,
-              cursor: working ? 'not-allowed' : 'pointer',
-            }}
-            disabled={working}
-          >
-            {working ? 'Working...' : 'Merge Players'}
-          </button>
-        </div>
       </div>
 
       <div style={cardStyle}>
         <div style={toolbarStyle}>
-          <h2 style={{ margin: 0 }}>Players</h2>
+          <div style={filterGridStyle}>
+            <div>
+              <label style={labelStyle}>Search</label>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Player name or location"
+                style={inputStyle}
+                disabled={loading || refreshing}
+              />
+            </div>
 
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search players"
-            style={searchInputStyle}
-          />
+            <div>
+              <label style={labelStyle}>Sort By</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                style={inputStyle}
+                disabled={loading || refreshing}
+              >
+                <option value="name">Name</option>
+                <option value="location">Location</option>
+                <option value="singles_rating">Singles Rating</option>
+                <option value="singles_dynamic_rating">Singles Dynamic</option>
+                <option value="doubles_rating">Doubles Rating</option>
+                <option value="doubles_dynamic_rating">Doubles Dynamic</option>
+                <option value="overall_rating">Overall Rating</option>
+                <option value="overall_dynamic_rating">Overall Dynamic</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={buttonRowStyle}>
+            <button
+              onClick={() => loadPlayers(true)}
+              style={{
+                ...secondaryButtonStyle,
+                opacity: refreshing ? 0.7 : 1,
+                cursor: refreshing ? 'not-allowed' : 'pointer',
+              }}
+              disabled={refreshing || loading}
+            >
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+
+            <button
+              onClick={handleRecalculateRatings}
+              style={{
+                ...primaryButtonStyle,
+                opacity: recalculating ? 0.7 : 1,
+                cursor: recalculating ? 'not-allowed' : 'pointer',
+              }}
+              disabled={recalculating || loading}
+            >
+              {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
+            </button>
+          </div>
         </div>
 
         {message && (
@@ -393,262 +404,157 @@ export default function ManagePlayersPage() {
           </div>
         )}
 
-        <div style={{ overflowX: 'auto', marginTop: '18px' }}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Name</th>
-                <th style={thStyle}>Dynamic Rating</th>
-                <th style={thStyle}>Base Rating</th>
-                <th style={thStyle}>Location</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td style={tdStyle} colSpan={4}>Loading players...</td>
-                </tr>
-              ) : filteredPlayers.length === 0 ? (
-                <tr>
-                  <td style={tdStyle} colSpan={4}>No players found.</td>
-                </tr>
-              ) : (
-                filteredPlayers.map((player) => (
-                  <tr key={player.id}>
-                    <td style={tdStyle}>{player.name}</td>
-                    <td style={tdStyle}>{formatRating(player.dynamic_rating)}</td>
-                    <td style={tdStyle}>{player.rating}</td>
-                    <td style={tdStyle}>{player.location || '—'}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div style={summaryGridStyle}>
+          <div style={summaryCardStyle}>
+            <div style={summaryLabelStyle}>Total Players</div>
+            <div style={summaryValueStyle}>{players.length}</div>
+          </div>
+
+          <div style={summaryCardStyle}>
+            <div style={summaryLabelStyle}>Filtered Players</div>
+            <div style={summaryValueStyle}>{filteredPlayers.length}</div>
+          </div>
         </div>
+
+        {loading ? (
+          <p style={{ marginTop: '20px' }}>Loading players...</p>
+        ) : filteredPlayers.length === 0 ? (
+          <p style={{ marginTop: '20px', color: '#64748b' }}>No players found.</p>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: '20px' }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Location</th>
+                  <th style={thStyle}>Singles</th>
+                  <th style={thStyle}>Singles Dynamic</th>
+                  <th style={thStyle}>Doubles</th>
+                  <th style={thStyle}>Doubles Dynamic</th>
+                  <th style={thStyle}>Overall</th>
+                  <th style={thStyle}>Overall Dynamic</th>
+                  <th style={thStyle}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPlayers.map((player) => (
+                  <tr key={player.id} style={rowStyle}>
+                    <td style={tdStyle}>
+                      <input
+                        value={String(getPlayerValue(player, 'name') || '')}
+                        onChange={(e) => updatePlayerField(player.id, 'name', e.target.value)}
+                        style={tableInputStyle}
+                        disabled={savingId === player.id || deletingId === player.id}
+                      />
+                    </td>
+
+                    <td style={tdStyle}>
+                      <input
+                        value={String(getPlayerValue(player, 'location') || '')}
+                        onChange={(e) => updatePlayerField(player.id, 'location', e.target.value)}
+                        style={tableInputStyle}
+                        disabled={savingId === player.id || deletingId === player.id}
+                      />
+                    </td>
+
+                    <td style={tdStyle}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={String(getPlayerValue(player, 'singles_rating') ?? '')}
+                        onChange={(e) => updatePlayerField(player.id, 'singles_rating', e.target.value)}
+                        style={tableNumberInputStyle}
+                        disabled={savingId === player.id || deletingId === player.id}
+                      />
+                    </td>
+
+                    <td style={tdStyle}>{formatRating(player.singles_dynamic_rating)}</td>
+
+                    <td style={tdStyle}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={String(getPlayerValue(player, 'doubles_rating') ?? '')}
+                        onChange={(e) => updatePlayerField(player.id, 'doubles_rating', e.target.value)}
+                        style={tableNumberInputStyle}
+                        disabled={savingId === player.id || deletingId === player.id}
+                      />
+                    </td>
+
+                    <td style={tdStyle}>{formatRating(player.doubles_dynamic_rating)}</td>
+
+                    <td style={tdStyle}>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={String(getPlayerValue(player, 'overall_rating') ?? '')}
+                        onChange={(e) => updatePlayerField(player.id, 'overall_rating', e.target.value)}
+                        style={tableNumberInputStyle}
+                        disabled={savingId === player.id || deletingId === player.id}
+                      />
+                    </td>
+
+                    <td style={tdStyle}>{formatRating(player.overall_dynamic_rating)}</td>
+
+                    <td style={tdStyle}>
+                      <div style={actionRowStyle}>
+                        <button
+                          onClick={() => handleSavePlayer(player)}
+                          style={{
+                            ...primarySmallButtonStyle,
+                            opacity: savingId === player.id || !isPlayerDirty(player.id) ? 0.7 : 1,
+                            cursor:
+                              savingId === player.id || !isPlayerDirty(player.id)
+                                ? 'not-allowed'
+                                : 'pointer',
+                          }}
+                          disabled={savingId === player.id || !isPlayerDirty(player.id)}
+                        >
+                          {savingId === player.id ? 'Saving...' : 'Save'}
+                        </button>
+
+                        <button
+                          onClick={() => handleDeletePlayer(player)}
+                          style={{
+                            ...dangerButtonStyle,
+                            opacity: deletingId === player.id ? 0.7 : 1,
+                            cursor: deletingId === player.id ? 'not-allowed' : 'pointer',
+                          }}
+                          disabled={deletingId === player.id}
+                        >
+                          {deletingId === player.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </main>
   )
-}
-
-async function moveMatchesFromSourceToTarget(source: Player, target: Player) {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('id, player_id, opponent_id, opponent, result, date')
-    .eq('player_id', source.id)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const rows = (data || []) as MatchRow[]
-
-  const updatedRows = rows.map((row) => ({
-    id: row.id,
-    player_id: target.id,
-  }))
-
-  for (const chunk of chunkArray(updatedRows, 500)) {
-    if (chunk.length === 0) continue
-
-    const { error: updateError } = await supabase
-      .from('matches')
-      .upsert(chunk, { onConflict: 'id' })
-
-    if (updateError) {
-      throw new Error(updateError.message)
-    }
-  }
-}
-
-async function updateOpponentReferences(source: Player, target: Player) {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('id, player_id, opponent_id, opponent, result, date')
-    .eq('opponent_id', source.id)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const rows = (data || []) as MatchRow[]
-
-  const updatedRows = rows.map((row) => ({
-    id: row.id,
-    opponent_id: target.id,
-    opponent:
-      normalizeName(row.opponent).toLowerCase() === normalizeName(source.name).toLowerCase()
-        ? target.name
-        : row.opponent,
-  }))
-
-  for (const chunk of chunkArray(updatedRows, 500)) {
-    if (chunk.length === 0) continue
-
-    const { error: updateError } = await supabase
-      .from('matches')
-      .upsert(chunk, { onConflict: 'id' })
-
-    if (updateError) {
-      throw new Error(updateError.message)
-    }
-  }
-}
-
-async function moveSnapshotsFromSourceToTarget(source: Player, target: Player) {
-  const { data, error } = await supabase
-    .from('rating_snapshots')
-    .select('id, player_id, match_id, snapshot_date, dynamic_rating')
-    .eq('player_id', source.id)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const rows = (data || []) as SnapshotRow[]
-
-  const updates = rows.map((row) => ({
-    id: row.id,
-    player_id: target.id,
-  }))
-
-  for (const chunk of chunkArray(updates, 500)) {
-    if (chunk.length === 0) continue
-
-    const { error: updateError } = await supabase
-      .from('rating_snapshots')
-      .upsert(chunk, { onConflict: 'id' })
-
-    if (updateError) {
-      throw new Error(updateError.message)
-    }
-  }
-}
-
-async function removeDuplicateMatches() {
-  const { data, error } = await supabase
-    .from('matches')
-    .select('id, player_id, opponent_id, result, date')
-    .order('id', { ascending: true })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const rows = (data || []) as Array<{
-    id: string
-    player_id: string
-    opponent_id: string | null
-    result: string
-    date: string
-  }>
-
-  const seen = new Map<string, string>()
-  const duplicateIds: string[] = []
-
-  for (const row of rows) {
-    const key = `${row.player_id}|${row.opponent_id ?? ''}|${row.date}|${row.result}`
-
-    if (seen.has(key)) {
-      duplicateIds.push(row.id)
-    } else {
-      seen.set(key, row.id)
-    }
-  }
-
-  for (const chunk of chunkArray(duplicateIds, 500)) {
-    if (chunk.length === 0) continue
-
-    const { error: deleteError } = await supabase
-      .from('matches')
-      .delete()
-      .in('id', chunk)
-
-    if (deleteError) {
-      throw new Error(deleteError.message)
-    }
-  }
-}
-
-async function removeDuplicateSnapshots() {
-  const { data, error } = await supabase
-    .from('rating_snapshots')
-    .select('id, player_id, match_id, snapshot_date')
-    .order('id', { ascending: true })
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const rows = (data || []) as Array<{
-    id: string
-    player_id: string
-    match_id: string
-    snapshot_date: string
-  }>
-
-  const seen = new Map<string, string>()
-  const duplicateIds: string[] = []
-
-  for (const row of rows) {
-    const key = `${row.player_id}|${row.match_id}|${row.snapshot_date}`
-
-    if (seen.has(key)) {
-      duplicateIds.push(row.id)
-    } else {
-      seen.set(key, row.id)
-    }
-  }
-
-  for (const chunk of chunkArray(duplicateIds, 500)) {
-    if (chunk.length === 0) continue
-
-    const { error: deleteError } = await supabase
-      .from('rating_snapshots')
-      .delete()
-      .in('id', chunk)
-
-    if (deleteError) {
-      throw new Error(deleteError.message)
-    }
-  }
-}
-
-async function deleteSourcePlayer(sourcePlayerId: string) {
-  const { error } = await supabase
-    .from('players')
-    .delete()
-    .eq('id', sourcePlayerId)
-
-  if (error) {
-    throw new Error(error.message)
-  }
 }
 
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, ' ')
 }
 
-function formatRating(value: number | string | null | undefined) {
-  if (value === null || value === undefined || value === '') return '—'
-
-  const num = Number(value)
-  return Number.isFinite(num) ? num.toFixed(2) : String(value)
+function normalizeNullableText(value: string | null | undefined) {
+  const normalized = (value ?? '').trim()
+  return normalized ? normalized : null
 }
 
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = []
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-
-  return chunks
+function formatRating(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
+  return value.toFixed(3)
 }
 
 const mainStyle = {
   padding: '24px',
   fontFamily: 'Arial, sans-serif',
-  maxWidth: '1200px',
+  maxWidth: '1300px',
   margin: '0 auto',
   background: '#f8fafc',
   minHeight: '100vh',
@@ -689,35 +595,42 @@ const cardStyle = {
   marginBottom: '22px',
 }
 
-const formGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '16px',
-  alignItems: 'center',
-}
-
 const toolbarStyle = {
   display: 'flex',
   justifyContent: 'space-between',
-  gap: '12px',
+  alignItems: 'end',
+  gap: '16px',
   flexWrap: 'wrap' as const,
-  alignItems: 'center',
+}
+
+const filterGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '16px',
+  flex: 1,
+  minWidth: '320px',
+}
+
+const labelStyle = {
+  display: 'block',
+  marginBottom: '8px',
+  color: '#334155',
+  fontWeight: 600,
 }
 
 const inputStyle = {
   width: '100%',
   padding: '12px 14px',
   border: '1px solid #cbd5e1',
-  borderRadius: '14px',
+  borderRadius: '12px',
   fontSize: '15px',
   boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
 }
 
-const searchInputStyle = {
-  ...inputStyle,
-  maxWidth: '320px',
+const buttonRowStyle = {
+  display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap' as const,
 }
 
 const primaryButtonStyle = {
@@ -730,14 +643,34 @@ const primaryButtonStyle = {
   fontSize: '15px',
 }
 
-const dangerButtonStyle = {
-  padding: '14px 18px',
+const primarySmallButtonStyle = {
+  padding: '10px 14px',
   border: 'none',
+  borderRadius: '12px',
+  background: '#2563eb',
+  color: 'white',
+  fontWeight: 700,
+  fontSize: '14px',
+}
+
+const secondaryButtonStyle = {
+  padding: '14px 18px',
+  border: '1px solid #cbd5e1',
   borderRadius: '14px',
+  background: 'white',
+  color: '#0f172a',
+  fontWeight: 700,
+  fontSize: '15px',
+}
+
+const dangerButtonStyle = {
+  padding: '10px 14px',
+  border: 'none',
+  borderRadius: '12px',
   background: '#dc2626',
   color: 'white',
   fontWeight: 700,
-  fontSize: '15px',
+  fontSize: '14px',
 }
 
 const successBoxStyle = {
@@ -758,6 +691,32 @@ const errorBoxStyle = {
   color: '#991b1b',
 }
 
+const summaryGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: '12px',
+  marginTop: '20px',
+}
+
+const summaryCardStyle = {
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '14px',
+  padding: '14px',
+}
+
+const summaryLabelStyle = {
+  color: '#64748b',
+  fontSize: '13px',
+  marginBottom: '6px',
+}
+
+const summaryValueStyle = {
+  color: '#0f172a',
+  fontSize: '24px',
+  fontWeight: 700,
+}
+
 const tableStyle = {
   width: '100%',
   borderCollapse: 'collapse' as const,
@@ -769,10 +728,40 @@ const thStyle = {
   borderBottom: '1px solid #cbd5e1',
   color: '#334155',
   background: '#f8fafc',
+  whiteSpace: 'nowrap' as const,
 }
 
 const tdStyle = {
   padding: '12px',
   borderBottom: '1px solid #e2e8f0',
   color: '#0f172a',
+  verticalAlign: 'top' as const,
+}
+
+const rowStyle = {
+  background: 'white',
+}
+
+const tableInputStyle = {
+  width: '180px',
+  padding: '10px 12px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '10px',
+  fontSize: '14px',
+  boxSizing: 'border-box' as const,
+}
+
+const tableNumberInputStyle = {
+  width: '110px',
+  padding: '10px 12px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '10px',
+  fontSize: '14px',
+  boxSizing: 'border-box' as const,
+}
+
+const actionRowStyle = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap' as const,
 }

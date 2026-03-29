@@ -1,186 +1,325 @@
 import { supabase } from './supabase'
 
 type MatchType = 'singles' | 'doubles'
+type MatchSide = 'A' | 'B'
 
-type Player = {
+type PlayerRow = {
   id: string
   name: string
-  rating: string | number | null
-  dynamic_rating?: number | null
-  singles_rating?: number | string | null
-  singles_dynamic_rating?: number | null
-  doubles_rating?: number | string | null
-  doubles_dynamic_rating?: number | null
-  overall_rating?: number | string | null
-  overall_dynamic_rating?: number | null
-  location?: string | null
+  singles_rating: number | null
+  singles_dynamic_rating: number | null
+  doubles_rating: number | null
+  doubles_dynamic_rating: number | null
+  overall_rating: number | null
+  overall_dynamic_rating: number | null
 }
 
-type StoredMatch = {
+type MatchRow = {
   id: string
+  match_date: string
+  match_type: MatchType
+  score: string
+  winner_side: MatchSide
+  created_at?: string | null
+}
+
+type MatchPlayerRow = {
+  match_id: string
   player_id: string
-  opponent_id?: string | null
-  opponent: string
-  result: string
-  date: string
-  match_type?: MatchType | null
+  side: MatchSide
+  seat: number | null
 }
 
-type RatingMap = Record<string, number>
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = []
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-
-  return chunks
+type WorkingPlayer = {
+  id: string
+  name: string
+  singlesBase: number
+  singlesDynamic: number
+  doublesBase: number
+  doublesDynamic: number
+  overallBase: number
+  overallDynamic: number
 }
 
-function normalizeMatchType(value: string | null | undefined): MatchType {
-  return value === 'doubles' ? 'doubles' : 'singles'
+type RatingSnapshotInsert = {
+  player_id: string
+  match_id: string
+  snapshot_date: string
+  rating_type: 'singles' | 'doubles' | 'overall'
+  dynamic_rating: number
 }
 
-function getMarginBonus(result: string) {
-  const normalized = result.replace(/\s/g, '').toUpperCase()
+const DEFAULT_RATING = 3.5
 
-  if (normalized.startsWith('W6-0,6-0') || normalized.startsWith('W6-0;6-0')) return 0.03
-  if (normalized.startsWith('W')) return 0.015
-  if (normalized.startsWith('L6-0,6-0') || normalized.startsWith('L6-0;6-0')) return -0.03
-  if (normalized.startsWith('L')) return -0.015
+// Tune these if ratings move too slowly or too quickly.
+const K_SINGLES = 0.08
+const K_DOUBLES = 0.08
+const K_OVERALL = 0.04
 
-  return 0
-}
-
-function clampRating(value: number) {
-  return Math.max(1.5, Math.min(7.0, value))
-}
-
-function roundToTwo(value: number) {
-  return Math.round(value * 100) / 100
-}
-
-function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : fallback
-}
-
-function deriveOverallRating(singles: number, doubles: number) {
-  return roundToTwo((singles + doubles) / 2)
-}
+// Smaller divisor = more rating volatility.
+// Larger divisor = less volatility.
+const RATING_DIVISOR = 0.35
 
 export async function recalculateDynamicRatings() {
-  const { data: playersData, error: playerError } = await supabase
+  const players = await fetchPlayers()
+  const matches = await fetchMatches()
+  const matchPlayers = await fetchMatchPlayers()
+
+  const playersById = new Map<string, WorkingPlayer>(
+    players.map((player) => [
+      player.id,
+      {
+        id: player.id,
+        name: player.name,
+        singlesBase: safeNumber(player.singles_rating, DEFAULT_RATING),
+        singlesDynamic: safeNumber(player.singles_rating, DEFAULT_RATING),
+        doublesBase: safeNumber(player.doubles_rating, DEFAULT_RATING),
+        doublesDynamic: safeNumber(player.doubles_rating, DEFAULT_RATING),
+        overallBase: safeNumber(player.overall_rating, DEFAULT_RATING),
+        overallDynamic: safeNumber(player.overall_rating, DEFAULT_RATING),
+      },
+    ])
+  )
+
+  const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
+
+  for (const row of matchPlayers) {
+    const existing = participantsByMatchId.get(row.match_id) ?? []
+    existing.push(row)
+    participantsByMatchId.set(row.match_id, existing)
+  }
+
+  const snapshotRows: RatingSnapshotInsert[] = []
+
+  for (const match of matches) {
+    const participants = participantsByMatchId.get(match.id) ?? []
+
+    const sideA = participants
+      .filter((p) => p.side === 'A')
+      .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
+
+    const sideB = participants
+      .filter((p) => p.side === 'B')
+      .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
+
+    if (match.match_type === 'singles') {
+      if (sideA.length !== 1 || sideB.length !== 1) {
+        console.warn(`Skipping singles match ${match.id}: expected 1 player per side.`)
+        continue
+      }
+
+      const playerA = playersById.get(sideA[0].player_id)
+      const playerB = playersById.get(sideB[0].player_id)
+
+      if (!playerA || !playerB) {
+        console.warn(`Skipping singles match ${match.id}: missing player(s).`)
+        continue
+      }
+
+      processSinglesMatch(match, playerA, playerB, snapshotRows)
+      continue
+    }
+
+    if (match.match_type === 'doubles') {
+      if (sideA.length !== 2 || sideB.length !== 2) {
+        console.warn(`Skipping doubles match ${match.id}: expected 2 players per side.`)
+        continue
+      }
+
+      const teamA = sideA
+        .map((p) => playersById.get(p.player_id))
+        .filter(Boolean) as WorkingPlayer[]
+
+      const teamB = sideB
+        .map((p) => playersById.get(p.player_id))
+        .filter(Boolean) as WorkingPlayer[]
+
+      if (teamA.length !== 2 || teamB.length !== 2) {
+        console.warn(`Skipping doubles match ${match.id}: missing player(s).`)
+        continue
+      }
+
+      processDoublesMatch(match, teamA, teamB, snapshotRows)
+    }
+  }
+
+  await persistPlayerRatings([...playersById.values()])
+  await replaceRatingSnapshots(snapshotRows)
+}
+
+async function fetchPlayers(): Promise<PlayerRow[]> {
+  const { data, error } = await supabase
     .from('players')
     .select(`
       id,
       name,
-      rating,
-      dynamic_rating,
       singles_rating,
       singles_dynamic_rating,
       doubles_rating,
       doubles_dynamic_rating,
       overall_rating,
-      overall_dynamic_rating,
-      location
+      overall_dynamic_rating
     `)
 
-  if (playerError) {
-    throw new Error(playerError.message)
+  if (error) {
+    throw new Error(`Failed to fetch players: ${error.message}`)
   }
 
-  const { data: matchesData, error: matchError } = await supabase
+  return (data ?? []) as PlayerRow[]
+}
+
+async function fetchMatches(): Promise<MatchRow[]> {
+  const { data, error } = await supabase
     .from('matches')
-    .select('id, player_id, opponent_id, opponent, result, date, match_type')
-    .order('date', { ascending: true })
-    .order('id', { ascending: true })
+    .select(`
+      id,
+      match_date,
+      match_type,
+      score,
+      winner_side,
+      created_at
+    `)
+    .order('match_date', { ascending: true })
+    .order('created_at', { ascending: true })
 
-  if (matchError) {
-    throw new Error(matchError.message)
+  if (error) {
+    throw new Error(`Failed to fetch matches: ${error.message}`)
   }
 
-  const players = (playersData || []) as Player[]
-  const matches = (matchesData || []) as StoredMatch[]
+  return (data ?? []) as MatchRow[]
+}
 
-  const { error: deleteSnapshotsError } = await supabase
+async function fetchMatchPlayers(): Promise<MatchPlayerRow[]> {
+  const { data, error } = await supabase
+    .from('match_players')
+    .select(`
+      match_id,
+      player_id,
+      side,
+      seat
+    `)
+
+  if (error) {
+    throw new Error(`Failed to fetch match participants: ${error.message}`)
+  }
+
+  return (data ?? []) as MatchPlayerRow[]
+}
+
+function processSinglesMatch(
+  match: MatchRow,
+  playerA: WorkingPlayer,
+  playerB: WorkingPlayer,
+  snapshotRows: RatingSnapshotInsert[]
+) {
+  const ratingA = playerA.singlesDynamic
+  const ratingB = playerB.singlesDynamic
+
+  const expectedA = expectedScore(ratingA, ratingB)
+  const expectedB = expectedScore(ratingB, ratingA)
+
+  const actualA = match.winner_side === 'A' ? 1 : 0
+  const actualB = match.winner_side === 'B' ? 1 : 0
+
+  const deltaA = K_SINGLES * (actualA - expectedA)
+  const deltaB = K_SINGLES * (actualB - expectedB)
+
+  playerA.singlesDynamic = roundRating(playerA.singlesDynamic + deltaA)
+  playerB.singlesDynamic = roundRating(playerB.singlesDynamic + deltaB)
+
+  playerA.overallDynamic = roundRating(playerA.overallDynamic + K_OVERALL * (actualA - expectedA))
+  playerB.overallDynamic = roundRating(playerB.overallDynamic + K_OVERALL * (actualB - expectedB))
+
+  snapshotRows.push(
+    buildSnapshot(playerA.id, match.id, match.match_date, 'singles', playerA.singlesDynamic),
+    buildSnapshot(playerB.id, match.id, match.match_date, 'singles', playerB.singlesDynamic),
+    buildSnapshot(playerA.id, match.id, match.match_date, 'overall', playerA.overallDynamic),
+    buildSnapshot(playerB.id, match.id, match.match_date, 'overall', playerB.overallDynamic)
+  )
+}
+
+function processDoublesMatch(
+  match: MatchRow,
+  teamA: WorkingPlayer[],
+  teamB: WorkingPlayer[],
+  snapshotRows: RatingSnapshotInsert[]
+) {
+  const teamARating = average(teamA.map((player) => player.doublesDynamic))
+  const teamBRating = average(teamB.map((player) => player.doublesDynamic))
+
+  const expectedA = expectedScore(teamARating, teamBRating)
+  const expectedB = expectedScore(teamBRating, teamARating)
+
+  const actualA = match.winner_side === 'A' ? 1 : 0
+  const actualB = match.winner_side === 'B' ? 1 : 0
+
+  const deltaA = K_DOUBLES * (actualA - expectedA)
+  const deltaB = K_DOUBLES * (actualB - expectedB)
+
+  for (const player of teamA) {
+    player.doublesDynamic = roundRating(player.doublesDynamic + deltaA)
+    player.overallDynamic = roundRating(player.overallDynamic + K_OVERALL * (actualA - expectedA))
+
+    snapshotRows.push(
+      buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
+      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic)
+    )
+  }
+
+  for (const player of teamB) {
+    player.doublesDynamic = roundRating(player.doublesDynamic + deltaB)
+    player.overallDynamic = roundRating(player.overallDynamic + K_OVERALL * (actualB - expectedB))
+
+    snapshotRows.push(
+      buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
+      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic)
+    )
+  }
+}
+
+function buildSnapshot(
+  playerId: string,
+  matchId: string,
+  snapshotDate: string,
+  ratingType: 'singles' | 'doubles' | 'overall',
+  dynamicRating: number
+): RatingSnapshotInsert {
+  return {
+    player_id: playerId,
+    match_id: matchId,
+    snapshot_date: snapshotDate,
+    rating_type: ratingType,
+    dynamic_rating: roundRating(dynamicRating),
+  }
+}
+
+async function persistPlayerRatings(players: WorkingPlayer[]) {
+  for (const chunk of chunkArray(players, 200)) {
+    const rows = chunk.map((player) => ({
+      id: player.id,
+      singles_dynamic_rating: roundRating(player.singlesDynamic),
+      doubles_dynamic_rating: roundRating(player.doublesDynamic),
+      overall_dynamic_rating: roundRating(player.overallDynamic),
+    }))
+
+    const { error } = await supabase
+      .from('players')
+      .upsert(rows, { onConflict: 'id' })
+
+    if (error) {
+      throw new Error(`Failed to save recalculated player ratings: ${error.message}`)
+    }
+  }
+}
+
+async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
+  const { error: deleteError } = await supabase
     .from('rating_snapshots')
     .delete()
-    .neq('id', '00000000-0000-0000-0000-000000000000')
+    .not('id', 'is', null)
 
-  if (deleteSnapshotsError) {
-    throw new Error(deleteSnapshotsError.message)
-  }
-
-  const singlesRatings: RatingMap = {}
-  const doublesRatings: RatingMap = {}
-
-  for (const player of players) {
-    const fallbackBase = toRatingNumber(player.rating, 3.5)
-
-    singlesRatings[player.id] = toRatingNumber(
-      player.singles_rating ?? player.singles_dynamic_rating,
-      fallbackBase
-    )
-
-    doublesRatings[player.id] = toRatingNumber(
-      player.doubles_rating ?? player.doubles_dynamic_rating,
-      fallbackBase
-    )
-  }
-
-  const snapshotRows: {
-    player_id: string
-    match_id: string
-    snapshot_date: string
-    dynamic_rating: number
-  }[] = []
-
-  for (const match of matches) {
-    const matchType = normalizeMatchType(match.match_type)
-    const ratingMap = matchType === 'doubles' ? doublesRatings : singlesRatings
-
-    const playerRating = ratingMap[match.player_id]
-    if (playerRating === undefined) continue
-
-    let opponentRating = 3.5
-
-    if (match.opponent_id && ratingMap[match.opponent_id] !== undefined) {
-      opponentRating = ratingMap[match.opponent_id]
-    }
-
-    const expected = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 0.4))
-    const actual = match.result.trim().startsWith('W') ? 1 : 0
-    const marginBonus = getMarginBonus(match.result)
-    const k = 0.08
-
-    const newPlayerRating = clampRating(playerRating + k * (actual - expected) + marginBonus)
-    ratingMap[match.player_id] = newPlayerRating
-
-    snapshotRows.push({
-      player_id: match.player_id,
-      match_id: match.id,
-      snapshot_date: match.date,
-      dynamic_rating: roundToTwo(newPlayerRating),
-    })
-
-    if (match.opponent_id && ratingMap[match.opponent_id] !== undefined) {
-      const opponentActual = actual === 1 ? 0 : 1
-      const opponentExpected = 1 - expected
-      const newOpponentRating = clampRating(
-        opponentRating + k * (opponentActual - opponentExpected) - marginBonus
-      )
-
-      ratingMap[match.opponent_id] = newOpponentRating
-
-      snapshotRows.push({
-        player_id: match.opponent_id,
-        match_id: match.id,
-        snapshot_date: match.date,
-        dynamic_rating: roundToTwo(newOpponentRating),
-      })
-    }
+  if (deleteError) {
+    throw new Error(`Failed to clear old rating snapshots: ${deleteError.message}`)
   }
 
   for (const chunk of chunkArray(snapshotRows, 500)) {
@@ -189,39 +328,32 @@ export async function recalculateDynamicRatings() {
       .insert(chunk)
 
     if (error) {
-      throw new Error(error.message)
+      throw new Error(`Failed to insert rating snapshots: ${error.message}`)
     }
   }
+}
 
-  const playerUpdates = players.map((player) => {
-    const singlesDynamic = roundToTwo(
-      singlesRatings[player.id] ?? toRatingNumber(player.singles_rating ?? player.rating, 3.5)
-    )
+function expectedScore(playerRating: number, opponentRating: number) {
+  return 1 / (1 + Math.pow(10, (opponentRating - playerRating) / RATING_DIVISOR))
+}
 
-    const doublesDynamic = roundToTwo(
-      doublesRatings[player.id] ?? toRatingNumber(player.doubles_rating ?? player.rating, 3.5)
-    )
+function average(values: number[]) {
+  if (values.length === 0) return DEFAULT_RATING
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
 
-    const overallDynamic = deriveOverallRating(singlesDynamic, doublesDynamic)
+function safeNumber(value: number | null | undefined, fallback: number) {
+  return typeof value === 'number' && !Number.isNaN(value) ? value : fallback
+}
 
-    return {
-      id: player.id,
-      singles_dynamic_rating: singlesDynamic,
-      doubles_dynamic_rating: doublesDynamic,
-      overall_dynamic_rating: overallDynamic,
-      dynamic_rating: overallDynamic,
-    }
-  })
+function roundRating(value: number) {
+  return Math.round(value * 1000) / 1000
+}
 
-  for (const chunk of chunkArray(playerUpdates, 500)) {
-    const { error } = await supabase
-      .from('players')
-      .upsert(chunk, {
-        onConflict: 'id',
-      })
-
-    if (error) {
-      throw new Error(error.message)
-    }
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
   }
+  return chunks
 }

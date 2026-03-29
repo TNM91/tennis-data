@@ -7,35 +7,58 @@ import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
 type MatchType = 'singles' | 'doubles'
+type MatchSide = 'A' | 'B'
 
 type Player = {
   id: string
   name: string
-  rating: string
-  dynamic_rating?: number | null
-  singles_dynamic_rating?: number | null
-  doubles_dynamic_rating?: number | null
-  overall_dynamic_rating?: number | null
   location?: string | null
+  singles_rating?: number | null
+  singles_dynamic_rating?: number | null
+  doubles_rating?: number | null
+  doubles_dynamic_rating?: number | null
+  overall_rating?: number | null
+  overall_dynamic_rating?: number | null
 }
 
-type MatchInsertRow = {
-  player_id: string
-  opponent_id: string
-  opponent: string
-  result: string
-  date: string
-  match_type: MatchType
+type ImportResult = {
+  parsedCount: number
+  participantRowCount: number
+  uniqueMatchCount: number
+  insertedMatchCount: number
+  skippedDuplicateMatchCount: number
+  createdPlayerCount: number
+  ratingsRecalculated: boolean
 }
 
-type PreparedCSVRow = {
+type CsvRow = Record<string, string>
+
+type PreparedCsvRow = {
   sourceIndex: number
-  player: string
-  opponent: string
-  result: string
+  sideA: string[]
+  sideB: string[]
+  rawResult: string
+  score: string
+  winnerSide: MatchSide
   date: string
   matchType: MatchType
-  location: string | null
+  source: string
+  externalMatchId: string | null
+  lineNumber: string | null
+}
+
+type PreviewRow = {
+  sourceIndex: number
+  sideA: string[]
+  sideB: string[]
+  rawResult: string
+  score: string
+  winnerSide: MatchSide
+  date: string
+  matchType: MatchType
+  status: 'ready' | 'duplicate_in_file' | 'duplicate_in_db'
+  reason: string
+  dedupeKey: string
 }
 
 type InvalidPreviewRow = {
@@ -44,45 +67,26 @@ type InvalidPreviewRow = {
   reason: string
 }
 
-type PreviewRow = {
-  sourceIndex: number
-  player: string
-  opponent: string
-  result: string
-  date: string
-  matchType: MatchType
-  status: 'ready' | 'duplicate_in_file' | 'duplicate_in_db'
-  reason: string
-}
-
-type ImportResult = {
-  parsedCount: number
-  expandedRowCount: number
-  uniqueRowCount: number
-  insertedRowCount: number
-  skippedDuplicateRowCount: number
-  createdPlayerCount: number
-}
-
 type PreviewState = {
-  preparedRows: PreparedCSVRow[]
-  insertRows: MatchInsertRow[]
+  preparedRows: PreparedCsvRow[]
   previewRows: PreviewRow[]
   invalidRows: InvalidPreviewRow[]
   missingNames: string[]
   parsedCount: number
   invalidCount: number
-  expandedRowCount: number
-  uniqueRowCount: number
+  participantRowCount: number
+  uniqueMatchCount: number
   duplicateInFileCount: number
   duplicateInDbCount: number
+  readyRows: PreparedCsvRow[]
 }
 
 const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
 
-export default function CSVImportPage() {
+export default function CsvImportPage() {
   const router = useRouter()
 
+  const [fileName, setFileName] = useState('')
   const [csvText, setCsvText] = useState('')
   const [loading, setLoading] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
@@ -111,6 +115,24 @@ export default function CSVImportPage() {
     checkUser()
   }, [router])
 
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setError('')
+    setMessage('')
+    setResult(null)
+    setPreview(null)
+    setFileName(file.name)
+
+    try {
+      const text = await file.text()
+      setCsvText(text)
+    } catch {
+      setError('Failed to read CSV file.')
+    }
+  }
+
   async function handlePreview() {
     setPreviewLoading(true)
     setError('')
@@ -119,176 +141,84 @@ export default function CSVImportPage() {
     setPreview(null)
 
     try {
-      const parsed = parseCSVWithInvalidRows(csvText)
+      const parsed = parseCsvTextWithInvalidRows(csvText)
 
       if (parsed.validRows.length === 0 && parsed.invalidRows.length === 0) {
         throw new Error('No rows found.')
       }
 
-      const preparedRows: PreparedCSVRow[] = parsed.validRows.map((row) => ({
-        sourceIndex: row.sourceIndex,
-        player: row.player,
-        opponent: row.opponent,
-        result: row.result,
-        date: row.date,
-        matchType: row.matchType,
-        location: row.location ?? null,
-      }))
-
-      const allNames = [...new Set(preparedRows.flatMap((row) => [row.player, row.opponent]))]
+      const preparedRows = parsed.validRows
+      const allNames = [
+        ...new Set(preparedRows.flatMap((row) => [...row.sideA, ...row.sideB])),
+      ]
       const playerMap = await fetchPlayersByNames(allNames)
       const missingNames = allNames.filter((name) => !playerMap[name.toLowerCase()])
 
-      const tempPlayerMap = { ...playerMap }
-
-      for (const missingName of missingNames) {
-        tempPlayerMap[missingName.toLowerCase()] = {
-          id: `preview:${missingName.toLowerCase()}`,
-          name: missingName,
-          rating: '3.5',
-          dynamic_rating: 3.5,
-          singles_dynamic_rating: 3.5,
-          doubles_dynamic_rating: 3.5,
-          overall_dynamic_rating: 3.5,
-          location: null,
-        }
-      }
-
-      const expandedRows: Array<MatchInsertRow & { sourceIndex: number }> = []
+      const fileDuplicateKeys = new Set<string>()
+      const fileSeenKeys = new Set<string>()
+      const uniqueRowMap = new Map<string, PreparedCsvRow>()
 
       for (const row of preparedRows) {
-        const player = tempPlayerMap[row.player.toLowerCase()]
-        const opponent = tempPlayerMap[row.opponent.toLowerCase()]
-
-        if (!player || !opponent) {
-          parsed.invalidRows.push({
-            sourceIndex: row.sourceIndex,
-            raw: `${row.player},${row.opponent},${row.result},${row.date},${row.matchType}`,
-            reason: 'Could not resolve player IDs',
-          })
-          continue
-        }
-
-        expandedRows.push({
-          sourceIndex: row.sourceIndex,
-          player_id: player.id,
-          opponent_id: opponent.id,
-          opponent: opponent.name,
-          result: row.result,
-          date: row.date,
-          match_type: row.matchType,
-        })
-
-        expandedRows.push({
-          sourceIndex: row.sourceIndex,
-          player_id: opponent.id,
-          opponent_id: player.id,
-          opponent: player.name,
-          result: reverseResult(row.result),
-          date: row.date,
-          match_type: row.matchType,
-        })
-      }
-
-      const fileDuplicateSourceIndexes = new Set<number>()
-      const uniqueRowMap = new Map<string, MatchInsertRow & { sourceIndex: number }>()
-      const fileSeenKeys = new Set<string>()
-
-      for (const row of expandedRows) {
-        const key = buildMatchKey(row)
-
-        if (fileSeenKeys.has(key)) {
-          fileDuplicateSourceIndexes.add(row.sourceIndex)
+        const dedupeKey = buildDedupeKey(row)
+        if (fileSeenKeys.has(dedupeKey)) {
+          fileDuplicateKeys.add(dedupeKey)
         } else {
-          fileSeenKeys.add(key)
-          uniqueRowMap.set(key, row)
+          fileSeenKeys.add(dedupeKey)
+          uniqueRowMap.set(dedupeKey, row)
         }
       }
 
       const dedupedRows = [...uniqueRowMap.values()]
-      const dbDuplicateKeys = await findExistingMatchKeys(
-        dedupedRows.map((row) => ({
-          player_id: row.player_id,
-          opponent_id: row.opponent_id,
-          opponent: row.opponent,
-          result: row.result,
-          date: row.date,
-          match_type: row.match_type,
-        }))
+      const dbDuplicateKeys = await findExistingMatchDedupeKeys(
+        dedupedRows.map((row) => buildDedupeKey(row))
       )
 
-      const insertRows = dedupedRows
-        .filter((row) => !dbDuplicateKeys.has(buildMatchKey(row)))
-        .map((row) => ({
-          player_id: row.player_id,
-          opponent_id: row.opponent_id,
-          opponent: row.opponent,
-          result: row.result,
-          date: row.date,
-          match_type: row.match_type,
-        }))
-
       const previewRows: PreviewRow[] = preparedRows.map((row) => {
-        const player = tempPlayerMap[row.player.toLowerCase()]
-        const opponent = tempPlayerMap[row.opponent.toLowerCase()]
-
-        if (!player || !opponent) {
-          return {
-            sourceIndex: row.sourceIndex,
-            player: row.player,
-            opponent: row.opponent,
-            result: row.result,
-            date: row.date,
-            matchType: row.matchType,
-            status: 'duplicate_in_file',
-            reason: 'Skipped due to unresolved player mapping',
-          }
-        }
-
-        const forwardKey = buildMatchKey({
-          player_id: player.id,
-          opponent_id: opponent.id,
-          opponent: opponent.name,
-          result: row.result,
-          date: row.date,
-          match_type: row.matchType,
-        })
+        const dedupeKey = buildDedupeKey(row)
 
         let status: PreviewRow['status'] = 'ready'
         let reason = 'Will be imported'
 
-        if (fileDuplicateSourceIndexes.has(row.sourceIndex)) {
+        if (fileDuplicateKeys.has(dedupeKey)) {
           status = 'duplicate_in_file'
-          reason = 'Duplicate inside this CSV import'
-        } else if (dbDuplicateKeys.has(forwardKey)) {
+          reason = 'Duplicate inside this CSV file'
+        } else if (dbDuplicateKeys.has(dedupeKey)) {
           status = 'duplicate_in_db'
           reason = 'Already exists in database'
         }
 
         return {
           sourceIndex: row.sourceIndex,
-          player: row.player,
-          opponent: row.opponent,
-          result: row.result,
+          sideA: row.sideA,
+          sideB: row.sideB,
+          rawResult: row.rawResult,
+          score: row.score,
+          winnerSide: row.winnerSide,
           date: row.date,
           matchType: row.matchType,
           status,
           reason,
+          dedupeKey,
         }
       })
 
+      const readyRows = dedupedRows.filter((row) => !dbDuplicateKeys.has(buildDedupeKey(row)))
+
       setPreview({
         preparedRows,
-        insertRows,
         previewRows,
         invalidRows: parsed.invalidRows,
         missingNames,
         parsedCount: preparedRows.length,
         invalidCount: parsed.invalidRows.length,
-        expandedRowCount: expandedRows.length,
-        uniqueRowCount: dedupedRows.length,
+        participantRowCount: preparedRows.reduce(
+          (sum, row) => sum + row.sideA.length + row.sideB.length,
+          0
+        ),
+        uniqueMatchCount: dedupedRows.length,
         duplicateInFileCount: previewRows.filter((row) => row.status === 'duplicate_in_file').length,
         duplicateInDbCount: previewRows.filter((row) => row.status === 'duplicate_in_db').length,
+        readyRows,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Preview failed')
@@ -306,75 +236,124 @@ export default function CSVImportPage() {
     setResult(null)
 
     try {
-      const createdPlayers = await createMissingPlayers(
-        preview.missingNames,
-        preview.preparedRows.map((row) => ({ location: row.location }))
-      )
+      const createdPlayers = await createMissingPlayers(preview.missingNames)
+      const playerMap = await fetchPlayersByNames([
+        ...new Set(preview.readyRows.flatMap((row) => [...row.sideA, ...row.sideB])),
+      ])
 
-      const createdPlayerMap: Record<string, Player> = {}
-      for (const player of createdPlayers) {
-        createdPlayerMap[normalizeName(player.name).toLowerCase()] = player
-      }
+      let insertedMatchCount = 0
 
-      const finalInsertRows = preview.insertRows.map((row) => {
-        const playerId = row.player_id.startsWith('preview:')
-          ? createdPlayerMap[row.player_id.replace('preview:', '')]?.id
-          : row.player_id
+      for (const row of preview.readyRows) {
+        const dedupeKey = buildDedupeKey(row)
 
-        const opponentId = row.opponent_id.startsWith('preview:')
-          ? createdPlayerMap[row.opponent_id.replace('preview:', '')]?.id
-          : row.opponent_id
+        const sideAPlayerIds = row.sideA.map((name) => {
+          const player = playerMap[normalizeName(name).toLowerCase()]
+          if (!player) throw new Error(`Missing player after create/fetch: ${name}`)
+          return player.id
+        })
 
-        if (!playerId || !opponentId) {
-          throw new Error('Failed to resolve created player IDs during import.')
-        }
+        const sideBPlayerIds = row.sideB.map((name) => {
+          const player = playerMap[normalizeName(name).toLowerCase()]
+          if (!player) throw new Error(`Missing player after create/fetch: ${name}`)
+          return player.id
+        })
 
-        return {
-          player_id: playerId,
-          opponent_id: opponentId,
-          opponent: row.opponent,
-          result: row.result,
-          date: row.date,
-          match_type: row.match_type,
-        }
-      })
-
-      let insertedRowCount = 0
-
-      for (const chunk of chunkArray(finalInsertRows, 500)) {
-        const { data, error } = await supabase
+        const { data: insertedMatch, error: matchError } = await supabase
           .from('matches')
-          .upsert(chunk, {
-            onConflict: 'player_id,opponent_id,date,result,match_type',
-            ignoreDuplicates: true,
+          .insert({
+            match_date: row.date,
+            match_type: row.matchType,
+            score: row.score,
+            winner_side: row.winnerSide,
+            line_number: row.lineNumber,
+            source: row.source,
+            external_match_id: row.externalMatchId,
+            dedupe_key: dedupeKey,
           })
           .select('id')
+          .single()
 
-        if (error) {
-          throw new Error(error.message)
+        if (matchError) {
+          const alreadyExists =
+            matchError.code === '23505' ||
+            matchError.message.toLowerCase().includes('duplicate') ||
+            matchError.message.toLowerCase().includes('unique')
+
+          if (alreadyExists) {
+            continue
+          }
+
+          throw new Error(matchError.message)
         }
 
-        insertedRowCount += data?.length ?? 0
+        const participantRows = [
+          ...sideAPlayerIds.map((playerId, index) => ({
+            match_id: insertedMatch.id,
+            player_id: playerId,
+            side: 'A' as const,
+            seat: index + 1,
+          })),
+          ...sideBPlayerIds.map((playerId, index) => ({
+            match_id: insertedMatch.id,
+            player_id: playerId,
+            side: 'B' as const,
+            seat: index + 1,
+          })),
+        ]
+
+        const { error: participantsError } = await supabase
+          .from('match_players')
+          .insert(participantRows)
+
+        if (participantsError) {
+          await supabase.from('matches').delete().eq('id', insertedMatch.id)
+          throw new Error(participantsError.message)
+        }
+
+        insertedMatchCount += 1
       }
 
-      if (insertedRowCount > 0) {
-        await recalculateDynamicRatings()
+      let ratingsRecalculated = false
+
+      if (insertedMatchCount > 0) {
+        try {
+          await recalculateDynamicRatings()
+          ratingsRecalculated = true
+        } catch (recalcError) {
+          console.error('Rating recalculation failed:', recalcError)
+          ratingsRecalculated = false
+        }
       }
 
       const importResult: ImportResult = {
         parsedCount: preview.parsedCount,
-        expandedRowCount: preview.expandedRowCount,
-        uniqueRowCount: preview.uniqueRowCount,
-        insertedRowCount,
-        skippedDuplicateRowCount: preview.uniqueRowCount - insertedRowCount,
+        participantRowCount: preview.participantRowCount,
+        uniqueMatchCount: preview.uniqueMatchCount,
+        insertedMatchCount,
+        skippedDuplicateMatchCount: preview.uniqueMatchCount - insertedMatchCount,
         createdPlayerCount: createdPlayers.length,
+        ratingsRecalculated,
       }
 
       setResult(importResult)
-      setMessage(
-        `Imported ${importResult.insertedRowCount} match rows. Skipped ${importResult.skippedDuplicateRowCount} duplicates. Created ${importResult.createdPlayerCount} players.`
-      )
+
+      const messageParts = [
+        `Imported ${importResult.insertedMatchCount} matches.`,
+        `Skipped ${importResult.skippedDuplicateMatchCount} duplicates.`,
+        `Created ${importResult.createdPlayerCount} players.`,
+      ]
+
+      if (insertedMatchCount > 0) {
+        if (ratingsRecalculated) {
+          messageParts.push('Ratings recalculated.')
+        } else {
+          messageParts.push('Matches were imported, but rating recalculation still needs review.')
+        }
+      }
+
+      setMessage(messageParts.join(' '))
       setCsvText('')
+      setFileName('')
       setPreview(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'CSV import failed')
@@ -413,32 +392,62 @@ export default function CSVImportPage() {
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>CSV Import</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Preview CSV match data, including singles or doubles match type, see duplicates and invalid rows before import, create missing players automatically, and rebuild ratings plus snapshots.
+          Upload a CSV of singles or doubles matches, preview duplicates before import, create missing players automatically, and load data into the new matches + match_players structure.
         </p>
       </div>
 
       <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Paste CSV Data</h2>
-        <p style={{ color: '#64748b' }}>Use one of these formats:</p>
+        <h2 style={{ marginTop: 0 }}>CSV Format</h2>
+        <p style={{ color: '#64748b' }}>
+          Recommended columns:
+        </p>
 
         <pre style={sampleStyle}>
-{`player,opponent,result,date
-Nathan Meinert,John Doe,W 6-3 6-4,2026-03-22
-
-player,opponent,result,date,match_type
-Nathan Meinert,John Doe,W 6-3 6-4,2026-03-22,singles
-Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
+{`match_date,match_type,side_a_players,side_b_players,result,source,external_match_id,line_number
+2026-01-18,singles,Stephen Hipkiss,Nathan Meinert,W 6-2 6-1,usta,1011650666,1S
+2026-01-18,doubles,Matthew Hodge / Alex Schaefer,Christopher Krieger / David Cabrera,W 6-3 6-3,usta,1011650666,1D`}
         </pre>
 
-        <textarea
-          value={csvText}
-          onChange={(e) => setCsvText(e.target.value)}
-          placeholder={`player,opponent,result,date,match_type
-Nathan Meinert,John Doe,W 6-3 6-4,2026-03-22,singles
-Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
-          style={textareaStyle}
-          disabled={loading || previewLoading}
-        />
+        <p style={{ color: '#64748b', marginTop: '14px' }}>
+          You can also use <strong>date</strong> instead of <strong>match_date</strong>, and either:
+        </p>
+
+        <pre style={sampleStyle}>
+{`result
+W 6-2 6-1
+
+OR
+
+score,winner_side
+6-2 6-1,A`}
+        </pre>
+
+        <div style={{ marginTop: '16px' }}>
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleFileChange}
+            disabled={loading || previewLoading}
+          />
+        </div>
+
+        {fileName && (
+          <div style={infoBoxStyle}>
+            <strong>Selected file:</strong> {fileName}
+          </div>
+        )}
+
+        {csvText && (
+          <div style={{ marginTop: '16px' }}>
+            <h3 style={{ marginBottom: '12px' }}>CSV Preview</h3>
+            <textarea
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              style={textareaStyle}
+              disabled={loading || previewLoading}
+            />
+          </div>
+        )}
 
         <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button
@@ -496,7 +505,7 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
 
             <div style={summaryGridStyle}>
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Valid Rows</div>
+                <div style={summaryLabelStyle}>Valid Matches</div>
                 <div style={summaryValueStyle}>{preview.parsedCount}</div>
               </div>
 
@@ -506,13 +515,13 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
               </div>
 
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Expanded Rows</div>
-                <div style={summaryValueStyle}>{preview.expandedRowCount}</div>
+                <div style={summaryLabelStyle}>Participant Rows</div>
+                <div style={summaryValueStyle}>{preview.participantRowCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Unique Rows</div>
-                <div style={summaryValueStyle}>{preview.uniqueRowCount}</div>
+                <div style={summaryLabelStyle}>Unique Matches</div>
+                <div style={summaryValueStyle}>{preview.uniqueMatchCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
@@ -573,9 +582,11 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
                 <thead>
                   <tr>
                     <th style={thStyle}>Row</th>
-                    <th style={thStyle}>Player</th>
-                    <th style={thStyle}>Opponent</th>
+                    <th style={thStyle}>Side A</th>
+                    <th style={thStyle}>Side B</th>
                     <th style={thStyle}>Result</th>
+                    <th style={thStyle}>Score</th>
+                    <th style={thStyle}>Winner</th>
                     <th style={thStyle}>Date</th>
                     <th style={thStyle}>Type</th>
                     <th style={thStyle}>Status</th>
@@ -584,7 +595,7 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
                 <tbody>
                   {preview.previewRows.map((row) => (
                     <tr
-                      key={`${row.sourceIndex}-${row.player}-${row.opponent}-${row.date}-${row.result}-${row.matchType}`}
+                      key={`${row.sourceIndex}-${row.dedupeKey}`}
                       style={
                         row.status === 'ready'
                           ? readyRowStyle
@@ -594,9 +605,11 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
                       }
                     >
                       <td style={tdStyle}>{row.sourceIndex}</td>
-                      <td style={tdStyle}>{row.player}</td>
-                      <td style={tdStyle}>{row.opponent}</td>
-                      <td style={tdStyle}>{row.result}</td>
+                      <td style={tdStyle}>{row.sideA.join(' / ')}</td>
+                      <td style={tdStyle}>{row.sideB.join(' / ')}</td>
+                      <td style={tdStyle}>{row.rawResult}</td>
+                      <td style={tdStyle}>{row.score}</td>
+                      <td style={tdStyle}>{row.winnerSide}</td>
                       <td style={tdStyle}>{row.date}</td>
                       <td style={tdStyle}>{capitalize(row.matchType)}</td>
                       <td style={tdStyle}>{row.reason}</td>
@@ -613,34 +626,38 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
             <h3 style={{ marginBottom: '12px' }}>Import Summary</h3>
             <div style={summaryGridStyle}>
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Source Rows</div>
+                <div style={summaryLabelStyle}>Source Matches</div>
                 <div style={summaryValueStyle}>{result.parsedCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Expanded Rows</div>
-                <div style={summaryValueStyle}>{result.expandedRowCount}</div>
+                <div style={summaryLabelStyle}>Participant Rows</div>
+                <div style={summaryValueStyle}>{result.participantRowCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Unique Rows</div>
-                <div style={summaryValueStyle}>{result.uniqueRowCount}</div>
+                <div style={summaryLabelStyle}>Unique Matches</div>
+                <div style={summaryValueStyle}>{result.uniqueMatchCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Inserted Rows</div>
-                <div style={summaryValueStyle}>{result.insertedRowCount}</div>
+                <div style={summaryLabelStyle}>Inserted Matches</div>
+                <div style={summaryValueStyle}>{result.insertedMatchCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
                 <div style={summaryLabelStyle}>Skipped Duplicates</div>
-                <div style={summaryValueStyle}>{result.skippedDuplicateRowCount}</div>
+                <div style={summaryValueStyle}>{result.skippedDuplicateMatchCount}</div>
               </div>
 
               <div style={summaryCardStyle}>
                 <div style={summaryLabelStyle}>Created Players</div>
                 <div style={summaryValueStyle}>{result.createdPlayerCount}</div>
               </div>
+            </div>
+
+            <div style={{ marginTop: '14px', color: '#475569' }}>
+              Ratings recalculated: <strong>{result.ratingsRecalculated ? 'Yes' : 'No'}</strong>
             </div>
           </div>
         )}
@@ -649,114 +666,118 @@ Nathan Meinert,Jane Smith,W 6-4 6-4,2026-03-25,doubles`}
   )
 }
 
-function parseCSVWithInvalidRows(text: string): {
-  validRows: PreparedCSVRow[]
+function parseCsvTextWithInvalidRows(text: string): {
+  validRows: PreparedCsvRow[]
   invalidRows: InvalidPreviewRow[]
 } {
-  const trimmed = text.trim()
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
 
-  if (!trimmed) {
+  if (lines.length === 0) {
     return { validRows: [], invalidRows: [] }
   }
 
-  const lines = trimmed
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+  const headerCells = splitCsvLine(lines[0]).map((cell) => normalizeHeader(cell))
+  const dataLines = lines.slice(1)
 
-  if (lines.length <= 1) {
-    return { validRows: [], invalidRows: [] }
-  }
-
-  const validRows: PreparedCSVRow[] = []
+  const validRows: PreparedCsvRow[] = []
   const invalidRows: InvalidPreviewRow[] = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const raw = lines[i]
-    const parts = raw.split(',')
+  dataLines.forEach((line, index) => {
+    const sourceIndex = index + 2
+    const values = splitCsvLine(line)
+    const row = buildCsvRow(headerCells, values)
 
-    if (parts.length < 4) {
-      invalidRows.push({
-        sourceIndex: i,
-        raw,
-        reason: 'Expected at least 4 comma-separated values',
-      })
-      continue
-    }
-
-    const player = normalizeName(parts[0] ?? '')
-    const opponent = normalizeName(parts[1] ?? '')
-
-    let date = ''
-    let result = ''
-    let matchType: MatchType = 'singles'
-
-    if (parts.length === 4) {
-      date = parts[3]?.trim() ?? ''
-      result = normalizeResult(parts[2] ?? '')
-    } else {
-      const rawMatchType = parts[parts.length - 1]?.trim() ?? ''
-      date = parts[parts.length - 2]?.trim() ?? ''
-      result = normalizeResult(parts.slice(2, parts.length - 2).join(',').trim())
-      matchType = normalizeMatchType(rawMatchType)
-    }
-
-    if (!player) {
-      invalidRows.push({ sourceIndex: i, raw, reason: 'Missing player name' })
-      continue
-    }
-
-    if (!opponent) {
-      invalidRows.push({ sourceIndex: i, raw, reason: 'Missing opponent name' })
-      continue
-    }
-
-    if (player.toLowerCase() === opponent.toLowerCase()) {
-      invalidRows.push({
-        sourceIndex: i,
-        raw,
-        reason: 'Player and opponent cannot be the same',
-      })
-      continue
-    }
-
-    if (!result) {
-      invalidRows.push({ sourceIndex: i, raw, reason: 'Missing result' })
-      continue
-    }
-
-    if (parts.length > 4) {
-      const rawMatchType = parts[parts.length - 1]?.trim() ?? ''
-      if (!isValidMatchType(rawMatchType)) {
-        invalidRows.push({
-          sourceIndex: i,
-          raw,
-          reason: 'match_type must be singles or doubles',
-        })
-        continue
-      }
-    }
-
-    let normalizedDate = ''
     try {
-      normalizedDate = normalizeDate(date)
-    } catch {
-      invalidRows.push({ sourceIndex: i, raw, reason: 'Invalid date' })
-      continue
+      const prepared = prepareCsvRow(row, sourceIndex, line)
+      validRows.push(prepared)
+    } catch (err) {
+      invalidRows.push({
+        sourceIndex,
+        raw: line,
+        reason: err instanceof Error ? err.message : 'Invalid row',
+      })
     }
-
-    validRows.push({
-      sourceIndex: i,
-      player,
-      opponent,
-      result,
-      date: normalizedDate,
-      matchType,
-      location: null,
-    })
-  }
+  })
 
   return { validRows, invalidRows }
+}
+
+function prepareCsvRow(row: CsvRow, sourceIndex: number, raw: string): PreparedCsvRow {
+  const rawDate = firstValue(row, ['match_date', 'date'])
+  const rawMatchType = firstValue(row, ['match_type'])
+  const rawSideA = firstValue(row, ['side_a_players', 'side_a', 'team_a', 'players_a'])
+  const rawSideB = firstValue(row, ['side_b_players', 'side_b', 'team_b', 'players_b'])
+  const rawResult = firstValue(row, ['result'])
+  const rawScore = firstValue(row, ['score'])
+  const rawWinnerSide = firstValue(row, ['winner_side'])
+  const rawSource = firstValue(row, ['source']) || 'csv'
+  const rawExternalMatchId = firstValue(row, ['external_match_id', 'match_id'])
+  const rawLineNumber = firstValue(row, ['line_number', 'line', 'court'])
+
+  if (!rawDate) throw new Error('Missing match_date/date')
+  if (!rawSideA) throw new Error('Missing side_a_players')
+  if (!rawSideB) throw new Error('Missing side_b_players')
+
+  const sideA = splitSide(rawSideA)
+  const sideB = splitSide(rawSideB)
+
+  if (sideA.length === 0) throw new Error('Missing Side A players')
+  if (sideB.length === 0) throw new Error('Missing Side B players')
+
+  const allNames = [...sideA, ...sideB]
+  const duplicateNames = findDuplicateNames(allNames)
+  if (duplicateNames.length > 0) {
+    throw new Error(`Player appears more than once in the same match: ${duplicateNames.join(', ')}`)
+  }
+
+  const matchType = determineMatchType(rawMatchType, sideA, sideB)
+
+  if (matchType === 'singles' && (sideA.length !== 1 || sideB.length !== 1)) {
+    throw new Error('Singles must have exactly 1 player on each side')
+  }
+
+  if (matchType === 'doubles' && (sideA.length !== 2 || sideB.length !== 2)) {
+    throw new Error('Doubles must have exactly 2 players on each side')
+  }
+
+  let parsedResult: { winnerSide: MatchSide; score: string } | null = null
+
+  if (rawResult) {
+    parsedResult = parseResult(rawResult)
+    if (!parsedResult) {
+      throw new Error('result must start with W or L, for example: W 6-3 6-4')
+    }
+  } else if (rawScore && rawWinnerSide) {
+    const winner = normalizeWinnerSide(rawWinnerSide)
+    if (!winner) {
+      throw new Error('winner_side must be A or B')
+    }
+    parsedResult = {
+      winnerSide: winner,
+      score: normalizeResult(rawScore),
+    }
+  } else {
+    throw new Error('Provide either result or score + winner_side')
+  }
+
+  const date = normalizeDate(rawDate)
+
+  return {
+    sourceIndex,
+    sideA,
+    sideB,
+    rawResult: rawResult || `${parsedResult.winnerSide} ${parsedResult.score}`,
+    score: parsedResult.score,
+    winnerSide: parsedResult.winnerSide,
+    date,
+    matchType,
+    source: normalizeSource(rawSource),
+    externalMatchId: normalizeNullableText(rawExternalMatchId),
+    lineNumber: normalizeNullableText(rawLineNumber),
+  }
 }
 
 async function fetchPlayersByNames(names: string[]): Promise<Record<string, Player>> {
@@ -769,12 +790,13 @@ async function fetchPlayersByNames(names: string[]): Promise<Record<string, Play
       .select(`
         id,
         name,
-        rating,
-        dynamic_rating,
+        location,
+        singles_rating,
         singles_dynamic_rating,
+        doubles_rating,
         doubles_dynamic_rating,
-        overall_dynamic_rating,
-        location
+        overall_rating,
+        overall_dynamic_rating
       `)
       .in('name', chunk)
 
@@ -790,43 +812,34 @@ async function fetchPlayersByNames(names: string[]): Promise<Record<string, Play
   return playerMap
 }
 
-async function createMissingPlayers(
-  missingNames: string[],
-  sourceRows: Array<{ location: string | null }>
-): Promise<Player[]> {
-  const uniqueMissingNames = [...new Set(missingNames)]
+async function createMissingPlayers(names: string[]) {
+  const uniqueMissingNames = [...new Set(names.map(normalizeName))]
 
-  if (uniqueMissingNames.length === 0) {
-    return []
-  }
-
-  const defaultLocation = sourceRows.find((row) => row.location)?.location ?? null
-
-  const insertRows = uniqueMissingNames.map((name) => ({
-    name,
-    rating: '3.5',
-    dynamic_rating: 3.5,
-    singles_rating: 3.5,
-    singles_dynamic_rating: 3.5,
-    doubles_rating: 3.5,
-    doubles_dynamic_rating: 3.5,
-    overall_rating: 3.5,
-    overall_dynamic_rating: 3.5,
-    location: defaultLocation,
-  }))
+  if (uniqueMissingNames.length === 0) return []
 
   const { data, error } = await supabase
     .from('players')
-    .insert(insertRows)
+    .insert(
+      uniqueMissingNames.map((name) => ({
+        name,
+        singles_rating: 3.5,
+        singles_dynamic_rating: 3.5,
+        doubles_rating: 3.5,
+        doubles_dynamic_rating: 3.5,
+        overall_rating: 3.5,
+        overall_dynamic_rating: 3.5,
+      }))
+    )
     .select(`
       id,
       name,
-      rating,
-      dynamic_rating,
+      location,
+      singles_rating,
       singles_dynamic_rating,
+      doubles_rating,
       doubles_dynamic_rating,
-      overall_dynamic_rating,
-      location
+      overall_rating,
+      overall_dynamic_rating
     `)
 
   if (error) {
@@ -836,27 +849,23 @@ async function createMissingPlayers(
   return (data || []) as Player[]
 }
 
-async function findExistingMatchKeys(rows: MatchInsertRow[]): Promise<Set<string>> {
+async function findExistingMatchDedupeKeys(keys: string[]): Promise<Set<string>> {
   const existingKeys = new Set<string>()
+  const uniqueKeys = [...new Set(keys)]
 
-  for (const chunk of chunkArray(rows, 200)) {
-    for (const row of chunk) {
-      const { data, error } = await supabase
-        .from('matches')
-        .select('player_id, opponent_id, result, date, match_type')
-        .eq('player_id', row.player_id)
-        .eq('opponent_id', row.opponent_id)
-        .eq('date', row.date)
-        .eq('result', row.result)
-        .eq('match_type', row.match_type)
-        .limit(1)
+  for (const chunk of chunkArray(uniqueKeys, 200)) {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('dedupe_key')
+      .in('dedupe_key', chunk)
 
-      if (error) {
-        throw new Error(error.message)
-      }
+    if (error) {
+      throw new Error(error.message)
+    }
 
-      if ((data || []).length > 0) {
-        existingKeys.add(buildMatchKey(row))
+    for (const row of data || []) {
+      if (row?.dedupe_key) {
+        existingKeys.add(row.dedupe_key)
       }
     }
   }
@@ -864,8 +873,175 @@ async function findExistingMatchKeys(rows: MatchInsertRow[]): Promise<Set<string
   return existingKeys
 }
 
+function splitCsvLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]
+    const next = line[i + 1]
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"'
+        i += 1
+      } else {
+        inQuotes = !inQuotes
+      }
+      continue
+    }
+
+    if (char === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+      continue
+    }
+
+    current += char
+  }
+
+  result.push(current.trim())
+  return result
+}
+
+function buildCsvRow(headers: string[], values: string[]): CsvRow {
+  const row: CsvRow = {}
+
+  headers.forEach((header, index) => {
+    row[header] = (values[index] ?? '').trim()
+  })
+
+  return row
+}
+
+function normalizeHeader(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, '_')
+}
+
+function firstValue(row: CsvRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key]
+    if (value && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+function splitSide(value: string) {
+  return value
+    .split('/')
+    .map((name) => normalizeName(name))
+    .filter(Boolean)
+}
+
+function determineMatchType(
+  rawMatchType: string,
+  sideA: string[],
+  sideB: string[]
+): MatchType {
+  const normalized = (rawMatchType || '').trim().toLowerCase()
+
+  if (normalized) {
+    if (normalized !== 'singles' && normalized !== 'doubles') {
+      throw new Error('match_type must be singles or doubles')
+    }
+    return normalized as MatchType
+  }
+
+  if (sideA.length === 1 && sideB.length === 1) return 'singles'
+  if (sideA.length === 2 && sideB.length === 2) return 'doubles'
+
+  throw new Error('Could not infer match type. Add singles or doubles explicitly.')
+}
+
+function normalizeWinnerSide(value: string): MatchSide | null {
+  const normalized = value.trim().toUpperCase()
+  if (normalized === 'A') return 'A'
+  if (normalized === 'B') return 'B'
+  return null
+}
+
+function parseResult(result: string): { winnerSide: MatchSide; score: string } | null {
+  const trimmed = normalizeResult(result)
+
+  if (!trimmed) return null
+
+  if (/^W\b/i.test(trimmed)) {
+    const score = trimmed.replace(/^W\b/i, '').trim()
+    return score ? { winnerSide: 'A', score } : null
+  }
+
+  if (/^L\b/i.test(trimmed)) {
+    const score = trimmed.replace(/^L\b/i, '').trim()
+    return score ? { winnerSide: 'B', score } : null
+  }
+
+  return null
+}
+
+function buildDedupeKey(row: PreparedCsvRow) {
+  const winningTeam =
+    row.winnerSide === 'A'
+      ? normalizeTeamForKey(row.sideA)
+      : normalizeTeamForKey(row.sideB)
+
+  const losingTeam =
+    row.winnerSide === 'A'
+      ? normalizeTeamForKey(row.sideB)
+      : normalizeTeamForKey(row.sideA)
+
+  return [
+    row.date,
+    row.matchType,
+    normalizeScoreForKey(row.score),
+    winningTeam,
+    losingTeam,
+  ].join('|')
+}
+
+function normalizeTeamForKey(names: string[]) {
+  return [...names]
+    .map((name) => normalizeName(name).toLowerCase())
+    .sort()
+    .join('+')
+}
+
+function normalizeScoreForKey(score: string) {
+  return normalizeResult(score).toLowerCase()
+}
+
+function findDuplicateNames(names: string[]) {
+  const seen = new Set<string>()
+  const duplicates = new Set<string>()
+
+  for (const name of names) {
+    const key = normalizeName(name).toLowerCase()
+    if (seen.has(key)) {
+      duplicates.add(name)
+    } else {
+      seen.add(key)
+    }
+  }
+
+  return [...duplicates]
+}
+
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeResult(result: string) {
+  return result.trim().replace(/\s+/g, ' ')
+}
+
+function normalizeNullableText(value: string | null | undefined) {
+  const normalized = (value ?? '').trim()
+  return normalized ? normalized : null
+}
+
+function normalizeSource(value: string) {
+  const normalized = value.trim()
+  return normalized || 'csv'
 }
 
 function normalizeDate(date: string) {
@@ -888,39 +1064,11 @@ function normalizeDate(date: string) {
   return `${year}-${month}-${day}`
 }
 
-function normalizeResult(result: string) {
-  return result.trim().replace(/\s+/g, ' ')
-}
-
-function normalizeMatchType(value: string): MatchType {
-  return value.trim().toLowerCase() === 'doubles' ? 'doubles' : 'singles'
-}
-
-function isValidMatchType(value: string) {
-  const normalized = value.trim().toLowerCase()
-  return normalized === 'singles' || normalized === 'doubles'
-}
-
-function reverseResult(result: string) {
-  const trimmed = normalizeResult(result)
-
-  if (trimmed.startsWith('W')) return trimmed.replace(/^W/, 'L')
-  if (trimmed.startsWith('L')) return trimmed.replace(/^L/, 'W')
-
-  return trimmed
-}
-
-function buildMatchKey(row: MatchInsertRow) {
-  return `${row.player_id}|${row.opponent_id}|${row.date}|${row.result}|${row.match_type}`
-}
-
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
-
   for (let i = 0; i < items.length; i += size) {
     chunks.push(items.slice(i, i + size))
   }
-
   return chunks
 }
 

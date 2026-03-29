@@ -7,21 +7,57 @@ import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
 type MatchType = 'singles' | 'doubles'
+type MatchSide = 'A' | 'B'
 
 type MatchRow = {
   id: string
-  player_id: string
-  opponent_id: string | null
-  opponent: string
-  result: string
-  date: string
-  match_type?: MatchType | null
-  player_name?: string
+  match_date: string
+  match_type: MatchType
+  score: string
+  winner_side: MatchSide
+  line_number: string | null
+  source: string | null
+  external_match_id: string | null
+  dedupe_key: string
+  created_at: string | null
 }
 
-type PlayerRow = {
-  id: string
+type MatchPlayerJoinedRow = {
+  match_id: string
+  player_id: string
+  side: MatchSide
+  seat: number | null
+  players:
+    | {
+        id: string
+        name: string
+      }
+    | {
+        id: string
+        name: string
+      }[]
+    | null
+}
+
+type MatchParticipant = {
+  playerId: string
   name: string
+  seat: number | null
+}
+
+type MatchWithParticipants = {
+  id: string
+  matchDate: string
+  matchType: MatchType
+  score: string
+  winnerSide: MatchSide
+  lineNumber: string | null
+  source: string | null
+  externalMatchId: string | null
+  dedupeKey: string
+  createdAt: string | null
+  sideA: MatchParticipant[]
+  sideB: MatchParticipant[]
 }
 
 const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
@@ -29,28 +65,20 @@ const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
 export default function ManageMatchesPage() {
   const router = useRouter()
 
-  const [matches, setMatches] = useState<MatchRow[]>([])
-  const [players, setPlayers] = useState<PlayerRow[]>([])
-  const [loading, setLoading] = useState(true)
-  const [rebuilding, setRebuilding] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
-
-  const [playerFilter, setPlayerFilter] = useState('')
-  const [opponentFilter, setOpponentFilter] = useState('')
-  const [resultFilter, setResultFilter] = useState('')
-  const [matchTypeFilter, setMatchTypeFilter] = useState('')
-  const [searchText, setSearchText] = useState('')
-
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editDate, setEditDate] = useState('')
-  const [editResult, setEditResult] = useState('')
-  const [editOpponentId, setEditOpponentId] = useState('')
-  const [editMatchType, setEditMatchType] = useState<MatchType>('singles')
-
   const [user, setUser] = useState<any>(null)
   const [authLoading, setAuthLoading] = useState(true)
+
+  const [matches, setMatches] = useState<MatchWithParticipants[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [recalculating, setRecalculating] = useState(false)
+
+  const [search, setSearch] = useState('')
+  const [matchTypeFilter, setMatchTypeFilter] = useState<'all' | MatchType>('all')
+
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const checkUser = async () => {
@@ -63,288 +91,204 @@ export default function ManageMatchesPage() {
 
       if (!user || user.id !== ADMIN_ID) {
         router.push('/admin')
-        return
       }
-
-      await loadData()
     }
 
-    checkUser()
+    void checkUser()
   }, [router])
 
-  async function loadData() {
-    setLoading(true)
+  useEffect(() => {
+    if (!user || user.id !== ADMIN_ID) return
+    void loadMatches()
+  }, [user])
+
+  async function loadMatches(showRefreshing = false) {
+    if (showRefreshing) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+
     setError('')
-    setMessage('')
 
     try {
-      const { data: playersData, error: playersError } = await supabase
-        .from('players')
-        .select('id, name')
-        .order('name', { ascending: true })
-
-      if (playersError) {
-        throw new Error(playersError.message)
-      }
-
-      const playerNameMap = new Map<string, string>()
-      for (const player of (playersData || []) as PlayerRow[]) {
-        playerNameMap.set(player.id, player.name)
-      }
-
       const { data: matchesData, error: matchesError } = await supabase
         .from('matches')
-        .select('id, player_id, opponent_id, opponent, result, date, match_type')
-        .order('date', { ascending: false })
-        .order('id', { ascending: false })
+        .select(`
+          id,
+          match_date,
+          match_type,
+          score,
+          winner_side,
+          line_number,
+          source,
+          external_match_id,
+          dedupe_key,
+          created_at
+        `)
+        .order('match_date', { ascending: false })
+        .order('created_at', { ascending: false })
 
       if (matchesError) {
         throw new Error(matchesError.message)
       }
 
-      const hydratedMatches: MatchRow[] = ((matchesData || []) as MatchRow[]).map((match) => ({
-        ...match,
-        player_name: playerNameMap.get(match.player_id) || 'Unknown Player',
-        match_type: normalizeMatchType(match.match_type),
-      }))
+      const typedMatches = (matchesData || []) as MatchRow[]
+      const matchIds = typedMatches.map((match) => match.id)
 
-      setPlayers((playersData || []) as PlayerRow[])
-      setMatches(hydratedMatches)
+      let participantsData: MatchPlayerJoinedRow[] = []
+
+      if (matchIds.length > 0) {
+        const { data, error } = await supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            player_id,
+            side,
+            seat,
+            players (
+              id,
+              name
+            )
+          `)
+          .in('match_id', matchIds)
+
+        if (error) {
+          throw new Error(error.message)
+        }
+
+        participantsData = (data || []) as MatchPlayerJoinedRow[]
+      }
+
+      const participantsByMatchId = new Map<string, MatchParticipant[]>()
+
+      for (const participant of participantsData) {
+        const rawPlayers = participant.players
+        const playerRecord = Array.isArray(rawPlayers) ? rawPlayers[0] : rawPlayers
+
+        const normalizedParticipant: MatchParticipant = {
+          playerId: participant.player_id,
+          name: playerRecord?.name || 'Unknown Player',
+          seat: participant.seat,
+        }
+
+        const key = `${participant.match_id}:${participant.side}`
+        const existing = participantsByMatchId.get(key) ?? []
+        existing.push(normalizedParticipant)
+        participantsByMatchId.set(key, existing)
+      }
+
+      const mappedMatches: MatchWithParticipants[] = typedMatches.map((match) => {
+        const sideA = [...(participantsByMatchId.get(`${match.id}:A`) ?? [])].sort(
+          (a, b) => (a.seat ?? 0) - (b.seat ?? 0)
+        )
+
+        const sideB = [...(participantsByMatchId.get(`${match.id}:B`) ?? [])].sort(
+          (a, b) => (a.seat ?? 0) - (b.seat ?? 0)
+        )
+
+        return {
+          id: match.id,
+          matchDate: match.match_date,
+          matchType: match.match_type,
+          score: match.score,
+          winnerSide: match.winner_side,
+          lineNumber: match.line_number,
+          source: match.source,
+          externalMatchId: match.external_match_id,
+          dedupeKey: match.dedupe_key,
+          createdAt: match.created_at,
+          sideA,
+          sideB,
+        }
+      })
+
+      setMatches(mappedMatches)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load matches')
+      setError(err instanceof Error ? err.message : 'Failed to load matches.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  function startEdit(match: MatchRow) {
-    setEditingId(match.id)
-    setEditDate(match.date)
-    setEditResult(match.result)
-    setEditOpponentId(match.opponent_id ?? '')
-    setEditMatchType(normalizeMatchType(match.match_type))
-    setError('')
-    setMessage('')
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
-    setEditDate('')
-    setEditResult('')
-    setEditOpponentId('')
-    setEditMatchType('singles')
-  }
-
-  async function handleSaveEdit(match: MatchRow) {
-    setSaving(true)
-    setError('')
-    setMessage('')
-
-    try {
-      if (!editDate.trim()) {
-        throw new Error('Date is required.')
-      }
-
-      const normalizedResult = normalizeResult(editResult)
-      if (!normalizedResult) {
-        throw new Error('Result is required.')
-      }
-
-      if (!editOpponentId) {
-        throw new Error('Opponent is required.')
-      }
-
-      if (editOpponentId === match.player_id) {
-        throw new Error('Player and opponent must be different.')
-      }
-
-      const player = players.find((p) => p.id === match.player_id)
-      const newOpponent = players.find((p) => p.id === editOpponentId)
-
-      if (!player || !newOpponent) {
-        throw new Error('Could not resolve selected players.')
-      }
-
-      const oldReverseResult = reverseResult(match.result)
-      const newReverseResult = reverseResult(normalizedResult)
-
-      const { error: updatePrimaryError } = await supabase
-        .from('matches')
-        .update({
-          date: editDate,
-          result: normalizedResult,
-          opponent_id: newOpponent.id,
-          opponent: newOpponent.name,
-          match_type: editMatchType,
-        })
-        .eq('id', match.id)
-
-      if (updatePrimaryError) {
-        throw new Error(updatePrimaryError.message)
-      }
-
-      if (match.opponent_id) {
-        const { data: mirrorRows, error: mirrorFindError } = await supabase
-          .from('matches')
-          .select('id')
-          .eq('player_id', match.opponent_id)
-          .eq('opponent_id', match.player_id)
-          .eq('date', match.date)
-          .eq('result', oldReverseResult)
-          .eq('match_type', normalizeMatchType(match.match_type))
-          .limit(1)
-
-        if (mirrorFindError) {
-          throw new Error(mirrorFindError.message)
-        }
-
-        const mirrorId = mirrorRows?.[0]?.id
-
-        if (mirrorId) {
-          const { error: updateMirrorError } = await supabase
-            .from('matches')
-            .update({
-              date: editDate,
-              result: newReverseResult,
-              opponent_id: match.player_id,
-              opponent: player.name,
-              match_type: editMatchType,
-            })
-            .eq('id', mirrorId)
-
-          if (updateMirrorError) {
-            throw new Error(updateMirrorError.message)
-          }
-        }
-      }
-
-      await recalculateDynamicRatings()
-      setMessage('Match updated and ratings rebuilt successfully.')
-      cancelEdit()
-      await loadData()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Edit failed')
-    } finally {
-      setSaving(false)
+      setRefreshing(false)
     }
   }
 
   async function handleDeleteMatch(matchId: string) {
     const confirmed = window.confirm(
-      'Delete this match row? You will need to rebuild ratings after cleanup.'
+      'Delete this match? This will also remove its match players and then recalculate ratings.'
     )
-
     if (!confirmed) return
 
+    setDeletingId(matchId)
     setError('')
     setMessage('')
 
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('matches')
         .delete()
         .eq('id', matchId)
 
-      if (error) {
-        throw new Error(error.message)
+      if (deleteError) {
+        throw new Error(deleteError.message)
       }
 
-      setMatches((prev) => prev.filter((match) => match.id !== matchId))
-      setMessage('Match row deleted. Rebuild ratings to sync profiles and charts.')
+      try {
+        await recalculateDynamicRatings()
+        setMessage('Match deleted and ratings recalculated.')
+      } catch (recalcError) {
+        console.error('Rating recalculation failed:', recalcError)
+        setMessage('Match deleted, but ratings were not recalculated.')
+      }
+
+      await loadMatches(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed')
+      setError(err instanceof Error ? err.message : 'Failed to delete match.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
-  async function handleDeleteBothSides(match: MatchRow) {
-    const confirmed = window.confirm(
-      'Delete both sides of this match and rebuild ratings later?'
-    )
-
-    if (!confirmed) return
-
-    setError('')
-    setMessage('')
-
-    try {
-      const reverse = reverseResult(match.result)
-
-      const { error: primaryDeleteError } = await supabase
-        .from('matches')
-        .delete()
-        .or(
-          [
-            `and(id.eq.${match.id})`,
-            match.opponent_id
-              ? `and(player_id.eq.${match.opponent_id},opponent_id.eq.${match.player_id},date.eq.${match.date},result.eq.${escapeForOr(reverse)},match_type.eq.${normalizeMatchType(match.match_type)})`
-              : '',
-          ]
-            .filter(Boolean)
-            .join(',')
-        )
-
-      if (primaryDeleteError) {
-        throw new Error(primaryDeleteError.message)
-      }
-
-      setMessage('Both sides deleted. Rebuild ratings to sync profiles and charts.')
-      await loadData()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete both sides failed')
-    }
-  }
-
-  async function handleRebuildRatings() {
-    const confirmed = window.confirm('Rebuild all dynamic ratings and snapshots now?')
-    if (!confirmed) return
-
-    setRebuilding(true)
+  async function handleRecalculateRatings() {
+    setRecalculating(true)
     setError('')
     setMessage('')
 
     try {
       await recalculateDynamicRatings()
-      setMessage('Ratings and snapshots rebuilt successfully.')
-      await loadData()
+      setMessage('Ratings recalculated successfully.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Rebuild failed')
+      setError(err instanceof Error ? err.message : 'Failed to recalculate ratings.')
     } finally {
-      setRebuilding(false)
+      setRecalculating(false)
     }
   }
 
   const filteredMatches = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
     return matches.filter((match) => {
-      const playerOk = !playerFilter || match.player_id === playerFilter
-      const opponentOk = !opponentFilter || (match.opponent_id ?? '') === opponentFilter
-      const resultOk =
-        !resultFilter ||
-        (resultFilter === 'W'
-          ? match.result.trim().toUpperCase().startsWith('W')
-          : match.result.trim().toUpperCase().startsWith('L'))
+      if (matchTypeFilter !== 'all' && match.matchType !== matchTypeFilter) {
+        return false
+      }
 
-      const typeOk =
-        !matchTypeFilter || normalizeMatchType(match.match_type) === matchTypeFilter
+      if (!normalizedSearch) return true
 
-      const text = searchText.trim().toLowerCase()
-      const textOk =
-        !text ||
-        (match.player_name || '').toLowerCase().includes(text) ||
-        match.opponent.toLowerCase().includes(text) ||
-        match.result.toLowerCase().includes(text) ||
-        match.date.toLowerCase().includes(text) ||
-        normalizeMatchType(match.match_type).toLowerCase().includes(text)
+      const haystack = [
+        match.matchDate,
+        match.matchType,
+        match.score,
+        match.lineNumber || '',
+        match.source || '',
+        match.externalMatchId || '',
+        match.sideA.map((player) => player.name).join(' / '),
+        match.sideB.map((player) => player.name).join(' / '),
+      ]
+        .join(' ')
+        .toLowerCase()
 
-      return playerOk && opponentOk && resultOk && typeOk && textOk
+      return haystack.includes(normalizedSearch)
     })
-  }, [matches, playerFilter, opponentFilter, resultFilter, matchTypeFilter, searchText])
-
-  const availableOpponentsForEdit = useMemo(() => {
-    if (!editingId) return players
-    const current = matches.find((m) => m.id === editingId)
-    if (!current) return players
-    return players.filter((p) => p.id !== current.player_id)
-  }, [editingId, matches, players])
+  }, [matches, search, matchTypeFilter])
 
   if (authLoading) {
     return <p style={{ padding: '24px' }}>Checking access...</p>
@@ -371,86 +315,63 @@ export default function ManageMatchesPage() {
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Manage Matches</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Review imported rows, edit both sides of a match, clean up mistakes, and rebuild ratings when needed.
+          View, search, filter, and delete singles or doubles matches stored in the new matches + match_players structure.
         </p>
       </div>
 
       <div style={cardStyle}>
         <div style={toolbarStyle}>
-          <div style={filtersGridStyle}>
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search player, opponent, result, date, type"
-              style={inputStyle}
-            />
+          <div style={filterGridStyle}>
+            <div>
+              <label style={labelStyle}>Search</label>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Player, score, source, line..."
+                style={inputStyle}
+                disabled={loading || refreshing}
+              />
+            </div>
 
-            <select
-              value={playerFilter}
-              onChange={(e) => setPlayerFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All players</option>
-              {players.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={opponentFilter}
-              onChange={(e) => setOpponentFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All opponents</option>
-              {players.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={resultFilter}
-              onChange={(e) => setResultFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All results</option>
-              <option value="W">Wins</option>
-              <option value="L">Losses</option>
-            </select>
-
-            <select
-              value={matchTypeFilter}
-              onChange={(e) => setMatchTypeFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All match types</option>
-              <option value="singles">Singles</option>
-              <option value="doubles">Doubles</option>
-            </select>
+            <div>
+              <label style={labelStyle}>Match Type</label>
+              <select
+                value={matchTypeFilter}
+                onChange={(e) => setMatchTypeFilter(e.target.value as 'all' | MatchType)}
+                style={inputStyle}
+                disabled={loading || refreshing}
+              >
+                <option value="all">All</option>
+                <option value="singles">Singles</option>
+                <option value="doubles">Doubles</option>
+              </select>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={buttonRowStyle}>
             <button
-              onClick={() => void loadData()}
-              style={secondaryButtonStyle}
-              disabled={loading || rebuilding || saving}
+              onClick={() => void loadMatches(true)}
+              style={{
+                ...secondaryButtonStyle,
+                opacity: refreshing ? 0.7 : 1,
+                cursor: refreshing ? 'not-allowed' : 'pointer',
+              }}
+              disabled={refreshing || loading}
             >
-              Refresh
+              {refreshing ? 'Refreshing...' : 'Refresh'}
             </button>
 
             <button
-              onClick={() => void handleRebuildRatings()}
+              onClick={handleRecalculateRatings}
               style={{
-                ...successButtonStyle,
-                opacity: rebuilding ? 0.7 : 1,
-                cursor: rebuilding ? 'not-allowed' : 'pointer',
+                ...primaryButtonStyle,
+                opacity: recalculating ? 0.7 : 1,
+                cursor: recalculating ? 'not-allowed' : 'pointer',
               }}
-              disabled={rebuilding || saving}
+              disabled={recalculating || loading}
             >
-              {rebuilding ? 'Rebuilding...' : 'Rebuild Ratings'}
+              {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
             </button>
           </div>
         </div>
@@ -467,185 +388,91 @@ export default function ManageMatchesPage() {
           </div>
         )}
 
-        <div style={{ marginTop: '18px', color: '#64748b', fontWeight: 600 }}>
-          Showing {filteredMatches.length} of {matches.length} match rows
+        <div style={summaryGridStyle}>
+          <div style={summaryCardStyle}>
+            <div style={summaryLabelStyle}>Total Matches</div>
+            <div style={summaryValueStyle}>{matches.length}</div>
+          </div>
+
+          <div style={summaryCardStyle}>
+            <div style={summaryLabelStyle}>Filtered Matches</div>
+            <div style={summaryValueStyle}>{filteredMatches.length}</div>
+          </div>
+
+          <div style={summaryCardStyle}>
+            <div style={summaryLabelStyle}>Singles</div>
+            <div style={summaryValueStyle}>{matches.filter((m) => m.matchType === 'singles').length}</div>
+          </div>
+
+          <div style={summaryCardStyle}>
+            <div style={summaryLabelStyle}>Doubles</div>
+            <div style={summaryValueStyle}>{matches.filter((m) => m.matchType === 'doubles').length}</div>
+          </div>
         </div>
 
-        <div style={{ overflowX: 'auto', marginTop: '18px' }}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <th style={thStyle}>Date</th>
-                <th style={thStyle}>Player</th>
-                <th style={thStyle}>Opponent</th>
-                <th style={thStyle}>Result</th>
-                <th style={thStyle}>Type</th>
-                <th style={thStyle}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {loading ? (
+          <p style={{ marginTop: '20px' }}>Loading matches...</p>
+        ) : filteredMatches.length === 0 ? (
+          <p style={{ marginTop: '20px', color: '#64748b' }}>No matches found.</p>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: '20px' }}>
+            <table style={tableStyle}>
+              <thead>
                 <tr>
-                  <td style={tdStyle} colSpan={6}>Loading matches...</td>
+                  <th style={thStyle}>Date</th>
+                  <th style={thStyle}>Type</th>
+                  <th style={thStyle}>Side A</th>
+                  <th style={thStyle}>Side B</th>
+                  <th style={thStyle}>Winner</th>
+                  <th style={thStyle}>Score</th>
+                  <th style={thStyle}>Line</th>
+                  <th style={thStyle}>Source</th>
+                  <th style={thStyle}>External ID</th>
+                  <th style={thStyle}>Actions</th>
                 </tr>
-              ) : filteredMatches.length === 0 ? (
-                <tr>
-                  <td style={tdStyle} colSpan={6}>No matches found.</td>
-                </tr>
-              ) : (
-                filteredMatches.map((match) => {
-                  const isEditing = editingId === match.id
-
-                  return (
-                    <tr key={match.id}>
-                      <td style={tdStyle}>
-                        {isEditing ? (
-                          <input
-                            type="date"
-                            value={editDate}
-                            onChange={(e) => setEditDate(e.target.value)}
-                            style={inlineInputStyle}
-                            disabled={saving}
-                          />
-                        ) : (
-                          match.date
-                        )}
-                      </td>
-
-                      <td style={tdStyle}>{match.player_name}</td>
-
-                      <td style={tdStyle}>
-                        {isEditing ? (
-                          <select
-                            value={editOpponentId}
-                            onChange={(e) => setEditOpponentId(e.target.value)}
-                            style={inlineInputStyle}
-                            disabled={saving}
-                          >
-                            <option value="">Select opponent</option>
-                            {availableOpponentsForEdit.map((player) => (
-                              <option key={player.id} value={player.id}>
-                                {player.name}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          match.opponent
-                        )}
-                      </td>
-
-                      <td style={tdStyle}>
-                        {isEditing ? (
-                          <input
-                            value={editResult}
-                            onChange={(e) => setEditResult(e.target.value)}
-                            style={inlineInputStyle}
-                            placeholder="W 6-3 6-4"
-                            disabled={saving}
-                          />
-                        ) : (
-                          match.result
-                        )}
-                      </td>
-
-                      <td style={tdStyle}>
-                        {isEditing ? (
-                          <select
-                            value={editMatchType}
-                            onChange={(e) => setEditMatchType(e.target.value as MatchType)}
-                            style={inlineInputStyle}
-                            disabled={saving}
-                          >
-                            <option value="singles">Singles</option>
-                            <option value="doubles">Doubles</option>
-                          </select>
-                        ) : (
-                          capitalize(normalizeMatchType(match.match_type))
-                        )}
-                      </td>
-
-                      <td style={tdStyle}>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {isEditing ? (
-                            <>
-                              <button
-                                onClick={() => void handleSaveEdit(match)}
-                                style={successButtonStyleSmall}
-                                disabled={saving}
-                              >
-                                {saving ? 'Saving...' : 'Save'}
-                              </button>
-
-                              <button
-                                onClick={cancelEdit}
-                                style={secondaryButtonStyle}
-                                disabled={saving}
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => startEdit(match)}
-                                style={primaryButtonStyleSmall}
-                                disabled={saving || rebuilding}
-                              >
-                                Edit
-                              </button>
-
-                              <button
-                                onClick={() => void handleDeleteMatch(match.id)}
-                                style={dangerButtonStyle}
-                                disabled={saving || rebuilding}
-                              >
-                                Delete Row
-                              </button>
-
-                              {match.opponent_id && (
-                                <button
-                                  onClick={() => void handleDeleteBothSides(match)}
-                                  style={secondaryButtonStyle}
-                                  disabled={saving || rebuilding}
-                                >
-                                  Delete Both Sides
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredMatches.map((match) => (
+                  <tr key={match.id} style={rowStyle}>
+                    <td style={tdStyle}>{match.matchDate}</td>
+                    <td style={tdStyle}>{capitalize(match.matchType)}</td>
+                    <td style={tdStyle}>
+                      <div style={teamCellStyle}>
+                        <strong>{match.sideA.map((player) => player.name).join(' / ')}</strong>
+                      </div>
+                    </td>
+                    <td style={tdStyle}>
+                      <div style={teamCellStyle}>
+                        <strong>{match.sideB.map((player) => player.name).join(' / ')}</strong>
+                      </div>
+                    </td>
+                    <td style={tdStyle}>{match.winnerSide}</td>
+                    <td style={tdStyle}>{match.score}</td>
+                    <td style={tdStyle}>{match.lineNumber || '—'}</td>
+                    <td style={tdStyle}>{match.source || '—'}</td>
+                    <td style={tdStyle}>{match.externalMatchId || '—'}</td>
+                    <td style={tdStyle}>
+                      <button
+                        onClick={() => void handleDeleteMatch(match.id)}
+                        style={{
+                          ...dangerButtonStyle,
+                          opacity: deletingId === match.id ? 0.7 : 1,
+                          cursor: deletingId === match.id ? 'not-allowed' : 'pointer',
+                        }}
+                        disabled={deletingId === match.id}
+                      >
+                        {deletingId === match.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </main>
   )
-}
-
-function normalizeResult(result: string) {
-  return result.trim().replace(/\s+/g, ' ')
-}
-
-function reverseResult(result: string) {
-  const trimmed = normalizeResult(result)
-
-  if (trimmed.startsWith('W')) return trimmed.replace(/^W/, 'L')
-  if (trimmed.startsWith('L')) return trimmed.replace(/^L/, 'W')
-
-  return trimmed
-}
-
-function normalizeMatchType(value: string | null | undefined): MatchType {
-  return value === 'doubles' ? 'doubles' : 'singles'
-}
-
-function escapeForOr(value: string) {
-  return `"${value.replace(/"/g, '\\"')}"`
 }
 
 function capitalize(value: string) {
@@ -699,80 +526,59 @@ const cardStyle = {
 const toolbarStyle = {
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'flex-start',
+  alignItems: 'end',
   gap: '16px',
   flexWrap: 'wrap' as const,
 }
 
-const filtersGridStyle = {
+const filterGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '12px',
+  gap: '16px',
   flex: 1,
   minWidth: '320px',
+}
+
+const labelStyle = {
+  display: 'block',
+  marginBottom: '8px',
+  color: '#334155',
+  fontWeight: 600,
 }
 
 const inputStyle = {
   width: '100%',
   padding: '12px 14px',
   border: '1px solid #cbd5e1',
-  borderRadius: '14px',
+  borderRadius: '12px',
   fontSize: '15px',
   boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
 }
 
-const inlineInputStyle = {
-  width: '100%',
-  minWidth: '140px',
-  padding: '8px 10px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '10px',
-  fontSize: '14px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
+const buttonRowStyle = {
+  display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap' as const,
 }
 
-const successButtonStyle = {
+const primaryButtonStyle = {
   padding: '14px 18px',
   border: 'none',
   borderRadius: '14px',
-  background: '#16a34a',
+  background: '#2563eb',
   color: 'white',
   fontWeight: 700,
   fontSize: '15px',
 }
 
-const successButtonStyleSmall = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#16a34a',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-}
-
-const primaryButtonStyleSmall = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-}
-
 const secondaryButtonStyle = {
-  padding: '10px 14px',
+  padding: '14px 18px',
   border: '1px solid #cbd5e1',
-  borderRadius: '12px',
+  borderRadius: '14px',
   background: 'white',
   color: '#0f172a',
   fontWeight: 700,
-  fontSize: '14px',
+  fontSize: '15px',
 }
 
 const dangerButtonStyle = {
@@ -803,6 +609,32 @@ const errorBoxStyle = {
   color: '#991b1b',
 }
 
+const summaryGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: '12px',
+  marginTop: '20px',
+}
+
+const summaryCardStyle = {
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '14px',
+  padding: '14px',
+}
+
+const summaryLabelStyle = {
+  color: '#64748b',
+  fontSize: '13px',
+  marginBottom: '6px',
+}
+
+const summaryValueStyle = {
+  color: '#0f172a',
+  fontSize: '24px',
+  fontWeight: 700,
+}
+
 const tableStyle = {
   width: '100%',
   borderCollapse: 'collapse' as const,
@@ -814,6 +646,7 @@ const thStyle = {
   borderBottom: '1px solid #cbd5e1',
   color: '#334155',
   background: '#f8fafc',
+  whiteSpace: 'nowrap' as const,
 }
 
 const tdStyle = {
@@ -821,4 +654,12 @@ const tdStyle = {
   borderBottom: '1px solid #e2e8f0',
   color: '#0f172a',
   verticalAlign: 'top' as const,
+}
+
+const rowStyle = {
+  background: 'white',
+}
+
+const teamCellStyle = {
+  minWidth: '180px',
 }

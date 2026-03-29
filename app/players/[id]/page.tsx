@@ -6,13 +6,13 @@ import { useParams } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
+type MatchType = 'singles' | 'doubles'
+type MatchSide = 'A' | 'B'
 
 type Player = {
   id: string
   name: string
   location?: string | null
-  rating?: string | number | null
-  dynamic_rating?: number | null
   overall_rating?: number | string | null
   overall_dynamic_rating?: number | null
   singles_rating?: number | string | null
@@ -21,14 +21,16 @@ type Player = {
   doubles_dynamic_rating?: number | null
 }
 
-type MatchRow = {
+type MatchRecord = {
   id: string
-  player_id: string
-  opponent_id: string | null
-  opponent: string
-  result: string
   date: string
-  match_type?: 'singles' | 'doubles' | null
+  matchType: MatchType
+  score: string
+  result: 'W' | 'L'
+  opponent: string
+  partner: string | null
+  sideA: string[]
+  sideB: string[]
 }
 
 type SnapshotRow = {
@@ -36,7 +38,27 @@ type SnapshotRow = {
   player_id: string
   match_id: string
   snapshot_date: string
+  rating_type?: RatingView | null
   dynamic_rating: number
+}
+
+type MatchRow = {
+  id: string
+  match_date: string
+  match_type: MatchType
+  score: string
+  winner_side: MatchSide
+}
+
+type MatchPlayerRow = {
+  match_id: string
+  player_id: string
+  side: MatchSide
+  seat: number | null
+  players: {
+    id: string
+    name: string
+  } | null
 }
 
 export default function PlayerProfilePage() {
@@ -44,7 +66,7 @@ export default function PlayerProfilePage() {
   const playerId = String(params.id)
 
   const [player, setPlayer] = useState<Player | null>(null)
-  const [matches, setMatches] = useState<MatchRow[]>([])
+  const [matches, setMatches] = useState<MatchRecord[]>([])
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,8 +89,6 @@ export default function PlayerProfilePage() {
           id,
           name,
           location,
-          rating,
-          dynamic_rating,
           overall_rating,
           overall_dynamic_rating,
           singles_rating,
@@ -83,20 +103,115 @@ export default function PlayerProfilePage() {
         throw new Error(playerError.message)
       }
 
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select('id, player_id, opponent_id, opponent, result, date, match_type')
+      const { data: playerMatchRefs, error: playerMatchRefsError } = await supabase
+        .from('match_players')
+        .select('match_id')
         .eq('player_id', playerId)
-        .order('date', { ascending: false })
-        .order('id', { ascending: false })
 
-      if (matchesError) {
-        throw new Error(matchesError.message)
+      if (playerMatchRefsError) {
+        throw new Error(playerMatchRefsError.message)
       }
+
+      const matchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id))]
+
+      let matchRows: MatchRow[] = []
+      let participantRows: MatchPlayerRow[] = []
+
+      if (matchIds.length > 0) {
+        const { data: matchesData, error: matchesError } = await supabase
+          .from('matches')
+          .select(`
+            id,
+            match_date,
+            match_type,
+            score,
+            winner_side
+          `)
+          .in('id', matchIds)
+          .order('match_date', { ascending: false })
+          .order('id', { ascending: false })
+
+        if (matchesError) {
+          throw new Error(matchesError.message)
+        }
+
+        matchRows = (matchesData || []) as MatchRow[]
+
+        const { data: participantsData, error: participantsError } = await supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            player_id,
+            side,
+            seat,
+            players (
+              id,
+              name
+            )
+          `)
+          .in('match_id', matchIds)
+
+        if (participantsError) {
+          throw new Error(participantsError.message)
+        }
+
+        participantRows = (participantsData || []) as unknown as MatchPlayerRow[]
+      }
+
+      const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
+
+      for (const row of participantRows) {
+        const existing = participantsByMatchId.get(row.match_id) ?? []
+        existing.push(row)
+        participantsByMatchId.set(row.match_id, existing)
+      }
+
+      const groupedMatches: MatchRecord[] = matchRows.map((match) => {
+        const participants = participantsByMatchId.get(match.id) ?? []
+
+        const sideA = participants
+          .filter((p) => p.side === 'A')
+          .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
+
+        const sideB = participants
+          .filter((p) => p.side === 'B')
+          .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
+
+        const playerOnSideA = sideA.some((p) => p.player_id === playerId)
+        const playerSide: MatchSide = playerOnSideA ? 'A' : 'B'
+        const opponentSide: MatchSide = playerSide === 'A' ? 'B' : 'A'
+
+        const playerTeam = (playerSide === 'A' ? sideA : sideB).map(
+          (p) => p.players?.name || 'Unknown Player'
+        )
+        const opponentTeam = (opponentSide === 'A' ? sideA : sideB).map(
+          (p) => p.players?.name || 'Unknown Player'
+        )
+
+        const partnerNames = playerTeam.filter(
+          (name) => normalizeName(name).toLowerCase() !== normalizeName(playerData.name).toLowerCase()
+        )
+
+        const isWin =
+          (playerSide === 'A' && match.winner_side === 'A') ||
+          (playerSide === 'B' && match.winner_side === 'B')
+
+        return {
+          id: match.id,
+          date: match.match_date,
+          matchType: normalizeMatchType(match.match_type),
+          score: match.score,
+          result: isWin ? 'W' : 'L',
+          opponent: opponentTeam.join(' / '),
+          partner: partnerNames.length > 0 ? partnerNames.join(' / ') : null,
+          sideA: sideA.map((p) => p.players?.name || 'Unknown Player'),
+          sideB: sideB.map((p) => p.players?.name || 'Unknown Player'),
+        }
+      })
 
       const { data: snapshotsData, error: snapshotsError } = await supabase
         .from('rating_snapshots')
-        .select('id, player_id, match_id, snapshot_date, dynamic_rating')
+        .select('id, player_id, match_id, snapshot_date, rating_type, dynamic_rating')
         .eq('player_id', playerId)
         .order('snapshot_date', { ascending: true })
         .order('id', { ascending: true })
@@ -106,7 +221,7 @@ export default function PlayerProfilePage() {
       }
 
       setPlayer(playerData as Player)
-      setMatches((matchesData || []) as MatchRow[])
+      setMatches(groupedMatches)
       setSnapshots((snapshotsData || []) as SnapshotRow[])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load player profile')
@@ -117,77 +232,48 @@ export default function PlayerProfilePage() {
 
   const filteredMatches = useMemo(() => {
     if (ratingView === 'overall') return matches
-    return matches.filter((match) => normalizeMatchType(match.match_type) === ratingView)
+    return matches.filter((match) => match.matchType === ratingView)
   }, [matches, ratingView])
 
   const wins = useMemo(
-    () => filteredMatches.filter((match) => isWin(match.result)).length,
+    () => filteredMatches.filter((match) => match.result === 'W').length,
     [filteredMatches]
   )
 
   const losses = useMemo(
-    () => filteredMatches.filter((match) => !isWin(match.result)).length,
+    () => filteredMatches.filter((match) => match.result === 'L').length,
     [filteredMatches]
   )
 
   const totalMatches = filteredMatches.length
   const winPct = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0'
-
   const mostRecentMatches = useMemo(() => filteredMatches.slice(0, 10), [filteredMatches])
 
   const chartPoints = useMemo(() => {
-    if (ratingView === 'overall') {
-      return snapshots.map((snapshot, index) => ({
-        x: index + 1,
-        date: snapshot.snapshot_date,
-        rating: snapshot.dynamic_rating,
-      }))
-    }
+    const relevantSnapshots =
+      ratingView === 'overall'
+        ? snapshots.filter((snapshot) => !snapshot.rating_type || snapshot.rating_type === 'overall')
+        : snapshots.filter((snapshot) => snapshot.rating_type === ratingView)
 
-    const allowedMatchIds = new Set(
-      matches
-        .filter((match) => normalizeMatchType(match.match_type) === ratingView)
-        .map((match) => match.id)
-    )
-
-    return snapshots
-      .filter((snapshot) => allowedMatchIds.has(snapshot.match_id))
-      .map((snapshot, index) => ({
-        x: index + 1,
-        date: snapshot.snapshot_date,
-        rating: snapshot.dynamic_rating,
-      }))
-  }, [snapshots, matches, ratingView])
+    return relevantSnapshots.map((snapshot, index) => ({
+      x: index + 1,
+      date: snapshot.snapshot_date,
+      rating: snapshot.dynamic_rating,
+    }))
+  }, [snapshots, ratingView])
 
   const selectedDynamicRating = useMemo(() => {
     if (!player) return 3.5
 
     if (ratingView === 'singles') {
-      return toRatingNumber(
-        player.singles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-        3.5
-      )
+      return toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
     }
 
     if (ratingView === 'doubles') {
-      return toRatingNumber(
-        player.doubles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-        3.5
-      )
+      return toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
     }
 
-    return toRatingNumber(
-      player.overall_dynamic_rating ??
-      player.dynamic_rating ??
-      player.rating,
-      3.5
-    )
+    return toRatingNumber(player.overall_dynamic_rating, 3.5)
   }, [player, ratingView])
 
   if (loading) {
@@ -216,10 +302,10 @@ export default function PlayerProfilePage() {
   return (
     <main style={mainStyle}>
       <div style={navRowStyle}>
-          <Link href="/" style={navLinkStyle}>Home</Link>
-  <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-  <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-  <Link href="/admin" style={navLinkStyle}>Admin</Link>
+        <Link href="/" style={navLinkStyle}>Home</Link>
+        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
+        <Link href="/admin" style={navLinkStyle}>Admin</Link>
       </div>
 
       <div style={heroCardStyle}>
@@ -268,14 +354,7 @@ export default function PlayerProfilePage() {
         <div style={statCardStyle}>
           <div style={statLabelStyle}>Overall</div>
           <div style={statValueStyle}>
-            {formatRating(
-              toRatingNumber(
-                player.overall_dynamic_rating ??
-                player.dynamic_rating ??
-                player.rating,
-                3.5
-              )
-            )}
+            {formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))}
           </div>
         </div>
 
@@ -283,13 +362,7 @@ export default function PlayerProfilePage() {
           <div style={statLabelStyle}>Singles</div>
           <div style={statValueStyle}>
             {formatRating(
-              toRatingNumber(
-                player.singles_dynamic_rating ??
-                player.overall_dynamic_rating ??
-                player.dynamic_rating ??
-                player.rating,
-                3.5
-              )
+              toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
             )}
           </div>
         </div>
@@ -298,13 +371,7 @@ export default function PlayerProfilePage() {
           <div style={statLabelStyle}>Doubles</div>
           <div style={statValueStyle}>
             {formatRating(
-              toRatingNumber(
-                player.doubles_dynamic_rating ??
-                player.overall_dynamic_rating ??
-                player.dynamic_rating ??
-                player.rating,
-                3.5
-              )
+              toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
             )}
           </div>
         </div>
@@ -351,7 +418,9 @@ export default function PlayerProfilePage() {
                 <tr>
                   <th style={thStyle}>Date</th>
                   <th style={thStyle}>Type</th>
+                  <th style={thStyle}>Partner</th>
                   <th style={thStyle}>Opponent</th>
+                  <th style={thStyle}>Score</th>
                   <th style={thStyle}>Result</th>
                 </tr>
               </thead>
@@ -359,12 +428,14 @@ export default function PlayerProfilePage() {
                 {mostRecentMatches.map((match) => (
                   <tr key={match.id}>
                     <td style={tdStyle}>{match.date}</td>
-                    <td style={tdStyle}>{capitalize(normalizeMatchType(match.match_type))}</td>
+                    <td style={tdStyle}>{capitalize(match.matchType)}</td>
+                    <td style={tdStyle}>{match.partner || '—'}</td>
                     <td style={tdStyle}>{match.opponent}</td>
+                    <td style={tdStyle}>{match.score}</td>
                     <td
                       style={{
                         ...tdStyle,
-                        color: isWin(match.result) ? '#166534' : '#991b1b',
+                        color: match.result === 'W' ? '#166534' : '#991b1b',
                         fontWeight: 700,
                       }}
                     >
@@ -432,12 +503,12 @@ function SimpleLineChart({
   )
 }
 
-function normalizeMatchType(value: string | null | undefined): 'singles' | 'doubles' {
+function normalizeMatchType(value: string | null | undefined): MatchType {
   return value === 'doubles' ? 'doubles' : 'singles'
 }
 
-function isWin(result: string) {
-  return result.trim().toUpperCase().startsWith('W')
+function normalizeName(name: string) {
+  return name.trim().replace(/\s+/g, ' ')
 }
 
 function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
