@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -87,7 +86,6 @@ type ComparisonState = {
 const RATING_DIVISOR = 0.35
 
 export default function MatchupPage() {
-  const searchParams = useSearchParams()
 
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
@@ -111,13 +109,17 @@ export default function MatchupPage() {
     void loadPlayers()
   }, [])
 
-  useEffect(() => {
-    const playerAFromUrl = searchParams.get('playerA') || ''
-    const playerBFromUrl = searchParams.get('playerB') || ''
+useEffect(() => {
+  if (typeof window === 'undefined') return
 
-    if (playerAFromUrl) setPlayerAId(playerAFromUrl)
-    if (playerBFromUrl) setPlayerBId(playerBFromUrl)
-  }, [searchParams])
+  const params = new URLSearchParams(window.location.search)
+
+  const playerAFromUrl = params.get('playerA') || ''
+  const playerBFromUrl = params.get('playerB') || ''
+
+  if (playerAFromUrl) setPlayerAId(playerAFromUrl)
+  if (playerBFromUrl) setPlayerBId(playerBFromUrl)
+}, [])
 
   useEffect(() => {
     if (matchType === 'singles') {
