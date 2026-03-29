@@ -216,14 +216,10 @@ export default function PlayerProfilePage() {
   return (
     <main style={mainStyle}>
       <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/add-match" style={navLinkStyle}>Add Match</Link>
-        <Link href="/csv-import" style={navLinkStyle}>CSV Import</Link>
-        <Link href="/paste-results" style={navLinkStyle}>Paste Results</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-        <Link href="/manage-players" style={navLinkStyle}>Manage Players</Link>
+          <Link href="/" style={navLinkStyle}>Home</Link>
+  <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+  <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
+  <Link href="/admin" style={navLinkStyle}>Admin</Link>
       </div>
 
       <div style={heroCardStyle}>
