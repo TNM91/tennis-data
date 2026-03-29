@@ -439,9 +439,6 @@ export default function LineupAvailabilityPage() {
         <Link href="/leagues" style={navLinkStyle}>Leagues</Link>
         <Link href="/teams" style={navLinkStyle}>Teams</Link>
         <Link href="/lineup-projection" style={navLinkStyle}>Lineup Projection</Link>
-        <Link href="/captains-corner/scenario-comparison" style={navLinkStyle}>
-  Scenario Comparison
-</Link>
         <Link href="/admin" style={navLinkStyle}>Admin</Link>
       </div>
 
