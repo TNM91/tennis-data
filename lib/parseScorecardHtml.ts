@@ -13,6 +13,10 @@ export type ParsedScorecard = {
   matchNumber: string | null
   homeTeam: string | null
   awayTeam: string | null
+  flight: string | null
+  ustaSection: string | null
+  districtArea: string | null
+  league: string | null
   lines: ParsedScorecardLine[]
 }
 
@@ -24,24 +28,46 @@ function getBodyText(doc: Document) {
   return cleanText(doc.body?.textContent || '')
 }
 
+function getCellTextByHeader(doc: Document, headerLabel: string) {
+  const tables = Array.from(doc.querySelectorAll('table'))
+  const normalizedHeader = headerLabel.toLowerCase()
+
+  for (const table of tables) {
+    const rows = Array.from(table.querySelectorAll('tr'))
+    if (rows.length < 2) continue
+
+    const headerCells = Array.from(rows[0].querySelectorAll('td, th')).map((cell) =>
+      cleanText(cell.textContent)
+    )
+
+    const valueCells = Array.from(rows[1].querySelectorAll('td, th')).map((cell) =>
+      cleanText(cell.textContent)
+    )
+
+    const idx = headerCells.findIndex((cell) => cell.toLowerCase() === normalizedHeader)
+    if (idx !== -1 && valueCells[idx]) {
+      return valueCells[idx]
+    }
+  }
+
+  return null
+}
+
 function extractMatchDate(doc: Document) {
-  const header2 = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader2')
-  const header2Text = cleanText(header2?.textContent)
+  const direct =
+    getCellTextByHeader(doc, 'Date Match Played') ||
+    getCellTextByHeader(doc, 'Date Scheduled') ||
+    getCellTextByHeader(doc, 'Entry Date')
 
-  const fromHeader2 =
-    header2Text.match(/Date Match Played:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
-    header2Text.match(/Date Scheduled:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)
-
-  if (fromHeader2?.[1]) return fromHeader2[1]
+  if (direct) return direct
 
   const text = getBodyText(doc)
-
-  const fromBody =
+  const match =
     text.match(/Date Match Played:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
     text.match(/Date Scheduled:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
     text.match(/Entry Date:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)
 
-  return fromBody?.[1] ?? null
+  return match?.[1] ?? null
 }
 
 function extractLeagueName(doc: Document) {
@@ -49,15 +75,14 @@ function extractLeagueName(doc: Document) {
   if (exact) return cleanText(exact.textContent) || null
 
   const fallback = Array.from(doc.querySelectorAll('a')).find((a) =>
-    /adult|league|spring|summer|fall|winter/i.test(cleanText(a.textContent))
+    /league|adult|spring|summer|fall|winter/i.test(cleanText(a.textContent))
   )
 
   return cleanText(fallback?.textContent) || null
 }
 
 function extractMatchNumber(doc: Document) {
-  const header1 = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader1')
-  const text = cleanText(header1?.textContent || getBodyText(doc))
+  const text = getBodyText(doc)
   const match = text.match(/Scorecard for Match #\s*([0-9]+)/i)
   return match?.[1] ?? null
 }
@@ -73,17 +98,13 @@ function extractTeams(doc: Document) {
     return { homeTeam, awayTeam }
   }
 
-  const header1 = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader1')
-  const text = cleanText(header1?.textContent || getBodyText(doc))
+  const homeFromHeader = getCellTextByHeader(doc, 'Home Team')
+  const awayFromHeader = getCellTextByHeader(doc, 'Away Team')
 
-  const explicitVs = text.match(
-    /Match #\s*\d+\s+in\s+.*?\s+([A-Za-z0-9&'.,\-()\/ ]+?)\s+Team ID:\s*[*0-9]+\s+Vs\.\s+([A-Za-z0-9&'.,\-()\/ ]+?)\s+Team ID:\s*[*0-9]+/i
-  )
-
-  if (explicitVs) {
+  if (homeFromHeader || awayFromHeader) {
     return {
-      homeTeam: cleanText(explicitVs[1]) || null,
-      awayTeam: cleanText(explicitVs[2]) || null,
+      homeTeam: homeFromHeader || null,
+      awayTeam: awayFromHeader || null,
     }
   }
 
@@ -91,6 +112,22 @@ function extractTeams(doc: Document) {
     homeTeam: null,
     awayTeam: null,
   }
+}
+
+function extractFlight(doc: Document) {
+  return getCellTextByHeader(doc, 'Flight')
+}
+
+function extractUstaSection(doc: Document) {
+  return getCellTextByHeader(doc, 'USTA Section')
+}
+
+function extractDistrictArea(doc: Document) {
+  return getCellTextByHeader(doc, 'District/Area')
+}
+
+function extractLeague(doc: Document) {
+  return getCellTextByHeader(doc, 'League')
 }
 
 function looksLikeScore(value: string) {
@@ -244,6 +281,10 @@ export function parseScorecardHtml(html: string): ParsedScorecard {
     matchNumber: extractMatchNumber(doc),
     homeTeam,
     awayTeam,
+    flight: extractFlight(doc),
+    ustaSection: extractUstaSection(doc),
+    districtArea: extractDistrictArea(doc),
+    league: extractLeague(doc),
     lines,
   }
 }

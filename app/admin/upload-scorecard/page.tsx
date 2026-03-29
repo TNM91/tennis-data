@@ -134,19 +134,32 @@ export default function UploadScorecardPage() {
     }
   }
 
-  async function getOrCreatePlayerId(name: string): Promise<{ id: string; created: boolean }> {
+  async function getOrCreatePlayerId(
+    name: string,
+    flight: string | null
+  ): Promise<{ id: string; created: boolean }> {
     const normalized = normalizeName(name)
 
     const { data: existing, error: existingError } = await supabase
       .from('players')
-      .select('id,name')
+      .select('id,name,flight')
       .ilike('name', normalized)
       .limit(1)
 
     if (existingError) throw existingError
 
     if (existing && existing.length > 0) {
-      return { id: existing[0].id, created: false }
+      const existingId = existing[0].id
+
+      if (flight) {
+        await supabase
+          .from('players')
+          .update({ flight })
+          .eq('id', existingId)
+          .is('flight', null)
+      }
+
+      return { id: existingId, created: false }
     }
 
     const { data: inserted, error: insertError } = await supabase
@@ -154,6 +167,7 @@ export default function UploadScorecardPage() {
       .insert({
         name: normalized,
         location: null,
+        flight: flight || null,
         singles_rating: null,
         singles_dynamic_rating: null,
         doubles_rating: null,
@@ -218,13 +232,13 @@ export default function UploadScorecardPage() {
         const teamBPlayerIds: string[] = []
 
         for (const name of line.teamAPlayers) {
-          const player = await getOrCreatePlayerId(name)
+          const player = await getOrCreatePlayerId(name, parsed.flight)
           if (player.created) result.createdPlayers += 1
           teamAPlayerIds.push(player.id)
         }
 
         for (const name of line.teamBPlayers) {
-          const player = await getOrCreatePlayerId(name)
+          const player = await getOrCreatePlayerId(name, parsed.flight)
           if (player.created) result.createdPlayers += 1
           teamBPlayerIds.push(player.id)
         }
@@ -246,6 +260,12 @@ export default function UploadScorecardPage() {
             winner_side: line.winnerSide,
             dedupe_key: dedupeKey,
             source: sourceParts.join(' | '),
+            flight: parsed.flight || null,
+            usta_section: parsed.ustaSection || null,
+            district_area: parsed.districtArea || null,
+            league_name: parsed.league || parsed.leagueName || null,
+            home_team: resolvedHomeTeam || null,
+            away_team: resolvedAwayTeam || null,
           })
           .select('id')
           .single()
@@ -344,8 +364,23 @@ export default function UploadScorecardPage() {
               </div>
 
               <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>Flight</div>
+                <div style={summaryValueStyle}>{parsed.flight || 'Unknown'}</div>
+              </div>
+
+              <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>USTA Section</div>
+                <div style={summaryValueStyle}>{parsed.ustaSection || 'Unknown'}</div>
+              </div>
+
+              <div style={summaryCardStyle}>
+                <div style={summaryLabelStyle}>District / Area</div>
+                <div style={summaryValueStyle}>{parsed.districtArea || 'Unknown'}</div>
+              </div>
+
+              <div style={summaryCardStyle}>
                 <div style={summaryLabelStyle}>League</div>
-                <div style={summaryValueStyle}>{parsed.leagueName || 'Unknown'}</div>
+                <div style={summaryValueStyle}>{parsed.league || parsed.leagueName || 'Unknown'}</div>
               </div>
 
               <div style={summaryCardStyle}>
@@ -379,9 +414,7 @@ export default function UploadScorecardPage() {
                 onChange={(e) => setManualMatchDate(e.target.value)}
                 style={dateInputStyle}
               />
-              <div style={helpTextStyle}>
-                Leave blank to use the parsed date.
-              </div>
+              <div style={helpTextStyle}>Leave blank to use the parsed date.</div>
               <div style={resolvedValueStyle}>
                 Import will use: <strong>{resolvedMatchDate || 'No valid date yet'}</strong>
               </div>
