@@ -12,6 +12,7 @@ type MatchRow = {
   flight: string | null
   home_team: string | null
   away_team: string | null
+  match_date: string
 }
 
 type PlayerRelation =
@@ -22,6 +23,8 @@ type PlayerRelation =
       overall_dynamic_rating: number | null
       singles_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      preferred_role: string | null
+      lineup_notes: string | null
     }
   | {
       id: string
@@ -30,6 +33,8 @@ type PlayerRelation =
       overall_dynamic_rating: number | null
       singles_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      preferred_role: string | null
+      lineup_notes: string | null
     }[]
   | null
 
@@ -40,6 +45,24 @@ type MatchPlayerRow = {
   players: PlayerRelation
 }
 
+type AvailabilityStatus =
+  | 'available'
+  | 'unavailable'
+  | 'singles_only'
+  | 'doubles_only'
+  | 'limited'
+
+type AvailabilityRow = {
+  id: string
+  match_date: string
+  team_name: string
+  league_name: string | null
+  flight: string | null
+  player_id: string
+  status: AvailabilityStatus
+  notes: string | null
+}
+
 type RosterPlayer = {
   id: string
   name: string
@@ -48,6 +71,10 @@ type RosterPlayer = {
   singlesDynamic: number | null
   doublesDynamic: number | null
   overallDynamic: number | null
+  preferredRole: string | null
+  lineupNotes: string | null
+  availabilityStatus: AvailabilityStatus
+  availabilityNotes: string
 }
 
 type LeagueOption = {
@@ -59,6 +86,7 @@ type DoublesPair = {
   player1: RosterPlayer
   player2: RosterPlayer
   combinedDoubles: number
+  notes: string[]
 }
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -71,6 +99,18 @@ function formatRating(value: number | null | undefined) {
   return value.toFixed(2)
 }
 
+function formatDate(value: string | null) {
+  if (!value) return 'Unknown'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -80,6 +120,48 @@ function buildLeagueKey(leagueName: string, flight: string) {
   return `${leagueName}___${flight}`
 }
 
+function getAvailabilityLabel(status: AvailabilityStatus) {
+  if (status === 'available') return 'Available'
+  if (status === 'unavailable') return 'Unavailable'
+  if (status === 'singles_only') return 'Singles Only'
+  if (status === 'doubles_only') return 'Doubles Only'
+  return 'Limited'
+}
+
+function canPlaySingles(player: RosterPlayer) {
+  return player.availabilityStatus !== 'unavailable' && player.availabilityStatus !== 'doubles_only'
+}
+
+function canPlayDoubles(player: RosterPlayer) {
+  return player.availabilityStatus !== 'unavailable' && player.availabilityStatus !== 'singles_only'
+}
+
+function limitedPenalty(player: RosterPlayer) {
+  return player.availabilityStatus === 'limited' ? 0.03 : 0
+}
+
+function preferredRoleBonusSingles(player: RosterPlayer) {
+  if (player.preferredRole === 'singles') return 0.03
+  if (player.preferredRole === 'doubles') return -0.03
+  return 0
+}
+
+function preferredRoleBonusDoubles(player: RosterPlayer) {
+  if (player.preferredRole === 'doubles') return 0.03
+  if (player.preferredRole === 'singles') return -0.03
+  return 0
+}
+
+function adjustedSinglesScore(player: RosterPlayer) {
+  const base = typeof player.singlesDynamic === 'number' ? player.singlesDynamic : -999
+  return base + preferredRoleBonusSingles(player) - limitedPenalty(player)
+}
+
+function adjustedDoublesScore(player: RosterPlayer) {
+  const base = typeof player.doublesDynamic === 'number' ? player.doublesDynamic : -999
+  return base + preferredRoleBonusDoubles(player) - limitedPenalty(player)
+}
+
 export default function LineupProjectionPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,6 +169,7 @@ export default function LineupProjectionPage() {
 
   const [selectedLeagueKey, setSelectedLeagueKey] = useState('')
   const [selectedTeam, setSelectedTeam] = useState('')
+  const [selectedDate, setSelectedDate] = useState('')
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
@@ -102,7 +185,7 @@ export default function LineupProjectionPage() {
     }
 
     void loadTeamRoster()
-  }, [selectedLeagueKey, selectedTeam])
+  }, [selectedLeagueKey, selectedTeam, selectedDate])
 
   async function loadLeaguesAndTeams() {
     setLoading(true)
@@ -116,9 +199,10 @@ export default function LineupProjectionPage() {
           league_name,
           flight,
           home_team,
-          away_team
+          away_team,
+          match_date
         `)
-        .order('league_name', { ascending: true })
+        .order('match_date', { ascending: false })
 
       if (error) throw new Error(error.message)
 
@@ -144,7 +228,8 @@ export default function LineupProjectionPage() {
           league_name,
           flight,
           home_team,
-          away_team
+          away_team,
+          match_date
         `)
         .eq('league_name', leagueName)
         .eq('flight', flight)
@@ -179,7 +264,9 @@ export default function LineupProjectionPage() {
             flight,
             overall_dynamic_rating,
             singles_dynamic_rating,
-            doubles_dynamic_rating
+            doubles_dynamic_rating,
+            preferred_role,
+            lineup_notes
           )
         `)
         .in('match_id', matchIds)
@@ -206,13 +293,51 @@ export default function LineupProjectionPage() {
             singlesDynamic: player.singles_dynamic_rating,
             doublesDynamic: player.doubles_dynamic_rating,
             overallDynamic: player.overall_dynamic_rating,
+            preferredRole: player.preferred_role,
+            lineupNotes: player.lineup_notes,
+            availabilityStatus: 'available',
+            availabilityNotes: '',
           })
         }
 
         rosterMap.get(player.id)!.appearances += 1
       }
 
-      const rosterList = [...rosterMap.values()].sort((a, b) => {
+      const rosterList = [...rosterMap.values()]
+
+      if (selectedDate) {
+        const { data: availabilityData, error: availabilityError } = await supabase
+          .from('lineup_availability')
+          .select(`
+            id,
+            match_date,
+            team_name,
+            league_name,
+            flight,
+            player_id,
+            status,
+            notes
+          `)
+          .eq('match_date', selectedDate)
+          .eq('team_name', selectedTeam)
+
+        if (availabilityError) throw new Error(availabilityError.message)
+
+        const typedAvailability = (availabilityData || []) as AvailabilityRow[]
+        const availabilityByPlayerId = new Map<string, AvailabilityRow>(
+          typedAvailability.map((row) => [row.player_id, row])
+        )
+
+        for (const player of rosterList) {
+          const availability = availabilityByPlayerId.get(player.id)
+          if (availability) {
+            player.availabilityStatus = availability.status
+            player.availabilityNotes = availability.notes || ''
+          }
+        }
+      }
+
+      rosterList.sort((a, b) => {
         const aSingles = typeof a.singlesDynamic === 'number' ? a.singlesDynamic : -999
         const bSingles = typeof b.singlesDynamic === 'number' ? b.singlesDynamic : -999
 
@@ -265,11 +390,33 @@ export default function LineupProjectionPage() {
     return [...teamSet].sort((a, b) => a.localeCompare(b))
   }, [matches, selectedLeagueKey])
 
+  const relevantDates = useMemo(() => {
+    if (!selectedLeagueKey || !selectedTeam) return []
+
+    const [leagueName, flight] = selectedLeagueKey.split('___')
+    const dateSet = new Set<string>()
+
+    for (const row of matches) {
+      if (safeText(row.league_name) !== leagueName) continue
+      if (safeText(row.flight) !== flight) continue
+
+      const teamMatch =
+        safeText(row.home_team) === selectedTeam || safeText(row.away_team) === selectedTeam
+
+      if (teamMatch && row.match_date) {
+        dateSet.add(row.match_date)
+      }
+    }
+
+    return [...dateSet].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+  }, [matches, selectedLeagueKey, selectedTeam])
+
   const singlesProjection = useMemo(() => {
     return [...roster]
+      .filter(canPlaySingles)
       .sort((a, b) => {
-        const aValue = typeof a.singlesDynamic === 'number' ? a.singlesDynamic : -999
-        const bValue = typeof b.singlesDynamic === 'number' ? b.singlesDynamic : -999
+        const aValue = adjustedSinglesScore(a)
+        const bValue = adjustedSinglesScore(b)
         if (bValue !== aValue) return bValue - aValue
         return b.appearances - a.appearances
       })
@@ -278,10 +425,11 @@ export default function LineupProjectionPage() {
 
   const doublesPairs = useMemo<DoublesPair[]>(() => {
     const players = [...roster]
+      .filter(canPlayDoubles)
       .filter((player) => typeof player.doublesDynamic === 'number')
       .sort((a, b) => {
-        const aValue = typeof a.doublesDynamic === 'number' ? a.doublesDynamic : -999
-        const bValue = typeof b.doublesDynamic === 'number' ? b.doublesDynamic : -999
+        const aValue = adjustedDoublesScore(a)
+        const bValue = adjustedDoublesScore(b)
         if (bValue !== aValue) return bValue - aValue
         return b.appearances - a.appearances
       })
@@ -292,26 +440,34 @@ export default function LineupProjectionPage() {
       for (let j = i + 1; j < players.length; j += 1) {
         const player1 = players[i]
         const player2 = players[j]
+        const notes: string[] = []
+
+        if (player1.availabilityStatus === 'limited' || player2.availabilityStatus === 'limited') {
+          notes.push('Includes limited-availability player')
+        }
+
+        if (player1.preferredRole === 'doubles' && player2.preferredRole === 'doubles') {
+          notes.push('Strong doubles-role fit')
+        }
+
         const combinedDoubles =
-          ((player1.doublesDynamic || 0) + (player2.doublesDynamic || 0)) / 2
+          (adjustedDoublesScore(player1) + adjustedDoublesScore(player2)) / 2
 
         pairs.push({
           player1,
           player2,
           combinedDoubles,
+          notes,
         })
       }
     }
 
-    return pairs
-      .sort((a, b) => b.combinedDoubles - a.combinedDoubles)
-      .slice(0, 8)
+    return pairs.sort((a, b) => b.combinedDoubles - a.combinedDoubles).slice(0, 8)
   }, [roster])
 
   const suggestedLineup = useMemo(() => {
     const topSingles = singlesProjection.slice(0, 2)
-
-    const usedIds = new Set<string>()
+    const usedIds = new Set<string>(topSingles.map((player) => player.id))
     const topPairs: DoublesPair[] = []
 
     for (const pair of doublesPairs) {
@@ -324,17 +480,54 @@ export default function LineupProjectionPage() {
       if (topPairs.length === 3) break
     }
 
+    const notes: string[] = []
+
+    if (roster.some((player) => player.availabilityStatus === 'unavailable')) {
+      notes.push('Unavailable players were excluded.')
+    }
+
+    if (roster.some((player) => player.availabilityStatus === 'limited')) {
+      notes.push('Limited players were included only if they still graded out strongly.')
+    }
+
+    if (roster.some((player) => player.availabilityStatus === 'singles_only')) {
+      notes.push('Singles-only players were kept out of doubles pairings.')
+    }
+
+    if (roster.some((player) => player.availabilityStatus === 'doubles_only')) {
+      notes.push('Doubles-only players were kept out of singles lines.')
+    }
+
     return {
       singles: topSingles,
       doubles: topPairs,
+      notes,
     }
-  }, [singlesProjection, doublesPairs])
+  }, [singlesProjection, doublesPairs, roster])
 
   const selectedLeagueLabel = useMemo(() => {
     if (!selectedLeagueKey) return ''
     const [leagueName, flight] = selectedLeagueKey.split('___')
     return `${leagueName} · ${flight}`
   }, [selectedLeagueKey])
+
+  const availabilitySummary = useMemo(() => {
+    let available = 0
+    let unavailable = 0
+    let singlesOnly = 0
+    let doublesOnly = 0
+    let limited = 0
+
+    for (const player of roster) {
+      if (player.availabilityStatus === 'available') available += 1
+      if (player.availabilityStatus === 'unavailable') unavailable += 1
+      if (player.availabilityStatus === 'singles_only') singlesOnly += 1
+      if (player.availabilityStatus === 'doubles_only') doublesOnly += 1
+      if (player.availabilityStatus === 'limited') limited += 1
+    }
+
+    return { available, unavailable, singlesOnly, doublesOnly, limited }
+  }, [roster])
 
   return (
     <main style={mainStyle}>
@@ -343,15 +536,15 @@ export default function LineupProjectionPage() {
         <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
         <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
         <Link href="/leagues" style={navLinkStyle}>Leagues</Link>
-        <Link href="/lineup-projection" style={navLinkStyle}>Lineup Projection</Link>
+        <Link href="/captains-corner" style={navLinkStyle}>Captain&apos;s Corner</Link>
         <Link href="/admin" style={navLinkStyle}>Admin</Link>
       </div>
 
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Lineup Projection</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Pick a league and team to project likely singles and doubles lines from imported roster usage
-          and dynamic ratings.
+          Pick a league, team, and optional match date to generate lineup suggestions using dynamic ratings,
+          roster usage, preferences, and availability.
         </p>
       </div>
 
@@ -364,6 +557,7 @@ export default function LineupProjectionPage() {
               onChange={(e) => {
                 setSelectedLeagueKey(e.target.value)
                 setSelectedTeam('')
+                setSelectedDate('')
                 setRoster([])
               }}
               style={inputStyle}
@@ -384,7 +578,11 @@ export default function LineupProjectionPage() {
             <label style={labelStyle}>Team</label>
             <select
               value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
+              onChange={(e) => {
+                setSelectedTeam(e.target.value)
+                setSelectedDate('')
+                setRoster([])
+              }}
               style={inputStyle}
               disabled={!selectedLeagueKey}
             >
@@ -392,6 +590,23 @@ export default function LineupProjectionPage() {
               {teamsForLeague.map((team) => (
                 <option key={team} value={team}>
                   {team}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={filterWrapStyle}>
+            <label style={labelStyle}>Match Date (optional)</label>
+            <select
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={inputStyle}
+              disabled={!selectedTeam}
+            >
+              <option value="">No date filter</option>
+              {relevantDates.map((date) => (
+                <option key={date} value={date}>
+                  {formatDate(date)}
                 </option>
               ))}
             </select>
@@ -419,15 +634,28 @@ export default function LineupProjectionPage() {
               <div style={summaryPillStyle}>
                 <strong>{selectedLeagueLabel}</strong>
               </div>
+              {selectedDate ? (
+                <div style={summaryPillStyle}>
+                  Date: <strong>{formatDate(selectedDate)}</strong>
+                </div>
+              ) : null}
               <div style={summaryPillStyle}>
                 <strong>{roster.length}</strong> players
               </div>
             </div>
 
+            <div style={summaryPillRowStyle}>
+              <div style={availabilityPillStyle}>Available: {availabilitySummary.available}</div>
+              <div style={availabilityPillStyle}>Unavailable: {availabilitySummary.unavailable}</div>
+              <div style={availabilityPillStyle}>Singles Only: {availabilitySummary.singlesOnly}</div>
+              <div style={availabilityPillStyle}>Doubles Only: {availabilitySummary.doublesOnly}</div>
+              <div style={availabilityPillStyle}>Limited: {availabilitySummary.limited}</div>
+            </div>
+
             <div style={sectionBlockStyle}>
               <h2 style={sectionTitleStyle}>Suggested Lineup</h2>
               <div style={sectionSubStyle}>
-                Best current estimate using dynamic ratings and roster appearances.
+                Best current estimate using ratings, availability, and role preferences.
               </div>
 
               <div style={projectionGridStyle}>
@@ -440,12 +668,12 @@ export default function LineupProjectionPage() {
                           <strong>S{index + 1}:</strong> {player.name}
                         </div>
                         <div style={lineMetaStyle}>
-                          Singles DR: {formatRating(player.singlesDynamic)}
+                          Singles DR: {formatRating(player.singlesDynamic)} · {getAvailabilityLabel(player.availabilityStatus)}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div style={emptyMiniStyle}>Not enough singles data.</div>
+                    <div style={emptyMiniStyle}>Not enough eligible singles players.</div>
                   )}
                 </div>
 
@@ -460,18 +688,30 @@ export default function LineupProjectionPage() {
                         <div style={lineMetaStyle}>
                           Pair DR: {pair.combinedDoubles.toFixed(2)}
                         </div>
+                        {pair.notes.length ? (
+                          <div style={lineNoteStyle}>{pair.notes.join(' · ')}</div>
+                        ) : null}
                       </div>
                     ))
                   ) : (
-                    <div style={emptyMiniStyle}>Not enough doubles data.</div>
+                    <div style={emptyMiniStyle}>Not enough eligible doubles players.</div>
                   )}
                 </div>
               </div>
+
+              {suggestedLineup.notes.length ? (
+                <div style={coachNotesBoxStyle}>
+                  <div style={coachNotesHeaderStyle}>Captain Suggestions</div>
+                  {suggestedLineup.notes.map((note) => (
+                    <div key={note} style={coachNoteStyle}>• {note}</div>
+                  ))}
+                </div>
+              ) : null}
             </div>
                         <div style={sectionBlockStyle}>
               <h2 style={sectionTitleStyle}>Roster Pool</h2>
               <div style={sectionSubStyle}>
-                Available players seen for this team in imported matches.
+                Available team pool after applying match-date availability.
               </div>
 
               <div style={rosterGridStyle}>
@@ -482,11 +722,46 @@ export default function LineupProjectionPage() {
                       {player.appearances} appearances · Flight {safeText(player.flight)}
                     </div>
 
+                    <div style={statusBadgeRowStyle}>
+                      <div
+                        style={{
+                          ...statusBadgeStyle,
+                          ...(player.availabilityStatus === 'unavailable'
+                            ? unavailableBadgeStyle
+                            : player.availabilityStatus === 'limited'
+                              ? limitedBadgeStyle
+                              : player.availabilityStatus === 'singles_only'
+                                ? singlesOnlyBadgeStyle
+                                : player.availabilityStatus === 'doubles_only'
+                                  ? doublesOnlyBadgeStyle
+                                  : availableBadgeStyle),
+                        }}
+                      >
+                        {getAvailabilityLabel(player.availabilityStatus)}
+                      </div>
+
+                      {player.preferredRole ? (
+                        <div style={roleBadgeStyle}>Prefers {player.preferredRole}</div>
+                      ) : null}
+                    </div>
+
                     <div style={miniStatsGridStyle}>
                       <MiniStat label="Overall" value={formatRating(player.overallDynamic)} />
                       <MiniStat label="Singles" value={formatRating(player.singlesDynamic)} />
                       <MiniStat label="Doubles" value={formatRating(player.doublesDynamic)} />
                     </div>
+
+                    {player.availabilityNotes ? (
+                      <div style={notesBoxStyle}>
+                        <strong>Availability:</strong> {player.availabilityNotes}
+                      </div>
+                    ) : null}
+
+                    {player.lineupNotes ? (
+                      <div style={notesBoxStyle}>
+                        <strong>Captain note:</strong> {player.lineupNotes}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -495,7 +770,7 @@ export default function LineupProjectionPage() {
             <div style={sectionBlockStyle}>
               <h2 style={sectionTitleStyle}>Top Singles Options</h2>
               <div style={sectionSubStyle}>
-                Ranked by singles dynamic rating.
+                Ranked by singles dynamic rating, adjusted for availability and role preference.
               </div>
 
               <div style={listCardStyle}>
@@ -515,7 +790,7 @@ export default function LineupProjectionPage() {
             <div style={sectionBlockStyle}>
               <h2 style={sectionTitleStyle}>Top Doubles Pairings</h2>
               <div style={sectionSubStyle}>
-                Ranked by average doubles dynamic rating.
+                Ranked by average doubles dynamic rating, adjusted for availability and role preference.
               </div>
 
               <div style={listCardStyle}>
@@ -523,6 +798,9 @@ export default function LineupProjectionPage() {
                   <div key={`${pair.player1.id}-${pair.player2.id}`} style={listRowStyle}>
                     <div>
                       <strong>{index + 1}.</strong> {pair.player1.name} / {pair.player2.name}
+                      {pair.notes.length ? (
+                        <div style={pairNotesInlineStyle}>{pair.notes.join(' · ')}</div>
+                      ) : null}
                     </div>
                     <div style={listRowMetaStyle}>
                       Pair DR: {pair.combinedDoubles.toFixed(2)}
@@ -638,6 +916,15 @@ const summaryPillStyle = {
   fontWeight: 700,
 }
 
+const availabilityPillStyle = {
+  padding: '10px 14px',
+  borderRadius: '999px',
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  color: '#334155',
+  fontWeight: 700,
+}
+
 const sectionBlockStyle = {
   marginTop: '20px',
 }
@@ -690,6 +977,33 @@ const lineMetaStyle = {
   marginTop: '4px',
 }
 
+const lineNoteStyle = {
+  color: '#92400e',
+  fontSize: '12px',
+  marginTop: '6px',
+  fontWeight: 700,
+}
+
+const coachNotesBoxStyle = {
+  marginTop: '16px',
+  background: '#eff6ff',
+  border: '1px solid #bfdbfe',
+  borderRadius: '16px',
+  padding: '14px',
+}
+
+const coachNotesHeaderStyle = {
+  color: '#1d4ed8',
+  fontWeight: 800,
+  marginBottom: '8px',
+}
+
+const coachNoteStyle = {
+  color: '#334155',
+  fontSize: '14px',
+  marginBottom: '4px',
+}
+
 const emptyMiniStyle = {
   color: '#64748b',
   fontSize: '14px',
@@ -721,6 +1035,54 @@ const playerMetaStyle = {
   marginBottom: '12px',
 }
 
+const statusBadgeRowStyle = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap' as const,
+  marginBottom: '12px',
+}
+
+const statusBadgeStyle = {
+  padding: '6px 10px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const availableBadgeStyle = {
+  background: '#dcfce7',
+  color: '#166534',
+}
+
+const unavailableBadgeStyle = {
+  background: '#fee2e2',
+  color: '#991b1b',
+}
+
+const singlesOnlyBadgeStyle = {
+  background: '#dbeafe',
+  color: '#1d4ed8',
+}
+
+const doublesOnlyBadgeStyle = {
+  background: '#ede9fe',
+  color: '#6d28d9',
+}
+
+const limitedBadgeStyle = {
+  background: '#fef3c7',
+  color: '#92400e',
+}
+
+const roleBadgeStyle = {
+  padding: '6px 10px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+  background: '#f1f5f9',
+  color: '#334155',
+}
+
 const miniStatsGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
@@ -745,6 +1107,17 @@ const miniStatValueStyle = {
   fontWeight: 700,
 }
 
+const notesBoxStyle = {
+  marginTop: '10px',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
+  borderRadius: '12px',
+  padding: '10px',
+  color: '#475569',
+  fontSize: '13px',
+  lineHeight: 1.5,
+}
+
 const listCardStyle = {
   background: '#f8fafc',
   border: '1px solid #e2e8f0',
@@ -765,6 +1138,13 @@ const listRowMetaStyle = {
   color: '#1d4ed8',
   fontWeight: 700,
   whiteSpace: 'nowrap' as const,
+}
+
+const pairNotesInlineStyle = {
+  color: '#92400e',
+  fontSize: '12px',
+  marginTop: '4px',
+  fontWeight: 700,
 }
 
 const errorBoxStyle = {
