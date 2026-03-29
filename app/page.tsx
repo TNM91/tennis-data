@@ -126,125 +126,164 @@ export default function HomePage() {
       : '—'
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-      </div>
+    <main style={pageStyle}>
+      <header style={headerStyle}>
+        <div style={headerInnerStyle}>
+          <Link href="/" style={logoWrapStyle}>
+            <img
+              src="/logo-light.png"
+              alt="TenAceIQ"
+              style={{ height: 52, width: 'auto', display: 'block' }}
+            />
+          </Link>
 
-      <div style={heroCardStyle}>
-        <div style={heroTopRowStyle}>
-          <div>
-            <div style={brandBadgeStyle}>TenAceIQ</div>
-            <h1 style={{ margin: '10px 0 0 0', fontSize: '42px', lineHeight: 1.05 }}>
-              Smarter Tennis Ratings
+          <nav style={navStyle}>
+            <Link href="/" style={navLinkStyle}>Home</Link>
+            <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+            <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
+            <Link href="/add-match" style={navLinkStyle}>Add Match</Link>
+            <Link href="/csv-import" style={navLinkStyle}>Import</Link>
+            <Link href="/admin" style={navLinkStyle}>Admin</Link>
+          </nav>
+        </div>
+      </header>
+
+      <section style={heroSectionStyle}>
+        <div style={heroContentStyle}>
+          <div style={heroLeftStyle}>
+            <div style={heroBadgeStyle}>Smarter Tennis Intelligence</div>
+            <h1 style={heroTitleStyle}>
+              Track Ratings.
+              <br />
+              Compare Matchups.
+              <br />
+              Improve Faster.
             </h1>
             <p style={heroTextStyle}>
-              TenAceIQ tracks player strength across singles, doubles, and overall.
-              Search players, compare matchups, and monitor your local tennis landscape.
+              TenAceIQ helps players and local tennis communities analyze singles,
+              doubles, and overall ratings with a cleaner, faster, data-driven experience.
             </p>
 
-            <div style={heroButtonRowStyle}>
-              <Link href="/rankings" style={heroPrimaryLinkStyle}>
-                View Rankings
+            <div style={heroButtonsStyle}>
+              <Link href="/rankings" style={primaryButtonStyle}>
+                Explore Rankings
               </Link>
-              <Link href="/matchup" style={heroSecondaryLinkStyle}>
+              <Link href="/matchup" style={accentButtonStyle}>
                 Compare Players
               </Link>
+              <Link href="/add-match" style={secondaryButtonStyle}>
+                Add Match
+              </Link>
+            </div>
+
+            <div style={heroMiniStatsStyle}>
+              <div style={heroMiniStatCardStyle}>
+                <div style={heroMiniStatLabelStyle}>Top Overall</div>
+                <div style={heroMiniStatValueStyle}>{topOverall}</div>
+              </div>
+              <div style={heroMiniStatCardStyle}>
+                <div style={heroMiniStatLabelStyle}>Top Singles</div>
+                <div style={heroMiniStatValueStyle}>{topSingles}</div>
+              </div>
+              <div style={heroMiniStatCardStyle}>
+                <div style={heroMiniStatLabelStyle}>Top Doubles</div>
+                <div style={heroMiniStatValueStyle}>{topDoubles}</div>
+              </div>
             </div>
           </div>
 
-          <div style={heroMiniPanelStyle}>
-            <div style={heroMiniLabelStyle}>Site</div>
-            <div style={heroMiniValueStyle}>TenAceIQ.com</div>
-            <div style={heroMiniSubtleStyle}>
-              Tennis intelligence, ratings, and matchup insights.
+          <div style={heroRightStyle}>
+            <div style={heroImageCardStyle}>
+              <img
+                src="/logo-dark.png"
+                alt="TenAceIQ logo"
+                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 18 }}
+              />
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div style={statsGridStyle}>
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Players</div>
-          <div style={statValueStyle}>{players.length}</div>
+      <section style={metricsGridStyle}>
+        <div style={metricCardStyle}>
+          <div style={metricLabelStyle}>Players</div>
+          <div style={metricValueStyle}>{players.length}</div>
+          <div style={metricSubtextStyle}>Tracked in the system</div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Filtered</div>
-          <div style={statValueStyle}>{filteredAndSortedPlayers.length}</div>
+        <div style={metricCardStyle}>
+          <div style={metricLabelStyle}>Filtered</div>
+          <div style={metricValueStyle}>{filteredAndSortedPlayers.length}</div>
+          <div style={metricSubtextStyle}>Current search results</div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Top Overall</div>
-          <div style={statValueStyle}>{topOverall}</div>
+        <div style={metricCardStyle}>
+          <div style={metricLabelStyle}>Brand</div>
+          <div style={metricValueStyle}>TenAceIQ</div>
+          <div style={metricSubtextStyle}>Ratings + matchup insights</div>
+        </div>
+      </section>
+
+      <section style={featureGridStyle}>
+        <div style={featureCardStyle}>
+          <div style={featureTitleStyle}>Rankings</div>
+          <div style={featureTextStyle}>
+            View player standings and quickly sort by overall, singles, and doubles performance.
+          </div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Top Singles</div>
-          <div style={statValueStyle}>{topSingles}</div>
+        <div style={featureCardStyle}>
+          <div style={featureTitleStyle}>Matchup Analysis</div>
+          <div style={featureTextStyle}>
+            Compare players head-to-head and see clearer rating-based advantages.
+          </div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Top Doubles</div>
-          <div style={statValueStyle}>{topDoubles}</div>
+        <div style={featureCardStyle}>
+          <div style={featureTitleStyle}>Performance Tracking</div>
+          <div style={featureTextStyle}>
+            Monitor progression over time and build a smarter picture of player strength.
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div style={cardStyle}>
+      <section style={cardSectionStyle}>
         <div style={sectionHeaderStyle}>
           <div>
-            <h2 style={{ margin: 0 }}>Top Overall Snapshot</h2>
-            <p style={sectionSubtextStyle}>Quick look at the current leaders.</p>
+            <h2 style={sectionTitleStyle}>Top Overall Snapshot</h2>
+            <p style={sectionSubtitleStyle}>A quick look at the current leaders.</p>
           </div>
-          <Link href="/rankings" style={sectionActionLinkStyle}>Full Rankings</Link>
+          <Link href="/rankings" style={sectionLinkStyle}>Full Rankings</Link>
         </div>
 
         {topOverallPlayers.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No players available yet.</p>
+          <p style={emptyStyle}>No players available yet.</p>
         ) : (
           <div style={topCardsGridStyle}>
             {topOverallPlayers.map((player, index) => (
               <div key={player.id} style={topPlayerCardStyle}>
-                <div style={topPlayerRankStyle}>#{index + 1}</div>
+                <div style={topRankBadgeStyle}>#{index + 1}</div>
                 <div style={topPlayerNameStyle}>{player.name}</div>
-                <div style={topPlayerMetaStyle}>{player.location || '—'}</div>
+                <div style={topPlayerLocationStyle}>{player.location || '—'}</div>
                 <div style={topPlayerRatingStyle}>
                   {formatRating(getRatingValue(player, 'overall'))}
                 </div>
-                <Link href={`/players/${player.id}`} style={actionLinkStyle}>
+                <Link href={`/players/${player.id}`} style={smallPrimaryLinkStyle}>
                   View Profile
                 </Link>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div style={cardStyle}>
-        <div style={toolbarStyle}>
-          <div style={filtersGridStyle}>
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search players or location"
-              style={inputStyle}
-            />
-
-            <select
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All locations</option>
-              {locations.map((location) => (
-                <option key={location} value={location}>
-                  {location}
-                </option>
-              ))}
-            </select>
+      <section style={cardSectionStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>Player Search</h2>
+            <p style={sectionSubtitleStyle}>
+              Find players quickly and sort by the ratings that matter most.
+            </p>
           </div>
 
           <button onClick={() => void loadPlayers()} style={refreshButtonStyle} type="button">
@@ -252,9 +291,29 @@ export default function HomePage() {
           </button>
         </div>
 
-        {error ? (
-          <div style={errorStyle}>{error}</div>
-        ) : null}
+        <div style={filtersGridStyle}>
+          <input
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Search players or location"
+            style={inputStyle}
+          />
+
+          <select
+            value={locationFilter}
+            onChange={(e) => setLocationFilter(e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">All locations</option>
+            {locations.map((location) => (
+              <option key={location} value={location}>
+                {location}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {error ? <div style={errorStyle}>{error}</div> : null}
 
         <div style={resultsCountStyle}>
           Showing {filteredAndSortedPlayers.length} of {players.length} players
@@ -336,7 +395,20 @@ export default function HomePage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
+
+      <footer style={footerStyle}>
+        <div style={footerInnerStyle}>
+          <img
+            src="/logo-light.png"
+            alt="TenAceIQ"
+            style={{ height: 42, width: 'auto', display: 'block' }}
+          />
+          <div style={footerTextStyle}>
+            Smarter Tennis Ratings & Matchup Insights
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
@@ -379,195 +451,306 @@ function renderSortIndicator(
   return direction === 'asc' ? '↑' : '↓'
 }
 
-const mainStyle: React.CSSProperties = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
-  margin: '0 auto',
-  background: '#f8fafc',
+const pageStyle: React.CSSProperties = {
   minHeight: '100vh',
 }
 
-const navRowStyle: React.CSSProperties = {
+const headerStyle: React.CSSProperties = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 100,
+  background: 'rgba(248,250,252,0.92)',
+  backdropFilter: 'blur(10px)',
+  borderBottom: '1px solid #d9e2f2',
+}
+
+const headerInnerStyle: React.CSSProperties = {
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '14px 20px',
   display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '20px',
+  flexWrap: 'wrap',
+}
+
+const logoWrapStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const navStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '14px',
   flexWrap: 'wrap',
 }
 
 const navLinkStyle: React.CSSProperties = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
+  color: '#071B4D',
   textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
+  fontWeight: 700,
+  fontSize: '15px',
 }
 
-const heroCardStyle: React.CSSProperties = {
+const heroSectionStyle: React.CSSProperties = {
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '28px 20px 16px',
+}
+
+const heroContentStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1.4fr 0.9fr',
+  gap: '24px',
+  alignItems: 'stretch',
+}
+
+const heroLeftStyle: React.CSSProperties = {
   background: 'linear-gradient(135deg, #071B4D, #0E63C7)',
+  borderRadius: '30px',
+  padding: '36px',
   color: 'white',
-  borderRadius: '24px',
-  padding: '30px',
-  boxShadow: '0 18px 50px rgba(14, 99, 199, 0.22)',
-  marginBottom: '22px',
+  boxShadow: '0 20px 60px rgba(7, 27, 77, 0.18)',
 }
 
-const heroTopRowStyle: React.CSSProperties = {
+const heroRightStyle: React.CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
-  gap: '18px',
-  alignItems: 'flex-start',
-  flexWrap: 'wrap',
 }
 
-const brandBadgeStyle: React.CSSProperties = {
+const heroImageCardStyle: React.CSSProperties = {
+  background: 'linear-gradient(180deg, #ffffff, #eef5ff)',
+  border: '1px solid #d9e2f2',
+  borderRadius: '30px',
+  padding: '24px',
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  boxShadow: '0 16px 50px rgba(15, 23, 42, 0.08)',
+}
+
+const heroBadgeStyle: React.CSSProperties = {
   display: 'inline-block',
   padding: '8px 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.14)',
-  border: '1px solid rgba(255,255,255,0.22)',
+  background: 'rgba(255,255,255,0.12)',
+  border: '1px solid rgba(255,255,255,0.18)',
   fontWeight: 800,
+  fontSize: '13px',
   letterSpacing: '0.04em',
+  marginBottom: '14px',
+}
+
+const heroTitleStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: '56px',
+  lineHeight: 1.02,
+  letterSpacing: '-0.04em',
 }
 
 const heroTextStyle: React.CSSProperties = {
-  margin: '14px 0 0 0',
+  marginTop: '18px',
   color: '#dbeafe',
-  fontSize: '17px',
-  maxWidth: '800px',
-  lineHeight: 1.6,
+  fontSize: '18px',
+  lineHeight: 1.65,
+  maxWidth: '760px',
 }
 
-const heroButtonRowStyle: React.CSSProperties = {
+const heroButtonsStyle: React.CSSProperties = {
   display: 'flex',
   gap: '12px',
   flexWrap: 'wrap',
-  marginTop: '20px',
+  marginTop: '24px',
 }
 
-const heroPrimaryLinkStyle: React.CSSProperties = {
+const primaryButtonStyle: React.CSSProperties = {
   display: 'inline-block',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: 'white',
+  padding: '14px 18px',
+  borderRadius: '14px',
+  background: '#ffffff',
   color: '#0E63C7',
   textDecoration: 'none',
   fontWeight: 800,
+  boxShadow: '0 10px 24px rgba(255,255,255,0.12)',
 }
 
-const heroSecondaryLinkStyle: React.CSSProperties = {
+const accentButtonStyle: React.CSSProperties = {
   display: 'inline-block',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: 'rgba(255,255,255,0.12)',
-  color: 'white',
+  padding: '14px 18px',
+  borderRadius: '14px',
+  background: '#9BE11D',
+  color: '#071B4D',
   textDecoration: 'none',
   fontWeight: 800,
-  border: '1px solid rgba(255,255,255,0.2)',
 }
 
-const heroMiniPanelStyle: React.CSSProperties = {
-  minWidth: '240px',
-  background: 'rgba(255,255,255,0.1)',
+const secondaryButtonStyle: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '14px 18px',
+  borderRadius: '14px',
+  background: 'rgba(255,255,255,0.10)',
+  color: '#ffffff',
+  textDecoration: 'none',
+  fontWeight: 800,
+  border: '1px solid rgba(255,255,255,0.20)',
+}
+
+const heroMiniStatsStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+  marginTop: '26px',
+}
+
+const heroMiniStatCardStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.08)',
   border: '1px solid rgba(255,255,255,0.14)',
   borderRadius: '18px',
-  padding: '18px',
+  padding: '16px',
 }
 
-const heroMiniLabelStyle: React.CSSProperties = {
+const heroMiniStatLabelStyle: React.CSSProperties = {
   color: '#bfdbfe',
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  fontSize: '13px',
   fontWeight: 700,
-}
-
-const heroMiniValueStyle: React.CSSProperties = {
-  fontSize: '24px',
-  fontWeight: 900,
-  marginTop: '6px',
-}
-
-const heroMiniSubtleStyle: React.CSSProperties = {
-  color: '#dbeafe',
-  marginTop: '8px',
-  lineHeight: 1.5,
-}
-
-const statsGridStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '16px',
-  marginBottom: '22px',
-}
-
-const statCardStyle: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #d9e2f2',
-  borderRadius: '18px',
-  padding: '18px',
-  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)',
-}
-
-const statLabelStyle: React.CSSProperties = {
-  color: '#64748b',
-  fontSize: '14px',
-  fontWeight: 600,
   marginBottom: '8px',
 }
 
-const statValueStyle: React.CSSProperties = {
-  color: '#071B4D',
-  fontSize: '30px',
+const heroMiniStatValueStyle: React.CSSProperties = {
+  fontSize: '28px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
 }
 
-const cardStyle: React.CSSProperties = {
-  background: 'white',
+const metricsGridStyle: React.CSSProperties = {
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '8px 20px 0',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '16px',
+}
+
+const metricCardStyle: React.CSSProperties = {
+  background: '#ffffff',
   border: '1px solid #d9e2f2',
-  borderRadius: '20px',
+  borderRadius: '22px',
   padding: '22px',
-  boxShadow: '0 10px 28px rgba(15, 23, 42, 0.05)',
-  marginBottom: '22px',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
+}
+
+const metricLabelStyle: React.CSSProperties = {
+  color: '#64748b',
+  fontSize: '14px',
+  fontWeight: 700,
+  marginBottom: '8px',
+}
+
+const metricValueStyle: React.CSSProperties = {
+  color: '#071B4D',
+  fontSize: '34px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const metricSubtextStyle: React.CSSProperties = {
+  marginTop: '8px',
+  color: '#64748b',
+  fontSize: '14px',
+}
+
+const featureGridStyle: React.CSSProperties = {
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '16px 20px 0',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '16px',
+}
+
+const featureCardStyle: React.CSSProperties = {
+  background: 'linear-gradient(180deg, #ffffff, #f8fbff)',
+  border: '1px solid #d9e2f2',
+  borderRadius: '22px',
+  padding: '22px',
+}
+
+const featureTitleStyle: React.CSSProperties = {
+  color: '#071B4D',
+  fontSize: '20px',
+  fontWeight: 800,
+  marginBottom: '10px',
+}
+
+const featureTextStyle: React.CSSProperties = {
+  color: '#64748b',
+  lineHeight: 1.6,
+  fontSize: '15px',
+}
+
+const cardSectionStyle: React.CSSProperties = {
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '16px 20px 0',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  gap: '14px',
   alignItems: 'center',
+  gap: '16px',
   flexWrap: 'wrap',
-  marginBottom: '18px',
+  background: '#ffffff',
+  border: '1px solid #d9e2f2',
+  borderBottom: 'none',
+  borderTopLeftRadius: '24px',
+  borderTopRightRadius: '24px',
+  padding: '24px 24px 18px',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
 }
 
-const sectionSubtextStyle: React.CSSProperties = {
-  margin: '6px 0 0 0',
+const sectionTitleStyle: React.CSSProperties = {
+  margin: 0,
+  color: '#071B4D',
+  fontSize: '28px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const sectionSubtitleStyle: React.CSSProperties = {
+  margin: '8px 0 0 0',
   color: '#64748b',
 }
 
-const sectionActionLinkStyle: React.CSSProperties = {
-  textDecoration: 'none',
+const sectionLinkStyle: React.CSSProperties = {
   color: '#0E63C7',
+  textDecoration: 'none',
   fontWeight: 800,
 }
 
 const topCardsGridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: '16px',
+  background: '#ffffff',
+  border: '1px solid #d9e2f2',
+  borderTop: 'none',
+  borderBottomLeftRadius: '24px',
+  borderBottomRightRadius: '24px',
+  padding: '0 24px 24px',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
 }
 
 const topPlayerCardStyle: React.CSSProperties = {
   border: '1px solid #d9e2f2',
-  borderRadius: '18px',
-  padding: '18px',
-  background: 'linear-gradient(180deg, #ffffff, #f8fbff)',
+  borderRadius: '20px',
+  padding: '20px',
+  background: 'linear-gradient(180deg, #ffffff, #f5faff)',
 }
 
-const topPlayerRankStyle: React.CSSProperties = {
+const topRankBadgeStyle: React.CSSProperties = {
   display: 'inline-block',
   padding: '6px 10px',
   borderRadius: '999px',
@@ -579,102 +762,105 @@ const topPlayerRankStyle: React.CSSProperties = {
 }
 
 const topPlayerNameStyle: React.CSSProperties = {
-  fontWeight: 800,
-  fontSize: '20px',
   color: '#071B4D',
+  fontWeight: 800,
+  fontSize: '22px',
 }
 
-const topPlayerMetaStyle: React.CSSProperties = {
+const topPlayerLocationStyle: React.CSSProperties = {
   color: '#64748b',
   marginTop: '4px',
 }
 
 const topPlayerRatingStyle: React.CSSProperties = {
-  marginTop: '14px',
+  marginTop: '16px',
   marginBottom: '16px',
-  fontSize: '34px',
-  fontWeight: 900,
   color: '#0E63C7',
+  fontSize: '38px',
+  fontWeight: 900,
   letterSpacing: '-0.03em',
 }
 
-const actionLinkStyle: React.CSSProperties = {
+const smallPrimaryLinkStyle: React.CSSProperties = {
   display: 'inline-block',
   padding: '10px 14px',
   borderRadius: '12px',
-  textDecoration: 'none',
   background: '#071B4D',
-  color: 'white',
+  color: '#ffffff',
+  textDecoration: 'none',
   fontWeight: 700,
-}
-
-const toolbarStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '14px',
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  marginBottom: '16px',
 }
 
 const filtersGridStyle: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '12px',
-  flex: 1,
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '14px',
+  background: '#ffffff',
+  borderLeft: '1px solid #d9e2f2',
+  borderRight: '1px solid #d9e2f2',
+  padding: '0 24px 18px',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
 }
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '12px 14px',
-  borderRadius: '12px',
+  padding: '14px 16px',
+  borderRadius: '14px',
   border: '1px solid #cbd5e1',
+  background: '#ffffff',
   fontSize: '15px',
   outline: 'none',
-  background: 'white',
 }
 
 const refreshButtonStyle: React.CSSProperties = {
   padding: '12px 16px',
   borderRadius: '12px',
   border: '1px solid #d9e2f2',
-  background: 'white',
+  background: '#ffffff',
   color: '#071B4D',
   fontWeight: 800,
   cursor: 'pointer',
 }
 
 const errorStyle: React.CSSProperties = {
-  marginBottom: '16px',
-  padding: '12px 14px',
-  borderRadius: '12px',
-  background: '#fef2f2',
-  border: '1px solid #fecaca',
+  background: '#ffffff',
+  borderLeft: '1px solid #d9e2f2',
+  borderRight: '1px solid #d9e2f2',
+  padding: '0 24px 18px',
   color: '#b91c1c',
   fontWeight: 700,
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
 }
 
 const resultsCountStyle: React.CSSProperties = {
+  background: '#ffffff',
+  borderLeft: '1px solid #d9e2f2',
+  borderRight: '1px solid #d9e2f2',
+  padding: '0 24px 16px',
   color: '#64748b',
   fontWeight: 700,
-  marginBottom: '14px',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
 }
 
 const tableWrapStyle: React.CSSProperties = {
   overflowX: 'auto',
+  background: '#ffffff',
   border: '1px solid #d9e2f2',
-  borderRadius: '16px',
+  borderTop: 'none',
+  borderBottomLeftRadius: '24px',
+  borderBottomRightRadius: '24px',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
 }
 
 const tableStyle: React.CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  background: 'white',
+  background: '#ffffff',
 }
 
 const thStyle: React.CSSProperties = {
   textAlign: 'left',
-  padding: '14px 16px',
+  padding: '16px',
   background: '#f8fafc',
   color: '#071B4D',
   borderBottom: '1px solid #d9e2f2',
@@ -684,7 +870,7 @@ const thStyle: React.CSSProperties = {
 }
 
 const tdStyle: React.CSSProperties = {
-  padding: '14px 16px',
+  padding: '16px',
   borderBottom: '1px solid #e2e8f0',
   color: '#0f172a',
 }
@@ -696,7 +882,7 @@ const ratingTdStyle: React.CSSProperties = {
 }
 
 const tdEmptyStyle: React.CSSProperties = {
-  padding: '20px 16px',
+  padding: '22px 16px',
   color: '#64748b',
 }
 
@@ -731,4 +917,36 @@ const smallActionLinkStyle: React.CSSProperties = {
   background: '#eff6ff',
   color: '#0E63C7',
   fontWeight: 700,
+}
+
+const emptyStyle: React.CSSProperties = {
+  background: '#ffffff',
+  border: '1px solid #d9e2f2',
+  borderTop: 'none',
+  borderBottomLeftRadius: '24px',
+  borderBottomRightRadius: '24px',
+  padding: '24px',
+  color: '#64748b',
+  boxShadow: '0 12px 30px rgba(15, 23, 42, 0.05)',
+}
+
+const footerStyle: React.CSSProperties = {
+  marginTop: '36px',
+  background: 'linear-gradient(135deg, #071B4D, #0B2768)',
+}
+
+const footerInnerStyle: React.CSSProperties = {
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '24px 20px',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '16px',
+  flexWrap: 'wrap',
+}
+
+const footerTextStyle: React.CSSProperties = {
+  color: 'rgba(255,255,255,0.82)',
+  fontWeight: 600,
 }

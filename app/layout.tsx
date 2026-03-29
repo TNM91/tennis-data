@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -19,8 +20,6 @@ export const metadata: Metadata = {
   },
   description:
     "Track tennis ratings, rankings, matchup insights, and player trends across singles and doubles with TenAceIQ.",
-
-  // 🔥 Social preview (THIS USES og-image.png)
   openGraph: {
     title: "TenAceIQ",
     description: "Smarter Tennis Ratings & Matchup Insights",
@@ -35,8 +34,6 @@ export const metadata: Metadata = {
     ],
     type: "website",
   },
-
-  // 🔥 Favicon
   icons: {
     icon: "/favicon.ico",
     shortcut: "/favicon.ico",
@@ -46,9 +43,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html
       lang="en"
@@ -66,6 +63,13 @@ export default function RootLayout({
           color: "#0f172a",
         }}
       >
+        <Script
+          id="google-adsense"
+          async
+          strategy="afterInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
+          crossOrigin="anonymous"
+        />
         {children}
       </body>
     </html>
