@@ -254,6 +254,12 @@ export default function AdminPage() {
                 Rename players, merge duplicates, and clean up records.
               </div>
             </Link>
+            <Link href="/admin/upload-scorecard" style={toolCardStyle}>
+              <div style={toolTitleStyle}>Upload Scorecard</div>
+              <div style={toolTextStyle}>
+                Upload excel, and html data to be parsed.
+              </div>
+            </Link>
           </div>
         </>
       )}

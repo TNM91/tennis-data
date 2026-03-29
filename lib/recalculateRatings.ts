@@ -51,13 +51,10 @@ type RatingSnapshotInsert = {
 
 const DEFAULT_RATING = 3.5
 
-// Tune these if ratings move too slowly or too quickly.
 const K_SINGLES = 0.08
 const K_DOUBLES = 0.08
 const K_OVERALL = 0.04
 
-// Smaller divisor = more rating volatility.
-// Larger divisor = less volatility.
 const RATING_DIVISOR = 0.35
 
 export async function recalculateDynamicRatings() {
@@ -72,11 +69,20 @@ export async function recalculateDynamicRatings() {
         id: player.id,
         name: player.name,
         singlesBase: safeNumber(player.singles_rating, DEFAULT_RATING),
-        singlesDynamic: safeNumber(player.singles_rating, DEFAULT_RATING),
+        singlesDynamic: safeNumber(
+          player.singles_dynamic_rating,
+          safeNumber(player.singles_rating, DEFAULT_RATING)
+        ),
         doublesBase: safeNumber(player.doubles_rating, DEFAULT_RATING),
-        doublesDynamic: safeNumber(player.doubles_rating, DEFAULT_RATING),
+        doublesDynamic: safeNumber(
+          player.doubles_dynamic_rating,
+          safeNumber(player.doubles_rating, DEFAULT_RATING)
+        ),
         overallBase: safeNumber(player.overall_rating, DEFAULT_RATING),
-        overallDynamic: safeNumber(player.overall_rating, DEFAULT_RATING),
+        overallDynamic: safeNumber(
+          player.overall_dynamic_rating,
+          safeNumber(player.overall_rating, DEFAULT_RATING)
+        ),
       },
     ])
   )
@@ -216,19 +222,22 @@ function processSinglesMatch(
   const ratingB = playerB.singlesDynamic
 
   const expectedA = expectedScore(ratingA, ratingB)
-  const expectedB = expectedScore(ratingB, ratingA)
+  const expectedB = 1 - expectedA
 
   const actualA = match.winner_side === 'A' ? 1 : 0
   const actualB = match.winner_side === 'B' ? 1 : 0
 
-  const deltaA = K_SINGLES * (actualA - expectedA)
-  const deltaB = K_SINGLES * (actualB - expectedB)
+  const deltaSinglesA = K_SINGLES * (actualA - expectedA)
+  const deltaSinglesB = K_SINGLES * (actualB - expectedB)
 
-  playerA.singlesDynamic = roundRating(playerA.singlesDynamic + deltaA)
-  playerB.singlesDynamic = roundRating(playerB.singlesDynamic + deltaB)
+  const deltaOverallA = K_OVERALL * (actualA - expectedA)
+  const deltaOverallB = K_OVERALL * (actualB - expectedB)
 
-  playerA.overallDynamic = roundRating(playerA.overallDynamic + K_OVERALL * (actualA - expectedA))
-  playerB.overallDynamic = roundRating(playerB.overallDynamic + K_OVERALL * (actualB - expectedB))
+  playerA.singlesDynamic = roundRating(playerA.singlesDynamic + deltaSinglesA)
+  playerB.singlesDynamic = roundRating(playerB.singlesDynamic + deltaSinglesB)
+
+  playerA.overallDynamic = roundRating(playerA.overallDynamic + deltaOverallA)
+  playerB.overallDynamic = roundRating(playerB.overallDynamic + deltaOverallB)
 
   snapshotRows.push(
     buildSnapshot(playerA.id, match.id, match.match_date, 'singles', playerA.singlesDynamic),
@@ -248,17 +257,20 @@ function processDoublesMatch(
   const teamBRating = average(teamB.map((player) => player.doublesDynamic))
 
   const expectedA = expectedScore(teamARating, teamBRating)
-  const expectedB = expectedScore(teamBRating, teamARating)
+  const expectedB = 1 - expectedA
 
   const actualA = match.winner_side === 'A' ? 1 : 0
   const actualB = match.winner_side === 'B' ? 1 : 0
 
-  const deltaA = K_DOUBLES * (actualA - expectedA)
-  const deltaB = K_DOUBLES * (actualB - expectedB)
+  const deltaDoublesA = K_DOUBLES * (actualA - expectedA)
+  const deltaDoublesB = K_DOUBLES * (actualB - expectedB)
+
+  const deltaOverallA = K_OVERALL * (actualA - expectedA)
+  const deltaOverallB = K_OVERALL * (actualB - expectedB)
 
   for (const player of teamA) {
-    player.doublesDynamic = roundRating(player.doublesDynamic + deltaA)
-    player.overallDynamic = roundRating(player.overallDynamic + K_OVERALL * (actualA - expectedA))
+    player.doublesDynamic = roundRating(player.doublesDynamic + deltaDoublesA)
+    player.overallDynamic = roundRating(player.overallDynamic + deltaOverallA)
 
     snapshotRows.push(
       buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
@@ -267,8 +279,8 @@ function processDoublesMatch(
   }
 
   for (const player of teamB) {
-    player.doublesDynamic = roundRating(player.doublesDynamic + deltaB)
-    player.overallDynamic = roundRating(player.overallDynamic + K_OVERALL * (actualB - expectedB))
+    player.doublesDynamic = roundRating(player.doublesDynamic + deltaDoublesB)
+    player.overallDynamic = roundRating(player.overallDynamic + deltaOverallB)
 
     snapshotRows.push(
       buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
@@ -321,6 +333,8 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
   if (deleteError) {
     throw new Error(`Failed to clear old rating snapshots: ${deleteError.message}`)
   }
+
+  if (snapshotRows.length === 0) return
 
   for (const chunk of chunkArray(snapshotRows, 500)) {
     const { error } = await supabase

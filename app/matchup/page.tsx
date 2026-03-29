@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
+type AccuracyBand = 'high' | 'medium' | 'low'
 
 type Player = {
   id: string
@@ -79,18 +80,42 @@ type ComparisonState = {
   rightSelected: number
   gap: number
   higherRatedLabel: string
+  favoredSide: 'left' | 'right' | 'even'
   leftProfileHref: string | null
   rightProfileHref: string | null
+  engineRatingView: RatingView
 }
 
+type ProjectionState = {
+  leftWinProbability: number
+  rightWinProbability: number
+  likelyWinner: string
+  confidenceLabel: string
+  upsetIndicator: string
+  expectedOutcome: string
+  ratingDiffText: string
+  favoriteEdgeText: string
+  favoriteLabel: string
+  underdogLabel: string
+}
+
+type AccuracyState = {
+  overall: number | null
+  high: number | null
+  medium: number | null
+  low: number | null
+  sampleSize: number
+}
+
+const DEFAULT_RATING = 3.0
 const RATING_DIVISOR = 0.35
 
 export default function MatchupPage() {
-
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
+  const [accuracyLoading, setAccuracyLoading] = useState(false)
 
   const [matchType, setMatchType] = useState<MatchType>('singles')
 
@@ -104,22 +129,28 @@ export default function MatchupPage() {
 
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [headToHead, setHeadToHead] = useState<HeadToHeadState | null>(null)
+  const [accuracy, setAccuracy] = useState<AccuracyState>({
+    overall: null,
+    high: null,
+    medium: null,
+    low: null,
+    sampleSize: 0,
+  })
 
   useEffect(() => {
     void loadPlayers()
   }, [])
 
-useEffect(() => {
-  if (typeof window === 'undefined') return
+  useEffect(() => {
+    if (typeof window === 'undefined') return
 
-  const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(window.location.search)
+    const playerAFromUrl = params.get('playerA') || ''
+    const playerBFromUrl = params.get('playerB') || ''
 
-  const playerAFromUrl = params.get('playerA') || ''
-  const playerBFromUrl = params.get('playerB') || ''
-
-  if (playerAFromUrl) setPlayerAId(playerAFromUrl)
-  if (playerBFromUrl) setPlayerBId(playerBFromUrl)
-}, [])
+    if (playerAFromUrl) setPlayerAId(playerAFromUrl)
+    if (playerBFromUrl) setPlayerBId(playerBFromUrl)
+  }, [])
 
   useEffect(() => {
     if (matchType === 'singles') {
@@ -157,6 +188,11 @@ useEffect(() => {
     }
   }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
+  useEffect(() => {
+    if (!players.length) return
+    void loadPredictionAccuracy()
+  }, [players, matchType])
+
   async function loadPlayers() {
     setLoading(true)
     setError('')
@@ -174,9 +210,7 @@ useEffect(() => {
         `)
         .order('name', { ascending: true })
 
-      if (error) {
-        throw new Error(error.message)
-      }
+      if (error) throw new Error(error.message)
 
       setPlayers((data || []) as Player[])
     } catch (err) {
@@ -235,7 +269,6 @@ useEffect(() => {
 
       const typedMatches = (matchesData || []) as MatchRow[]
       const typedParticipants = (participantsData || []) as MatchPlayerRow[]
-
       const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
 
       for (const participant of typedParticipants) {
@@ -255,7 +288,6 @@ useEffect(() => {
 
       for (const match of typedMatches) {
         const participants = participantsByMatchId.get(match.id) ?? []
-
         const participantA = participants.find((p) => p.player_id === playerAIdValue)
         const participantB = participants.find((p) => p.player_id === playerBIdValue)
 
@@ -263,7 +295,6 @@ useEffect(() => {
         if (participantA.side === participantB.side) continue
 
         total += 1
-
         const playerAWon = participantA.side === match.winner_side
 
         if (playerAWon) {
@@ -404,7 +435,6 @@ useEffect(() => {
         }
 
         total += 1
-
         const teamAWon = teamASide === match.winner_side
 
         if (teamAWon) {
@@ -446,6 +476,168 @@ useEffect(() => {
     }
   }
 
+  async function loadPredictionAccuracy() {
+    setAccuracyLoading(true)
+
+    try {
+      const engineView = getEngineRatingView(matchType)
+
+      const { data: matchesData, error: matchesError } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          match_date,
+          match_type,
+          score,
+          winner_side
+        `)
+        .eq('match_type', matchType)
+        .order('match_date', { ascending: false })
+        .limit(500)
+
+      if (matchesError) throw new Error(matchesError.message)
+
+      const typedMatches = (matchesData || []) as MatchRow[]
+      const matchIds = typedMatches.map((match) => match.id)
+
+      if (!matchIds.length) {
+        setAccuracy({
+          overall: null,
+          high: null,
+          medium: null,
+          low: null,
+          sampleSize: 0,
+        })
+        return
+      }
+
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('match_players')
+        .select(`
+          match_id,
+          player_id,
+          side,
+          seat,
+          players (
+            id,
+            name
+          )
+        `)
+        .in('match_id', matchIds)
+
+      if (participantsError) throw new Error(participantsError.message)
+
+      const typedParticipants = (participantsData || []) as MatchPlayerRow[]
+      const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
+
+      for (const participant of typedParticipants) {
+        const existing = participantsByMatchId.get(participant.match_id) ?? []
+        existing.push(participant)
+        participantsByMatchId.set(participant.match_id, existing)
+      }
+
+      let overallTotal = 0
+      let overallCorrect = 0
+      let highTotal = 0
+      let highCorrect = 0
+      let mediumTotal = 0
+      let mediumCorrect = 0
+      let lowTotal = 0
+      let lowCorrect = 0
+
+      for (const match of typedMatches) {
+        const participants = participantsByMatchId.get(match.id) ?? []
+
+        if (matchType === 'singles') {
+          const leftParticipant = participants.find((p) => p.side === 'A')
+          const rightParticipant = participants.find((p) => p.side === 'B')
+          if (!leftParticipant || !rightParticipant) continue
+
+          const leftPlayer = players.find((player) => player.id === leftParticipant.player_id)
+          const rightPlayer = players.find((player) => player.id === rightParticipant.player_id)
+          if (!leftPlayer || !rightPlayer) continue
+
+          const leftRating = getSelectedRating(leftPlayer, engineView)
+          const rightRating = getSelectedRating(rightPlayer, engineView)
+          if (leftRating === rightRating) continue
+
+          const leftWinProbability = expectedScore(leftRating, rightRating)
+          const predictedWinner: MatchSide = leftWinProbability >= 0.5 ? 'A' : 'B'
+          const band = getAccuracyBand(leftWinProbability)
+          const wasCorrect = predictedWinner === match.winner_side
+
+          overallTotal += 1
+          if (wasCorrect) overallCorrect += 1
+
+          if (band === 'high') {
+            highTotal += 1
+            if (wasCorrect) highCorrect += 1
+          } else if (band === 'medium') {
+            mediumTotal += 1
+            if (wasCorrect) mediumCorrect += 1
+          } else {
+            lowTotal += 1
+            if (wasCorrect) lowCorrect += 1
+          }
+        } else {
+          const sideAPlayers = participants
+            .filter((p) => p.side === 'A')
+            .map((p) => players.find((player) => player.id === p.player_id))
+            .filter(Boolean) as Player[]
+
+          const sideBPlayers = participants
+            .filter((p) => p.side === 'B')
+            .map((p) => players.find((player) => player.id === p.player_id))
+            .filter(Boolean) as Player[]
+
+          if (sideAPlayers.length !== 2 || sideBPlayers.length !== 2) continue
+
+          const leftRating = average(sideAPlayers.map((player) => getSelectedRating(player, engineView)))
+          const rightRating = average(sideBPlayers.map((player) => getSelectedRating(player, engineView)))
+          if (leftRating === rightRating) continue
+
+          const leftWinProbability = expectedScore(leftRating, rightRating)
+          const predictedWinner: MatchSide = leftWinProbability >= 0.5 ? 'A' : 'B'
+          const band = getAccuracyBand(leftWinProbability)
+          const wasCorrect = predictedWinner === match.winner_side
+
+          overallTotal += 1
+          if (wasCorrect) overallCorrect += 1
+
+          if (band === 'high') {
+            highTotal += 1
+            if (wasCorrect) highCorrect += 1
+          } else if (band === 'medium') {
+            mediumTotal += 1
+            if (wasCorrect) mediumCorrect += 1
+          } else {
+            lowTotal += 1
+            if (wasCorrect) lowCorrect += 1
+          }
+        }
+      }
+
+      setAccuracy({
+        overall: toAccuracyValue(overallCorrect, overallTotal),
+        high: toAccuracyValue(highCorrect, highTotal),
+        medium: toAccuracyValue(mediumCorrect, mediumTotal),
+        low: toAccuracyValue(lowCorrect, lowTotal),
+        sampleSize: overallTotal,
+      })
+    } catch (err) {
+      console.error('Failed to load prediction accuracy', err)
+      setAccuracy({
+        overall: null,
+        high: null,
+        medium: null,
+        low: null,
+        sampleSize: 0,
+      })
+    } finally {
+      setAccuracyLoading(false)
+    }
+  }
+
   function setEmptyHeadToHead() {
     setHeadToHead({
       total: 0,
@@ -473,14 +665,17 @@ useEffect(() => {
     () => players.find((player) => player.id === teamA1Id) || null,
     [players, teamA1Id]
   )
+
   const teamA2 = useMemo(
     () => players.find((player) => player.id === teamA2Id) || null,
     [players, teamA2Id]
   )
+
   const teamB1 = useMemo(
     () => players.find((player) => player.id === teamB1Id) || null,
     [players, teamB1Id]
   )
+
   const teamB2 = useMemo(
     () => players.find((player) => player.id === teamB2Id) || null,
     [players, teamB2Id]
@@ -525,11 +720,13 @@ useEffect(() => {
   )
 
   const comparison = useMemo<ComparisonState | null>(() => {
+    const engineRatingView = getEngineRatingView(matchType)
+
     if (matchType === 'singles') {
       if (!singlesSelected || !playerA || !playerB) return null
 
-      const left = getSelectedRating(playerA, ratingView)
-      const right = getSelectedRating(playerB, ratingView)
+      const left = getSelectedRating(playerA, engineRatingView)
+      const right = getSelectedRating(playerB, engineRatingView)
       const gap = Math.abs(left - right)
 
       return {
@@ -556,8 +753,10 @@ useEffect(() => {
             : left > right
               ? `${playerA.name} leads`
               : `${playerB.name} leads`,
+        favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
         leftProfileHref: `/players/${playerA.id}`,
         rightProfileHref: `/players/${playerB.id}`,
+        engineRatingView,
       }
     }
 
@@ -578,20 +777,8 @@ useEffect(() => {
       doubles: average([getSelectedRating(teamB1, 'doubles'), getSelectedRating(teamB2, 'doubles')]),
     }
 
-    const left =
-      ratingView === 'overall'
-        ? teamARatings.overall
-        : ratingView === 'singles'
-          ? teamARatings.singles
-          : teamARatings.doubles
-
-    const right =
-      ratingView === 'overall'
-        ? teamBRatings.overall
-        : ratingView === 'singles'
-          ? teamBRatings.singles
-          : teamBRatings.doubles
-
+    const left = teamARatings.doubles
+    const right = teamBRatings.doubles
     const gap = Math.abs(left - right)
 
     return {
@@ -610,8 +797,10 @@ useEffect(() => {
           : left > right
             ? `${teamALabel} leads`
             : `${teamBLabel} leads`,
+      favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
       leftProfileHref: null,
       rightProfileHref: null,
+      engineRatingView,
     }
   }, [
     matchType,
@@ -623,27 +812,74 @@ useEffect(() => {
     teamA2,
     teamB1,
     teamB2,
-    ratingView,
   ])
 
-  const projection = useMemo(() => {
+  const displayGap = useMemo(() => {
+    if (!comparison) return 0
+    return Math.abs(
+      (ratingView === 'overall'
+        ? comparison.leftRatings.overall
+        : ratingView === 'singles'
+          ? comparison.leftRatings.singles
+          : comparison.leftRatings.doubles) -
+        (ratingView === 'overall'
+          ? comparison.rightRatings.overall
+          : ratingView === 'singles'
+            ? comparison.rightRatings.singles
+            : comparison.rightRatings.doubles)
+    )
+  }, [comparison, ratingView])
+
+  const displayHigherRatedLabel = useMemo(() => {
+    if (!comparison) return ''
+    const left =
+      ratingView === 'overall'
+        ? comparison.leftRatings.overall
+        : ratingView === 'singles'
+          ? comparison.leftRatings.singles
+          : comparison.leftRatings.doubles
+    const right =
+      ratingView === 'overall'
+        ? comparison.rightRatings.overall
+        : ratingView === 'singles'
+          ? comparison.rightRatings.singles
+          : comparison.rightRatings.doubles
+
+    if (left === right) return 'Even matchup'
+    return left > right ? `${comparison.leftLabel} leads` : `${comparison.rightLabel} leads`
+  }, [comparison, ratingView])
+
+  const projection = useMemo<ProjectionState | null>(() => {
     if (!comparison) return null
 
     const leftWinProbability = expectedScore(comparison.leftSelected, comparison.rightSelected)
     const rightWinProbability = 1 - leftWinProbability
+    const favoriteProbability = Math.max(leftWinProbability, rightWinProbability)
+    const underdogProbability = Math.min(leftWinProbability, rightWinProbability)
+
+    const favoriteLabel =
+      leftWinProbability >= rightWinProbability ? comparison.leftLabel : comparison.rightLabel
+    const underdogLabel =
+      favoriteLabel === comparison.leftLabel ? comparison.rightLabel : comparison.leftLabel
 
     const likelyWinner =
-      leftWinProbability === rightWinProbability
-        ? 'Even'
-        : leftWinProbability > rightWinProbability
-          ? comparison.leftLabel
-          : comparison.rightLabel
+      leftWinProbability === rightWinProbability ? 'Even' : favoriteLabel
 
     return {
       leftWinProbability,
       rightWinProbability,
       likelyWinner,
-      confidenceLabel: getConfidenceLabel(Math.abs(leftWinProbability - rightWinProbability)),
+      confidenceLabel: getConfidenceLabel(favoriteProbability),
+      upsetIndicator: getUpsetIndicator(favoriteProbability),
+      expectedOutcome: getExpectedOutcomeText(
+        favoriteProbability,
+        favoriteLabel,
+        underdogLabel
+      ),
+      ratingDiffText: `${formatRating(comparison.gap)} pts`,
+      favoriteEdgeText: `${formatPercent(favoriteProbability)} vs ${formatPercent(underdogProbability)}`,
+      favoriteLabel,
+      underdogLabel,
     }
   }, [comparison])
 
@@ -659,7 +895,8 @@ useEffect(() => {
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Matchup Comparison</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Compare singles players or doubles teams across overall, singles, or doubles dynamic ratings.
+          Compare singles players or doubles teams across dynamic ratings, projected win probability,
+          expected outcome, confidence, upset watch, and head-to-head history.
         </p>
       </div>
 
@@ -836,8 +1073,8 @@ useEffect(() => {
         ) : !comparison ? (
           <div style={emptyStateStyle}>
             {matchType === 'singles'
-              ? `Select two different players to compare their ${ratingView} ratings.`
-              : `Select four different players to compare doubles teams using ${ratingView} ratings.`}
+              ? `Select two different players to compare.`
+              : `Select four different players to compare doubles teams.`}
           </div>
         ) : (
           <>
@@ -875,10 +1112,10 @@ useEffect(() => {
                 </div>
 
                 <div style={highlightBoxStyle}>
-                  <div style={highlightLabelStyle}>Selected Rating</div>
-                  <div style={highlightValueStyle}>
-                    {formatRating(comparison.leftSelected)}
+                  <div style={highlightLabelStyle}>
+                    {comparison.engineRatingView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
                   </div>
+                  <div style={highlightValueStyle}>{formatRating(comparison.leftSelected)}</div>
                 </div>
               </div>
 
@@ -887,10 +1124,8 @@ useEffect(() => {
 
                 <div style={gapCardStyle}>
                   <div style={gapLabelStyle}>{capitalize(ratingView)} Rating Gap</div>
-                  <div style={gapValueStyle}>
-                    {formatRating(comparison.gap)}
-                  </div>
-                  <div style={gapMetaStyle}>{comparison.higherRatedLabel}</div>
+                  <div style={gapValueStyle}>{formatRating(displayGap)}</div>
+                  <div style={gapMetaStyle}>{displayHigherRatedLabel}</div>
                 </div>
               </div>
 
@@ -927,23 +1162,22 @@ useEffect(() => {
                 </div>
 
                 <div style={highlightBoxStyle}>
-                  <div style={highlightLabelStyle}>Selected Rating</div>
-                  <div style={highlightValueStyle}>
-                    {formatRating(comparison.rightSelected)}
+                  <div style={highlightLabelStyle}>
+                    {comparison.engineRatingView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
                   </div>
+                  <div style={highlightValueStyle}>{formatRating(comparison.rightSelected)}</div>
                 </div>
               </div>
             </div>
-
-            <div style={summaryCardStyle}>
+                        <div style={summaryCardStyle}>
               <h2 style={{ marginTop: 0 }}>Quick Read</h2>
               <p style={{ margin: 0, color: '#334155', lineHeight: 1.6 }}>
                 In <strong>{ratingView}</strong>,{' '}
-                {comparison.leftSelected === comparison.rightSelected
-                  ? `${comparison.leftLabel} and ${comparison.rightLabel} are currently even at ${formatRating(comparison.leftSelected)}.`
-                  : comparison.leftSelected > comparison.rightSelected
-                    ? `${comparison.leftLabel} leads ${comparison.rightLabel} by ${formatRating(comparison.gap)} points.`
-                    : `${comparison.rightLabel} leads ${comparison.leftLabel} by ${formatRating(comparison.gap)} points.`}
+                {displayHigherRatedLabel === 'Even matchup'
+                  ? `${comparison.leftLabel} and ${comparison.rightLabel} are currently even.`
+                  : `${displayHigherRatedLabel} by ${formatRating(displayGap)} points.`}{' '}
+                Projection uses <strong>{comparison.engineRatingView}</strong> dynamic ratings because this is a{' '}
+                <strong>{matchType}</strong> matchup.
               </p>
             </div>
 
@@ -953,17 +1187,13 @@ useEffect(() => {
 
                 <div style={projectionGridStyle}>
                   <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>{comparison.leftLabel} win likelihood</div>
-                    <div style={projectionValueStyle}>
-                      {(projection.leftWinProbability * 100).toFixed(1)}%
-                    </div>
+                    <div style={projectionLabelStyle}>{comparison.leftLabel} win probability</div>
+                    <div style={projectionValueStyle}>{formatPercent(projection.leftWinProbability)}</div>
                   </div>
 
                   <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>{comparison.rightLabel} win likelihood</div>
-                    <div style={projectionValueStyle}>
-                      {(projection.rightWinProbability * 100).toFixed(1)}%
-                    </div>
+                    <div style={projectionLabelStyle}>{comparison.rightLabel} win probability</div>
+                    <div style={projectionValueStyle}>{formatPercent(projection.rightWinProbability)}</div>
                   </div>
 
                   <div style={projectionStatCardStyle}>
@@ -972,17 +1202,76 @@ useEffect(() => {
                   </div>
 
                   <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>Projection confidence</div>
+                    <div style={projectionLabelStyle}>Confidence</div>
                     <div style={projectionValueStyle}>{projection.confidenceLabel}</div>
+                  </div>
+
+                  <div style={projectionStatCardStyle}>
+                    <div style={projectionLabelStyle}>Projection rating gap</div>
+                    <div style={projectionValueStyle}>{projection.ratingDiffText}</div>
+                  </div>
+
+                  <div style={projectionStatCardStyle}>
+                    <div style={projectionLabelStyle}>Favorite edge</div>
+                    <div style={projectionValueStyle}>{projection.favoriteEdgeText}</div>
                   </div>
                 </div>
 
-                <p style={{ marginTop: '14px', color: '#64748b', lineHeight: 1.6 }}>
-                  This projection is based on the selected dynamic rating gap only. It is a simple estimate,
-                  not a validated historical accuracy score.
-                </p>
+                <div style={predictionCalloutStyle}>
+                  <div style={predictionTextWrapStyle}>
+                    <div style={predictionHeadingStyle}>{projection.expectedOutcome}</div>
+                    <div style={predictionSubStyle}>
+                      Favorite: <strong>{projection.favoriteLabel}</strong> · Underdog:{' '}
+                      <strong>{projection.underdogLabel}</strong>
+                    </div>
+                  </div>
+
+                  <div style={upsetPillStyle}>{projection.upsetIndicator}</div>
+                </div>
               </div>
             )}
+
+            <div style={summaryCardStyle}>
+              <div style={summaryHeaderRowStyle}>
+                <h2 style={{ margin: 0 }}>Model Accuracy</h2>
+                <div style={miniMetaStyle}>Based on recent {matchType} matches</div>
+              </div>
+
+              {accuracyLoading ? (
+                <p style={{ margin: '12px 0 0', color: '#64748b' }}>Calculating accuracy...</p>
+              ) : accuracy.sampleSize === 0 ? (
+                <p style={{ margin: '12px 0 0', color: '#64748b' }}>Not enough history yet.</p>
+              ) : (
+                <>
+                  <div style={projectionGridStyle}>
+                    <div style={projectionStatCardStyle}>
+                      <div style={projectionLabelStyle}>Overall</div>
+                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.overall)}</div>
+                    </div>
+
+                    <div style={projectionStatCardStyle}>
+                      <div style={projectionLabelStyle}>High confidence</div>
+                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.high)}</div>
+                    </div>
+
+                    <div style={projectionStatCardStyle}>
+                      <div style={projectionLabelStyle}>Medium confidence</div>
+                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.medium)}</div>
+                    </div>
+
+                    <div style={projectionStatCardStyle}>
+                      <div style={projectionLabelStyle}>Low confidence</div>
+                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.low)}</div>
+                    </div>
+                  </div>
+
+                  <p style={{ marginTop: '14px', color: '#64748b', lineHeight: 1.6 }}>
+                    Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the current
+                    rating favorite would have been correct on recent historical matchups.
+                  </p>
+                </>
+              )}
+            </div>
 
             <div style={summaryCardStyle}>
               <h2 style={{ marginTop: 0 }}>Head-to-Head</h2>
@@ -1026,8 +1315,9 @@ useEffect(() => {
 
                   {headToHead.lastMatch && (
                     <p style={{ marginTop: '14px', color: '#334155', lineHeight: 1.6 }}>
-                      <strong>Last match:</strong> {headToHead.lastMatch.matchDate} •{' '}
-                      {capitalize(headToHead.lastMatch.matchType)} • {headToHead.lastMatch.score} • Winner:{' '}
+                      <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} •{' '}
+                      {capitalize(headToHead.lastMatch.matchType)} •{' '}
+                      {headToHead.lastMatch.score || 'No score entered'} • Winner:{' '}
                       {headToHead.lastMatch.winner === 'A'
                         ? comparison.leftLabel
                         : comparison.rightLabel}
@@ -1050,7 +1340,7 @@ function RatingPill({
 }: {
   label: string
   value: number
-  active: boolean
+  active?: boolean
 }) {
   return (
     <div
@@ -1065,204 +1355,246 @@ function RatingPill({
   )
 }
 
-function getSelectedRating(player: Player, view: RatingView) {
-  if (view === 'singles') {
-    return toRatingNumber(player.singles_dynamic_rating, 3.5)
-  }
-
-  if (view === 'doubles') {
-    return toRatingNumber(player.doubles_dynamic_rating, 3.5)
-  }
-
-  return toRatingNumber(player.overall_dynamic_rating, 3.5)
-}
-
-function toRatingNumber(value: number | null | undefined, fallback = 3.5) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-function formatRating(value: number) {
-  return value.toFixed(2)
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-function expectedScore(playerRating: number, opponentRating: number) {
-  return 1 / (1 + Math.pow(10, (opponentRating - playerRating) / RATING_DIVISOR))
-}
-
-function getConfidenceLabel(probabilityGap: number) {
-  if (probabilityGap >= 0.35) return 'High'
-  if (probabilityGap >= 0.2) return 'Medium'
-  return 'Low'
-}
-
-function average(values: number[]) {
-  if (values.length === 0) return 3.5
-  return values.reduce((sum, value) => sum + value, 0) / values.length
-}
-
 function areUniqueIds(ids: string[]) {
   const filtered = ids.filter(Boolean)
-  return filtered.length === new Set(filtered).size
+  return new Set(filtered).size === filtered.length
 }
 
 function normalizeIdSet(ids: string[]) {
   return [...ids].sort().join('|')
 }
 
+function normalizeRating(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return DEFAULT_RATING
+  return value
+}
+
+function average(values: number[]) {
+  if (!values.length) return DEFAULT_RATING
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function getSelectedRating(player: Player, view: RatingView) {
+  if (view === 'singles') return normalizeRating(player.singles_dynamic_rating)
+  if (view === 'doubles') return normalizeRating(player.doubles_dynamic_rating)
+  return normalizeRating(player.overall_dynamic_rating)
+}
+
+function getEngineRatingView(matchType: MatchType): RatingView {
+  return matchType === 'singles' ? 'singles' : 'doubles'
+}
+
+function expectedScore(leftRating: number, rightRating: number) {
+  const exponent = (rightRating - leftRating) / RATING_DIVISOR
+  return 1 / (1 + Math.pow(10, exponent))
+}
+
+function getConfidenceLabel(favoriteProbability: number) {
+  if (favoriteProbability >= 0.75) return 'Very High'
+  if (favoriteProbability >= 0.66) return 'High'
+  if (favoriteProbability >= 0.58) return 'Moderate'
+  if (favoriteProbability >= 0.52) return 'Low'
+  return 'Toss-up'
+}
+
+function getUpsetIndicator(favoriteProbability: number) {
+  if (favoriteProbability >= 0.75) return 'Major upset needed'
+  if (favoriteProbability >= 0.66) return 'Upset possible'
+  if (favoriteProbability >= 0.58) return 'Slight upset risk'
+  return 'True coin flip'
+}
+
+function getExpectedOutcomeText(
+  favoriteProbability: number,
+  favoriteLabel: string,
+  underdogLabel: string
+) {
+  if (favoriteProbability >= 0.75) {
+    return `${favoriteLabel} is a strong favorite over ${underdogLabel}.`
+  }
+  if (favoriteProbability >= 0.66) {
+    return `${favoriteLabel} has a clear edge over ${underdogLabel}.`
+  }
+  if (favoriteProbability >= 0.58) {
+    return `${favoriteLabel} is favored, but ${underdogLabel} is very live.`
+  }
+  if (favoriteProbability >= 0.52) {
+    return `${favoriteLabel} has a slight edge in a tight matchup.`
+  }
+  return `This matchup projects as nearly even.`
+}
+
+function getAccuracyBand(probabilityLeft: number): AccuracyBand {
+  const favoriteProbability = Math.max(probabilityLeft, 1 - probabilityLeft)
+  if (favoriteProbability >= 0.72) return 'high'
+  if (favoriteProbability >= 0.6) return 'medium'
+  return 'low'
+}
+
+function toAccuracyValue(correct: number, total: number) {
+  if (!total) return null
+  return correct / total
+}
+
+function capitalize(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(1)}%`
+}
+
+function formatNullablePercent(value: number | null) {
+  if (value === null) return '—'
+  return formatPercent(value)
+}
+
+function formatRating(value: number) {
+  return value.toFixed(2)
+}
+
+function formatDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
+  maxWidth: '1180px',
   margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
+  padding: '20px',
 }
 
 const navRowStyle = {
   display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
+  gap: '16px',
+  marginBottom: '20px',
   flexWrap: 'wrap' as const,
 }
 
 const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
   textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
+  color: '#2563eb',
+  fontWeight: 700,
 }
 
 const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+  background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
   color: 'white',
-  borderRadius: '20px',
   padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
+  borderRadius: '22px',
+  marginBottom: '20px',
+  boxShadow: '0 16px 32px rgba(37, 99, 235, 0.18)',
 }
 
 const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
+  background: '#ffffff',
+  padding: '22px',
+  borderRadius: '22px',
+  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
   border: '1px solid #e2e8f0',
-  marginBottom: '22px',
 }
 
 const modeContainerStyle = {
-  display: 'inline-flex',
-  gap: '8px',
-  padding: '6px',
-  background: '#eff6ff',
-  borderRadius: '16px',
-  border: '1px solid #dbeafe',
-  marginBottom: '18px',
+  display: 'flex',
+  gap: '10px',
+  marginBottom: '16px',
 }
 
 const toolbarStyle = {
   display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
+  flexDirection: 'column' as const,
   gap: '16px',
-  flexWrap: 'wrap' as const,
 }
 
 const selectGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '12px',
-  flex: 1,
-  minWidth: '320px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '14px',
 }
 
 const doublesGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '12px',
-  flex: 1,
-  minWidth: '320px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '14px',
 }
 
 const labelStyle = {
   display: 'block',
+  marginBottom: '6px',
+  color: '#334155',
+  fontSize: '13px',
   fontWeight: 700,
-  color: '#0f172a',
-  marginBottom: '8px',
 }
 
 const inputStyle = {
   width: '100%',
-  padding: '12px 14px',
   border: '1px solid #cbd5e1',
   borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
+  padding: '12px 14px',
+  fontSize: '14px',
+  color: '#0f172a',
+  background: '#ffffff',
 }
 
 const segmentContainerStyle = {
   display: 'flex',
-  gap: '8px',
-  padding: '6px',
-  background: '#eff6ff',
-  borderRadius: '16px',
-  border: '1px solid #dbeafe',
+  gap: '10px',
+  flexWrap: 'wrap' as const,
 }
 
 const segmentButtonStyle = {
+  border: '1px solid #cbd5e1',
+  background: '#ffffff',
+  color: '#334155',
   padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: 'transparent',
-  color: '#1e3a8a',
+  borderRadius: '999px',
   fontWeight: 700,
   cursor: 'pointer',
-  fontSize: '14px',
 }
 
 const activeSegmentButtonStyle = {
   background: '#2563eb',
   color: 'white',
+  border: '1px solid #2563eb',
 }
 
 const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
+  background: '#fef2f2',
+  color: '#b91c1c',
+  border: '1px solid #fecaca',
+  borderRadius: '16px',
+  padding: '14px',
+  marginTop: '18px',
 }
 
 const emptyStateStyle = {
-  marginTop: '18px',
-  padding: '18px',
-  borderRadius: '16px',
+  marginTop: '20px',
   background: '#f8fafc',
-  border: '1px solid #e2e8f0',
   color: '#64748b',
+  border: '1px dashed #cbd5e1',
+  borderRadius: '18px',
+  padding: '24px',
+  textAlign: 'center' as const,
 }
 
 const comparisonGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(280px, 1fr) minmax(180px, 220px) minmax(280px, 1fr)',
+  gridTemplateColumns: '1fr 220px 1fr',
   gap: '18px',
-  marginTop: '22px',
+  marginTop: '20px',
+  alignItems: 'stretch',
 }
 
 const playerCardStyle = {
   background: '#f8fafc',
   border: '1px solid #e2e8f0',
-  borderRadius: '18px',
+  borderRadius: '20px',
   padding: '18px',
 }
 
@@ -1406,6 +1738,14 @@ const summaryCardStyle = {
   padding: '18px',
 }
 
+const summaryHeaderRowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap' as const,
+}
+
 const projectionGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -1429,6 +1769,47 @@ const projectionValueStyle = {
   color: '#0f172a',
   fontSize: '24px',
   fontWeight: 800,
+}
+
+const predictionCalloutStyle = {
+  marginTop: '14px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap' as const,
+  background: '#eff6ff',
+  border: '1px solid #bfdbfe',
+  borderRadius: '16px',
+  padding: '16px',
+}
+
+const predictionTextWrapStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: '6px',
+}
+
+const predictionHeadingStyle = {
+  color: '#0f172a',
+  fontSize: '16px',
+  fontWeight: 800,
+}
+
+const predictionSubStyle = {
+  color: '#475569',
+  fontSize: '14px',
+}
+
+const upsetPillStyle = {
+  padding: '10px 12px',
+  borderRadius: '999px',
+  background: '#fff7ed',
+  border: '1px solid #fed7aa',
+  color: '#c2410c',
+  fontWeight: 800,
+  fontSize: '12px',
+  whiteSpace: 'nowrap' as const,
 }
 
 const miniMetaStyle = {
