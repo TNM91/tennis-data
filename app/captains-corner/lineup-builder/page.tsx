@@ -108,6 +108,20 @@ type LineWin = {
   ratingSource: 'singles' | 'doubles'
 }
 
+type SavedScenarioRow = {
+  id: string
+  scenario_name: string
+  league_name: string | null
+  flight: string | null
+  match_date: string | null
+  team_name: string
+  opponent_team: string | null
+  slots_json: BuilderSlots
+  opponent_slots_json: BuilderSlots | null
+  notes: string | null
+  created_at: string
+}
+
 const EMPTY_SLOTS: BuilderSlots = {
   s1: '',
   s2: '',
@@ -289,35 +303,19 @@ function buildWarnings(
   const checkSingles = (playerId: string, line: string) => {
     const player = playersById.get(playerId)
     if (!player) return
-    if (player.availabilityStatus === 'unavailable') {
-      items.push(`${sideLabel} ${line}: ${player.name} is unavailable.`)
-    }
-    if (player.availabilityStatus === 'doubles_only') {
-      items.push(`${sideLabel} ${line}: ${player.name} is doubles only.`)
-    }
-    if (player.availabilityStatus === 'limited') {
-      items.push(`${sideLabel} ${line}: ${player.name} is limited.`)
-    }
-    if (player.preferredRole === 'doubles') {
-      items.push(`${sideLabel} ${line}: ${player.name} prefers doubles.`)
-    }
+    if (player.availabilityStatus === 'unavailable') items.push(`${sideLabel} ${line}: ${player.name} is unavailable.`)
+    if (player.availabilityStatus === 'doubles_only') items.push(`${sideLabel} ${line}: ${player.name} is doubles only.`)
+    if (player.availabilityStatus === 'limited') items.push(`${sideLabel} ${line}: ${player.name} is limited.`)
+    if (player.preferredRole === 'doubles') items.push(`${sideLabel} ${line}: ${player.name} prefers doubles.`)
   }
 
   const checkDoubles = (playerId: string, line: string) => {
     const player = playersById.get(playerId)
     if (!player) return
-    if (player.availabilityStatus === 'unavailable') {
-      items.push(`${sideLabel} ${line}: ${player.name} is unavailable.`)
-    }
-    if (player.availabilityStatus === 'singles_only') {
-      items.push(`${sideLabel} ${line}: ${player.name} is singles only.`)
-    }
-    if (player.availabilityStatus === 'limited') {
-      items.push(`${sideLabel} ${line}: ${player.name} is limited.`)
-    }
-    if (player.preferredRole === 'singles') {
-      items.push(`${sideLabel} ${line}: ${player.name} prefers singles.`)
-    }
+    if (player.availabilityStatus === 'unavailable') items.push(`${sideLabel} ${line}: ${player.name} is unavailable.`)
+    if (player.availabilityStatus === 'singles_only') items.push(`${sideLabel} ${line}: ${player.name} is singles only.`)
+    if (player.availabilityStatus === 'limited') items.push(`${sideLabel} ${line}: ${player.name} is limited.`)
+    if (player.preferredRole === 'singles') items.push(`${sideLabel} ${line}: ${player.name} prefers singles.`)
   }
 
   checkSingles(slots.s1, 'S1')
@@ -550,7 +548,6 @@ async function loadRosterForTeam(
 
   return rosterList
 }
-
 export default function LineupBuilderPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -569,6 +566,11 @@ export default function LineupBuilderPage() {
   const [mySlots, setMySlots] = useState<BuilderSlots>(EMPTY_SLOTS)
   const [oppSlots, setOppSlots] = useState<BuilderSlots>(EMPTY_SLOTS)
 
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenarioRow[]>([])
+  const [scenarioName, setScenarioName] = useState('')
+  const [scenarioNotes, setScenarioNotes] = useState('')
+  const [savingScenario, setSavingScenario] = useState(false)
+
   useEffect(() => {
     void loadMatches()
   }, [])
@@ -577,9 +579,11 @@ export default function LineupBuilderPage() {
     if (!selectedLeagueKey || !selectedTeam) {
       setMyRoster([])
       setMySlots(EMPTY_SLOTS)
+      setSavedScenarios([])
       return
     }
     void loadMyRoster()
+    void loadSavedScenarios()
   }, [selectedLeagueKey, selectedTeam, selectedDate])
 
   useEffect(() => {
@@ -647,7 +651,102 @@ export default function LineupBuilderPage() {
       setRosterLoading(false)
     }
   }
-    const leagueOptions = useMemo<LeagueOption[]>(() => {
+
+  async function loadSavedScenarios() {
+    try {
+      const [leagueName, flight] = selectedLeagueKey.split('___')
+
+      let query = supabase
+        .from('lineup_scenarios')
+        .select(`
+          id,
+          scenario_name,
+          league_name,
+          flight,
+          match_date,
+          team_name,
+          opponent_team,
+          slots_json,
+          opponent_slots_json,
+          notes,
+          created_at
+        `)
+        .eq('team_name', selectedTeam)
+        .eq('league_name', leagueName)
+        .eq('flight', flight)
+        .order('created_at', { ascending: false })
+
+      if (selectedDate) {
+        query = query.eq('match_date', selectedDate)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw new Error(error.message)
+
+      setSavedScenarios((data || []) as SavedScenarioRow[])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  async function saveScenario() {
+    if (!selectedLeagueKey || !selectedTeam) {
+      setError('Select a league and team first.')
+      return
+    }
+
+    if (!scenarioName.trim()) {
+      setError('Enter a scenario name before saving.')
+      return
+    }
+
+    setSavingScenario(true)
+    setError('')
+
+    try {
+      const [leagueName, flight] = selectedLeagueKey.split('___')
+
+      const payload = {
+        scenario_name: scenarioName.trim(),
+        league_name: leagueName,
+        flight,
+        match_date: selectedDate || null,
+        team_name: selectedTeam,
+        opponent_team: selectedOpponent || null,
+        slots_json: mySlots,
+        opponent_slots_json: selectedOpponent ? oppSlots : null,
+        notes: scenarioNotes.trim() || null,
+      }
+
+      const { error } = await supabase
+        .from('lineup_scenarios')
+        .insert(payload)
+
+      if (error) throw new Error(error.message)
+
+      setScenarioName('')
+      setScenarioNotes('')
+      await loadSavedScenarios()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save scenario.')
+    } finally {
+      setSavingScenario(false)
+    }
+  }
+
+  function loadScenario(row: SavedScenarioRow) {
+    setScenarioName(row.scenario_name)
+    setScenarioNotes(row.notes || '')
+    setMySlots(row.slots_json || EMPTY_SLOTS)
+    setOppSlots(row.opponent_slots_json || EMPTY_SLOTS)
+
+    if (row.opponent_team) {
+      setSelectedOpponent(row.opponent_team)
+    }
+  }
+
+  const leagueOptions = useMemo<LeagueOption[]>(() => {
     const map = new Map<string, LeagueOption>()
 
     for (const row of matches) {
@@ -730,6 +829,7 @@ export default function LineupBuilderPage() {
     () => calcStrength(suggestedMySlots, myPlayersById),
     [suggestedMySlots, myPlayersById]
   )
+
   const suggestedOppStrength = useMemo(
     () => calcStrength(suggestedOppSlots, oppPlayersById),
     [suggestedOppSlots, oppPlayersById]
@@ -798,8 +898,7 @@ export default function LineupBuilderPage() {
 
     return oppRoster.filter((player) => !otherSelected.has(player.id))
   }
-
-  return (
+    return (
     <main style={mainStyle}>
       <div style={navRowStyle}>
         <Link href="/" style={navLinkStyle}>Home</Link>
@@ -812,7 +911,8 @@ export default function LineupBuilderPage() {
       <div style={heroCardStyle}>
         <h1 style={{ margin: 0, fontSize: '36px' }}>Manual Lineup Builder</h1>
         <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '820px' }}>
-          Build your lineup, enter an opponent lineup, and compare projected line-by-line win probabilities.
+          Build your lineup, enter an opponent lineup, compare projected line-by-line win probabilities,
+          and save multiple lineup versions.
         </p>
       </div>
 
@@ -831,6 +931,7 @@ export default function LineupBuilderPage() {
                 setOppRoster([])
                 setMySlots(EMPTY_SLOTS)
                 setOppSlots(EMPTY_SLOTS)
+                setSavedScenarios([])
               }}
               style={inputStyle}
             >
@@ -858,6 +959,7 @@ export default function LineupBuilderPage() {
                 setOppRoster([])
                 setMySlots(EMPTY_SLOTS)
                 setOppSlots(EMPTY_SLOTS)
+                setSavedScenarios([])
               }}
               style={inputStyle}
               disabled={!selectedLeagueKey}
@@ -957,6 +1059,79 @@ export default function LineupBuilderPage() {
             </div>
 
             <div style={sectionBlockStyle}>
+              <h2 style={sectionTitleStyle}>Save This Lineup Version</h2>
+              <div style={sectionSubStyle}>
+                Store multiple lineup ideas for this team, match date, and opponent.
+              </div>
+
+              <div style={scenarioGridStyle}>
+                <div style={scenarioCardStyle}>
+                  <label style={builderLabelStyle}>Scenario Name</label>
+                  <input
+                    value={scenarioName}
+                    onChange={(e) => setScenarioName(e.target.value)}
+                    placeholder="Example: Best Balanced"
+                    style={inputStyle}
+                  />
+
+                  <label style={{ ...builderLabelStyle, marginTop: '12px' }}>Notes</label>
+                  <textarea
+                    value={scenarioNotes}
+                    onChange={(e) => setScenarioNotes(e.target.value)}
+                    placeholder="Optional notes about this lineup strategy"
+                    style={textareaStyle}
+                  />
+
+                  <div style={{ marginTop: '14px' }}>
+                    <button
+                      type="button"
+                      onClick={saveScenario}
+                      disabled={savingScenario}
+                      style={{
+                        ...saveButtonStyle,
+                        ...(savingScenario ? disabledButtonStyle : {}),
+                      }}
+                    >
+                      {savingScenario ? 'Saving...' : 'Save Lineup Version'}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={scenarioCardStyle}>
+                  <div style={builderHeaderStyle}>Saved Versions</div>
+
+                  {savedScenarios.length === 0 ? (
+                    <div style={emptyMiniStyle}>No saved lineup versions yet.</div>
+                  ) : (
+                    <div style={savedScenarioListStyle}>
+                      {savedScenarios.map((row) => (
+                        <div key={row.id} style={savedScenarioRowStyle}>
+                          <div>
+                            <div style={savedScenarioTitleStyle}>{row.scenario_name}</div>
+                            <div style={savedScenarioMetaStyle}>
+                              {row.match_date ? formatDate(row.match_date) : 'No date'} · {row.opponent_team || 'No opponent'}
+                            </div>
+                            {row.notes ? (
+                              <div style={savedScenarioNoteStyle}>{row.notes}</div>
+                            ) : null}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => loadScenario(row)}
+                            style={loadButtonStyle}
+                          >
+                            Load
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div style={sectionBlockStyle}>
               <h2 style={sectionTitleStyle}>Lineup Strength</h2>
               <div style={comparisonGridStyle}>
                 <StrengthCard label={`${selectedTeam || 'Your Team'} Overall`} value={formatRating(myStrength.overall)} />
@@ -988,9 +1163,7 @@ export default function LineupBuilderPage() {
                   <div key={line.line} style={listRowStyle}>
                     <div>
                       <strong>{line.line}</strong> · {line.myLabel} vs {line.oppLabel}
-                      <div style={pairNotesInlineStyle}>
-                        Source: {line.ratingSource}
-                      </div>
+                      <div style={pairNotesInlineStyle}>Source: {line.ratingSource}</div>
                     </div>
                     <div style={listRowMetaStyle}>
                       {formatPercent(line.probability)} · Favored: {line.favored}
@@ -1315,6 +1488,98 @@ const suggestedRowStyle = {
   borderRadius: '12px',
   padding: '12px',
   marginBottom: '10px',
+}
+
+const scenarioGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+  gap: '16px',
+}
+
+const scenarioCardStyle = {
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  borderRadius: '18px',
+  padding: '18px',
+}
+
+const textareaStyle = {
+  width: '100%',
+  minHeight: '90px',
+  padding: '12px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '12px',
+  fontSize: '14px',
+  fontFamily: 'inherit',
+  boxSizing: 'border-box' as const,
+  resize: 'vertical' as const,
+  background: '#ffffff',
+}
+
+const saveButtonStyle = {
+  border: '1px solid #2563eb',
+  background: '#2563eb',
+  color: '#ffffff',
+  padding: '12px 18px',
+  borderRadius: '999px',
+  fontWeight: 700,
+  cursor: 'pointer',
+}
+
+const disabledButtonStyle = {
+  opacity: 0.7,
+  cursor: 'not-allowed',
+}
+
+const savedScenarioListStyle = {
+  display: 'flex',
+  flexDirection: 'column' as const,
+  gap: '10px',
+}
+
+const savedScenarioRowStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '12px',
+  alignItems: 'flex-start',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
+  borderRadius: '12px',
+  padding: '12px',
+}
+
+const savedScenarioTitleStyle = {
+  color: '#0f172a',
+  fontWeight: 800,
+  fontSize: '15px',
+}
+
+const savedScenarioMetaStyle = {
+  color: '#64748b',
+  fontSize: '12px',
+  marginTop: '4px',
+}
+
+const savedScenarioNoteStyle = {
+  color: '#475569',
+  fontSize: '13px',
+  marginTop: '6px',
+  lineHeight: 1.5,
+}
+
+const loadButtonStyle = {
+  border: '1px solid #cbd5e1',
+  background: '#ffffff',
+  color: '#1d4ed8',
+  padding: '8px 12px',
+  borderRadius: '10px',
+  fontWeight: 700,
+  cursor: 'pointer',
+}
+
+const emptyMiniStyle = {
+  color: '#64748b',
+  fontSize: '14px',
 }
 
 const errorBoxStyle = {
