@@ -133,7 +133,7 @@ export default function HomePage() {
             <img
               src="/logo-light.png"
               alt="TenAceIQ"
-              style={{ height: 52, width: 'auto', display: 'block' }}
+              style={headerLogoStyle}
             />
           </Link>
 
@@ -197,7 +197,7 @@ export default function HomePage() {
               <img
                 src="/logo-dark.png"
                 alt="TenAceIQ logo"
-                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: 18 }}
+                style={heroLogoStyle}
               />
             </div>
           </div>
@@ -400,9 +400,9 @@ export default function HomePage() {
       <footer style={footerStyle}>
         <div style={footerInnerStyle}>
           <img
-            src="/logo-light.png"
+            src="/logo-dark.png"
             alt="TenAceIQ"
-            style={{ height: 42, width: 'auto', display: 'block' }}
+            style={footerLogoStyle}
           />
           <div style={footerTextStyle}>
             Smarter Tennis Ratings & Matchup Insights
@@ -414,18 +414,9 @@ export default function HomePage() {
 }
 
 function getRatingValue(player: Player, view: SortField) {
-  if (view === 'singles') {
-    return toRatingNumber(player.singles_dynamic_rating, 3.5)
-  }
-
-  if (view === 'doubles') {
-    return toRatingNumber(player.doubles_dynamic_rating, 3.5)
-  }
-
-  if (view === 'overall') {
-    return toRatingNumber(player.overall_dynamic_rating, 3.5)
-  }
-
+  if (view === 'singles') return toRatingNumber(player.singles_dynamic_rating, 3.5)
+  if (view === 'doubles') return toRatingNumber(player.doubles_dynamic_rating, 3.5)
+  if (view === 'overall') return toRatingNumber(player.overall_dynamic_rating, 3.5)
   return 0
 }
 
@@ -459,8 +450,7 @@ const headerStyle: React.CSSProperties = {
   position: 'sticky',
   top: 0,
   zIndex: 100,
-  background: 'rgba(248,250,252,0.92)',
-  backdropFilter: 'blur(10px)',
+  background: '#ffffff',
   borderBottom: '1px solid #d9e2f2',
 }
 
@@ -479,6 +469,13 @@ const logoWrapStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   textDecoration: 'none',
+}
+
+const headerLogoStyle: React.CSSProperties = {
+  height: '64px',
+  width: 'auto',
+  display: 'block',
+  objectFit: 'contain',
 }
 
 const navStyle: React.CSSProperties = {
@@ -520,15 +517,23 @@ const heroRightStyle: React.CSSProperties = {
 }
 
 const heroImageCardStyle: React.CSSProperties = {
-  background: 'linear-gradient(180deg, #ffffff, #eef5ff)',
-  border: '1px solid #d9e2f2',
+  background: '#071B4D',
+  border: '1px solid #10357f',
   borderRadius: '30px',
-  padding: '24px',
+  padding: '18px',
   width: '100%',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  boxShadow: '0 16px 50px rgba(15, 23, 42, 0.08)',
+  boxShadow: '0 16px 50px rgba(15, 23, 42, 0.12)',
+}
+
+const heroLogoStyle: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '460px',
+  height: 'auto',
+  display: 'block',
+  borderRadius: '20px',
 }
 
 const heroBadgeStyle: React.CSSProperties = {
@@ -573,7 +578,6 @@ const primaryButtonStyle: React.CSSProperties = {
   color: '#0E63C7',
   textDecoration: 'none',
   fontWeight: 800,
-  boxShadow: '0 10px 24px rgba(255,255,255,0.12)',
 }
 
 const accentButtonStyle: React.CSSProperties = {
@@ -932,13 +936,14 @@ const emptyStyle: React.CSSProperties = {
 
 const footerStyle: React.CSSProperties = {
   marginTop: '36px',
-  background: 'linear-gradient(135deg, #071B4D, #0B2768)',
+  background: '#071B4D',
+  borderTop: '1px solid #10357f',
 }
 
 const footerInnerStyle: React.CSSProperties = {
   maxWidth: '1240px',
   margin: '0 auto',
-  padding: '24px 20px',
+  padding: '22px 20px',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -946,7 +951,14 @@ const footerInnerStyle: React.CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const footerLogoStyle: React.CSSProperties = {
+  height: '56px',
+  width: 'auto',
+  display: 'block',
+  objectFit: 'contain',
+}
+
 const footerTextStyle: React.CSSProperties = {
-  color: 'rgba(255,255,255,0.82)',
-  fontWeight: 600,
+  color: 'rgba(255,255,255,0.88)',
+  fontWeight: 700,
 }
