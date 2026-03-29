@@ -4,13 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-type SortField =
-  | 'name'
-  | 'location'
-  | 'overall'
-  | 'singles'
-  | 'doubles'
-
+type SortField = 'name' | 'location' | 'overall' | 'singles' | 'doubles'
 type SortDirection = 'asc' | 'desc'
 
 type Player = {
@@ -116,17 +110,20 @@ export default function HomePage() {
       .slice(0, 3)
   }, [players])
 
-  const topOverall = players.length > 0
-    ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'overall'))))
-    : '—'
+  const topOverall =
+    players.length > 0
+      ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'overall'))))
+      : '—'
 
-  const topSingles = players.length > 0
-    ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'singles'))))
-    : '—'
+  const topSingles =
+    players.length > 0
+      ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'singles'))))
+      : '—'
 
-  const topDoubles = players.length > 0
-    ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'doubles'))))
-    : '—'
+  const topDoubles =
+    players.length > 0
+      ? formatRating(Math.max(...players.map((player) => getRatingValue(player, 'doubles'))))
+      : '—'
 
   return (
     <main style={mainStyle}>
@@ -162,7 +159,9 @@ export default function HomePage() {
           <div style={heroMiniPanelStyle}>
             <div style={heroMiniLabelStyle}>Site</div>
             <div style={heroMiniValueStyle}>TenAceIQ.com</div>
-            <div style={heroMiniSubtleStyle}>Tennis intelligence, ratings, and matchup insights.</div>
+            <div style={heroMiniSubtleStyle}>
+              Tennis intelligence, ratings, and matchup insights.
+            </div>
           </div>
         </div>
       </div>
@@ -248,24 +247,20 @@ export default function HomePage() {
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button onClick={() => void loadPlayers()} style={secondaryButtonStyle}>
-              Refresh
-            </button>
-          </div>
+          <button onClick={() => void loadPlayers()} style={refreshButtonStyle} type="button">
+            Refresh
+          </button>
         </div>
 
-        {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
-          </div>
-        )}
+        {error ? (
+          <div style={errorStyle}>{error}</div>
+        ) : null}
 
-        <div style={{ marginTop: '18px', color: '#64748b', fontWeight: 600 }}>
+        <div style={resultsCountStyle}>
           Showing {filteredAndSortedPlayers.length} of {players.length} players
         </div>
 
-        <div style={{ overflowX: 'auto', marginTop: '18px' }}>
+        <div style={tableWrapStyle}>
           <table style={tableStyle}>
             <thead>
               <tr>
@@ -274,31 +269,26 @@ export default function HomePage() {
                     Player {renderSortIndicator(sortField, sortDirection, 'name')}
                   </button>
                 </th>
-
                 <th style={thStyle}>
                   <button style={headerButtonStyle} onClick={() => handleSort('location')}>
                     Location {renderSortIndicator(sortField, sortDirection, 'location')}
                   </button>
                 </th>
-
                 <th style={thStyle}>
                   <button style={headerButtonStyle} onClick={() => handleSort('overall')}>
                     Overall {renderSortIndicator(sortField, sortDirection, 'overall')}
                   </button>
                 </th>
-
                 <th style={thStyle}>
                   <button style={headerButtonStyle} onClick={() => handleSort('singles')}>
                     Singles {renderSortIndicator(sortField, sortDirection, 'singles')}
                   </button>
                 </th>
-
                 <th style={thStyle}>
                   <button style={headerButtonStyle} onClick={() => handleSort('doubles')}>
                     Doubles {renderSortIndicator(sortField, sortDirection, 'doubles')}
                   </button>
                 </th>
-
                 <th style={thStyle}>Actions</th>
               </tr>
             </thead>
@@ -306,44 +296,36 @@ export default function HomePage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td style={tdStyle} colSpan={6}>Loading players...</td>
+                  <td colSpan={6} style={tdEmptyStyle}>Loading players...</td>
                 </tr>
               ) : filteredAndSortedPlayers.length === 0 ? (
                 <tr>
-                  <td style={tdStyle} colSpan={6}>No players found.</td>
+                  <td colSpan={6} style={tdEmptyStyle}>No players found.</td>
                 </tr>
               ) : (
-                filteredAndSortedPlayers.map((player, index) => (
+                filteredAndSortedPlayers.map((player) => (
                   <tr key={player.id}>
                     <td style={tdStyle}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <Link href={`/players/${player.id}`} style={playerLinkStyle}>
-                          {player.name}
-                        </Link>
-                        <span style={subtleTextStyle}>#{index + 1} in current sort</span>
-                      </div>
+                      <Link href={`/players/${player.id}`} style={playerNameLinkStyle}>
+                        {player.name}
+                      </Link>
                     </td>
-
                     <td style={tdStyle}>{player.location || '—'}</td>
-
-                    <td style={{ ...tdStyle, fontWeight: 700 }}>
+                    <td style={ratingTdStyle}>
                       {formatRating(getRatingValue(player, 'overall'))}
                     </td>
-
                     <td style={tdStyle}>
                       {formatRating(getRatingValue(player, 'singles'))}
                     </td>
-
                     <td style={tdStyle}>
                       {formatRating(getRatingValue(player, 'doubles'))}
                     </td>
-
                     <td style={tdStyle}>
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        <Link href={`/players/${player.id}`} style={actionLinkStyle}>
-                          View Profile
+                      <div style={actionRowStyle}>
+                        <Link href={`/players/${player.id}`} style={smallActionLinkStyle}>
+                          View
                         </Link>
-                        <Link href={`/matchup?playerA=${player.id}`} style={actionLinkStyle}>
+                        <Link href={`/matchup?playerA=${player.id}`} style={smallActionLinkStyle}>
                           Compare
                         </Link>
                       </div>
@@ -397,7 +379,7 @@ function renderSortIndicator(
   return direction === 'asc' ? '↑' : '↓'
 }
 
-const mainStyle = {
+const mainStyle: React.CSSProperties = {
   padding: '24px',
   fontFamily: 'Arial, sans-serif',
   maxWidth: '1250px',
@@ -406,14 +388,14 @@ const mainStyle = {
   minHeight: '100vh',
 }
 
-const navRowStyle = {
+const navRowStyle: React.CSSProperties = {
   display: 'flex',
   gap: '12px',
   marginBottom: '24px',
-  flexWrap: 'wrap' as const,
+  flexWrap: 'wrap',
 }
 
-const navLinkStyle = {
+const navLinkStyle: React.CSSProperties = {
   padding: '10px 14px',
   border: '1px solid #dbeafe',
   borderRadius: '999px',
@@ -423,34 +405,34 @@ const navLinkStyle = {
   fontWeight: 600,
 }
 
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+const heroCardStyle: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #071B4D, #0E63C7)',
   color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
+  borderRadius: '24px',
+  padding: '30px',
+  boxShadow: '0 18px 50px rgba(14, 99, 199, 0.22)',
   marginBottom: '22px',
 }
 
-const heroTopRowStyle = {
+const heroTopRowStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '18px',
   alignItems: 'flex-start',
-  flexWrap: 'wrap' as const,
+  flexWrap: 'wrap',
 }
 
-const brandBadgeStyle = {
+const brandBadgeStyle: React.CSSProperties = {
   display: 'inline-block',
   padding: '8px 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.16)',
-  border: '1px solid rgba(255,255,255,0.25)',
+  background: 'rgba(255,255,255,0.14)',
+  border: '1px solid rgba(255,255,255,0.22)',
   fontWeight: 800,
   letterSpacing: '0.04em',
 }
 
-const heroTextStyle = {
+const heroTextStyle: React.CSSProperties = {
   margin: '14px 0 0 0',
   color: '#dbeafe',
   fontSize: '17px',
@@ -458,24 +440,24 @@ const heroTextStyle = {
   lineHeight: 1.6,
 }
 
-const heroButtonRowStyle = {
+const heroButtonRowStyle: React.CSSProperties = {
   display: 'flex',
   gap: '12px',
-  flexWrap: 'wrap' as const,
+  flexWrap: 'wrap',
   marginTop: '20px',
 }
 
-const heroPrimaryLinkStyle = {
+const heroPrimaryLinkStyle: React.CSSProperties = {
   display: 'inline-block',
   padding: '12px 16px',
   borderRadius: '12px',
   background: 'white',
-  color: '#1d4ed8',
+  color: '#0E63C7',
   textDecoration: 'none',
   fontWeight: 800,
 }
 
-const heroSecondaryLinkStyle = {
+const heroSecondaryLinkStyle: React.CSSProperties = {
   display: 'inline-block',
   padding: '12px 16px',
   borderRadius: '12px',
@@ -483,238 +465,270 @@ const heroSecondaryLinkStyle = {
   color: 'white',
   textDecoration: 'none',
   fontWeight: 800,
-  border: '1px solid rgba(255,255,255,0.20)',
+  border: '1px solid rgba(255,255,255,0.2)',
 }
 
-const heroMiniPanelStyle = {
+const heroMiniPanelStyle: React.CSSProperties = {
   minWidth: '240px',
-  maxWidth: '280px',
-  background: 'rgba(255,255,255,0.12)',
-  border: '1px solid rgba(255,255,255,0.20)',
+  background: 'rgba(255,255,255,0.1)',
+  border: '1px solid rgba(255,255,255,0.14)',
   borderRadius: '18px',
   padding: '18px',
 }
 
-const heroMiniLabelStyle = {
+const heroMiniLabelStyle: React.CSSProperties = {
   color: '#bfdbfe',
-  fontSize: '13px',
-  marginBottom: '6px',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  fontWeight: 700,
 }
 
-const heroMiniValueStyle = {
-  color: 'white',
+const heroMiniValueStyle: React.CSSProperties = {
   fontSize: '24px',
-  fontWeight: 800,
-  marginBottom: '8px',
+  fontWeight: 900,
+  marginTop: '6px',
 }
 
-const heroMiniSubtleStyle = {
+const heroMiniSubtleStyle: React.CSSProperties = {
   color: '#dbeafe',
-  fontSize: '14px',
+  marginTop: '8px',
   lineHeight: 1.5,
 }
 
-const statsGridStyle = {
+const statsGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '14px',
+  gap: '16px',
   marginBottom: '22px',
 }
 
-const statCardStyle = {
+const statCardStyle: React.CSSProperties = {
   background: 'white',
+  border: '1px solid #d9e2f2',
   borderRadius: '18px',
   padding: '18px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
+  boxShadow: '0 8px 24px rgba(15, 23, 42, 0.05)',
 }
 
-const statLabelStyle = {
+const statLabelStyle: React.CSSProperties = {
   color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
+  fontSize: '14px',
+  fontWeight: 600,
+  marginBottom: '8px',
 }
 
-const statValueStyle = {
-  color: '#0f172a',
-  fontSize: '28px',
-  fontWeight: 800,
+const statValueStyle: React.CSSProperties = {
+  color: '#071B4D',
+  fontSize: '30px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
 }
 
-const cardStyle = {
+const cardStyle: React.CSSProperties = {
   background: 'white',
+  border: '1px solid #d9e2f2',
   borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
+  padding: '22px',
+  boxShadow: '0 10px 28px rgba(15, 23, 42, 0.05)',
   marginBottom: '22px',
 }
 
-const sectionHeaderStyle = {
+const sectionHeaderStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
+  gap: '14px',
   alignItems: 'center',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-  marginBottom: '16px',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
 }
 
-const sectionSubtextStyle = {
+const sectionSubtextStyle: React.CSSProperties = {
   margin: '6px 0 0 0',
   color: '#64748b',
 }
 
-const sectionActionLinkStyle = {
-  display: 'inline-block',
-  padding: '10px 12px',
-  borderRadius: '10px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
+const sectionActionLinkStyle: React.CSSProperties = {
   textDecoration: 'none',
+  color: '#0E63C7',
+  fontWeight: 800,
+}
+
+const topCardsGridStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '16px',
+}
+
+const topPlayerCardStyle: React.CSSProperties = {
+  border: '1px solid #d9e2f2',
+  borderRadius: '18px',
+  padding: '18px',
+  background: 'linear-gradient(180deg, #ffffff, #f8fbff)',
+}
+
+const topPlayerRankStyle: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '6px 10px',
+  borderRadius: '999px',
+  background: '#eff6ff',
+  color: '#0E63C7',
+  fontWeight: 800,
+  fontSize: '13px',
+  marginBottom: '12px',
+}
+
+const topPlayerNameStyle: React.CSSProperties = {
+  fontWeight: 800,
+  fontSize: '20px',
+  color: '#071B4D',
+}
+
+const topPlayerMetaStyle: React.CSSProperties = {
+  color: '#64748b',
+  marginTop: '4px',
+}
+
+const topPlayerRatingStyle: React.CSSProperties = {
+  marginTop: '14px',
+  marginBottom: '16px',
+  fontSize: '34px',
+  fontWeight: 900,
+  color: '#0E63C7',
+  letterSpacing: '-0.03em',
+}
+
+const actionLinkStyle: React.CSSProperties = {
+  display: 'inline-block',
+  padding: '10px 14px',
+  borderRadius: '12px',
+  textDecoration: 'none',
+  background: '#071B4D',
+  color: 'white',
   fontWeight: 700,
 }
 
-const topCardsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '14px',
-}
-
-const topPlayerCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const topPlayerRankStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minWidth: '40px',
-  height: '40px',
-  borderRadius: '999px',
-  background: '#dbeafe',
-  color: '#1d4ed8',
-  fontWeight: 900,
-  marginBottom: '12px',
-}
-
-const topPlayerNameStyle = {
-  color: '#0f172a',
-  fontSize: '20px',
-  fontWeight: 800,
-  marginBottom: '4px',
-}
-
-const topPlayerMetaStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-  marginBottom: '12px',
-}
-
-const topPlayerRatingStyle = {
-  color: '#1d4ed8',
-  fontSize: '28px',
-  fontWeight: 900,
-  marginBottom: '14px',
-}
-
-const toolbarStyle = {
+const toolbarStyle: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
+  gap: '14px',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  marginBottom: '16px',
 }
 
-const filtersGridStyle = {
+const filtersGridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   gap: '12px',
   flex: 1,
-  minWidth: '320px',
 }
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
-}
-
-const secondaryButtonStyle = {
-  padding: '10px 14px',
-  border: '1px solid #cbd5e1',
   borderRadius: '12px',
+  border: '1px solid #cbd5e1',
+  fontSize: '15px',
+  outline: 'none',
   background: 'white',
-  color: '#0f172a',
+}
+
+const refreshButtonStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  borderRadius: '12px',
+  border: '1px solid #d9e2f2',
+  background: 'white',
+  color: '#071B4D',
+  fontWeight: 800,
+  cursor: 'pointer',
+}
+
+const errorStyle: React.CSSProperties = {
+  marginBottom: '16px',
+  padding: '12px 14px',
+  borderRadius: '12px',
+  background: '#fef2f2',
+  border: '1px solid #fecaca',
+  color: '#b91c1c',
   fontWeight: 700,
-  fontSize: '14px',
 }
 
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
+const resultsCountStyle: React.CSSProperties = {
+  color: '#64748b',
+  fontWeight: 700,
+  marginBottom: '14px',
 }
 
-const tableStyle = {
+const tableWrapStyle: React.CSSProperties = {
+  overflowX: 'auto',
+  border: '1px solid #d9e2f2',
+  borderRadius: '16px',
+}
+
+const tableStyle: React.CSSProperties = {
   width: '100%',
-  borderCollapse: 'collapse' as const,
+  borderCollapse: 'collapse',
+  background: 'white',
 }
 
-const thStyle = {
-  textAlign: 'left' as const,
-  padding: '12px',
-  borderBottom: '1px solid #cbd5e1',
-  color: '#334155',
+const thStyle: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '14px 16px',
   background: '#f8fafc',
+  color: '#071B4D',
+  borderBottom: '1px solid #d9e2f2',
+  fontSize: '13px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
 }
 
-const tdStyle = {
-  padding: '12px',
+const tdStyle: React.CSSProperties = {
+  padding: '14px 16px',
   borderBottom: '1px solid #e2e8f0',
   color: '#0f172a',
-  verticalAlign: 'top' as const,
 }
 
-const headerButtonStyle = {
+const ratingTdStyle: React.CSSProperties = {
+  ...tdStyle,
+  color: '#0E63C7',
+  fontWeight: 800,
+}
+
+const tdEmptyStyle: React.CSSProperties = {
+  padding: '20px 16px',
+  color: '#64748b',
+}
+
+const headerButtonStyle: React.CSSProperties = {
   border: 'none',
   background: 'transparent',
   padding: 0,
   margin: 0,
+  color: '#071B4D',
   font: 'inherit',
-  color: '#334155',
-  fontWeight: 700,
+  fontWeight: 800,
   cursor: 'pointer',
 }
 
-const playerLinkStyle = {
-  color: '#0f172a',
-  fontWeight: 700,
+const playerNameLinkStyle: React.CSSProperties = {
   textDecoration: 'none',
+  color: '#071B4D',
+  fontWeight: 800,
 }
 
-const actionLinkStyle = {
+const actionRowStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+}
+
+const smallActionLinkStyle: React.CSSProperties = {
   display: 'inline-block',
-  padding: '8px 10px',
+  padding: '8px 12px',
   borderRadius: '10px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
   textDecoration: 'none',
+  background: '#eff6ff',
+  color: '#0E63C7',
   fontWeight: 700,
-  fontSize: '13px',
-}
-
-const subtleTextStyle = {
-  color: '#64748b',
-  fontSize: '12px',
 }

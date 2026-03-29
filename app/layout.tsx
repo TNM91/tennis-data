@@ -18,9 +18,11 @@ export const metadata: Metadata = {
     template: "%s | TenAceIQ",
   },
   description:
-    "TenAceIQ tracks tennis ratings, rankings, and matchup insights across singles and doubles.",
+    "Track tennis ratings, rankings, matchup insights, and player trends across singles and doubles with TenAceIQ.",
   icons: {
-    icon: "/favicon.ico", // put this file in /public
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
 };
 
@@ -34,7 +36,19 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body
+        style={{
+          minHeight: "100vh",
+          margin: 0,
+          display: "flex",
+          flexDirection: "column",
+          background:
+            "radial-gradient(circle at top left, rgba(74,163,255,0.08), transparent 28%), radial-gradient(circle at top right, rgba(155,225,29,0.08), transparent 24%), #f8fafc",
+          color: "#0f172a",
+        }}
+      >
+        {children}
+      </body>
     </html>
   );
 }

@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 type ScenarioRow = {
@@ -254,26 +253,30 @@ function SlotComparisonTable({
 }
 
 export default function ScenarioComparisonPage() {
-  const searchParams = useSearchParams()
-
-  const initialLeague = searchParams.get('league') ?? ''
-  const initialFlight = searchParams.get('flight') ?? ''
-  const initialTeam = searchParams.get('team') ?? ''
-  const initialDate = searchParams.get('date') ?? ''
-  const initialLeft = searchParams.get('left') ?? ''
-  const initialRight = searchParams.get('right') ?? ''
-
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [leagueFilter, setLeagueFilter] = useState(initialLeague)
-  const [flightFilter, setFlightFilter] = useState(initialFlight)
-  const [teamFilter, setTeamFilter] = useState(initialTeam)
-  const [dateFilter, setDateFilter] = useState(initialDate)
+  const [leagueFilter, setLeagueFilter] = useState('')
+  const [flightFilter, setFlightFilter] = useState('')
+  const [teamFilter, setTeamFilter] = useState('')
+  const [dateFilter, setDateFilter] = useState('')
 
-  const [leftId, setLeftId] = useState(initialLeft)
-  const [rightId, setRightId] = useState(initialRight)
+  const [leftId, setLeftId] = useState('')
+  const [rightId, setRightId] = useState('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+
+    setLeagueFilter(params.get('league') ?? '')
+    setFlightFilter(params.get('flight') ?? '')
+    setTeamFilter(params.get('team') ?? '')
+    setDateFilter(params.get('date') ?? '')
+    setLeftId(params.get('left') ?? '')
+    setRightId(params.get('right') ?? '')
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -356,14 +359,15 @@ export default function ScenarioComparisonPage() {
     const leftStillValid = filteredScenarios.some((scenario) => scenario.id === leftId)
     const rightStillValid = filteredScenarios.some((scenario) => scenario.id === rightId)
 
+    const safeLeftId = leftStillValid ? leftId : filteredScenarios[0]?.id ?? ''
+
     if (!leftStillValid) {
-      setLeftId(filteredScenarios[0]?.id ?? '')
+      setLeftId(safeLeftId)
     }
 
     if (!rightStillValid) {
       const nextRight =
-        filteredScenarios.find((scenario) => scenario.id !== (leftStillValid ? leftId : filteredScenarios[0]?.id))
-          ?.id ??
+        filteredScenarios.find((scenario) => scenario.id !== safeLeftId)?.id ??
         filteredScenarios[1]?.id ??
         filteredScenarios[0]?.id ??
         ''
@@ -389,8 +393,14 @@ export default function ScenarioComparisonPage() {
         <Link href="/" style={navLinkStyle}>
           Home
         </Link>
+        <Link href="/players" style={navLinkStyle}>
+          Players
+        </Link>
         <Link href="/rankings" style={navLinkStyle}>
           Rankings
+        </Link>
+        <Link href="/matchup" style={navLinkStyle}>
+          Matchup
         </Link>
         <Link href="/leagues" style={navLinkStyle}>
           Leagues
@@ -398,11 +408,8 @@ export default function ScenarioComparisonPage() {
         <Link href="/captains-corner" style={navLinkStyle}>
           Captain&apos;s Corner
         </Link>
-        <Link href="/captains-corner/lineup-availability" style={navLinkStyle}>
-          Availability
-        </Link>
-        <Link href="/captains-corner/lineup-builder" style={navLinkStyle}>
-          Lineup Builder
+        <Link href="/admin" style={navLinkStyle}>
+          Admin
         </Link>
       </div>
 
