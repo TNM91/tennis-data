@@ -20,51 +20,79 @@ function cleanText(value: string | null | undefined) {
   return (value || '').replace(/\s+/g, ' ').trim()
 }
 
-function extractMatchDate(html: string) {
-  const match = html.match(/Date Match Played:\s*([0-9/]+)/i)
+function getBodyText(doc: Document) {
+  return cleanText(doc.body?.textContent || '')
+}
+
+function extractMatchDate(doc: Document) {
+  const text = getBodyText(doc)
+
+  const match =
+    text.match(/Date Match Played:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
+    text.match(/Match Date:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)
+
   return match?.[1] ?? null
 }
 
 function extractLeagueName(doc: Document) {
-  const anchor = doc.querySelector('#ctl00_mainContent_lnkLeagueForMatch')
+  const anchor =
+    doc.querySelector('#ctl00_mainContent_lnkLeagueForMatch') ||
+    Array.from(doc.querySelectorAll('a')).find((a) =>
+      /league/i.test(cleanText(a.textContent))
+    )
+
   return cleanText(anchor?.textContent) || null
 }
 
-function extractMatchNumber(html: string) {
-  const match = html.match(/Scorecard for Match #\s*([0-9]+)/i)
+function extractMatchNumber(doc: Document) {
+  const text = getBodyText(doc)
+  const match = text.match(/Scorecard for Match #\s*([0-9]+)/i)
   return match?.[1] ?? null
 }
 
 function extractTeams(doc: Document) {
-  const headerTable = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader1')
-  if (!headerTable) {
-    return { homeTeam: null, awayTeam: null }
+  const text = getBodyText(doc)
+
+  const compact = text.replace(/\s+/g, ' ')
+
+  const teamIds = [...compact.matchAll(/Team ID:\s*\d+/gi)]
+  if (teamIds.length >= 2) {
+    const firstTeamIdIndex = teamIds[0].index ?? -1
+    const secondTeamIdIndex = teamIds[1].index ?? -1
+
+    if (firstTeamIdIndex >= 0 && secondTeamIdIndex > firstTeamIdIndex) {
+      const leftChunk = compact.slice(0, secondTeamIdIndex)
+      const vsMatch = leftChunk.match(/([A-Za-z0-9&'.,\-()\/ ]+?)\s+Vs\.\s+([A-Za-z0-9&'.,\-()\/ ]+?)\s+Team ID:\s*\d+/i)
+
+      if (vsMatch) {
+        return {
+          homeTeam: cleanText(vsMatch[1]) || null,
+          awayTeam: cleanText(vsMatch[2]) || null,
+        }
+      }
+    }
   }
 
-  const text = cleanText(headerTable.textContent)
-  const parts = text.split(/\bVs\.\b/i)
+  const explicitVs = compact.match(
+    /([A-Za-z0-9&'.,\-()\/ ]+?)\s+Vs\.\s+([A-Za-z0-9&'.,\-()\/ ]+?)(?:\s+Team ID:|\s+Date Match Played:|\s+Location:)/i
+  )
 
-  if (parts.length < 2) {
-    return { homeTeam: null, awayTeam: null }
+  if (explicitVs) {
+    return {
+      homeTeam: cleanText(explicitVs[1]) || null,
+      awayTeam: cleanText(explicitVs[2]) || null,
+    }
   }
-
-  const left = cleanText(parts[0])
-    .replace(/^.*?(?=[A-Za-z])/, '')
-    .replace(/Team ID:.*$/i, '')
-    .trim()
-
-  const right = cleanText(parts[1])
-    .replace(/Team ID:.*$/i, '')
-    .trim()
 
   return {
-    homeTeam: left || null,
-    awayTeam: right || null,
+    homeTeam: null,
+    awayTeam: null,
   }
 }
 
 function looksLikeScore(value: string) {
-  return /^\d[-–]\d(\s+\d[-–]\d)*(?:\s+\d+[-–]\d+)?$/.test(value.trim())
+  const text = cleanText(value)
+  return /^(\d+[-–]\d+)(\s+\d+[-–]\d+)*$/.test(text)
 }
 
 function parseLineType(value: string): { lineNumber: number; matchType: 'singles' | 'doubles' } | null {
@@ -90,24 +118,43 @@ function parseLineType(value: string): { lineNumber: number; matchType: 'singles
 }
 
 function splitPlayers(raw: string, matchType: 'singles' | 'doubles') {
-  const cleaned = cleanText(raw).replace(/\bCompleted\b/i, '').trim()
+  const cleaned = cleanText(raw)
+    .replace(/\bCompleted\b/i, '')
+    .replace(/\bRetired\b/i, '')
+    .trim()
 
   if (matchType === 'singles') {
-    return [cleaned]
+    return cleaned ? [cleaned] : []
   }
 
-  const parts = cleaned.split(/\s{2,}/).map(cleanText).filter(Boolean)
-  if (parts.length === 2) return parts
+  const doubleSpaceSplit = cleaned
+    .split(/\s{2,}/)
+    .map(cleanText)
+    .filter(Boolean)
 
-  // fallback for ugly HTML spacing:
-  // try to split long doubles names approximately in half
+  if (doubleSpaceSplit.length === 2) return doubleSpaceSplit
+
+  const slashSplit = cleaned
+    .split(/\s*\/\s*/)
+    .map(cleanText)
+    .filter(Boolean)
+
+  if (slashSplit.length === 2) return slashSplit
+
+  const commaSplit = cleaned
+    .split(/\s*,\s*/)
+    .map(cleanText)
+    .filter(Boolean)
+
+  if (commaSplit.length === 2) return commaSplit
+
   const words = cleaned.split(' ').filter(Boolean)
   if (words.length >= 4) {
     const mid = Math.floor(words.length / 2)
     return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')]
   }
 
-  return [cleaned]
+  return cleaned ? [cleaned] : []
 }
 
 function parseScoreToWinner(score: string): 'A' | 'B' {
@@ -164,6 +211,8 @@ export function parseScorecardHtml(html: string): ParsedScorecard {
       const teamAPlayers = splitPlayers(leftRaw, lineInfo.matchType)
       const teamBPlayers = splitPlayers(rightRaw, lineInfo.matchType)
 
+      if (!teamAPlayers.length || !teamBPlayers.length) continue
+
       const key = [
         lineInfo.lineNumber,
         lineInfo.matchType,
@@ -187,9 +236,9 @@ export function parseScorecardHtml(html: string): ParsedScorecard {
   }
 
   return {
-    matchDate: extractMatchDate(html),
+    matchDate: extractMatchDate(doc),
     leagueName: extractLeagueName(doc),
-    matchNumber: extractMatchNumber(html),
+    matchNumber: extractMatchNumber(doc),
     homeTeam,
     awayTeam,
     lines,
