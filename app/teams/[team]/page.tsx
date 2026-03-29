@@ -21,19 +21,31 @@ type TeamMatchRow = {
   winner_side: 'A' | 'B'
 }
 
+type PlayerRelation =
+  | {
+      id: string
+      name: string
+      flight: string | null
+      overall_dynamic_rating: number | null
+      singles_dynamic_rating: number | null
+      doubles_dynamic_rating: number | null
+    }
+  | {
+      id: string
+      name: string
+      flight: string | null
+      overall_dynamic_rating: number | null
+      singles_dynamic_rating: number | null
+      doubles_dynamic_rating: number | null
+    }[]
+  | null
+
 type MatchPlayerRow = {
   match_id: string
   side: 'A' | 'B'
   seat: number | null
   player_id: string
-  players: {
-    id: string
-    name: string
-    flight: string | null
-    overall_dynamic_rating: number | null
-    singles_dynamic_rating: number | null
-    doubles_dynamic_rating: number | null
-  } | null
+  players: PlayerRelation
 }
 
 type TeamPlayerSummary = {
@@ -79,6 +91,11 @@ function buildMatchupHref(team: string, league: string, flight: string) {
   })
 
   return `/matchup?${params.toString()}`
+}
+
+function normalizePlayerRelation(player: PlayerRelation) {
+  if (!player) return null
+  return Array.isArray(player) ? player[0] ?? null : player
 }
 
 export default function TeamDetailPage() {
@@ -158,7 +175,14 @@ export default function TeamDetailPage() {
 
       if (participantError) throw new Error(participantError.message)
 
-      setMatchPlayers((participantData || []) as MatchPlayerRow[])
+      const normalizedParticipants: MatchPlayerRow[] = ((participantData || []) as MatchPlayerRow[]).map(
+        (row) => ({
+          ...row,
+          players: normalizePlayerRelation(row.players),
+        })
+      )
+
+      setMatchPlayers(normalizedParticipants)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load team page.')
     } finally {
@@ -208,9 +232,10 @@ export default function TeamDetailPage() {
       const teamSide = teamSideByMatchId.get(participant.match_id)
       if (!teamSide) continue
       if (participant.side !== teamSide) continue
-      if (!participant.players) continue
 
-      const player = participant.players
+      const player = normalizePlayerRelation(participant.players)
+      if (!player) continue
+
       const match = matches.find((m) => m.id === participant.match_id)
       if (!match) continue
 
@@ -372,8 +397,7 @@ export default function TeamDetailPage() {
                 ))}
               </div>
             </div>
-
-            <div style={sectionBlockStyle}>
+                        <div style={sectionBlockStyle}>
               <div style={sectionHeaderRowStyle}>
                 <div>
                   <h2 style={sectionTitleStyle}>Season Matches</h2>
