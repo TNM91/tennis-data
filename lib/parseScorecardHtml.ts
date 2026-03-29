@@ -25,56 +25,59 @@ function getBodyText(doc: Document) {
 }
 
 function extractMatchDate(doc: Document) {
+  const header2 = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader2')
+  const header2Text = cleanText(header2?.textContent)
+
+  const fromHeader2 =
+    header2Text.match(/Date Match Played:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
+    header2Text.match(/Date Scheduled:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)
+
+  if (fromHeader2?.[1]) return fromHeader2[1]
+
   const text = getBodyText(doc)
 
-  const match =
+  const fromBody =
     text.match(/Date Match Played:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
-    text.match(/Match Date:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)
+    text.match(/Date Scheduled:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i) ||
+    text.match(/Entry Date:\s*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/i)
 
-  return match?.[1] ?? null
+  return fromBody?.[1] ?? null
 }
 
 function extractLeagueName(doc: Document) {
-  const anchor =
-    doc.querySelector('#ctl00_mainContent_lnkLeagueForMatch') ||
-    Array.from(doc.querySelectorAll('a')).find((a) =>
-      /league/i.test(cleanText(a.textContent))
-    )
+  const exact = doc.querySelector('#ctl00_mainContent_lnkLeagueForMatch')
+  if (exact) return cleanText(exact.textContent) || null
 
-  return cleanText(anchor?.textContent) || null
+  const fallback = Array.from(doc.querySelectorAll('a')).find((a) =>
+    /adult|league|spring|summer|fall|winter/i.test(cleanText(a.textContent))
+  )
+
+  return cleanText(fallback?.textContent) || null
 }
 
 function extractMatchNumber(doc: Document) {
-  const text = getBodyText(doc)
+  const header1 = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader1')
+  const text = cleanText(header1?.textContent || getBodyText(doc))
   const match = text.match(/Scorecard for Match #\s*([0-9]+)/i)
   return match?.[1] ?? null
 }
 
 function extractTeams(doc: Document) {
-  const text = getBodyText(doc)
+  const homeAnchor = doc.querySelector('#ctl00_mainContent_lnkHomeTeamForScoreCard')
+  const awayAnchor = doc.querySelector('#ctl00_mainContent_lnkVisitorTeamForScoreCard')
 
-  const compact = text.replace(/\s+/g, ' ')
+  const homeTeam = cleanText(homeAnchor?.textContent) || null
+  const awayTeam = cleanText(awayAnchor?.textContent) || null
 
-  const teamIds = [...compact.matchAll(/Team ID:\s*\d+/gi)]
-  if (teamIds.length >= 2) {
-    const firstTeamIdIndex = teamIds[0].index ?? -1
-    const secondTeamIdIndex = teamIds[1].index ?? -1
-
-    if (firstTeamIdIndex >= 0 && secondTeamIdIndex > firstTeamIdIndex) {
-      const leftChunk = compact.slice(0, secondTeamIdIndex)
-      const vsMatch = leftChunk.match(/([A-Za-z0-9&'.,\-()\/ ]+?)\s+Vs\.\s+([A-Za-z0-9&'.,\-()\/ ]+?)\s+Team ID:\s*\d+/i)
-
-      if (vsMatch) {
-        return {
-          homeTeam: cleanText(vsMatch[1]) || null,
-          awayTeam: cleanText(vsMatch[2]) || null,
-        }
-      }
-    }
+  if (homeTeam || awayTeam) {
+    return { homeTeam, awayTeam }
   }
 
-  const explicitVs = compact.match(
-    /([A-Za-z0-9&'.,\-()\/ ]+?)\s+Vs\.\s+([A-Za-z0-9&'.,\-()\/ ]+?)(?:\s+Team ID:|\s+Date Match Played:|\s+Location:)/i
+  const header1 = doc.querySelector('#ctl00_mainContent_tblScoreCardHeader1')
+  const text = cleanText(header1?.textContent || getBodyText(doc))
+
+  const explicitVs = text.match(
+    /Match #\s*\d+\s+in\s+.*?\s+([A-Za-z0-9&'.,\-()\/ ]+?)\s+Team ID:\s*[*0-9]+\s+Vs\.\s+([A-Za-z0-9&'.,\-()\/ ]+?)\s+Team ID:\s*[*0-9]+/i
   )
 
   if (explicitVs) {
