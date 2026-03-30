@@ -14,15 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tenaceiq.com"),
   title: {
     default: "TenAceIQ",
     template: "%s | TenAceIQ",
   },
   description:
-    "Track tennis ratings, rankings, matchup insights, and player trends across singles and doubles with TenAceIQ.",
+    "Know more. Plan better. Compete smarter. Player ratings, matchup insight, league context, and captain tools in one platform.",
   openGraph: {
     title: "TenAceIQ",
-    description: "Smarter Tennis Ratings & Matchup Insights",
+    description: "Know more. Plan better. Compete smarter.",
     url: "https://tenaceiq.com",
     siteName: "TenAceIQ",
     images: [
@@ -30,15 +31,28 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
+        alt: "TenAceIQ - Know more. Plan better. Compete smarter.",
       },
     ],
+    locale: "en_US",
     type: "website",
   },
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+  twitter: {
+    card: "summary_large_image",
+    title: "TenAceIQ",
+    description: "Know more. Plan better. Compete smarter.",
+    images: ["/og-image.png"],
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/logo-app.png",
+  },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({
