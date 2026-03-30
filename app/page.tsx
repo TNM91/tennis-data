@@ -78,11 +78,6 @@ export default function HomePage() {
         </Link>
       </section>
 
-      <section style={adSection}>
-        <div style={adBox}><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
-     crossOrigin="anonymous"></script></div>
-      </section>
-
       <footer style={footerStyle}>
         <div style={footerInner}>
           <div style={footerBrandRow}>
@@ -315,22 +310,6 @@ const cardTitle: React.CSSProperties = {
 const cardText: React.CSSProperties = {
   color: '#4CC7C7',
   marginTop: '6px',
-}
-
-/* ADS */
-const adSection: React.CSSProperties = {
-  maxWidth: '900px',
-  margin: '40px auto',
-  padding: '0 20px',
-}
-
-const adBox: React.CSSProperties = {
-  background: '#ffffff',
-  border: '1px dashed #CBD5E1',
-  padding: '40px',
-  textAlign: 'center',
-  borderRadius: '12px',
-  color: '#64748B',
 }
 
 /* FOOTER */
