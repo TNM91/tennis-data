@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { FormEvent, useState } from 'react'
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
@@ -12,42 +12,134 @@ type PlayerSearchRow = {
 
 export default function HomePage() {
   const router = useRouter()
+  const searchRef = useRef<HTMLDivElement | null>(null)
 
   const [playerSearch, setPlayerSearch] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState('')
 
+  const [suggestions, setSuggestions] = useState<PlayerSearchRow[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
+
+  const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        searchRef.current &&
+        event.target instanceof Node &&
+        !searchRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false)
+        setActiveSuggestionIndex(-1)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  useEffect(() => {
+    if (trimmedSearch.length < 2) {
+      setSuggestions([])
+      setSuggestionsLoading(false)
+      setActiveSuggestionIndex(-1)
+      return
+    }
+
+    let isCancelled = false
+
+    const timeout = setTimeout(async () => {
+      try {
+        setSuggestionsLoading(true)
+
+        const { data, error } = await supabase
+          .from('players')
+          .select('id, name')
+          .ilike('name', `%${trimmedSearch}%`)
+          .order('name', { ascending: true })
+          .limit(8)
+
+        if (error) throw new Error(error.message)
+        if (isCancelled) return
+
+        const q = trimmedSearch.toLowerCase()
+
+        const results = ((data || []) as PlayerSearchRow[]).sort((a, b) => {
+          const aName = a.name.toLowerCase()
+          const bName = b.name.toLowerCase()
+
+          const aExact = aName === q ? 0 : 1
+          const bExact = bName === q ? 0 : 1
+          if (aExact !== bExact) return aExact - bExact
+
+          const aStarts = aName.startsWith(q) ? 0 : 1
+          const bStarts = bName.startsWith(q) ? 0 : 1
+          if (aStarts !== bStarts) return aStarts - bStarts
+
+          const aIncludes = aName.includes(q) ? 0 : 1
+          const bIncludes = bName.includes(q) ? 0 : 1
+          if (aIncludes !== bIncludes) return aIncludes - bIncludes
+
+          return aName.length - bName.length
+        })
+
+        setSuggestions(results)
+        setActiveSuggestionIndex(results.length > 0 ? 0 : -1)
+      } catch {
+        if (!isCancelled) {
+          setSuggestions([])
+          setActiveSuggestionIndex(-1)
+        }
+      } finally {
+        if (!isCancelled) setSuggestionsLoading(false)
+      }
+    }, 200)
+
+    return () => {
+      isCancelled = true
+      clearTimeout(timeout)
+    }
+  }, [trimmedSearch])
+
   async function handlePlayerSearch(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
 
-    const query = playerSearch.trim()
-    if (!query || searchLoading) return
+    if (!trimmedSearch || searchLoading) return
+
+    if (
+      showSuggestions &&
+      activeSuggestionIndex >= 0 &&
+      activeSuggestionIndex < suggestions.length
+    ) {
+      handleSuggestionClick(suggestions[activeSuggestionIndex])
+      return
+    }
 
     setSearchLoading(true)
     setSearchError('')
 
     try {
-      const normalized = query.replace(/\s+/g, ' ').trim()
-
       const { data, error } = await supabase
         .from('players')
         .select('id, name')
-        .ilike('name', `%${normalized}%`)
+        .ilike('name', `%${trimmedSearch}%`)
         .order('name', { ascending: true })
         .limit(25)
 
-      if (error) {
-        throw new Error(error.message)
-      }
+      if (error) throw new Error(error.message)
 
       const results = (data || []) as PlayerSearchRow[]
 
       if (!results.length) {
         setSearchError('No matching player found.')
+        setShowSuggestions(true)
         return
       }
 
-      const lowered = normalized.toLowerCase()
+      const lowered = trimmedSearch.toLowerCase()
 
       const ranked = [...results].sort((a, b) => {
         const aName = a.name.toLowerCase()
@@ -61,18 +153,72 @@ export default function HomePage() {
         const bStarts = bName.startsWith(lowered) ? 0 : 1
         if (aStarts !== bStarts) return aStarts - bStarts
 
-        const aWord = aName.split(' ').includes(lowered) ? 0 : 1
-        const bWord = bName.split(' ').includes(lowered) ? 0 : 1
-        if (aWord !== bWord) return aWord - bWord
-
         return aName.length - bName.length
       })
 
-      router.push(`/player/${ranked[0].id}`)
+      setShowSuggestions(false)
+      setActiveSuggestionIndex(-1)
+      router.push(`/players/${ranked[0].id}`)
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : 'Search failed.')
     } finally {
       setSearchLoading(false)
+    }
+  }
+
+  function handleSuggestionClick(player: PlayerSearchRow) {
+    setPlayerSearch(player.name)
+    setSearchError('')
+    setShowSuggestions(false)
+    setActiveSuggestionIndex(-1)
+    router.push(`/players/${player.id}`)
+  }
+
+  function handleInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (!showSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      if (suggestions.length > 0) {
+        setShowSuggestions(true)
+        setActiveSuggestionIndex(0)
+        e.preventDefault()
+      }
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (!suggestions.length) return
+      setShowSuggestions(true)
+      setActiveSuggestionIndex((prev) =>
+        prev < suggestions.length - 1 ? prev + 1 : 0
+      )
+      return
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (!suggestions.length) return
+      setShowSuggestions(true)
+      setActiveSuggestionIndex((prev) =>
+        prev > 0 ? prev - 1 : suggestions.length - 1
+      )
+      return
+    }
+
+    if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setActiveSuggestionIndex(-1)
+      return
+    }
+
+    if (e.key === 'Enter') {
+      if (
+        showSuggestions &&
+        activeSuggestionIndex >= 0 &&
+        activeSuggestionIndex < suggestions.length
+      ) {
+        e.preventDefault()
+        handleSuggestionClick(suggestions[activeSuggestionIndex])
+      }
     }
   }
 
@@ -90,12 +236,11 @@ export default function HomePage() {
 
           <nav style={navStyle}>
             <Link href="/" style={navLink}>Home</Link>
-            <Link href="/rankings" style={navLink}>Players</Link>
+            <Link href="/players" style={navLink}>Players</Link>
             <Link href="/rankings" style={navLink}>Rankings</Link>
             <Link href="/matchup" style={navLink}>Matchup</Link>
             <Link href="/leagues" style={navLink}>Leagues</Link>
             <Link href="/captains-corner" style={navLink}>Captain&apos;s Corner</Link>
-            <Link href="/admin" style={navLink}>Admin</Link>
           </nav>
         </div>
       </header>
@@ -121,29 +266,77 @@ export default function HomePage() {
                 and captain tools into one clean platform built to help you make smarter
                 tennis decisions before match day.
               </p>
+            </div>
 
-              <form onSubmit={handlePlayerSearch} style={searchShell}>
-                <div style={searchLabel}>Start with a player</div>
+            <div style={heroRight}>
+              <form onSubmit={handlePlayerSearch} style={searchShellRight}>
+                <div style={searchTopRow}>
+                  <div style={searchLabel}>Start with a player</div>
+                  <div style={searchShortcutHint}>Use ↑ ↓ Enter</div>
+                </div>
 
-                <div style={searchRow}>
-                  <div style={searchInputWrap}>
-                    <div style={searchIconWrap}>
-                      <SearchIcon />
+                <div ref={searchRef} style={searchAutocompleteWrap}>
+                  <div style={searchRow}>
+                    <div style={searchInputWrap}>
+                      <div style={searchIconWrap}>
+                        <SearchIcon />
+                      </div>
+
+                      <input
+                        type="text"
+                        value={playerSearch}
+                        onChange={(e) => {
+                          setPlayerSearch(e.target.value)
+                          setSearchError('')
+                          setShowSuggestions(true)
+                        }}
+                        onFocus={() => {
+                          if (trimmedSearch.length >= 2) {
+                            setShowSuggestions(true)
+                          }
+                        }}
+                        onKeyDown={handleInputKeyDown}
+                        placeholder="Search player name..."
+                        style={searchInput}
+                        aria-label="Search player name"
+                        autoComplete="off"
+                      />
                     </div>
 
-                    <input
-                      type="text"
-                      value={playerSearch}
-                      onChange={(e) => setPlayerSearch(e.target.value)}
-                      placeholder="Search player name..."
-                      style={searchInput}
-                      aria-label="Search player name"
-                    />
+                    <button type="submit" style={searchButton} disabled={searchLoading}>
+                      {searchLoading ? 'Searching...' : 'Search'}
+                    </button>
                   </div>
 
-                  <button type="submit" style={searchButton} disabled={searchLoading}>
-                    {searchLoading ? 'Searching...' : 'Search'}
-                  </button>
+                  {showSuggestions && trimmedSearch.length >= 2 && (
+                    <div style={suggestionsDropdown}>
+                      {suggestionsLoading ? (
+                        <div style={suggestionStatus}>Searching players...</div>
+                      ) : suggestions.length > 0 ? (
+                        suggestions.map((player, index) => {
+                          const isActive = index === activeSuggestionIndex
+
+                          return (
+                            <button
+                              key={player.id}
+                              type="button"
+                              style={{
+                                ...suggestionItem,
+                                ...(isActive ? suggestionItemActive : {}),
+                              }}
+                              onMouseEnter={() => setActiveSuggestionIndex(index)}
+                              onClick={() => handleSuggestionClick(player)}
+                            >
+                              <span style={suggestionPrimary}>{player.name}</span>
+                              <span style={suggestionSecondary}>View player</span>
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <div style={suggestionStatus}>No players found.</div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div style={searchHelperText}>
@@ -153,29 +346,6 @@ export default function HomePage() {
                 {searchError ? <div style={searchErrorStyle}>{searchError}</div> : null}
               </form>
 
-              <div style={heroButtons}>
-                <Link href="/rankings" style={primaryButton}>Explore Rankings</Link>
-                <Link href="/captains-corner" style={secondaryButton}>Captain&apos;s Corner</Link>
-              </div>
-
-              <div style={heroMetaRow}>
-                <div style={heroMetaCard}>
-                  <div style={heroMetaLabel}>Player Intelligence</div>
-                  <div style={heroMetaText}>
-                    Ratings, rankings, results, and trends in one place.
-                  </div>
-                </div>
-
-                <div style={heroMetaCard}>
-                  <div style={heroMetaLabel}>Captain Advantage</div>
-                  <div style={heroMetaText}>
-                    Matchup prep, lineup tools, and smarter team decisions.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={heroRight}>
               <div style={logoStage}>
                 <div style={logoGlow} />
                 <div style={logoRing} />
@@ -188,50 +358,58 @@ export default function HomePage() {
 
                 <div style={floatingTop}>
                   <div style={floatingKicker}>Matchup insight</div>
-                  <div style={floatingText}>See the edge before first serve</div>
+                  <div style={floatingText}>See the edge before your first serve.</div>
                 </div>
 
                 <div style={floatingBottom}>
                   <div style={floatingKicker}>Captain tools</div>
-                  <div style={floatingText}>Plan smarter lines and scenarios</div>
+                  <div style={floatingText}>Matchup prep, lineup tools, and smarter team decisions.</div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section style={proofSection}>
-        <div style={proofStrip}>
-          <div style={proofItem}>
-            <div style={proofIconShell}><PlayersIcon /></div>
-            <div>
-              <div style={proofTitle}>Player Ratings</div>
-              <div style={proofText}>Know more about every player</div>
-            </div>
-          </div>
+          <div style={heroProofRowWrap}>
+            <div style={heroProofGrid}>
+              <Link href="/players" style={proofLink}>
+                <div style={proofItem}>
+                  <div style={proofIconShell}><PlayersIcon /></div>
+                  <div style={proofTextWrap}>
+                    <div style={proofTitle}>Player Ratings</div>
+                    <div style={proofText}>Know more about every player</div>
+                  </div>
+                </div>
+              </Link>
 
-          <div style={proofItem}>
-            <div style={proofIconShell}><MatchupIcon /></div>
-            <div>
-              <div style={proofTitle}>Matchup Analysis</div>
-              <div style={proofText}>Compare opponents faster</div>
-            </div>
-          </div>
+              <Link href="/matchup" style={proofLink}>
+                <div style={proofItem}>
+                  <div style={proofIconShell}><MatchupIcon /></div>
+                  <div style={proofTextWrap}>
+                    <div style={proofTitle}>Matchup Analysis</div>
+                    <div style={proofText}>Compare opponents faster</div>
+                  </div>
+                </div>
+              </Link>
 
-          <div style={proofItem}>
-            <div style={proofIconShell}><LeaguesIcon /></div>
-            <div>
-              <div style={proofTitle}>League Context</div>
-              <div style={proofText}>Track your team and competition</div>
-            </div>
-          </div>
+              <Link href="/leagues" style={proofLink}>
+                <div style={proofItem}>
+                  <div style={proofIconShell}><LeaguesIcon /></div>
+                  <div style={proofTextWrap}>
+                    <div style={proofTitle}>League Context</div>
+                    <div style={proofText}>Track your team and competition</div>
+                  </div>
+                </div>
+              </Link>
 
-          <div style={proofItem}>
-            <div style={proofIconShell}><CaptainIcon /></div>
-            <div>
-              <div style={proofTitle}>Captain Tools</div>
-              <div style={proofText}>Plan better before match day</div>
+              <Link href="/captains-corner" style={proofLink}>
+                <div style={proofItem}>
+                  <div style={proofIconShell}><CaptainIcon /></div>
+                  <div style={proofTextWrap}>
+                    <div style={proofTitle}>Captain Tools</div>
+                    <div style={proofText}>Plan better before match day</div>
+                  </div>
+                </div>
+              </Link>
             </div>
           </div>
         </div>
@@ -250,7 +428,7 @@ export default function HomePage() {
         </div>
 
         <div style={featureGrid}>
-          <Link href="/rankings" style={featureCard}>
+          <Link href="/players" style={featureCard}>
             <div style={featureCardTop}>
               <div style={featureIconShell}><PlayersIcon /></div>
               <div style={featureArrow}>→</div>
@@ -343,7 +521,7 @@ export default function HomePage() {
           </div>
 
           <div style={ctaButtons}>
-            <Link href="/rankings" style={ctaPrimary}>Find a Player</Link>
+            <Link href="/players" style={ctaPrimary}>Find a Player</Link>
             <Link href="/matchup" style={ctaSecondary}>Compare Matchups</Link>
           </div>
         </div>
@@ -359,6 +537,14 @@ export default function HomePage() {
             Know more. Plan better. Compete smarter.
           </div>
 
+          <div style={footerUtilityRow}>
+            <Link href="/players" style={footerUtilityLink}>Players</Link>
+            <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+            <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+            <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+            <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+          </div>
+
           <div style={footerBottom}>
             © {new Date().getFullYear()} TenAceIQ
           </div>
@@ -367,8 +553,6 @@ export default function HomePage() {
     </main>
   )
 }
-
-/* ================= LOGO ================= */
 
 function LogoWordmark({ darkText = false }: { darkText?: boolean }) {
   return (
@@ -386,8 +570,6 @@ function LogoWordmark({ darkText = false }: { darkText?: boolean }) {
     </div>
   )
 }
-
-/* ================= ICONS ================= */
 
 function IconBase({ children }: { children: React.ReactNode }) {
   return (
@@ -479,8 +661,6 @@ function PlatformIcon() {
   )
 }
 
-/* ================= PAGE ================= */
-
 const pageStyle: React.CSSProperties = {
   minHeight: '100vh',
   background:
@@ -524,8 +704,6 @@ const gridGlow: React.CSSProperties = {
   opacity: 0.5,
 }
 
-/* ================= HEADER ================= */
-
 const headerStyle: React.CSSProperties = {
   position: 'sticky',
   top: 0,
@@ -567,8 +745,6 @@ const navLink: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.04)',
 }
 
-/* ================= WORDMARK ================= */
-
 const logoWordmarkWrap: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -598,8 +774,6 @@ const logoWordmarkIQ: React.CSSProperties = {
   marginLeft: '2px',
 }
 
-/* ================= HERO ================= */
-
 const heroSection: React.CSSProperties = {
   maxWidth: '1240px',
   margin: '0 auto',
@@ -627,18 +801,36 @@ const heroNoise: React.CSSProperties = {
 
 const heroContent: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1.08fr 0.92fr',
-  gap: '24px',
+  gridTemplateColumns: '1.02fr 0.98fr',
+  gap: '26px',
   alignItems: 'stretch',
   position: 'relative',
   zIndex: 1,
 }
 
 const heroLeft: React.CSSProperties = {
-  padding: '60px 50px',
+  padding: '60px 50px 26px',
   color: '#FFFFFF',
   display: 'flex',
   flexDirection: 'column',
+  justifyContent: 'center',
+}
+
+const heroRight: React.CSSProperties = {
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'flex-start',
+  gap: '20px',
+  padding: '38px 38px 20px 20px',
+}
+
+const heroProofRowWrap: React.CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: '100%',
+  padding: '0 50px 42px',
+  display: 'flex',
   justifyContent: 'center',
 }
 
@@ -672,23 +864,62 @@ const heroText: React.CSSProperties = {
   maxWidth: '620px',
 }
 
-/* ================= HERO SEARCH ================= */
+const heroProofGrid: React.CSSProperties = {
+  width: '100%',
+  maxWidth: '1120px',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: '18px',
+  alignItems: 'stretch',
+}
 
-const searchShell: React.CSSProperties = {
-  marginTop: '28px',
+const proofLink: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'block',
+}
+
+const proofTextWrap: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  textAlign: 'left',
+}
+
+const searchShellRight: React.CSSProperties = {
   padding: '18px',
   borderRadius: '22px',
   background: 'rgba(255,255,255,0.10)',
   border: '1px solid rgba(255,255,255,0.14)',
   backdropFilter: 'blur(8px)',
-  maxWidth: '640px',
+  width: '100%',
+  maxWidth: '560px',
+  alignSelf: 'center',
+}
+
+const searchTopRow: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '12px',
+  flexWrap: 'wrap',
+  marginBottom: '12px',
 }
 
 const searchLabel: React.CSSProperties = {
   fontSize: '14px',
   fontWeight: 900,
   color: '#FFFFFF',
-  marginBottom: '12px',
+}
+
+const searchShortcutHint: React.CSSProperties = {
+  color: '#CFE2FF',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.02em',
+}
+
+const searchAutocompleteWrap: React.CSSProperties = {
+  position: 'relative',
 }
 
 const searchRow: React.CSSProperties = {
@@ -742,6 +973,55 @@ const searchButton: React.CSSProperties = {
   boxShadow: '0 14px 28px rgba(0,0,0,0.18)',
 }
 
+const suggestionsDropdown: React.CSSProperties = {
+  position: 'absolute',
+  top: 'calc(100% + 10px)',
+  left: 0,
+  right: 0,
+  background: '#FFFFFF',
+  borderRadius: '18px',
+  boxShadow: '0 20px 40px rgba(15,23,42,0.18)',
+  border: '1px solid rgba(14,99,199,0.10)',
+  overflow: 'hidden',
+  zIndex: 30,
+}
+
+const suggestionItem: React.CSSProperties = {
+  width: '100%',
+  background: '#FFFFFF',
+  border: 'none',
+  borderBottom: '1px solid rgba(15,23,42,0.06)',
+  padding: '14px 16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  cursor: 'pointer',
+  textAlign: 'left',
+}
+
+const suggestionItemActive: React.CSSProperties = {
+  background: 'rgba(12,62,139,0.06)',
+}
+
+const suggestionPrimary: React.CSSProperties = {
+  color: '#071B4D',
+  fontSize: '15px',
+  fontWeight: 800,
+}
+
+const suggestionSecondary: React.CSSProperties = {
+  color: '#0E63C7',
+  fontSize: '13px',
+  fontWeight: 700,
+}
+
+const suggestionStatus: React.CSSProperties = {
+  padding: '16px',
+  color: '#4D6684',
+  fontSize: '14px',
+  fontWeight: 600,
+}
+
 const searchHelperText: React.CSSProperties = {
   marginTop: '10px',
   color: '#D6E6FF',
@@ -756,78 +1036,14 @@ const searchErrorStyle: React.CSSProperties = {
   fontWeight: 700,
 }
 
-/* ================= HERO ACTIONS ================= */
-
-const heroButtons: React.CSSProperties = {
-  marginTop: '24px',
-  display: 'flex',
-  gap: '14px',
-  flexWrap: 'wrap',
-}
-
-const primaryButton: React.CSSProperties = {
-  background: 'linear-gradient(90deg, #4CC7C7, #9BE11D)',
-  color: '#07152F',
-  padding: '15px 22px',
-  borderRadius: '14px',
-  fontWeight: 900,
-  textDecoration: 'none',
-  boxShadow: '0 16px 32px rgba(0,0,0,0.18)',
-}
-
-const secondaryButton: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.10)',
-  color: '#FFFFFF',
-  padding: '15px 22px',
-  borderRadius: '14px',
-  fontWeight: 800,
-  textDecoration: 'none',
-  border: '1px solid rgba(255,255,255,0.16)',
-}
-
-const heroMetaRow: React.CSSProperties = {
-  marginTop: '30px',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '14px',
-}
-
-const heroMetaCard: React.CSSProperties = {
-  padding: '18px',
-  borderRadius: '18px',
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  backdropFilter: 'blur(8px)',
-}
-
-const heroMetaLabel: React.CSSProperties = {
-  fontSize: '16px',
-  fontWeight: 900,
-  color: '#FFFFFF',
-}
-
-const heroMetaText: React.CSSProperties = {
-  marginTop: '8px',
-  fontSize: '14px',
-  lineHeight: 1.6,
-  color: '#D6E6FF',
-}
-
-const heroRight: React.CSSProperties = {
-  position: 'relative',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '38px',
-}
-
 const logoStage: React.CSSProperties = {
   position: 'relative',
   width: '100%',
-  minHeight: '470px',
+  minHeight: '430px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  alignSelf: 'center',
 }
 
 const logoGlow: React.CSSProperties = {
@@ -879,8 +1095,8 @@ const heroLogo: React.CSSProperties = {
 
 const floatingTop: React.CSSProperties = {
   position: 'absolute',
-  top: '34px',
-  right: '6px',
+  top: '26px',
+  right: '8px',
   zIndex: 3,
   background: 'rgba(255,255,255,0.96)',
   padding: '14px 16px',
@@ -891,7 +1107,7 @@ const floatingTop: React.CSSProperties = {
 
 const floatingBottom: React.CSSProperties = {
   position: 'absolute',
-  bottom: '28px',
+  bottom: '24px',
   left: '0px',
   zIndex: 3,
   background: 'rgba(255,255,255,0.96)',
@@ -917,31 +1133,17 @@ const floatingText: React.CSSProperties = {
   color: '#071B4D',
 }
 
-/* ================= PROOF STRIP ================= */
-
-const proofSection: React.CSSProperties = {
-  maxWidth: '1240px',
-  margin: '0 auto',
-  padding: '0 20px 12px',
-  position: 'relative',
-  zIndex: 1,
-}
-
-const proofStrip: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: '14px',
-}
-
 const proofItem: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.82)',
-  border: '1px solid rgba(14,99,199,0.10)',
-  boxShadow: '0 12px 32px rgba(15,23,42,0.05)',
+  background: 'rgba(255,255,255,0.94)',
+  border: '1px solid rgba(14,99,199,0.12)',
+  boxShadow: '0 12px 32px rgba(15,23,42,0.08)',
   borderRadius: '22px',
-  padding: '18px',
+  padding: '20px 18px',
   display: 'flex',
   alignItems: 'center',
   gap: '14px',
+  minHeight: '112px',
+  width: '100%',
   backdropFilter: 'blur(10px)',
 }
 
@@ -961,6 +1163,7 @@ const proofTitle: React.CSSProperties = {
   fontSize: '15px',
   fontWeight: 900,
   color: '#071B4D',
+  lineHeight: 1.3,
 }
 
 const proofText: React.CSSProperties = {
@@ -969,8 +1172,6 @@ const proofText: React.CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.5,
 }
-
-/* ================= FEATURE SECTION ================= */
 
 const featureSection: React.CSSProperties = {
   maxWidth: '1240px',
@@ -1082,8 +1283,6 @@ const svgStyle: React.CSSProperties = {
   display: 'block',
 }
 
-/* ================= MESSAGE STRIP ================= */
-
 const messageStripSection: React.CSSProperties = {
   maxWidth: '1240px',
   margin: '0 auto',
@@ -1141,8 +1340,6 @@ const messagePill: React.CSSProperties = {
   fontWeight: 800,
   fontSize: '14px',
 }
-
-/* ================= CTA ================= */
 
 const ctaSection: React.CSSProperties = {
   maxWidth: '1240px',
@@ -1206,8 +1403,6 @@ const ctaSecondary: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.16)',
 }
 
-/* ================= FOOTER ================= */
-
 const footerStyle: React.CSSProperties = {
   background: '#07152F',
   position: 'relative',
@@ -1231,6 +1426,21 @@ const footerTagline: React.CSSProperties = {
   marginTop: '12px',
   color: '#9CB2D1',
   lineHeight: 1.7,
+}
+
+const footerUtilityRow: React.CSSProperties = {
+  marginTop: '18px',
+  display: 'flex',
+  justifyContent: 'center',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const footerUtilityLink: React.CSSProperties = {
+  color: '#D6E4F8',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
 }
 
 const footerBottom: React.CSSProperties = {
