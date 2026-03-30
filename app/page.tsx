@@ -79,7 +79,8 @@ export default function HomePage() {
       </section>
 
       <section style={adSection}>
-        <div style={adBox}>Ad Space</div>
+        <div style={adBox}><script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
+     crossOrigin="anonymous"></script></div>
       </section>
 
       <footer style={footerStyle}>
