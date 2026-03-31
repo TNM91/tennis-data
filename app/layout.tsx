@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://tenaceiq.com"), // IMPORTANT: root domain (no www)
+  metadataBase: new URL("https://tenaceiq.com"),
   title: {
     default: "TenAceIQ",
     template: "%s | TenAceIQ",
@@ -66,7 +66,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        {/* REQUIRED for AdSense verification */}
+        {/* ✅ AdSense verification meta tag */}
         <meta
           name="google-adsense-account"
           content="ca-pub-1351888380884789"
@@ -85,7 +85,7 @@ export default function RootLayout({
           color: "#0f172a",
         }}
       >
-        {/* REQUIRED AdSense script */}
+        {/* ✅ AdSense script (required for ads + helps verification) */}
         <Script
           id="google-adsense"
           async
