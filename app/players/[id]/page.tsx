@@ -278,176 +278,447 @@ export default function PlayerProfilePage() {
 
   if (loading) {
     return (
-      <main style={mainStyle}>
-        <div style={cardStyle}>Loading player profile...</div>
+      <main className="page-shell-tight player-profile-page">
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="surface-card panel-pad player-loading-card">
+              <div className="section-kicker">Player Profile</div>
+              <h1 className="player-loading-title">Loading player profile...</h1>
+              <p className="player-loading-text">Pulling ratings, snapshots, and recent match history.</p>
+            </div>
+          </div>
+        </section>
       </main>
     )
   }
 
   if (error || !player) {
     return (
-      <main style={mainStyle}>
-        <div style={navRowStyle}>
-          <Link href="/" style={navLinkStyle}>Home</Link>
-          <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
+      <main className="page-shell-tight player-profile-page">
+        <div className="player-top-links">
+          <Link href="/" className="button-ghost">Home</Link>
+          <Link href="/rankings" className="button-ghost">Rankings</Link>
         </div>
 
-        <div style={errorBoxStyle}>
-          <p style={{ margin: 0, fontWeight: 700 }}>{error || 'Player not found'}</p>
-        </div>
+        <section className="surface-card panel-pad player-error-card">
+          <div className="section-kicker">Player Profile</div>
+          <h1 className="player-error-title">Unable to load player</h1>
+          <p className="player-error-text">{error || 'Player not found'}</p>
+        </section>
       </main>
     )
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
+    <main className="page-shell-tight player-profile-page">
+      <div className="player-top-links">
+        <Link href="/" className="button-ghost">Home</Link>
+        <Link href="/rankings" className="button-ghost">Rankings</Link>
+        <Link href="/matchup" className="button-ghost">Matchup</Link>
+        <Link href="/admin" className="button-ghost">Admin</Link>
       </div>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>{player.name}</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px' }}>
-          {player.location || 'No location set'}
-        </p>
-      </div>
+      <section className="hero-panel player-hero-panel">
+        <div className="hero-inner player-hero-inner">
+          <div className="player-hero-copy">
+            <div className="section-kicker player-kicker">Player Profile</div>
+            <h1 className="player-hero-title">{player.name}</h1>
+            <p className="player-hero-location">{player.location || 'No location set'}</p>
 
-      <div style={segmentContainerStyle}>
-        <button
-          onClick={() => setRatingView('overall')}
-          style={{
-            ...segmentButtonStyle,
-            ...(ratingView === 'overall' ? activeSegmentButtonStyle : {}),
-          }}
-        >
-          Overall
-        </button>
-        <button
-          onClick={() => setRatingView('singles')}
-          style={{
-            ...segmentButtonStyle,
-            ...(ratingView === 'singles' ? activeSegmentButtonStyle : {}),
-          }}
-        >
-          Singles
-        </button>
-        <button
-          onClick={() => setRatingView('doubles')}
-          style={{
-            ...segmentButtonStyle,
-            ...(ratingView === 'doubles' ? activeSegmentButtonStyle : {}),
-          }}
-        >
-          Doubles
-        </button>
-      </div>
+            <div className="player-hero-meta">
+              <span className="badge badge-blue">{capitalize(ratingView)} view</span>
+              <span className="badge badge-slate">{totalMatches} matches</span>
+              <span className={`badge ${wins >= losses ? 'badge-green' : 'badge-blue'}`}>
+                {winPct}% win rate
+              </span>
+            </div>
+          </div>
 
-      <div style={statsGridStyle}>
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Current {capitalize(ratingView)} Rating</div>
-          <div style={statValueStyle}>{selectedDynamicRating.toFixed(2)}</div>
+          <div className="glass-card panel-pad player-view-card">
+            <div className="player-view-title">Rating focus</div>
+            <div className="player-segment-wrap">
+              <button
+                onClick={() => setRatingView('overall')}
+                className={`player-segment-btn ${ratingView === 'overall' ? 'is-active' : ''}`}
+              >
+                Overall
+              </button>
+              <button
+                onClick={() => setRatingView('singles')}
+                className={`player-segment-btn ${ratingView === 'singles' ? 'is-active' : ''}`}
+              >
+                Singles
+              </button>
+              <button
+                onClick={() => setRatingView('doubles')}
+                className={`player-segment-btn ${ratingView === 'doubles' ? 'is-active' : ''}`}
+              >
+                Doubles
+              </button>
+            </div>
+
+            <div className="player-view-summary">
+              <div className="player-view-summary-label">Current {capitalize(ratingView)} dynamic rating</div>
+              <div className="player-view-summary-value">{selectedDynamicRating.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="metric-grid player-metric-grid">
+        <div className="metric-card">
+          <div className="player-metric-label">Current {capitalize(ratingView)} Rating</div>
+          <div className="player-metric-value">{selectedDynamicRating.toFixed(2)}</div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Overall</div>
-          <div style={statValueStyle}>
+        <div className="metric-card">
+          <div className="player-metric-label">Overall</div>
+          <div className="player-metric-value">
             {formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))}
           </div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Singles</div>
-          <div style={statValueStyle}>
+        <div className="metric-card">
+          <div className="player-metric-label">Singles</div>
+          <div className="player-metric-value">
             {formatRating(
               toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
             )}
           </div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Doubles</div>
-          <div style={statValueStyle}>
+        <div className="metric-card">
+          <div className="player-metric-label">Doubles</div>
+          <div className="player-metric-value">
             {formatRating(
               toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
             )}
           </div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Wins</div>
-          <div style={statValueStyle}>{wins}</div>
+        <div className="metric-card">
+          <div className="player-metric-label">Wins</div>
+          <div className="player-metric-value">{wins}</div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Losses</div>
-          <div style={statValueStyle}>{losses}</div>
+        <div className="metric-card">
+          <div className="player-metric-label">Losses</div>
+          <div className="player-metric-value">{losses}</div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Win %</div>
-          <div style={statValueStyle}>{winPct}%</div>
+        <div className="metric-card">
+          <div className="player-metric-label">Win %</div>
+          <div className="player-metric-value">{winPct}%</div>
         </div>
 
-        <div style={statCardStyle}>
-          <div style={statLabelStyle}>Matches</div>
-          <div style={statValueStyle}>{totalMatches}</div>
+        <div className="metric-card">
+          <div className="player-metric-label">Matches</div>
+          <div className="player-metric-value">{totalMatches}</div>
         </div>
-      </div>
+      </section>
 
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>{capitalize(ratingView)} Rating Trend</h2>
-        {chartPoints.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No rating history yet.</p>
-        ) : (
-          <SimpleLineChart points={chartPoints} />
-        )}
-      </div>
-
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>{capitalize(ratingView)} Match History</h2>
-
-        {mostRecentMatches.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No matches found for this view.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Date</th>
-                  <th style={thStyle}>Type</th>
-                  <th style={thStyle}>Partner</th>
-                  <th style={thStyle}>Opponent</th>
-                  <th style={thStyle}>Score</th>
-                  <th style={thStyle}>Result</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mostRecentMatches.map((match) => (
-                  <tr key={match.id}>
-                    <td style={tdStyle}>{match.date}</td>
-                    <td style={tdStyle}>{capitalize(match.matchType)}</td>
-                    <td style={tdStyle}>{match.partner || '—'}</td>
-                    <td style={tdStyle}>{match.opponent}</td>
-                    <td style={tdStyle}>{match.score}</td>
-                    <td
-                      style={{
-                        ...tdStyle,
-                        color: match.result === 'W' ? '#166534' : '#991b1b',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {match.result}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <section className="card-grid player-content-grid">
+        <div className="surface-card panel-pad player-chart-card">
+          <div className="player-section-head">
+            <div>
+              <div className="section-kicker">Trend</div>
+              <h2 className="player-section-title">{capitalize(ratingView)} Rating Trend</h2>
+            </div>
+            <span className="badge badge-slate">{chartPoints.length} points</span>
           </div>
-        )}
-      </div>
+
+          {chartPoints.length === 0 ? (
+            <p className="player-empty-text">No rating history yet.</p>
+          ) : (
+            <SimpleLineChart points={chartPoints} />
+          )}
+        </div>
+
+        <div className="surface-card panel-pad player-history-card">
+          <div className="player-section-head">
+            <div>
+              <div className="section-kicker">Recent Results</div>
+              <h2 className="player-section-title">{capitalize(ratingView)} Match History</h2>
+            </div>
+            <span className="badge badge-blue">Latest 10</span>
+          </div>
+
+          {mostRecentMatches.length === 0 ? (
+            <p className="player-empty-text">No matches found for this view.</p>
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Partner</th>
+                    <th>Opponent</th>
+                    <th>Score</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mostRecentMatches.map((match) => (
+                    <tr key={match.id}>
+                      <td>{match.date}</td>
+                      <td>{capitalize(match.matchType)}</td>
+                      <td>{match.partner || '—'}</td>
+                      <td>{match.opponent}</td>
+                      <td>{match.score}</td>
+                      <td>
+                        <span
+                          className={`player-result-pill ${
+                            match.result === 'W' ? 'is-win' : 'is-loss'
+                          }`}
+                        >
+                          {match.result}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <style jsx>{`
+        .player-profile-page {
+          padding-top: 1.25rem;
+          padding-bottom: 2.5rem;
+        }
+
+        .player-top-links {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .player-hero-panel {
+          overflow: hidden;
+        }
+
+        .player-hero-inner {
+          display: grid;
+          grid-template-columns: minmax(0, 1.1fr) minmax(280px, 360px);
+          gap: 1rem;
+          align-items: stretch;
+        }
+
+        .player-hero-copy {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.85rem;
+        }
+
+        .player-kicker {
+          color: rgba(217, 231, 255, 0.82);
+        }
+
+        .player-hero-title {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(2rem, 4vw, 3.2rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          font-weight: 900;
+        }
+
+        .player-hero-location {
+          margin: 0;
+          color: rgba(219, 234, 254, 0.9);
+          font-size: 1.02rem;
+          line-height: 1.6;
+          font-weight: 600;
+        }
+
+        .player-hero-meta {
+          display: flex;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+          margin-top: 0.2rem;
+        }
+
+        .player-view-card {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+
+        .player-view-title {
+          color: #ffffff;
+          font-size: 0.95rem;
+          font-weight: 800;
+        }
+
+        .player-segment-wrap {
+          display: flex;
+          gap: 0.55rem;
+          flex-wrap: wrap;
+          padding: 0.4rem;
+          border-radius: 1rem;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .player-segment-btn {
+          border: 0;
+          border-radius: 0.8rem;
+          background: transparent;
+          color: rgba(226, 236, 255, 0.9);
+          padding: 0.8rem 1rem;
+          font-size: 0.92rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .player-segment-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .player-segment-btn.is-active {
+          background: linear-gradient(135deg, #56d8ae 0%, #b8e61a 100%);
+          color: #07152f;
+          box-shadow: 0 12px 26px rgba(184, 230, 26, 0.22);
+        }
+
+        .player-view-summary {
+          padding: 1rem 1rem 1.05rem;
+          border-radius: 1rem;
+          background: rgba(255, 255, 255, 0.08);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .player-view-summary-label {
+          color: rgba(217, 231, 255, 0.82);
+          font-size: 0.8rem;
+          font-weight: 700;
+          line-height: 1.5;
+        }
+
+        .player-view-summary-value {
+          margin-top: 0.35rem;
+          color: #ffffff;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .player-metric-grid {
+          margin-top: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .player-metric-label {
+          color: #64748b;
+          font-size: 0.82rem;
+          margin-bottom: 0.4rem;
+          font-weight: 700;
+        }
+
+        .player-metric-value {
+          color: #0f172a;
+          font-size: clamp(1.5rem, 2vw, 1.9rem);
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+
+        .player-content-grid {
+          grid-template-columns: 1fr;
+          gap: 1rem;
+        }
+
+        .player-chart-card,
+        .player-history-card {
+          min-width: 0;
+        }
+
+        .player-section-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .player-section-title {
+          margin: 0.25rem 0 0;
+          color: #0f172a;
+          font-size: 1.35rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .player-empty-text {
+          margin: 0;
+          color: #64748b;
+          font-size: 0.96rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        .player-result-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 2.25rem;
+          padding: 0.35rem 0.55rem;
+          border-radius: 999px;
+          font-size: 0.8rem;
+          font-weight: 900;
+          letter-spacing: 0.02em;
+        }
+
+        .player-result-pill.is-win {
+          background: rgba(34, 197, 94, 0.12);
+          color: #166534;
+        }
+
+        .player-result-pill.is-loss {
+          background: rgba(239, 68, 68, 0.12);
+          color: #991b1b;
+        }
+
+        .player-loading-card,
+        .player-error-card {
+          margin-top: 0.25rem;
+        }
+
+        .player-loading-title,
+        .player-error-title {
+          margin: 0.2rem 0 0;
+          color: #0f172a;
+          font-size: clamp(1.6rem, 3vw, 2.2rem);
+          line-height: 1.1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+
+        .player-loading-text,
+        .player-error-text {
+          margin: 0.8rem 0 0;
+          color: #64748b;
+          font-size: 0.98rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        @media (max-width: 900px) {
+          .player-hero-inner {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </main>
   )
 }
@@ -478,10 +749,18 @@ function SimpleLineChart({
     .join(' ')
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <svg width={width} height={height} style={{ width: '100%', height: 'auto' }}>
-        <rect x="0" y="0" width={width} height={height} fill="#f8fafc" rx="16" />
-        <path d={path} fill="none" stroke="#2563eb" strokeWidth="3" />
+    <div className="player-chart-wrap">
+      <svg width={width} height={height} className="player-chart-svg">
+        <defs>
+          <linearGradient id="playerLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#255BE3" />
+            <stop offset="55%" stopColor="#3FA7FF" />
+            <stop offset="100%" stopColor="#B8E61A" />
+          </linearGradient>
+        </defs>
+
+        <rect x="0" y="0" width={width} height={height} fill="#f8fbff" rx="18" />
+        <path d={path} fill="none" stroke="url(#playerLineGradient)" strokeWidth="4" strokeLinecap="round" />
         {points.map((point, index) => {
           const x = padding + index * xStep
           const y =
@@ -489,16 +768,36 @@ function SimpleLineChart({
 
           return (
             <g key={`${point.date}-${index}`}>
-              <circle cx={x} cy={y} r="4" fill="#1d4ed8" />
+              <circle cx={x} cy={y} r="5" fill="#255BE3" />
+              <circle cx={x} cy={y} r="9" fill="rgba(37, 91, 227, 0.12)" />
             </g>
           )
         })}
       </svg>
 
-      <div style={{ marginTop: '12px', color: '#64748b', fontSize: '14px' }}>
+      <div className="player-chart-meta">
         {points.length} data point{points.length === 1 ? '' : 's'} • Latest:{' '}
         {points[points.length - 1]?.rating.toFixed(2)}
       </div>
+
+      <style jsx>{`
+        .player-chart-wrap {
+          overflow-x: auto;
+        }
+
+        .player-chart-svg {
+          width: 100%;
+          height: auto;
+          display: block;
+        }
+
+        .player-chart-meta {
+          margin-top: 0.8rem;
+          color: #64748b;
+          font-size: 0.9rem;
+          font-weight: 600;
+        }
+      `}</style>
     </div>
   )
 }
@@ -522,129 +821,4 @@ function formatRating(value: number) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1200px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const segmentContainerStyle = {
-  display: 'inline-flex',
-  gap: '8px',
-  padding: '6px',
-  background: '#eff6ff',
-  borderRadius: '16px',
-  border: '1px solid #dbeafe',
-  marginBottom: '22px',
-}
-
-const segmentButtonStyle = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: 'transparent',
-  color: '#1e3a8a',
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontSize: '14px',
-}
-
-const activeSegmentButtonStyle = {
-  background: '#2563eb',
-  color: 'white',
-}
-
-const statsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '14px',
-  marginBottom: '22px',
-}
-
-const statCardStyle = {
-  background: 'white',
-  borderRadius: '18px',
-  padding: '18px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-}
-
-const statLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const statValueStyle = {
-  color: '#0f172a',
-  fontSize: '28px',
-  fontWeight: 800,
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const tableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
-}
-
-const thStyle = {
-  textAlign: 'left' as const,
-  padding: '12px',
-  borderBottom: '1px solid #cbd5e1',
-  color: '#334155',
-  background: '#f8fafc',
-}
-
-const tdStyle = {
-  padding: '12px',
-  borderBottom: '1px solid #e2e8f0',
-  color: '#0f172a',
 }

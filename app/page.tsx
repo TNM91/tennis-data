@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
@@ -348,6 +348,7 @@ export default function HomePage() {
   const dynamicLogoStage: React.CSSProperties = {
     ...logoStage,
     minHeight: isMobile ? '220px' : '290px',
+    marginTop: isMobile ? '6px' : '10px',
   }
 
   const dynamicLogoRing: React.CSSProperties = {
@@ -392,6 +393,22 @@ export default function HomePage() {
     ...featureText,
     fontSize: isMobile ? '16px' : '17px',
     lineHeight: isMobile ? 1.6 : 1.72,
+  }
+
+  const dynamicMessageStripSection: React.CSSProperties = {
+    ...messageStripSection,
+    padding: isMobile ? '8px 12px 18px' : '8px 20px 20px',
+  }
+
+  const dynamicMessageStrip: React.CSSProperties = {
+    ...messageStrip,
+    padding: isMobile ? '18px 16px' : '22px 26px',
+    borderRadius: isMobile ? '22px' : '28px',
+  }
+
+  const dynamicMessageStripText: React.CSSProperties = {
+    ...messageStripText,
+    fontSize: isSmallMobile ? '22px' : isMobile ? '24px' : '28px',
   }
 
   const dynamicCtaSection: React.CSSProperties = {
@@ -719,11 +736,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={messageStripSection}>
-        <div style={messageStrip}>
+      <section style={dynamicMessageStripSection}>
+        <div style={dynamicMessageStrip}>
           <div style={messageStripLeft}>
             <div style={messageStripKicker}>Core Theme</div>
-            <div style={messageStripText}>Know more. Plan better. Compete smarter.</div>
+            <div style={dynamicMessageStripText}>Know more. Plan better. Compete smarter.</div>
           </div>
 
           <div style={messageStripRight}>
@@ -836,7 +853,7 @@ function BrandWordmark({
   )
 }
 
-function IconBase({ children }: { children: React.ReactNode }) {
+function IconBase({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 24 24" style={svgStyle} aria-hidden="true">
       {children}
