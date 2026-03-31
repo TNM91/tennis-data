@@ -884,216 +884,223 @@ export default function MatchupPage() {
   }, [comparison])
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
+    <main className="page-shell-tight matchup-page">
+      <div className="matchup-top-links">
+        <Link href="/" className="button-ghost">Home</Link>
+        <Link href="/rankings" className="button-ghost">Rankings</Link>
+        <Link href="/matchup" className="button-ghost">Matchup</Link>
+        <Link href="/admin" className="button-ghost">Admin</Link>
       </div>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Matchup Comparison</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Compare singles players or doubles teams across dynamic ratings, projected win probability,
-          expected outcome, confidence, upset watch, and head-to-head history.
-        </p>
-      </div>
+      <section className="hero-panel matchup-hero-panel">
+        <div className="hero-inner matchup-hero-inner">
+          <div className="matchup-hero-copy">
+            <div className="section-kicker matchup-kicker">Matchup Comparison</div>
+            <h1 className="matchup-title">Compare singles players or doubles teams.</h1>
+            <p className="matchup-subtitle">
+              Compare dynamic ratings, projected win probability, expected outcome,
+              confidence, upset watch, and head-to-head history before match day.
+            </p>
 
-      <div style={cardStyle}>
-        <div style={modeContainerStyle}>
-          <button
-            onClick={() => setMatchType('singles')}
-            style={{
-              ...segmentButtonStyle,
-              ...(matchType === 'singles' ? activeSegmentButtonStyle : {}),
-            }}
-          >
-            Singles
-          </button>
-          <button
-            onClick={() => setMatchType('doubles')}
-            style={{
-              ...segmentButtonStyle,
-              ...(matchType === 'doubles' ? activeSegmentButtonStyle : {}),
-            }}
-          >
-            Doubles
-          </button>
+            <div className="matchup-hero-badges">
+              <span className="badge badge-blue">{capitalize(matchType)} mode</span>
+              <span className="badge badge-slate">{capitalize(ratingView)} display</span>
+              <span className="badge badge-green">
+                {matchType === 'singles' ? 'Singles engine' : 'Doubles engine'}
+              </span>
+            </div>
+          </div>
+
+          <div className="glass-card panel-pad matchup-hero-side">
+            <div className="matchup-side-title">Projection engine</div>
+            <div className="matchup-side-value">{capitalize(getEngineRatingView(matchType))}</div>
+            <div className="matchup-side-text">
+              Projections always use match-type-specific dynamic ratings even when the on-screen
+              comparison display is switched to overall, singles, or doubles.
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div style={toolbarStyle}>
-          {matchType === 'singles' ? (
-            <div style={selectGridStyle}>
-              <div>
-                <label style={labelStyle}>Player A</label>
-                <select
-                  value={playerAId}
-                  onChange={(e) => setPlayerAId(e.target.value)}
-                  style={inputStyle}
-                  disabled={loading}
-                >
-                  <option value="">Select player</option>
-                  {availablePlayersForA.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <section className="surface-card panel-pad matchup-toolbar-card">
+        <div className="matchup-toolbar-top">
+          <div className="matchup-mode-toggle">
+            <button
+              onClick={() => setMatchType('singles')}
+              className={`matchup-pill-btn ${matchType === 'singles' ? 'is-active' : ''}`}
+            >
+              Singles
+            </button>
+            <button
+              onClick={() => setMatchType('doubles')}
+              className={`matchup-pill-btn ${matchType === 'doubles' ? 'is-active' : ''}`}
+            >
+              Doubles
+            </button>
+          </div>
 
-              <div>
-                <label style={labelStyle}>Player B</label>
-                <select
-                  value={playerBId}
-                  onChange={(e) => setPlayerBId(e.target.value)}
-                  style={inputStyle}
-                  disabled={loading}
-                >
-                  <option value="">Select player</option>
-                  {availablePlayersForB.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          ) : (
-            <div style={doublesGridStyle}>
-              <div>
-                <label style={labelStyle}>Team A - Player 1</label>
-                <select
-                  value={teamA1Id}
-                  onChange={(e) => setTeamA1Id(e.target.value)}
-                  style={inputStyle}
-                  disabled={loading}
-                >
-                  <option value="">Select player</option>
-                  {availableTeamA1.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Team A - Player 2</label>
-                <select
-                  value={teamA2Id}
-                  onChange={(e) => setTeamA2Id(e.target.value)}
-                  style={inputStyle}
-                  disabled={loading}
-                >
-                  <option value="">Select player</option>
-                  {availableTeamA2.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Team B - Player 1</label>
-                <select
-                  value={teamB1Id}
-                  onChange={(e) => setTeamB1Id(e.target.value)}
-                  style={inputStyle}
-                  disabled={loading}
-                >
-                  <option value="">Select player</option>
-                  {availableTeamB1.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Team B - Player 2</label>
-                <select
-                  value={teamB2Id}
-                  onChange={(e) => setTeamB2Id(e.target.value)}
-                  style={inputStyle}
-                  disabled={loading}
-                >
-                  <option value="">Select player</option>
-                  {availableTeamB2.map((player) => (
-                    <option key={player.id} value={player.id}>
-                      {player.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
-
-          <div style={segmentContainerStyle}>
+          <div className="matchup-mode-toggle">
             <button
               onClick={() => setRatingView('overall')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'overall' ? activeSegmentButtonStyle : {}),
-              }}
+              className={`matchup-pill-btn ${ratingView === 'overall' ? 'is-active alt' : ''}`}
             >
               Overall
             </button>
             <button
               onClick={() => setRatingView('singles')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'singles' ? activeSegmentButtonStyle : {}),
-              }}
+              className={`matchup-pill-btn ${ratingView === 'singles' ? 'is-active alt' : ''}`}
             >
               Singles
             </button>
             <button
               onClick={() => setRatingView('doubles')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'doubles' ? activeSegmentButtonStyle : {}),
-              }}
+              className={`matchup-pill-btn ${ratingView === 'doubles' ? 'is-active alt' : ''}`}
             >
               Doubles
             </button>
           </div>
         </div>
 
-        {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+        {matchType === 'singles' ? (
+          <div className="matchup-select-grid">
+            <div>
+              <label className="label">Player A</label>
+              <select
+                value={playerAId}
+                onChange={(e) => setPlayerAId(e.target.value)}
+                className="select"
+                disabled={loading}
+              >
+                <option value="">Select player</option>
+                {availablePlayersForA.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Player B</label>
+              <select
+                value={playerBId}
+                onChange={(e) => setPlayerBId(e.target.value)}
+                className="select"
+                disabled={loading}
+              >
+                <option value="">Select player</option>
+                {availablePlayersForB.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ) : (
+          <div className="matchup-doubles-grid">
+            <div>
+              <label className="label">Team A - Player 1</label>
+              <select
+                value={teamA1Id}
+                onChange={(e) => setTeamA1Id(e.target.value)}
+                className="select"
+                disabled={loading}
+              >
+                <option value="">Select player</option>
+                {availableTeamA1.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Team A - Player 2</label>
+              <select
+                value={teamA2Id}
+                onChange={(e) => setTeamA2Id(e.target.value)}
+                className="select"
+                disabled={loading}
+              >
+                <option value="">Select player</option>
+                {availableTeamA2.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Team B - Player 1</label>
+              <select
+                value={teamB1Id}
+                onChange={(e) => setTeamB1Id(e.target.value)}
+                className="select"
+                disabled={loading}
+              >
+                <option value="">Select player</option>
+                {availableTeamB1.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Team B - Player 2</label>
+              <select
+                value={teamB2Id}
+                onChange={(e) => setTeamB2Id(e.target.value)}
+                className="select"
+                disabled={loading}
+              >
+                <option value="">Select player</option>
+                {availableTeamB2.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         )}
 
+        {error ? (
+          <div className="matchup-error-box">
+            <p>{error}</p>
+          </div>
+        ) : null}
+
         {loading ? (
-          <div style={{ marginTop: '18px', color: '#64748b' }}>Loading players...</div>
+          <div className="matchup-empty-state">Loading players...</div>
         ) : !comparison ? (
-          <div style={emptyStateStyle}>
+          <div className="matchup-empty-state">
             {matchType === 'singles'
-              ? `Select two different players to compare.`
-              : `Select four different players to compare doubles teams.`}
+              ? 'Select two different players to compare.'
+              : 'Select four different players to compare doubles teams.'}
           </div>
         ) : (
           <>
-            <div style={comparisonGridStyle}>
-              <div style={playerCardStyle}>
-                <div style={playerCardHeaderStyle}>
+            <div className="matchup-compare-grid">
+              <div className={`surface-card panel-pad matchup-side-card ${comparison.favoredSide === 'left' ? 'is-favored' : ''}`}>
+                <div className="matchup-side-head">
                   <div>
-                    <div style={playerNameStyle}>{comparison.leftLabel}</div>
-                    <div style={playerMetaStyle}>{comparison.leftLocation}</div>
+                    <div className="matchup-side-name">{comparison.leftLabel}</div>
+                    <div className="matchup-side-meta">{comparison.leftLocation}</div>
                   </div>
 
                   {comparison.leftProfileHref ? (
-                    <Link href={comparison.leftProfileHref} style={profileLinkStyle}>
+                    <Link href={comparison.leftProfileHref} className="button-ghost matchup-profile-link">
                       View Profile
                     </Link>
                   ) : null}
                 </div>
 
-                <div style={ratingGridStyle}>
+                <div className="matchup-rating-grid">
                   <RatingPill
                     label="Overall"
                     value={comparison.leftRatings.overall}
@@ -1111,39 +1118,41 @@ export default function MatchupPage() {
                   />
                 </div>
 
-                <div style={highlightBoxStyle}>
-                  <div style={highlightLabelStyle}>
-                    {comparison.engineRatingView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
+                <div className="matchup-highlight-box">
+                  <div className="matchup-highlight-label">
+                    {comparison.engineRatingView === 'singles'
+                      ? 'Singles projection rating'
+                      : 'Doubles projection rating'}
                   </div>
-                  <div style={highlightValueStyle}>{formatRating(comparison.leftSelected)}</div>
+                  <div className="matchup-highlight-value">{formatRating(comparison.leftSelected)}</div>
                 </div>
               </div>
 
-              <div style={centerComparisonCardStyle}>
-                <div style={vsBadgeStyle}>VS</div>
+              <div className="matchup-center-column">
+                <div className="matchup-vs-badge">VS</div>
 
-                <div style={gapCardStyle}>
-                  <div style={gapLabelStyle}>{capitalize(ratingView)} Rating Gap</div>
-                  <div style={gapValueStyle}>{formatRating(displayGap)}</div>
-                  <div style={gapMetaStyle}>{displayHigherRatedLabel}</div>
+                <div className="surface-card-strong panel-pad matchup-gap-card">
+                  <div className="matchup-gap-label">{capitalize(ratingView)} Rating Gap</div>
+                  <div className="matchup-gap-value">{formatRating(displayGap)}</div>
+                  <div className="matchup-gap-meta">{displayHigherRatedLabel}</div>
                 </div>
               </div>
 
-              <div style={playerCardStyle}>
-                <div style={playerCardHeaderStyle}>
+              <div className={`surface-card panel-pad matchup-side-card ${comparison.favoredSide === 'right' ? 'is-favored' : ''}`}>
+                <div className="matchup-side-head">
                   <div>
-                    <div style={playerNameStyle}>{comparison.rightLabel}</div>
-                    <div style={playerMetaStyle}>{comparison.rightLocation}</div>
+                    <div className="matchup-side-name">{comparison.rightLabel}</div>
+                    <div className="matchup-side-meta">{comparison.rightLocation}</div>
                   </div>
 
                   {comparison.rightProfileHref ? (
-                    <Link href={comparison.rightProfileHref} style={profileLinkStyle}>
+                    <Link href={comparison.rightProfileHref} className="button-ghost matchup-profile-link">
                       View Profile
                     </Link>
                   ) : null}
                 </div>
 
-                <div style={ratingGridStyle}>
+                <div className="matchup-rating-grid">
                   <RatingPill
                     label="Overall"
                     value={comparison.rightRatings.overall}
@@ -1161,17 +1170,20 @@ export default function MatchupPage() {
                   />
                 </div>
 
-                <div style={highlightBoxStyle}>
-                  <div style={highlightLabelStyle}>
-                    {comparison.engineRatingView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
+                <div className="matchup-highlight-box">
+                  <div className="matchup-highlight-label">
+                    {comparison.engineRatingView === 'singles'
+                      ? 'Singles projection rating'
+                      : 'Doubles projection rating'}
                   </div>
-                  <div style={highlightValueStyle}>{formatRating(comparison.rightSelected)}</div>
+                  <div className="matchup-highlight-value">{formatRating(comparison.rightSelected)}</div>
                 </div>
               </div>
             </div>
-                        <div style={summaryCardStyle}>
-              <h2 style={{ marginTop: 0 }}>Quick Read</h2>
-              <p style={{ margin: 0, color: '#334155', lineHeight: 1.6 }}>
+
+            <div className="surface-card panel-pad matchup-summary-card">
+              <h2 className="matchup-section-title">Quick Read</h2>
+              <p className="matchup-paragraph">
                 In <strong>{ratingView}</strong>,{' '}
                 {displayHigherRatedLabel === 'Even matchup'
                   ? `${comparison.leftLabel} and ${comparison.rightLabel} are currently even.`
@@ -1181,91 +1193,59 @@ export default function MatchupPage() {
               </p>
             </div>
 
-            {projection && (
-              <div style={summaryCardStyle}>
-                <h2 style={{ marginTop: 0 }}>Projection</h2>
+            {projection ? (
+              <div className="surface-card panel-pad matchup-summary-card">
+                <h2 className="matchup-section-title">Projection</h2>
 
-                <div style={projectionGridStyle}>
-                  <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>{comparison.leftLabel} win probability</div>
-                    <div style={projectionValueStyle}>{formatPercent(projection.leftWinProbability)}</div>
-                  </div>
-
-                  <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>{comparison.rightLabel} win probability</div>
-                    <div style={projectionValueStyle}>{formatPercent(projection.rightWinProbability)}</div>
-                  </div>
-
-                  <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>Projected winner</div>
-                    <div style={projectionValueStyle}>{projection.likelyWinner}</div>
-                  </div>
-
-                  <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>Confidence</div>
-                    <div style={projectionValueStyle}>{projection.confidenceLabel}</div>
-                  </div>
-
-                  <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>Projection rating gap</div>
-                    <div style={projectionValueStyle}>{projection.ratingDiffText}</div>
-                  </div>
-
-                  <div style={projectionStatCardStyle}>
-                    <div style={projectionLabelStyle}>Favorite edge</div>
-                    <div style={projectionValueStyle}>{projection.favoriteEdgeText}</div>
-                  </div>
+                <div className="metric-grid matchup-metric-grid">
+                  <MetricCard
+                    label={`${comparison.leftLabel} win probability`}
+                    value={formatPercent(projection.leftWinProbability)}
+                  />
+                  <MetricCard
+                    label={`${comparison.rightLabel} win probability`}
+                    value={formatPercent(projection.rightWinProbability)}
+                  />
+                  <MetricCard label="Projected winner" value={projection.likelyWinner} />
+                  <MetricCard label="Confidence" value={projection.confidenceLabel} />
+                  <MetricCard label="Projection rating gap" value={projection.ratingDiffText} />
+                  <MetricCard label="Favorite edge" value={projection.favoriteEdgeText} />
                 </div>
 
-                <div style={predictionCalloutStyle}>
-                  <div style={predictionTextWrapStyle}>
-                    <div style={predictionHeadingStyle}>{projection.expectedOutcome}</div>
-                    <div style={predictionSubStyle}>
+                <div className="matchup-callout">
+                  <div>
+                    <div className="matchup-callout-title">{projection.expectedOutcome}</div>
+                    <div className="matchup-callout-sub">
                       Favorite: <strong>{projection.favoriteLabel}</strong> · Underdog:{' '}
                       <strong>{projection.underdogLabel}</strong>
                     </div>
                   </div>
 
-                  <div style={upsetPillStyle}>{projection.upsetIndicator}</div>
+                  <div className="matchup-upset-pill">{projection.upsetIndicator}</div>
                 </div>
               </div>
-            )}
+            ) : null}
 
-            <div style={summaryCardStyle}>
-              <div style={summaryHeaderRowStyle}>
-                <h2 style={{ margin: 0 }}>Model Accuracy</h2>
-                <div style={miniMetaStyle}>Based on recent {matchType} matches</div>
+            <div className="surface-card panel-pad matchup-summary-card">
+              <div className="matchup-summary-head">
+                <h2 className="matchup-section-title">Model Accuracy</h2>
+                <div className="matchup-meta-note">Based on recent {matchType} matches</div>
               </div>
 
               {accuracyLoading ? (
-                <p style={{ margin: '12px 0 0', color: '#64748b' }}>Calculating accuracy...</p>
+                <p className="matchup-paragraph">Calculating accuracy...</p>
               ) : accuracy.sampleSize === 0 ? (
-                <p style={{ margin: '12px 0 0', color: '#64748b' }}>Not enough history yet.</p>
+                <p className="matchup-paragraph">Not enough history yet.</p>
               ) : (
                 <>
-                  <div style={projectionGridStyle}>
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Overall</div>
-                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.overall)}</div>
-                    </div>
-
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>High confidence</div>
-                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.high)}</div>
-                    </div>
-
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Medium confidence</div>
-                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.medium)}</div>
-                    </div>
-
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Low confidence</div>
-                      <div style={projectionValueStyle}>{formatNullablePercent(accuracy.low)}</div>
-                    </div>
+                  <div className="metric-grid matchup-metric-grid">
+                    <MetricCard label="Overall" value={formatNullablePercent(accuracy.overall)} />
+                    <MetricCard label="High confidence" value={formatNullablePercent(accuracy.high)} />
+                    <MetricCard label="Medium confidence" value={formatNullablePercent(accuracy.medium)} />
+                    <MetricCard label="Low confidence" value={formatNullablePercent(accuracy.low)} />
                   </div>
 
-                  <p style={{ marginTop: '14px', color: '#64748b', lineHeight: 1.6 }}>
+                  <p className="matchup-paragraph matchup-top-gap">
                     Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the current
                     rating favorite would have been correct on recent historical matchups.
                   </p>
@@ -1273,48 +1253,34 @@ export default function MatchupPage() {
               )}
             </div>
 
-            <div style={summaryCardStyle}>
-              <h2 style={{ marginTop: 0 }}>Head-to-Head</h2>
+            <div className="surface-card panel-pad matchup-summary-card">
+              <h2 className="matchup-section-title">Head-to-Head</h2>
 
               {headToHeadLoading ? (
-                <p style={{ margin: 0, color: '#64748b' }}>Loading head-to-head...</p>
+                <p className="matchup-paragraph">Loading head-to-head...</p>
               ) : !headToHead || headToHead.total === 0 ? (
-                <p style={{ margin: 0, color: '#64748b' }}>No head-to-head matches found.</p>
+                <p className="matchup-paragraph">No head-to-head matches found.</p>
               ) : (
                 <>
-                  <div style={projectionGridStyle}>
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Total Matches</div>
-                      <div style={projectionValueStyle}>{headToHead.total}</div>
-                    </div>
-
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Overall Record</div>
-                      <div style={projectionValueStyle}>
-                        {headToHead.winsA} - {headToHead.winsB}
-                      </div>
-                      <div style={miniMetaStyle}>
-                        {comparison.leftLabel} vs {comparison.rightLabel}
-                      </div>
-                    </div>
-
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Singles Record</div>
-                      <div style={projectionValueStyle}>
-                        {headToHead.singlesA} - {headToHead.singlesB}
-                      </div>
-                    </div>
-
-                    <div style={projectionStatCardStyle}>
-                      <div style={projectionLabelStyle}>Doubles Record</div>
-                      <div style={projectionValueStyle}>
-                        {headToHead.doublesA} - {headToHead.doublesB}
-                      </div>
-                    </div>
+                  <div className="metric-grid matchup-metric-grid">
+                    <MetricCard label="Total Matches" value={String(headToHead.total)} />
+                    <MetricCard
+                      label="Overall Record"
+                      value={`${headToHead.winsA} - ${headToHead.winsB}`}
+                      sub={`${comparison.leftLabel} vs ${comparison.rightLabel}`}
+                    />
+                    <MetricCard
+                      label="Singles Record"
+                      value={`${headToHead.singlesA} - ${headToHead.singlesB}`}
+                    />
+                    <MetricCard
+                      label="Doubles Record"
+                      value={`${headToHead.doublesA} - ${headToHead.doublesB}`}
+                    />
                   </div>
 
-                  {headToHead.lastMatch && (
-                    <p style={{ marginTop: '14px', color: '#334155', lineHeight: 1.6 }}>
+                  {headToHead.lastMatch ? (
+                    <p className="matchup-paragraph matchup-top-gap">
                       <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} •{' '}
                       {capitalize(headToHead.lastMatch.matchType)} •{' '}
                       {headToHead.lastMatch.score || 'No score entered'} • Winner:{' '}
@@ -1322,13 +1288,436 @@ export default function MatchupPage() {
                         ? comparison.leftLabel
                         : comparison.rightLabel}
                     </p>
-                  )}
+                  ) : null}
                 </>
               )}
             </div>
           </>
         )}
-      </div>
+      </section>
+
+      <style jsx>{`
+        .matchup-page {
+          padding-top: 1.25rem;
+          padding-bottom: 2.5rem;
+        }
+
+        .matchup-top-links {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .matchup-hero-panel {
+          overflow: hidden;
+          margin-bottom: 1rem;
+        }
+
+        .matchup-hero-inner {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
+          gap: 1rem;
+          align-items: stretch;
+        }
+
+        .matchup-hero-copy {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.85rem;
+        }
+
+        .matchup-kicker {
+          color: rgba(217, 231, 255, 0.82);
+        }
+
+        .matchup-title {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(2rem, 4vw, 3.3rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          font-weight: 900;
+        }
+
+        .matchup-subtitle {
+          margin: 0;
+          max-width: 52rem;
+          color: rgba(219, 234, 254, 0.9);
+          font-size: 1rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        .matchup-hero-badges {
+          display: flex;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+          margin-top: 0.15rem;
+        }
+
+        .matchup-hero-side {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.65rem;
+        }
+
+        .matchup-side-title {
+          color: rgba(217, 231, 255, 0.82);
+          font-size: 0.8rem;
+          font-weight: 700;
+          line-height: 1.5;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .matchup-side-value {
+          color: #ffffff;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .matchup-side-text {
+          color: rgba(219, 234, 254, 0.88);
+          font-size: 0.95rem;
+          line-height: 1.65;
+          font-weight: 500;
+        }
+
+        .matchup-toolbar-card {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .matchup-toolbar-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 1rem;
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+
+        .matchup-mode-toggle {
+          display: flex;
+          gap: 0.55rem;
+          flex-wrap: wrap;
+          padding: 0.4rem;
+          border-radius: 1rem;
+          background: #f8fbff;
+          border: 1px solid rgba(37, 91, 227, 0.1);
+        }
+
+        .matchup-pill-btn {
+          border: 0;
+          border-radius: 0.8rem;
+          background: transparent;
+          color: #103170;
+          padding: 0.82rem 1rem;
+          font-size: 0.92rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .matchup-pill-btn:hover {
+          background: rgba(37, 91, 227, 0.06);
+        }
+
+        .matchup-pill-btn.is-active {
+          background: linear-gradient(135deg, #56d8ae 0%, #b8e61a 100%);
+          color: #07152f;
+          box-shadow: 0 12px 26px rgba(184, 230, 26, 0.22);
+        }
+
+        .matchup-pill-btn.is-active.alt {
+          background: linear-gradient(135deg, #255be3 0%, #3fa7ff 100%);
+          color: #ffffff;
+          box-shadow: 0 12px 28px rgba(37, 91, 227, 0.2);
+        }
+
+        .matchup-select-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+
+        .matchup-doubles-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+
+        .matchup-error-box {
+          border-radius: 1rem;
+          padding: 0.95rem 1rem;
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.18);
+          color: #991b1b;
+        }
+
+        .matchup-error-box p {
+          margin: 0;
+          font-size: 0.94rem;
+          line-height: 1.6;
+          font-weight: 700;
+        }
+
+        .matchup-empty-state {
+          border-radius: 1rem;
+          padding: 1rem 1.05rem;
+          background: #f8fafc;
+          border: 1px dashed #cbd5e1;
+          color: #475569;
+          font-size: 0.96rem;
+          line-height: 1.6;
+          font-weight: 600;
+          text-align: center;
+        }
+
+        .matchup-compare-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
+          gap: 1rem;
+          align-items: stretch;
+        }
+
+        .matchup-side-card {
+          min-width: 0;
+        }
+
+        .matchup-side-card.is-favored {
+          border-color: rgba(184, 230, 26, 0.38);
+          box-shadow: 0 16px 36px rgba(184, 230, 26, 0.12);
+        }
+
+        .matchup-side-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .matchup-side-name {
+          color: #0f172a;
+          font-size: 1.45rem;
+          line-height: 1.15;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+
+        .matchup-side-meta {
+          margin-top: 0.35rem;
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 500;
+        }
+
+        .matchup-profile-link {
+          white-space: nowrap;
+        }
+
+        .matchup-rating-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+        }
+
+        .matchup-highlight-box {
+          border-radius: 1rem;
+          padding: 1rem;
+          background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+          border: 1px solid rgba(37, 91, 227, 0.12);
+        }
+
+        .matchup-highlight-label {
+          color: #64748b;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          font-weight: 700;
+        }
+
+        .matchup-highlight-value {
+          margin-top: 0.35rem;
+          color: #255be3;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .matchup-center-column {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          gap: 1rem;
+        }
+
+        .matchup-vs-badge {
+          width: 4.8rem;
+          height: 4.8rem;
+          border-radius: 999px;
+          background: linear-gradient(135deg, #255be3 0%, #3fa7ff 100%);
+          color: #ffffff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.35rem;
+          line-height: 1;
+          font-weight: 900;
+          box-shadow: 0 14px 30px rgba(37, 91, 227, 0.22);
+        }
+
+        .matchup-gap-card {
+          width: 100%;
+          text-align: center;
+        }
+
+        .matchup-gap-label {
+          color: rgba(217, 231, 255, 0.82);
+          font-size: 0.8rem;
+          line-height: 1.5;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .matchup-gap-value {
+          margin-top: 0.4rem;
+          color: #ffffff;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .matchup-gap-meta {
+          margin-top: 0.45rem;
+          color: #d9f84a;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 800;
+        }
+
+        .matchup-summary-card {
+          margin-top: 1rem;
+        }
+
+        .matchup-section-title {
+          margin: 0;
+          color: #0f172a;
+          font-size: 1.35rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .matchup-paragraph {
+          margin: 0.8rem 0 0;
+          color: #475569;
+          font-size: 0.96rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        .matchup-top-gap {
+          margin-top: 0.95rem;
+        }
+
+        .matchup-metric-grid {
+          margin-top: 1rem;
+        }
+
+        .matchup-callout {
+          margin-top: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.85rem;
+          flex-wrap: wrap;
+          border-radius: 1rem;
+          padding: 1rem;
+          background: linear-gradient(180deg, #f7fbff 0%, #eff6ff 100%);
+          border: 1px solid rgba(37, 91, 227, 0.14);
+        }
+
+        .matchup-callout-title {
+          color: #0f172a;
+          font-size: 1rem;
+          line-height: 1.45;
+          font-weight: 800;
+        }
+
+        .matchup-callout-sub {
+          margin-top: 0.25rem;
+          color: #475569;
+          font-size: 0.9rem;
+          line-height: 1.6;
+          font-weight: 500;
+        }
+
+        .matchup-upset-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 999px;
+          padding: 0.65rem 0.8rem;
+          background: #fff7ed;
+          border: 1px solid #fed7aa;
+          color: #c2410c;
+          font-size: 0.76rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+          white-space: nowrap;
+        }
+
+        .matchup-summary-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+
+        .matchup-meta-note {
+          color: #64748b;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          font-weight: 700;
+        }
+
+        @media (max-width: 980px) {
+          .matchup-hero-inner {
+            grid-template-columns: 1fr;
+          }
+
+          .matchup-compare-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .matchup-center-column {
+            order: -1;
+          }
+        }
+
+        @media (max-width: 760px) {
+          .matchup-select-grid,
+          .matchup-doubles-grid,
+          .matchup-rating-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </main>
   )
 }
@@ -1343,14 +1732,83 @@ function RatingPill({
   active?: boolean
 }) {
   return (
-    <div
-      style={{
-        ...ratingPillStyle,
-        ...(active ? activeRatingPillStyle : {}),
-      }}
-    >
-      <div style={ratingPillLabelStyle}>{label}</div>
-      <div style={ratingPillValueStyle}>{formatRating(value)}</div>
+    <div className={`matchup-rating-pill ${active ? 'is-active' : ''}`}>
+      <div className="matchup-rating-pill-label">{label}</div>
+      <div className="matchup-rating-pill-value">{formatRating(value)}</div>
+
+      <style jsx>{`
+        .matchup-rating-pill {
+          border-radius: 1rem;
+          padding: 0.9rem 0.95rem;
+          background: #ffffff;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .matchup-rating-pill.is-active {
+          background: #eff6ff;
+          border-color: rgba(37, 91, 227, 0.22);
+          box-shadow: inset 0 0 0 1px rgba(37, 91, 227, 0.04);
+        }
+
+        .matchup-rating-pill-label {
+          color: #64748b;
+          font-size: 0.75rem;
+          line-height: 1.5;
+          font-weight: 700;
+        }
+
+        .matchup-rating-pill-value {
+          margin-top: 0.3rem;
+          color: #0f172a;
+          font-size: 1.2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+      `}</style>
+    </div>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string
+  value: string
+  sub?: string
+}) {
+  return (
+    <div className="metric-card">
+      <div className="matchup-metric-label">{label}</div>
+      <div className="matchup-metric-value">{value}</div>
+      {sub ? <div className="matchup-metric-sub">{sub}</div> : null}
+
+      <style jsx>{`
+        .matchup-metric-label {
+          color: #64748b;
+          font-size: 0.82rem;
+          margin-bottom: 0.4rem;
+          font-weight: 700;
+        }
+
+        .matchup-metric-value {
+          color: #0f172a;
+          font-size: clamp(1.25rem, 2vw, 1.75rem);
+          line-height: 1.1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+
+        .matchup-metric-sub {
+          margin-top: 0.35rem;
+          color: #64748b;
+          font-size: 0.8rem;
+          line-height: 1.5;
+          font-weight: 600;
+        }
+      `}</style>
     </div>
   )
 }
@@ -1462,358 +1920,4 @@ function formatDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-const mainStyle = {
-  maxWidth: '1180px',
-  margin: '0 auto',
-  padding: '20px',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '16px',
-  marginBottom: '20px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  textDecoration: 'none',
-  color: '#2563eb',
-  fontWeight: 700,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
-  color: 'white',
-  padding: '28px',
-  borderRadius: '22px',
-  marginBottom: '20px',
-  boxShadow: '0 16px 32px rgba(37, 99, 235, 0.18)',
-}
-
-const cardStyle = {
-  background: '#ffffff',
-  padding: '22px',
-  borderRadius: '22px',
-  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-}
-
-const modeContainerStyle = {
-  display: 'flex',
-  gap: '10px',
-  marginBottom: '16px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '16px',
-}
-
-const selectGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '14px',
-}
-
-const doublesGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '14px',
-}
-
-const labelStyle = {
-  display: 'block',
-  marginBottom: '6px',
-  color: '#334155',
-  fontSize: '13px',
-  fontWeight: 700,
-}
-
-const inputStyle = {
-  width: '100%',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  padding: '12px 14px',
-  fontSize: '14px',
-  color: '#0f172a',
-  background: '#ffffff',
-}
-
-const segmentContainerStyle = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap' as const,
-}
-
-const segmentButtonStyle = {
-  border: '1px solid #cbd5e1',
-  background: '#ffffff',
-  color: '#334155',
-  padding: '10px 14px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  cursor: 'pointer',
-}
-
-const activeSegmentButtonStyle = {
-  background: '#2563eb',
-  color: 'white',
-  border: '1px solid #2563eb',
-}
-
-const errorBoxStyle = {
-  background: '#fef2f2',
-  color: '#b91c1c',
-  border: '1px solid #fecaca',
-  borderRadius: '16px',
-  padding: '14px',
-  marginTop: '18px',
-}
-
-const emptyStateStyle = {
-  marginTop: '20px',
-  background: '#f8fafc',
-  color: '#64748b',
-  border: '1px dashed #cbd5e1',
-  borderRadius: '18px',
-  padding: '24px',
-  textAlign: 'center' as const,
-}
-
-const comparisonGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 220px 1fr',
-  gap: '18px',
-  marginTop: '20px',
-  alignItems: 'stretch',
-}
-
-const playerCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '20px',
-  padding: '18px',
-}
-
-const playerCardHeaderStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '16px',
-}
-
-const playerNameStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const playerMetaStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-  marginTop: '4px',
-}
-
-const profileLinkStyle = {
-  display: 'inline-block',
-  padding: '8px 10px',
-  borderRadius: '10px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '13px',
-  whiteSpace: 'nowrap' as const,
-}
-
-const ratingGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(90px, 1fr))',
-  gap: '10px',
-  marginBottom: '16px',
-}
-
-const ratingPillStyle = {
-  background: 'white',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '12px',
-}
-
-const activeRatingPillStyle = {
-  border: '1px solid #93c5fd',
-  background: '#eff6ff',
-}
-
-const ratingPillLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginBottom: '4px',
-}
-
-const ratingPillValueStyle = {
-  color: '#0f172a',
-  fontSize: '20px',
-  fontWeight: 800,
-}
-
-const highlightBoxStyle = {
-  background: 'white',
-  border: '1px solid #dbeafe',
-  borderRadius: '16px',
-  padding: '16px',
-}
-
-const highlightLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const highlightValueStyle = {
-  color: '#1d4ed8',
-  fontSize: '32px',
-  fontWeight: 900,
-}
-
-const centerComparisonCardStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: '16px',
-}
-
-const vsBadgeStyle = {
-  width: '72px',
-  height: '72px',
-  borderRadius: '999px',
-  background: '#2563eb',
-  color: 'white',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 900,
-  fontSize: '22px',
-  boxShadow: '0 12px 24px rgba(37, 99, 235, 0.20)',
-}
-
-const gapCardStyle = {
-  width: '100%',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-  textAlign: 'center' as const,
-}
-
-const gapLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const gapValueStyle = {
-  color: '#0f172a',
-  fontSize: '32px',
-  fontWeight: 900,
-}
-
-const gapMetaStyle = {
-  color: '#1d4ed8',
-  fontSize: '14px',
-  fontWeight: 700,
-  marginTop: '8px',
-}
-
-const summaryCardStyle = {
-  marginTop: '20px',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const summaryHeaderRowStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const projectionGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '12px',
-}
-
-const projectionStatCardStyle = {
-  background: 'white',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '14px',
-}
-
-const projectionLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const projectionValueStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const predictionCalloutStyle = {
-  marginTop: '14px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '14px',
-  flexWrap: 'wrap' as const,
-  background: '#eff6ff',
-  border: '1px solid #bfdbfe',
-  borderRadius: '16px',
-  padding: '16px',
-}
-
-const predictionTextWrapStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '6px',
-}
-
-const predictionHeadingStyle = {
-  color: '#0f172a',
-  fontSize: '16px',
-  fontWeight: 800,
-}
-
-const predictionSubStyle = {
-  color: '#475569',
-  fontSize: '14px',
-}
-
-const upsetPillStyle = {
-  padding: '10px 12px',
-  borderRadius: '999px',
-  background: '#fff7ed',
-  border: '1px solid #fed7aa',
-  color: '#c2410c',
-  fontWeight: 800,
-  fontSize: '12px',
-  whiteSpace: 'nowrap' as const,
-}
-
-const miniMetaStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginTop: '6px',
 }

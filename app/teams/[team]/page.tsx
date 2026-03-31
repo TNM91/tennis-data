@@ -306,86 +306,95 @@ export default function TeamDetailPage() {
   }, [matches, teamSideByMatchId])
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/leagues" style={navLinkStyle}>Leagues</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
+    <main className="page-shell-tight team-page">
+      <div className="team-top-links">
+        <Link href="/" className="button-ghost">Home</Link>
+        <Link href="/rankings" className="button-ghost">Rankings</Link>
+        <Link href="/matchup" className="button-ghost">Matchup</Link>
+        <Link href="/leagues" className="button-ghost">Leagues</Link>
+        <Link href="/admin" className="button-ghost">Admin</Link>
       </div>
 
-      <div style={heroCardStyle}>
-        <div style={heroTopRowStyle}>
-          <div>
-            <div style={heroEyebrowStyle}>Team Page</div>
-            <h1 style={{ margin: '8px 0 0', fontSize: '36px' }}>{teamInfo.teamName}</h1>
+      <section className="hero-panel team-hero-panel">
+        <div className="hero-inner team-hero-inner">
+          <div className="team-hero-copy">
+            <div className="section-kicker team-kicker">Team Page</div>
+            <h1 className="team-title">{teamInfo.teamName}</h1>
+            <p className="team-meta">
+              {teamInfo.leagueName} · {teamInfo.flightName} · {teamInfo.section} · {teamInfo.district}
+            </p>
+
+            <div className="team-hero-badges">
+              <span className="badge badge-blue">{stats.totalMatches} matches</span>
+              <span className="badge badge-green">{stats.wins}-{stats.losses} record</span>
+              <span className="badge badge-slate">{roster.length} players used</span>
+            </div>
           </div>
 
-          <div style={heroButtonWrapStyle}>
-            <Link href="/leagues" style={heroBackLinkStyle}>
-              Back to Leagues
-            </Link>
-            <Link
-              href={buildMatchupHref(teamInfo.teamName, teamInfo.leagueName, teamInfo.flightName)}
-              style={heroActionLinkStyle}
-            >
-              Future Lineup Projection
-            </Link>
+          <div className="glass-card panel-pad team-hero-actions-card">
+            <div className="team-actions-title">Team tools</div>
+            <div className="team-actions-buttons">
+              <Link href="/leagues" className="button-secondary">
+                Back to Leagues
+              </Link>
+              <Link
+                href={buildMatchupHref(teamInfo.teamName, teamInfo.leagueName, teamInfo.flightName)}
+                className="button-primary"
+              >
+                Future Lineup Projection
+              </Link>
+            </div>
           </div>
         </div>
+      </section>
 
-        <p style={heroMetaStyle}>
-          {teamInfo.leagueName} · {teamInfo.flightName} · {teamInfo.section} · {teamInfo.district}
-        </p>
-      </div>
+      <section className="metric-grid team-metric-grid">
+        <StatCard label="Matches" value={String(stats.totalMatches)} />
+        <StatCard label="Record" value={`${stats.wins}-${stats.losses}`} />
+        <StatCard label="Home" value={String(stats.homeMatches)} />
+        <StatCard label="Away" value={String(stats.awayMatches)} />
+        <StatCard label="Singles" value={String(stats.singles)} />
+        <StatCard label="Doubles" value={String(stats.doubles)} />
+        <StatCard label="Latest Match" value={formatDate(stats.latest)} />
+      </section>
 
-      <div style={cardStyle}>
+      <section className="surface-card panel-pad team-main-card">
         {loading ? (
-          <div style={emptyStateStyle}>Loading team data...</div>
+          <div className="team-state-box">Loading team data...</div>
         ) : error ? (
-          <div style={errorBoxStyle}>{error}</div>
+          <div className="team-error-box">{error}</div>
         ) : matches.length === 0 ? (
-          <div style={emptyStateStyle}>No matches found for this team.</div>
+          <div className="team-state-box">No matches found for this team.</div>
         ) : (
           <>
-            <div style={statsGridStyle}>
-              <StatCard label="Matches" value={String(stats.totalMatches)} />
-              <StatCard label="Record" value={`${stats.wins}-${stats.losses}`} />
-              <StatCard label="Home" value={String(stats.homeMatches)} />
-              <StatCard label="Away" value={String(stats.awayMatches)} />
-              <StatCard label="Singles" value={String(stats.singles)} />
-              <StatCard label="Doubles" value={String(stats.doubles)} />
-              <StatCard label="Latest Match" value={formatDate(stats.latest)} />
-            </div>
-
-            <div style={sectionBlockStyle}>
-              <div style={sectionHeaderRowStyle}>
+            <div className="team-section">
+              <div className="team-section-head">
                 <div>
-                  <h2 style={sectionTitleStyle}>Roster Usage</h2>
-                  <div style={sectionSubStyle}>
+                  <div className="section-kicker">Roster Usage</div>
+                  <h2 className="team-section-title">Players used by this team</h2>
+                  <div className="team-section-sub">
                     Players who have appeared for this team in imported scorecards.
                   </div>
                 </div>
               </div>
 
-              <div style={rosterGridStyle}>
+              <div className="card-grid team-roster-grid">
                 {roster.map((player) => (
-                  <div key={player.id} style={playerCardStyle}>
-                    <div style={playerCardTopStyle}>
+                  <div key={player.id} className="surface-card team-player-card">
+                    <div className="team-player-top">
                       <div>
-                        <div style={playerNameStyle}>{player.name}</div>
-                        <div style={playerMetaStyle}>
+                        <div className="team-player-name">{player.name}</div>
+                        <div className="team-player-meta">
                           {player.wins}-{player.losses} when appearing
                         </div>
                       </div>
 
-                      <Link href={`/players/${player.id}`} style={viewLinkStyle}>
+                      <Link href={`/players/${player.id}`} className="button-ghost team-player-link">
                         Player Page
                       </Link>
                     </div>
 
-                    <div style={miniStatsGridStyle}>
+                    <div className="team-mini-grid">
                       <MiniStat label="Appearances" value={String(player.appearances)} />
                       <MiniStat label="Singles" value={String(player.singlesAppearances)} />
                       <MiniStat label="Doubles" value={String(player.doublesAppearances)} />
@@ -397,17 +406,19 @@ export default function TeamDetailPage() {
                 ))}
               </div>
             </div>
-                        <div style={sectionBlockStyle}>
-              <div style={sectionHeaderRowStyle}>
+
+            <div className="team-section">
+              <div className="team-section-head">
                 <div>
-                  <h2 style={sectionTitleStyle}>Season Matches</h2>
-                  <div style={sectionSubStyle}>
+                  <div className="section-kicker">Season Matches</div>
+                  <h2 className="team-section-title">Team match history</h2>
+                  <div className="team-section-sub">
                     Team match history inside the selected league and flight.
                   </div>
                 </div>
               </div>
 
-              <div style={matchListStyle}>
+              <div className="team-match-list">
                 {matches.map((match) => {
                   const home = safeText(match.home_team)
                   const away = safeText(match.away_team)
@@ -416,30 +427,27 @@ export default function TeamDetailPage() {
                   const opponent = side === 'A' ? away : home
 
                   return (
-                    <div key={match.id} style={matchCardStyle}>
-                      <div style={matchTopRowStyle}>
+                    <div key={match.id} className="surface-card team-match-card">
+                      <div className="team-match-top">
                         <div>
-                          <div style={matchTitleStyle}>
+                          <div className="team-match-title">
                             {home} vs {away}
                           </div>
-                          <div style={matchMetaStyle}>
+                          <div className="team-match-meta">
                             {formatDate(match.match_date)} · {match.match_type}
                           </div>
                         </div>
 
                         <div
-                          style={{
-                            ...winnerBadgeStyle,
-                            ...(won ? winBadgeStyle : lossBadgeStyle),
-                          }}
+                          className={`team-result-badge ${won ? 'is-win' : 'is-loss'}`}
                         >
                           {won ? 'Win' : 'Loss'}
                         </div>
                       </div>
 
-                      <div style={matchBottomRowStyle}>
-                        <div style={scoreStyle}>{match.score || 'No score entered'}</div>
-                        <div style={matchSubMetaStyle}>
+                      <div className="team-match-bottom">
+                        <div className="team-score">{match.score || 'No score entered'}</div>
+                        <div className="team-match-submeta">
                           Opponent: <strong>{opponent}</strong>
                         </div>
                       </div>
@@ -450,330 +458,351 @@ export default function TeamDetailPage() {
             </div>
           </>
         )}
-      </div>
+      </section>
+
+      <style jsx>{`
+        .team-page {
+          padding-top: 1.25rem;
+          padding-bottom: 2.5rem;
+        }
+
+        .team-top-links {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .team-hero-panel {
+          overflow: hidden;
+        }
+
+        .team-hero-inner {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
+          gap: 1rem;
+          align-items: stretch;
+        }
+
+        .team-hero-copy {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.85rem;
+        }
+
+        .team-kicker {
+          color: rgba(217, 231, 255, 0.82);
+        }
+
+        .team-title {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(2rem, 4vw, 3.2rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          font-weight: 900;
+        }
+
+        .team-meta {
+          margin: 0;
+          color: rgba(219, 234, 254, 0.9);
+          font-size: 1rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        .team-hero-badges {
+          display: flex;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+          margin-top: 0.15rem;
+        }
+
+        .team-hero-actions-card {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 1rem;
+        }
+
+        .team-actions-title {
+          color: #ffffff;
+          font-size: 0.95rem;
+          font-weight: 800;
+        }
+
+        .team-actions-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        }
+
+        .team-metric-grid {
+          margin-top: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .team-main-card {
+          min-width: 0;
+        }
+
+        .team-section + .team-section {
+          margin-top: 1.5rem;
+        }
+
+        .team-section-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .team-section-title {
+          margin: 0.25rem 0 0;
+          color: #0f172a;
+          font-size: 1.35rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .team-section-sub {
+          margin-top: 0.45rem;
+          color: #64748b;
+          font-size: 0.94rem;
+          line-height: 1.6;
+          font-weight: 500;
+        }
+
+        .team-roster-grid {
+          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          gap: 1rem;
+        }
+
+        .team-player-card {
+          padding: 1rem;
+        }
+
+        .team-player-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.75rem;
+          margin-bottom: 0.9rem;
+        }
+
+        .team-player-name {
+          color: #0f172a;
+          font-size: 1.25rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .team-player-meta {
+          color: #255be3;
+          font-size: 0.9rem;
+          line-height: 1.5;
+          font-weight: 700;
+          margin-top: 0.35rem;
+        }
+
+        .team-player-link {
+          white-space: nowrap;
+        }
+
+        .team-mini-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.7rem;
+        }
+
+        .team-match-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.85rem;
+        }
+
+        .team-match-card {
+          padding: 1rem;
+        }
+
+        .team-match-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+
+        .team-match-title {
+          color: #0f172a;
+          font-size: 1.12rem;
+          line-height: 1.25;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .team-match-meta {
+          margin-top: 0.35rem;
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 500;
+          text-transform: capitalize;
+        }
+
+        .team-result-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 4rem;
+          padding: 0.48rem 0.7rem;
+          border-radius: 999px;
+          font-size: 0.78rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0.03em;
+          text-transform: uppercase;
+        }
+
+        .team-result-badge.is-win {
+          background: rgba(34, 197, 94, 0.12);
+          color: #166534;
+        }
+
+        .team-result-badge.is-loss {
+          background: rgba(239, 68, 68, 0.12);
+          color: #991b1b;
+        }
+
+        .team-match-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-top: 0.9rem;
+          padding-top: 0.9rem;
+          border-top: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .team-score {
+          color: #255be3;
+          font-size: 1rem;
+          line-height: 1.2;
+          font-weight: 900;
+        }
+
+        .team-match-submeta {
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 500;
+        }
+
+        .team-state-box {
+          border-radius: 1rem;
+          padding: 1rem 1.05rem;
+          background: #f8fafc;
+          border: 1px dashed #cbd5e1;
+          color: #475569;
+          font-size: 0.96rem;
+          line-height: 1.6;
+          font-weight: 600;
+        }
+
+        .team-error-box {
+          border-radius: 1rem;
+          padding: 1rem 1.05rem;
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.18);
+          color: #991b1b;
+          font-size: 0.96rem;
+          line-height: 1.6;
+          font-weight: 700;
+        }
+
+        @media (max-width: 900px) {
+          .team-hero-inner {
+            grid-template-columns: 1fr;
+          }
+
+          .team-actions-buttons {
+            flex-direction: column;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .team-mini-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .team-player-top,
+          .team-match-bottom {
+            align-items: stretch;
+          }
+        }
+      `}</style>
     </main>
   )
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div style={statCardStyle}>
-      <div style={statLabelStyle}>{label}</div>
-      <div style={statValueStyle}>{value}</div>
+    <div className="metric-card">
+      <div className="team-stat-label">{label}</div>
+      <div className="team-stat-value">{value}</div>
+
+      <style jsx>{`
+        .team-stat-label {
+          color: #64748b;
+          font-size: 0.82rem;
+          margin-bottom: 0.4rem;
+          font-weight: 700;
+        }
+
+        .team-stat-value {
+          color: #0f172a;
+          font-size: clamp(1.4rem, 2vw, 1.85rem);
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+      `}</style>
     </div>
   )
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={miniStatStyle}>
-      <div style={miniStatLabelStyle}>{label}</div>
-      <div style={miniStatValueStyle}>{value}</div>
+    <div className="surface-card team-mini-stat">
+      <div className="team-mini-stat-label">{label}</div>
+      <div className="team-mini-stat-value">{value}</div>
+
+      <style jsx>{`
+        .team-mini-stat {
+          padding: 0.85rem 0.9rem;
+          min-width: 0;
+        }
+
+        .team-mini-stat-label {
+          color: #64748b;
+          font-size: 0.76rem;
+          margin-bottom: 0.28rem;
+          font-weight: 700;
+        }
+
+        .team-mini-stat-value {
+          color: #0f172a;
+          font-size: 0.98rem;
+          line-height: 1.2;
+          font-weight: 800;
+        }
+      `}</style>
     </div>
   )
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const heroTopRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const heroEyebrowStyle = {
-  color: '#bfdbfe',
-  fontWeight: 700,
-  textTransform: 'uppercase' as const,
-  letterSpacing: '0.08em',
-  fontSize: '12px',
-}
-
-const heroMetaStyle = {
-  margin: '12px 0 0',
-  color: '#dbeafe',
-  fontSize: '16px',
-}
-
-const heroButtonWrapStyle = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap' as const,
-}
-
-const heroBackLinkStyle = {
-  display: 'inline-block',
-  padding: '10px 14px',
-  borderRadius: '999px',
-  background: 'rgba(255,255,255,0.14)',
-  border: '1px solid rgba(255,255,255,0.22)',
-  color: '#ffffff',
-  textDecoration: 'none',
-  fontWeight: 700,
-}
-
-const heroActionLinkStyle = {
-  display: 'inline-block',
-  padding: '10px 14px',
-  borderRadius: '999px',
-  background: '#ffffff',
-  border: '1px solid #ffffff',
-  color: '#1d4ed8',
-  textDecoration: 'none',
-  fontWeight: 800,
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const statsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '12px',
-  marginBottom: '20px',
-}
-
-const statCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '16px',
-}
-
-const statLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginBottom: '6px',
-}
-
-const statValueStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const sectionBlockStyle = {
-  marginTop: '20px',
-}
-
-const sectionHeaderRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-end',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-  marginBottom: '14px',
-}
-
-const sectionTitleStyle = {
-  margin: 0,
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const sectionSubStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-  marginTop: '6px',
-}
-
-const rosterGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-  gap: '16px',
-}
-
-const playerCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const playerCardTopStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '14px',
-}
-
-const playerNameStyle = {
-  color: '#0f172a',
-  fontSize: '22px',
-  fontWeight: 800,
-}
-
-const playerMetaStyle = {
-  color: '#2563eb',
-  fontWeight: 700,
-  marginTop: '6px',
-}
-
-const viewLinkStyle = {
-  display: 'inline-block',
-  padding: '8px 10px',
-  borderRadius: '10px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '13px',
-  whiteSpace: 'nowrap' as const,
-}
-
-const miniStatsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '10px',
-}
-
-const miniStatStyle = {
-  background: '#ffffff',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '12px',
-}
-
-const miniStatLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginBottom: '4px',
-}
-
-const miniStatValueStyle = {
-  color: '#0f172a',
-  fontWeight: 700,
-}
-
-const matchListStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '12px',
-}
-
-const matchCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '16px',
-}
-
-const matchTopRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const matchTitleStyle = {
-  color: '#0f172a',
-  fontSize: '20px',
-  fontWeight: 800,
-}
-
-const matchMetaStyle = {
-  color: '#64748b',
-  marginTop: '6px',
-  textTransform: 'capitalize' as const,
-}
-
-const winnerBadgeStyle = {
-  padding: '8px 10px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  fontSize: '12px',
-}
-
-const winBadgeStyle = {
-  background: '#dcfce7',
-  border: '1px solid #bbf7d0',
-  color: '#166534',
-}
-
-const lossBadgeStyle = {
-  background: '#fee2e2',
-  border: '1px solid #fecaca',
-  color: '#991b1b',
-}
-
-const matchBottomRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-  marginTop: '12px',
-}
-
-const scoreStyle = {
-  color: '#1d4ed8',
-  fontWeight: 800,
-  fontSize: '18px',
-}
-
-const matchSubMetaStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const emptyStateStyle = {
-  marginTop: '18px',
-  padding: '18px',
-  borderRadius: '16px',
-  background: '#f8fafc',
-  border: '1px dashed #cbd5e1',
-  color: '#475569',
 }

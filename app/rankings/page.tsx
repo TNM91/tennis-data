@@ -84,36 +84,116 @@ export default function RankingsPage() {
       .sort((a, b) => b.selectedRating - a.selectedRating)
   }, [filteredPlayers, ratingView])
 
+  const topThree = rankedPlayers.slice(0, 3)
+
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
+    <main className="page-shell-tight rankings-page">
+      <div className="rankings-top-links">
+        <Link href="/" className="button-ghost">Home</Link>
+        <Link href="/rankings" className="button-ghost">Rankings</Link>
+        <Link href="/matchup" className="button-ghost">Matchup</Link>
+        <Link href="/admin" className="button-ghost">Admin</Link>
       </div>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Rankings</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          View player rankings by overall, singles, or doubles dynamic rating.
-        </p>
-      </div>
+      <section className="hero-panel rankings-hero-panel">
+        <div className="hero-inner rankings-hero-inner">
+          <div className="rankings-hero-copy">
+            <div className="section-kicker rankings-kicker">Player Rankings</div>
+            <h1 className="rankings-hero-title">See who rises to the top.</h1>
+            <p className="rankings-hero-text">
+              View player rankings by overall, singles, or doubles dynamic rating,
+              then filter by player name or location to narrow the board.
+            </p>
 
-      <div style={cardStyle}>
-        <div style={toolbarStyle}>
-          <div style={filtersGridStyle}>
+            <div className="rankings-hero-badges">
+              <span className="badge badge-blue">{rankedPlayers.length} shown</span>
+              <span className="badge badge-slate">{locations.length} locations</span>
+              <span className="badge badge-green">{capitalize(ratingView)} mode</span>
+            </div>
+          </div>
+
+          <div className="glass-card panel-pad rankings-hero-side">
+            <div className="rankings-side-label">Current ranking basis</div>
+            <div className="rankings-side-value">{capitalize(ratingView)}</div>
+            <div className="rankings-side-text">
+              Players are sorted descending by the selected dynamic rating.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {topThree.length > 0 && !loading && !error ? (
+        <section className="metric-grid rankings-podium-grid">
+          {topThree.map((player, index) => (
+            <div key={player.id} className={`metric-card rankings-podium-card place-${index + 1}`}>
+              <div className="rankings-podium-rank">#{index + 1}</div>
+              <div className="rankings-podium-name-row">
+                <Link href={`/players/${player.id}`} className="rankings-podium-name">
+                  {player.name}
+                </Link>
+              </div>
+              <div className="rankings-podium-location">{player.location || 'No location'}</div>
+              <div className="rankings-podium-rating">
+                {formatRating(getSelectedRating(player, ratingView))}
+              </div>
+              <div className="rankings-podium-subtext">{capitalize(ratingView)} dynamic rating</div>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      <section className="surface-card panel-pad rankings-controls-card">
+        <div className="rankings-controls-head">
+          <div>
+            <div className="section-kicker">Filters</div>
+            <h2 className="rankings-section-title">Search and refine the leaderboard</h2>
+          </div>
+
+          <div className="rankings-segment-wrap">
+            <button
+              onClick={() => setRatingView('overall')}
+              className={`rankings-segment-btn ${ratingView === 'overall' ? 'is-active' : ''}`}
+            >
+              Overall
+            </button>
+            <button
+              onClick={() => setRatingView('singles')}
+              className={`rankings-segment-btn ${ratingView === 'singles' ? 'is-active' : ''}`}
+            >
+              Singles
+            </button>
+            <button
+              onClick={() => setRatingView('doubles')}
+              className={`rankings-segment-btn ${ratingView === 'doubles' ? 'is-active' : ''}`}
+            >
+              Doubles
+            </button>
+          </div>
+        </div>
+
+        <div className="rankings-filter-grid">
+          <div>
+            <label className="label" htmlFor="rankings-search">
+              Search
+            </label>
             <input
+              id="rankings-search"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Search players or location"
-              style={inputStyle}
+              className="input"
             />
+          </div>
 
+          <div>
+            <label className="label" htmlFor="rankings-location">
+              Location
+            </label>
             <select
+              id="rankings-location"
               value={locationFilter}
               onChange={(e) => setLocationFilter(e.target.value)}
-              style={inputStyle}
+              className="select"
             >
               <option value="">All locations</option>
               {locations.map((location) => (
@@ -123,106 +203,72 @@ export default function RankingsPage() {
               ))}
             </select>
           </div>
-
-          <div style={segmentContainerStyle}>
-            <button
-              onClick={() => setRatingView('overall')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'overall' ? activeSegmentButtonStyle : {}),
-              }}
-            >
-              Overall
-            </button>
-            <button
-              onClick={() => setRatingView('singles')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'singles' ? activeSegmentButtonStyle : {}),
-              }}
-            >
-              Singles
-            </button>
-            <button
-              onClick={() => setRatingView('doubles')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'doubles' ? activeSegmentButtonStyle : {}),
-              }}
-            >
-              Doubles
-            </button>
-          </div>
         </div>
 
         {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+          <div className="rankings-error-box">
+            <p>{error}</p>
           </div>
         )}
 
-        <div style={{ marginTop: '18px', color: '#64748b', fontWeight: 600 }}>
-          Showing {rankedPlayers.length} players • Sorted by {capitalize(ratingView)} rating
+        <div className="rankings-summary-row">
+          <span className="badge badge-slate">Showing {rankedPlayers.length} players</span>
+          <span className="badge badge-blue">Sorted by {capitalize(ratingView)} rating</span>
+        </div>
+      </section>
+
+      <section className="surface-card panel-pad rankings-table-card">
+        <div className="rankings-table-head">
+          <div>
+            <div className="section-kicker">Leaderboard</div>
+            <h2 className="rankings-section-title">Full rankings</h2>
+          </div>
         </div>
 
-        <div style={{ overflowX: 'auto', marginTop: '18px' }}>
-          <table style={tableStyle}>
+        <div className="table-wrap">
+          <table className="data-table rankings-table">
             <thead>
               <tr>
-                <th style={thStyle}>Rank</th>
-                <th style={thStyle}>Player</th>
-                <th style={thStyle}>Location</th>
-                <th style={thStyle}>Overall</th>
-                <th style={thStyle}>Singles</th>
-                <th style={thStyle}>Doubles</th>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Location</th>
+                <th className={ratingView === 'overall' ? 'is-active-col' : ''}>Overall</th>
+                <th className={ratingView === 'singles' ? 'is-active-col' : ''}>Singles</th>
+                <th className={ratingView === 'doubles' ? 'is-active-col' : ''}>Doubles</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td style={tdStyle} colSpan={6}>Loading rankings...</td>
+                  <td colSpan={6} className="rankings-empty-cell">
+                    Loading rankings...
+                  </td>
                 </tr>
               ) : rankedPlayers.length === 0 ? (
                 <tr>
-                  <td style={tdStyle} colSpan={6}>No players found.</td>
+                  <td colSpan={6} className="rankings-empty-cell">
+                    No players found.
+                  </td>
                 </tr>
               ) : (
                 rankedPlayers.map((player, index) => (
                   <tr key={player.id}>
-                    <td style={tdStyle}>
-                      <span style={rankBadgeStyle}>{index + 1}</span>
+                    <td>
+                      <span className="rankings-rank-badge">{index + 1}</span>
                     </td>
-                    <td style={tdStyle}>
-                      <Link
-                        href={`/players/${player.id}`}
-                        style={playerLinkStyle}
-                      >
+                    <td>
+                      <Link href={`/players/${player.id}`} className="rankings-player-link">
                         {player.name}
                       </Link>
                     </td>
-                    <td style={tdStyle}>{player.location || '—'}</td>
-                    <td
-                      style={{
-                        ...tdStyle,
-                        ...(ratingView === 'overall' ? activeRatingCellStyle : {}),
-                      }}
-                    >
+                    <td>{player.location || '—'}</td>
+                    <td className={ratingView === 'overall' ? 'rankings-active-rating' : ''}>
                       {formatRating(player.overall_dynamic_rating)}
                     </td>
-                    <td
-                      style={{
-                        ...tdStyle,
-                        ...(ratingView === 'singles' ? activeRatingCellStyle : {}),
-                      }}
-                    >
+                    <td className={ratingView === 'singles' ? 'rankings-active-rating' : ''}>
                       {formatRating(player.singles_dynamic_rating)}
                     </td>
-                    <td
-                      style={{
-                        ...tdStyle,
-                        ...(ratingView === 'doubles' ? activeRatingCellStyle : {}),
-                      }}
-                    >
+                    <td className={ratingView === 'doubles' ? 'rankings-active-rating' : ''}>
                       {formatRating(player.doubles_dynamic_rating)}
                     </td>
                   </tr>
@@ -231,7 +277,312 @@ export default function RankingsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
+
+      <style jsx>{`
+        .rankings-page {
+          padding-top: 1.25rem;
+          padding-bottom: 2.5rem;
+        }
+
+        .rankings-top-links {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .rankings-hero-panel {
+          overflow: hidden;
+        }
+
+        .rankings-hero-inner {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(260px, 340px);
+          gap: 1rem;
+          align-items: stretch;
+        }
+
+        .rankings-hero-copy {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.85rem;
+        }
+
+        .rankings-kicker {
+          color: rgba(217, 231, 255, 0.82);
+        }
+
+        .rankings-hero-title {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(2rem, 4vw, 3.2rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          font-weight: 900;
+        }
+
+        .rankings-hero-text {
+          margin: 0;
+          max-width: 52rem;
+          color: rgba(219, 234, 254, 0.9);
+          font-size: 1rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        .rankings-hero-badges {
+          display: flex;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+          margin-top: 0.15rem;
+        }
+
+        .rankings-hero-side {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.6rem;
+        }
+
+        .rankings-side-label {
+          color: rgba(217, 231, 255, 0.82);
+          font-size: 0.8rem;
+          line-height: 1.5;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .rankings-side-value {
+          color: #ffffff;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .rankings-side-text {
+          color: rgba(219, 234, 254, 0.88);
+          font-size: 0.95rem;
+          line-height: 1.65;
+          font-weight: 500;
+        }
+
+        .rankings-podium-grid {
+          margin-top: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .rankings-podium-card {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .rankings-podium-card.place-1 {
+          border-color: rgba(184, 230, 26, 0.32);
+          box-shadow: 0 16px 36px rgba(184, 230, 26, 0.14);
+        }
+
+        .rankings-podium-card.place-2 {
+          border-color: rgba(37, 91, 227, 0.18);
+        }
+
+        .rankings-podium-card.place-3 {
+          border-color: rgba(15, 22, 50, 0.12);
+        }
+
+        .rankings-podium-rank {
+          color: #255be3;
+          font-size: 0.84rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .rankings-podium-name-row {
+          margin-top: 0.6rem;
+        }
+
+        .rankings-podium-name {
+          color: #0f172a;
+          text-decoration: none;
+          font-size: 1.2rem;
+          line-height: 1.25;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .rankings-podium-name:hover {
+          color: #255be3;
+        }
+
+        .rankings-podium-location {
+          margin-top: 0.45rem;
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 600;
+        }
+
+        .rankings-podium-rating {
+          margin-top: 0.9rem;
+          color: #0f172a;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .rankings-podium-subtext {
+          margin-top: 0.35rem;
+          color: #64748b;
+          font-size: 0.82rem;
+          line-height: 1.5;
+          font-weight: 700;
+        }
+
+        .rankings-controls-card,
+        .rankings-table-card {
+          margin-top: 1rem;
+        }
+
+        .rankings-controls-head,
+        .rankings-table-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .rankings-section-title {
+          margin: 0.25rem 0 0;
+          color: #0f172a;
+          font-size: 1.35rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .rankings-segment-wrap {
+          display: flex;
+          gap: 0.55rem;
+          flex-wrap: wrap;
+          padding: 0.4rem;
+          border-radius: 1rem;
+          background: #f8fbff;
+          border: 1px solid rgba(37, 91, 227, 0.1);
+        }
+
+        .rankings-segment-btn {
+          border: 0;
+          border-radius: 0.8rem;
+          background: transparent;
+          color: #103170;
+          padding: 0.8rem 1rem;
+          font-size: 0.92rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .rankings-segment-btn:hover {
+          background: rgba(37, 91, 227, 0.06);
+        }
+
+        .rankings-segment-btn.is-active {
+          background: linear-gradient(135deg, #255be3 0%, #3fa7ff 100%);
+          color: #ffffff;
+          box-shadow: 0 12px 28px rgba(37, 91, 227, 0.2);
+        }
+
+        .rankings-filter-grid {
+          margin-top: 1rem;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 1rem;
+        }
+
+        .rankings-error-box {
+          margin-top: 1rem;
+          border-radius: 1rem;
+          padding: 0.95rem 1rem;
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.18);
+          color: #991b1b;
+        }
+
+        .rankings-error-box p {
+          margin: 0;
+          font-size: 0.94rem;
+          line-height: 1.6;
+          font-weight: 700;
+        }
+
+        .rankings-summary-row {
+          margin-top: 1rem;
+          display: flex;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+        }
+
+        .rankings-table {
+          min-width: 760px;
+        }
+
+        .rankings-table :global(th.is-active-col) {
+          color: #255be3;
+        }
+
+        .rankings-empty-cell {
+          text-align: center;
+          color: #64748b;
+          font-weight: 600;
+          padding: 1.25rem;
+        }
+
+        .rankings-rank-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 2.2rem;
+          padding: 0.45rem 0.7rem;
+          border-radius: 999px;
+          background: #eff6ff;
+          color: #255be3;
+          font-size: 0.84rem;
+          line-height: 1;
+          font-weight: 900;
+        }
+
+        .rankings-player-link {
+          color: #0f172a;
+          font-weight: 800;
+          text-decoration: none;
+        }
+
+        .rankings-player-link:hover {
+          color: #255be3;
+        }
+
+        .rankings-active-rating {
+          color: #255be3;
+          font-weight: 900;
+        }
+
+        @media (max-width: 900px) {
+          .rankings-hero-inner {
+            grid-template-columns: 1fr;
+          }
+
+          .rankings-filter-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </main>
   )
 }
@@ -258,152 +609,4 @@ function formatRating(value: number | null | undefined) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1200px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-}
-
-const filtersGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '12px',
-  flex: 1,
-  minWidth: '320px',
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
-}
-
-const segmentContainerStyle = {
-  display: 'flex',
-  gap: '8px',
-  padding: '6px',
-  background: '#eff6ff',
-  borderRadius: '16px',
-  border: '1px solid #dbeafe',
-}
-
-const segmentButtonStyle = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: 'transparent',
-  color: '#1e3a8a',
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontSize: '14px',
-}
-
-const activeSegmentButtonStyle = {
-  background: '#2563eb',
-  color: 'white',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const tableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
-}
-
-const thStyle = {
-  textAlign: 'left' as const,
-  padding: '12px',
-  borderBottom: '1px solid #cbd5e1',
-  color: '#334155',
-  background: '#f8fafc',
-}
-
-const tdStyle = {
-  padding: '12px',
-  borderBottom: '1px solid #e2e8f0',
-  color: '#0f172a',
-}
-
-const activeRatingCellStyle = {
-  fontWeight: 800,
-  color: '#1d4ed8',
-}
-
-const rankBadgeStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minWidth: '32px',
-  height: '32px',
-  padding: '0 10px',
-  borderRadius: '999px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
-  fontWeight: 800,
-}
-
-const playerLinkStyle = {
-  color: '#0f172a',
-  fontWeight: 700,
-  textDecoration: 'none',
 }
