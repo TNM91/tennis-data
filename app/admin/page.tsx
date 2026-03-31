@@ -80,186 +80,196 @@ export default function AdminPage() {
 
   if (authLoading) {
     return (
-      <main style={mainStyle}>
-        <div style={navRowStyle}>
-          <Link href="/" style={navLinkStyle}>Home</Link>
-          <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-          <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-          <Link href="/admin" style={navLinkStyle}>Admin</Link>
-        </div>
-
-        <div style={cardStyle}>
-          <p style={{ margin: 0, fontWeight: 700 }}>Checking access...</p>
-        </div>
+      <main className="page-shell-tight">
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Access</div>
+            <h1 className="page-title">Checking access...</h1>
+            <p className="page-subtitle">
+              Verifying your credentials and preparing the control center.
+            </p>
+          </div>
+        </section>
       </main>
     )
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-      </div>
+    <main className="page-shell-tight">
+      {/* HERO */}
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin</div>
+          <h1 className="page-title">Control Center</h1>
+          <p className="page-subtitle">
+            Secure tools for managing matches, imports, players, and platform data.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '38px' }}>Admin Control Center</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '800px' }}>
-          Secure tools for managing matches, imports, and players.
-        </p>
-      </div>
-
-      {!user ? (
-        <div style={cardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: '8px' }}>Admin Login</h2>
-          <p style={subtleParagraphStyle}>
+      {/* NOT LOGGED IN */}
+      {!user && (
+        <section className="surface-card panel-pad section">
+          <h2 className="section-title">Admin Login</h2>
+          <p className="subtle-text" style={{ marginTop: 8 }}>
             Sign in with your admin email to access protected tools.
           </p>
 
-          <div style={filtersGridStyle}>
+          <div style={{ marginTop: 16 }}>
+            <label className="label">Email</label>
             <input
               type="email"
               placeholder="Your admin email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={inputStyle}
+              className="input"
             />
           </div>
 
-          <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button onClick={handleSendMagicLink} style={primaryButtonStyle}>
+          <div style={{ marginTop: 18 }}>
+            <button onClick={handleSendMagicLink} className="button-primary">
               Send Magic Link
             </button>
           </div>
 
           {message && (
-            <div style={successBoxStyle}>
-              <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+            <div className="badge badge-green" style={{ marginTop: 16 }}>
+              {message}
             </div>
           )}
 
           {error && (
-            <div style={errorBoxStyle}>
-              <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+            <div
+              className="badge"
+              style={{
+                marginTop: 16,
+                background: 'rgba(220,38,38,0.12)',
+                color: '#7f1d1d',
+                border: '1px solid rgba(220,38,38,0.2)',
+              }}
+            >
+              {error}
             </div>
           )}
-        </div>
-      ) : !isAdmin ? (
-        <div style={cardStyle}>
-          <h2 style={{ marginTop: 0, marginBottom: '8px' }}>Not Authorized</h2>
-          <p style={subtleParagraphStyle}>
-            You are logged in, but this account is not the admin account for this site.
+        </section>
+      )}
+
+      {/* NOT AUTHORIZED */}
+      {user && !isAdmin && (
+        <section className="surface-card panel-pad section">
+          <h2 className="section-title">Not Authorized</h2>
+          <p className="subtle-text" style={{ marginTop: 8 }}>
+            You are logged in, but this account does not have admin access.
           </p>
 
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button onClick={handleLogout} style={dangerButtonStyle}>
+          <div style={{ marginTop: 18 }}>
+            <button onClick={handleLogout} className="button-secondary">
               Logout
             </button>
           </div>
+        </section>
+      )}
 
-          {message && (
-            <div style={successBoxStyle}>
-              <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
-            </div>
-          )}
-
-          {error && (
-            <div style={errorBoxStyle}>
-              <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
-            </div>
-          )}
-        </div>
-      ) : (
+      {/* ADMIN DASHBOARD */}
+      {user && isAdmin && (
         <>
-          <div style={statsGridStyle}>
-            <div style={statCardStyle}>
-              <div style={statLabelStyle}>Status</div>
-              <div style={statValueStyle}>Admin</div>
+          {/* STATS */}
+          <div className="metric-grid section">
+            <div className="metric-card">
+              <div className="metric-label">Status</div>
+              <div className="metric-value">Admin</div>
+              <div className="metric-help">Full system access</div>
             </div>
 
-            <div style={statCardStyle}>
-              <div style={statLabelStyle}>Tools</div>
-              <div style={statValueStyle}>5</div>
+            <div className="metric-card">
+              <div className="metric-label">Tools</div>
+              <div className="metric-value">6</div>
+              <div className="metric-help">Available modules</div>
             </div>
 
-            <div style={statCardStyle}>
-              <div style={statLabelStyle}>Session</div>
-              <div style={{ ...statValueStyle, fontSize: '22px' }}>Active</div>
+            <div className="metric-card">
+              <div className="metric-label">Session</div>
+              <div className="metric-value">Active</div>
+              <div className="metric-help">Authenticated</div>
             </div>
           </div>
 
-          <div style={cardStyle}>
-            <div style={toolbarStyle}>
+          {/* ACCOUNT */}
+          <section className="surface-card panel-pad section">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px',
+                alignItems: 'center',
+              }}
+            >
               <div>
-                <h2 style={{ margin: 0 }}>Admin Panel</h2>
-                <p style={{ ...subtleParagraphStyle, marginTop: '8px', marginBottom: 0 }}>
+                <h2 className="section-title">Admin Panel</h2>
+                <p className="subtle-text" style={{ marginTop: 8 }}>
                   Logged in as <strong>{user.email}</strong>
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <button onClick={handleLogout} style={dangerButtonStyle}>
-                  Logout
-                </button>
-              </div>
+              <button onClick={handleLogout} className="button-secondary">
+                Logout
+              </button>
             </div>
 
             {message && (
-              <div style={successBoxStyle}>
-                <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+              <div className="badge badge-green" style={{ marginTop: 16 }}>
+                {message}
               </div>
             )}
 
             {error && (
-              <div style={errorBoxStyle}>
-                <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+              <div
+                className="badge"
+                style={{
+                  marginTop: 16,
+                  background: 'rgba(220,38,38,0.12)',
+                  color: '#7f1d1d',
+                  border: '1px solid rgba(220,38,38,0.2)',
+                }}
+              >
+                {error}
               </div>
             )}
-          </div>
+          </section>
 
-          <div style={toolGridStyle}>
-            <Link href="/admin/add-match" style={toolCardStyle}>
-              <div style={toolTitleStyle}>Add Match</div>
-              <div style={toolTextStyle}>
-                Enter a singles or doubles result manually and update ratings.
-              </div>
-            </Link>
-
-            <Link href="/admin/csv-import" style={toolCardStyle}>
-              <div style={toolTitleStyle}>CSV Import</div>
-              <div style={toolTextStyle}>
-                Bulk import results, preview duplicates, and create missing players.
-              </div>
-            </Link>
-
-            <Link href="/admin/paste-results" style={toolCardStyle}>
-              <div style={toolTitleStyle}>Paste Results</div>
-              <div style={toolTextStyle}>
-                Paste match lines quickly, preview them, and import safely.
-              </div>
-            </Link>
-
-            <Link href="/admin/manage-matches" style={toolCardStyle}>
-              <div style={toolTitleStyle}>Manage Matches</div>
-              <div style={toolTextStyle}>
-                Edit rows, delete bad entries, and rebuild ratings when needed.
-              </div>
-            </Link>
-
-            <Link href="/admin/manage-players" style={toolCardStyle}>
-              <div style={toolTitleStyle}>Manage Players</div>
-              <div style={toolTextStyle}>
-                Rename players, merge duplicates, and clean up records.
-              </div>
-            </Link>
-            <Link href="/admin/upload-scorecard" style={toolCardStyle}>
-              <div style={toolTitleStyle}>Upload Scorecard</div>
-              <div style={toolTextStyle}>
-                Upload excel, and html data to be parsed.
-              </div>
-            </Link>
+          {/* TOOLS */}
+          <div className="card-grid three section">
+            <ToolCard
+              href="/admin/add-match"
+              title="Add Match"
+              text="Enter a singles or doubles result and update ratings."
+            />
+            <ToolCard
+              href="/admin/csv-import"
+              title="CSV Import"
+              text="Bulk import results and detect duplicates."
+            />
+            <ToolCard
+              href="/admin/paste-results"
+              title="Paste Results"
+              text="Quickly paste and preview match data."
+            />
+            <ToolCard
+              href="/admin/manage-matches"
+              title="Manage Matches"
+              text="Edit, delete, and rebuild rating history."
+            />
+            <ToolCard
+              href="/admin/manage-players"
+              title="Manage Players"
+              text="Merge duplicates and clean player data."
+            />
+            <ToolCard
+              href="/admin/upload-scorecard"
+              title="Upload Scorecard"
+              text="Upload Excel or HTML match data."
+            />
           </div>
         </>
       )}
@@ -267,178 +277,21 @@ export default function AdminPage() {
   )
 }
 
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const statsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '14px',
-  marginBottom: '22px',
-}
-
-const statCardStyle = {
-  background: 'white',
-  borderRadius: '18px',
-  padding: '18px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-}
-
-const statLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const statValueStyle = {
-  color: '#0f172a',
-  fontSize: '28px',
-  fontWeight: 800,
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-}
-
-const filtersGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '12px',
-  flex: 1,
-  minWidth: '320px',
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
-}
-
-const primaryButtonStyle = {
-  padding: '12px 16px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-  cursor: 'pointer',
-}
-
-const dangerButtonStyle = {
-  padding: '12px 16px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#dc2626',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-  cursor: 'pointer',
-}
-
-const successBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#dcfce7',
-  border: '1px solid #86efac',
-  color: '#166534',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const subtleParagraphStyle = {
-  color: '#64748b',
-  fontSize: '15px',
-  maxWidth: '760px',
-}
-
-const toolGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '16px',
-  marginBottom: '22px',
-}
-
-const toolCardStyle = {
-  background: 'white',
-  borderRadius: '18px',
-  padding: '18px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  textDecoration: 'none',
-  display: 'block',
-  color: '#0f172a',
-  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-}
-
-const toolTitleStyle = {
-  color: '#0f172a',
-  fontSize: '20px',
-  fontWeight: 800,
-  marginBottom: '8px',
-}
-
-const toolTextStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-  lineHeight: 1.5,
+function ToolCard({
+  href,
+  title,
+  text,
+}: {
+  href: string
+  title: string
+  text: string
+}) {
+  return (
+    <Link href={href} className="surface-card panel-pad">
+      <div style={{ fontWeight: 800, fontSize: '18px' }}>{title}</div>
+      <div className="subtle-text" style={{ marginTop: 8 }}>
+        {text}
+      </div>
+    </Link>
+  )
 }

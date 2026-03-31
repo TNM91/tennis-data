@@ -59,6 +59,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
@@ -68,18 +69,7 @@ export default function RootLayout({
         />
       </head>
 
-      <body
-        style={{
-          margin: 0,
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: "var(--font-geist-sans), Arial, sans-serif",
-          background:
-            "radial-gradient(circle at top left, rgba(74,163,255,0.08), transparent 30%), radial-gradient(circle at top right, rgba(155,225,29,0.08), transparent 30%), #f8fafc",
-          color: "#0f172a",
-        }}
-      >
+      <body className="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased">
         <Script
           id="google-adsense"
           async
@@ -88,7 +78,12 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
 
-        {children}
+        <div className="site-bg" aria-hidden="true" />
+        <div className="site-grid" aria-hidden="true" />
+
+        <div className="relative flex min-h-screen flex-col">
+          {children}
+        </div>
       </body>
     </html>
   );

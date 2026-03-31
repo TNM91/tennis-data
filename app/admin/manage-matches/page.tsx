@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -291,7 +290,19 @@ export default function ManageMatchesPage() {
   }, [matches, search, matchTypeFilter])
 
   if (authLoading) {
-    return <p style={{ padding: '24px' }}>Checking access...</p>
+    return (
+      <main className="page-shell-tight">
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Tool</div>
+            <h1 className="page-title">Checking access...</h1>
+            <p className="page-subtitle">
+              Verifying administrator permissions and loading match management tools.
+            </p>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   if (!user || user.id !== ADMIN_ID) {
@@ -299,61 +310,76 @@ export default function ManageMatchesPage() {
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-        <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
-        <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
-        <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
-        <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-        <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin Tool</div>
+          <h1 className="page-title">Manage Matches</h1>
+          <p className="page-subtitle">
+            View, search, filter, and delete singles or doubles matches stored in the
+            matches and match_players structure.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Manage Matches</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          View, search, filter, and delete singles or doubles matches stored in the new matches + match_players structure.
-        </p>
-      </div>
-
-      <div style={cardStyle}>
-        <div style={toolbarStyle}>
-          <div style={filterGridStyle}>
-            <div>
-              <label style={labelStyle}>Search</label>
+      <section className="surface-card panel-pad section">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 16,
+              flex: 1,
+              minWidth: 320,
+            }}
+          >
+            <Field label="Search">
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Player, score, source, line..."
-                style={inputStyle}
+                className="input"
                 disabled={loading || refreshing}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Match Type</label>
+            <Field label="Match Type">
               <select
                 value={matchTypeFilter}
                 onChange={(e) => setMatchTypeFilter(e.target.value as 'all' | MatchType)}
-                style={inputStyle}
+                className="select"
                 disabled={loading || refreshing}
               >
                 <option value="all">All</option>
                 <option value="singles">Singles</option>
                 <option value="doubles">Doubles</option>
               </select>
-            </div>
+            </Field>
           </div>
 
-          <div style={buttonRowStyle}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
             <button
               onClick={() => void loadMatches(true)}
+              className="button-ghost"
               style={{
-                ...secondaryButtonStyle,
+                background: 'rgba(15,23,42,0.06)',
+                color: '#0f172a',
+                border: '1px solid rgba(15,23,42,0.08)',
                 opacity: refreshing ? 0.7 : 1,
                 cursor: refreshing ? 'not-allowed' : 'pointer',
               }}
@@ -364,8 +390,8 @@ export default function ManageMatchesPage() {
 
             <button
               onClick={handleRecalculateRatings}
+              className="button-primary"
               style={{
-                ...primaryButtonStyle,
                 opacity: recalculating ? 0.7 : 1,
                 cursor: recalculating ? 'not-allowed' : 'pointer',
               }}
@@ -377,89 +403,115 @@ export default function ManageMatchesPage() {
         </div>
 
         {message && (
-          <div style={successBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+          <div
+            className="badge badge-green"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+            }}
+          >
+            {message}
           </div>
         )}
 
         {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+          <div
+            className="badge"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+              background: 'rgba(220,38,38,0.12)',
+              color: '#991b1b',
+              border: '1px solid rgba(220,38,38,0.18)',
+            }}
+          >
+            {error}
           </div>
         )}
 
-        <div style={summaryGridStyle}>
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Total Matches</div>
-            <div style={summaryValueStyle}>{matches.length}</div>
-          </div>
-
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Filtered Matches</div>
-            <div style={summaryValueStyle}>{filteredMatches.length}</div>
-          </div>
-
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Singles</div>
-            <div style={summaryValueStyle}>{matches.filter((m) => m.matchType === 'singles').length}</div>
-          </div>
-
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Doubles</div>
-            <div style={summaryValueStyle}>{matches.filter((m) => m.matchType === 'doubles').length}</div>
-          </div>
+        <div className="metric-grid" style={{ marginTop: 20 }}>
+          <MetricCard label="Total Matches" value={matches.length} />
+          <MetricCard label="Filtered Matches" value={filteredMatches.length} />
+          <MetricCard
+            label="Singles"
+            value={matches.filter((m) => m.matchType === 'singles').length}
+          />
+          <MetricCard
+            label="Doubles"
+            value={matches.filter((m) => m.matchType === 'doubles').length}
+          />
         </div>
 
         {loading ? (
-          <p style={{ marginTop: '20px' }}>Loading matches...</p>
+          <p style={{ marginTop: 20 }} className="subtle-text">
+            Loading matches...
+          </p>
         ) : filteredMatches.length === 0 ? (
-          <p style={{ marginTop: '20px', color: '#64748b' }}>No matches found.</p>
+          <p style={{ marginTop: 20 }} className="subtle-text">
+            No matches found.
+          </p>
         ) : (
-          <div style={{ overflowX: 'auto', marginTop: '20px' }}>
-            <table style={tableStyle}>
+          <div className="table-wrap" style={{ marginTop: 20 }}>
+            <table className="data-table" style={{ minWidth: 1300 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Date</th>
-                  <th style={thStyle}>Type</th>
-                  <th style={thStyle}>Side A</th>
-                  <th style={thStyle}>Side B</th>
-                  <th style={thStyle}>Winner</th>
-                  <th style={thStyle}>Score</th>
-                  <th style={thStyle}>Line</th>
-                  <th style={thStyle}>Source</th>
-                  <th style={thStyle}>External ID</th>
-                  <th style={thStyle}>Actions</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Side A</th>
+                  <th>Side B</th>
+                  <th>Winner</th>
+                  <th>Score</th>
+                  <th>Line</th>
+                  <th>Source</th>
+                  <th>External ID</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMatches.map((match) => (
-                  <tr key={match.id} style={rowStyle}>
-                    <td style={tdStyle}>{match.matchDate}</td>
-                    <td style={tdStyle}>{capitalize(match.matchType)}</td>
-                    <td style={tdStyle}>
-                      <div style={teamCellStyle}>
+                  <tr key={match.id}>
+                    <td>{match.matchDate}</td>
+                    <td>{capitalize(match.matchType)}</td>
+                    <td>
+                      <div style={{ minWidth: 180 }}>
                         <strong>{match.sideA.map((player) => player.name).join(' / ')}</strong>
                       </div>
                     </td>
-                    <td style={tdStyle}>
-                      <div style={teamCellStyle}>
+                    <td>
+                      <div style={{ minWidth: 180 }}>
                         <strong>{match.sideB.map((player) => player.name).join(' / ')}</strong>
                       </div>
                     </td>
-                    <td style={tdStyle}>{match.winnerSide}</td>
-                    <td style={tdStyle}>{match.score}</td>
-                    <td style={tdStyle}>{match.lineNumber || '—'}</td>
-                    <td style={tdStyle}>{match.source || '—'}</td>
-                    <td style={tdStyle}>{match.externalMatchId || '—'}</td>
-                    <td style={tdStyle}>
+                    <td>{match.winnerSide}</td>
+                    <td>{match.score}</td>
+                    <td>{match.lineNumber || '—'}</td>
+                    <td>{match.source || '—'}</td>
+                    <td>{match.externalMatchId || '—'}</td>
+                    <td>
                       <button
                         onClick={() => void handleDeleteMatch(match.id)}
+                        disabled={deletingId === match.id}
                         style={{
-                          ...dangerButtonStyle,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: 40,
+                          padding: '0 14px',
+                          border: 'none',
+                          borderRadius: 12,
+                          background: '#dc2626',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
                           opacity: deletingId === match.id ? 0.7 : 1,
                           cursor: deletingId === match.id ? 'not-allowed' : 'pointer',
                         }}
-                        disabled={deletingId === match.id}
                       >
                         {deletingId === match.id ? 'Deleting...' : 'Delete'}
                       </button>
@@ -470,196 +522,35 @@ export default function ManageMatchesPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </main>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value">{value}</div>
+    </div>
   )
 }
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1200px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'end',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-}
-
-const filterGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '16px',
-  flex: 1,
-  minWidth: '320px',
-}
-
-const labelStyle = {
-  display: 'block',
-  marginBottom: '8px',
-  color: '#334155',
-  fontWeight: 600,
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '12px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-}
-
-const buttonRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const primaryButtonStyle = {
-  padding: '14px 18px',
-  border: 'none',
-  borderRadius: '14px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const secondaryButtonStyle = {
-  padding: '14px 18px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  background: 'white',
-  color: '#0f172a',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const dangerButtonStyle = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#dc2626',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-}
-
-const successBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#dcfce7',
-  border: '1px solid #86efac',
-  color: '#166534',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const summaryGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-  gap: '12px',
-  marginTop: '20px',
-}
-
-const summaryCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '14px',
-}
-
-const summaryLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const summaryValueStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 700,
-}
-
-const tableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
-}
-
-const thStyle = {
-  textAlign: 'left' as const,
-  padding: '12px',
-  borderBottom: '1px solid #cbd5e1',
-  color: '#334155',
-  background: '#f8fafc',
-  whiteSpace: 'nowrap' as const,
-}
-
-const tdStyle = {
-  padding: '12px',
-  borderBottom: '1px solid #e2e8f0',
-  color: '#0f172a',
-  verticalAlign: 'top' as const,
-}
-
-const rowStyle = {
-  background: 'white',
-}
-
-const teamCellStyle = {
-  minWidth: '180px',
 }

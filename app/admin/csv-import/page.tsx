@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -368,7 +367,19 @@ export default function CsvImportPage() {
   )
 
   if (authLoading) {
-    return <p style={{ padding: '24px' }}>Checking access...</p>
+    return (
+      <main className="page-shell-tight">
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Tool</div>
+            <h1 className="page-title">Checking access...</h1>
+            <p className="page-subtitle">
+              Verifying administrator permissions and loading import tools.
+            </p>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   if (!user || user.id !== ADMIN_ID) {
@@ -376,43 +387,58 @@ export default function CsvImportPage() {
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-        <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
-        <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
-        <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
-        <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-        <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin Tool</div>
+          <h1 className="page-title">CSV Import</h1>
+          <p className="page-subtitle">
+            Upload a CSV of singles or doubles matches, preview duplicates before import,
+            create missing players automatically, and load data into the matches and
+            match_players structure.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>CSV Import</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Upload a CSV of singles or doubles matches, preview duplicates before import, create missing players automatically, and load data into the new matches + match_players structure.
-        </p>
-      </div>
+      <section className="surface-card panel-pad section">
+        <h2 className="section-title">CSV Format</h2>
+        <p className="subtle-text" style={{ marginTop: 8 }}>Recommended columns:</p>
 
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>CSV Format</h2>
-        <p style={{ color: '#64748b' }}>
-          Recommended columns:
-        </p>
-
-        <pre style={sampleStyle}>
+        <pre
+          style={{
+            marginTop: 14,
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 16,
+            padding: 16,
+            overflowX: 'auto',
+            color: '#334155',
+            fontSize: '0.92rem',
+            lineHeight: 1.55,
+          }}
+        >
 {`match_date,match_type,side_a_players,side_b_players,result,source,external_match_id,line_number
 2026-01-18,singles,Stephen Hipkiss,Nathan Meinert,W 6-2 6-1,usta,1011650666,1S
 2026-01-18,doubles,Matthew Hodge / Alex Schaefer,Christopher Krieger / David Cabrera,W 6-3 6-3,usta,1011650666,1D`}
         </pre>
 
-        <p style={{ color: '#64748b', marginTop: '14px' }}>
+        <p className="subtle-text" style={{ marginTop: 16 }}>
           You can also use <strong>date</strong> instead of <strong>match_date</strong>, and either:
         </p>
 
-        <pre style={sampleStyle}>
+        <pre
+          style={{
+            marginTop: 14,
+            background: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: 16,
+            padding: 16,
+            overflowX: 'auto',
+            color: '#334155',
+            fontSize: '0.92rem',
+            lineHeight: 1.55,
+          }}
+        >
 {`result
 W 6-2 6-1
 
@@ -422,7 +448,8 @@ score,winner_side
 6-2 6-1,A`}
         </pre>
 
-        <div style={{ marginTop: '16px' }}>
+        <div style={{ marginTop: 18 }}>
+          <label className="label">Upload File</label>
           <input
             type="file"
             accept=".csv,text/csv"
@@ -432,28 +459,56 @@ score,winner_side
         </div>
 
         {fileName && (
-          <div style={infoBoxStyle}>
-            <strong>Selected file:</strong> {fileName}
+          <div
+            className="badge badge-blue"
+            style={{
+              marginTop: 16,
+              minHeight: 40,
+              justifyContent: 'flex-start',
+              width: '100%',
+              padding: '10px 14px',
+            }}
+          >
+            <strong>Selected file:</strong>&nbsp;{fileName}
           </div>
         )}
 
         {csvText && (
-          <div style={{ marginTop: '16px' }}>
-            <h3 style={{ marginBottom: '12px' }}>CSV Preview</h3>
+          <div style={{ marginTop: 18 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: '1.08rem',
+                fontWeight: 800,
+                color: '#0f172a',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              CSV Preview
+            </h3>
+
             <textarea
               value={csvText}
               onChange={(e) => setCsvText(e.target.value)}
-              style={textareaStyle}
+              className="textarea"
+              style={{ marginTop: 14, minHeight: 240 }}
               disabled={loading || previewLoading}
             />
           </div>
         )}
 
-        <div style={{ marginTop: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            marginTop: 18,
+            display: 'flex',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
           <button
             onClick={handlePreview}
+            className="button-primary"
             style={{
-              ...primaryButtonStyle,
               opacity: previewLoading || loading ? 0.7 : 1,
               cursor: previewLoading || loading ? 'not-allowed' : 'pointer',
             }}
@@ -466,8 +521,8 @@ score,winner_side
             <>
               <button
                 onClick={handleConfirmImport}
+                className="button-secondary"
                 style={{
-                  ...successButtonStyle,
                   opacity: loading ? 0.7 : 1,
                   cursor: loading ? 'not-allowed' : 'pointer',
                 }}
@@ -478,7 +533,12 @@ score,winner_side
 
               <button
                 onClick={() => setPreview(null)}
-                style={secondaryButtonStyle}
+                className="button-ghost"
+                style={{
+                  background: 'rgba(15,23,42,0.06)',
+                  color: '#0f172a',
+                  border: '1px solid rgba(15,23,42,0.08)',
+                }}
                 disabled={loading}
               >
                 Clear Preview
@@ -488,181 +548,195 @@ score,winner_side
         </div>
 
         {message && (
-          <div style={successBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+          <div
+            className="badge badge-green"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+            }}
+          >
+            {message}
           </div>
         )}
 
         {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+          <div
+            className="badge"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+              background: 'rgba(220,38,38,0.12)',
+              color: '#991b1b',
+              border: '1px solid rgba(220,38,38,0.18)',
+            }}
+          >
+            {error}
           </div>
         )}
+      </section>
 
-        {preview && (
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={{ marginBottom: '12px' }}>Preview Summary</h3>
+      {preview && (
+        <section className="surface-card panel-pad section">
+          <h2 className="section-title">Preview Summary</h2>
 
-            <div style={summaryGridStyle}>
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Valid Matches</div>
-                <div style={summaryValueStyle}>{preview.parsedCount}</div>
-              </div>
+          <div className="metric-grid" style={{ marginTop: 18 }}>
+            <MetricCard label="Valid Matches" value={preview.parsedCount} />
+            <MetricCard label="Invalid Rows" value={preview.invalidCount} />
+            <MetricCard label="Participant Rows" value={preview.participantRowCount} />
+            <MetricCard label="Unique Matches" value={preview.uniqueMatchCount} />
+            <MetricCard label="Ready To Import" value={readyCount} />
+            <MetricCard label="Duplicates In File" value={preview.duplicateInFileCount} />
+            <MetricCard label="Duplicates In DB" value={preview.duplicateInDbCount} />
+            <MetricCard label="Players To Create" value={preview.missingNames.length} />
+          </div>
 
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Invalid Rows</div>
-                <div style={summaryValueStyle}>{preview.invalidCount}</div>
-              </div>
+          {preview.missingNames.length > 0 && (
+            <div
+              className="badge badge-blue"
+              style={{
+                marginTop: 18,
+                minHeight: 44,
+                width: '100%',
+                justifyContent: 'flex-start',
+                padding: '10px 14px',
+              }}
+            >
+              <strong>Players that will be created:</strong>&nbsp;{preview.missingNames.join(', ')}
+            </div>
+          )}
 
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Participant Rows</div>
-                <div style={summaryValueStyle}>{preview.participantRowCount}</div>
-              </div>
+          {preview.invalidRows.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.08rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Invalid Rows
+              </h3>
 
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Unique Matches</div>
-                <div style={summaryValueStyle}>{preview.uniqueMatchCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Ready To Import</div>
-                <div style={summaryValueStyle}>{readyCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Duplicates In File</div>
-                <div style={summaryValueStyle}>{preview.duplicateInFileCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Duplicates In DB</div>
-                <div style={summaryValueStyle}>{preview.duplicateInDbCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Players To Create</div>
-                <div style={summaryValueStyle}>{preview.missingNames.length}</div>
+              <div className="table-wrap" style={{ marginTop: 14 }}>
+                <table className="data-table" style={{ minWidth: 840 }}>
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Raw</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.invalidRows.map((row) => (
+                      <tr key={`invalid-${row.sourceIndex}-${row.raw}`}>
+                        <td>{row.sourceIndex}</td>
+                        <td>{row.raw}</td>
+                        <td>{row.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
+          )}
 
-            {preview.missingNames.length > 0 && (
-              <div style={infoBoxStyle}>
-                <strong>Players that will be created:</strong> {preview.missingNames.join(', ')}
-              </div>
-            )}
+          <div style={{ marginTop: 22 }}>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: '1.08rem',
+                fontWeight: 800,
+                color: '#0f172a',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Row Preview
+            </h3>
 
-            {preview.invalidRows.length > 0 && (
-              <div style={{ marginTop: '18px' }}>
-                <h3 style={{ marginBottom: '12px' }}>Invalid Rows</h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>Row</th>
-                        <th style={thStyle}>Raw</th>
-                        <th style={thStyle}>Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {preview.invalidRows.map((row) => (
-                        <tr key={`invalid-${row.sourceIndex}-${row.raw}`} style={invalidRowStyle}>
-                          <td style={tdStyle}>{row.sourceIndex}</td>
-                          <td style={tdStyle}>{row.raw}</td>
-                          <td style={tdStyle}>{row.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            <div style={{ overflowX: 'auto', marginTop: '18px' }}>
-              <table style={tableStyle}>
+            <div className="table-wrap" style={{ marginTop: 14 }}>
+              <table className="data-table" style={{ minWidth: 1080 }}>
                 <thead>
                   <tr>
-                    <th style={thStyle}>Row</th>
-                    <th style={thStyle}>Side A</th>
-                    <th style={thStyle}>Side B</th>
-                    <th style={thStyle}>Result</th>
-                    <th style={thStyle}>Score</th>
-                    <th style={thStyle}>Winner</th>
-                    <th style={thStyle}>Date</th>
-                    <th style={thStyle}>Type</th>
-                    <th style={thStyle}>Status</th>
+                    <th>Row</th>
+                    <th>Side A</th>
+                    <th>Side B</th>
+                    <th>Result</th>
+                    <th>Score</th>
+                    <th>Winner</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preview.previewRows.map((row) => (
-                    <tr
-                      key={`${row.sourceIndex}-${row.dedupeKey}`}
-                      style={
-                        row.status === 'ready'
-                          ? readyRowStyle
-                          : row.status === 'duplicate_in_file'
-                            ? duplicateFileRowStyle
-                            : duplicateDbRowStyle
-                      }
-                    >
-                      <td style={tdStyle}>{row.sourceIndex}</td>
-                      <td style={tdStyle}>{row.sideA.join(' / ')}</td>
-                      <td style={tdStyle}>{row.sideB.join(' / ')}</td>
-                      <td style={tdStyle}>{row.rawResult}</td>
-                      <td style={tdStyle}>{row.score}</td>
-                      <td style={tdStyle}>{row.winnerSide}</td>
-                      <td style={tdStyle}>{row.date}</td>
-                      <td style={tdStyle}>{capitalize(row.matchType)}</td>
-                      <td style={tdStyle}>{row.reason}</td>
+                    <tr key={`${row.sourceIndex}-${row.dedupeKey}`}>
+                      <td>{row.sourceIndex}</td>
+                      <td>{row.sideA.join(' / ')}</td>
+                      <td>{row.sideB.join(' / ')}</td>
+                      <td>{row.rawResult}</td>
+                      <td>{row.score}</td>
+                      <td>{row.winnerSide}</td>
+                      <td>{row.date}</td>
+                      <td>{capitalize(row.matchType)}</td>
+                      <td>
+                        <span
+                          className={
+                            row.status === 'ready'
+                              ? 'badge badge-green'
+                              : row.status === 'duplicate_in_file'
+                                ? 'badge badge-slate'
+                                : 'badge badge-blue'
+                          }
+                        >
+                          {row.reason}
+                        </span>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
-        )}
+        </section>
+      )}
 
-        {result && (
-          <div style={{ marginTop: '20px' }}>
-            <h3 style={{ marginBottom: '12px' }}>Import Summary</h3>
-            <div style={summaryGridStyle}>
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Source Matches</div>
-                <div style={summaryValueStyle}>{result.parsedCount}</div>
-              </div>
+      {result && (
+        <section className="surface-card panel-pad section">
+          <h2 className="section-title">Import Summary</h2>
 
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Participant Rows</div>
-                <div style={summaryValueStyle}>{result.participantRowCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Unique Matches</div>
-                <div style={summaryValueStyle}>{result.uniqueMatchCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Inserted Matches</div>
-                <div style={summaryValueStyle}>{result.insertedMatchCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Skipped Duplicates</div>
-                <div style={summaryValueStyle}>{result.skippedDuplicateMatchCount}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Created Players</div>
-                <div style={summaryValueStyle}>{result.createdPlayerCount}</div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '14px', color: '#475569' }}>
-              Ratings recalculated: <strong>{result.ratingsRecalculated ? 'Yes' : 'No'}</strong>
-            </div>
+          <div className="metric-grid" style={{ marginTop: 18 }}>
+            <MetricCard label="Source Matches" value={result.parsedCount} />
+            <MetricCard label="Participant Rows" value={result.participantRowCount} />
+            <MetricCard label="Unique Matches" value={result.uniqueMatchCount} />
+            <MetricCard label="Inserted Matches" value={result.insertedMatchCount} />
+            <MetricCard label="Skipped Duplicates" value={result.skippedDuplicateMatchCount} />
+            <MetricCard label="Created Players" value={result.createdPlayerCount} />
           </div>
-        )}
-      </div>
+
+          <p style={{ marginTop: 16, color: '#475569' }}>
+            Ratings recalculated: <strong>{result.ratingsRecalculated ? 'Yes' : 'No'}</strong>
+          </p>
+        </section>
+      )}
     </main>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value">{value}</div>
+    </div>
   )
 }
 
@@ -1074,187 +1148,4 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1100px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const sampleStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '12px',
-  padding: '14px',
-  overflowX: 'auto' as const,
-  color: '#334155',
-}
-
-const textareaStyle = {
-  width: '100%',
-  minHeight: '220px',
-  padding: '14px 16px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  marginTop: '14px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-}
-
-const primaryButtonStyle = {
-  padding: '14px 18px',
-  border: 'none',
-  borderRadius: '14px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const successButtonStyle = {
-  padding: '14px 18px',
-  border: 'none',
-  borderRadius: '14px',
-  background: '#16a34a',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const secondaryButtonStyle = {
-  padding: '14px 18px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  background: 'white',
-  color: '#0f172a',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const successBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#dcfce7',
-  border: '1px solid #86efac',
-  color: '#166534',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const infoBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#eff6ff',
-  border: '1px solid #bfdbfe',
-  color: '#1d4ed8',
-}
-
-const summaryGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-  gap: '12px',
-}
-
-const summaryCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '14px',
-}
-
-const summaryLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const summaryValueStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 700,
-}
-
-const tableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
-  marginTop: '8px',
-}
-
-const thStyle = {
-  textAlign: 'left' as const,
-  padding: '12px',
-  borderBottom: '1px solid #cbd5e1',
-  color: '#334155',
-  background: '#f8fafc',
-}
-
-const tdStyle = {
-  padding: '12px',
-  borderBottom: '1px solid #e2e8f0',
-  color: '#0f172a',
-}
-
-const readyRowStyle = {
-  background: '#f0fdf4',
-}
-
-const duplicateFileRowStyle = {
-  background: '#fff7ed',
-}
-
-const duplicateDbRowStyle = {
-  background: '#fef2f2',
-}
-
-const invalidRowStyle = {
-  background: '#fef2f2',
 }

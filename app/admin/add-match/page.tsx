@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -268,7 +267,19 @@ export default function AddMatchPage() {
   }
 
   if (authLoading) {
-    return <p style={{ padding: '24px' }}>Checking access...</p>
+    return (
+      <main className="page-shell-tight">
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Tool</div>
+            <h1 className="page-title">Checking access...</h1>
+            <p className="page-subtitle">
+              Verifying administrator permissions and loading match tools.
+            </p>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   if (!user || user.id !== ADMIN_ID) {
@@ -276,177 +287,225 @@ export default function AddMatchPage() {
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-        <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
-        <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
-        <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
-        <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-        <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
-      </div>
+    <main className="page-shell-tight">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin Tool</div>
+          <h1 className="page-title">Add Match</h1>
+          <p className="page-subtitle">
+            Add a singles or doubles result into the matches and match_players structure,
+            create missing players when needed, and recalculate ratings.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Add Match</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Add a singles or doubles match into the new matches + match_players structure.
-        </p>
-      </div>
+      <section className="surface-card panel-pad section">
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            gap: '16px',
+            alignItems: 'flex-start',
+          }}
+        >
+          <div>
+            <h2 className="section-title">Match Details</h2>
+            <p className="subtle-text" style={{ marginTop: 8, maxWidth: 760 }}>
+              Enter the match metadata first, then assign players to Side A and Side B.
+              This page checks for duplicate matches before inserting.
+            </p>
+          </div>
 
-      <div style={cardStyle}>
-        <h2 style={{ marginTop: 0 }}>Match Details</h2>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <span className="badge badge-blue">
+              {playersLoading ? 'Loading players…' : `${players.length} players loaded`}
+            </span>
+            <span className="badge badge-slate">
+              {matchType === 'singles' ? 'Singles mode' : 'Doubles mode'}
+            </span>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={formGridStyle}>
-            <div>
-              <label style={labelStyle}>Match Type</label>
+        <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
+          <div className="card-grid two">
+            <Field label="Match Type">
               <select
                 value={matchType}
                 onChange={(e) => setMatchType(e.target.value as MatchType)}
-                style={inputStyle}
+                className="select"
                 disabled={loading}
               >
                 <option value="singles">Singles</option>
                 <option value="doubles">Doubles</option>
               </select>
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Match Date</label>
+            <Field label="Match Date">
               <input
                 type="date"
                 value={matchDate}
                 onChange={(e) => setMatchDate(e.target.value)}
-                style={inputStyle}
+                className="input"
                 disabled={loading}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Score</label>
+            <Field label="Score">
               <input
                 type="text"
                 value={score}
                 onChange={(e) => setScore(e.target.value)}
                 placeholder="6-3 6-4"
-                style={inputStyle}
+                className="input"
                 disabled={loading}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Winner</label>
+            <Field label="Winner">
               <select
                 value={winnerSide}
                 onChange={(e) => setWinnerSide(e.target.value as MatchSide)}
-                style={inputStyle}
+                className="select"
                 disabled={loading}
               >
                 <option value="A">Side A</option>
                 <option value="B">Side B</option>
               </select>
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Line Number</label>
+            <Field label="Line Number">
               <input
                 type="text"
                 value={lineNumber}
                 onChange={(e) => setLineNumber(e.target.value)}
                 placeholder="1S or 2D"
-                style={inputStyle}
+                className="input"
                 disabled={loading}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Source</label>
+            <Field label="Source">
               <input
                 type="text"
                 value={source}
                 onChange={(e) => setSource(e.target.value)}
                 placeholder="manual"
-                style={inputStyle}
+                className="input"
                 disabled={loading}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>External Match ID</label>
+            <Field label="External Match ID">
               <input
                 type="text"
                 value={externalMatchId}
                 onChange={(e) => setExternalMatchId(e.target.value)}
                 placeholder="Optional"
-                style={inputStyle}
+                className="input"
                 disabled={loading}
               />
-            </div>
+            </Field>
           </div>
 
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={sectionTitleStyle}>Side A</h3>
-            <div style={formGridStyle}>
-              <div>
-                <label style={labelStyle}>Player 1</label>
-                <input
-                  list="player-options"
-                  value={sideA1}
-                  onChange={(e) => setSideA1(e.target.value)}
-                  style={inputStyle}
-                  placeholder="Enter player name"
-                  disabled={loading || playersLoading}
-                />
+          <div className="card-grid two section">
+            <section className="surface-card" style={{ padding: 20 }}>
+              <div className="section-kicker" style={{ marginBottom: 14 }}>
+                Team Entry
               </div>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.2rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  letterSpacing: '-0.03em',
+                }}
+              >
+                Side A
+              </h3>
+              <p className="subtle-text" style={{ marginTop: 8, marginBottom: 18 }}>
+                Enter the player or team on the A side.
+              </p>
 
-              {matchType === 'doubles' && (
-                <div>
-                  <label style={labelStyle}>Player 2</label>
+              <div style={{ display: 'grid', gap: 16 }}>
+                <Field label="Player 1">
                   <input
                     list="player-options"
-                    value={sideA2}
-                    onChange={(e) => setSideA2(e.target.value)}
-                    style={inputStyle}
+                    value={sideA1}
+                    onChange={(e) => setSideA1(e.target.value)}
+                    className="input"
                     placeholder="Enter player name"
                     disabled={loading || playersLoading}
                   />
-                </div>
-              )}
-            </div>
-          </div>
+                </Field>
 
-          <div style={{ marginTop: '24px' }}>
-            <h3 style={sectionTitleStyle}>Side B</h3>
-            <div style={formGridStyle}>
-              <div>
-                <label style={labelStyle}>Player 1</label>
-                <input
-                  list="player-options"
-                  value={sideB1}
-                  onChange={(e) => setSideB1(e.target.value)}
-                  style={inputStyle}
-                  placeholder="Enter player name"
-                  disabled={loading || playersLoading}
-                />
+                {matchType === 'doubles' && (
+                  <Field label="Player 2">
+                    <input
+                      list="player-options"
+                      value={sideA2}
+                      onChange={(e) => setSideA2(e.target.value)}
+                      className="input"
+                      placeholder="Enter player name"
+                      disabled={loading || playersLoading}
+                    />
+                  </Field>
+                )}
               </div>
+            </section>
 
-              {matchType === 'doubles' && (
-                <div>
-                  <label style={labelStyle}>Player 2</label>
+            <section className="surface-card" style={{ padding: 20 }}>
+              <div className="section-kicker" style={{ marginBottom: 14 }}>
+                Team Entry
+              </div>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.2rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  letterSpacing: '-0.03em',
+                }}
+              >
+                Side B
+              </h3>
+              <p className="subtle-text" style={{ marginTop: 8, marginBottom: 18 }}>
+                Enter the player or team on the B side.
+              </p>
+
+              <div style={{ display: 'grid', gap: 16 }}>
+                <Field label="Player 1">
                   <input
                     list="player-options"
-                    value={sideB2}
-                    onChange={(e) => setSideB2(e.target.value)}
-                    style={inputStyle}
+                    value={sideB1}
+                    onChange={(e) => setSideB1(e.target.value)}
+                    className="input"
                     placeholder="Enter player name"
                     disabled={loading || playersLoading}
                   />
-                </div>
-              )}
-            </div>
+                </Field>
+
+                {matchType === 'doubles' && (
+                  <Field label="Player 2">
+                    <input
+                      list="player-options"
+                      value={sideB2}
+                      onChange={(e) => setSideB2(e.target.value)}
+                      className="input"
+                      placeholder="Enter player name"
+                      disabled={loading || playersLoading}
+                    />
+                  </Field>
+                )}
+              </div>
+            </section>
           </div>
 
           <datalist id="player-options">
@@ -455,36 +514,98 @@ export default function AddMatchPage() {
             ))}
           </datalist>
 
-          <div style={checkboxRowStyle}>
-            <input
-              id="create-missing-players"
-              type="checkbox"
-              checked={createMissingPlayers}
-              onChange={(e) => setCreateMissingPlayers(e.target.checked)}
-              disabled={loading}
-            />
-            <label htmlFor="create-missing-players" style={checkboxLabelStyle}>
+          <section
+            className="surface-card section"
+            style={{
+              padding: 20,
+              borderStyle: 'dashed',
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                fontSize: '1.05rem',
+                fontWeight: 800,
+                color: '#0f172a',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Import Behavior
+            </h3>
+
+            <label
+              htmlFor="create-missing-players"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginTop: 16,
+                color: '#1e293b',
+                fontWeight: 600,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <input
+                id="create-missing-players"
+                type="checkbox"
+                checked={createMissingPlayers}
+                onChange={(e) => setCreateMissingPlayers(e.target.checked)}
+                disabled={loading}
+                style={{ width: 16, height: 16 }}
+              />
               Automatically create missing players
             </label>
-          </div>
+
+            <p className="subtle-text" style={{ marginTop: 10, marginBottom: 0 }}>
+              Leave this on to create any new player names at default starting ratings.
+            </p>
+          </section>
 
           {message && (
-            <div style={successBoxStyle}>
-              <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+            <div
+              className="badge badge-green"
+              style={{
+                marginTop: 18,
+                minHeight: 44,
+                padding: '10px 14px',
+                justifyContent: 'flex-start',
+                width: '100%',
+              }}
+            >
+              {message}
             </div>
           )}
 
           {error && (
-            <div style={errorBoxStyle}>
-              <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+            <div
+              className="badge"
+              style={{
+                marginTop: 18,
+                minHeight: 44,
+                padding: '10px 14px',
+                justifyContent: 'flex-start',
+                width: '100%',
+                background: 'rgba(220,38,38,0.12)',
+                color: '#991b1b',
+                border: '1px solid rgba(220,38,38,0.18)',
+              }}
+            >
+              {error}
             </div>
           )}
 
-          <div style={{ marginTop: '18px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              marginTop: 22,
+              display: 'flex',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}
+          >
             <button
               type="submit"
+              className="button-primary"
               style={{
-                ...primaryButtonStyle,
                 opacity: loading ? 0.7 : 1,
                 cursor: loading ? 'not-allowed' : 'pointer',
               }}
@@ -496,15 +617,34 @@ export default function AddMatchPage() {
             <button
               type="button"
               onClick={resetForm}
-              style={secondaryButtonStyle}
+              className="button-secondary"
               disabled={loading}
+              style={{
+                opacity: loading ? 0.7 : 1,
+                cursor: loading ? 'not-allowed' : 'pointer',
+              }}
             >
               Clear
             </button>
           </div>
         </form>
-      </div>
+      </section>
     </main>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {children}
+    </div>
   )
 }
 
@@ -697,125 +837,4 @@ function chunkArray<T>(items: T[], size: number): T[][] {
     chunks.push(items.slice(i, i + size))
   }
   return chunks
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1100px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const formGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '16px',
-}
-
-const labelStyle = {
-  display: 'block',
-  marginBottom: '8px',
-  color: '#334155',
-  fontWeight: 600,
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '12px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-}
-
-const sectionTitleStyle = {
-  margin: '0 0 12px 0',
-  color: '#0f172a',
-}
-
-const checkboxRowStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-  marginTop: '20px',
-}
-
-const checkboxLabelStyle = {
-  color: '#334155',
-  fontWeight: 600,
-}
-
-const primaryButtonStyle = {
-  padding: '14px 18px',
-  border: 'none',
-  borderRadius: '14px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const secondaryButtonStyle = {
-  padding: '14px 18px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  background: 'white',
-  color: '#0f172a',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const successBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#dcfce7',
-  border: '1px solid #86efac',
-  color: '#166534',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
 }

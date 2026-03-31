@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
@@ -279,12 +278,7 @@ export default function ManagePlayersPage() {
     const filtered = players.filter((player) => {
       if (!normalizedSearch) return true
 
-      const haystack = [
-        player.name,
-        player.location || '',
-      ]
-        .join(' ')
-        .toLowerCase()
+      const haystack = [player.name, player.location || ''].join(' ').toLowerCase()
 
       return haystack.includes(normalizedSearch)
     })
@@ -302,7 +296,19 @@ export default function ManagePlayersPage() {
   }, [players, search, sortBy])
 
   if (authLoading) {
-    return <p style={{ padding: '24px' }}>Checking access...</p>
+    return (
+      <main className="page-shell-tight">
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Tool</div>
+            <h1 className="page-title">Checking access...</h1>
+            <p className="page-subtitle">
+              Verifying administrator permissions and loading player management tools.
+            </p>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   if (!user || user.id !== ADMIN_ID) {
@@ -310,47 +316,53 @@ export default function ManagePlayersPage() {
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-        <Link href="/admin/add-match" style={navLinkStyle}>Add Match</Link>
-        <Link href="/admin/csv-import" style={navLinkStyle}>CSV Import</Link>
-        <Link href="/admin/paste-results" style={navLinkStyle}>Paste Results</Link>
-        <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-        <Link href="/admin/manage-players" style={navLinkStyle}>Manage Players</Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin Tool</div>
+          <h1 className="page-title">Manage Players</h1>
+          <p className="page-subtitle">
+            View, search, edit, and delete players using the singles, doubles, and overall
+            ratings structure.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Manage Players</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          View, search, edit, and delete players using the new singles, doubles, and overall ratings structure.
-        </p>
-      </div>
-
-      <div style={cardStyle}>
-        <div style={toolbarStyle}>
-          <div style={filterGridStyle}>
-            <div>
-              <label style={labelStyle}>Search</label>
+      <section className="surface-card panel-pad section">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'end',
+            gap: '16px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '16px',
+              flex: 1,
+              minWidth: '320px',
+            }}
+          >
+            <Field label="Search">
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Player name or location"
-                style={inputStyle}
+                className="input"
                 disabled={loading || refreshing}
               />
-            </div>
+            </Field>
 
-            <div>
-              <label style={labelStyle}>Sort By</label>
+            <Field label="Sort By">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                style={inputStyle}
+                className="select"
                 disabled={loading || refreshing}
               >
                 <option value="name">Name</option>
@@ -362,14 +374,23 @@ export default function ManagePlayersPage() {
                 <option value="overall_rating">Overall Rating</option>
                 <option value="overall_dynamic_rating">Overall Dynamic</option>
               </select>
-            </div>
+            </Field>
           </div>
 
-          <div style={buttonRowStyle}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
             <button
               onClick={() => loadPlayers(true)}
+              className="button-ghost"
               style={{
-                ...secondaryButtonStyle,
+                background: 'rgba(15,23,42,0.06)',
+                color: '#0f172a',
+                border: '1px solid rgba(15,23,42,0.08)',
                 opacity: refreshing ? 0.7 : 1,
                 cursor: refreshing ? 'not-allowed' : 'pointer',
               }}
@@ -380,8 +401,8 @@ export default function ManagePlayersPage() {
 
             <button
               onClick={handleRecalculateRatings}
+              className="button-primary"
               style={{
-                ...primaryButtonStyle,
                 opacity: recalculating ? 0.7 : 1,
                 cursor: recalculating ? 'not-allowed' : 'pointer',
               }}
@@ -393,116 +414,158 @@ export default function ManagePlayersPage() {
         </div>
 
         {message && (
-          <div style={successBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{message}</p>
+          <div
+            className="badge badge-green"
+            style={{
+              marginTop: '16px',
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+            }}
+          >
+            {message}
           </div>
         )}
 
         {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
+          <div
+            className="badge"
+            style={{
+              marginTop: '16px',
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+              background: 'rgba(220,38,38,0.12)',
+              color: '#991b1b',
+              border: '1px solid rgba(220,38,38,0.18)',
+            }}
+          >
+            {error}
           </div>
         )}
 
-        <div style={summaryGridStyle}>
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Total Players</div>
-            <div style={summaryValueStyle}>{players.length}</div>
-          </div>
-
-          <div style={summaryCardStyle}>
-            <div style={summaryLabelStyle}>Filtered Players</div>
-            <div style={summaryValueStyle}>{filteredPlayers.length}</div>
-          </div>
+        <div className="metric-grid" style={{ marginTop: '20px' }}>
+          <MetricCard label="Total Players" value={players.length} />
+          <MetricCard label="Filtered Players" value={filteredPlayers.length} />
+          <MetricCard
+            label="Editable Rows"
+            value={filteredPlayers.length}
+          />
         </div>
 
         {loading ? (
-          <p style={{ marginTop: '20px' }}>Loading players...</p>
+          <p style={{ marginTop: '20px' }} className="subtle-text">
+            Loading players...
+          </p>
         ) : filteredPlayers.length === 0 ? (
-          <p style={{ marginTop: '20px', color: '#64748b' }}>No players found.</p>
+          <p style={{ marginTop: '20px' }} className="subtle-text">
+            No players found.
+          </p>
         ) : (
-          <div style={{ overflowX: 'auto', marginTop: '20px' }}>
-            <table style={tableStyle}>
+          <div className="table-wrap" style={{ marginTop: '20px' }}>
+            <table className="data-table" style={{ minWidth: 1250 }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Name</th>
-                  <th style={thStyle}>Location</th>
-                  <th style={thStyle}>Singles</th>
-                  <th style={thStyle}>Singles Dynamic</th>
-                  <th style={thStyle}>Doubles</th>
-                  <th style={thStyle}>Doubles Dynamic</th>
-                  <th style={thStyle}>Overall</th>
-                  <th style={thStyle}>Overall Dynamic</th>
-                  <th style={thStyle}>Actions</th>
+                  <th>Name</th>
+                  <th>Location</th>
+                  <th>Singles</th>
+                  <th>Singles Dynamic</th>
+                  <th>Doubles</th>
+                  <th>Doubles Dynamic</th>
+                  <th>Overall</th>
+                  <th>Overall Dynamic</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPlayers.map((player) => (
-                  <tr key={player.id} style={rowStyle}>
-                    <td style={tdStyle}>
+                  <tr key={player.id}>
+                    <td>
                       <input
                         value={String(getPlayerValue(player, 'name') || '')}
                         onChange={(e) => updatePlayerField(player.id, 'name', e.target.value)}
-                        style={tableInputStyle}
+                        className="input"
+                        style={{ minWidth: 180, padding: '10px 12px' }}
                         disabled={savingId === player.id || deletingId === player.id}
                       />
                     </td>
 
-                    <td style={tdStyle}>
+                    <td>
                       <input
                         value={String(getPlayerValue(player, 'location') || '')}
                         onChange={(e) => updatePlayerField(player.id, 'location', e.target.value)}
-                        style={tableInputStyle}
+                        className="input"
+                        style={{ minWidth: 150, padding: '10px 12px' }}
                         disabled={savingId === player.id || deletingId === player.id}
                       />
                     </td>
 
-                    <td style={tdStyle}>
+                    <td>
                       <input
                         type="number"
                         step="0.01"
                         value={String(getPlayerValue(player, 'singles_rating') ?? '')}
-                        onChange={(e) => updatePlayerField(player.id, 'singles_rating', e.target.value)}
-                        style={tableNumberInputStyle}
+                        onChange={(e) =>
+                          updatePlayerField(player.id, 'singles_rating', e.target.value)
+                        }
+                        className="input"
+                        style={{ width: 110, padding: '10px 12px' }}
                         disabled={savingId === player.id || deletingId === player.id}
                       />
                     </td>
 
-                    <td style={tdStyle}>{formatRating(player.singles_dynamic_rating)}</td>
+                    <td>{formatRating(player.singles_dynamic_rating)}</td>
 
-                    <td style={tdStyle}>
+                    <td>
                       <input
                         type="number"
                         step="0.01"
                         value={String(getPlayerValue(player, 'doubles_rating') ?? '')}
-                        onChange={(e) => updatePlayerField(player.id, 'doubles_rating', e.target.value)}
-                        style={tableNumberInputStyle}
+                        onChange={(e) =>
+                          updatePlayerField(player.id, 'doubles_rating', e.target.value)
+                        }
+                        className="input"
+                        style={{ width: 110, padding: '10px 12px' }}
                         disabled={savingId === player.id || deletingId === player.id}
                       />
                     </td>
 
-                    <td style={tdStyle}>{formatRating(player.doubles_dynamic_rating)}</td>
+                    <td>{formatRating(player.doubles_dynamic_rating)}</td>
 
-                    <td style={tdStyle}>
+                    <td>
                       <input
                         type="number"
                         step="0.01"
                         value={String(getPlayerValue(player, 'overall_rating') ?? '')}
-                        onChange={(e) => updatePlayerField(player.id, 'overall_rating', e.target.value)}
-                        style={tableNumberInputStyle}
+                        onChange={(e) =>
+                          updatePlayerField(player.id, 'overall_rating', e.target.value)
+                        }
+                        className="input"
+                        style={{ width: 110, padding: '10px 12px' }}
                         disabled={savingId === player.id || deletingId === player.id}
                       />
                     </td>
 
-                    <td style={tdStyle}>{formatRating(player.overall_dynamic_rating)}</td>
+                    <td>{formatRating(player.overall_dynamic_rating)}</td>
 
-                    <td style={tdStyle}>
-                      <div style={actionRowStyle}>
+                    <td>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '8px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         <button
                           onClick={() => handleSavePlayer(player)}
+                          className="button-secondary"
                           style={{
-                            ...primarySmallButtonStyle,
-                            opacity: savingId === player.id || !isPlayerDirty(player.id) ? 0.7 : 1,
+                            minHeight: 40,
+                            padding: '0 14px',
+                            opacity:
+                              savingId === player.id || !isPlayerDirty(player.id) ? 0.7 : 1,
                             cursor:
                               savingId === player.id || !isPlayerDirty(player.id)
                                 ? 'not-allowed'
@@ -516,7 +579,17 @@ export default function ManagePlayersPage() {
                         <button
                           onClick={() => handleDeletePlayer(player)}
                           style={{
-                            ...dangerButtonStyle,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minHeight: 40,
+                            padding: '0 14px',
+                            border: 'none',
+                            borderRadius: 12,
+                            background: '#dc2626',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
                             opacity: deletingId === player.id ? 0.7 : 1,
                             cursor: deletingId === player.id ? 'not-allowed' : 'pointer',
                           }}
@@ -532,8 +605,32 @@ export default function ManagePlayersPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </main>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value">{value}</div>
+    </div>
   )
 }
 
@@ -549,219 +646,4 @@ function normalizeNullableText(value: string | null | undefined) {
 function formatRating(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—'
   return value.toFixed(3)
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1300px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'end',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-}
-
-const filterGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '16px',
-  flex: 1,
-  minWidth: '320px',
-}
-
-const labelStyle = {
-  display: 'block',
-  marginBottom: '8px',
-  color: '#334155',
-  fontWeight: 600,
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '12px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-}
-
-const buttonRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const primaryButtonStyle = {
-  padding: '14px 18px',
-  border: 'none',
-  borderRadius: '14px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const primarySmallButtonStyle = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#2563eb',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-}
-
-const secondaryButtonStyle = {
-  padding: '14px 18px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  background: 'white',
-  color: '#0f172a',
-  fontWeight: 700,
-  fontSize: '15px',
-}
-
-const dangerButtonStyle = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: '#dc2626',
-  color: 'white',
-  fontWeight: 700,
-  fontSize: '14px',
-}
-
-const successBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#dcfce7',
-  border: '1px solid #86efac',
-  color: '#166534',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const summaryGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-  gap: '12px',
-  marginTop: '20px',
-}
-
-const summaryCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '14px',
-}
-
-const summaryLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const summaryValueStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 700,
-}
-
-const tableStyle = {
-  width: '100%',
-  borderCollapse: 'collapse' as const,
-}
-
-const thStyle = {
-  textAlign: 'left' as const,
-  padding: '12px',
-  borderBottom: '1px solid #cbd5e1',
-  color: '#334155',
-  background: '#f8fafc',
-  whiteSpace: 'nowrap' as const,
-}
-
-const tdStyle = {
-  padding: '12px',
-  borderBottom: '1px solid #e2e8f0',
-  color: '#0f172a',
-  verticalAlign: 'top' as const,
-}
-
-const rowStyle = {
-  background: 'white',
-}
-
-const tableInputStyle = {
-  width: '180px',
-  padding: '10px 12px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '10px',
-  fontSize: '14px',
-  boxSizing: 'border-box' as const,
-}
-
-const tableNumberInputStyle = {
-  width: '110px',
-  padding: '10px 12px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '10px',
-  fontSize: '14px',
-  boxSizing: 'border-box' as const,
-}
-
-const actionRowStyle = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap' as const,
 }
