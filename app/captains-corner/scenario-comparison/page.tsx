@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type ScenarioRow = {
@@ -144,36 +144,53 @@ function slotsToMap(slots: NormalizedSlot[]) {
   return map
 }
 
+function countChangedSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[]) {
+  const leftMap = slotsToMap(leftSlots)
+  const rightMap = slotsToMap(rightSlots)
+
+  const labels = Array.from(new Set([...leftMap.keys(), ...rightMap.keys()]))
+
+  return labels.reduce((count, label) => {
+    const leftPlayers = leftMap.get(label)?.players ?? []
+    const rightPlayers = rightMap.get(label)?.players ?? []
+
+    const leftText = leftPlayers.length ? leftPlayers.join(' / ') : '—'
+    const rightText = rightPlayers.length ? rightPlayers.join(' / ') : '—'
+
+    return leftText !== rightText ? count + 1 : count
+  }, 0)
+}
+
 function ScenarioMeta({ scenario }: { scenario: ScenarioRow }) {
   return (
-    <div style={metaGridStyle}>
-      <div style={metaCardStyle}>
-        <div style={metaLabelStyle}>Scenario</div>
+    <div className="metric-grid" style={metaGridStyle}>
+      <div className="metric-card">
+        <div className="section-kicker">Scenario</div>
         <div style={metaValueStyle}>{scenario.scenario_name || 'Untitled'}</div>
       </div>
 
-      <div style={metaCardStyle}>
-        <div style={metaLabelStyle}>League</div>
+      <div className="metric-card">
+        <div className="section-kicker">League</div>
         <div style={metaValueStyle}>{scenario.league_name || '—'}</div>
       </div>
 
-      <div style={metaCardStyle}>
-        <div style={metaLabelStyle}>Flight</div>
+      <div className="metric-card">
+        <div className="section-kicker">Flight</div>
         <div style={metaValueStyle}>{scenario.flight || '—'}</div>
       </div>
 
-      <div style={metaCardStyle}>
-        <div style={metaLabelStyle}>Match Date</div>
+      <div className="metric-card">
+        <div className="section-kicker">Match Date</div>
         <div style={metaValueStyle}>{formatDate(scenario.match_date)}</div>
       </div>
 
-      <div style={metaCardStyle}>
-        <div style={metaLabelStyle}>Team</div>
+      <div className="metric-card">
+        <div className="section-kicker">Team</div>
         <div style={metaValueStyle}>{scenario.team_name || '—'}</div>
       </div>
 
-      <div style={metaCardStyle}>
-        <div style={metaLabelStyle}>Opponent</div>
+      <div className="metric-card">
+        <div className="section-kicker">Opponent</div>
         <div style={metaValueStyle}>{scenario.opponent_team || '—'}</div>
       </div>
     </div>
@@ -197,20 +214,33 @@ function SlotComparisonTable({
   ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 
   return (
-    <section style={sectionCardStyle}>
-      <h3 style={sectionTitleStyle}>{title}</h3>
+    <section className="surface-card panel-pad">
+      <div style={tableHeaderStyle}>
+        <div>
+          <p className="section-kicker" style={{ marginBottom: 8 }}>
+            Comparison table
+          </p>
+          <h3 className="section-title" style={{ marginBottom: 0 }}>
+            {title}
+          </h3>
+        </div>
+
+        <div className="badge badge-slate">
+          {labels.length} slot{labels.length === 1 ? '' : 's'}
+        </div>
+      </div>
 
       {labels.length === 0 ? (
         <p style={mutedTextStyle}>No saved slots found.</p>
       ) : (
-        <div style={tableWrapStyle}>
-          <table style={tableStyle}>
+        <div className="table-wrap">
+          <table className="data-table">
             <thead>
               <tr>
-                <th style={thStyle}>Slot</th>
-                <th style={thStyle}>Scenario A</th>
-                <th style={thStyle}>Scenario B</th>
-                <th style={thStyle}>Changed</th>
+                <th>Slot</th>
+                <th>Scenario A</th>
+                <th>Scenario B</th>
+                <th>Changed</th>
               </tr>
             </thead>
             <tbody>
@@ -224,20 +254,11 @@ function SlotComparisonTable({
 
                 return (
                   <tr key={label}>
-                    <td style={tdLabelStyle}>{label}</td>
-                    <td style={tdStyle}>{leftText}</td>
-                    <td style={tdStyle}>{rightText}</td>
-                    <td style={tdStyle}>
-                      <span
-                        style={{
-                          ...statusBadgeStyle,
-                          background: changed ? '#fff1ef' : '#edf9f1',
-                          color: changed ? '#b42318' : '#17663a',
-                          border: changed
-                            ? '1px solid #f6c7c1'
-                            : '1px solid #b7e3c6',
-                        }}
-                      >
+                    <td style={tableLabelCellStyle}>{label}</td>
+                    <td>{leftText}</td>
+                    <td>{rightText}</td>
+                    <td>
+                      <span className={changed ? 'badge badge-blue' : 'badge badge-green'}>
                         {changed ? 'Changed' : 'Same'}
                       </span>
                     </td>
@@ -287,8 +308,7 @@ export default function ScenarioComparisonPage() {
 
       const { data, error } = await supabase
         .from('lineup_scenarios')
-        .select(
-          `
+        .select(`
           id,
           scenario_name,
           league_name,
@@ -299,8 +319,7 @@ export default function ScenarioComparisonPage() {
           slots_json,
           opponent_slots_json,
           notes
-        `
-        )
+        `)
         .order('match_date', { ascending: false })
         .order('scenario_name', { ascending: true })
 
@@ -387,480 +406,545 @@ export default function ScenarioComparisonPage() {
   const leftOpponentSlots = normalizeSlots(leftScenario?.opponent_slots_json)
   const rightOpponentSlots = normalizeSlots(rightScenario?.opponent_slots_json)
 
+  const teamChangedCount = useMemo(
+    () => countChangedSlots(leftTeamSlots, rightTeamSlots),
+    [leftTeamSlots, rightTeamSlots]
+  )
+
+  const opponentChangedCount = useMemo(
+    () => countChangedSlots(leftOpponentSlots, rightOpponentSlots),
+    [leftOpponentSlots, rightOpponentSlots]
+  )
+
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>
-          Home
-        </Link>
-        <Link href="/players" style={navLinkStyle}>
-          Players
-        </Link>
-        <Link href="/rankings" style={navLinkStyle}>
-          Rankings
-        </Link>
-        <Link href="/matchup" style={navLinkStyle}>
-          Matchup
-        </Link>
-        <Link href="/leagues" style={navLinkStyle}>
-          Leagues
-        </Link>
-        <Link href="/captains-corner" style={navLinkStyle}>
-          Captain&apos;s Corner
-        </Link>
-        <Link href="/admin" style={navLinkStyle}>
-          Admin
-        </Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div style={heroGridStyle}>
+            <div>
+              <div className="badge badge-blue" style={{ marginBottom: 14 }}>
+                Captain Tools
+              </div>
 
-      <section style={heroCardStyle}>
-        <div style={heroTopRowStyle}>
-          <div>
-            <div style={heroBadgeStyle}>Captain Tools</div>
-            <h1 style={titleStyle}>Scenario Comparison</h1>
-            <p style={subtitleStyle}>
-              Compare saved lineup scenarios side by side to see lineup changes,
-              opponent changes, and saved notes before match day.
-            </p>
+              <p className="section-kicker" style={{ marginBottom: 10 }}>
+                Scenario analysis
+              </p>
+
+              <h1 style={heroTitleStyle}>Scenario Comparison</h1>
+
+              <p style={heroTextStyle}>
+                Compare saved lineup scenarios side by side to spot lineup changes,
+                opponent changes, and note differences before finalizing your
+                match-day plan.
+              </p>
+
+              <div style={heroButtonRowStyle}>
+                <Link href="/captains-corner/lineup-builder" className="button-primary">
+                  Open Lineup Builder
+                </Link>
+                <Link href="/captains-corner" className="button-secondary">
+                  Back to Captain&apos;s Corner
+                </Link>
+              </div>
+
+              <div className="metric-grid" style={heroMetricGridStyle}>
+                <div className="metric-card">
+                  <div className="section-kicker">Filtered scenarios</div>
+                  <div style={metricValueStyle}>
+                    {filteredScenarios.length}
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="section-kicker">Your lineup changes</div>
+                  <div style={metricValueStyle}>
+                    {leftScenario && rightScenario ? teamChangedCount : '—'}
+                  </div>
+                </div>
+
+                <div className="metric-card">
+                  <div className="section-kicker">Opponent changes</div>
+                  <div style={metricValueStyle}>
+                    {leftScenario && rightScenario ? opponentChangedCount : '—'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-card panel-pad">
+              <p className="section-kicker" style={{ marginBottom: 8 }}>
+                Comparison workflow
+              </p>
+              <h2 style={sideHeroTitleStyle}>Filter, select, compare, decide</h2>
+
+              <div style={workflowListStyle}>
+                <div style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>1</div>
+                  <div>
+                    <div style={workflowTitleStyle}>Narrow the scenario set</div>
+                    <div style={workflowTextStyle}>
+                      Filter by league, flight, team, and date to isolate the right saved versions.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>2</div>
+                  <div>
+                    <div style={workflowTitleStyle}>Choose Scenario A and B</div>
+                    <div style={workflowTextStyle}>
+                      Select the two versions you want to evaluate side by side.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>3</div>
+                  <div>
+                    <div style={workflowTitleStyle}>Review lineup changes</div>
+                    <div style={workflowTextStyle}>
+                      See which slots changed and compare the supporting notes behind each version.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-
-          <Link href="/captains-corner" style={secondaryButtonStyle}>
-            Back to Captain&apos;s Corner
-          </Link>
         </div>
       </section>
 
-      <section style={filtersCardStyle}>
-        <div style={filtersGridStyle}>
-          <div>
-            <label style={labelStyle}>League</label>
-            <select
-              value={leagueFilter}
-              onChange={(e) => setLeagueFilter(e.target.value)}
-              style={inputStyle}
+      <section className="section">
+        <div className="surface-card-strong panel-pad">
+          <div style={sectionHeaderStyle}>
+            <div>
+              <p className="section-kicker" style={{ marginBottom: 8 }}>
+                Scenario filters
+              </p>
+              <h2 className="section-title" style={{ marginBottom: 8 }}>
+                Narrow the comparison set
+              </h2>
+              <p style={sectionBodyTextStyle}>
+                Use filters to isolate the saved scenarios that matter for the current match context.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="button-ghost"
+              onClick={() => {
+                setLeagueFilter('')
+                setFlightFilter('')
+                setTeamFilter('')
+                setDateFilter('')
+                setLeftId('')
+                setRightId('')
+              }}
             >
-              <option value="">All</option>
-              {leagueOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+              Clear Filters
+            </button>
           </div>
 
-          <div>
-            <label style={labelStyle}>Flight</label>
-            <select
-              value={flightFilter}
-              onChange={(e) => setFlightFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All</option>
-              {flightOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+          <div style={filtersGridStyle}>
+            <div>
+              <label className="label">League</label>
+              <select
+                value={leagueFilter}
+                onChange={(e) => setLeagueFilter(e.target.value)}
+                className="select"
+              >
+                <option value="">All</option>
+                {leagueOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Flight</label>
+              <select
+                value={flightFilter}
+                onChange={(e) => setFlightFilter(e.target.value)}
+                className="select"
+              >
+                <option value="">All</option>
+                {flightOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Team</label>
+              <select
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className="select"
+              >
+                <option value="">All</option>
+                {teamOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Match Date</label>
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="input"
+              />
+            </div>
           </div>
 
-          <div>
-            <label style={labelStyle}>Team</label>
-            <select
-              value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">All</option>
-              {teamOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+          <div style={filterFooterStyle}>
+            <span className="badge badge-slate">
+              {filteredScenarios.length} saved scenario
+              {filteredScenarios.length === 1 ? '' : 's'}
+            </span>
           </div>
-
-          <div>
-            <label style={labelStyle}>Match Date</label>
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-        </div>
-
-        <div style={filtersFooterStyle}>
-          <span style={mutedTextStyle}>
-            {filteredScenarios.length} saved scenario
-            {filteredScenarios.length === 1 ? '' : 's'}
-          </span>
-
-          <button
-            type="button"
-            style={clearButtonStyle}
-            onClick={() => {
-              setLeagueFilter('')
-              setFlightFilter('')
-              setTeamFilter('')
-              setDateFilter('')
-              setLeftId('')
-              setRightId('')
-            }}
-          >
-            Clear Filters
-          </button>
         </div>
       </section>
 
       {loading ? (
-        <section style={sectionCardStyle}>
-          <p style={mutedTextStyle}>Loading saved scenarios...</p>
+        <section className="section">
+          <div className="surface-card panel-pad">
+            <p style={mutedTextStyle}>Loading saved scenarios...</p>
+          </div>
         </section>
       ) : error ? (
-        <section style={sectionCardStyle}>
-          <p style={errorTextStyle}>Unable to load scenarios: {error}</p>
+        <section className="section">
+          <div className="surface-card panel-pad">
+            <p style={errorTextStyle}>Unable to load scenarios: {error}</p>
+          </div>
         </section>
       ) : filteredScenarios.length === 0 ? (
-        <section style={sectionCardStyle}>
-          <h3 style={sectionTitleStyle}>No saved scenarios found</h3>
-          <p style={mutedTextStyle}>
-            Save lineup scenarios in the Lineup Builder, then come back here to
-            compare them side by side.
-          </p>
+        <section className="section">
+          <div className="surface-card panel-pad">
+            <h3 className="section-title" style={{ marginBottom: 10 }}>
+              No saved scenarios found
+            </h3>
+            <p style={mutedTextStyle}>
+              Save lineup scenarios in the Lineup Builder, then come back here to compare them side by side.
+            </p>
+          </div>
         </section>
       ) : (
         <>
-          <section style={compareGridStyle}>
-            <div style={sectionCardStyle}>
-              <label style={labelStyle}>Scenario A</label>
-              <select
-                value={leftId}
-                onChange={(e) => setLeftId(e.target.value)}
-                style={inputStyle}
-              >
-                {filteredScenarios.map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
-                    {scenario.scenario_name} • {scenario.team_name || '—'} •{' '}
-                    {formatDate(scenario.match_date)}
-                  </option>
-                ))}
-              </select>
-
-              {leftScenario && (
-                <div style={scenarioMetaWrapStyle}>
-                  <ScenarioMeta scenario={leftScenario} />
+          <section className="section">
+            <div style={compareGridStyle}>
+              <div className="surface-card panel-pad">
+                <div style={comparePanelHeaderStyle}>
+                  <div>
+                    <p className="section-kicker" style={{ marginBottom: 8 }}>
+                      Scenario A
+                    </p>
+                    <h2 className="section-title" style={{ marginBottom: 0 }}>
+                      Left-side scenario
+                    </h2>
+                  </div>
+                  <span className="badge badge-blue">Scenario A</span>
                 </div>
-              )}
-            </div>
 
-            <div style={sectionCardStyle}>
-              <label style={labelStyle}>Scenario B</label>
-              <select
-                value={rightId}
-                onChange={(e) => setRightId(e.target.value)}
-                style={inputStyle}
-              >
-                {filteredScenarios.map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
-                    {scenario.scenario_name} • {scenario.team_name || '—'} •{' '}
-                    {formatDate(scenario.match_date)}
-                  </option>
-                ))}
-              </select>
-
-              {rightScenario && (
-                <div style={scenarioMetaWrapStyle}>
-                  <ScenarioMeta scenario={rightScenario} />
+                <div style={{ marginTop: 16 }}>
+                  <label className="label">Select scenario</label>
+                  <select
+                    value={leftId}
+                    onChange={(e) => setLeftId(e.target.value)}
+                    className="select"
+                  >
+                    {filteredScenarios.map((scenario) => (
+                      <option key={scenario.id} value={scenario.id}>
+                        {scenario.scenario_name} • {scenario.team_name || '—'} •{' '}
+                        {formatDate(scenario.match_date)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              )}
+
+                {leftScenario ? (
+                  <div style={{ marginTop: 18 }}>
+                    <ScenarioMeta scenario={leftScenario} />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="surface-card panel-pad">
+                <div style={comparePanelHeaderStyle}>
+                  <div>
+                    <p className="section-kicker" style={{ marginBottom: 8 }}>
+                      Scenario B
+                    </p>
+                    <h2 className="section-title" style={{ marginBottom: 0 }}>
+                      Right-side scenario
+                    </h2>
+                  </div>
+                  <span className="badge badge-green">Scenario B</span>
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <label className="label">Select scenario</label>
+                  <select
+                    value={rightId}
+                    onChange={(e) => setRightId(e.target.value)}
+                    className="select"
+                  >
+                    {filteredScenarios.map((scenario) => (
+                      <option key={scenario.id} value={scenario.id}>
+                        {scenario.scenario_name} • {scenario.team_name || '—'} •{' '}
+                        {formatDate(scenario.match_date)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {rightScenario ? (
+                  <div style={{ marginTop: 18 }}>
+                    <ScenarioMeta scenario={rightScenario} />
+                  </div>
+                ) : null}
+              </div>
             </div>
           </section>
 
-          {leftScenario && rightScenario && (
+          {leftScenario && rightScenario ? (
             <>
-              <SlotComparisonTable
-                title="Your Lineup Comparison"
-                leftSlots={leftTeamSlots}
-                rightSlots={rightTeamSlots}
-              />
+              <section className="section">
+                <SlotComparisonTable
+                  title="Your Lineup Comparison"
+                  leftSlots={leftTeamSlots}
+                  rightSlots={rightTeamSlots}
+                />
+              </section>
 
-              <SlotComparisonTable
-                title="Opponent Lineup Comparison"
-                leftSlots={leftOpponentSlots}
-                rightSlots={rightOpponentSlots}
-              />
+              <section className="section">
+                <SlotComparisonTable
+                  title="Opponent Lineup Comparison"
+                  leftSlots={leftOpponentSlots}
+                  rightSlots={rightOpponentSlots}
+                />
+              </section>
 
-              <section style={notesGridStyle}>
-                <div style={sectionCardStyle}>
-                  <h3 style={sectionTitleStyle}>Scenario A Notes</h3>
-                  <p style={notesTextStyle}>
-                    {leftScenario.notes?.trim() || 'No notes saved.'}
-                  </p>
-                </div>
+              <section className="section">
+                <div style={notesGridStyle}>
+                  <div className="surface-card panel-pad">
+                    <p className="section-kicker" style={{ marginBottom: 8 }}>
+                      Scenario A
+                    </p>
+                    <h3 className="section-title" style={{ marginBottom: 14 }}>
+                      Saved notes
+                    </h3>
+                    <p style={notesTextStyle}>
+                      {leftScenario.notes?.trim() || 'No notes saved.'}
+                    </p>
+                  </div>
 
-                <div style={sectionCardStyle}>
-                  <h3 style={sectionTitleStyle}>Scenario B Notes</h3>
-                  <p style={notesTextStyle}>
-                    {rightScenario.notes?.trim() || 'No notes saved.'}
-                  </p>
+                  <div className="surface-card panel-pad">
+                    <p className="section-kicker" style={{ marginBottom: 8 }}>
+                      Scenario B
+                    </p>
+                    <h3 className="section-title" style={{ marginBottom: 14 }}>
+                      Saved notes
+                    </h3>
+                    <p style={notesTextStyle}>
+                      {rightScenario.notes?.trim() || 'No notes saved.'}
+                    </p>
+                  </div>
                 </div>
               </section>
             </>
-          )}
+          ) : null}
         </>
       )}
     </main>
   )
 }
 
-const mainStyle: React.CSSProperties = {
-  minHeight: '100vh',
-  background:
-    'linear-gradient(180deg, #0f1632 0%, #162044 34%, #f6f8fc 34%, #f6f8fc 100%)',
-  padding: '24px',
+const heroGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+  gap: '24px',
+  alignItems: 'stretch',
 }
 
-const navRowStyle: React.CSSProperties = {
+const heroTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 'clamp(2.15rem, 4vw, 3.1rem)',
+  lineHeight: 1.02,
+  letterSpacing: '-0.03em',
+}
+
+const heroTextStyle: CSSProperties = {
+  marginTop: 16,
+  marginBottom: 0,
+  maxWidth: 820,
+  color: 'rgba(255,255,255,0.78)',
+  fontSize: '1.02rem',
+  lineHeight: 1.72,
+}
+
+const heroButtonRowStyle: CSSProperties = {
   display: 'flex',
-  gap: '12px',
   flexWrap: 'wrap',
-  marginBottom: '20px',
+  gap: 12,
+  marginTop: 22,
 }
 
-const navLinkStyle: React.CSSProperties = {
+const heroMetricGridStyle: CSSProperties = {
+  marginTop: 22,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+}
+
+const metricValueStyle: CSSProperties = {
+  marginTop: 6,
+  fontSize: '1.08rem',
+  fontWeight: 800,
+}
+
+const sideHeroTitleStyle: CSSProperties = {
+  marginTop: 10,
+  marginBottom: 14,
+  fontSize: '1.35rem',
+  lineHeight: 1.14,
+}
+
+const workflowListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+}
+
+const workflowRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  alignItems: 'flex-start',
+  paddingTop: 2,
+}
+
+const workflowNumberStyle: CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 800,
+  fontSize: '.92rem',
+  color: '#0f1632',
+  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
+  flexShrink: 0,
+}
+
+const workflowTitleStyle: CSSProperties = {
+  fontWeight: 700,
   color: '#ffffff',
-  textDecoration: 'none',
-  fontWeight: 600,
-  padding: '10px 14px',
-  borderRadius: '10px',
-  background: 'rgba(255,255,255,0.10)',
-  border: '1px solid rgba(255,255,255,0.14)',
+  marginBottom: 4,
 }
 
-const heroCardStyle: React.CSSProperties = {
-  background: '#ffffff',
-  borderRadius: '22px',
-  padding: '28px',
-  boxShadow: '0 12px 30px rgba(15, 22, 50, 0.10)',
-  marginBottom: '20px',
+const workflowTextStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  lineHeight: 1.55,
+  fontSize: '.95rem',
 }
 
-const heroTopRowStyle: React.CSSProperties = {
+const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
   gap: '16px',
   flexWrap: 'wrap',
+  marginBottom: '16px',
 }
 
-const heroBadgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '6px 12px',
-  borderRadius: '999px',
-  background: '#eef4ff',
-  color: '#255BE3',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-  marginBottom: '14px',
-}
-
-const titleStyle: React.CSSProperties = {
+const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  fontSize: '2.1rem',
-  lineHeight: 1.05,
-  color: '#0f1632',
+  color: 'var(--muted-foreground, #667085)',
+  lineHeight: 1.65,
+  maxWidth: 780,
 }
 
-const subtitleStyle: React.CSSProperties = {
-  marginTop: '12px',
-  marginBottom: 0,
-  maxWidth: '820px',
-  color: '#5c6784',
-  fontSize: '1rem',
-  lineHeight: 1.6,
-}
-
-const secondaryButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: '#f7f9ff',
-  color: '#0f1632',
-  textDecoration: 'none',
-  fontWeight: 700,
-  border: '1px solid #d7def0',
-}
-
-const filtersCardStyle: React.CSSProperties = {
-  background: '#ffffff',
-  borderRadius: '20px',
-  padding: '20px',
-  boxShadow: '0 10px 26px rgba(15, 22, 50, 0.08)',
-  border: '1px solid #ebeff8',
-  marginBottom: '20px',
-}
-
-const filtersGridStyle: React.CSSProperties = {
+const filtersGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: '14px',
 }
 
-const filtersFooterStyle: React.CSSProperties = {
+const filterFooterStyle: CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
+  justifyContent: 'flex-start',
   alignItems: 'center',
   gap: '12px',
   marginTop: '16px',
   flexWrap: 'wrap',
 }
 
-const compareGridStyle: React.CSSProperties = {
+const compareGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
   gap: '20px',
-  marginBottom: '20px',
 }
 
-const notesGridStyle: React.CSSProperties = {
+const comparePanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '12px',
+  flexWrap: 'wrap',
+}
+
+const notesGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
   gap: '20px',
-  marginBottom: '20px',
 }
 
-const sectionCardStyle: React.CSSProperties = {
-  background: '#ffffff',
-  borderRadius: '20px',
-  padding: '20px',
-  boxShadow: '0 10px 26px rgba(15, 22, 50, 0.08)',
-  border: '1px solid #ebeff8',
-  marginBottom: '20px',
-}
-
-const sectionTitleStyle: React.CSSProperties = {
-  margin: '0 0 14px 0',
-  fontSize: '1.1rem',
-  color: '#0f1632',
-}
-
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  marginBottom: '8px',
-  fontSize: '0.95rem',
-  fontWeight: 700,
-  color: '#0f1632',
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12px 14px',
-  borderRadius: '12px',
-  border: '1px solid #d7def0',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontSize: '0.95rem',
-  outline: 'none',
-}
-
-const clearButtonStyle: React.CSSProperties = {
-  padding: '10px 14px',
-  borderRadius: '10px',
-  border: '1px solid #d7def0',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontWeight: 700,
-  cursor: 'pointer',
-}
-
-const scenarioMetaWrapStyle: React.CSSProperties = {
-  marginTop: '16px',
-}
-
-const metaGridStyle: React.CSSProperties = {
-  display: 'grid',
+const metaGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
   gap: '10px',
 }
 
-const metaCardStyle: React.CSSProperties = {
-  background: '#f7f9ff',
-  border: '1px solid #e2e8f7',
-  borderRadius: '14px',
-  padding: '12px',
-}
-
-const metaLabelStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  color: '#6d7897',
-  marginBottom: '6px',
-}
-
-const metaValueStyle: React.CSSProperties = {
-  fontWeight: 700,
+const metaValueStyle: CSSProperties = {
+  marginTop: 6,
+  fontWeight: 800,
   color: '#0f1632',
-  lineHeight: 1.4,
+  lineHeight: 1.45,
 }
 
-const tableWrapStyle: React.CSSProperties = {
-  overflowX: 'auto',
+const tableHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '12px',
+  flexWrap: 'wrap',
+  marginBottom: '14px',
 }
 
-const tableStyle: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  minWidth: '720px',
-}
-
-const thStyle: React.CSSProperties = {
-  textAlign: 'left',
-  padding: '12px',
-  borderBottom: '1px solid #e7ebf5',
-  color: '#5c6784',
-  fontSize: '0.85rem',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-}
-
-const tdStyle: React.CSSProperties = {
-  padding: '14px 12px',
-  borderBottom: '1px solid #eef2fa',
+const tableLabelCellStyle: CSSProperties = {
+  fontWeight: 800,
   color: '#0f1632',
-  verticalAlign: 'top',
 }
 
-const tdLabelStyle: React.CSSProperties = {
-  ...tdStyle,
-  fontWeight: 700,
-}
-
-const statusBadgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  fontSize: '0.8rem',
-  fontWeight: 700,
-}
-
-const notesTextStyle: React.CSSProperties = {
+const notesTextStyle: CSSProperties = {
   margin: 0,
   color: '#0f1632',
-  lineHeight: 1.6,
+  lineHeight: 1.7,
   whiteSpace: 'pre-wrap',
 }
 
-const mutedTextStyle: React.CSSProperties = {
-  color: '#5c6784',
+const mutedTextStyle: CSSProperties = {
+  color: 'var(--muted-foreground, #667085)',
   margin: 0,
+  lineHeight: 1.65,
 }
 
-const errorTextStyle: React.CSSProperties = {
+const errorTextStyle: CSSProperties = {
   color: '#b42318',
   margin: 0,
+  lineHeight: 1.65,
 }

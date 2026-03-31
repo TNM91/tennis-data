@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 
@@ -110,6 +109,14 @@ function formatRating(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—'
   return value.toFixed(2)
 }
+
+const statusOptions: AvailabilityStatus[] = [
+  'available',
+  'unavailable',
+  'singles_only',
+  'doubles_only',
+  'limited',
+]
 
 export default function LineupAvailabilityPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -433,26 +440,28 @@ export default function LineupAvailabilityPage() {
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/leagues" style={navLinkStyle}>Leagues</Link>
-        <Link href="/teams" style={navLinkStyle}>Teams</Link>
-        <Link href="/lineup-projection" style={navLinkStyle}>Lineup Projection</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin Tool</div>
+          <h1 className="page-title">Lineup Availability</h1>
+          <p className="page-subtitle">
+            Set player availability for a team and match date so lineup suggestions can be built
+            from realistic captain inputs.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Lineup Availability</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Set player availability for a team and match date so lineup suggestions can be built from
-          realistic captain inputs.
-        </p>
-      </div>
-            <div style={cardStyle}>
-        <div style={toolbarStyle}>
-          <div style={filterWrapStyle}>
-            <label style={labelStyle}>League / Flight</label>
+      <section className="surface-card panel-pad section">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: 16,
+            marginBottom: 18,
+          }}
+        >
+          <Field label="League / Flight">
             <select
               value={selectedLeagueKey}
               onChange={(e) => {
@@ -462,7 +471,7 @@ export default function LineupAvailabilityPage() {
                 setRoster([])
                 setAvailabilityMap({})
               }}
-              style={inputStyle}
+              className="select"
             >
               <option value="">Select league</option>
               {leagueOptions.map((option) => {
@@ -474,10 +483,9 @@ export default function LineupAvailabilityPage() {
                 )
               })}
             </select>
-          </div>
+          </Field>
 
-          <div style={filterWrapStyle}>
-            <label style={labelStyle}>Team</label>
+          <Field label="Team">
             <select
               value={selectedTeam}
               onChange={(e) => {
@@ -486,7 +494,7 @@ export default function LineupAvailabilityPage() {
                 setRoster([])
                 setAvailabilityMap({})
               }}
-              style={inputStyle}
+              className="select"
               disabled={!selectedLeagueKey}
             >
               <option value="">Select team</option>
@@ -496,14 +504,13 @@ export default function LineupAvailabilityPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          <div style={filterWrapStyle}>
-            <label style={labelStyle}>Match Date</label>
+          <Field label="Match Date">
             <select
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              style={inputStyle}
+              className="select"
               disabled={!selectedTeam}
             >
               <option value="">Select date</option>
@@ -513,36 +520,121 @@ export default function LineupAvailabilityPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
         </div>
 
         {loading ? (
-          <div style={emptyStateStyle}>Loading...</div>
+          <div
+            style={{
+              marginTop: 18,
+              padding: 18,
+              borderRadius: 16,
+              background: '#f8fafc',
+              border: '1px dashed #cbd5e1',
+              color: '#475569',
+            }}
+          >
+            Loading...
+          </div>
         ) : error ? (
-          <div style={errorBoxStyle}>{error}</div>
+          <div
+            className="badge"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+              background: 'rgba(220,38,38,0.12)',
+              color: '#991b1b',
+              border: '1px solid rgba(220,38,38,0.18)',
+            }}
+          >
+            {error}
+          </div>
         ) : !selectedLeagueKey || !selectedTeam ? (
-          <div style={emptyStateStyle}>Choose a league and team to manage availability.</div>
+          <div
+            style={{
+              marginTop: 18,
+              padding: 18,
+              borderRadius: 16,
+              background: '#f8fafc',
+              border: '1px dashed #cbd5e1',
+              color: '#475569',
+            }}
+          >
+            Choose a league and team to manage availability.
+          </div>
         ) : rosterLoading ? (
-          <div style={emptyStateStyle}>Loading roster...</div>
+          <div
+            style={{
+              marginTop: 18,
+              padding: 18,
+              borderRadius: 16,
+              background: '#f8fafc',
+              border: '1px dashed #cbd5e1',
+              color: '#475569',
+            }}
+          >
+            Loading roster...
+          </div>
         ) : roster.length === 0 ? (
-          <div style={emptyStateStyle}>No roster usage found for this team yet.</div>
+          <div
+            style={{
+              marginTop: 18,
+              padding: 18,
+              borderRadius: 16,
+              background: '#f8fafc',
+              border: '1px dashed #cbd5e1',
+              color: '#475569',
+            }}
+          >
+            No roster usage found for this team yet.
+          </div>
         ) : (
           <>
-            <div style={summaryPillRowStyle}>
-              <div style={summaryPillStyle}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                flexWrap: 'wrap',
+                marginBottom: 18,
+              }}
+            >
+              <div className="badge badge-blue" style={{ minHeight: 38 }}>
                 <strong>{selectedTeam}</strong>
               </div>
-              <div style={summaryPillStyle}>
+              <div className="badge badge-slate" style={{ minHeight: 38 }}>
                 <strong>{selectedLeagueLabel}</strong>
               </div>
-              <div style={summaryPillStyle}>
-                Match Date: <strong>{selectedDate ? formatDate(selectedDate) : 'Not selected'}</strong>
+              <div className="badge badge-green" style={{ minHeight: 38 }}>
+                Match Date:&nbsp;
+                <strong>{selectedDate ? formatDate(selectedDate) : 'Not selected'}</strong>
               </div>
             </div>
 
-            {status ? <div style={successBoxStyle}>{status}</div> : null}
+            {status ? (
+              <div
+                className="badge badge-green"
+                style={{
+                  marginBottom: 16,
+                  minHeight: 44,
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  padding: '10px 14px',
+                }}
+              >
+                {status}
+              </div>
+            ) : null}
 
-            <div style={rosterGridStyle}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+                gap: 16,
+              }}
+            >
               {roster.map((player) => {
                 const current = availabilityMap[player.id] || {
                   status: 'available' as AvailabilityStatus,
@@ -550,52 +642,101 @@ export default function LineupAvailabilityPage() {
                 }
 
                 return (
-                  <div key={player.id} style={playerCardStyle}>
-                    <div style={playerTopStyle}>
+                  <div
+                    key={player.id}
+                    className="surface-card"
+                    style={{
+                      padding: 18,
+                      background: '#f8fafc',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        marginBottom: 14,
+                      }}
+                    >
                       <div>
-                        <div style={playerNameStyle}>{player.name}</div>
-                        <div style={playerMetaStyle}>
+                        <div
+                          style={{
+                            color: '#0f172a',
+                            fontSize: 22,
+                            fontWeight: 800,
+                          }}
+                        >
+                          {player.name}
+                        </div>
+                        <div
+                          className="subtle-text"
+                          style={{
+                            marginTop: 6,
+                            fontSize: 14,
+                          }}
+                        >
                           {player.appearances} appearances · Preferred:{' '}
                           <strong>{safeText(player.preferredRole, 'either')}</strong>
                         </div>
                       </div>
 
-                      <div style={ratingChipStyle}>
+                      <div className="badge badge-blue" style={{ whiteSpace: 'nowrap' }}>
                         S {formatRating(player.singlesDynamic)} · D {formatRating(player.doublesDynamic)}
                       </div>
                     </div>
 
-                    <div style={statusGridStyle}>
-                      {(
-                        [
-                          'available',
-                          'unavailable',
-                          'singles_only',
-                          'doubles_only',
-                          'limited',
-                        ] as AvailabilityStatus[]
-                      ).map((statusOption) => (
-                        <button
-                          key={statusOption}
-                          type="button"
-                          onClick={() => updatePlayerStatus(player.id, statusOption)}
-                          style={{
-                            ...statusButtonStyle,
-                            ...(current.status === statusOption ? activeStatusButtonStyle : {}),
-                          }}
-                        >
-                          {statusOption}
-                        </button>
-                      ))}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                        gap: 10,
+                      }}
+                    >
+                      {statusOptions.map((statusOption) => {
+                        const active = current.status === statusOption
+                        return (
+                          <button
+                            key={statusOption}
+                            type="button"
+                            onClick={() => updatePlayerStatus(player.id, statusOption)}
+                            style={{
+                              border: active
+                                ? '1px solid #2563eb'
+                                : '1px solid #cbd5e1',
+                              background: active ? '#2563eb' : '#ffffff',
+                              color: active ? '#ffffff' : '#334155',
+                              padding: '10px 12px',
+                              borderRadius: 12,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              textTransform: 'none',
+                            }}
+                          >
+                            {statusOption}
+                          </button>
+                        )
+                      })}
                     </div>
 
-                    <div style={notesWrapStyle}>
-                      <label style={notesLabelStyle}>Notes</label>
+                    <div style={{ marginTop: 14 }}>
+                      <label
+                        style={{
+                          display: 'block',
+                          color: '#334155',
+                          fontWeight: 700,
+                          fontSize: 13,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Notes
+                      </label>
                       <textarea
                         value={current.notes}
                         onChange={(e) => updatePlayerNotes(player.id, e.target.value)}
                         placeholder="Optional notes like late arrival, can only play doubles, etc."
-                        style={textareaStyle}
+                        className="textarea"
+                        style={{ minHeight: 88, fontSize: 14 }}
                       />
                     </div>
                   </div>
@@ -603,14 +744,21 @@ export default function LineupAvailabilityPage() {
               })}
             </div>
 
-            <div style={saveRowStyle}>
+            <div
+              style={{
+                marginTop: 22,
+                display: 'flex',
+                justifyContent: 'flex-start',
+              }}
+            >
               <button
                 type="button"
                 onClick={saveAvailability}
                 disabled={saving || !selectedDate}
+                className="button-primary"
                 style={{
-                  ...saveButtonStyle,
-                  ...((saving || !selectedDate) ? disabledButtonStyle : {}),
+                  opacity: saving || !selectedDate ? 0.7 : 1,
+                  cursor: saving || !selectedDate ? 'not-allowed' : 'pointer',
                 }}
               >
                 {saving ? 'Saving...' : 'Save Availability'}
@@ -618,237 +766,22 @@ export default function LineupAvailabilityPage() {
             </div>
           </>
         )}
-      </div>
+      </section>
     </main>
   )
 }
 
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-  marginBottom: '18px',
-}
-
-const filterWrapStyle = {
-  minWidth: '240px',
-  flex: 1,
-}
-
-const labelStyle = {
-  display: 'block',
-  fontWeight: 700,
-  color: '#0f172a',
-  marginBottom: '8px',
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
-}
-
-const summaryPillRowStyle = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap' as const,
-  marginBottom: '18px',
-}
-
-const summaryPillStyle = {
-  padding: '10px 14px',
-  borderRadius: '999px',
-  background: '#eff6ff',
-  border: '1px solid #dbeafe',
-  color: '#1e3a8a',
-  fontWeight: 700,
-}
-
-const rosterGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-  gap: '16px',
-}
-
-const playerCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const playerTopStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '14px',
-}
-
-const playerNameStyle = {
-  color: '#0f172a',
-  fontSize: '22px',
-  fontWeight: 800,
-}
-
-const playerMetaStyle = {
-  color: '#64748b',
-  marginTop: '6px',
-  fontSize: '14px',
-}
-
-const ratingChipStyle = {
-  padding: '8px 10px',
-  borderRadius: '999px',
-  background: '#eff6ff',
-  border: '1px solid #bfdbfe',
-  color: '#1d4ed8',
-  fontWeight: 700,
-  fontSize: '12px',
-  whiteSpace: 'nowrap' as const,
-}
-
-const statusGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '10px',
-}
-
-const statusButtonStyle = {
-  border: '1px solid #cbd5e1',
-  background: '#ffffff',
-  color: '#334155',
-  padding: '10px 12px',
-  borderRadius: '12px',
-  fontWeight: 700,
-  cursor: 'pointer',
-  textTransform: 'none' as const,
-}
-
-const activeStatusButtonStyle = {
-  background: '#2563eb',
-  color: '#ffffff',
-  border: '1px solid #2563eb',
-}
-
-const notesWrapStyle = {
-  marginTop: '14px',
-}
-
-const notesLabelStyle = {
-  display: 'block',
-  color: '#334155',
-  fontWeight: 700,
-  fontSize: '13px',
-  marginBottom: '8px',
-}
-
-const textareaStyle = {
-  width: '100%',
-  minHeight: '88px',
-  padding: '12px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '12px',
-  fontSize: '14px',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box' as const,
-  resize: 'vertical' as const,
-}
-
-const saveRowStyle = {
-  marginTop: '22px',
-  display: 'flex',
-  justifyContent: 'flex-start',
-}
-
-const saveButtonStyle = {
-  border: '1px solid #2563eb',
-  background: '#2563eb',
-  color: '#ffffff',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  cursor: 'pointer',
-}
-
-const disabledButtonStyle = {
-  opacity: 0.7,
-  cursor: 'not-allowed',
-}
-
-const successBoxStyle = {
-  marginBottom: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#dcfce7',
-  border: '1px solid #bbf7d0',
-  color: '#166534',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const emptyStateStyle = {
-  marginTop: '18px',
-  padding: '18px',
-  borderRadius: '16px',
-  background: '#f8fafc',
-  border: '1px dashed #cbd5e1',
-  color: '#475569',
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {children}
+    </div>
+  )
 }

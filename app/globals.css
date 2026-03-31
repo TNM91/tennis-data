@@ -149,6 +149,29 @@ main {
   padding: 24px 0 56px;
 }
 
+/* Admin layout */
+.admin-shell {
+  width: min(1400px, calc(100% - 24px));
+  margin-inline: auto;
+  padding: 24px 0 56px;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 96px;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.admin-main {
+  min-width: 0;
+}
+
 .section {
   margin-top: 28px;
 }
@@ -180,12 +203,6 @@ main {
   padding: 32px;
 }
 
-@media (min-width: 768px) {
-  .hero-inner {
-    padding: 44px;
-  }
-}
-
 .glass-card {
   border-radius: var(--radius-lg);
   border: 1px solid var(--card-border);
@@ -213,12 +230,6 @@ main {
 
 .panel-pad {
   padding: 20px;
-}
-
-@media (min-width: 768px) {
-  .panel-pad {
-    padding: 28px;
-  }
 }
 
 .section-title {
@@ -289,12 +300,6 @@ main {
 .metric-grid {
   display: grid;
   gap: 16px;
-}
-
-@media (min-width: 768px) {
-  .metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 .metric-card {
@@ -487,20 +492,6 @@ main {
   gap: 18px;
 }
 
-@media (min-width: 768px) {
-  .card-grid.two {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .card-grid.three {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .card-grid.four {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
 .top-nav {
   position: sticky;
   top: 0;
@@ -568,6 +559,43 @@ hr {
   border: 0;
   border-top: 1px solid rgba(15, 23, 42, 0.08);
   margin: 0;
+}
+
+@media (min-width: 768px) {
+  .hero-inner {
+    padding: 44px;
+  }
+
+  .panel-pad {
+    padding: 28px;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card-grid.two {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card-grid.four {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    position: static;
+    top: auto;
+  }
 }
 
 @media (max-width: 767px) {

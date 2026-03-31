@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type PlayerRow = {
@@ -143,32 +143,32 @@ function statusTone(status: string | null | undefined) {
 
   if (normalized === 'available' || normalized === 'yes' || normalized === 'in') {
     return {
-      background: '#edf9f1',
-      color: '#17663a',
-      border: '1px solid #b7e3c6',
+      background: 'rgba(112, 255, 165, 0.12)',
+      color: '#0f8f52',
+      border: '1px solid rgba(112, 255, 165, 0.28)',
     }
   }
 
   if (normalized === 'maybe') {
     return {
-      background: '#fff7e8',
+      background: 'rgba(255, 214, 102, 0.14)',
       color: '#9a6700',
-      border: '1px solid #f1d38b',
+      border: '1px solid rgba(255, 214, 102, 0.34)',
     }
   }
 
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') {
     return {
-      background: '#fff1ef',
-      color: '#b42318',
-      border: '1px solid #f6c7c1',
+      background: 'rgba(255, 93, 93, 0.10)',
+      color: '#c43f3f',
+      border: '1px solid rgba(255, 93, 93, 0.24)',
     }
   }
 
   return {
-    background: '#f4f6fb',
-    color: '#5c6784',
-    border: '1px solid #dde3f1',
+    background: 'rgba(37, 91, 227, 0.08)',
+    color: '#4c67a7',
+    border: '1px solid rgba(37, 91, 227, 0.14)',
   }
 }
 
@@ -738,13 +738,9 @@ export default function LineupBuilderPage() {
     const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json)
     const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
 
-    setTeamSlots(
-      loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS)
-    )
+    setTeamSlots(loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS))
     setOpponentSlots(
-      loadedOpponentSlots.length
-        ? loadedOpponentSlots
-        : cloneSlots(DEFAULT_OPPONENT_SLOTS)
+      loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS)
     )
 
     setLoadingScenarioId('')
@@ -773,464 +769,550 @@ export default function LineupBuilderPage() {
   }, [leagueName, flight, teamName, matchDate, currentScenarioId])
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>
-          Home
-        </Link>
-        <Link href="/rankings" style={navLinkStyle}>
-          Rankings
-        </Link>
-        <Link href="/leagues" style={navLinkStyle}>
-          Leagues
-        </Link>
-        <Link href="/captains-corner" style={navLinkStyle}>
-          Captain&apos;s Corner
-        </Link>
-        <Link href="/captains-corner/lineup-availability" style={navLinkStyle}>
-          Availability
-        </Link>
-        <Link href="/captains-corner/scenario-comparison" style={navLinkStyle}>
-          Scenario Comparison
-        </Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div style={heroGridStyle}>
+            <div>
+              <div className="badge badge-blue" style={{ marginBottom: 14 }}>
+                Captain Tools
+              </div>
+              <p className="section-kicker" style={{ marginBottom: 10 }}>
+                Match-day strategy workspace
+              </p>
+              <h1 style={heroTitleStyle}>Lineup Builder</h1>
+              <p style={heroTextStyle}>
+                Build match-day lineups, work from availability-aware player pools, save
+                multiple scenarios, compare versions, and keep your captain prep organized.
+              </p>
 
-      <section style={heroCardStyle}>
-        <div style={heroTopRowStyle}>
-          <div>
-            <div style={heroBadgeStyle}>Captain Tools</div>
-            <h1 style={titleStyle}>Lineup Builder</h1>
-            <p style={subtitleStyle}>
-              Build match-day lineups, use availability-aware player pools, save
-              scenarios, compare versions, and clean up older plans when they are no longer needed.
-            </p>
-          </div>
+              <div style={heroButtonRowStyle}>
+                <Link href={compareHref} className="button-primary">
+                  Compare Saved Scenarios
+                </Link>
+                <button type="button" className="button-secondary" onClick={resetBuilder}>
+                  Reset Builder
+                </button>
+              </div>
 
-          <div style={heroActionsStyle}>
-            <Link href={compareHref} style={secondaryButtonStyle}>
-              Compare Saved Scenarios
-            </Link>
-            <button type="button" style={ghostButtonStyle} onClick={resetBuilder}>
-              Reset Builder
-            </button>
+              <div className="metric-grid" style={heroMetricGridStyle}>
+                <div className="metric-card">
+                  <div className="section-kicker">Scenario Mode</div>
+                  <div style={metricValueStyle}>
+                    {currentScenarioId ? 'Editing saved scenario' : 'New scenario'}
+                  </div>
+                </div>
+                <div className="metric-card">
+                  <div className="section-kicker">Player Pool</div>
+                  <div style={metricValueStyle}>
+                    {availablePlayerPool.length} available option
+                    {availablePlayerPool.length === 1 ? '' : 's'}
+                  </div>
+                </div>
+                <div className="metric-card">
+                  <div className="section-kicker">Saved Versions</div>
+                  <div style={metricValueStyle}>
+                    {scenarioOptions.length} scenario
+                    {scenarioOptions.length === 1 ? '' : 's'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="glass-card panel-pad">
+              <p className="section-kicker" style={{ marginBottom: 8 }}>
+                Builder workflow
+              </p>
+              <h2 style={sideHeroTitleStyle}>Set the match context, build, save, compare</h2>
+
+              <div style={workflowListStyle}>
+                <div style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>1</div>
+                  <div>
+                    <div style={workflowTitleStyle}>Define the match context</div>
+                    <div style={workflowTextStyle}>
+                      League, flight, team, opponent, and match date drive your scenario setup.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>2</div>
+                  <div>
+                    <div style={workflowTitleStyle}>Build both sides</div>
+                    <div style={workflowTextStyle}>
+                      Create your lineup and capture the likely opponent projection in one place.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>3</div>
+                  <div>
+                    <div style={workflowTitleStyle}>Save and compare</div>
+                    <div style={workflowTextStyle}>
+                      Keep multiple versions and open scenario comparison when decisions get tight.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section style={sectionGridStyle}>
-        <div style={leftColumnStyle}>
-          <section style={cardStyle}>
-            <div style={cardHeaderRowStyle}>
-              <div>
-                <h2 style={sectionTitleStyle}>Scenario Setup</h2>
-                <p style={sectionSubtitleStyle}>
-                  Save a new version or update the scenario you currently have loaded.
+      <section className="section">
+        <div style={builderLayoutStyle}>
+          <div style={columnStyle}>
+            <section className="surface-card-strong panel-pad">
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p className="section-kicker" style={{ marginBottom: 8 }}>
+                    Scenario setup
+                  </p>
+                  <h2 className="section-title" style={{ marginBottom: 8 }}>
+                    Match and scenario details
+                  </h2>
+                  <p style={sectionBodyTextStyle}>
+                    Save a new version or update the scenario currently loaded into the builder.
+                  </p>
+                </div>
+              </div>
+
+              {currentScenario ? (
+                <div style={bannerBlueStyle}>
+                  <div style={bannerTitleStyle}>
+                    Editing saved scenario: {currentScenario.scenario_name}
+                  </div>
+                  <div style={bannerMetaStyle}>
+                    {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
+                    {currentScenario.match_date ? ` • ${formatDate(currentScenario.match_date)}` : ''}
+                  </div>
+                </div>
+              ) : (
+                <div style={bannerSlateStyle}>Creating a new scenario</div>
+              )}
+
+              <div style={formGridStyle}>
+                <div>
+                  <label className="label">Scenario Name</label>
+                  <input
+                    value={scenarioName}
+                    onChange={(e) => setScenarioName(e.target.value)}
+                    placeholder="Example: Safer Doubles Version"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="label">Match Date</label>
+                  <input
+                    type="date"
+                    value={matchDate}
+                    onChange={(e) => setMatchDate(e.target.value)}
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="label">League</label>
+                  <input
+                    list="league-options"
+                    value={leagueName}
+                    onChange={(e) => setLeagueName(e.target.value)}
+                    placeholder="League name"
+                    className="input"
+                  />
+                  <datalist id="league-options">
+                    {leagueOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="label">Flight</label>
+                  <input
+                    list="flight-options"
+                    value={flight}
+                    onChange={(e) => setFlight(e.target.value)}
+                    placeholder="Flight"
+                    className="input"
+                  />
+                  <datalist id="flight-options">
+                    {flightOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="label">Team Name</label>
+                  <input
+                    list="team-options"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="Your team"
+                    className="input"
+                  />
+                  <datalist id="team-options">
+                    {teamOptions.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="label">Opponent Team</label>
+                  <input
+                    value={opponentTeam}
+                    onChange={(e) => setOpponentTeam(e.target.value)}
+                    placeholder="Opponent team"
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 18 }}>
+                <label className="label">Captain Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Matchups, player preferences, injury notes, weather backups, etc."
+                  className="textarea"
+                  style={{ minHeight: 118 }}
+                />
+              </div>
+
+              <div style={toggleGridStyle}>
+                <label style={toggleCardStyle}>
+                  <div>
+                    <div style={toggleTitleStyle}>Availability-filtered pool</div>
+                    <div style={toggleTextStyle}>
+                      Use lineup availability records when they exist for the selected match context.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={availabilityOnly}
+                    onChange={(e) => setAvailabilityOnly(e.target.checked)}
+                  />
+                </label>
+
+                <label style={toggleCardStyle}>
+                  <div>
+                    <div style={toggleTitleStyle}>Hide unavailable players</div>
+                    <div style={toggleTextStyle}>
+                      Remove players marked out or unavailable from your selection list.
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={hideUnavailable}
+                    onChange={(e) => setHideUnavailable(e.target.checked)}
+                  />
+                </label>
+              </div>
+
+              <div style={actionRowStyle}>
+                <button
+                  type="button"
+                  onClick={() => saveScenario(false)}
+                  className="button-primary"
+                  disabled={saving}
+                >
+                  {saving
+                    ? 'Saving...'
+                    : currentScenarioId
+                      ? 'Update Scenario'
+                      : 'Save Scenario'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => saveScenario(true)}
+                  className="button-secondary"
+                  disabled={saving}
+                >
+                  Save as New
+                </button>
+
+                <Link href={compareHref} className="button-ghost">
+                  Open Comparison
+                </Link>
+              </div>
+
+              {currentScenarioId ? (
+                <p style={infoTextStyle}>
+                  Loaded scenario is ready for update and comparison.
                 </p>
-              </div>
-            </div>
+              ) : null}
 
-            {currentScenario ? (
-              <div style={loadedScenarioBannerStyle}>
-                <div style={loadedScenarioTitleStyle}>
-                  Editing saved scenario: {currentScenario.scenario_name}
+              {message ? <p style={successTextStyle}>{message}</p> : null}
+              {error ? <p style={errorTextStyle}>{error}</p> : null}
+            </section>
+
+            <section className="surface-card panel-pad">
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p className="section-kicker" style={{ marginBottom: 8 }}>
+                    Your lineup
+                  </p>
+                  <h2 className="section-title" style={{ marginBottom: 8 }}>
+                    Build your side
+                  </h2>
+                  <p style={sectionBodyTextStyle}>
+                    Create singles and doubles slots for your expected match-day lineup.
+                  </p>
                 </div>
-                <div style={loadedScenarioMetaStyle}>
-                  {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
-                  {currentScenario.match_date ? ` • ${formatDate(currentScenario.match_date)}` : ''}
+
+                <div style={miniActionRowStyle}>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => addSlot('team', 'singles')}
+                  >
+                    + Singles Slot
+                  </button>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => addSlot('team', 'doubles')}
+                  >
+                    + Doubles Slot
+                  </button>
                 </div>
               </div>
-            ) : (
-              <div style={newScenarioBannerStyle}>Creating a new scenario</div>
-            )}
 
-            <div style={formGridStyle}>
-              <div>
-                <label style={labelStyle}>Scenario Name</label>
-                <input
-                  value={scenarioName}
-                  onChange={(e) => setScenarioName(e.target.value)}
-                  placeholder="Example: Safer Doubles Version"
-                  style={inputStyle}
-                />
+              <div style={slotListStyle}>
+                {teamSlots.map((slot) => (
+                  <SlotEditor
+                    key={slot.id}
+                    slot={slot}
+                    side="team"
+                    playerPool={availablePlayerPool}
+                    assignedPlayerIds={assignedPlayerIds}
+                    setSlotLabel={setSlotLabel}
+                    setSlotPlayer={setSlotPlayer}
+                    removeSlot={removeSlot}
+                    playerLabel={playerLabel}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section className="surface-card panel-pad">
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p className="section-kicker" style={{ marginBottom: 8 }}>
+                    Opponent projection
+                  </p>
+                  <h2 className="section-title" style={{ marginBottom: 8 }}>
+                    Model the other side
+                  </h2>
+                  <p style={sectionBodyTextStyle}>
+                    Capture your expected opponent lineup or your best working guess.
+                  </p>
+                </div>
+
+                <div style={miniActionRowStyle}>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => addSlot('opponent', 'singles')}
+                  >
+                    + Singles Slot
+                  </button>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={() => addSlot('opponent', 'doubles')}
+                  >
+                    + Doubles Slot
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label style={labelStyle}>Match Date</label>
-                <input
-                  type="date"
-                  value={matchDate}
-                  onChange={(e) => setMatchDate(e.target.value)}
-                  style={inputStyle}
-                />
+              <div style={slotListStyle}>
+                {opponentSlots.map((slot) => (
+                  <SlotEditor
+                    key={slot.id}
+                    slot={slot}
+                    side="opponent"
+                    playerPool={availablePlayerPool}
+                    assignedPlayerIds={assignedPlayerIds}
+                    setSlotLabel={setSlotLabel}
+                    setSlotPlayer={setSlotPlayer}
+                    removeSlot={removeSlot}
+                    playerLabel={playerLabel}
+                  />
+                ))}
               </div>
+            </section>
+          </div>
 
-              <div>
-                <label style={labelStyle}>League</label>
-                <input
-                  list="league-options"
-                  value={leagueName}
-                  onChange={(e) => setLeagueName(e.target.value)}
-                  placeholder="League name"
-                  style={inputStyle}
-                />
-                <datalist id="league-options">
-                  {leagueOptions.map((option) => (
-                    <option key={option} value={option} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Flight</label>
-                <input
-                  list="flight-options"
-                  value={flight}
-                  onChange={(e) => setFlight(e.target.value)}
-                  placeholder="Flight"
-                  style={inputStyle}
-                />
-                <datalist id="flight-options">
-                  {flightOptions.map((option) => (
-                    <option key={option} value={option} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Team Name</label>
-                <input
-                  list="team-options"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="Your team"
-                  style={inputStyle}
-                />
-                <datalist id="team-options">
-                  {teamOptions.map((option) => (
-                    <option key={option} value={option} />
-                  ))}
-                </datalist>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Opponent Team</label>
-                <input
-                  value={opponentTeam}
-                  onChange={(e) => setOpponentTeam(e.target.value)}
-                  placeholder="Opponent team"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            <div style={textAreaWrapStyle}>
-              <label style={labelStyle}>Captain Notes</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Matchups, player preferences, injury notes, weather backups, etc."
-                style={textAreaStyle}
-              />
-            </div>
-
-            <div style={toggleRowStyle}>
-              <label style={checkboxLabelStyle}>
-                <input
-                  type="checkbox"
-                  checked={availabilityOnly}
-                  onChange={(e) => setAvailabilityOnly(e.target.checked)}
-                />
-                <span>Use availability-filtered player pool when available</span>
-              </label>
-
-              <label style={checkboxLabelStyle}>
-                <input
-                  type="checkbox"
-                  checked={hideUnavailable}
-                  onChange={(e) => setHideUnavailable(e.target.checked)}
-                />
-                <span>Hide unavailable players</span>
-              </label>
-            </div>
-
-            <div style={actionRowStyle}>
-              <button
-                type="button"
-                onClick={() => saveScenario(false)}
-                style={primaryButtonStyle}
-                disabled={saving}
-              >
-                {saving
-                  ? 'Saving...'
-                  : currentScenarioId
-                    ? 'Update Scenario'
-                    : 'Save Scenario'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => saveScenario(true)}
-                style={secondaryActionButtonStyle}
-                disabled={saving}
-              >
-                Save as New
-              </button>
-
-              <Link href={compareHref} style={secondaryButtonStyle}>
-                Open Comparison
-              </Link>
-            </div>
-
-            {currentScenarioId ? (
-              <p style={activeScenarioTextStyle}>
-                Loaded scenario is ready for update and comparison.
+          <div style={columnStyle}>
+            <section className="surface-card panel-pad">
+              <p className="section-kicker" style={{ marginBottom: 8 }}>
+                Player pool
               </p>
-            ) : null}
+              <h2 className="section-title" style={{ marginBottom: 8 }}>
+                Availability-aware player options
+              </h2>
+              <p style={sectionBodyTextStyle}>
+                Sorted by availability first, then rating, so you can see the most realistic
+                options for the current scenario.
+              </p>
 
-            {message ? <p style={successTextStyle}>{message}</p> : null}
-            {error ? <p style={errorTextStyle}>{error}</p> : null}
-          </section>
-
-          <section style={cardStyle}>
-            <div style={cardHeaderRowStyle}>
-              <div>
-                <h2 style={sectionTitleStyle}>Your Lineup</h2>
-                <p style={sectionSubtitleStyle}>
-                  Build your planned lineup with singles and doubles slots.
-                </p>
+              <div style={pillRowStyle}>
+                <div className="badge badge-slate">
+                  {availablePlayerPool.length} player
+                  {availablePlayerPool.length === 1 ? '' : 's'}
+                </div>
+                <div className="badge badge-blue">
+                  {availabilityForSelection.length} availability row
+                  {availabilityForSelection.length === 1 ? '' : 's'}
+                </div>
               </div>
 
-              <div style={miniActionRowStyle}>
-                <button
-                  type="button"
-                  style={smallButtonStyle}
-                  onClick={() => addSlot('team', 'singles')}
-                >
-                  + Singles Slot
-                </button>
-                <button
-                  type="button"
-                  style={smallButtonStyle}
-                  onClick={() => addSlot('team', 'doubles')}
-                >
-                  + Doubles Slot
-                </button>
+              <div style={stackStyle}>
+                {loading ? (
+                  <p style={mutedTextStyle}>Loading players...</p>
+                ) : availablePlayerPool.length === 0 ? (
+                  <p style={mutedTextStyle}>
+                    No players match the current filters. Try clearing a filter or disabling
+                    availability-only mode.
+                  </p>
+                ) : (
+                  availablePlayerPool.map((player) => {
+                    const tone = statusTone(player.availabilityStatus)
+                    const assigned = assignedPlayerIds.has(player.id)
+
+                    return (
+                      <article key={player.id} style={poolCardStyle}>
+                        <div style={poolCardTopStyle}>
+                          <div>
+                            <div style={playerNameStyle}>{player.name}</div>
+                            <div style={playerMetaStyle}>
+                              {player.preferred_role || 'No role set'}
+                              {player.location ? ` • ${player.location}` : ''}
+                              {player.flight ? ` • ${player.flight}` : ''}
+                            </div>
+                          </div>
+
+                          <span style={{ ...statusBadgeStyle, ...tone }}>
+                            {player.availabilityStatus || 'Unknown'}
+                          </span>
+                        </div>
+
+                        <div style={pillRowStyle}>
+                          <span className="badge badge-slate">
+                            OVR{' '}
+                            {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ??
+                              '—'}
+                          </span>
+                          <span className="badge badge-slate">
+                            S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}
+                          </span>
+                          <span className="badge badge-slate">
+                            D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}
+                          </span>
+                          {assigned ? <span className="badge badge-green">Assigned</span> : null}
+                        </div>
+
+                        {player.lineup_notes ? (
+                          <p style={cardNoteTextStyle}>{player.lineup_notes}</p>
+                        ) : null}
+
+                        {player.availabilityNotes ? (
+                          <p style={subtleNoteTextStyle}>
+                            Availability note: {player.availabilityNotes}
+                          </p>
+                        ) : null}
+                      </article>
+                    )
+                  })
+                )}
               </div>
-            </div>
+            </section>
 
-            <div style={slotListStyle}>
-              {teamSlots.map((slot) => (
-                <SlotEditor
-                  key={slot.id}
-                  slot={slot}
-                  side="team"
-                  playerPool={availablePlayerPool}
-                  assignedPlayerIds={assignedPlayerIds}
-                  setSlotLabel={setSlotLabel}
-                  setSlotPlayer={setSlotPlayer}
-                  removeSlot={removeSlot}
-                  playerLabel={playerLabel}
-                />
-              ))}
-            </div>
-          </section>
+            <section className="surface-card panel-pad">
+              <p className="section-kicker" style={{ marginBottom: 8 }}>
+                Saved scenarios
+              </p>
+              <h2 className="section-title" style={{ marginBottom: 8 }}>
+                Reload or clean up prior versions
+              </h2>
+              <p style={sectionBodyTextStyle}>
+                Load a saved scenario into the builder, then tweak, compare, resave, or delete it.
+              </p>
 
-          <section style={cardStyle}>
-            <div style={cardHeaderRowStyle}>
-              <div>
-                <h2 style={sectionTitleStyle}>Opponent Projection</h2>
-                <p style={sectionSubtitleStyle}>
-                  Capture your expected opponent lineup or best guess.
-                </p>
-              </div>
+              <div style={stackStyle}>
+                {scenarioOptions.length === 0 ? (
+                  <p style={mutedTextStyle}>No saved scenarios for the current filters.</p>
+                ) : (
+                  scenarioOptions.map((scenario) => {
+                    const isCurrent = scenario.id === currentScenarioId
+                    const isDeleting = deletingScenarioId === scenario.id
+                    const isLoading = loadingScenarioId === scenario.id
 
-              <div style={miniActionRowStyle}>
-                <button
-                  type="button"
-                  style={smallButtonStyle}
-                  onClick={() => addSlot('opponent', 'singles')}
-                >
-                  + Singles Slot
-                </button>
-                <button
-                  type="button"
-                  style={smallButtonStyle}
-                  onClick={() => addSlot('opponent', 'doubles')}
-                >
-                  + Doubles Slot
-                </button>
-              </div>
-            </div>
+                    return (
+                      <article
+                        key={scenario.id}
+                        style={{
+                          ...savedScenarioCardStyle,
+                          ...(isCurrent ? savedScenarioCardActiveStyle : null),
+                        }}
+                      >
+                        <div style={savedScenarioTopStyle}>
+                          <div>
+                            <div style={savedScenarioTitleStyle}>{scenario.scenario_name}</div>
+                            <div style={savedScenarioMetaStyle}>
+                              {scenario.team_name || '—'} vs {scenario.opponent_team || '—'}
+                            </div>
+                            <div style={savedScenarioMetaStyle}>
+                              {scenario.league_name || '—'}
+                              {scenario.flight ? ` • ${scenario.flight}` : ''}
+                              {scenario.match_date ? ` • ${formatDate(scenario.match_date)}` : ''}
+                            </div>
+                            {isCurrent ? (
+                              <div style={{ marginTop: 8 }}>
+                                <span className="badge badge-blue">Currently loaded</span>
+                              </div>
+                            ) : null}
+                          </div>
 
-            <div style={slotListStyle}>
-              {opponentSlots.map((slot) => (
-                <SlotEditor
-                  key={slot.id}
-                  slot={slot}
-                  side="opponent"
-                  playerPool={availablePlayerPool}
-                  assignedPlayerIds={assignedPlayerIds}
-                  setSlotLabel={setSlotLabel}
-                  setSlotPlayer={setSlotPlayer}
-                  removeSlot={removeSlot}
-                  playerLabel={playerLabel}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
+                          <div style={savedScenarioActionsStyle}>
+                            <button
+                              type="button"
+                              className="button-secondary"
+                              onClick={() => loadScenario(scenario.id)}
+                              disabled={isLoading || isDeleting}
+                            >
+                              {isLoading ? 'Loading...' : 'Load'}
+                            </button>
 
-        <div style={rightColumnStyle}>
-          <section style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Player Pool</h2>
-            <p style={sectionSubtitleStyle}>
-              Sorted by availability first, then rating. Use this to quickly see
-              likely options for the current scenario.
-            </p>
-
-            <div style={summaryPillsRowStyle}>
-              <div style={summaryPillStyle}>
-                {availablePlayerPool.length} player
-                {availablePlayerPool.length === 1 ? '' : 's'}
-              </div>
-              <div style={summaryPillStyle}>
-                {availabilityForSelection.length} availability row
-                {availabilityForSelection.length === 1 ? '' : 's'}
-              </div>
-            </div>
-
-            <div style={playerPoolListStyle}>
-              {loading ? (
-                <p style={mutedTextStyle}>Loading players...</p>
-              ) : availablePlayerPool.length === 0 ? (
-                <p style={mutedTextStyle}>
-                  No players match the current filters. Try clearing a filter or
-                  disabling availability-only mode.
-                </p>
-              ) : (
-                availablePlayerPool.map((player) => {
-                  const tone = statusTone(player.availabilityStatus)
-                  const assigned = assignedPlayerIds.has(player.id)
-
-                  return (
-                    <div key={player.id} style={playerCardStyle}>
-                      <div style={playerCardTopRowStyle}>
-                        <div>
-                          <div style={playerNameStyle}>{player.name}</div>
-                          <div style={playerMetaStyle}>
-                            {player.preferred_role || 'No role set'}
-                            {player.location ? ` • ${player.location}` : ''}
-                            {player.flight ? ` • ${player.flight}` : ''}
+                            <button
+                              type="button"
+                              onClick={() => deleteScenario(scenario.id)}
+                              disabled={isDeleting || isLoading}
+                              style={dangerButtonStyle}
+                            >
+                              {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
                           </div>
                         </div>
 
-                        <span style={{ ...availabilityBadgeStyle, ...tone }}>
-                          {player.availabilityStatus || 'Unknown'}
-                        </span>
-                      </div>
-
-                      <div style={ratingsRowStyle}>
-                        <span style={ratingChipStyle}>
-                          OVR{' '}
-                          {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ??
-                            '—'}
-                        </span>
-                        <span style={ratingChipStyle}>
-                          S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}
-                        </span>
-                        <span style={ratingChipStyle}>
-                          D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}
-                        </span>
-                        {assigned ? <span style={assignedChipStyle}>Assigned</span> : null}
-                      </div>
-
-                      {player.lineup_notes ? (
-                        <p style={playerNotesStyle}>{player.lineup_notes}</p>
-                      ) : null}
-
-                      {player.availabilityNotes ? (
-                        <p style={availabilityNotesStyle}>
-                          Availability note: {player.availabilityNotes}
-                        </p>
-                      ) : null}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </section>
-
-          <section style={cardStyle}>
-            <h2 style={sectionTitleStyle}>Saved Scenarios</h2>
-            <p style={sectionSubtitleStyle}>
-              Load a saved scenario into the builder, then tweak, re-save, compare, or delete it.
-            </p>
-
-            <div style={savedScenarioListStyle}>
-              {scenarioOptions.length === 0 ? (
-                <p style={mutedTextStyle}>No saved scenarios for the current filters.</p>
-              ) : (
-                scenarioOptions.map((scenario) => {
-                  const isCurrent = scenario.id === currentScenarioId
-                  const isDeleting = deletingScenarioId === scenario.id
-                  const isLoading = loadingScenarioId === scenario.id
-
-                  return (
-                    <div
-                      key={scenario.id}
-                      style={{
-                        ...savedScenarioCardStyle,
-                        ...(isCurrent ? currentSavedScenarioCardStyle : {}),
-                      }}
-                    >
-                      <div style={savedScenarioTopStyle}>
-                        <div>
-                          <div style={savedScenarioNameStyle}>
-                            {scenario.scenario_name}
-                          </div>
-                          <div style={savedScenarioMetaStyle}>
-                            {scenario.team_name || '—'} vs {scenario.opponent_team || '—'}
-                          </div>
-                          <div style={savedScenarioMetaStyle}>
-                            {scenario.league_name || '—'}
-                            {scenario.flight ? ` • ${scenario.flight}` : ''}
-                            {scenario.match_date ? ` • ${formatDate(scenario.match_date)}` : ''}
-                          </div>
-                          {isCurrent ? (
-                            <div style={currentScenarioBadgeStyle}>Currently loaded</div>
-                          ) : null}
-                        </div>
-
-                        <div style={savedScenarioActionColumnStyle}>
-                          <button
-                            type="button"
-                            style={smallButtonStyle}
-                            onClick={() => loadScenario(scenario.id)}
-                            disabled={isLoading || isDeleting}
-                          >
-                            {isLoading ? 'Loading...' : 'Load'}
-                          </button>
-
-                          <button
-                            type="button"
-                            style={deleteButtonStyle}
-                            onClick={() => deleteScenario(scenario.id)}
-                            disabled={isDeleting || isLoading}
-                          >
-                            {isDeleting ? 'Deleting...' : 'Delete'}
-                          </button>
-                        </div>
-                      </div>
-
-                      {scenario.notes ? (
-                        <p style={savedScenarioNotesStyle}>{scenario.notes}</p>
-                      ) : null}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-          </section>
+                        {scenario.notes ? (
+                          <p style={cardNoteTextStyle}>{scenario.notes}</p>
+                        ) : null}
+                      </article>
+                    )
+                  })
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </section>
     </main>
@@ -1280,18 +1362,15 @@ function SlotEditor({
           <input
             value={slot.label}
             onChange={(e) => setSlotLabel(side, slot.id, e.target.value)}
+            className="input"
             style={slotLabelInputStyle}
           />
-          <span style={slotTypeBadgeStyle}>
+          <span className={slot.slotType === 'singles' ? 'badge badge-blue' : 'badge badge-green'}>
             {slot.slotType === 'singles' ? 'Singles' : 'Doubles'}
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => removeSlot(side, slot.id)}
-          style={removeButtonStyle}
-        >
+        <button type="button" onClick={() => removeSlot(side, slot.id)} style={dangerButtonStyle}>
           Remove
         </button>
       </div>
@@ -1299,20 +1378,19 @@ function SlotEditor({
       <div style={slotPlayersGridStyle}>
         {slot.players.map((selectedPlayer, index) => (
           <div key={`${slot.id}-${index}`}>
-            <label style={smallLabelStyle}>
+            <label className="label" style={{ marginBottom: 6 }}>
               {slot.slotType === 'doubles' ? `Player ${index + 1}` : 'Player'}
             </label>
 
             <select
               value={selectedPlayer.playerId}
               onChange={(e) => setSlotPlayer(side, slot.id, index, e.target.value)}
-              style={inputStyle}
+              className="select"
             >
               <option value="">Select player</option>
               {playerPool.map((player) => {
                 const isTakenElsewhere =
-                  player.id !== selectedPlayer.playerId &&
-                  assignedPlayerIds.has(player.id)
+                  player.id !== selectedPlayer.playerId && assignedPlayerIds.has(player.id)
 
                 return (
                   <option key={player.id} value={player.id} disabled={isTakenElsewhere}>
@@ -1329,107 +1407,106 @@ function SlotEditor({
   )
 }
 
-const mainStyle: React.CSSProperties = {
-  minHeight: '100vh',
-  background:
-    'linear-gradient(180deg, #0f1632 0%, #162044 34%, #f6f8fc 34%, #f6f8fc 100%)',
-  padding: '24px',
-}
-
-const navRowStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-  flexWrap: 'wrap',
-  marginBottom: '20px',
-}
-
-const navLinkStyle: React.CSSProperties = {
-  color: '#ffffff',
-  textDecoration: 'none',
-  fontWeight: 600,
-  padding: '10px 14px',
-  borderRadius: '10px',
-  background: 'rgba(255,255,255,0.10)',
-  border: '1px solid rgba(255,255,255,0.14)',
-}
-
-const heroCardStyle: React.CSSProperties = {
-  background: '#ffffff',
-  borderRadius: '22px',
-  padding: '28px',
-  boxShadow: '0 12px 30px rgba(15, 22, 50, 0.10)',
-  marginBottom: '20px',
-}
-
-const heroTopRowStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap',
-}
-
-const heroBadgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '6px 12px',
-  borderRadius: '999px',
-  background: '#eef4ff',
-  color: '#255BE3',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-  marginBottom: '14px',
-}
-
-const titleStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: '2.1rem',
-  lineHeight: 1.05,
-  color: '#0f1632',
-}
-
-const subtitleStyle: React.CSSProperties = {
-  marginTop: '12px',
-  marginBottom: 0,
-  maxWidth: '820px',
-  color: '#5c6784',
-  fontSize: '1rem',
-  lineHeight: 1.6,
-}
-
-const heroActionsStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
-}
-
-const sectionGridStyle: React.CSSProperties = {
+const heroGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.5fr) minmax(320px, 0.9fr)',
+  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+  gap: '24px',
+  alignItems: 'stretch',
+}
+
+const heroTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 'clamp(2.15rem, 4vw, 3.15rem)',
+  lineHeight: 1.02,
+  letterSpacing: '-0.03em',
+}
+
+const heroTextStyle: CSSProperties = {
+  marginTop: 16,
+  marginBottom: 0,
+  maxWidth: 820,
+  color: 'rgba(255,255,255,0.78)',
+  fontSize: '1.02rem',
+  lineHeight: 1.72,
+}
+
+const heroButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 12,
+  marginTop: 22,
+}
+
+const heroMetricGridStyle: CSSProperties = {
+  marginTop: 22,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+}
+
+const metricValueStyle: CSSProperties = {
+  marginTop: 6,
+  fontSize: '1.05rem',
+  fontWeight: 800,
+}
+
+const sideHeroTitleStyle: CSSProperties = {
+  marginTop: 10,
+  marginBottom: 14,
+  fontSize: '1.35rem',
+  lineHeight: 1.14,
+}
+
+const workflowListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+}
+
+const workflowRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  alignItems: 'flex-start',
+  paddingTop: 2,
+}
+
+const workflowNumberStyle: CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 800,
+  fontSize: '.92rem',
+  color: '#0f1632',
+  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
+  flexShrink: 0,
+}
+
+const workflowTitleStyle: CSSProperties = {
+  fontWeight: 700,
+  color: '#ffffff',
+  marginBottom: 4,
+}
+
+const workflowTextStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  lineHeight: 1.55,
+  fontSize: '.95rem',
+}
+
+const builderLayoutStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
   gap: '20px',
   alignItems: 'start',
 }
 
-const leftColumnStyle: React.CSSProperties = {
+const columnStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '20px',
 }
 
-const rightColumnStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '20px',
-}
-
-const cardStyle: React.CSSProperties = {
-  background: '#ffffff',
-  borderRadius: '20px',
-  padding: '20px',
-  boxShadow: '0 10px 26px rgba(15, 22, 50, 0.08)',
-  border: '1px solid #ebeff8',
-}
-
-const cardHeaderRowStyle: React.CSSProperties = {
+const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
@@ -1438,244 +1515,126 @@ const cardHeaderRowStyle: React.CSSProperties = {
   marginBottom: '16px',
 }
 
-const sectionTitleStyle: React.CSSProperties = {
+const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  fontSize: '1.15rem',
-  color: '#0f1632',
+  color: 'var(--muted-foreground, #667085)',
+  lineHeight: 1.65,
 }
 
-const sectionSubtitleStyle: React.CSSProperties = {
-  margin: '8px 0 0 0',
-  color: '#5c6784',
-  lineHeight: 1.5,
-}
-
-const loadedScenarioBannerStyle: React.CSSProperties = {
+const bannerBlueStyle: CSSProperties = {
   marginBottom: '16px',
   padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#eef4ff',
-  border: '1px solid #cdd9ff',
+  borderRadius: '16px',
+  background: 'rgba(37, 91, 227, 0.08)',
+  border: '1px solid rgba(37, 91, 227, 0.14)',
 }
 
-const loadedScenarioTitleStyle: React.CSSProperties = {
+const bannerSlateStyle: CSSProperties = {
+  marginBottom: '16px',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(15, 22, 50, 0.04)',
+  border: '1px solid rgba(15, 22, 50, 0.08)',
+  color: '#51607a',
+  fontWeight: 700,
+}
+
+const bannerTitleStyle: CSSProperties = {
   color: '#255BE3',
   fontWeight: 800,
   marginBottom: '4px',
 }
 
-const loadedScenarioMetaStyle: React.CSSProperties = {
+const bannerMetaStyle: CSSProperties = {
   color: '#4b5e93',
   lineHeight: 1.5,
 }
 
-const newScenarioBannerStyle: React.CSSProperties = {
-  marginBottom: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#f7f9ff',
-  border: '1px solid #dde3f1',
-  color: '#5c6784',
-  fontWeight: 700,
-}
-
-const formGridStyle: React.CSSProperties = {
+const formGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   gap: '14px',
 }
 
-const labelStyle: React.CSSProperties = {
-  display: 'block',
-  marginBottom: '8px',
-  fontSize: '0.95rem',
-  fontWeight: 700,
-  color: '#0f1632',
+const toggleGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '12px',
+  marginTop: '18px',
 }
 
-const smallLabelStyle: React.CSSProperties = {
-  display: 'block',
-  marginBottom: '6px',
-  fontSize: '0.82rem',
-  fontWeight: 700,
-  color: '#5c6784',
-}
-
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12px 14px',
-  borderRadius: '12px',
-  border: '1px solid #d7def0',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontSize: '0.95rem',
-  outline: 'none',
-}
-
-const textAreaWrapStyle: React.CSSProperties = {
-  marginTop: '16px',
-}
-
-const textAreaStyle: React.CSSProperties = {
-  width: '100%',
-  minHeight: '110px',
-  padding: '12px 14px',
-  borderRadius: '12px',
-  border: '1px solid #d7def0',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontSize: '0.95rem',
-  outline: 'none',
-  resize: 'vertical',
-}
-
-const toggleRowStyle: React.CSSProperties = {
+const toggleCardStyle: CSSProperties = {
   display: 'flex',
-  flexDirection: 'column',
-  gap: '10px',
-  marginTop: '16px',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '14px',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(15, 22, 50, 0.03)',
+  border: '1px solid rgba(15, 22, 50, 0.06)',
 }
 
-const checkboxLabelStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  alignItems: 'center',
+const toggleTitleStyle: CSSProperties = {
+  fontWeight: 800,
   color: '#0f1632',
-  fontWeight: 500,
+  marginBottom: 4,
 }
 
-const actionRowStyle: React.CSSProperties = {
+const toggleTextStyle: CSSProperties = {
+  color: 'var(--muted-foreground, #667085)',
+  lineHeight: 1.5,
+  fontSize: '.94rem',
+}
+
+const actionRowStyle: CSSProperties = {
   display: 'flex',
   gap: '12px',
   flexWrap: 'wrap',
   marginTop: '18px',
 }
 
-const miniActionRowStyle: React.CSSProperties = {
+const miniActionRowStyle: CSSProperties = {
   display: 'flex',
   gap: '10px',
   flexWrap: 'wrap',
 }
 
-const primaryButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: '#255BE3',
-  color: '#ffffff',
-  textDecoration: 'none',
-  fontWeight: 700,
-  border: 'none',
-  cursor: 'pointer',
-}
-
-const secondaryButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: '#f7f9ff',
-  color: '#0f1632',
-  textDecoration: 'none',
-  fontWeight: 700,
-  border: '1px solid #d7def0',
-}
-
-const secondaryActionButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontWeight: 700,
-  border: '1px solid #d7def0',
-  cursor: 'pointer',
-}
-
-const ghostButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '12px 16px',
-  borderRadius: '12px',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontWeight: 700,
-  border: '1px solid #d7def0',
-  cursor: 'pointer',
-}
-
-const smallButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '10px 12px',
-  borderRadius: '10px',
-  background: '#f7f9ff',
-  color: '#0f1632',
-  fontWeight: 700,
-  border: '1px solid #d7def0',
-  cursor: 'pointer',
-}
-
-const deleteButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '10px 12px',
-  borderRadius: '10px',
-  background: '#fff5f4',
-  color: '#b42318',
-  fontWeight: 700,
-  border: '1px solid #f0c7c2',
-  cursor: 'pointer',
-}
-
-const successTextStyle: React.CSSProperties = {
-  color: '#17663a',
-  marginTop: '14px',
-  marginBottom: 0,
-  fontWeight: 600,
-}
-
-const errorTextStyle: React.CSSProperties = {
-  color: '#b42318',
-  marginTop: '14px',
-  marginBottom: 0,
-  fontWeight: 600,
-}
-
-const activeScenarioTextStyle: React.CSSProperties = {
+const infoTextStyle: CSSProperties = {
   color: '#255BE3',
   marginTop: '14px',
   marginBottom: 0,
   fontWeight: 600,
 }
 
-const mutedTextStyle: React.CSSProperties = {
-  color: '#5c6784',
-  margin: 0,
+const successTextStyle: CSSProperties = {
+  color: '#0f8f52',
+  marginTop: '14px',
+  marginBottom: 0,
+  fontWeight: 600,
 }
 
-const slotListStyle: React.CSSProperties = {
+const errorTextStyle: CSSProperties = {
+  color: '#c43f3f',
+  marginTop: '14px',
+  marginBottom: 0,
+  fontWeight: 600,
+}
+
+const slotListStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '14px',
 }
 
-const slotCardStyle: React.CSSProperties = {
-  background: '#f9fbff',
-  border: '1px solid #e3eaf7',
-  borderRadius: '16px',
-  padding: '14px',
+const slotCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'linear-gradient(180deg, rgba(248,250,255,0.98) 0%, #ffffff 100%)',
+  border: '1px solid rgba(37, 91, 227, 0.10)',
+  boxShadow: '0 16px 40px rgba(15, 22, 50, 0.05)',
 }
 
-const slotHeaderStyle: React.CSSProperties = {
+const slotHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -1684,84 +1643,52 @@ const slotHeaderStyle: React.CSSProperties = {
   marginBottom: '12px',
 }
 
-const slotHeaderLeftStyle: React.CSSProperties = {
+const slotHeaderLeftStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '10px',
   flexWrap: 'wrap',
 }
 
-const slotLabelInputStyle: React.CSSProperties = {
-  padding: '10px 12px',
-  borderRadius: '10px',
-  border: '1px solid #d7def0',
-  background: '#ffffff',
-  color: '#0f1632',
-  fontSize: '0.95rem',
+const slotLabelInputStyle: CSSProperties = {
+  minWidth: 180,
   fontWeight: 700,
-  outline: 'none',
 }
 
-const slotTypeBadgeStyle: React.CSSProperties = {
-  display: 'inline-block',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: '#eef4ff',
-  color: '#255BE3',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-}
-
-const removeButtonStyle: React.CSSProperties = {
-  padding: '8px 10px',
-  borderRadius: '10px',
-  border: '1px solid #f0c7c2',
-  background: '#fff5f4',
-  color: '#b42318',
-  fontWeight: 700,
-  cursor: 'pointer',
-}
-
-const slotPlayersGridStyle: React.CSSProperties = {
+const slotPlayersGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
   gap: '12px',
 }
 
-const summaryPillsRowStyle: React.CSSProperties = {
+const pillRowStyle: CSSProperties = {
   display: 'flex',
-  gap: '10px',
+  gap: '8px',
   flexWrap: 'wrap',
   marginTop: '14px',
-  marginBottom: '14px',
 }
 
-const summaryPillStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  padding: '7px 11px',
-  borderRadius: '999px',
-  background: '#f4f6fb',
-  color: '#5c6784',
-  border: '1px solid #dde3f1',
-  fontWeight: 700,
-  fontSize: '0.82rem',
-}
-
-const playerPoolListStyle: React.CSSProperties = {
+const stackStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '12px',
-  marginTop: '8px',
+  marginTop: '14px',
 }
 
-const playerCardStyle: React.CSSProperties = {
-  border: '1px solid #e7ebf5',
-  borderRadius: '16px',
+const mutedTextStyle: CSSProperties = {
+  color: 'var(--muted-foreground, #667085)',
+  margin: 0,
+  lineHeight: 1.6,
+}
+
+const poolCardStyle: CSSProperties = {
+  border: '1px solid rgba(15, 22, 50, 0.08)',
+  borderRadius: '18px',
   padding: '14px',
   background: '#ffffff',
 }
 
-const playerCardTopRowStyle: React.CSSProperties = {
+const poolCardTopStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
@@ -1769,20 +1696,20 @@ const playerCardTopRowStyle: React.CSSProperties = {
   marginBottom: '10px',
 }
 
-const playerNameStyle: React.CSSProperties = {
+const playerNameStyle: CSSProperties = {
   color: '#0f1632',
   fontWeight: 800,
   fontSize: '1rem',
 }
 
-const playerMetaStyle: React.CSSProperties = {
-  color: '#5c6784',
-  fontSize: '0.9rem',
-  lineHeight: 1.5,
+const playerMetaStyle: CSSProperties = {
+  color: 'var(--muted-foreground, #667085)',
+  fontSize: '0.92rem',
+  lineHeight: 1.55,
   marginTop: '4px',
 }
 
-const availabilityBadgeStyle: React.CSSProperties = {
+const statusBadgeStyle: CSSProperties = {
   display: 'inline-flex',
   padding: '6px 10px',
   borderRadius: '999px',
@@ -1791,107 +1718,67 @@ const availabilityBadgeStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-const ratingsRowStyle: React.CSSProperties = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap',
-}
-
-const ratingChipStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: '#f4f6fb',
-  color: '#0f1632',
-  border: '1px solid #dde3f1',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-}
-
-const assignedChipStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: '#eef4ff',
-  color: '#255BE3',
-  border: '1px solid #cdd9ff',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-}
-
-const playerNotesStyle: React.CSSProperties = {
+const cardNoteTextStyle: CSSProperties = {
   margin: '10px 0 0 0',
   color: '#0f1632',
-  lineHeight: 1.5,
+  lineHeight: 1.58,
 }
 
-const availabilityNotesStyle: React.CSSProperties = {
+const subtleNoteTextStyle: CSSProperties = {
   margin: '8px 0 0 0',
-  color: '#5c6784',
-  lineHeight: 1.5,
+  color: 'var(--muted-foreground, #667085)',
+  lineHeight: 1.58,
   fontSize: '0.92rem',
 }
 
-const savedScenarioListStyle: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '12px',
-  marginTop: '8px',
-}
-
-const savedScenarioCardStyle: React.CSSProperties = {
-  border: '1px solid #e7ebf5',
-  borderRadius: '16px',
+const savedScenarioCardStyle: CSSProperties = {
+  border: '1px solid rgba(15, 22, 50, 0.08)',
+  borderRadius: '18px',
   padding: '14px',
   background: '#ffffff',
 }
 
-const currentSavedScenarioCardStyle: React.CSSProperties = {
-  border: '1px solid #cdd9ff',
+const savedScenarioCardActiveStyle: CSSProperties = {
+  border: '1px solid rgba(37, 91, 227, 0.22)',
   boxShadow: '0 0 0 3px rgba(37, 91, 227, 0.08)',
 }
 
-const savedScenarioTopStyle: React.CSSProperties = {
+const savedScenarioTopStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
   gap: '12px',
 }
 
-const savedScenarioActionColumnStyle: React.CSSProperties = {
+const savedScenarioTitleStyle: CSSProperties = {
+  color: '#0f1632',
+  fontWeight: 800,
+  fontSize: '1rem',
+}
+
+const savedScenarioMetaStyle: CSSProperties = {
+  color: 'var(--muted-foreground, #667085)',
+  fontSize: '0.92rem',
+  lineHeight: 1.55,
+  marginTop: '4px',
+}
+
+const savedScenarioActionsStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
   alignItems: 'stretch',
 }
 
-const savedScenarioNameStyle: React.CSSProperties = {
-  color: '#0f1632',
-  fontWeight: 800,
-  fontSize: '0.98rem',
-}
-
-const savedScenarioMetaStyle: React.CSSProperties = {
-  color: '#5c6784',
-  fontSize: '0.9rem',
-  lineHeight: 1.5,
-  marginTop: '4px',
-}
-
-const currentScenarioBadgeStyle: React.CSSProperties = {
+const dangerButtonStyle: CSSProperties = {
   display: 'inline-flex',
-  marginTop: '8px',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  background: '#eef4ff',
-  color: '#255BE3',
-  border: '1px solid #cdd9ff',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '10px 12px',
+  borderRadius: '12px',
+  background: 'rgba(255, 93, 93, 0.08)',
+  color: '#c43f3f',
+  border: '1px solid rgba(255, 93, 93, 0.18)',
   fontWeight: 700,
-  fontSize: '0.78rem',
-}
-
-const savedScenarioNotesStyle: React.CSSProperties = {
-  margin: '10px 0 0 0',
-  color: '#0f1632',
-  lineHeight: 1.5,
+  cursor: 'pointer',
 }

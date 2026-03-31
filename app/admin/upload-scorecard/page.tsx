@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { ChangeEvent, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
@@ -314,172 +313,257 @@ export default function UploadScorecardPage() {
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
-        <Link href="/admin/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-      </div>
+    <main className="page-shell">
+      <section className="hero-panel">
+        <div className="hero-inner">
+          <div className="section-kicker">Admin Tool</div>
+          <h1 className="page-title">Upload Scorecard</h1>
+          <p className="page-subtitle">
+            Upload a USTA scorecard export, preview parsed singles and doubles lines,
+            then import them into matches and match_players with duplicate protection.
+          </p>
+        </div>
+      </section>
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: 36 }}>Upload Scorecard</h1>
-        <p style={{ margin: '12px 0 0', color: '#dbeafe', fontSize: 16, maxWidth: 760 }}>
-          Upload a USTA scorecard export, preview the parsed singles and doubles lines,
-          then import them into matches and match_players with duplicate protection.
-        </p>
-      </div>
-
-      <div style={cardStyle}>
-        <div style={fieldWrapStyle}>
-          <label style={labelStyle}>Scorecard file</label>
+      <section className="surface-card panel-pad section">
+        <div>
+          <label className="label">Scorecard file</label>
 
           <input
             id="scorecard-upload"
             type="file"
             accept=".xls,.html"
             onChange={onFileChange}
-            style={hiddenFileInputStyle}
+            style={{ display: 'none' }}
           />
 
-          <label htmlFor="scorecard-upload" style={filePickerButtonStyle}>
+          <label
+            htmlFor="scorecard-upload"
+            className="button-secondary"
+            style={{
+              display: 'inline-flex',
+              width: 'fit-content',
+              cursor: 'pointer',
+              marginTop: 8,
+            }}
+          >
             Choose Scorecard File
           </label>
 
-          <div style={helpTextStyle}>
-            Supports HTML-based `.xls` scorecards and `.html` files.
+          <div className="subtle-text" style={{ marginTop: 10 }}>
+            Supports HTML-based <code>.xls</code> scorecards and <code>.html</code> files.
           </div>
         </div>
 
-        {fileName ? <p style={mutedStyle}>Loaded file: {fileName}</p> : null}
-        {loadingFile ? <p style={mutedStyle}>Parsing scorecard...</p> : null}
-        {error ? <div style={errorBoxStyle}>{error}</div> : null}
-        {status ? <div style={successBoxStyle}>{status}</div> : null}
+        {fileName ? (
+          <div
+            className="badge badge-blue"
+            style={{
+              marginTop: 16,
+              minHeight: 42,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+            }}
+          >
+            Loaded file: {fileName}
+          </div>
+        ) : null}
+
+        {loadingFile ? (
+          <p className="subtle-text" style={{ marginTop: 16 }}>
+            Parsing scorecard...
+          </p>
+        ) : null}
+
+        {error ? (
+          <div
+            className="badge"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+              background: 'rgba(220,38,38,0.12)',
+              color: '#991b1b',
+              border: '1px solid rgba(220,38,38,0.18)',
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
+
+        {status ? (
+          <div
+            className="badge badge-green"
+            style={{
+              marginTop: 16,
+              minHeight: 44,
+              width: '100%',
+              justifyContent: 'flex-start',
+              padding: '10px 14px',
+            }}
+          >
+            {status}
+          </div>
+        ) : null}
 
         {parsed ? (
           <>
-            <div style={summaryGridStyle}>
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Parsed Match Date</div>
-                <div style={summaryValueStyle}>{displayDate(parsed.matchDate)}</div>
+            <div className="metric-grid" style={{ marginTop: 22 }}>
+              <MetricCard label="Parsed Match Date" value={displayDate(parsed.matchDate)} />
+              <MetricCard label="Flight" value={parsed.flight || 'Unknown'} />
+              <MetricCard label="USTA Section" value={parsed.ustaSection || 'Unknown'} />
+              <MetricCard label="District / Area" value={parsed.districtArea || 'Unknown'} />
+              <MetricCard label="League" value={parsed.league || parsed.leagueName || 'Unknown'} />
+              <MetricCard label="Match #" value={parsed.matchNumber || 'Unknown'} />
+              <MetricCard label="Lines Found" value={String(previewCount)} />
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                flexWrap: 'wrap',
+                marginTop: 18,
+              }}
+            >
+              <div className="badge badge-blue" style={{ minHeight: 40 }}>
+                Home: {resolvedHomeTeam || 'Unknown'}
               </div>
 
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Flight</div>
-                <div style={summaryValueStyle}>{parsed.flight || 'Unknown'}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>USTA Section</div>
-                <div style={summaryValueStyle}>{parsed.ustaSection || 'Unknown'}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>District / Area</div>
-                <div style={summaryValueStyle}>{parsed.districtArea || 'Unknown'}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>League</div>
-                <div style={summaryValueStyle}>{parsed.league || parsed.leagueName || 'Unknown'}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Match #</div>
-                <div style={summaryValueStyle}>{parsed.matchNumber || 'Unknown'}</div>
-              </div>
-
-              <div style={summaryCardStyle}>
-                <div style={summaryLabelStyle}>Lines Found</div>
-                <div style={summaryValueStyle}>{previewCount}</div>
+              <div className="badge badge-slate" style={{ minHeight: 40 }}>
+                Away: {resolvedAwayTeam || 'Unknown'}
               </div>
             </div>
 
-            <div style={teamsRowStyle}>
-              <div style={teamBadgeStyle}>
-                <span style={teamBadgeLabelStyle}>Home</span>
-                <strong>{resolvedHomeTeam || 'Unknown'}</strong>
+            <section
+              className="surface-card"
+              style={{
+                marginTop: 18,
+                padding: 18,
+                borderStyle: 'dashed',
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '1.05rem',
+                  fontWeight: 800,
+                  color: '#0f172a',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Import Overrides
+              </h2>
+
+              <div className="card-grid three" style={{ marginTop: 16 }}>
+                <Field label="Match date override">
+                  <input
+                    type="date"
+                    value={manualMatchDate}
+                    onChange={(e) => setManualMatchDate(e.target.value)}
+                    className="input"
+                  />
+                </Field>
+
+                <Field label="Home team override">
+                  <input
+                    type="text"
+                    value={manualHomeTeam}
+                    onChange={(e) => setManualHomeTeam(e.target.value)}
+                    placeholder="Enter home team if parser missed it"
+                    className="input"
+                  />
+                </Field>
+
+                <Field label="Away team override">
+                  <input
+                    type="text"
+                    value={manualAwayTeam}
+                    onChange={(e) => setManualAwayTeam(e.target.value)}
+                    placeholder="Enter away team if parser missed it"
+                    className="input"
+                  />
+                </Field>
               </div>
 
-              <div style={teamBadgeStyle}>
-                <span style={teamBadgeLabelStyle}>Away</span>
-                <strong>{resolvedAwayTeam || 'Unknown'}</strong>
+              <div className="subtle-text" style={{ marginTop: 12 }}>
+                Leave overrides blank to use parsed values. Import will use:{' '}
+                <strong>{resolvedMatchDate || 'No valid date yet'}</strong>
               </div>
-            </div>
-
-            <div style={manualSectionStyle}>
-              <label style={labelStyle}>Match date override</label>
-              <input
-                type="date"
-                value={manualMatchDate}
-                onChange={(e) => setManualMatchDate(e.target.value)}
-                style={dateInputStyle}
-              />
-              <div style={helpTextStyle}>Leave blank to use the parsed date.</div>
-              <div style={resolvedValueStyle}>
-                Import will use: <strong>{resolvedMatchDate || 'No valid date yet'}</strong>
-              </div>
-
-              <label style={{ ...labelStyle, marginTop: '12px' }}>Home team override</label>
-              <input
-                type="text"
-                value={manualHomeTeam}
-                onChange={(e) => setManualHomeTeam(e.target.value)}
-                placeholder="Enter home team if parser missed it"
-                style={textInputStyle}
-              />
-
-              <label style={{ ...labelStyle, marginTop: '12px' }}>Away team override</label>
-              <input
-                type="text"
-                value={manualAwayTeam}
-                onChange={(e) => setManualAwayTeam(e.target.value)}
-                placeholder="Enter away team if parser missed it"
-                style={textInputStyle}
-              />
-            </div>
+            </section>
 
             <div style={{ marginTop: 22 }}>
-              <h2 style={sectionTitleStyle}>Preview</h2>
-              <div style={previewListStyle}>
+              <h2 className="section-title">Preview</h2>
+
+              <div className="card-grid two" style={{ marginTop: 14 }}>
                 {parsed.lines.map((line, index) => (
-                  <div key={`${line.lineNumber}-${index}`} style={previewCardStyle}>
-                    <div style={previewTitleRowStyle}>
-                      <div style={previewTitleStyle}>
-                        {line.lineNumber} # {capitalize(line.matchType)}
-                      </div>
+                  <div
+                    key={`${line.lineNumber}-${index}`}
+                    className="surface-card"
+                    style={{ padding: 18 }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                        alignItems: 'center',
+                        marginBottom: 12,
+                        flexWrap: 'wrap',
+                      }}
+                    >
                       <div
                         style={{
-                          ...winnerPillStyle,
-                          ...(line.winnerSide === 'A' ? winnerPillAStyle : winnerPillBStyle),
+                          color: '#0f172a',
+                          fontWeight: 800,
+                          fontSize: '1rem',
                         }}
                       >
-                        Winner: Side {line.winnerSide}
+                        {line.lineNumber} • {capitalize(line.matchType)}
                       </div>
+
+                      <span
+                        className={line.winnerSide === 'A' ? 'badge badge-blue' : 'badge badge-green'}
+                      >
+                        Winner: Side {line.winnerSide}
+                      </span>
                     </div>
 
-                    <div style={previewTextStyle}>
-                      <strong>Side A:</strong> {line.teamAPlayers.join(' / ')}
+                    <div className="subtle-text" style={{ marginBottom: 8 }}>
+                      <strong style={{ color: '#0f172a' }}>Side A:</strong>{' '}
+                      {line.teamAPlayers.join(' / ')}
                     </div>
 
-                    <div style={previewTextStyle}>
-                      <strong>Side B:</strong> {line.teamBPlayers.join(' / ')}
+                    <div className="subtle-text" style={{ marginBottom: 8 }}>
+                      <strong style={{ color: '#0f172a' }}>Side B:</strong>{' '}
+                      {line.teamBPlayers.join(' / ')}
                     </div>
 
-                    <div style={previewTextStyle}>
-                      <strong>Score:</strong> {line.score}
+                    <div className="subtle-text">
+                      <strong style={{ color: '#0f172a' }}>Score:</strong> {line.score}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div style={actionRowStyle}>
+            <div
+              style={{
+                marginTop: 22,
+                display: 'flex',
+                justifyContent: 'flex-start',
+              }}
+            >
               <button
                 onClick={importScorecard}
                 disabled={importing || !resolvedMatchDate}
+                className="button-primary"
                 style={{
-                  ...primaryButtonStyle,
-                  ...((importing || !resolvedMatchDate) ? disabledButtonStyle : {}),
+                  opacity: importing || !resolvedMatchDate ? 0.7 : 1,
+                  cursor: importing || !resolvedMatchDate ? 'not-allowed' : 'pointer',
                 }}
               >
                 {importing ? 'Importing + Recalculating...' : 'Confirm Import'}
@@ -487,273 +571,37 @@ export default function UploadScorecardPage() {
             </div>
           </>
         ) : null}
-      </div>
+      </section>
     </main>
+  )
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value" style={{ fontSize: '1.15rem', lineHeight: 1.2 }}>
+        {value}
+      </div>
+    </div>
   )
 }
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-const mainStyle = {
-  maxWidth: '1180px',
-  margin: '0 auto',
-  padding: '20px',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '16px',
-  marginBottom: '20px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  textDecoration: 'none',
-  color: '#2563eb',
-  fontWeight: 700,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
-  color: 'white',
-  padding: '28px',
-  borderRadius: '22px',
-  marginBottom: '20px',
-  boxShadow: '0 16px 32px rgba(37, 99, 235, 0.18)',
-}
-
-const cardStyle = {
-  background: '#ffffff',
-  padding: '22px',
-  borderRadius: '22px',
-  boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-}
-
-const fieldWrapStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '8px',
-}
-
-const labelStyle = {
-  display: 'block',
-  color: '#334155',
-  fontSize: '13px',
-  fontWeight: 700,
-}
-
-const hiddenFileInputStyle = {
-  display: 'none',
-}
-
-const filePickerButtonStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: 'fit-content',
-  padding: '12px 16px',
-  borderRadius: '999px',
-  background: '#2563eb',
-  color: '#ffffff',
-  fontWeight: 700,
-  cursor: 'pointer',
-  border: '1px solid #2563eb',
-  boxShadow: '0 10px 20px rgba(37, 99, 235, 0.18)',
-}
-
-const dateInputStyle = {
-  width: '220px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '12px',
-  padding: '10px 12px',
-  fontSize: '14px',
-  color: '#0f172a',
-  background: '#ffffff',
-}
-
-const textInputStyle = {
-  width: '100%',
-  maxWidth: '420px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '12px',
-  padding: '10px 12px',
-  fontSize: '14px',
-  color: '#0f172a',
-  background: '#ffffff',
-}
-
-const helpTextStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-}
-
-const mutedStyle = {
-  color: '#64748b',
-  marginTop: '12px',
-}
-
-const errorBoxStyle = {
-  marginTop: '14px',
-  background: '#fef2f2',
-  color: '#b91c1c',
-  border: '1px solid #fecaca',
-  borderRadius: '16px',
-  padding: '14px',
-}
-
-const successBoxStyle = {
-  marginTop: '14px',
-  background: '#ecfdf5',
-  color: '#166534',
-  border: '1px solid #bbf7d0',
-  borderRadius: '16px',
-  padding: '14px',
-}
-
-const summaryGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '12px',
-  marginTop: '20px',
-}
-
-const summaryCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '14px',
-}
-
-const summaryLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginBottom: '6px',
-}
-
-const summaryValueStyle = {
-  color: '#0f172a',
-  fontSize: '18px',
-  fontWeight: 800,
-}
-
-const teamsRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-  marginTop: '16px',
-}
-
-const teamBadgeStyle = {
-  background: '#eff6ff',
-  border: '1px solid #bfdbfe',
-  borderRadius: '16px',
-  padding: '12px 14px',
-  color: '#1e3a8a',
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '4px',
-}
-
-const teamBadgeLabelStyle = {
-  fontSize: '12px',
-  color: '#64748b',
-}
-
-const manualSectionStyle = {
-  marginTop: '18px',
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '8px',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '14px',
-}
-
-const resolvedValueStyle = {
-  color: '#334155',
-  fontSize: '14px',
-}
-
-const sectionTitleStyle = {
-  margin: '0 0 12px 0',
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const previewListStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: '12px',
-}
-
-const previewCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '14px',
-}
-
-const previewTitleRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '10px',
-  alignItems: 'center',
-  marginBottom: '10px',
-  flexWrap: 'wrap' as const,
-}
-
-const previewTitleStyle = {
-  color: '#0f172a',
-  fontWeight: 800,
-  fontSize: '16px',
-}
-
-const previewTextStyle = {
-  color: '#334155',
-  fontSize: '14px',
-  marginBottom: '6px',
-  lineHeight: 1.5,
-}
-
-const winnerPillStyle = {
-  padding: '6px 10px',
-  borderRadius: '999px',
-  fontSize: '12px',
-  fontWeight: 800,
-}
-
-const winnerPillAStyle = {
-  background: '#dbeafe',
-  color: '#1d4ed8',
-}
-
-const winnerPillBStyle = {
-  background: '#ede9fe',
-  color: '#6d28d9',
-}
-
-const actionRowStyle = {
-  marginTop: '22px',
-  display: 'flex',
-  justifyContent: 'flex-start',
-}
-
-const primaryButtonStyle = {
-  border: '1px solid #2563eb',
-  background: '#2563eb',
-  color: 'white',
-  padding: '12px 16px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  cursor: 'pointer',
-}
-
-const disabledButtonStyle = {
-  opacity: 0.7,
-  cursor: 'not-allowed',
 }
