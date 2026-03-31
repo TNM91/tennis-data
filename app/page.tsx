@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -355,31 +356,6 @@ export default function HomePage() {
     height: isMobile ? '230px' : '320px',
   }
 
-  const dynamicLogoCard: React.CSSProperties = {
-    ...logoCard,
-    maxWidth: isMobile ? '280px' : '380px',
-    borderRadius: isMobile ? '24px' : '30px',
-    padding: isMobile ? '14px' : '16px',
-  }
-
-  const dynamicLogoCardInner: React.CSSProperties = {
-    ...logoCardInner,
-    minHeight: isMobile ? '170px' : '235px',
-    borderRadius: isMobile ? '18px' : '22px',
-    padding: isMobile ? '20px 16px' : '26px 22px',
-  }
-
-  const dynamicHeroLogo: React.CSSProperties = {
-    ...heroLogo,
-    maxWidth: isMobile ? '190px' : '250px',
-  }
-
-  const dynamicFloatingCard: React.CSSProperties = {
-    ...floatingCard,
-    position: isMobile ? 'relative' : 'absolute',
-    width: isMobile ? '100%' : '220px',
-  }
-
   const dynamicHeroProofRowWrap: React.CSSProperties = {
     ...heroProofRowWrap,
     padding: isSmallMobile ? '0 16px 22px' : isMobile ? '0 20px 26px' : '0 50px 38px',
@@ -446,7 +422,7 @@ export default function HomePage() {
       <header style={headerStyle}>
         <div style={dynamicHeaderInner}>
           <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <LogoWordmark />
+            <BrandWordmark compact={isMobile} />
           </Link>
 
           <nav style={dynamicNavStyle}>
@@ -591,38 +567,26 @@ export default function HomePage() {
               <div style={dynamicLogoStage}>
                 <div style={logoGlow} />
                 <div style={dynamicLogoRing} />
-
-                <div style={dynamicLogoCard}>
-                  <div style={dynamicLogoCardInner}>
-                    <img src="/logo-dark.png" style={dynamicHeroLogo} alt="TenAceIQ logo" />
+                <div style={heroBrandCard}>
+                  <Image
+                    src="/logo-icon.png"
+                    alt="TenAceIQ"
+                    width={isMobile ? 170 : 210}
+                    height={isMobile ? 170 : 210}
+                    priority
+                    style={{
+                      width: '100%',
+                      maxWidth: isMobile ? '170px' : '210px',
+                      height: 'auto',
+                      display: 'block',
+                      margin: '0 auto 14px',
+                    }}
+                  />
+                  <div style={heroBrandText}>
+                    <span style={heroTenAce}>TenAce</span>
+                    <span style={heroIQ}>IQ</span>
                   </div>
                 </div>
-
-                {!isMobile && (
-                  <>
-                    <div
-                      style={{
-                        ...dynamicFloatingCard,
-                        top: '16px',
-                        right: '-10px',
-                      }}
-                    >
-                      <div style={floatingKicker}>Matchup insight</div>
-                      <div style={floatingText}>See the edge before your first serve.</div>
-                    </div>
-
-                    <div
-                      style={{
-                        ...dynamicFloatingCard,
-                        bottom: '14px',
-                        left: '-8px',
-                      }}
-                    >
-                      <div style={floatingKicker}>Captain tools</div>
-                      <div style={floatingText}>Prepare lineups and make smarter team decisions.</div>
-                    </div>
-                  </>
-                )}
               </div>
             </div>
           </div>
@@ -787,9 +751,9 @@ export default function HomePage() {
 
       <footer style={footerStyle}>
         <div style={dynamicFooterInner}>
-          <div style={footerBrandRow}>
-            <LogoWordmark darkText={false} />
-          </div>
+          <Link href="/" style={footerBrandLink}>
+            <BrandWordmark compact={false} footer />
+          </Link>
 
           <div style={footerTagline}>
             Know more. Plan better. Compete smarter.
@@ -812,13 +776,54 @@ export default function HomePage() {
   )
 }
 
-function LogoWordmark({ darkText = false }: { darkText?: boolean }) {
+function BrandWordmark({
+  compact = false,
+  footer = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+}) {
   return (
-    <div style={logoWordmarkWrap}>
-      <img src="/logo-icon.png" alt="TenAceIQ icon" style={logoWordmarkIcon} />
-      <div style={logoWordmarkText}>
-        <span style={{ color: darkText ? '#071B4D' : '#FFFFFF' }}>TenAce</span>
-        <span style={logoWordmarkIQ}>IQ</span>
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: compact ? '10px' : '12px',
+      }}
+    >
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={compact ? 40 : footer ? 52 : 46}
+        height={compact ? 40 : footer ? 52 : 46}
+        priority
+        style={{
+          width: compact ? '40px' : footer ? '52px' : '46px',
+          height: compact ? '40px' : footer ? '52px' : '46px',
+          display: 'block',
+        }}
+      />
+
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.04em',
+          fontSize: compact ? '28px' : footer ? '34px' : '30px',
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <span style={{ color: '#FFFFFF' }}>TenAce</span>
+        <span
+          style={{
+            background: 'linear-gradient(135deg, #D9F84A 0%, #36D56D 68%, #2492FF 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}
+        >
+          IQ
+        </span>
       </div>
     </div>
   )
@@ -965,6 +970,8 @@ const headerInner: React.CSSProperties = {
 
 const brandWrap: React.CSSProperties = {
   textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
 }
 
 const navStyle: React.CSSProperties = {
@@ -1276,49 +1283,34 @@ const logoRing: React.CSSProperties = {
     'radial-gradient(circle at center, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.00) 58%, rgba(255,255,255,0.04) 100%)',
 }
 
-const logoCard: React.CSSProperties = {
+const heroBrandCard: React.CSSProperties = {
   position: 'relative',
+  zIndex: 2,
   width: '100%',
-  background: 'rgba(255,255,255,0.08)',
+  maxWidth: '420px',
+  borderRadius: '30px',
+  padding: '28px 24px',
+  background: 'linear-gradient(180deg, rgba(6,17,49,0.38) 0%, rgba(7,22,59,0.22) 100%)',
   border: '1px solid rgba(255,255,255,0.10)',
+  textAlign: 'center',
   boxShadow: '0 24px 60px rgba(3,10,25,0.22)',
 }
 
-const logoCardInner: React.CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(6,17,49,0.96) 0%, rgba(7,22,59,0.94) 100%)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const heroLogo: React.CSSProperties = {
-  width: '100%',
-  height: 'auto',
-  display: 'block',
-}
-
-const floatingCard: React.CSSProperties = {
-  borderRadius: '18px',
-  padding: '14px 16px',
-  background: '#FFFFFF',
-  boxShadow: '0 18px 40px rgba(9,22,54,0.18)',
-  zIndex: 2,
-}
-
-const floatingKicker: React.CSSProperties = {
-  color: '#1965D2',
-  fontSize: '12px',
+const heroBrandText: React.CSSProperties = {
   fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  marginBottom: '8px',
+  fontSize: 'clamp(32px, 5vw, 52px)',
+  lineHeight: 1,
+  letterSpacing: '-0.04em',
 }
 
-const floatingText: React.CSSProperties = {
-  color: '#132D62',
-  fontWeight: 800,
-  fontSize: '15px',
-  lineHeight: 1.4,
+const heroTenAce: React.CSSProperties = {
+  color: '#FFFFFF',
+}
+
+const heroIQ: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #D9F84A 0%, #36D56D 68%, #2492FF 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
 }
 
 const heroProofRowWrap: React.CSSProperties = {}
@@ -1606,9 +1598,10 @@ const footerInner: React.CSSProperties = {
   gap: '16px',
 }
 
-const footerBrandRow: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'center',
+const footerBrandLink: React.CSSProperties = {
+  textDecoration: 'none',
+  display: 'inline-flex',
+  alignItems: 'center',
 }
 
 const footerTagline: React.CSSProperties = {
@@ -1637,34 +1630,6 @@ const footerBottom: React.CSSProperties = {
   fontSize: '13px',
   fontWeight: 700,
   textAlign: 'center',
-}
-
-const logoWordmarkWrap: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-}
-
-const logoWordmarkIcon: React.CSSProperties = {
-  width: '38px',
-  height: '38px',
-  borderRadius: '10px',
-  display: 'block',
-}
-
-const logoWordmarkText: React.CSSProperties = {
-  fontWeight: 900,
-  fontSize: '30px',
-  display: 'flex',
-  alignItems: 'baseline',
-  gap: '1px',
-  lineHeight: 1,
-}
-
-const logoWordmarkIQ: React.CSSProperties = {
-  background: 'linear-gradient(135deg, #56D8AE 0%, #B8E61A 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
 }
 
 const svgStyle: React.CSSProperties = {
