@@ -261,7 +261,7 @@ export default function HomePage() {
 
   const dynamicHeaderInner: React.CSSProperties = {
     ...headerInner,
-    padding: isMobile ? '14px 16px' : '18px 24px',
+    padding: isMobile ? '14px 16px' : '16px 20px',
     justifyContent: isMobile ? 'center' : 'space-between',
   }
 
@@ -347,13 +347,14 @@ export default function HomePage() {
 
   const dynamicLogoStage: React.CSSProperties = {
     ...logoStage,
-    minHeight: isMobile ? '250px' : '335px',
+    minHeight: isMobile ? '220px' : '290px',
   }
 
   const dynamicLogoRing: React.CSSProperties = {
     ...logoRing,
-    width: isMobile ? '230px' : '320px',
-    height: isMobile ? '230px' : '320px',
+    width: isMobile ? '210px' : '260px',
+    height: isMobile ? '210px' : '260px',
+    opacity: 0.45,
   }
 
   const dynamicHeroProofRowWrap: React.CSSProperties = {
@@ -571,15 +572,16 @@ export default function HomePage() {
                   <Image
                     src="/logo-icon.png"
                     alt="TenAceIQ"
-                    width={isMobile ? 170 : 210}
-                    height={isMobile ? 170 : 210}
+                    width={140}
+                    height={140}
                     priority
                     style={{
                       width: '100%',
-                      maxWidth: isMobile ? '170px' : '210px',
+                      maxWidth: isMobile ? '110px' : '140px',
                       height: 'auto',
                       display: 'block',
-                      margin: '0 auto 14px',
+                      margin: '0 auto 10px',
+                      objectFit: 'contain',
                     }}
                   />
                   <div style={heroBrandText}>
@@ -783,38 +785,43 @@ function BrandWordmark({
   compact?: boolean
   footer?: boolean
 }) {
+  const iconSize = compact ? 30 : footer ? 42 : 34
+  const fontSize = compact ? 24 : footer ? 32 : 27
+
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '10px' : '12px',
+        gap: compact ? '8px' : '10px',
+        lineHeight: 1,
       }}
     >
       <Image
         src="/logo-icon.png"
         alt="TenAceIQ"
-        width={compact ? 40 : footer ? 52 : 46}
-        height={compact ? 40 : footer ? 52 : 46}
+        width={iconSize}
+        height={iconSize}
         priority
         style={{
-          width: compact ? '40px' : footer ? '52px' : '46px',
-          height: compact ? '40px' : footer ? '52px' : '46px',
+          width: `${iconSize}px`,
+          height: `${iconSize}px`,
           display: 'block',
+          objectFit: 'contain',
         }}
       />
 
       <div
         style={{
           fontWeight: 900,
-          letterSpacing: '-0.04em',
-          fontSize: compact ? '28px' : footer ? '34px' : '30px',
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
           lineHeight: 1,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'baseline',
         }}
       >
-        <span style={{ color: '#FFFFFF' }}>TenAce</span>
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
         <span
           style={{
             background: 'linear-gradient(135deg, #D9F84A 0%, #36D56D 68%, #2492FF 100%)',
@@ -960,11 +967,11 @@ const headerStyle: React.CSSProperties = {
 const headerInner: React.CSSProperties = {
   maxWidth: '1240px',
   margin: '0 auto',
-  padding: '18px 20px',
+  padding: '16px 20px',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  gap: '20px',
+  gap: '18px',
   flexWrap: 'wrap',
 }
 
@@ -987,8 +994,9 @@ const navLink: React.CSSProperties = {
   fontWeight: 700,
   padding: '10px 14px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.06)',
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)',
+  transition: 'all 0.18s ease',
 }
 
 const heroSection: React.CSSProperties = {
@@ -1267,11 +1275,11 @@ const logoStage: React.CSSProperties = {
 
 const logoGlow: React.CSSProperties = {
   position: 'absolute',
-  width: '300px',
-  height: '300px',
+  width: '240px',
+  height: '240px',
   borderRadius: '50%',
-  background: 'rgba(112, 230, 185, 0.12)',
-  filter: 'blur(46px)',
+  background: 'rgba(112, 230, 185, 0.10)',
+  filter: 'blur(42px)',
   pointerEvents: 'none',
 }
 
@@ -1287,20 +1295,20 @@ const heroBrandCard: React.CSSProperties = {
   position: 'relative',
   zIndex: 2,
   width: '100%',
-  maxWidth: '420px',
-  borderRadius: '30px',
-  padding: '28px 24px',
-  background: 'linear-gradient(180deg, rgba(6,17,49,0.38) 0%, rgba(7,22,59,0.22) 100%)',
-  border: '1px solid rgba(255,255,255,0.10)',
+  maxWidth: '360px',
+  borderRadius: '28px',
+  padding: '22px 20px 20px',
+  background: 'linear-gradient(180deg, rgba(6,17,49,0.22) 0%, rgba(7,22,59,0.14) 100%)',
+  border: '1px solid rgba(255,255,255,0.08)',
   textAlign: 'center',
-  boxShadow: '0 24px 60px rgba(3,10,25,0.22)',
+  boxShadow: '0 20px 50px rgba(3,10,25,0.18)',
 }
 
 const heroBrandText: React.CSSProperties = {
   fontWeight: 900,
-  fontSize: 'clamp(32px, 5vw, 52px)',
+  fontSize: 'clamp(28px, 4vw, 44px)',
   lineHeight: 1,
-  letterSpacing: '-0.04em',
+  letterSpacing: '-0.045em',
 }
 
 const heroTenAce: React.CSSProperties = {
@@ -1595,7 +1603,7 @@ const footerInner: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
-  gap: '16px',
+  gap: '14px',
 }
 
 const footerBrandLink: React.CSSProperties = {

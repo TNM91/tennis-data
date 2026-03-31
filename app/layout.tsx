@@ -44,13 +44,9 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
   },
   icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-    ],
-    shortcut: "/favicon.ico",
-    apple: "/logo-app.png",
+    icon: "/logo-icon.png",
+    shortcut: "/logo-icon.png",
+    apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
 };
@@ -66,7 +62,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
-        {/* ✅ AdSense verification meta tag */}
         <meta
           name="google-adsense-account"
           content="ca-pub-1351888380884789"
@@ -85,7 +80,6 @@ export default function RootLayout({
           color: "#0f172a",
         }}
       >
-        {/* ✅ AdSense script (required for ads + helps verification) */}
         <Script
           id="google-adsense"
           async
