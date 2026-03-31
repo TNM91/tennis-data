@@ -220,75 +220,97 @@ export default function LeagueDetailPage() {
   }, [rows, teamSummaries])
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/leagues" style={navLinkStyle}>Leagues</Link>
-        <Link href="/admin" style={navLinkStyle}>Admin</Link>
+    <main className="page-shell-tight league-detail-page">
+      <div className="league-detail-top-links">
+        <Link href="/" className="button-ghost">Home</Link>
+        <Link href="/rankings" className="button-ghost">Rankings</Link>
+        <Link href="/matchup" className="button-ghost">Matchup</Link>
+        <Link href="/leagues" className="button-ghost">Leagues</Link>
+        <Link href="/admin" className="button-ghost">Admin</Link>
       </div>
 
-      <div style={heroCardStyle}>
-        <div style={heroTopRowStyle}>
-          <div>
-            <div style={heroEyebrowStyle}>League Season</div>
-            <h1 style={{ margin: '8px 0 0', fontSize: '36px' }}>{leagueInfo.leagueName}</h1>
+      <section className="hero-panel league-detail-hero">
+        <div className="hero-inner league-detail-hero-inner">
+          <div className="league-detail-hero-copy">
+            <div className="section-kicker league-detail-kicker">League Season</div>
+            <h1 className="league-detail-title">{leagueInfo.leagueName}</h1>
+            <p className="league-detail-subtitle">
+              {leagueInfo.flight} · {leagueInfo.section} · {leagueInfo.district}
+            </p>
+
+            <div className="league-detail-badges">
+              <span className="badge badge-blue">{stats.matchCount} matches</span>
+              <span className="badge badge-slate">{stats.teams} teams</span>
+              <span className="badge badge-green">
+                Latest: {formatDate(stats.latest)}
+              </span>
+            </div>
           </div>
 
-          <Link href="/leagues" style={heroBackLinkStyle}>
-            Back to Leagues
-          </Link>
+          <div className="glass-card panel-pad league-detail-hero-side">
+            <div className="league-detail-side-label">Season tools</div>
+            <div className="league-detail-side-value">{leagueInfo.flight}</div>
+            <div className="league-detail-side-text">
+              Review team performance, standings-style summaries, and match history for this league segment.
+            </div>
+            <div className="league-detail-side-actions">
+              <Link href="/leagues" className="button-secondary">
+                Back to Leagues
+              </Link>
+            </div>
+          </div>
         </div>
+      </section>
 
-        <p style={heroMetaStyle}>
-          {leagueInfo.flight} · {leagueInfo.section} · {leagueInfo.district}
-        </p>
-      </div>
+      <section className="metric-grid league-detail-metrics">
+        <StatCard label="Matches" value={String(stats.matchCount)} />
+        <StatCard label="Teams" value={String(stats.teams)} />
+        <StatCard label="Singles Lines" value={String(stats.singles)} />
+        <StatCard label="Doubles Lines" value={String(stats.doubles)} />
+        <StatCard label="Latest Match" value={formatDate(stats.latest)} />
+      </section>
 
-      <div style={cardStyle}>
+      <section className="surface-card panel-pad league-detail-main-card">
         {loading ? (
-          <div style={emptyStateStyle}>Loading season data...</div>
+          <div className="league-detail-state-box">Loading season data...</div>
         ) : error ? (
-          <div style={errorBoxStyle}>{error}</div>
+          <div className="league-detail-error-box">{error}</div>
         ) : rows.length === 0 ? (
-          <div style={emptyStateStyle}>No matches found for this league.</div>
+          <div className="league-detail-state-box">No matches found for this league.</div>
         ) : (
           <>
-            <div style={statsGridStyle}>
-              <StatCard label="Matches" value={String(stats.matchCount)} />
-              <StatCard label="Teams" value={String(stats.teams)} />
-              <StatCard label="Singles Lines" value={String(stats.singles)} />
-              <StatCard label="Doubles Lines" value={String(stats.doubles)} />
-              <StatCard label="Latest Match" value={formatDate(stats.latest)} />
-            </div>
-
-            <div style={sectionBlockStyle}>
-              <div style={sectionHeaderRowStyle}>
-                <h2 style={sectionTitleStyle}>Teams</h2>
-                <div style={sectionSubStyle}>Standings-style season summary</div>
+            <section className="league-detail-block">
+              <div className="league-detail-section-head">
+                <div>
+                  <div className="section-kicker">Team Summary</div>
+                  <h2 className="league-detail-section-title">Teams</h2>
+                  <div className="league-detail-section-sub">
+                    Standings-style season snapshot for each team in this league.
+                  </div>
+                </div>
               </div>
 
-              <div style={teamGridStyle}>
-                {teamSummaries.map((team) => (
-                  <div key={team.name} style={teamCardStyle}>
-                    <div style={teamCardTopStyle}>
+              <div className="card-grid league-detail-team-grid">
+                {teamSummaries.map((team, index) => (
+                  <div key={team.name} className="surface-card panel-pad league-detail-team-card">
+                    <div className="league-detail-team-top">
                       <div>
-                        <div style={teamNameStyle}>{team.name}</div>
-                        <div style={teamMetaStyle}>
+                        <div className="league-detail-team-rank">#{index + 1}</div>
+                        <div className="league-detail-team-name">{team.name}</div>
+                        <div className="league-detail-team-record">
                           {team.wins}-{team.losses} record
                         </div>
                       </div>
 
                       <Link
                         href={buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight)}
-                        style={viewLinkStyle}
+                        className="button-ghost league-detail-team-link"
                       >
                         Team Page
                       </Link>
                     </div>
 
-                    <div style={miniStatsGridStyle}>
+                    <div className="league-detail-mini-grid">
                       <MiniStat label="Matches" value={String(team.matches)} />
                       <MiniStat label="Home" value={String(team.homeMatches)} />
                       <MiniStat label="Away" value={String(team.awayMatches)} />
@@ -297,24 +319,27 @@ export default function LeagueDetailPage() {
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div style={sectionBlockStyle}>
-              <div style={sectionHeaderRowStyle}>
+            <section className="league-detail-block">
+              <div className="league-detail-section-head">
                 <div>
-                  <h2 style={sectionTitleStyle}>Season Matches</h2>
-                  <div style={sectionSubStyle}>
-                    Match list for this league season. Team filtering here will be useful later for
-                    lineup projection.
+                  <div className="section-kicker">Season Matches</div>
+                  <h2 className="league-detail-section-title">Match History</h2>
+                  <div className="league-detail-section-sub">
+                    Filter the season list by team to narrow the schedule and results.
                   </div>
                 </div>
 
-                <div style={filterWrapStyle}>
-                  <label style={labelStyle}>Filter by team</label>
+                <div className="league-detail-filter-wrap">
+                  <label className="label" htmlFor="teamFilter">
+                    Filter by team
+                  </label>
                   <select
+                    id="teamFilter"
                     value={teamFilter}
                     onChange={(e) => setTeamFilter(e.target.value)}
-                    style={inputStyle}
+                    className="select"
                   >
                     <option value="all">All Teams</option>
                     {teamSummaries.map((team) => (
@@ -326,30 +351,34 @@ export default function LeagueDetailPage() {
                 </div>
               </div>
 
-              <div style={matchListStyle}>
+              <div className="league-detail-match-list">
                 {filteredMatches.map((row) => {
                   const home = safeText(row.home_team)
                   const away = safeText(row.away_team)
                   const winner = row.winner_side === 'A' ? home : away
 
                   return (
-                    <div key={row.id} style={matchCardStyle}>
-                      <div style={matchTopRowStyle}>
+                    <div key={row.id} className="surface-card panel-pad league-detail-match-card">
+                      <div className="league-detail-match-top">
                         <div>
-                          <div style={matchTitleStyle}>
+                          <div className="league-detail-match-title">
                             {home} vs {away}
                           </div>
-                          <div style={matchMetaStyle}>
+                          <div className="league-detail-match-meta">
                             {formatDate(row.match_date)} · {row.match_type}
                           </div>
                         </div>
 
-                        <div style={winnerBadgeStyle}>Winner: {winner}</div>
+                        <div className="league-detail-winner-pill">
+                          Winner: {winner}
+                        </div>
                       </div>
 
-                      <div style={matchBottomRowStyle}>
-                        <div style={scoreStyle}>{row.score || 'No score entered'}</div>
-                        <div style={matchSubMetaStyle}>
+                      <div className="league-detail-match-bottom">
+                        <div className="league-detail-score">
+                          {row.score || 'No score entered'}
+                        </div>
+                        <div className="league-detail-submeta">
                           {leagueInfo.flight} · {leagueInfo.district}
                         </div>
                       </div>
@@ -357,329 +386,378 @@ export default function LeagueDetailPage() {
                   )
                 })}
               </div>
-            </div>
+            </section>
           </>
         )}
-      </div>
+      </section>
+
+      <style jsx>{`
+        .league-detail-page {
+          padding-top: 1.25rem;
+          padding-bottom: 2.5rem;
+        }
+
+        .league-detail-top-links {
+          display: flex;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .league-detail-hero {
+          overflow: hidden;
+          margin-bottom: 1rem;
+        }
+
+        .league-detail-hero-inner {
+          display: grid;
+          grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
+          gap: 1rem;
+          align-items: stretch;
+        }
+
+        .league-detail-hero-copy {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.85rem;
+        }
+
+        .league-detail-kicker {
+          color: rgba(217, 231, 255, 0.82);
+        }
+
+        .league-detail-title {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(2rem, 4vw, 3.15rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          font-weight: 900;
+        }
+
+        .league-detail-subtitle {
+          margin: 0;
+          color: rgba(219, 234, 254, 0.9);
+          font-size: 1rem;
+          line-height: 1.7;
+          font-weight: 500;
+        }
+
+        .league-detail-badges {
+          display: flex;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+          margin-top: 0.15rem;
+        }
+
+        .league-detail-hero-side {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.65rem;
+        }
+
+        .league-detail-side-label {
+          color: rgba(217, 231, 255, 0.82);
+          font-size: 0.8rem;
+          font-weight: 700;
+          line-height: 1.5;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .league-detail-side-value {
+          color: #ffffff;
+          font-size: 1.95rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.04em;
+        }
+
+        .league-detail-side-text {
+          color: rgba(219, 234, 254, 0.88);
+          font-size: 0.95rem;
+          line-height: 1.65;
+          font-weight: 500;
+        }
+
+        .league-detail-side-actions {
+          margin-top: 0.2rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.75rem;
+        }
+
+        .league-detail-metrics {
+          margin-top: 0;
+          margin-bottom: 1rem;
+        }
+
+        .league-detail-main-card {
+          min-width: 0;
+        }
+
+        .league-detail-block + .league-detail-block {
+          margin-top: 1.5rem;
+        }
+
+        .league-detail-section-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 1rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .league-detail-section-title {
+          margin: 0.25rem 0 0;
+          color: #0f172a;
+          font-size: 1.35rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .league-detail-section-sub {
+          margin-top: 0.45rem;
+          color: #64748b;
+          font-size: 0.94rem;
+          line-height: 1.6;
+          font-weight: 500;
+        }
+
+        .league-detail-team-grid {
+          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          gap: 1rem;
+        }
+
+        .league-detail-team-card {
+          min-width: 0;
+        }
+
+        .league-detail-team-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.75rem;
+          margin-bottom: 0.95rem;
+        }
+
+        .league-detail-team-rank {
+          color: #255be3;
+          font-size: 0.76rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          margin-bottom: 0.45rem;
+        }
+
+        .league-detail-team-name {
+          color: #0f172a;
+          font-size: 1.25rem;
+          line-height: 1.2;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .league-detail-team-record {
+          color: #255be3;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 700;
+          margin-top: 0.35rem;
+        }
+
+        .league-detail-team-link {
+          white-space: nowrap;
+        }
+
+        .league-detail-mini-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.75rem;
+        }
+
+        .league-detail-filter-wrap {
+          width: 260px;
+          max-width: 100%;
+        }
+
+        .league-detail-match-list {
+          display: flex;
+          flex-direction: column;
+          gap: 0.85rem;
+        }
+
+        .league-detail-match-card {
+          min-width: 0;
+        }
+
+        .league-detail-match-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+
+        .league-detail-match-title {
+          color: #0f172a;
+          font-size: 1.1rem;
+          line-height: 1.25;
+          font-weight: 900;
+          letter-spacing: -0.02em;
+        }
+
+        .league-detail-match-meta {
+          color: #64748b;
+          font-size: 0.92rem;
+          line-height: 1.5;
+          font-weight: 500;
+          margin-top: 0.35rem;
+          text-transform: capitalize;
+        }
+
+        .league-detail-winner-pill {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem 0.7rem;
+          border-radius: 999px;
+          background: rgba(34, 197, 94, 0.12);
+          border: 1px solid rgba(34, 197, 94, 0.18);
+          color: #166534;
+          font-size: 0.75rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: 0.02em;
+          white-space: nowrap;
+        }
+
+        .league-detail-match-bottom {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          margin-top: 0.9rem;
+          padding-top: 0.9rem;
+          border-top: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .league-detail-score {
+          color: #255be3;
+          font-size: 1rem;
+          line-height: 1.2;
+          font-weight: 900;
+        }
+
+        .league-detail-submeta {
+          color: #64748b;
+          font-size: 0.9rem;
+          line-height: 1.5;
+          font-weight: 500;
+        }
+
+        .league-detail-state-box {
+          border-radius: 1rem;
+          padding: 1rem 1.05rem;
+          background: #f8fafc;
+          border: 1px dashed #cbd5e1;
+          color: #475569;
+          font-size: 0.96rem;
+          line-height: 1.6;
+          font-weight: 600;
+          text-align: center;
+        }
+
+        .league-detail-error-box {
+          border-radius: 1rem;
+          padding: 1rem 1.05rem;
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.18);
+          color: #991b1b;
+          font-size: 0.96rem;
+          line-height: 1.6;
+          font-weight: 700;
+        }
+
+        @media (max-width: 980px) {
+          .league-detail-hero-inner {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .league-detail-mini-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .league-detail-match-bottom,
+          .league-detail-team-top {
+            align-items: stretch;
+          }
+        }
+      `}</style>
     </main>
   )
 }
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div style={statCardStyle}>
-      <div style={statLabelStyle}>{label}</div>
-      <div style={statValueStyle}>{value}</div>
+    <div className="metric-card">
+      <div className="league-detail-stat-label">{label}</div>
+      <div className="league-detail-stat-value">{value}</div>
+
+      <style jsx>{`
+        .league-detail-stat-label {
+          color: #64748b;
+          font-size: 0.82rem;
+          margin-bottom: 0.4rem;
+          font-weight: 700;
+        }
+
+        .league-detail-stat-value {
+          color: #0f172a;
+          font-size: clamp(1.4rem, 2vw, 1.85rem);
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+      `}</style>
     </div>
   )
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={miniStatStyle}>
-      <div style={miniStatLabelStyle}>{label}</div>
-      <div style={miniStatValueStyle}>{value}</div>
+    <div className="surface-card league-detail-mini-stat">
+      <div className="league-detail-mini-stat-label">{label}</div>
+      <div className="league-detail-mini-stat-value">{value}</div>
+
+      <style jsx>{`
+        .league-detail-mini-stat {
+          padding: 0.85rem 0.9rem;
+          min-width: 0;
+        }
+
+        .league-detail-mini-stat-label {
+          color: #64748b;
+          font-size: 0.76rem;
+          margin-bottom: 0.28rem;
+          font-weight: 700;
+        }
+
+        .league-detail-mini-stat-value {
+          color: #0f172a;
+          font-size: 0.98rem;
+          line-height: 1.2;
+          font-weight: 800;
+        }
+      `}</style>
     </div>
   )
-}
-
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
-}
-
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
-}
-
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
-}
-
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const heroTopRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const heroEyebrowStyle = {
-  color: '#bfdbfe',
-  fontWeight: 700,
-  textTransform: 'uppercase' as const,
-  letterSpacing: '0.08em',
-  fontSize: '12px',
-}
-
-const heroMetaStyle = {
-  margin: '12px 0 0',
-  color: '#dbeafe',
-  fontSize: '16px',
-}
-
-const heroBackLinkStyle = {
-  display: 'inline-block',
-  padding: '10px 14px',
-  borderRadius: '999px',
-  background: 'rgba(255,255,255,0.14)',
-  border: '1px solid rgba(255,255,255,0.22)',
-  color: '#ffffff',
-  textDecoration: 'none',
-  fontWeight: 700,
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const statsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '12px',
-  marginBottom: '20px',
-}
-
-const statCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '16px',
-}
-
-const statLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginBottom: '6px',
-}
-
-const statValueStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const sectionBlockStyle = {
-  marginTop: '20px',
-}
-
-const sectionHeaderRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-end',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-  marginBottom: '14px',
-}
-
-const sectionTitleStyle = {
-  margin: 0,
-  color: '#0f172a',
-  fontSize: '24px',
-  fontWeight: 800,
-}
-
-const sectionSubStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-  marginTop: '6px',
-}
-
-const teamGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-  gap: '16px',
-}
-
-const teamCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const teamCardTopStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '14px',
-}
-
-const teamNameStyle = {
-  color: '#0f172a',
-  fontSize: '22px',
-  fontWeight: 800,
-}
-
-const teamMetaStyle = {
-  color: '#2563eb',
-  fontWeight: 700,
-  marginTop: '6px',
-}
-
-const viewLinkStyle = {
-  display: 'inline-block',
-  padding: '8px 10px',
-  borderRadius: '10px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '13px',
-  whiteSpace: 'nowrap' as const,
-}
-
-const miniStatsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '10px',
-}
-
-const miniStatStyle = {
-  background: '#ffffff',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '12px',
-}
-
-const miniStatLabelStyle = {
-  color: '#64748b',
-  fontSize: '12px',
-  marginBottom: '4px',
-}
-
-const miniStatValueStyle = {
-  color: '#0f172a',
-  fontWeight: 700,
-}
-
-const filterWrapStyle = {
-  width: '240px',
-}
-
-const labelStyle = {
-  display: 'block',
-  fontWeight: 700,
-  color: '#0f172a',
-  marginBottom: '8px',
-}
-
-const inputStyle = {
-  width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
-}
-
-const matchListStyle = {
-  display: 'flex',
-  flexDirection: 'column' as const,
-  gap: '12px',
-}
-
-const matchCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '16px',
-  padding: '16px',
-}
-
-const matchTopRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-}
-
-const matchTitleStyle = {
-  color: '#0f172a',
-  fontSize: '20px',
-  fontWeight: 800,
-}
-
-const matchMetaStyle = {
-  color: '#64748b',
-  marginTop: '6px',
-  textTransform: 'capitalize' as const,
-}
-
-const winnerBadgeStyle = {
-  padding: '8px 10px',
-  borderRadius: '999px',
-  background: '#dcfce7',
-  border: '1px solid #bbf7d0',
-  color: '#166534',
-  fontWeight: 700,
-  fontSize: '12px',
-}
-
-const matchBottomRowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '12px',
-  flexWrap: 'wrap' as const,
-  marginTop: '12px',
-}
-
-const scoreStyle = {
-  color: '#1d4ed8',
-  fontWeight: 800,
-  fontSize: '18px',
-}
-
-const matchSubMetaStyle = {
-  color: '#64748b',
-  fontSize: '14px',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const emptyStateStyle = {
-  marginTop: '18px',
-  padding: '18px',
-  borderRadius: '16px',
-  background: '#f8fafc',
-  border: '1px dashed #cbd5e1',
-  color: '#475569',
 }
