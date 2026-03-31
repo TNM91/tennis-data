@@ -23,7 +23,21 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
 
+  const [screenWidth, setScreenWidth] = useState<number>(1200)
+
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
+  const isMobile = screenWidth < 768
+  const isSmallMobile = screenWidth < 520
+
+  useEffect(() => {
+    function handleResize() {
+      setScreenWidth(window.innerWidth)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -222,6 +236,227 @@ export default function HomePage() {
     }
   }
 
+  const dynamicHeaderInner: React.CSSProperties = {
+    ...headerInner,
+    padding: isMobile ? '14px 16px' : '18px 20px',
+    justifyContent: isMobile ? 'center' : 'space-between',
+  }
+
+  const dynamicNavStyle: React.CSSProperties = {
+    ...navStyle,
+    justifyContent: isMobile ? 'center' : 'flex-start',
+    gap: isMobile ? '8px' : '10px',
+  }
+
+  const dynamicNavLink: React.CSSProperties = {
+    ...navLink,
+    padding: isMobile ? '8px 12px' : '10px 14px',
+    fontSize: isMobile ? '14px' : '15px',
+  }
+
+  const dynamicHeroSection: React.CSSProperties = {
+    ...heroSection,
+    padding: isMobile ? '18px 12px 18px' : '36px 20px 22px',
+  }
+
+  const dynamicHeroShell: React.CSSProperties = {
+    ...heroShell,
+    borderRadius: isMobile ? '24px' : '34px',
+  }
+
+  const dynamicHeroContent: React.CSSProperties = {
+    ...heroContent,
+    gridTemplateColumns: isMobile ? '1fr' : '1.02fr 0.98fr',
+    gap: isMobile ? '14px' : '26px',
+  }
+
+  const dynamicHeroLeft: React.CSSProperties = {
+    ...heroLeft,
+    padding: isMobile ? '28px 20px 8px' : '60px 50px 26px',
+  }
+
+  const dynamicHeroRight: React.CSSProperties = {
+    ...heroRight,
+    padding: isMobile ? '0 20px 10px' : '38px 38px 20px 20px',
+    gap: isMobile ? '16px' : '20px',
+  }
+
+  const dynamicEyebrow: React.CSSProperties = {
+    ...eyebrow,
+    fontSize: isMobile ? '11px' : '13px',
+    padding: isMobile ? '7px 12px' : '8px 14px',
+  }
+
+  const dynamicHeroTitle: React.CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '32px' : isMobile ? '38px' : '60px',
+    lineHeight: isMobile ? 1.06 : 1,
+  }
+
+  const dynamicHeroText: React.CSSProperties = {
+    ...heroText,
+    fontSize: isMobile ? '16px' : '18px',
+    lineHeight: isMobile ? 1.6 : 1.75,
+  }
+
+  const dynamicSearchShellRight: React.CSSProperties = {
+    ...searchShellRight,
+    maxWidth: isMobile ? '100%' : '560px',
+    padding: isMobile ? '16px' : '18px',
+  }
+
+  const dynamicSearchRow: React.CSSProperties = {
+    ...searchRow,
+    flexDirection: isMobile ? 'column' : 'row',
+  }
+
+  const dynamicSearchInputWrap: React.CSSProperties = {
+    ...searchInputWrap,
+    minWidth: isMobile ? '100%' : '260px',
+    width: isMobile ? '100%' : undefined,
+  }
+
+  const dynamicSearchButton: React.CSSProperties = {
+    ...searchButton,
+    width: isMobile ? '100%' : 'auto',
+  }
+
+  const dynamicLogoStage: React.CSSProperties = {
+    ...logoStage,
+    minHeight: isMobile ? '280px' : '430px',
+  }
+
+  const dynamicLogoRing: React.CSSProperties = {
+    ...logoRing,
+    width: isMobile ? '280px' : '430px',
+    height: isMobile ? '280px' : '430px',
+  }
+
+  const dynamicLogoCard: React.CSSProperties = {
+    ...logoCard,
+    maxWidth: isMobile ? '320px' : '440px',
+    borderRadius: isMobile ? '24px' : '32px',
+    padding: isMobile ? '14px' : '18px',
+  }
+
+  const dynamicLogoCardInner: React.CSSProperties = {
+    ...logoCardInner,
+    minHeight: isMobile ? '200px' : '290px',
+    borderRadius: isMobile ? '18px' : '24px',
+    padding: isMobile ? '22px 18px' : '34px 24px',
+  }
+
+  const dynamicHeroLogo: React.CSSProperties = {
+    ...heroLogo,
+    maxWidth: isMobile ? '220px' : '310px',
+  }
+
+  const dynamicHeroProofRowWrap: React.CSSProperties = {
+    ...heroProofRowWrap,
+    padding: isSmallMobile ? '0 16px 22px' : isMobile ? '0 20px 26px' : '0 50px 42px',
+  }
+
+  const dynamicHeroProofGrid: React.CSSProperties = {
+    ...heroProofGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isMobile
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'repeat(4, minmax(0, 1fr))',
+    gap: isMobile ? '12px' : '18px',
+  }
+
+  const dynamicProofItem: React.CSSProperties = {
+    ...proofItem,
+    minHeight: isMobile ? '96px' : '112px',
+    padding: isMobile ? '16px 14px' : '20px 18px',
+    alignItems: 'center',
+  }
+
+  const dynamicProofIconShell: React.CSSProperties = {
+    ...proofIconShell,
+    width: isMobile ? '40px' : '46px',
+    height: isMobile ? '40px' : '46px',
+  }
+
+  const dynamicProofTitle: React.CSSProperties = {
+    ...proofTitle,
+    fontSize: isMobile ? '14px' : '15px',
+  }
+
+  const dynamicProofText: React.CSSProperties = {
+    ...proofText,
+    fontSize: isMobile ? '12px' : '13px',
+  }
+
+  const dynamicFeatureSection: React.CSSProperties = {
+    ...featureSection,
+    padding: isMobile ? '18px 12px 16px' : '24px 20px 20px',
+  }
+
+  const dynamicFeatureTitle: React.CSSProperties = {
+    ...featureTitle,
+    fontSize: isSmallMobile ? '28px' : isMobile ? '32px' : '40px',
+  }
+
+  const dynamicFeatureText: React.CSSProperties = {
+    ...featureText,
+    fontSize: isMobile ? '16px' : '17px',
+    lineHeight: isMobile ? 1.6 : 1.75,
+  }
+
+  const dynamicMessageStripSection: React.CSSProperties = {
+    ...messageStripSection,
+    padding: isMobile ? '4px 12px 16px' : '8px 20px 20px',
+  }
+
+  const dynamicMessageStrip: React.CSSProperties = {
+    ...messageStrip,
+    padding: isMobile ? '18px 18px' : '22px 26px',
+  }
+
+  const dynamicMessageStripText: React.CSSProperties = {
+    ...messageStripText,
+    fontSize: isSmallMobile ? '22px' : isMobile ? '24px' : '28px',
+  }
+
+  const dynamicCtaSection: React.CSSProperties = {
+    ...ctaSection,
+    padding: isMobile ? '4px 12px 30px' : '8px 20px 54px',
+  }
+
+  const dynamicCtaCard: React.CSSProperties = {
+    ...ctaCard,
+    padding: isMobile ? '22px 18px' : '30px',
+  }
+
+  const dynamicCtaTitle: React.CSSProperties = {
+    ...ctaTitle,
+    fontSize: isSmallMobile ? '24px' : isMobile ? '28px' : '34px',
+  }
+
+  const dynamicCtaButtons: React.CSSProperties = {
+    ...ctaButtons,
+    width: isMobile ? '100%' : 'auto',
+  }
+
+  const dynamicCtaPrimary: React.CSSProperties = {
+    ...ctaPrimary,
+    width: isMobile ? '100%' : 'auto',
+    textAlign: 'center',
+  }
+
+  const dynamicCtaSecondary: React.CSSProperties = {
+    ...ctaSecondary,
+    width: isMobile ? '100%' : 'auto',
+    textAlign: 'center',
+  }
+
+  const dynamicFooterInner: React.CSSProperties = {
+    ...footerInner,
+    padding: isMobile ? '30px 16px 22px' : '38px 20px 26px',
+  }
+
   return (
     <main style={pageStyle}>
       <div style={orbOne} />
@@ -229,31 +464,31 @@ export default function HomePage() {
       <div style={gridGlow} />
 
       <header style={headerStyle}>
-        <div style={headerInner}>
+        <div style={dynamicHeaderInner}>
           <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
             <LogoWordmark />
           </Link>
 
-          <nav style={navStyle}>
-            <Link href="/" style={navLink}>Home</Link>
-            <Link href="/players" style={navLink}>Players</Link>
-            <Link href="/rankings" style={navLink}>Rankings</Link>
-            <Link href="/matchup" style={navLink}>Matchup</Link>
-            <Link href="/leagues" style={navLink}>Leagues</Link>
-            <Link href="/captains-corner" style={navLink}>Captain&apos;s Corner</Link>
+          <nav style={dynamicNavStyle}>
+            <Link href="/" style={dynamicNavLink}>Home</Link>
+            <Link href="/players" style={dynamicNavLink}>Players</Link>
+            <Link href="/rankings" style={dynamicNavLink}>Rankings</Link>
+            <Link href="/matchup" style={dynamicNavLink}>Matchup</Link>
+            <Link href="/leagues" style={dynamicNavLink}>Leagues</Link>
+            <Link href="/captains-corner" style={dynamicNavLink}>Captain&apos;s Corner</Link>
           </nav>
         </div>
       </header>
 
-      <section style={heroSection}>
-        <div style={heroShell}>
+      <section style={dynamicHeroSection}>
+        <div style={dynamicHeroShell}>
           <div style={heroNoise} />
 
-          <div style={heroContent}>
-            <div style={heroLeft}>
-              <div style={eyebrow}>Know More. Plan Better. Compete Smarter.</div>
+          <div style={dynamicHeroContent}>
+            <div style={dynamicHeroLeft}>
+              <div style={dynamicEyebrow}>Know More. Plan Better. Compete Smarter.</div>
 
-              <h1 style={heroTitle}>
+              <h1 style={dynamicHeroTitle}>
                 The one-stop tennis
                 <br />
                 intelligence platform
@@ -261,23 +496,23 @@ export default function HomePage() {
                 for players and captains.
               </h1>
 
-              <p style={heroText}>
+              <p style={dynamicHeroText}>
                 TenAceIQ brings player insight, rankings, matchup analysis, league context,
                 and captain tools into one clean platform built to help you make smarter
                 tennis decisions before match day.
               </p>
             </div>
 
-            <div style={heroRight}>
-              <form onSubmit={handlePlayerSearch} style={searchShellRight}>
+            <div style={dynamicHeroRight}>
+              <form onSubmit={handlePlayerSearch} style={dynamicSearchShellRight}>
                 <div style={searchTopRow}>
                   <div style={searchLabel}>Start with a player</div>
                   <div style={searchShortcutHint}>Use ↑ ↓ Enter</div>
                 </div>
 
                 <div ref={searchRef} style={searchAutocompleteWrap}>
-                  <div style={searchRow}>
-                    <div style={searchInputWrap}>
+                  <div style={dynamicSearchRow}>
+                    <div style={dynamicSearchInputWrap}>
                       <div style={searchIconWrap}>
                         <SearchIcon />
                       </div>
@@ -303,7 +538,7 @@ export default function HomePage() {
                       />
                     </div>
 
-                    <button type="submit" style={searchButton} disabled={searchLoading}>
+                    <button type="submit" style={dynamicSearchButton} disabled={searchLoading}>
                       {searchLoading ? 'Searching...' : 'Search'}
                     </button>
                   </div>
@@ -346,67 +581,71 @@ export default function HomePage() {
                 {searchError ? <div style={searchErrorStyle}>{searchError}</div> : null}
               </form>
 
-              <div style={logoStage}>
+              <div style={dynamicLogoStage}>
                 <div style={logoGlow} />
-                <div style={logoRing} />
+                <div style={dynamicLogoRing} />
 
-                <div style={logoCard}>
-                  <div style={logoCardInner}>
-                    <img src="/logo-dark.png" style={heroLogo} alt="TenAceIQ logo" />
+                <div style={dynamicLogoCard}>
+                  <div style={dynamicLogoCardInner}>
+                    <img src="/logo-dark.png" style={dynamicHeroLogo} alt="TenAceIQ logo" />
                   </div>
                 </div>
 
-                <div style={floatingTop}>
-                  <div style={floatingKicker}>Matchup insight</div>
-                  <div style={floatingText}>See the edge before your first serve.</div>
-                </div>
+                {!isMobile && (
+                  <div style={floatingTop}>
+                    <div style={floatingKicker}>Matchup insight</div>
+                    <div style={floatingText}>See the edge before your first serve.</div>
+                  </div>
+                )}
 
-                <div style={floatingBottom}>
-                  <div style={floatingKicker}>Captain tools</div>
-                  <div style={floatingText}>Matchup prep, lineup tools, and smarter team decisions.</div>
-                </div>
+                {!isMobile && (
+                  <div style={floatingBottom}>
+                    <div style={floatingKicker}>Captain tools</div>
+                    <div style={floatingText}>Matchup prep, lineup tools, and smarter team decisions.</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          <div style={heroProofRowWrap}>
-            <div style={heroProofGrid}>
+          <div style={dynamicHeroProofRowWrap}>
+            <div style={dynamicHeroProofGrid}>
               <Link href="/players" style={proofLink}>
-                <div style={proofItem}>
-                  <div style={proofIconShell}><PlayersIcon /></div>
+                <div style={dynamicProofItem}>
+                  <div style={dynamicProofIconShell}><PlayersIcon /></div>
                   <div style={proofTextWrap}>
-                    <div style={proofTitle}>Player Ratings</div>
-                    <div style={proofText}>Know more about every player</div>
+                    <div style={dynamicProofTitle}>Player Ratings</div>
+                    <div style={dynamicProofText}>Know more about every player</div>
                   </div>
                 </div>
               </Link>
 
               <Link href="/matchup" style={proofLink}>
-                <div style={proofItem}>
-                  <div style={proofIconShell}><MatchupIcon /></div>
+                <div style={dynamicProofItem}>
+                  <div style={dynamicProofIconShell}><MatchupIcon /></div>
                   <div style={proofTextWrap}>
-                    <div style={proofTitle}>Matchup Analysis</div>
-                    <div style={proofText}>Compare opponents faster</div>
+                    <div style={dynamicProofTitle}>Matchup Analysis</div>
+                    <div style={dynamicProofText}>Compare opponents faster</div>
                   </div>
                 </div>
               </Link>
 
               <Link href="/leagues" style={proofLink}>
-                <div style={proofItem}>
-                  <div style={proofIconShell}><LeaguesIcon /></div>
+                <div style={dynamicProofItem}>
+                  <div style={dynamicProofIconShell}><LeaguesIcon /></div>
                   <div style={proofTextWrap}>
-                    <div style={proofTitle}>League Context</div>
-                    <div style={proofText}>Track your team and competition</div>
+                    <div style={dynamicProofTitle}>League Context</div>
+                    <div style={dynamicProofText}>Track your team and competition</div>
                   </div>
                 </div>
               </Link>
 
               <Link href="/captains-corner" style={proofLink}>
-                <div style={proofItem}>
-                  <div style={proofIconShell}><CaptainIcon /></div>
+                <div style={dynamicProofItem}>
+                  <div style={dynamicProofIconShell}><CaptainIcon /></div>
                   <div style={proofTextWrap}>
-                    <div style={proofTitle}>Captain Tools</div>
-                    <div style={proofText}>Plan better before match day</div>
+                    <div style={dynamicProofTitle}>Captain Tools</div>
+                    <div style={dynamicProofText}>Plan better before match day</div>
                   </div>
                 </div>
               </Link>
@@ -415,13 +654,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={featureSection}>
+      <section style={dynamicFeatureSection}>
         <div style={featureHeader}>
           <div style={featureEyebrow}>Platform Overview</div>
-          <h2 style={featureTitle}>
+          <h2 style={dynamicFeatureTitle}>
             Everything important for your game, your team, and your next lineup.
           </h2>
-          <p style={featureText}>
+          <p style={dynamicFeatureText}>
             TenAceIQ is designed to be the home base for tennis data, preparation,
             and decision-making without forcing you to jump between disconnected tools.
           </p>
@@ -495,11 +734,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={messageStripSection}>
-        <div style={messageStrip}>
+      <section style={dynamicMessageStripSection}>
+        <div style={dynamicMessageStrip}>
           <div style={messageStripLeft}>
             <div style={messageStripKicker}>Core Theme</div>
-            <div style={messageStripText}>Know more. Plan better. Compete smarter.</div>
+            <div style={dynamicMessageStripText}>Know more. Plan better. Compete smarter.</div>
           </div>
 
           <div style={messageStripRight}>
@@ -511,24 +750,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section style={ctaSection}>
-        <div style={ctaCard}>
+      <section style={dynamicCtaSection}>
+        <div style={dynamicCtaCard}>
           <div>
             <div style={ctaEyebrow}>Start Here</div>
-            <h3 style={ctaTitle}>
+            <h3 style={dynamicCtaTitle}>
               Smarter player data. Better team planning. Stronger match-day decisions.
             </h3>
           </div>
 
-          <div style={ctaButtons}>
-            <Link href="/players" style={ctaPrimary}>Find a Player</Link>
-            <Link href="/matchup" style={ctaSecondary}>Compare Matchups</Link>
+          <div style={dynamicCtaButtons}>
+            <Link href="/players" style={dynamicCtaPrimary}>Find a Player</Link>
+            <Link href="/matchup" style={dynamicCtaSecondary}>Compare Matchups</Link>
           </div>
         </div>
       </section>
 
       <footer style={footerStyle}>
-        <div style={footerInner}>
+        <div style={dynamicFooterInner}>
           <div style={footerBrandRow}>
             <LogoWordmark darkText={false} />
           </div>
