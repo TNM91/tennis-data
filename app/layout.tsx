@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.tenaceiq.com"),
+  metadataBase: new URL("https://tenaceiq.com"), // IMPORTANT: root domain (no www)
   title: {
     default: "TenAceIQ",
     template: "%s | TenAceIQ",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "TenAceIQ",
     description: "Know more. Plan better. Compete smarter.",
-    url: "https://www.tenaceiq.com",
+    url: "https://tenaceiq.com",
     siteName: "TenAceIQ",
     images: [
       {
@@ -66,11 +66,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable}`}
     >
       <head>
+        {/* REQUIRED for AdSense verification */}
         <meta
           name="google-adsense-account"
           content="ca-pub-1351888380884789"
         />
       </head>
+
       <body
         style={{
           margin: 0,
@@ -83,13 +85,15 @@ export default function RootLayout({
           color: "#0f172a",
         }}
       >
+        {/* REQUIRED AdSense script */}
         <Script
           id="google-adsense"
-          strategy="beforeInteractive"
           async
+          strategy="beforeInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
           crossOrigin="anonymous"
         />
+
         {children}
       </body>
     </html>
