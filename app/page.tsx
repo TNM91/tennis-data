@@ -2,7 +2,16 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { FormEvent, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  CSSProperties,
+  FormEvent,
+  KeyboardEvent,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
 
@@ -11,36 +20,42 @@ type PlayerSearchRow = {
   name: string
 }
 
-const QUICK_SEARCHES = ['Nathan Meinert', 'Nathan Easley', 'Top doubles players']
+const QUICK_SEARCHES = ['Nathan Meinert', 'Top doubles players']
 
 export default function HomePage() {
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   const [playerSearch, setPlayerSearch] = useState('')
   const [searchLoading, setSearchLoading] = useState(false)
   const [searchError, setSearchError] = useState('')
-
   const [suggestions, setSuggestions] = useState<PlayerSearchRow[]>([])
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
-
-  const [screenWidth, setScreenWidth] = useState(1200)
+  const [screenWidth, setScreenWidth] = useState(1280)
+  const [inputFocused, setInputFocused] = useState(false)
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
 
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
   const shouldShowSuggestions = showSuggestions && trimmedSearch.length >= 2
-  const isMobile = screenWidth < 900
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
 
   useEffect(() => {
-    function handleResize() {
-      setScreenWidth(window.innerWidth)
-    }
-
+    const handleResize = () => setScreenWidth(window.innerWidth)
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus()
+    }, 220)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -114,7 +129,7 @@ export default function HomePage() {
       } finally {
         if (!isCancelled) setSuggestionsLoading(false)
       }
-    }, 200)
+    }, 180)
 
     return () => {
       isCancelled = true
@@ -247,186 +262,113 @@ export default function HomePage() {
       return
     }
 
-    if (e.key === 'Enter') {
-      if (
-        shouldShowSuggestions &&
-        activeSuggestionIndex >= 0 &&
-        activeSuggestionIndex < suggestions.length
-      ) {
-        e.preventDefault()
-        handleSuggestionClick(suggestions[activeSuggestionIndex])
-      }
+    if (
+      e.key === 'Enter' &&
+      shouldShowSuggestions &&
+      activeSuggestionIndex >= 0 &&
+      activeSuggestionIndex < suggestions.length
+    ) {
+      e.preventDefault()
+      handleSuggestionClick(suggestions[activeSuggestionIndex])
     }
   }
 
-  const dynamicHeaderInner: React.CSSProperties = {
+  const dynamicHeaderInner: CSSProperties = {
     ...headerInner,
     padding: isMobile ? '14px 16px' : '16px 20px',
     justifyContent: isMobile ? 'center' : 'space-between',
   }
 
-  const dynamicNavStyle: React.CSSProperties = {
+  const dynamicNavStyle: CSSProperties = {
     ...navStyle,
     justifyContent: isMobile ? 'center' : 'flex-start',
     gap: isMobile ? '8px' : '10px',
   }
 
-  const dynamicNavLink: React.CSSProperties = {
+  const dynamicNavLink: CSSProperties = {
     ...navLink,
     padding: isMobile ? '9px 12px' : '10px 14px',
     fontSize: isMobile ? '14px' : '15px',
+    background: isMobile ? 'rgba(255,255,255,0.025)' : 'rgba(255,255,255,0.02)',
+    color: '#D6E5FF',
   }
 
-  const dynamicHeroSection: React.CSSProperties = {
+  const dynamicHeroSection: CSSProperties = {
     ...heroSection,
-    padding: isMobile ? '18px 12px 16px' : '30px 20px 18px',
+    padding: isMobile ? '18px 12px 24px' : '30px 20px 28px',
   }
 
-  const dynamicHeroShell: React.CSSProperties = {
+  const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     borderRadius: isMobile ? '24px' : '34px',
   }
 
-  const dynamicHeroContent: React.CSSProperties = {
+  const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isMobile ? '1fr' : '1.02fr 0.98fr',
-    gap: isMobile ? '18px' : '30px',
+    gridTemplateColumns: isTablet ? '1fr' : '1.02fr 0.98fr',
+    gap: isTablet ? '20px' : '28px',
+    padding: isMobile ? '28px 18px 24px' : '38px 38px 26px',
   }
 
-  const dynamicHeroLeft: React.CSSProperties = {
-    ...heroLeft,
-    padding: isMobile ? '26px 20px 6px' : '52px 50px 22px',
-  }
-
-  const dynamicHeroRight: React.CSSProperties = {
-    ...heroRight,
-    padding: isMobile ? '0 20px 24px' : '42px 42px 28px 18px',
-    gap: isMobile ? '16px' : '18px',
-  }
-
-  const dynamicEyebrow: React.CSSProperties = {
-    ...eyebrow,
-    fontSize: isMobile ? '11px' : '13px',
-    padding: isMobile ? '7px 12px' : '8px 14px',
-  }
-
-  const dynamicHeroTitle: React.CSSProperties = {
+  const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '32px' : isMobile ? '40px' : '62px',
-    lineHeight: isMobile ? 1.05 : 0.98,
+    fontSize: isSmallMobile ? '32px' : isMobile ? '42px' : '60px',
+    lineHeight: isMobile ? 1.04 : 0.98,
+    maxWidth: '700px',
   }
 
-  const dynamicHeroText: React.CSSProperties = {
+  const dynamicHeroText: CSSProperties = {
     ...heroText,
     fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '640px',
-    lineHeight: isMobile ? 1.6 : 1.72,
+    maxWidth: '620px',
   }
 
-  const dynamicSearchShellRight: React.CSSProperties = {
-    ...searchShellRight,
-    maxWidth: isMobile ? '100%' : '560px',
+  const dynamicSearchShell: CSSProperties = {
+    ...searchShell,
     padding: isMobile ? '16px' : '18px',
+    marginBottom: '18px',
+    boxShadow: inputFocused
+      ? '0 22px 44px rgba(3,10,25,0.24), 0 0 0 2px rgba(86,216,174,0.28)'
+      : searchShell.boxShadow,
   }
 
-  const dynamicSearchRow: React.CSSProperties = {
+  const dynamicSearchRow: CSSProperties = {
     ...searchRow,
-    flexDirection: isMobile ? 'column' : 'row',
+    flexDirection: isSmallMobile ? 'column' : 'row',
   }
 
-  const dynamicSearchInputWrap: React.CSSProperties = {
+  const dynamicSearchInputWrap: CSSProperties = {
     ...searchInputWrap,
-    minWidth: isMobile ? '100%' : '260px',
-    width: isMobile ? '100%' : undefined,
+    width: isSmallMobile ? '100%' : undefined,
+    minWidth: isSmallMobile ? '100%' : '260px',
   }
 
-  const dynamicSearchButton: React.CSSProperties = {
+  const dynamicSearchInput: CSSProperties = {
+    ...searchInput,
+    boxShadow: inputFocused ? '0 0 0 2px rgba(36,146,255,0.22)' : 'none',
+  }
+
+  const dynamicSearchButton: CSSProperties = {
     ...searchButton,
-    width: isMobile ? '100%' : 'auto',
+    width: isSmallMobile ? '100%' : 'auto',
+    filter: searchLoading ? 'saturate(0.92)' : 'none',
   }
 
-  const dynamicLogoStage: React.CSSProperties = {
-    ...logoStage,
-    minHeight: isMobile ? '220px' : '290px',
-    marginTop: isMobile ? '6px' : '10px',
+  const dynamicLogoPanel: CSSProperties = {
+    ...logoPanel,
+    minHeight: isMobile ? '220px' : '250px',
+    opacity: inputFocused ? 0.95 : 1,
   }
 
-  const dynamicLogoRing: React.CSSProperties = {
-    ...logoRing,
-    width: isMobile ? '210px' : '260px',
-    height: isMobile ? '210px' : '260px',
-    opacity: 0.45,
+  const dynamicActionGrid: CSSProperties = {
+    ...actionGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(260px, 1fr))',
+    gap: isMobile ? '12px' : '14px',
+    gridColumn: isTablet ? 'auto' : '1 / -1',
+    alignItems: 'stretch',
   }
 
-  const dynamicHeroProofRowWrap: React.CSSProperties = {
-    ...heroProofRowWrap,
-    padding: isSmallMobile ? '0 16px 22px' : isMobile ? '0 20px 26px' : '0 50px 38px',
-  }
-
-  const dynamicHeroProofGrid: React.CSSProperties = {
-    ...heroProofGrid,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isMobile
-      ? 'repeat(2, minmax(0, 1fr))'
-      : 'repeat(4, minmax(0, 1fr))',
-    gap: isMobile ? '12px' : '16px',
-  }
-
-  const dynamicProofItem: React.CSSProperties = {
-    ...proofItem,
-    minHeight: isMobile ? '96px' : '110px',
-    padding: isMobile ? '16px 14px' : '20px 18px',
-  }
-
-  const dynamicFeatureSection: React.CSSProperties = {
-    ...featureSection,
-    padding: isMobile ? '18px 12px 16px' : '24px 20px 20px',
-  }
-
-  const dynamicFeatureTitle: React.CSSProperties = {
-    ...featureTitle,
-    fontSize: isSmallMobile ? '28px' : isMobile ? '32px' : '42px',
-  }
-
-  const dynamicFeatureText: React.CSSProperties = {
-    ...featureText,
-    fontSize: isMobile ? '16px' : '17px',
-    lineHeight: isMobile ? 1.6 : 1.72,
-  }
-
-  const dynamicMessageStripSection: React.CSSProperties = {
-    ...messageStripSection,
-    padding: isMobile ? '8px 12px 18px' : '8px 20px 20px',
-  }
-
-  const dynamicMessageStrip: React.CSSProperties = {
-    ...messageStrip,
-    padding: isMobile ? '18px 16px' : '22px 26px',
-    borderRadius: isMobile ? '22px' : '28px',
-  }
-
-  const dynamicMessageStripText: React.CSSProperties = {
-    ...messageStripText,
-    fontSize: isSmallMobile ? '22px' : isMobile ? '24px' : '28px',
-  }
-
-  const dynamicCtaSection: React.CSSProperties = {
-    ...ctaSection,
-    padding: isMobile ? '4px 12px 30px' : '10px 20px 56px',
-  }
-
-  const dynamicCtaCard: React.CSSProperties = {
-    ...ctaCard,
-    padding: isMobile ? '22px 18px' : '30px',
-  }
-
-  const dynamicCtaTitle: React.CSSProperties = {
-    ...ctaTitle,
-    fontSize: isSmallMobile ? '24px' : isMobile ? '28px' : '34px',
-  }
-
-  const dynamicFooterInner: React.CSSProperties = {
+  const dynamicFooterInner: CSSProperties = {
     ...footerInner,
     padding: isMobile ? '30px 16px 22px' : '38px 20px 26px',
   }
@@ -459,43 +401,23 @@ export default function HomePage() {
           <div style={heroNoise} />
 
           <div style={dynamicHeroContent}>
-            <div style={dynamicHeroLeft}>
-              <div style={dynamicEyebrow}>Know More. Plan Better. Compete Smarter.</div>
+            <div style={heroLeft}>
+              <div style={eyebrow}>Know more. Plan better. Compete smarter.</div>
 
               <h1 style={dynamicHeroTitle}>
-                Smarter tennis
-                <br />
-                insight for players,
-                <br />
-                captains, and teams.
+                The fastest way to check player stats, compare matchups, and prepare your lineup.
               </h1>
 
               <p style={dynamicHeroText}>
-                TenAceIQ helps you search players, compare matchups, track rankings,
-                understand league context, and prepare with more confidence before match day.
+                Search players first, then move straight into matchups, rankings, and captain tools.
               </p>
-
-              <div style={statsRow}>
-                <div style={statPill}>
-                  <span style={statValue}>Player</span>
-                  <span style={statLabel}>search first</span>
-                </div>
-                <div style={statPill}>
-                  <span style={statValue}>Singles + doubles</span>
-                  <span style={statLabel}>better context</span>
-                </div>
-                <div style={statPill}>
-                  <span style={statValue}>Captain tools</span>
-                  <span style={statLabel}>plan smarter</span>
-                </div>
-              </div>
             </div>
 
-            <div style={dynamicHeroRight}>
-              <form onSubmit={handlePlayerSearch} style={dynamicSearchShellRight}>
+            <div style={heroRight}>
+              <form onSubmit={handlePlayerSearch} style={dynamicSearchShell}>
                 <div style={searchTopRow}>
-                  <div style={searchLabel}>Start with a player</div>
-                  <div style={searchShortcutHint}>Use ↑ ↓ Enter</div>
+                  <div style={searchLabel}>Search a player</div>
+                  {!isSmallMobile ? <div style={searchShortcutHint}>Use ↑ ↓ Enter</div> : null}
                 </div>
 
                 <div ref={searchRef} style={searchAutocompleteWrap}>
@@ -506,6 +428,7 @@ export default function HomePage() {
                       </div>
 
                       <input
+                        ref={inputRef}
                         type="text"
                         value={playerSearch}
                         onChange={(e) => {
@@ -514,13 +437,13 @@ export default function HomePage() {
                           setShowSuggestions(true)
                         }}
                         onFocus={() => {
-                          if (trimmedSearch.length >= 2) {
-                            setShowSuggestions(true)
-                          }
+                          setInputFocused(true)
+                          if (trimmedSearch.length >= 2) setShowSuggestions(true)
                         }}
+                        onBlur={() => setInputFocused(false)}
                         onKeyDown={handleInputKeyDown}
                         placeholder="Search player name..."
-                        style={searchInput}
+                        style={dynamicSearchInput}
                         aria-label="Search player name"
                         autoComplete="off"
                       />
@@ -534,11 +457,13 @@ export default function HomePage() {
                   {shouldShowSuggestions && (
                     <div style={suggestionsDropdown}>
                       {suggestionsLoading ? (
-                        <div style={suggestionStatus}>Searching players...</div>
+                        <div style={suggestionStatus}>
+                          <div style={loadingBar} />
+                          <div style={loadingBarShort} />
+                        </div>
                       ) : suggestions.length > 0 ? (
                         suggestions.map((player, index) => {
                           const isActive = index === activeSuggestionIndex
-
                           return (
                             <button
                               key={player.id}
@@ -582,20 +507,19 @@ export default function HomePage() {
                 {searchError ? <div style={searchErrorStyle}>{searchError}</div> : null}
               </form>
 
-              <div style={dynamicLogoStage}>
+              <div style={dynamicLogoPanel}>
                 <div style={logoGlow} />
-                <div style={dynamicLogoRing} />
-                <div style={heroBrandCard}>
+                <div style={logoRing} />
+                <div style={logoPanelInner}>
                   <Image
                     src="/logo-icon.png"
                     alt="TenAceIQ"
-                    width={140}
-                    height={140}
+                    width={512}
+                    height={512}
                     priority
                     style={{
-                      width: '100%',
-                      maxWidth: isMobile ? '110px' : '140px',
-                      height: 'auto',
+                      width: isMobile ? '108px' : '116px',
+                      height: isMobile ? '108px' : '116px',
                       display: 'block',
                       margin: '0 auto 10px',
                       objectFit: 'contain',
@@ -605,165 +529,72 @@ export default function HomePage() {
                     <span style={heroTenAce}>TenAce</span>
                     <span style={heroIQ}>IQ</span>
                   </div>
+                  <p style={logoPanelText}>
+                    Premium player analytics, matchup insight, league context, and captain prep built for competitive tennis.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div style={dynamicHeroProofRowWrap}>
-            <div style={dynamicHeroProofGrid}>
-              <Link href="/players" style={proofLink}>
-                <div style={dynamicProofItem}>
-                  <div style={proofIconShell}><PlayersIcon /></div>
-                  <div style={proofTextWrap}>
-                    <div style={proofTitle}>Player Ratings</div>
-                    <div style={proofText}>Know more about every player</div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/matchup" style={proofLink}>
-                <div style={dynamicProofItem}>
-                  <div style={proofIconShell}><MatchupIcon /></div>
-                  <div style={proofTextWrap}>
-                    <div style={proofTitle}>Matchup Analysis</div>
-                    <div style={proofText}>Compare opponents faster</div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/leagues" style={proofLink}>
-                <div style={dynamicProofItem}>
-                  <div style={proofIconShell}><LeaguesIcon /></div>
-                  <div style={proofTextWrap}>
-                    <div style={proofTitle}>League Context</div>
-                    <div style={proofText}>Track teams and competition</div>
-                  </div>
-                </div>
-              </Link>
-
-              <Link href="/captains-corner" style={proofLink}>
-                <div style={dynamicProofItem}>
-                  <div style={proofIconShell}><CaptainIcon /></div>
-                  <div style={proofTextWrap}>
-                    <div style={proofTitle}>Captain Tools</div>
-                    <div style={proofText}>Plan better before match day</div>
-                  </div>
-                </div>
-              </Link>
+            <div style={dynamicActionGrid}>
+              <ActionCard
+                href="/players"
+                eyebrow="Explore"
+                title="Players"
+                text="Profiles, ratings, and performance history."
+                icon={<PlayersIcon />}
+                hovered={hoveredCard === '/players'}
+                onEnter={() => setHoveredCard('/players')}
+                onLeave={() => setHoveredCard(null)}
+              />
+              <ActionCard
+                href="/matchup"
+                eyebrow="Prepare"
+                title="Matchup"
+                text="Compare players before match day."
+                icon={<MatchupIcon />}
+                hovered={hoveredCard === '/matchup'}
+                onEnter={() => setHoveredCard('/matchup')}
+                onLeave={() => setHoveredCard(null)}
+              />
+              <ActionCard
+                href="/captains-corner"
+                eyebrow="Captain tools"
+                title="Captain's Corner"
+                text="Lineups, scenarios, and captain prep."
+                icon={<CaptainIcon />}
+                hovered={hoveredCard === '/captains-corner'}
+                onEnter={() => setHoveredCard('/captains-corner')}
+                onLeave={() => setHoveredCard(null)}
+              />
+              <ActionCard
+                href="/rankings"
+                title="Rankings"
+                text="See how the field stacks up."
+                icon={<RankingsIcon />}
+                hovered={hoveredCard === '/rankings'}
+                onEnter={() => setHoveredCard('/rankings')}
+                onLeave={() => setHoveredCard(null)}
+              />
+              <ActionCard
+                href="/leagues"
+                title="Leagues"
+                text="Track league and team context."
+                icon={<LeaguesIcon />}
+                hovered={hoveredCard === '/leagues'}
+                onEnter={() => setHoveredCard('/leagues')}
+                onLeave={() => setHoveredCard(null)}
+              />
+              <ActionCard
+                href="/teams"
+                title="Teams"
+                text="Review team and lineup detail."
+                icon={<PlayersIcon />}
+                hovered={hoveredCard === '/teams'}
+                onEnter={() => setHoveredCard('/teams')}
+                onLeave={() => setHoveredCard(null)}
+              />
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={dynamicFeatureSection}>
-        <div style={featureHeader}>
-          <div style={featureEyebrow}>Platform Overview</div>
-          <h2 style={dynamicFeatureTitle}>
-            Everything important for your game, your team, and your next lineup.
-          </h2>
-          <p style={dynamicFeatureText}>
-            TenAceIQ is built to be your tennis decision-making hub, so you can move from player search
-            to rankings, matchup prep, league context, and captain planning without jumping between tools.
-          </p>
-        </div>
-
-        <div style={featureGrid}>
-          <Link href="/players" style={featureCard}>
-            <div style={featureCardTop}>
-              <div style={featureIconShell}><PlayersIcon /></div>
-              <div style={featureArrow}>→</div>
-            </div>
-            <div style={featureCardTitle}>Players</div>
-            <div style={featureCardText}>
-              Search profiles, ratings, and recent performance to understand the field faster.
-            </div>
-          </Link>
-
-          <Link href="/rankings" style={featureCard}>
-            <div style={featureCardTop}>
-              <div style={featureIconShell}><RankingsIcon /></div>
-              <div style={featureArrow}>→</div>
-            </div>
-            <div style={featureCardTitle}>Rankings</div>
-            <div style={featureCardText}>
-              See how players stack up across overall, singles, and doubles performance.
-            </div>
-          </Link>
-
-          <Link href="/matchup" style={featureCard}>
-            <div style={featureCardTop}>
-              <div style={featureIconShell}><MatchupIcon /></div>
-              <div style={featureArrow}>→</div>
-            </div>
-            <div style={featureCardTitle}>Matchup</div>
-            <div style={featureCardText}>
-              Compare players side by side and uncover advantages before match day.
-            </div>
-          </Link>
-
-          <Link href="/leagues" style={featureCard}>
-            <div style={featureCardTop}>
-              <div style={featureIconShell}><LeaguesIcon /></div>
-              <div style={featureArrow}>→</div>
-            </div>
-            <div style={featureCardTitle}>Leagues</div>
-            <div style={featureCardText}>
-              Follow standings, team context, and league structure in one organized view.
-            </div>
-          </Link>
-
-          <Link href="/captains-corner" style={featureCard}>
-            <div style={featureCardTop}>
-              <div style={featureIconShell}><CaptainIcon /></div>
-              <div style={featureArrow}>→</div>
-            </div>
-            <div style={featureCardTitle}>Captain&apos;s Corner</div>
-            <div style={featureCardText}>
-              Build smarter lineups, compare scenarios, and prepare with more confidence.
-            </div>
-          </Link>
-
-          <div style={featureCardStatic}>
-            <div style={featureCardTop}>
-              <div style={featureIconShell}><PlatformIcon /></div>
-            </div>
-            <div style={featureCardTitle}>One Platform</div>
-            <div style={featureCardText}>
-              One place for player data, team insight, league context, and captain preparation.
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={dynamicMessageStripSection}>
-        <div style={dynamicMessageStrip}>
-          <div style={messageStripLeft}>
-            <div style={messageStripKicker}>Core Theme</div>
-            <div style={dynamicMessageStripText}>Know more. Plan better. Compete smarter.</div>
-          </div>
-
-          <div style={messageStripRight}>
-            <span style={messagePill}>Players</span>
-            <span style={messagePill}>Teams</span>
-            <span style={messagePill}>Leagues</span>
-            <span style={messagePill}>Captains</span>
-          </div>
-        </div>
-      </section>
-
-      <section style={dynamicCtaSection}>
-        <div style={dynamicCtaCard}>
-          <div>
-            <div style={ctaEyebrow}>Start Here</div>
-            <h3 style={dynamicCtaTitle}>
-              Smarter player data. Better team planning. Stronger match-day decisions.
-            </h3>
-          </div>
-
-          <div style={ctaButtons}>
-            <Link href="/players" style={ctaPrimary}>Search Player Ratings</Link>
-            <Link href="/matchup" style={ctaSecondary}>Run a Matchup Comparison</Link>
           </div>
         </div>
       </section>
@@ -792,6 +623,54 @@ export default function HomePage() {
         </div>
       </footer>
     </main>
+  )
+}
+
+function ActionCard({
+  href,
+  eyebrow,
+  title,
+  text,
+  icon,
+  hovered,
+  onEnter,
+  onLeave,
+}: {
+  href: string
+  eyebrow?: string
+  title: string
+  text: string
+  icon: ReactNode
+  hovered: boolean
+  onEnter: () => void
+  onLeave: () => void
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        ...actionCard,
+        ...(hovered ? actionCardHover : {}),
+      }}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+    >
+      <div style={actionCardTop}>
+        <div
+          style={{
+            ...actionCardIcon,
+            ...(hovered ? actionCardIconHover : {}),
+          }}
+        >
+          {icon}
+        </div>
+      </div>
+      <div style={actionBody}>
+        {eyebrow ? <div style={actionEyebrow}>{eyebrow}</div> : null}
+        <div style={actionTitle}>{title}</div>
+        <div style={actionText}>{text}</div>
+      </div>
+    </Link>
   )
 }
 
@@ -839,15 +718,7 @@ function BrandWordmark({
         }}
       >
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span
-          style={{
-            background: 'linear-gradient(135deg, #D9F84A 0%, #36D56D 68%, #2492FF 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-          }}
-        >
-          IQ
-        </span>
+        <span style={heroIQ}>IQ</span>
       </div>
     </div>
   )
@@ -855,7 +726,7 @@ function BrandWordmark({
 
 function IconBase({ children }: { children: ReactNode }) {
   return (
-    <svg viewBox="0 0 24 24" style={svgStyle} aria-hidden="true">
+    <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
       {children}
     </svg>
   )
@@ -906,7 +777,13 @@ function MatchupIcon() {
 function LeaguesIcon() {
   return (
     <IconBase>
-      <path d="M12 4l2.1 4.2L19 9l-3.5 3.3.8 4.7-4.3-2.2-4.3 2.2.8-4.7L5 9l4.9-.8L12 4z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path
+        d="M12 4l2.1 4.2L19 9l-3.5 3.3.8 4.7-4.3-2.2-4.3 2.2.8-4.7L5 9l4.9-.8L12 4z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
     </IconBase>
   )
 }
@@ -920,144 +797,131 @@ function CaptainIcon() {
   )
 }
 
-function PlatformIcon() {
-  return (
-    <IconBase>
-      <rect x="4" y="5" width="16" height="4" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="4" y="11" width="7" height="8" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="13" y="11" width="7" height="8" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    </IconBase>
-  )
-}
-
-const pageStyle: React.CSSProperties = {
+const pageStyle: CSSProperties = {
   minHeight: '100vh',
-  background: 'linear-gradient(180deg, #07152F 0%, #091C42 27%, #EFF5FB 27%, #F7FAFD 100%)',
-  fontFamily: 'Arial, sans-serif',
   position: 'relative',
   overflow: 'hidden',
+  fontFamily: 'Arial, sans-serif',
+  background: 'linear-gradient(180deg, #06142E 0%, #0A1C42 25%, #EDF4FB 25%, #F8FBFE 100%)',
 }
 
-const orbOne: React.CSSProperties = {
+const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-80px',
-  left: '-80px',
-  width: '320px',
-  height: '320px',
+  top: -80,
+  left: -80,
+  width: 320,
+  height: 320,
   borderRadius: '50%',
   background: 'rgba(76,199,199,0.16)',
   filter: 'blur(70px)',
   pointerEvents: 'none',
 }
 
-const orbTwo: React.CSSProperties = {
+const orbTwo: CSSProperties = {
   position: 'absolute',
-  top: '340px',
-  right: '-90px',
-  width: '340px',
-  height: '340px',
+  top: 280,
+  right: -100,
+  width: 360,
+  height: 360,
   borderRadius: '50%',
-  background: 'rgba(155,225,29,0.12)',
-  filter: 'blur(75px)',
+  background: 'rgba(171,225,29,0.12)',
+  filter: 'blur(78px)',
   pointerEvents: 'none',
 }
 
-const gridGlow: React.CSSProperties = {
+const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
+  pointerEvents: 'none',
+  opacity: 0.42,
   backgroundImage:
     'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
   backgroundSize: '42px 42px',
-  pointerEvents: 'none',
-  opacity: 0.5,
 }
 
-const headerStyle: React.CSSProperties = {
+const headerStyle: CSSProperties = {
   position: 'sticky',
   top: 0,
-  zIndex: 50,
-  background: 'rgba(7, 21, 47, 0.72)',
+  zIndex: 60,
   backdropFilter: 'blur(16px)',
+  background: 'rgba(7, 21, 47, 0.72)',
   borderBottom: '1px solid rgba(255,255,255,0.08)',
 }
 
-const headerInner: React.CSSProperties = {
-  maxWidth: '1240px',
+const headerInner: CSSProperties = {
+  maxWidth: '1180px',
   margin: '0 auto',
-  padding: '16px 20px',
   display: 'flex',
-  justifyContent: 'space-between',
   alignItems: 'center',
-  gap: '18px',
+  gap: '16px',
   flexWrap: 'wrap',
 }
 
-const brandWrap: React.CSSProperties = {
+const brandWrap: CSSProperties = {
   textDecoration: 'none',
   display: 'inline-flex',
   alignItems: 'center',
 }
 
-const navStyle: React.CSSProperties = {
+const navStyle: CSSProperties = {
   display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
   alignItems: 'center',
+  flexWrap: 'wrap',
 }
 
-const navLink: React.CSSProperties = {
-  color: '#D9E7FF',
+const navLink: CSSProperties = {
   textDecoration: 'none',
+  color: '#DCE8FF',
   fontWeight: 700,
-  padding: '10px 14px',
   borderRadius: '999px',
   background: 'rgba(255,255,255,0.03)',
   border: '1px solid rgba(255,255,255,0.05)',
-  transition: 'all 0.18s ease',
 }
 
-const heroSection: React.CSSProperties = {
+const heroSection: CSSProperties = {
   position: 'relative',
   zIndex: 1,
 }
 
-const heroShell: React.CSSProperties = {
+const heroShell: CSSProperties = {
   position: 'relative',
-  maxWidth: '1240px',
+  maxWidth: '1180px',
   margin: '0 auto',
   overflow: 'hidden',
-  background: 'linear-gradient(135deg, #0A1B46 0%, #0F2A63 55%, #163A78 100%)',
+  background: 'linear-gradient(135deg, #091A46 0%, #0F2A63 55%, #153A78 100%)',
   border: '1px solid rgba(255,255,255,0.08)',
   boxShadow: '0 30px 80px rgba(3,10,25,0.28)',
 }
 
-const heroNoise: React.CSSProperties = {
+const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background:
-    'radial-gradient(circle at 15% 20%, rgba(92,219,186,0.10), transparent 30%), radial-gradient(circle at 85% 20%, rgba(173,255,47,0.10), transparent 26%), radial-gradient(circle at 50% 100%, rgba(255,255,255,0.05), transparent 34%)',
   pointerEvents: 'none',
+  background:
+    'radial-gradient(circle at 12% 16%, rgba(92,219,186,0.11), transparent 28%), radial-gradient(circle at 85% 18%, rgba(173,255,47,0.10), transparent 26%), radial-gradient(circle at 52% 100%, rgba(255,255,255,0.05), transparent 35%)',
 }
 
-const heroContent: React.CSSProperties = {
+const heroContent: CSSProperties = {
   display: 'grid',
-  alignItems: 'center',
+  alignItems: 'start',
   position: 'relative',
   zIndex: 1,
 }
 
-const heroLeft: React.CSSProperties = {
+const heroLeft: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '22px',
+  gap: '18px',
+  minWidth: 0,
 }
 
-const heroRight: React.CSSProperties = {
+const heroRight: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
+  minWidth: 0,
 }
 
-const eyebrow: React.CSSProperties = {
+const eyebrow: CSSProperties = {
   display: 'inline-flex',
   alignSelf: 'flex-start',
   borderRadius: '999px',
@@ -1066,114 +930,87 @@ const eyebrow: React.CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  fontSize: '12px',
+  padding: '8px 14px',
 }
 
-const heroTitle: React.CSSProperties = {
+const heroTitle: CSSProperties = {
   margin: 0,
   color: '#FFFFFF',
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: '-0.045em',
 }
 
-const heroText: React.CSSProperties = {
+const heroText: CSSProperties = {
   margin: 0,
   color: 'rgba(231,240,255,0.88)',
+  lineHeight: 1.72,
   fontWeight: 500,
 }
 
-const statsRow: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px',
-  marginTop: '2px',
-}
-
-const statPill: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px',
-  padding: '12px 14px',
-  borderRadius: '16px',
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  minWidth: '140px',
-}
-
-const statValue: React.CSSProperties = {
-  color: '#FFFFFF',
-  fontWeight: 800,
-  fontSize: '14px',
-}
-
-const statLabel: React.CSSProperties = {
-  color: 'rgba(221,233,255,0.76)',
-  fontSize: '12px',
-  fontWeight: 600,
-}
-
-const searchShellRight: React.CSSProperties = {
-  width: '100%',
+const searchShell: CSSProperties = {
+  borderRadius: '26px',
   background: 'rgba(255,255,255,0.10)',
   border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '26px',
   boxShadow: '0 20px 40px rgba(3,10,25,0.18)',
   backdropFilter: 'blur(14px)',
 }
 
-const searchTopRow: React.CSSProperties = {
+const searchTopRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
+  alignItems: 'flex-start',
   gap: '12px',
-  alignItems: 'center',
   marginBottom: '14px',
   flexWrap: 'wrap',
 }
 
-const searchLabel: React.CSSProperties = {
+const searchLabel: CSSProperties = {
   color: '#FFFFFF',
   fontWeight: 800,
   fontSize: '16px',
 }
 
-const searchShortcutHint: React.CSSProperties = {
+const searchShortcutHint: CSSProperties = {
   color: 'rgba(223,234,255,0.74)',
   fontSize: '13px',
   fontWeight: 700,
+  paddingTop: '3px',
 }
 
-const searchAutocompleteWrap: React.CSSProperties = {
+const searchAutocompleteWrap: CSSProperties = {
   position: 'relative',
-  zIndex: 8,
+  zIndex: 20,
 }
 
-const searchRow: React.CSSProperties = {
+const searchRow: CSSProperties = {
   display: 'flex',
-  gap: '12px',
   alignItems: 'stretch',
+  gap: '12px',
 }
 
-const searchInputWrap: React.CSSProperties = {
+const searchInputWrap: CSSProperties = {
   position: 'relative',
   flex: 1,
-  display: 'flex',
-  alignItems: 'center',
+  minWidth: 0,
 }
 
-const searchIconWrap: React.CSSProperties = {
+const searchIconWrap: CSSProperties = {
   position: 'absolute',
   left: '14px',
-  top: '50%',
+  top: '28px',
   transform: 'translateY(-50%)',
-  color: '#1F4D9A',
   width: '20px',
   height: '20px',
+  color: '#1F4D9A',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   pointerEvents: 'none',
+  zIndex: 2,
 }
 
-const searchInput: React.CSSProperties = {
+const searchInput: CSSProperties = {
   width: '100%',
   minHeight: '56px',
   border: 'none',
@@ -1187,7 +1024,7 @@ const searchInput: React.CSSProperties = {
   boxSizing: 'border-box',
 }
 
-const searchButton: React.CSSProperties = {
+const searchButton: CSSProperties = {
   minHeight: '56px',
   padding: '0 24px',
   borderRadius: '18px',
@@ -1200,9 +1037,11 @@ const searchButton: React.CSSProperties = {
   boxShadow: '0 10px 24px rgba(184,230,26,0.22)',
 }
 
-const suggestionsDropdown: React.CSSProperties = {
-  position: 'relative',
-  marginTop: '10px',
+const suggestionsDropdown: CSSProperties = {
+  position: 'absolute',
+  top: 'calc(100% + 10px)',
+  left: 0,
+  right: 0,
   background: '#FFFFFF',
   borderRadius: '18px',
   border: '1px solid rgba(8,32,79,0.08)',
@@ -1210,9 +1049,10 @@ const suggestionsDropdown: React.CSSProperties = {
   boxShadow: '0 20px 44px rgba(6,19,48,0.18)',
   maxHeight: '280px',
   overflowY: 'auto',
+  zIndex: 40,
 }
 
-const suggestionItem: React.CSSProperties = {
+const suggestionItem: CSSProperties = {
   width: '100%',
   border: 'none',
   background: '#FFFFFF',
@@ -1220,36 +1060,51 @@ const suggestionItem: React.CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   gap: '12px',
-  padding: '16px 18px',
+  padding: '15px 16px',
   cursor: 'pointer',
   textAlign: 'left',
 }
 
-const suggestionItemActive: React.CSSProperties = {
+const suggestionItemActive: CSSProperties = {
   background: '#F2F7FF',
 }
 
-const suggestionPrimary: React.CSSProperties = {
+const suggestionPrimary: CSSProperties = {
   color: '#102A5E',
   fontWeight: 800,
   fontSize: '15px',
 }
 
-const suggestionSecondary: React.CSSProperties = {
+const suggestionSecondary: CSSProperties = {
   color: '#2563EB',
   fontWeight: 700,
-  fontSize: '14px',
+  fontSize: '13px',
   whiteSpace: 'nowrap',
 }
 
-const suggestionStatus: React.CSSProperties = {
+const suggestionStatus: CSSProperties = {
   padding: '16px 18px',
   color: '#465A84',
   fontWeight: 700,
   fontSize: '14px',
 }
 
-const searchHelperText: React.CSSProperties = {
+const loadingBar: CSSProperties = {
+  width: '74%',
+  height: '10px',
+  borderRadius: '999px',
+  background: 'linear-gradient(90deg, #eef4ff 0%, #d8e7ff 50%, #eef4ff 100%)',
+  marginBottom: '10px',
+}
+
+const loadingBarShort: CSSProperties = {
+  width: '46%',
+  height: '10px',
+  borderRadius: '999px',
+  background: 'linear-gradient(90deg, #eef4ff 0%, #d8e7ff 50%, #eef4ff 100%)',
+}
+
+const searchHelperText: CSSProperties = {
   marginTop: '12px',
   color: 'rgba(223,234,255,0.80)',
   fontSize: '13px',
@@ -1257,14 +1112,14 @@ const searchHelperText: React.CSSProperties = {
   fontWeight: 600,
 }
 
-const quickSearchRow: React.CSSProperties = {
+const quickSearchRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '14px',
 }
 
-const quickSearchChip: React.CSSProperties = {
+const quickSearchChip: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.12)',
   background: 'rgba(255,255,255,0.08)',
   color: '#E8F0FF',
@@ -1275,347 +1130,162 @@ const quickSearchChip: React.CSSProperties = {
   fontSize: '13px',
 }
 
-const searchErrorStyle: React.CSSProperties = {
+const searchErrorStyle: CSSProperties = {
   marginTop: '12px',
   color: '#FFD4D4',
   fontWeight: 700,
   fontSize: '14px',
 }
 
-const logoStage: React.CSSProperties = {
+const logoPanel: CSSProperties = {
   position: 'relative',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginTop: '18px',
+  borderRadius: '28px',
+  overflow: 'hidden',
+  background: 'linear-gradient(180deg, rgba(6,17,49,0.18) 0%, rgba(7,22,59,0.08) 100%)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: '0 18px 42px rgba(3,10,25,0.16)',
 }
 
-const logoGlow: React.CSSProperties = {
+const logoGlow: CSSProperties = {
   position: 'absolute',
-  width: '240px',
-  height: '240px',
+  inset: '24% 24%',
   borderRadius: '50%',
-  background: 'rgba(112, 230, 185, 0.10)',
-  filter: 'blur(42px)',
+  background: 'rgba(112,230,185,0.08)',
+  filter: 'blur(28px)',
+  opacity: 0.6,
   pointerEvents: 'none',
 }
 
-const logoRing: React.CSSProperties = {
+const logoRing: CSSProperties = {
   position: 'absolute',
-  borderRadius: '50%',
-  border: '1px solid rgba(255,255,255,0.14)',
-  background:
-    'radial-gradient(circle at center, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.00) 58%, rgba(255,255,255,0.04) 100%)',
+  inset: '22px',
+  borderRadius: '28px',
+  border: '1px solid rgba(255,255,255,0.06)',
+  pointerEvents: 'none',
 }
 
-const heroBrandCard: React.CSSProperties = {
+const logoPanelInner: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: '360px',
-  borderRadius: '28px',
-  padding: '22px 20px 20px',
-  background: 'linear-gradient(180deg, rgba(6,17,49,0.22) 0%, rgba(7,22,59,0.14) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  minHeight: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
   textAlign: 'center',
-  boxShadow: '0 20px 50px rgba(3,10,25,0.18)',
+  gap: '10px',
+  padding: '26px 22px',
 }
 
-const heroBrandText: React.CSSProperties = {
+const logoPanelText: CSSProperties = {
+  margin: 0,
+  maxWidth: '320px',
+  color: 'rgba(231,240,255,0.78)',
+  fontWeight: 600,
+  fontSize: '14px',
+  lineHeight: 1.55,
+}
+
+const actionGrid: CSSProperties = {
+  display: 'grid',
+}
+
+const actionCard: CSSProperties = {
+  textDecoration: 'none',
+  borderRadius: '20px',
+  background: '#FFFFFF',
+  border: '1px solid rgba(7,27,77,0.05)',
+  boxShadow: '0 14px 30px rgba(9,22,54,0.07)',
+  display: 'flex',
+  gap: '14px',
+  alignItems: 'flex-start',
+  minHeight: '132px',
+  padding: '18px 16px',
+}
+
+const actionCardHover: CSSProperties = {
+  transform: 'translateY(-3px) scale(1.01)',
+  boxShadow: '0 22px 44px rgba(9,22,54,0.12)',
+  border: '1px solid rgba(36,146,255,0.12)',
+}
+
+const actionCardTop: CSSProperties = {
+  display: 'flex',
+}
+
+const actionCardIcon: CSSProperties = {
+  width: '44px',
+  height: '44px',
+  minWidth: '44px',
+  borderRadius: '14px',
+  background: 'linear-gradient(135deg, rgba(37,91,227,0.08), rgba(184,230,26,0.18))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4)',
+  color: '#103170',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+
+const actionCardIconHover: CSSProperties = {
+  transform: 'scale(1.04)',
+  boxShadow: '0 10px 22px rgba(16,49,112,0.14)',
+}
+
+const actionBody: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '5px',
+}
+
+const actionEyebrow: CSSProperties = {
+  color: '#5872A6',
+  fontSize: '10px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const actionTitle: CSSProperties = {
+  color: '#0F234F',
   fontWeight: 900,
-  fontSize: 'clamp(28px, 4vw, 44px)',
+  fontSize: '16px',
+  lineHeight: 1.2,
+}
+
+const actionText: CSSProperties = {
+  color: '#4C618D',
+  fontWeight: 600,
+  fontSize: '12px',
+  lineHeight: 1.45,
+}
+
+const heroBrandText: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  fontWeight: 900,
+  fontSize: 'clamp(34px, 4vw, 46px)',
   lineHeight: 1,
   letterSpacing: '-0.045em',
 }
 
-const heroTenAce: React.CSSProperties = {
+const heroTenAce: CSSProperties = {
   color: '#FFFFFF',
 }
 
-const heroIQ: React.CSSProperties = {
-  background: 'linear-gradient(135deg, #D9F84A 0%, #36D56D 68%, #2492FF 100%)',
+const heroIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #D8F94A 0%, #36D56D 68%, #2492FF 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
 }
 
-const heroProofRowWrap: React.CSSProperties = {}
-
-const heroProofGrid: React.CSSProperties = {
-  display: 'grid',
-}
-
-const proofLink: React.CSSProperties = {
-  textDecoration: 'none',
-}
-
-const proofItem: React.CSSProperties = {
-  display: 'flex',
-  gap: '14px',
-  borderRadius: '22px',
-  background: '#FFFFFF',
-  border: '1px solid rgba(7,27,77,0.06)',
-  boxShadow: '0 16px 34px rgba(9,22,54,0.08)',
-}
-
-const proofIconShell: React.CSSProperties = {
-  width: '46px',
-  height: '46px',
-  minWidth: '46px',
-  borderRadius: '14px',
-  background: 'linear-gradient(135deg, rgba(37,91,227,0.12), rgba(184,230,26,0.16))',
-  color: '#103170',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const proofTextWrap: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '4px',
-}
-
-const proofTitle: React.CSSProperties = {
-  color: '#0F234F',
-  fontWeight: 900,
-  fontSize: '15px',
-}
-
-const proofText: React.CSSProperties = {
-  color: '#4C618D',
-  fontWeight: 600,
-  fontSize: '13px',
-  lineHeight: 1.5,
-}
-
-const featureSection: React.CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  maxWidth: '1240px',
-  margin: '0 auto',
-}
-
-const featureHeader: React.CSSProperties = {
-  maxWidth: '780px',
-  marginBottom: '24px',
-}
-
-const featureEyebrow: React.CSSProperties = {
-  color: '#2563EB',
-  fontWeight: 900,
-  fontSize: '13px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '10px',
-}
-
-const featureTitle: React.CSSProperties = {
-  margin: 0,
-  color: '#0A1F4A',
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
-
-const featureText: React.CSSProperties = {
-  marginTop: '14px',
-  marginBottom: 0,
-  color: '#51678E',
-  fontWeight: 500,
-}
-
-const featureGrid: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '18px',
-}
-
-const featureCardBase: React.CSSProperties = {
-  borderRadius: '24px',
-  padding: '22px',
-  minHeight: '220px',
-  background: '#FFFFFF',
-  border: '1px solid rgba(7,27,77,0.06)',
-  boxShadow: '0 18px 36px rgba(8,24,59,0.08)',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-}
-
-const featureCard: React.CSSProperties = {
-  ...featureCardBase,
-  textDecoration: 'none',
-}
-
-const featureCardStatic: React.CSSProperties = {
-  ...featureCardBase,
-}
-
-const featureCardTop: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '24px',
-}
-
-const featureIconShell: React.CSSProperties = {
-  width: '52px',
-  height: '52px',
-  borderRadius: '16px',
-  background: 'linear-gradient(135deg, rgba(37,91,227,0.10), rgba(184,230,26,0.16))',
-  color: '#103170',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}
-
-const featureArrow: React.CSSProperties = {
-  color: '#7C90B4',
-  fontSize: '22px',
-  fontWeight: 900,
-}
-
-const featureCardTitle: React.CSSProperties = {
-  color: '#102652',
-  fontWeight: 900,
-  fontSize: '22px',
-  marginBottom: '10px',
-}
-
-const featureCardText: React.CSSProperties = {
-  color: '#53698F',
-  fontSize: '15px',
-  lineHeight: 1.65,
-  fontWeight: 600,
-}
-
-const messageStripSection: React.CSSProperties = {
-  maxWidth: '1240px',
-  margin: '0 auto',
-  padding: '8px 20px 20px',
-}
-
-const messageStrip: React.CSSProperties = {
-  borderRadius: '28px',
-  background: 'linear-gradient(135deg, #0B1F4A 0%, #123777 100%)',
-  boxShadow: '0 24px 60px rgba(7,21,47,0.18)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  padding: '22px 26px',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '18px',
-  flexWrap: 'wrap',
-}
-
-const messageStripLeft: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-}
-
-const messageStripKicker: React.CSSProperties = {
-  color: '#92B4FF',
-  fontSize: '12px',
-  fontWeight: 900,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const messageStripText: React.CSSProperties = {
-  color: '#FFFFFF',
-  fontSize: '28px',
-  fontWeight: 900,
-  lineHeight: 1.2,
-}
-
-const messageStripRight: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-}
-
-const messagePill: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderRadius: '999px',
-  padding: '10px 14px',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#EAF2FF',
-  border: '1px solid rgba(255,255,255,0.08)',
-  fontWeight: 800,
-  fontSize: '13px',
-}
-
-const ctaSection: React.CSSProperties = {
-  maxWidth: '1240px',
-  margin: '0 auto',
-}
-
-const ctaCard: React.CSSProperties = {
-  borderRadius: '28px',
-  background: '#FFFFFF',
-  border: '1px solid rgba(7,27,77,0.06)',
-  boxShadow: '0 18px 38px rgba(8,24,59,0.08)',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '20px',
-  flexWrap: 'wrap',
-}
-
-const ctaEyebrow: React.CSSProperties = {
-  color: '#2563EB',
-  fontWeight: 900,
-  fontSize: '13px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '10px',
-}
-
-const ctaTitle: React.CSSProperties = {
-  margin: 0,
-  color: '#0B214E',
-  fontWeight: 900,
-  lineHeight: 1.15,
-  maxWidth: '760px',
-}
-
-const ctaButtons: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px',
-}
-
-const ctaPrimary: React.CSSProperties = {
-  textDecoration: 'none',
-  padding: '14px 18px',
-  borderRadius: '16px',
-  background: 'linear-gradient(135deg, #56D8AE 0%, #B8E61A 100%)',
-  color: '#081B44',
-  fontWeight: 900,
-  boxShadow: '0 12px 26px rgba(184,230,26,0.20)',
-}
-
-const ctaSecondary: React.CSSProperties = {
-  textDecoration: 'none',
-  padding: '14px 18px',
-  borderRadius: '16px',
-  background: '#EEF4FF',
-  color: '#12356E',
-  fontWeight: 900,
-  border: '1px solid rgba(17,53,110,0.10)',
-}
-
-const footerStyle: React.CSSProperties = {
+const footerStyle: CSSProperties = {
+  marginTop: '8px',
   background: '#081C44',
-  marginTop: '20px',
   borderTop: '1px solid rgba(255,255,255,0.06)',
 }
 
-const footerInner: React.CSSProperties = {
-  maxWidth: '1240px',
+const footerInner: CSSProperties = {
+  maxWidth: '1180px',
   margin: '0 auto',
   display: 'flex',
   flexDirection: 'column',
@@ -1623,41 +1293,39 @@ const footerInner: React.CSSProperties = {
   gap: '14px',
 }
 
-const footerBrandLink: React.CSSProperties = {
+const footerBrandLink: CSSProperties = {
   textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
 }
 
-const footerTagline: React.CSSProperties = {
+const footerTagline: CSSProperties = {
   color: 'rgba(223,234,255,0.82)',
   fontSize: '14px',
   fontWeight: 700,
   textAlign: 'center',
 }
 
-const footerUtilityRow: React.CSSProperties = {
+const footerUtilityRow: CSSProperties = {
   display: 'flex',
   gap: '14px',
   flexWrap: 'wrap',
   justifyContent: 'center',
 }
 
-const footerUtilityLink: React.CSSProperties = {
+const footerUtilityLink: CSSProperties = {
   color: '#D9E7FF',
   textDecoration: 'none',
   fontWeight: 700,
   fontSize: '14px',
 }
 
-const footerBottom: React.CSSProperties = {
+const footerBottom: CSSProperties = {
   color: 'rgba(223,234,255,0.64)',
   fontSize: '13px',
   fontWeight: 700,
   textAlign: 'center',
 }
 
-const svgStyle: React.CSSProperties = {
+const iconSvgStyle: CSSProperties = {
   width: '22px',
   height: '22px',
   display: 'block',
