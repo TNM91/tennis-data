@@ -61,6 +61,16 @@ type MatchPlayerRow = {
   } | null
 }
 
+const siteNav = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/admin', label: 'Admin' },
+] as const
+
 export default function PlayerProfilePage() {
   const params = useParams()
   const playerId = String(params.id)
@@ -276,80 +286,97 @@ export default function PlayerProfilePage() {
     return toRatingNumber(player.overall_dynamic_rating, 3.5)
   }, [player, ratingView])
 
+  const staticOverall = useMemo(() => toRatingNumber(player?.overall_rating, 3.5), [player])
+  const staticSingles = useMemo(
+    () => toRatingNumber(player?.singles_rating ?? player?.overall_rating, 3.5),
+    [player]
+  )
+  const staticDoubles = useMemo(
+    () => toRatingNumber(player?.doubles_rating ?? player?.overall_rating, 3.5),
+    [player]
+  )
+
   if (loading) {
     return (
-      <main className="page-shell-tight player-profile-page">
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <div className="surface-card panel-pad player-loading-card">
-              <div className="section-kicker">Player Profile</div>
-              <h1 className="player-loading-title">Loading player profile...</h1>
-              <p className="player-loading-text">Pulling ratings, snapshots, and recent match history.</p>
+      <main className="page-shell-tight player-page-shell">
+        <SiteHeader />
+
+        <section className="player-hero-card is-loading">
+          <div className="player-hero-grid">
+            <div className="player-hero-copy">
+              <div className="player-kicker">Player profile</div>
+              <h1 className="player-name">Loading player profile...</h1>
+              <p className="player-location">Pulling ratings, trend data, and recent results.</p>
             </div>
           </div>
         </section>
+
+        <style jsx>{baseStyles}</style>
       </main>
     )
   }
 
   if (error || !player) {
     return (
-      <main className="page-shell-tight player-profile-page">
-        <div className="player-top-links">
-          <Link href="/" className="button-ghost">Home</Link>
-          <Link href="/rankings" className="button-ghost">Rankings</Link>
-        </div>
+      <main className="page-shell-tight player-page-shell">
+        <SiteHeader />
 
-        <section className="surface-card panel-pad player-error-card">
-          <div className="section-kicker">Player Profile</div>
-          <h1 className="player-error-title">Unable to load player</h1>
-          <p className="player-error-text">{error || 'Player not found'}</p>
+        <section className="player-hero-card player-error-state">
+          <div className="player-kicker">Player profile</div>
+          <h1 className="player-name">Unable to load player</h1>
+          <p className="player-location">{error || 'Player not found.'}</p>
         </section>
+
+        <style jsx>{baseStyles}</style>
       </main>
     )
   }
 
   return (
-    <main className="page-shell-tight player-profile-page">
-      <div className="player-top-links">
-        <Link href="/" className="button-ghost">Home</Link>
-        <Link href="/rankings" className="button-ghost">Rankings</Link>
-        <Link href="/matchup" className="button-ghost">Matchup</Link>
-        <Link href="/admin" className="button-ghost">Admin</Link>
-      </div>
+    <main className="page-shell-tight player-page-shell">
+      <SiteHeader />
 
-      <section className="hero-panel player-hero-panel">
-        <div className="hero-inner player-hero-inner">
+      <section className="player-hero-card">
+        <div className="player-hero-grid">
           <div className="player-hero-copy">
-            <div className="section-kicker player-kicker">Player Profile</div>
-            <h1 className="player-hero-title">{player.name}</h1>
-            <p className="player-hero-location">{player.location || 'No location set'}</p>
+            <div className="player-kicker">Player profile</div>
+            <h1 className="player-name">{player.name}</h1>
+            <p className="player-location">{player.location || 'Location not set'}</p>
 
-            <div className="player-hero-meta">
-              <span className="badge badge-blue">{capitalize(ratingView)} view</span>
-              <span className="badge badge-slate">{totalMatches} matches</span>
-              <span className={`badge ${wins >= losses ? 'badge-green' : 'badge-blue'}`}>
-                {winPct}% win rate
-              </span>
+            <div className="player-meta-row">
+              <span className="player-chip player-chip-green">{capitalize(ratingView)} view</span>
+              <span className="player-chip">{totalMatches} matches</span>
+              <span className="player-chip">{winPct}% win rate</span>
             </div>
           </div>
 
-          <div className="glass-card panel-pad player-view-card">
-            <div className="player-view-title">Rating focus</div>
+          <div className="player-focus-card">
+            <div className="player-focus-head">
+              <div>
+                <div className="player-focus-label">Rating focus</div>
+                <div className="player-focus-subtitle">
+                  Switch between overall, singles, and doubles.
+                </div>
+              </div>
+            </div>
+
             <div className="player-segment-wrap">
               <button
+                type="button"
                 onClick={() => setRatingView('overall')}
                 className={`player-segment-btn ${ratingView === 'overall' ? 'is-active' : ''}`}
               >
                 Overall
               </button>
               <button
+                type="button"
                 onClick={() => setRatingView('singles')}
                 className={`player-segment-btn ${ratingView === 'singles' ? 'is-active' : ''}`}
               >
                 Singles
               </button>
               <button
+                type="button"
                 onClick={() => setRatingView('doubles')}
                 className={`player-segment-btn ${ratingView === 'doubles' ? 'is-active' : ''}`}
               >
@@ -357,97 +384,98 @@ export default function PlayerProfilePage() {
               </button>
             </div>
 
-            <div className="player-view-summary">
-              <div className="player-view-summary-label">Current {capitalize(ratingView)} dynamic rating</div>
-              <div className="player-view-summary-value">{selectedDynamicRating.toFixed(2)}</div>
+            <div className="player-focus-metrics">
+              <div className="player-focus-metric">
+                <span>Dynamic</span>
+                <strong>{selectedDynamicRating.toFixed(2)}</strong>
+              </div>
+              <div className="player-focus-metric">
+                <span>Static</span>
+                <strong>
+                  {ratingView === 'overall'
+                    ? staticOverall.toFixed(2)
+                    : ratingView === 'singles'
+                      ? staticSingles.toFixed(2)
+                      : staticDoubles.toFixed(2)}
+                </strong>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="metric-grid player-metric-grid">
-        <div className="metric-card">
-          <div className="player-metric-label">Current {capitalize(ratingView)} Rating</div>
-          <div className="player-metric-value">{selectedDynamicRating.toFixed(2)}</div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Overall</div>
-          <div className="player-metric-value">
+      <section className="player-stat-grid">
+        <article className="player-stat-card accent-blue">
+          <div className="player-stat-label">Current {capitalize(ratingView)} dynamic</div>
+          <div className="player-stat-value">{selectedDynamicRating.toFixed(2)}</div>
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Overall</div>
+          <div className="player-stat-value">
             {formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))}
           </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Singles</div>
-          <div className="player-metric-value">
-            {formatRating(
-              toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
-            )}
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Singles</div>
+          <div className="player-stat-value">
+            {formatRating(toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5))}
           </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Doubles</div>
-          <div className="player-metric-value">
-            {formatRating(
-              toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
-            )}
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Doubles</div>
+          <div className="player-stat-value">
+            {formatRating(toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5))}
           </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Wins</div>
-          <div className="player-metric-value">{wins}</div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Losses</div>
-          <div className="player-metric-value">{losses}</div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Win %</div>
-          <div className="player-metric-value">{winPct}%</div>
-        </div>
-
-        <div className="metric-card">
-          <div className="player-metric-label">Matches</div>
-          <div className="player-metric-value">{totalMatches}</div>
-        </div>
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Wins</div>
+          <div className="player-stat-value">{wins}</div>
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Losses</div>
+          <div className="player-stat-value">{losses}</div>
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Win rate</div>
+          <div className="player-stat-value">{winPct}%</div>
+        </article>
+        <article className="player-stat-card">
+          <div className="player-stat-label">Tracked matches</div>
+          <div className="player-stat-value">{totalMatches}</div>
+        </article>
       </section>
 
-      <section className="card-grid player-content-grid">
-        <div className="surface-card panel-pad player-chart-card">
-          <div className="player-section-head">
+      <section className="player-content-grid">
+        <article className="player-panel">
+          <div className="player-panel-head">
             <div>
-              <div className="section-kicker">Trend</div>
-              <h2 className="player-section-title">{capitalize(ratingView)} Rating Trend</h2>
+              <div className="player-kicker">Trend</div>
+              <h2 className="player-panel-title">{capitalize(ratingView)} rating trend</h2>
             </div>
-            <span className="badge badge-slate">{chartPoints.length} points</span>
+            <span className="player-chip">{chartPoints.length} points</span>
           </div>
 
           {chartPoints.length === 0 ? (
-            <p className="player-empty-text">No rating history yet.</p>
+            <p className="player-empty-text">No rating history yet for this view.</p>
           ) : (
             <SimpleLineChart points={chartPoints} />
           )}
-        </div>
+        </article>
 
-        <div className="surface-card panel-pad player-history-card">
-          <div className="player-section-head">
+        <article className="player-panel">
+          <div className="player-panel-head">
             <div>
-              <div className="section-kicker">Recent Results</div>
-              <h2 className="player-section-title">{capitalize(ratingView)} Match History</h2>
+              <div className="player-kicker">Recent results</div>
+              <h2 className="player-panel-title">Latest match history</h2>
             </div>
-            <span className="badge badge-blue">Latest 10</span>
+            <span className="player-chip">Latest 10</span>
           </div>
 
           {mostRecentMatches.length === 0 ? (
             <p className="player-empty-text">No matches found for this view.</p>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
+            <div className="player-table-wrap">
+              <table className="player-table">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -461,17 +489,13 @@ export default function PlayerProfilePage() {
                 <tbody>
                   {mostRecentMatches.map((match) => (
                     <tr key={match.id}>
-                      <td>{match.date}</td>
+                      <td>{formatDate(match.date)}</td>
                       <td>{capitalize(match.matchType)}</td>
                       <td>{match.partner || '—'}</td>
                       <td>{match.opponent}</td>
                       <td>{match.score}</td>
                       <td>
-                        <span
-                          className={`player-result-pill ${
-                            match.result === 'W' ? 'is-win' : 'is-loss'
-                          }`}
-                        >
+                        <span className={`player-result-pill ${match.result === 'W' ? 'is-win' : 'is-loss'}`}>
                           {match.result}
                         </span>
                       </td>
@@ -481,245 +505,41 @@ export default function PlayerProfilePage() {
               </table>
             </div>
           )}
-        </div>
+        </article>
       </section>
 
-      <style jsx>{`
-        .player-profile-page {
-          padding-top: 1.25rem;
-          padding-bottom: 2.5rem;
-        }
-
-        .player-top-links {
-          display: flex;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-          margin-bottom: 1rem;
-        }
-
-        .player-hero-panel {
-          overflow: hidden;
-        }
-
-        .player-hero-inner {
-          display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(280px, 360px);
-          gap: 1rem;
-          align-items: stretch;
-        }
-
-        .player-hero-copy {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 0.85rem;
-        }
-
-        .player-kicker {
-          color: rgba(217, 231, 255, 0.82);
-        }
-
-        .player-hero-title {
-          margin: 0;
-          color: #ffffff;
-          font-size: clamp(2rem, 4vw, 3.2rem);
-          line-height: 1;
-          letter-spacing: -0.04em;
-          font-weight: 900;
-        }
-
-        .player-hero-location {
-          margin: 0;
-          color: rgba(219, 234, 254, 0.9);
-          font-size: 1.02rem;
-          line-height: 1.6;
-          font-weight: 600;
-        }
-
-        .player-hero-meta {
-          display: flex;
-          gap: 0.65rem;
-          flex-wrap: wrap;
-          margin-top: 0.2rem;
-        }
-
-        .player-view-card {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          gap: 1rem;
-        }
-
-        .player-view-title {
-          color: #ffffff;
-          font-size: 0.95rem;
-          font-weight: 800;
-        }
-
-        .player-segment-wrap {
-          display: flex;
-          gap: 0.55rem;
-          flex-wrap: wrap;
-          padding: 0.4rem;
-          border-radius: 1rem;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .player-segment-btn {
-          border: 0;
-          border-radius: 0.8rem;
-          background: transparent;
-          color: rgba(226, 236, 255, 0.9);
-          padding: 0.8rem 1rem;
-          font-size: 0.92rem;
-          font-weight: 800;
-          cursor: pointer;
-          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-        }
-
-        .player-segment-btn:hover {
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        .player-segment-btn.is-active {
-          background: linear-gradient(135deg, #56d8ae 0%, #b8e61a 100%);
-          color: #07152f;
-          box-shadow: 0 12px 26px rgba(184, 230, 26, 0.22);
-        }
-
-        .player-view-summary {
-          padding: 1rem 1rem 1.05rem;
-          border-radius: 1rem;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .player-view-summary-label {
-          color: rgba(217, 231, 255, 0.82);
-          font-size: 0.8rem;
-          font-weight: 700;
-          line-height: 1.5;
-        }
-
-        .player-view-summary-value {
-          margin-top: 0.35rem;
-          color: #ffffff;
-          font-size: 2rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.04em;
-        }
-
-        .player-metric-grid {
-          margin-top: 1rem;
-          margin-bottom: 1rem;
-        }
-
-        .player-metric-label {
-          color: #64748b;
-          font-size: 0.82rem;
-          margin-bottom: 0.4rem;
-          font-weight: 700;
-        }
-
-        .player-metric-value {
-          color: #0f172a;
-          font-size: clamp(1.5rem, 2vw, 1.9rem);
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-
-        .player-content-grid {
-          grid-template-columns: 1fr;
-          gap: 1rem;
-        }
-
-        .player-chart-card,
-        .player-history-card {
-          min-width: 0;
-        }
-
-        .player-section-head {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1rem;
-          margin-bottom: 1rem;
-          flex-wrap: wrap;
-        }
-
-        .player-section-title {
-          margin: 0.25rem 0 0;
-          color: #0f172a;
-          font-size: 1.35rem;
-          line-height: 1.2;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-        }
-
-        .player-empty-text {
-          margin: 0;
-          color: #64748b;
-          font-size: 0.96rem;
-          line-height: 1.7;
-          font-weight: 500;
-        }
-
-        .player-result-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 2.25rem;
-          padding: 0.35rem 0.55rem;
-          border-radius: 999px;
-          font-size: 0.8rem;
-          font-weight: 900;
-          letter-spacing: 0.02em;
-        }
-
-        .player-result-pill.is-win {
-          background: rgba(34, 197, 94, 0.12);
-          color: #166534;
-        }
-
-        .player-result-pill.is-loss {
-          background: rgba(239, 68, 68, 0.12);
-          color: #991b1b;
-        }
-
-        .player-loading-card,
-        .player-error-card {
-          margin-top: 0.25rem;
-        }
-
-        .player-loading-title,
-        .player-error-title {
-          margin: 0.2rem 0 0;
-          color: #0f172a;
-          font-size: clamp(1.6rem, 3vw, 2.2rem);
-          line-height: 1.1;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-
-        .player-loading-text,
-        .player-error-text {
-          margin: 0.8rem 0 0;
-          color: #64748b;
-          font-size: 0.98rem;
-          line-height: 1.7;
-          font-weight: 500;
-        }
-
-        @media (max-width: 900px) {
-          .player-hero-inner {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+      <style jsx>{baseStyles}</style>
     </main>
+  )
+}
+
+function SiteHeader() {
+  return (
+    <header className="site-header-shell">
+      <div className="site-header-card">
+        <div className="site-brand-row">
+          <div>
+            <p className="site-brand-kicker">TenAceIQ</p>
+            <h2 className="site-brand-title">Player intelligence</h2>
+          </div>
+          <Link href="/players" className="site-header-cta">
+            Browse players
+          </Link>
+        </div>
+
+        <nav className="site-nav-row" aria-label="Primary navigation">
+          {siteNav.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`site-nav-pill ${item.href === '/players' ? 'is-active' : ''}`}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </header>
   )
 }
 
@@ -728,14 +548,13 @@ function SimpleLineChart({
 }: {
   points: Array<{ x: number; date: string; rating: number }>
 }) {
-  const width = 900
-  const height = 260
-  const padding = 32
+  const width = 920
+  const height = 280
+  const padding = 34
 
   const minRating = Math.min(...points.map((p) => p.rating))
   const maxRating = Math.max(...points.map((p) => p.rating))
   const spread = Math.max(maxRating - minRating, 0.1)
-
   const xStep = points.length > 1 ? (width - padding * 2) / (points.length - 1) : 0
 
   const path = points
@@ -749,8 +568,8 @@ function SimpleLineChart({
     .join(' ')
 
   return (
-    <div className="player-chart-wrap">
-      <svg width={width} height={height} className="player-chart-svg">
+    <div className="chart-shell">
+      <svg width={width} height={height} className="chart-svg" viewBox={`0 0 ${width} ${height}`}>
         <defs>
           <linearGradient id="playerLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#255BE3" />
@@ -759,8 +578,25 @@ function SimpleLineChart({
           </linearGradient>
         </defs>
 
-        <rect x="0" y="0" width={width} height={height} fill="#f8fbff" rx="18" />
+        <rect x="0" y="0" width={width} height={height} rx="20" fill="rgba(8, 20, 44, 0.9)" />
+
+        {[0.2, 0.4, 0.6, 0.8].map((line, index) => {
+          const y = padding + (height - padding * 2) * line
+          return (
+            <line
+              key={index}
+              x1={padding}
+              x2={width - padding}
+              y1={y}
+              y2={y}
+              stroke="rgba(167, 190, 255, 0.12)"
+              strokeWidth="1"
+            />
+          )
+        })}
+
         <path d={path} fill="none" stroke="url(#playerLineGradient)" strokeWidth="4" strokeLinecap="round" />
+
         {points.map((point, index) => {
           const x = padding + index * xStep
           const y =
@@ -768,32 +604,33 @@ function SimpleLineChart({
 
           return (
             <g key={`${point.date}-${index}`}>
-              <circle cx={x} cy={y} r="5" fill="#255BE3" />
-              <circle cx={x} cy={y} r="9" fill="rgba(37, 91, 227, 0.12)" />
+              <circle cx={x} cy={y} r="10" fill="rgba(37, 91, 227, 0.14)" />
+              <circle cx={x} cy={y} r="4.5" fill="#dff7ff" />
             </g>
           )
         })}
       </svg>
 
-      <div className="player-chart-meta">
-        {points.length} data point{points.length === 1 ? '' : 's'} • Latest:{' '}
+      <div className="chart-meta">
+        {points.length} data point{points.length === 1 ? '' : 's'} • Latest rating{' '}
         {points[points.length - 1]?.rating.toFixed(2)}
       </div>
 
       <style jsx>{`
-        .player-chart-wrap {
-          overflow-x: auto;
+        .chart-shell {
+          width: 100%;
         }
 
-        .player-chart-svg {
+        .chart-svg {
           width: 100%;
           height: auto;
           display: block;
+          overflow: visible;
         }
 
-        .player-chart-meta {
-          margin-top: 0.8rem;
-          color: #64748b;
+        .chart-meta {
+          margin-top: 0.9rem;
+          color: rgba(219, 230, 255, 0.78);
           font-size: 0.9rem;
           font-weight: 600;
         }
@@ -801,6 +638,486 @@ function SimpleLineChart({
     </div>
   )
 }
+
+const baseStyles = `
+  .player-page-shell {
+    padding-top: 1.1rem;
+    padding-bottom: 2.75rem;
+  }
+
+  .site-header-shell {
+    margin-bottom: 1rem;
+  }
+
+  .site-header-card {
+    position: relative;
+    overflow: hidden;
+    padding: 1rem;
+    border-radius: 30px;
+    border: 1px solid rgba(133, 168, 229, 0.16);
+    background:
+      radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%),
+      linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%);
+    box-shadow: 0 28px 60px rgba(2, 8, 23, 0.28);
+  }
+
+  .site-brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.95rem;
+  }
+
+  .site-brand-kicker {
+    margin: 0;
+    color: rgba(184, 230, 26, 0.86);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .site-brand-title {
+    margin: 0.3rem 0 0;
+    color: #f8fbff;
+    font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .site-header-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.8rem 1.05rem;
+    border-radius: 999px;
+    text-decoration: none;
+    color: #07203c;
+    font-weight: 900;
+    background: linear-gradient(135deg, #60dfa3 0%, #b8e61a 100%);
+    box-shadow: 0 16px 30px rgba(184, 230, 26, 0.18);
+  }
+
+  .site-nav-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .site-nav-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.75rem 1.15rem;
+    border-radius: 999px;
+    text-decoration: none;
+    color: rgba(241, 245, 255, 0.95);
+    font-weight: 800;
+    background: linear-gradient(180deg, rgba(33, 58, 98, 0.92) 0%, rgba(18, 36, 66, 0.92) 100%);
+    border: 1px solid rgba(137, 170, 234, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 30px rgba(0,0,0,0.18);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+  }
+
+  .site-nav-pill:hover {
+    transform: translateY(-1px);
+    border-color: rgba(184, 230, 26, 0.28);
+  }
+
+  .site-nav-pill.is-active {
+    color: #07203c;
+    background: linear-gradient(135deg, #60dfa3 0%, #b8e61a 100%);
+    border-color: rgba(184, 230, 26, 0.36);
+    box-shadow: 0 16px 30px rgba(184, 230, 26, 0.18);
+  }
+
+  .player-hero-card,
+  .player-panel,
+  .player-stat-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(133, 168, 229, 0.16);
+    background:
+      radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%),
+      linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%);
+    box-shadow: 0 28px 60px rgba(2, 8, 23, 0.28);
+  }
+
+  .player-hero-card {
+    padding: clamp(1.35rem, 2vw, 2rem);
+  }
+
+  .player-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(300px, 380px);
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .player-hero-copy {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .player-kicker {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0.65rem 1rem;
+    width: min(100%, 540px);
+    border-radius: 999px;
+    border: 1px solid rgba(184, 230, 26, 0.35);
+    background: linear-gradient(90deg, rgba(152, 197, 52, 0.16) 0%, rgba(78, 205, 196, 0.08) 100%);
+    color: rgba(228, 240, 255, 0.92);
+    font-size: 0.88rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .player-name {
+    margin: 1rem 0 0;
+    color: #f8fbff;
+    font-size: clamp(2.2rem, 5vw, 4rem);
+    line-height: 0.98;
+    letter-spacing: -0.05em;
+    font-weight: 900;
+  }
+
+  .player-location {
+    margin: 0.9rem 0 0;
+    color: rgba(218, 231, 255, 0.88);
+    font-size: 1.02rem;
+    line-height: 1.6;
+    font-weight: 650;
+  }
+
+  .player-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+
+  .player-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(16, 39, 77, 0.84);
+    color: rgba(220, 232, 255, 0.92);
+    border: 1px solid rgba(82, 127, 201, 0.2);
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+
+  .player-chip-green {
+    background: rgba(141, 201, 44, 0.16);
+    color: #d8ff9b;
+    border-color: rgba(184, 230, 26, 0.24);
+  }
+
+  .player-focus-card {
+    border-radius: 24px;
+    padding: 1.15rem;
+    border: 1px solid rgba(162, 188, 235, 0.16);
+    background: linear-gradient(180deg, rgba(37, 60, 92, 0.82) 0%, rgba(20, 42, 75, 0.84) 100%);
+    backdrop-filter: blur(14px);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .player-focus-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .player-focus-label {
+    color: #f8fbff;
+    font-size: 1rem;
+    font-weight: 850;
+  }
+
+  .player-focus-subtitle {
+    margin-top: 0.35rem;
+    color: rgba(217, 231, 255, 0.74);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  .player-segment-wrap {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.55rem;
+    padding: 0.45rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .player-segment-btn {
+    border: 0;
+    border-radius: 14px;
+    background: transparent;
+    color: rgba(225, 236, 255, 0.88);
+    min-height: 52px;
+    padding: 0.8rem 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 850;
+    cursor: pointer;
+    transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .player-segment-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .player-segment-btn.is-active {
+    background: linear-gradient(135deg, #60dfa3 0%, #b8e61a 100%);
+    color: #08203e;
+    box-shadow: 0 16px 30px rgba(184, 230, 26, 0.18);
+  }
+
+  .player-focus-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .player-focus-metric {
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .player-focus-metric span {
+    display: block;
+    color: rgba(217, 231, 255, 0.78);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .player-focus-metric strong {
+    display: block;
+    margin-top: 0.35rem;
+    color: #ffffff;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .player-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .player-stat-card {
+    padding: 1.15rem 1.2rem;
+    min-width: 0;
+  }
+
+  .player-stat-card.accent-blue {
+    border-color: rgba(91, 162, 255, 0.26);
+    box-shadow: 0 28px 60px rgba(2, 8, 23, 0.32), inset 0 0 0 1px rgba(59, 130, 246, 0.08);
+  }
+
+  .player-stat-label {
+    color: rgba(198, 216, 248, 0.78);
+    font-size: 0.82rem;
+    line-height: 1.5;
+    font-weight: 750;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .player-stat-value {
+    margin-top: 0.5rem;
+    color: #f8fbff;
+    font-size: clamp(1.8rem, 2vw, 2.15rem);
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .player-content-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .player-panel {
+    padding: 1.25rem;
+    min-width: 0;
+  }
+
+  .player-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .player-panel-title {
+    margin: 0.3rem 0 0;
+    color: #f8fbff;
+    font-size: clamp(1.2rem, 2vw, 1.5rem);
+    line-height: 1.15;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+  }
+
+  .player-empty-text {
+    margin: 0;
+    color: rgba(220, 231, 252, 0.78);
+    font-size: 0.97rem;
+    line-height: 1.7;
+    font-weight: 550;
+  }
+
+  .player-table-wrap {
+    overflow-x: auto;
+    border-radius: 20px;
+    border: 1px solid rgba(160, 185, 234, 0.12);
+    background: rgba(7, 20, 45, 0.62);
+  }
+
+  .player-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 760px;
+  }
+
+  .player-table thead th {
+    padding: 0.95rem 1rem;
+    text-align: left;
+    color: rgba(190, 210, 245, 0.8);
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 800;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 27, 58, 0.78);
+    white-space: nowrap;
+  }
+
+  .player-table tbody td {
+    padding: 1rem;
+    color: #e9f2ff;
+    font-size: 0.94rem;
+    line-height: 1.5;
+    font-weight: 600;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    vertical-align: top;
+  }
+
+  .player-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .player-result-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.4rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+  }
+
+  .player-result-pill.is-win {
+    background: rgba(95, 223, 163, 0.14);
+    color: #a9ffc8;
+    border: 1px solid rgba(95, 223, 163, 0.2);
+  }
+
+  .player-result-pill.is-loss {
+    background: rgba(255, 107, 107, 0.14);
+    color: #ffc2c2;
+    border: 1px solid rgba(255, 107, 107, 0.18);
+  }
+
+  .player-error-state,
+  .is-loading {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  @media (max-width: 1120px) {
+    .player-stat-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .player-hero-grid,
+    .site-brand-row {
+      grid-template-columns: 1fr;
+      display: grid;
+    }
+
+    .site-brand-row {
+      gap: 0.8rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .player-page-shell {
+      padding-top: 1rem;
+    }
+
+    .site-header-card {
+      padding: 0.9rem;
+      border-radius: 24px;
+    }
+
+    .site-nav-row {
+      gap: 0.6rem;
+    }
+
+    .site-nav-pill,
+    .site-header-cta {
+      min-height: 42px;
+      padding: 0.7rem 1rem;
+      font-size: 0.95rem;
+    }
+
+    .player-hero-card,
+    .player-panel,
+    .player-stat-card {
+      border-radius: 24px;
+    }
+
+    .player-stat-grid,
+    .player-segment-wrap,
+    .player-focus-metrics {
+      grid-template-columns: 1fr;
+    }
+  }
+`
 
 function normalizeMatchType(value: string | null | undefined): MatchType {
   return value === 'doubles' ? 'doubles' : 'singles'
@@ -821,4 +1138,17 @@ function formatRating(value: number) {
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function formatDate(value: string) {
+  if (!value) return '—'
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
 }

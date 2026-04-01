@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="360" viewBox="0 0 1400 360" fill="none">
+  <defs>
+    <linearGradient id="gIQ" x1="936" y1="116" x2="1120" y2="246" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D9FF5A"/>
+      <stop offset="55%" stop-color="#66E85C"/>
+      <stop offset="100%" stop-color="#2BE4FF"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(34,12) scale(0.66)">
+    
+  <defs>
+    <linearGradient id="gBall" x1="96" y1="72" x2="404" y2="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E8FF74"/>
+      <stop offset="45%" stop-color="#9DE400"/>
+      <stop offset="78%" stop-color="#18C36B"/>
+      <stop offset="100%" stop-color="#169AE8"/>
+    </linearGradient>
+    <linearGradient id="gLines" x1="224" y1="126" x2="500" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D6FF4D"/>
+      <stop offset="55%" stop-color="#6CE64A"/>
+      <stop offset="100%" stop-color="#2BE4FF"/>
+    </linearGradient>
+    <radialGradient id="gHighlight" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(130 130) rotate(35) scale(120 100)">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g>
+    <circle cx="196" cy="256" r="184" fill="url(#gBall)"/>
+    <circle cx="196" cy="256" r="184" stroke="#D9F579" stroke-opacity="0.18" stroke-width="2"/>
+    <ellipse cx="126" cy="152" rx="92" ry="80" fill="url(#gHighlight)"/>
+
+    <path d="M16 178C94 162 140 190 180 236C199 259 219 278 248 288" stroke="#F7FFCC" stroke-width="18" stroke-linecap="round"/>
+    <path d="M28 150C111 134 164 166 208 219C220 233 235 247 256 257" stroke="#153348" stroke-width="18" stroke-linecap="round" opacity="0.92"/>
+
+    <path d="M30 365C104 376 154 353 196 306C210 290 229 270 253 256" stroke="#CFFFF2" stroke-width="18" stroke-linecap="round" opacity="0.55"/>
+    <path d="M42 392C118 404 177 377 226 324C242 307 253 291 268 280" stroke="#0F1632" stroke-width="18" stroke-linecap="round" opacity="0.92"/>
+
+    <path d="M176 256H294" stroke="#0F1632" stroke-width="18" stroke-linecap="round" opacity="0.95"/>
+    <path d="M176 256H294" stroke="url(#gLines)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+
+  <g stroke="url(#gLines)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M230 164H322L364 126H410"/>
+    <path d="M226 220H348L386 184H458"/>
+    <path d="M226 292H382L416 318H490"/>
+    <path d="M230 348H332L374 386H430"/>
+  </g>
+
+  <g>
+    <circle cx="430" cy="126" r="19" stroke="#BDFD37" stroke-width="12" fill="none"/>
+    <circle cx="478" cy="184" r="19" stroke="#8BF24E" stroke-width="12" fill="none"/>
+    <circle cx="510" cy="318" r="19" stroke="#46DFFF" stroke-width="12" fill="none"/>
+    <circle cx="450" cy="386" r="19" stroke="#72EAA9" stroke-width="12" fill="none"/>
+  </g>
+
+  </g>
+  <g font-family="Arial, Helvetica, sans-serif" font-weight="800" letter-spacing="-3">
+    <text x="400" y="216" font-size="128" fill="#FFFFFF">TenAce</text>
+    <text x="944" y="216" font-size="128" fill="url(#gIQ)">IQ</text>
+  </g>
+</svg>

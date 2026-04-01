@@ -20,7 +20,14 @@ type PlayerSearchRow = {
   name: string
 }
 
-const QUICK_SEARCHES = ['Nathan Meinert', 'Top doubles players']
+type QuickAction =
+  | { type: 'player'; label: string; value: string }
+  | { type: 'route'; label: string; href: string }
+
+const QUICK_ACTIONS: QuickAction[] = [
+  { type: 'player', label: 'Nathan Meinert', value: 'Nathan Meinert' },
+  { type: 'route', label: 'Top doubles players', href: '/rankings' },
+]
 
 export default function HomePage() {
   const router = useRouter()
@@ -84,7 +91,7 @@ export default function HomePage() {
 
     let isCancelled = false
 
-    const timeout = setTimeout(async () => {
+    const timeout = window.setTimeout(async () => {
       try {
         setSuggestionsLoading(true)
 
@@ -133,7 +140,7 @@ export default function HomePage() {
 
     return () => {
       isCancelled = true
-      clearTimeout(timeout)
+      window.clearTimeout(timeout)
     }
   }, [trimmedSearch])
 
@@ -219,11 +226,16 @@ export default function HomePage() {
     router.push(`/players/${player.id}`)
   }
 
-  function handleQuickSearch(name: string) {
-    setPlayerSearch(name)
+  function handleQuickAction(action: QuickAction) {
+    if (action.type === 'route') {
+      router.push(action.href)
+      return
+    }
+
+    setPlayerSearch(action.value)
     setSearchError('')
-    setShowSuggestions(name.trim().length >= 2)
-    void searchForPlayerName(name)
+    setShowSuggestions(action.value.trim().length >= 2)
+    void searchForPlayerName(action.value)
   }
 
   function handleInputKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -492,14 +504,14 @@ export default function HomePage() {
                 </div>
 
                 <div style={quickSearchRow}>
-                  {QUICK_SEARCHES.map((name) => (
+                  {QUICK_ACTIONS.map((action) => (
                     <button
-                      key={name}
+                      key={action.label}
                       type="button"
                       style={quickSearchChip}
-                      onClick={() => handleQuickSearch(name)}
+                      onClick={() => handleQuickAction(action)}
                     >
-                      {name}
+                      {action.label}
                     </button>
                   ))}
                 </div>
@@ -1201,6 +1213,7 @@ const actionCard: CSSProperties = {
   alignItems: 'flex-start',
   minHeight: '132px',
   padding: '18px 16px',
+  transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
 }
 
 const actionCardHover: CSSProperties = {
@@ -1224,6 +1237,7 @@ const actionCardIcon: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  transition: 'transform 160ms ease, box-shadow 160ms ease',
 }
 
 const actionCardIconHover: CSSProperties = {
