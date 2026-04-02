@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -54,6 +57,21 @@ type ScenarioRow = {
   opponent_slots_json: unknown
   notes: string | null
 }
+
+type PoolPlayer = PlayerRow & {
+  availabilityStatus: string | null
+  availabilityNotes: string | null
+}
+
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/captains-corner', label: "Captain's Corner" },
+]
 
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = [
   createSinglesSlot('s1', 'Singles 1'),
@@ -119,21 +137,10 @@ function uniqueSorted(values: Array<string | null | undefined>) {
 function availabilityRank(status: string | null | undefined) {
   const normalized = (status ?? '').trim().toLowerCase()
 
-  if (normalized === 'available' || normalized === 'yes' || normalized === 'in') {
-    return 0
-  }
-
-  if (normalized === 'maybe') {
-    return 1
-  }
-
-  if (normalized === 'unknown' || normalized === '') {
-    return 2
-  }
-
-  if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') {
-    return 3
-  }
+  if (normalized === 'available' || normalized === 'yes' || normalized === 'in') return 0
+  if (normalized === 'maybe') return 1
+  if (normalized === 'unknown' || normalized === '') return 2
+  if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') return 3
 
   return 2
 }
@@ -212,6 +219,62 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
   })
 }
 
+function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
+  const selected = slot.players
+    .map((slotPlayer) => players.find((p) => p.id === slotPlayer.playerId))
+    .filter(Boolean) as PlayerRow[]
+
+  if (!selected.length) return null
+
+  if (slot.slotType === 'singles') {
+    return selected[0].singles_dynamic_rating ?? selected[0].singles_rating ?? selected[0].overall_dynamic_rating ?? selected[0].overall_rating
+  }
+
+  const values = selected
+    .map((p) => p.doubles_dynamic_rating ?? p.doubles_rating ?? p.overall_dynamic_rating ?? p.overall_rating)
+    .filter((v): v is number => typeof v === 'number')
+
+  if (!values.length) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function formatStrength(value: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+}
+
+function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlot[], players: PlayerRow[]) {
+  const lines = teamSlots.map((slot, index) => {
+    const opponentSlot = opponentSlots[index]
+    const yourStrength = selectedLineStrength(slot, players)
+    const opponentStrength = opponentSlot ? selectedLineStrength(opponentSlot, players) : null
+    const diff =
+      typeof yourStrength === 'number' && typeof opponentStrength === 'number'
+        ? yourStrength - opponentStrength
+        : null
+
+    return {
+      label: slot.label,
+      slotType: slot.slotType,
+      yourStrength,
+      opponentStrength,
+      diff,
+    }
+  })
+
+  const diffs = lines
+    .map((line) => line.diff)
+    .filter((value): value is number => typeof value === 'number')
+
+  const avgDiff = diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0
+  const projection = 1 / (1 + Math.exp(-avgDiff * 3.2))
+
+  return {
+    lines,
+    avgDiff,
+    projection,
+  }
+}
+
 export default function LineupBuilderPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
@@ -236,11 +299,21 @@ export default function LineupBuilderPage() {
 
   const [availabilityOnly, setAvailabilityOnly] = useState(true)
   const [hideUnavailable, setHideUnavailable] = useState(true)
+  const [screenWidth, setScreenWidth] = useState(1280)
 
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_TEAM_SLOTS))
-  const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(
-    cloneSlots(DEFAULT_OPPONENT_SLOTS)
-  )
+  const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -366,35 +439,22 @@ export default function LineupBuilderPage() {
       const teamMatch = !teamName || row.team_name === teamName
       const leagueMatch = !leagueName || row.league_name === leagueName
       const flightMatch = !flight || row.flight === flight
-
       return dateMatch && teamMatch && leagueMatch && flightMatch
     })
   }, [availability, matchDate, teamName, leagueName, flight])
 
   const availabilityMap = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        status: string | null
-        notes: string | null
-      }
-    >()
-
+    const map = new Map<string, { status: string | null; notes: string | null }>()
     for (const row of availabilityForSelection) {
-      map.set(row.player_id, {
-        status: row.status,
-        notes: row.notes,
-      })
+      map.set(row.player_id, { status: row.status, notes: row.notes })
     }
-
     return map
   }, [availabilityForSelection])
 
-  const availablePlayerPool = useMemo(() => {
+  const availablePlayerPool = useMemo<PoolPlayer[]>(() => {
     return players
       .map((player) => {
         const availabilityEntry = availabilityMap.get(player.id)
-
         return {
           ...player,
           availabilityStatus: availabilityEntry?.status ?? null,
@@ -403,63 +463,37 @@ export default function LineupBuilderPage() {
       })
       .filter((player) => {
         if (flight && player.flight && player.flight !== flight) return false
-
-        if (availabilityOnly && availabilityForSelection.length > 0) {
-          return availabilityMap.has(player.id)
-        }
-
+        if (availabilityOnly && availabilityForSelection.length > 0) return availabilityMap.has(player.id)
         return true
       })
       .filter((player) => {
         if (!hideUnavailable) return true
-
         const normalized = (player.availabilityStatus ?? '').trim().toLowerCase()
         if (!availabilityOnly && !normalized) return true
-
         return normalized !== 'unavailable' && normalized !== 'no' && normalized !== 'out'
       })
       .sort((a, b) => {
-        const statusCompare =
-          availabilityRank(a.availabilityStatus) - availabilityRank(b.availabilityStatus)
-
+        const statusCompare = availabilityRank(a.availabilityStatus) - availabilityRank(b.availabilityStatus)
         if (statusCompare !== 0) return statusCompare
 
         const ratingA = a.overall_dynamic_rating ?? a.overall_rating ?? -999
         const ratingB = b.overall_dynamic_rating ?? b.overall_rating ?? -999
-
         if (ratingB !== ratingA) return ratingB - ratingA
-
         return a.name.localeCompare(b.name)
       })
-  }, [
-    players,
-    availabilityMap,
-    flight,
-    availabilityOnly,
-    availabilityForSelection.length,
-    hideUnavailable,
-  ])
+  }, [players, availabilityMap, flight, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
   const assignedPlayerIds = useMemo(() => {
     const ids = new Set<string>()
-
     for (const slot of [...teamSlots, ...opponentSlots]) {
       for (const player of slot.players) {
         if (player.playerId) ids.add(player.playerId)
       }
     }
-
     return ids
   }, [teamSlots, opponentSlots])
 
-  function playerLabel(player: {
-    name: string
-    availabilityStatus: string | null
-    overall_dynamic_rating: number | null
-    overall_rating: number | null
-    singles_dynamic_rating: number | null
-    doubles_dynamic_rating: number | null
-  }) {
+  function playerLabel(player: PoolPlayer) {
     const overall = player.overall_dynamic_rating ?? player.overall_rating
     const singles = player.singles_dynamic_rating
     const doubles = player.doubles_dynamic_rating
@@ -485,46 +519,31 @@ export default function LineupBuilderPage() {
     const update = (slots: LineupSlot[]) =>
       slots.map((slot) => {
         if (slot.id !== slotId) return slot
-
         const nextPlayers = slot.players.map((player, index) => {
           if (index !== playerIndex) return player
-
           const matchedPlayer = getPlayerById(playerId)
-
           return {
             playerId,
             playerName: matchedPlayer?.name ?? '',
           }
         })
-
-        return {
-          ...slot,
-          players: nextPlayers,
-        }
+        return { ...slot, players: nextPlayers }
       })
 
-    if (side === 'team') {
-      setTeamSlots((current) => update(current))
-    } else {
-      setOpponentSlots((current) => update(current))
-    }
+    if (side === 'team') setTeamSlots((current) => update(current))
+    else setOpponentSlots((current) => update(current))
   }
 
   function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
     const update = (slots: LineupSlot[]) =>
       slots.map((slot) => (slot.id === slotId ? { ...slot, label } : slot))
 
-    if (side === 'team') {
-      setTeamSlots((current) => update(current))
-    } else {
-      setOpponentSlots((current) => update(current))
-    }
+    if (side === 'team') setTeamSlots((current) => update(current))
+    else setOpponentSlots((current) => update(current))
   }
 
   function addSlot(side: 'team' | 'opponent', slotType: 'singles' | 'doubles') {
-    const id = `${side}-${slotType}-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 7)}`
+    const id = `${side}-${slotType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const labelBase = slotType === 'singles' ? 'Singles' : 'Doubles'
     const source = side === 'team' ? teamSlots : opponentSlots
     const nextCount = source.filter((slot) => slot.slotType === slotType).length + 1
@@ -534,19 +553,13 @@ export default function LineupBuilderPage() {
         ? createSinglesSlot(id, `${labelBase} ${nextCount}`)
         : createDoublesSlot(id, `${labelBase} ${nextCount}`)
 
-    if (side === 'team') {
-      setTeamSlots((current) => [...current, newSlot])
-    } else {
-      setOpponentSlots((current) => [...current, newSlot])
-    }
+    if (side === 'team') setTeamSlots((current) => [...current, newSlot])
+    else setOpponentSlots((current) => [...current, newSlot])
   }
 
   function removeSlot(side: 'team' | 'opponent', slotId: string) {
-    if (side === 'team') {
-      setTeamSlots((current) => current.filter((slot) => slot.id !== slotId))
-    } else {
-      setOpponentSlots((current) => current.filter((slot) => slot.id !== slotId))
-    }
+    if (side === 'team') setTeamSlots((current) => current.filter((slot) => slot.id !== slotId))
+    else setOpponentSlots((current) => current.filter((slot) => slot.id !== slotId))
   }
 
   function resetBuilder() {
@@ -619,20 +632,16 @@ export default function LineupBuilderPage() {
     }
 
     const normalizedName = scenarioName.trim().toLowerCase()
-
     const duplicate = savedScenarios.find((s) => {
       const sameName = (s.scenario_name ?? '').trim().toLowerCase() === normalizedName
       const sameTeam = (s.team_name ?? '') === (teamName || '')
       const sameDate = (s.match_date ?? '') === (matchDate || '')
-
       return sameName && sameTeam && sameDate
     })
 
     if (duplicate && (asNew || duplicate.id !== currentScenarioId)) {
       setSaving(false)
-      setError(
-        'A scenario with this name already exists for this team and match date. Use a different name or update the existing one.'
-      )
+      setError('A scenario with this name already exists for this team and match date.')
       return
     }
 
@@ -645,7 +654,6 @@ export default function LineupBuilderPage() {
         .eq('id', currentScenarioId)
 
       setSaving(false)
-
       if (error) {
         setError(error.message)
         return
@@ -663,37 +671,26 @@ export default function LineupBuilderPage() {
       .single()
 
     setSaving(false)
-
     if (error) {
       setError(error.message)
       return
     }
 
-    if (data?.id) {
-      setCurrentScenarioId(data.id)
-    }
-
+    if (data?.id) setCurrentScenarioId(data.id)
     await refreshSavedScenarios()
     setMessage(asNew ? 'Scenario saved as new successfully.' : 'Scenario saved successfully.')
   }
 
   async function deleteScenario(scenarioId: string) {
     const scenario = savedScenarios.find((row) => row.id === scenarioId)
-    const confirmed = window.confirm(
-      `Delete scenario "${scenario?.scenario_name ?? 'this scenario'}"? This cannot be undone.`
-    )
-
+    const confirmed = window.confirm(`Delete scenario "${scenario?.scenario_name ?? 'this scenario'}"?`)
     if (!confirmed) return
 
     setDeletingScenarioId(scenarioId)
     setError('')
     setMessage('')
 
-    const { error } = await supabase
-      .from('lineup_scenarios')
-      .delete()
-      .eq('id', scenarioId)
-
+    const { error } = await supabase.from('lineup_scenarios').delete().eq('id', scenarioId)
     setDeletingScenarioId('')
 
     if (error) {
@@ -701,11 +698,10 @@ export default function LineupBuilderPage() {
       return
     }
 
-    const deletedCurrentScenario = scenarioId === currentScenarioId
-
+    const deletedCurrent = scenarioId === currentScenarioId
     await refreshSavedScenarios()
 
-    if (deletedCurrentScenario) {
+    if (deletedCurrent) {
       setCurrentScenarioId('')
       setMessage('Scenario deleted. Builder is now in new scenario mode.')
     } else {
@@ -719,7 +715,6 @@ export default function LineupBuilderPage() {
     setMessage('')
 
     const scenario = savedScenarios.find((row) => row.id === scenarioId)
-
     if (!scenario) {
       setLoadingScenarioId('')
       setError('Scenario not found.')
@@ -739,9 +734,7 @@ export default function LineupBuilderPage() {
     const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
 
     setTeamSlots(loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS))
-    setOpponentSlots(
-      loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS)
-    )
+    setOpponentSlots(loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS))
 
     setLoadingScenarioId('')
     setMessage('Scenario loaded into the builder.')
@@ -754,136 +747,120 @@ export default function LineupBuilderPage() {
 
   const compareHref = useMemo(() => {
     const params = new URLSearchParams()
-
     if (leagueName) params.set('league', leagueName)
     if (flight) params.set('flight', flight)
     if (teamName) params.set('team', teamName)
     if (matchDate) params.set('date', matchDate)
     if (currentScenarioId) params.set('left', currentScenarioId)
-
     const query = params.toString()
-
-    return query
-      ? `/captains-corner/scenario-comparison?${query}`
-      : '/captains-corner/scenario-comparison'
+    return query ? `/captains-corner/scenario-comparison?${query}` : '/captains-corner/scenario-comparison'
   }, [leagueName, flight, teamName, matchDate, currentScenarioId])
 
+  const analysis = useMemo(() => {
+    return compareLineupStrength(teamSlots, opponentSlots, players)
+  }, [teamSlots, opponentSlots, players])
+
+  const bestLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.diff === 'number')
+      .sort((a, b) => (b.diff ?? 0) - (a.diff ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
+  const weakestLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.diff === 'number')
+      .sort((a, b) => (a.diff ?? 0) - (b.diff ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
   return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div style={heroGridStyle}>
-            <div>
-              <div className="badge badge-blue" style={{ marginBottom: 14 }}>
-                Captain Tools
-              </div>
-              <p className="section-kicker" style={{ marginBottom: 10 }}>
-                Match-day strategy workspace
-              </p>
-              <h1 style={heroTitleStyle}>Lineup Builder</h1>
-              <p style={heroTextStyle}>
-                Build match-day lineups, work from availability-aware player pools, save
-                multiple scenarios, compare versions, and keep your captain prep organized.
-              </p>
+    <main style={pageStyle}>
+      <div style={orbOne} />
+      <div style={orbTwo} />
+      <div style={gridGlow} />
 
-              <div style={heroButtonRowStyle}>
-                <Link href={compareHref} className="button-primary">
-                  Compare Saved Scenarios
+      <header style={headerStyle}>
+        <div style={headerInnerResponsive(isTablet)}>
+          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+            <BrandWordmark compact={isMobile} top />
+          </Link>
+
+          <nav style={navStyleResponsive(isTablet)}>
+            {NAV_LINKS.map((link) => {
+              const isActive = link.href === '/captains-corner'
+              return (
+                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
+                  {link.label}
                 </Link>
-                <button type="button" className="button-secondary" onClick={resetBuilder}>
-                  Reset Builder
-                </button>
-              </div>
+              )
+            })}
+            <Link href="/admin" style={navLink}>Admin</Link>
+          </nav>
+        </div>
+      </header>
 
-              <div className="metric-grid" style={heroMetricGridStyle}>
-                <div className="metric-card">
-                  <div className="section-kicker">Scenario Mode</div>
-                  <div style={metricValueStyle}>
-                    {currentScenarioId ? 'Editing saved scenario' : 'New scenario'}
-                  </div>
-                </div>
-                <div className="metric-card">
-                  <div className="section-kicker">Player Pool</div>
-                  <div style={metricValueStyle}>
-                    {availablePlayerPool.length} available option
-                    {availablePlayerPool.length === 1 ? '' : 's'}
-                  </div>
-                </div>
-                <div className="metric-card">
-                  <div className="section-kicker">Saved Versions</div>
-                  <div style={metricValueStyle}>
-                    {scenarioOptions.length} scenario
-                    {scenarioOptions.length === 1 ? '' : 's'}
-                  </div>
-                </div>
-              </div>
-            </div>
+      <section style={heroShellResponsive(isTablet, isMobile)}>
+        <div>
+          <div style={eyebrow}>Captain tools</div>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
+          <p style={heroTextStyle}>
+            Build match-day lineups, work from availability-aware player pools, save multiple scenarios,
+            compare versions, and pressure-test your expected edge line by line.
+          </p>
 
-            <div className="glass-card panel-pad">
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Builder workflow
-              </p>
-              <h2 style={sideHeroTitleStyle}>Set the match context, build, save, compare</h2>
+          <div style={heroButtonRowStyle}>
+            <Link href={compareHref} style={primaryButton}>
+              Compare Saved Scenarios
+            </Link>
+            <button type="button" onClick={resetBuilder} style={ghostButton}>
+              Reset Builder
+            </button>
+          </div>
 
-              <div style={workflowListStyle}>
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>1</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Define the match context</div>
-                    <div style={workflowTextStyle}>
-                      League, flight, team, opponent, and match date drive your scenario setup.
-                    </div>
-                  </div>
-                </div>
+          <div style={heroMetricGridStyle(isSmallMobile)}>
+            <MetricStat label="Scenario Mode" value={currentScenarioId ? 'Editing saved scenario' : 'New scenario'} />
+            <MetricStat label="Player Pool" value={`${availablePlayerPool.length} available`} />
+            <MetricStat label="Saved Versions" value={`${scenarioOptions.length} scenarios`} />
+          </div>
+        </div>
 
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>2</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Build both sides</div>
-                    <div style={workflowTextStyle}>
-                      Create your lineup and capture the likely opponent projection in one place.
-                    </div>
-                  </div>
-                </div>
-
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>3</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Save and compare</div>
-                    <div style={workflowTextStyle}>
-                      Keep multiple versions and open scenario comparison when decisions get tight.
-                    </div>
-                  </div>
+        <div style={quickStartCard}>
+          <p style={sectionKicker}>Builder workflow</p>
+          <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
+          <div style={workflowListStyle}>
+            {[
+              ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
+              ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
+              ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
+            ].map(([step, title, text]) => (
+              <div key={step} style={workflowRowStyle}>
+                <div style={workflowNumberStyle}>{step}</div>
+                <div>
+                  <div style={workflowTitleStyle}>{title}</div>
+                  <div style={workflowTextStyle}>{text}</div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="section">
-        <div style={builderLayoutStyle}>
+      <section style={contentWrap}>
+        <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
-            <section className="surface-card-strong panel-pad">
+            <section style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p className="section-kicker" style={{ marginBottom: 8 }}>
-                    Scenario setup
-                  </p>
-                  <h2 className="section-title" style={{ marginBottom: 8 }}>
-                    Match and scenario details
-                  </h2>
-                  <p style={sectionBodyTextStyle}>
-                    Save a new version or update the scenario currently loaded into the builder.
-                  </p>
+                  <p style={sectionKicker}>Scenario setup</p>
+                  <h2 style={sectionTitle}>Match and scenario details</h2>
+                  <p style={sectionBodyTextStyle}>Save a new version or update the scenario currently loaded into the builder.</p>
                 </div>
               </div>
 
               {currentScenario ? (
                 <div style={bannerBlueStyle}>
-                  <div style={bannerTitleStyle}>
-                    Editing saved scenario: {currentScenario.scenario_name}
-                  </div>
+                  <div style={bannerTitleStyle}>Editing saved scenario: {currentScenario.scenario_name}</div>
                   <div style={bannerMetaStyle}>
                     {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
                     {currentScenario.match_date ? ` • ${formatDate(currentScenario.match_date)}` : ''}
@@ -895,192 +872,89 @@ export default function LineupBuilderPage() {
 
               <div style={formGridStyle}>
                 <div>
-                  <label className="label">Scenario Name</label>
-                  <input
-                    value={scenarioName}
-                    onChange={(e) => setScenarioName(e.target.value)}
-                    placeholder="Example: Safer Doubles Version"
-                    className="input"
-                  />
+                  <label style={labelStyle}>Scenario Name</label>
+                  <input value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="Example: Safer Doubles Version" style={inputStyle} />
                 </div>
-
                 <div>
-                  <label className="label">Match Date</label>
-                  <input
-                    type="date"
-                    value={matchDate}
-                    onChange={(e) => setMatchDate(e.target.value)}
-                    className="input"
-                  />
+                  <label style={labelStyle}>Match Date</label>
+                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
                 </div>
-
                 <div>
-                  <label className="label">League</label>
-                  <input
-                    list="league-options"
-                    value={leagueName}
-                    onChange={(e) => setLeagueName(e.target.value)}
-                    placeholder="League name"
-                    className="input"
-                  />
+                  <label style={labelStyle}>League</label>
+                  <input list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} placeholder="League name" style={inputStyle} />
                   <datalist id="league-options">
-                    {leagueOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
+                    {leagueOptions.map((option) => <option key={option} value={option} />)}
                   </datalist>
                 </div>
-
                 <div>
-                  <label className="label">Flight</label>
-                  <input
-                    list="flight-options"
-                    value={flight}
-                    onChange={(e) => setFlight(e.target.value)}
-                    placeholder="Flight"
-                    className="input"
-                  />
+                  <label style={labelStyle}>Flight</label>
+                  <input list="flight-options" value={flight} onChange={(e) => setFlight(e.target.value)} placeholder="Flight" style={inputStyle} />
                   <datalist id="flight-options">
-                    {flightOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
+                    {flightOptions.map((option) => <option key={option} value={option} />)}
                   </datalist>
                 </div>
-
                 <div>
-                  <label className="label">Team Name</label>
-                  <input
-                    list="team-options"
-                    value={teamName}
-                    onChange={(e) => setTeamName(e.target.value)}
-                    placeholder="Your team"
-                    className="input"
-                  />
+                  <label style={labelStyle}>Team Name</label>
+                  <input list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Your team" style={inputStyle} />
                   <datalist id="team-options">
-                    {teamOptions.map((option) => (
-                      <option key={option} value={option} />
-                    ))}
+                    {teamOptions.map((option) => <option key={option} value={option} />)}
                   </datalist>
                 </div>
-
                 <div>
-                  <label className="label">Opponent Team</label>
-                  <input
-                    value={opponentTeam}
-                    onChange={(e) => setOpponentTeam(e.target.value)}
-                    placeholder="Opponent team"
-                    className="input"
-                  />
+                  <label style={labelStyle}>Opponent Team</label>
+                  <input value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} placeholder="Opponent team" style={inputStyle} />
                 </div>
               </div>
 
               <div style={{ marginTop: 18 }}>
-                <label className="label">Captain Notes</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Matchups, player preferences, injury notes, weather backups, etc."
-                  className="textarea"
-                  style={{ minHeight: 118 }}
-                />
+                <label style={labelStyle}>Captain Notes</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Matchups, player preferences, injury notes, weather backups, etc." style={textareaStyle} />
               </div>
 
-              <div style={toggleGridStyle}>
+              <div style={toggleGridResponsive(isSmallMobile)}>
                 <label style={toggleCardStyle}>
                   <div>
                     <div style={toggleTitleStyle}>Availability-filtered pool</div>
-                    <div style={toggleTextStyle}>
-                      Use lineup availability records when they exist for the selected match context.
-                    </div>
+                    <div style={toggleTextStyle}>Use lineup availability records when they exist for the selected match context.</div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={availabilityOnly}
-                    onChange={(e) => setAvailabilityOnly(e.target.checked)}
-                  />
+                  <input type="checkbox" checked={availabilityOnly} onChange={(e) => setAvailabilityOnly(e.target.checked)} />
                 </label>
 
                 <label style={toggleCardStyle}>
                   <div>
                     <div style={toggleTitleStyle}>Hide unavailable players</div>
-                    <div style={toggleTextStyle}>
-                      Remove players marked out or unavailable from your selection list.
-                    </div>
+                    <div style={toggleTextStyle}>Remove players marked out or unavailable from your selection list.</div>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={hideUnavailable}
-                    onChange={(e) => setHideUnavailable(e.target.checked)}
-                  />
+                  <input type="checkbox" checked={hideUnavailable} onChange={(e) => setHideUnavailable(e.target.checked)} />
                 </label>
               </div>
 
               <div style={actionRowStyle}>
-                <button
-                  type="button"
-                  onClick={() => saveScenario(false)}
-                  className="button-primary"
-                  disabled={saving}
-                >
-                  {saving
-                    ? 'Saving...'
-                    : currentScenarioId
-                      ? 'Update Scenario'
-                      : 'Save Scenario'}
+                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                  {saving ? 'Saving...' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => saveScenario(true)}
-                  className="button-secondary"
-                  disabled={saving}
-                >
+                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
                   Save as New
                 </button>
-
-                <Link href={compareHref} className="button-ghost">
-                  Open Comparison
-                </Link>
+                <Link href={compareHref} style={secondaryLinkButton}>Open Comparison</Link>
               </div>
 
-              {currentScenarioId ? (
-                <p style={infoTextStyle}>
-                  Loaded scenario is ready for update and comparison.
-                </p>
-              ) : null}
-
+              {currentScenarioId ? <p style={infoTextStyle}>Loaded scenario is ready for update and comparison.</p> : null}
               {message ? <p style={successTextStyle}>{message}</p> : null}
               {error ? <p style={errorTextStyle}>{error}</p> : null}
             </section>
 
-            <section className="surface-card panel-pad">
+            <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p className="section-kicker" style={{ marginBottom: 8 }}>
-                    Your lineup
-                  </p>
-                  <h2 className="section-title" style={{ marginBottom: 8 }}>
-                    Build your side
-                  </h2>
-                  <p style={sectionBodyTextStyle}>
-                    Create singles and doubles slots for your expected match-day lineup.
-                  </p>
+                  <p style={sectionKicker}>Your lineup</p>
+                  <h2 style={sectionTitle}>Build your side</h2>
+                  <p style={sectionBodyTextStyle}>Create singles and doubles slots for your expected match-day lineup.</p>
                 </div>
 
                 <div style={miniActionRowStyle}>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => addSlot('team', 'singles')}
-                  >
-                    + Singles Slot
-                  </button>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => addSlot('team', 'doubles')}
-                  >
-                    + Doubles Slot
-                  </button>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'singles')}>+ Singles Slot</button>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'doubles')}>+ Doubles Slot</button>
                 </div>
               </div>
 
@@ -1101,35 +975,17 @@ export default function LineupBuilderPage() {
               </div>
             </section>
 
-            <section className="surface-card panel-pad">
+            <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p className="section-kicker" style={{ marginBottom: 8 }}>
-                    Opponent projection
-                  </p>
-                  <h2 className="section-title" style={{ marginBottom: 8 }}>
-                    Model the other side
-                  </h2>
-                  <p style={sectionBodyTextStyle}>
-                    Capture your expected opponent lineup or your best working guess.
-                  </p>
+                  <p style={sectionKicker}>Opponent projection</p>
+                  <h2 style={sectionTitle}>Model the other side</h2>
+                  <p style={sectionBodyTextStyle}>Capture your expected opponent lineup or your best working guess.</p>
                 </div>
 
                 <div style={miniActionRowStyle}>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => addSlot('opponent', 'singles')}
-                  >
-                    + Singles Slot
-                  </button>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={() => addSlot('opponent', 'doubles')}
-                  >
-                    + Doubles Slot
-                  </button>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'singles')}>+ Singles Slot</button>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'doubles')}>+ Doubles Slot</button>
                 </div>
               </div>
 
@@ -1152,37 +1008,66 @@ export default function LineupBuilderPage() {
           </div>
 
           <div style={columnStyle}>
-            <section className="surface-card panel-pad">
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Player pool
-              </p>
-              <h2 className="section-title" style={{ marginBottom: 8 }}>
-                Availability-aware player options
-              </h2>
-              <p style={sectionBodyTextStyle}>
-                Sorted by availability first, then rating, so you can see the most realistic
-                options for the current scenario.
-              </p>
+            <section style={surfaceCard}>
+              <p style={sectionKicker}>Live projection</p>
+              <h2 style={sectionTitle}>Strength by line</h2>
+              <p style={sectionBodyTextStyle}>A quick heuristic based on selected dynamic ratings for each slot.</p>
 
-              <div style={pillRowStyle}>
-                <div className="badge badge-slate">
-                  {availablePlayerPool.length} player
-                  {availablePlayerPool.length === 1 ? '' : 's'}
-                </div>
-                <div className="badge badge-blue">
-                  {availabilityForSelection.length} availability row
-                  {availabilityForSelection.length === 1 ? '' : 's'}
-                </div>
+              <div style={heroBadgeRowStyleCompact}>
+                <span style={badgeBlue}>Projected win chance {formatStrength(analysis.projection * 100)}%</span>
+                <span style={badgeSlate}>Avg edge {formatStrength(analysis.avgDiff)}</span>
+              </div>
+
+              <div style={stackStyle}>
+                {analysis.lines.map((line) => (
+                  <div key={line.label} style={poolCardStyle}>
+                    <div style={poolCardTopStyle}>
+                      <div>
+                        <div style={playerNameStyle}>{line.label}</div>
+                        <div style={playerMetaStyle}>{line.slotType === 'singles' ? 'Singles line' : 'Doubles line'}</div>
+                      </div>
+                      <span style={typeof line.diff === 'number' && line.diff >= 0 ? goodBadgeStyle : warnBadgeStyle}>
+                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                      </span>
+                    </div>
+
+                    <div style={compareGridStyle}>
+                      <div style={compareCardStyle}>
+                        <div style={compareLabelStyle}>Your side</div>
+                        <div style={compareValueStyle}>{formatStrength(line.yourStrength)}</div>
+                      </div>
+                      <div style={compareCardStyle}>
+                        <div style={compareLabelStyle}>Opponent</div>
+                        <div style={compareValueStyle}>{formatStrength(line.opponentStrength)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={sectionKicker}>Readout</div>
+                <p style={sectionBodyTextStyle}>
+                  Best line: <strong>{bestLine?.label ?? '—'}</strong>. Weakest line: <strong>{weakestLine?.label ?? '—'}</strong>.
+                </p>
+              </div>
+            </section>
+
+            <section style={surfaceCard}>
+              <p style={sectionKicker}>Player pool</p>
+              <h2 style={sectionTitle}>Availability-aware options</h2>
+              <p style={sectionBodyTextStyle}>Sorted by availability first, then overall strength.</p>
+
+              <div style={heroBadgeRowStyleCompact}>
+                <span style={badgeSlate}>{availablePlayerPool.length} players</span>
+                <span style={badgeBlue}>{availabilityForSelection.length} availability rows</span>
               </div>
 
               <div style={stackStyle}>
                 {loading ? (
                   <p style={mutedTextStyle}>Loading players...</p>
                 ) : availablePlayerPool.length === 0 ? (
-                  <p style={mutedTextStyle}>
-                    No players match the current filters. Try clearing a filter or disabling
-                    availability-only mode.
-                  </p>
+                  <p style={mutedTextStyle}>No players match the current filters.</p>
                 ) : (
                   availablePlayerPool.map((player) => {
                     const tone = statusTone(player.availabilityStatus)
@@ -1206,29 +1091,14 @@ export default function LineupBuilderPage() {
                         </div>
 
                         <div style={pillRowStyle}>
-                          <span className="badge badge-slate">
-                            OVR{' '}
-                            {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ??
-                              '—'}
-                          </span>
-                          <span className="badge badge-slate">
-                            S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}
-                          </span>
-                          <span className="badge badge-slate">
-                            D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}
-                          </span>
-                          {assigned ? <span className="badge badge-green">Assigned</span> : null}
+                          <span style={miniPillStyle}>OVR {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}</span>
+                          {assigned ? <span style={assignedPillStyle}>Assigned</span> : null}
                         </div>
 
-                        {player.lineup_notes ? (
-                          <p style={cardNoteTextStyle}>{player.lineup_notes}</p>
-                        ) : null}
-
-                        {player.availabilityNotes ? (
-                          <p style={subtleNoteTextStyle}>
-                            Availability note: {player.availabilityNotes}
-                          </p>
-                        ) : null}
+                        {player.lineup_notes ? <p style={cardNoteTextStyle}>{player.lineup_notes}</p> : null}
+                        {player.availabilityNotes ? <p style={subtleNoteTextStyle}>Availability note: {player.availabilityNotes}</p> : null}
                       </article>
                     )
                   })
@@ -1236,16 +1106,10 @@ export default function LineupBuilderPage() {
               </div>
             </section>
 
-            <section className="surface-card panel-pad">
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Saved scenarios
-              </p>
-              <h2 className="section-title" style={{ marginBottom: 8 }}>
-                Reload or clean up prior versions
-              </h2>
-              <p style={sectionBodyTextStyle}>
-                Load a saved scenario into the builder, then tweak, compare, resave, or delete it.
-              </p>
+            <section style={surfaceCard}>
+              <p style={sectionKicker}>Saved scenarios</p>
+              <h2 style={sectionTitle}>Reload or clean up prior versions</h2>
+              <p style={sectionBodyTextStyle}>Load a saved scenario into the builder, then tweak, compare, resave, or delete it.</p>
 
               <div style={stackStyle}>
                 {scenarioOptions.length === 0 ? (
@@ -1257,13 +1121,7 @@ export default function LineupBuilderPage() {
                     const isLoading = loadingScenarioId === scenario.id
 
                     return (
-                      <article
-                        key={scenario.id}
-                        style={{
-                          ...savedScenarioCardStyle,
-                          ...(isCurrent ? savedScenarioCardActiveStyle : null),
-                        }}
-                      >
+                      <article key={scenario.id} style={{ ...savedScenarioCardStyle, ...(isCurrent ? savedScenarioCardActiveStyle : {}) }}>
                         <div style={savedScenarioTopStyle}>
                           <div>
                             <div style={savedScenarioTitleStyle}>{scenario.scenario_name}</div>
@@ -1277,35 +1135,23 @@ export default function LineupBuilderPage() {
                             </div>
                             {isCurrent ? (
                               <div style={{ marginTop: 8 }}>
-                                <span className="badge badge-blue">Currently loaded</span>
+                                <span style={miniPillBlueStyle}>Currently loaded</span>
                               </div>
                             ) : null}
                           </div>
 
                           <div style={savedScenarioActionsStyle}>
-                            <button
-                              type="button"
-                              className="button-secondary"
-                              onClick={() => loadScenario(scenario.id)}
-                              disabled={isLoading || isDeleting}
-                            >
+                            <button type="button" style={ghostButtonSmall} onClick={() => loadScenario(scenario.id)} disabled={isLoading || isDeleting}>
                               {isLoading ? 'Loading...' : 'Load'}
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() => deleteScenario(scenario.id)}
-                              disabled={isDeleting || isLoading}
-                              style={dangerButtonStyle}
-                            >
+                            <button type="button" onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading} style={dangerButtonStyle}>
                               {isDeleting ? 'Deleting...' : 'Delete'}
                             </button>
                           </div>
                         </div>
 
-                        {scenario.notes ? (
-                          <p style={cardNoteTextStyle}>{scenario.notes}</p>
-                        ) : null}
+                        {scenario.notes ? <p style={cardNoteTextStyle}>{scenario.notes}</p> : null}
                       </article>
                     )
                   })
@@ -1315,6 +1161,29 @@ export default function LineupBuilderPage() {
           </div>
         </div>
       </section>
+
+      <footer style={footerStyle}>
+        <div style={footerInnerResponsive(isMobile)}>
+          <div style={footerRowResponsive(isTablet)}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
+
+            <div style={footerLinksResponsive(isTablet)}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            </div>
+
+            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
+              © {new Date().getFullYear()} TenAceIQ
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
@@ -1331,12 +1200,7 @@ function SlotEditor({
 }: {
   slot: LineupSlot
   side: 'team' | 'opponent'
-  playerPool: Array<
-    PlayerRow & {
-      availabilityStatus: string | null
-      availabilityNotes: string | null
-    }
-  >
+  playerPool: PoolPlayer[]
   assignedPlayerIds: Set<string>
   setSlotLabel: (side: 'team' | 'opponent', slotId: string, label: string) => void
   setSlotPlayer: (
@@ -1346,14 +1210,7 @@ function SlotEditor({
     playerId: string
   ) => void
   removeSlot: (side: 'team' | 'opponent', slotId: string) => void
-  playerLabel: (player: {
-    name: string
-    availabilityStatus: string | null
-    overall_dynamic_rating: number | null
-    overall_rating: number | null
-    singles_dynamic_rating: number | null
-    doubles_dynamic_rating: number | null
-  }) => string
+  playerLabel: (player: PoolPlayer) => string
 }) {
   return (
     <div style={slotCardStyle}>
@@ -1362,10 +1219,9 @@ function SlotEditor({
           <input
             value={slot.label}
             onChange={(e) => setSlotLabel(side, slot.id, e.target.value)}
-            className="input"
             style={slotLabelInputStyle}
           />
-          <span className={slot.slotType === 'singles' ? 'badge badge-blue' : 'badge badge-green'}>
+          <span style={slot.slotType === 'singles' ? miniPillBlueStyle : assignedPillStyle}>
             {slot.slotType === 'singles' ? 'Singles' : 'Doubles'}
           </span>
         </div>
@@ -1378,14 +1234,14 @@ function SlotEditor({
       <div style={slotPlayersGridStyle}>
         {slot.players.map((selectedPlayer, index) => (
           <div key={`${slot.id}-${index}`}>
-            <label className="label" style={{ marginBottom: 6 }}>
+            <label style={smallLabelStyle}>
               {slot.slotType === 'doubles' ? `Player ${index + 1}` : 'Player'}
             </label>
 
             <select
               value={selectedPlayer.playerId}
               onChange={(e) => setSlotPlayer(side, slot.id, index, e.target.value)}
-              className="select"
+              style={inputStyle}
             >
               <option value="">Select player</option>
               {playerPool.map((player) => {
@@ -1407,18 +1263,250 @@ function SlotEditor({
   )
 }
 
-const heroGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
-  gap: '24px',
-  alignItems: 'stretch',
+function MetricStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={heroMetricCardStyle}>
+      <div style={metricLabelStyle}>{label}</div>
+      <div style={metricValueStyle}>{value}</div>
+    </div>
+  )
 }
 
-const heroTitleStyle: CSSProperties = {
-  margin: 0,
-  fontSize: 'clamp(2.15rem, 4vw, 3.15rem)',
-  lineHeight: 1.02,
-  letterSpacing: '-0.03em',
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
+      />
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
+    </div>
+  )
+}
+
+function headerInnerResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+}
+
+function navStyleResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
+}
+
+function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroShell,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+    gap: isMobile ? '18px' : '24px',
+    padding: isMobile ? '26px 18px' : '34px 26px',
+  }
+}
+
+function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroTitleStyle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
+  }
+}
+
+function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...heroMetricGridBaseStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function builderLayoutResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...builderLayoutStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
+  }
+}
+
+function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...toggleGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+  }
+}
+
+function footerInnerResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+}
+
+function footerRowResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+}
+
+function footerLinksResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+}
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  position: 'relative',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
+  padding: '24px 18px 56px',
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-100px',
+  right: '-60px',
+  width: '360px',
+  height: '360px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
+  filter: 'blur(10px)',
+  pointerEvents: 'none',
+}
+
+const orbTwo: CSSProperties = {
+  position: 'absolute',
+  top: '60px',
+  left: '-100px',
+  width: '320px',
+  height: '320px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
+  filter: 'blur(12px)',
+  pointerEvents: 'none',
+}
+
+const gridGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+  backgroundSize: '64px 64px',
+  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+}
+
+const headerInner: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+}
+
+const brandWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+}
+
+const navStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+}
+
+const navLink: CSSProperties = {
+  padding: '13px 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(12, 28, 52, 0.78)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '15px',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const activeNavLink: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
+  border: '1px solid rgba(130, 244, 118, 0.22)',
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  alignSelf: 'flex-start',
+  minHeight: '38px',
+  padding: '8px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(130, 244, 118, 0.28)',
+  background: 'rgba(89, 145, 73, 0.14)',
+  color: '#d9e7ef',
+  fontWeight: 800,
+  fontSize: '14px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  marginBottom: '4px',
+}
+
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+  display: 'grid',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
 }
 
 const heroTextStyle: CSSProperties = {
@@ -1430,6 +1518,16 @@ const heroTextStyle: CSSProperties = {
   lineHeight: 1.72,
 }
 
+const heroTitleStyle: CSSProperties = {
+  margin: 0,
+  color: '#f7fbff',
+  fontWeight: 900,
+  lineHeight: 0.98,
+  letterSpacing: '-0.055em',
+  maxWidth: '760px',
+}
+
+
 const heroButtonRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -1437,22 +1535,46 @@ const heroButtonRowStyle: CSSProperties = {
   marginTop: 22,
 }
 
-const heroMetricGridStyle: CSSProperties = {
+const heroMetricGridBaseStyle: CSSProperties = {
   marginTop: 22,
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  display: 'grid',
+  gap: '14px',
+}
+
+const heroMetricCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
+}
+
+const metricLabelStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
 }
 
 const metricValueStyle: CSSProperties = {
-  marginTop: 6,
+  color: '#f8fbff',
   fontSize: '1.05rem',
   fontWeight: 800,
+  lineHeight: 1.4,
 }
 
-const sideHeroTitleStyle: CSSProperties = {
+const quickStartCard: CSSProperties = {
+  borderRadius: '28px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  padding: '20px',
+}
+
+const quickStartTitle: CSSProperties = {
   marginTop: 10,
   marginBottom: 14,
   fontSize: '1.35rem',
   lineHeight: 1.14,
+  color: '#ffffff',
 }
 
 const workflowListStyle: CSSProperties = {
@@ -1464,7 +1586,6 @@ const workflowRowStyle: CSSProperties = {
   display: 'flex',
   gap: 12,
   alignItems: 'flex-start',
-  paddingTop: 2,
 }
 
 const workflowNumberStyle: CSSProperties = {
@@ -1493,9 +1614,15 @@ const workflowTextStyle: CSSProperties = {
   fontSize: '.95rem',
 }
 
+const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto',
+}
+
 const builderLayoutStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
   gap: '20px',
   alignItems: 'start',
 }
@@ -1504,6 +1631,23 @@ const columnStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: '20px',
+}
+
+const surfaceCardStrong: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
+  background:
+    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+}
+
+const surfaceCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -1515,9 +1659,27 @@ const sectionHeaderStyle: CSSProperties = {
   marginBottom: '16px',
 }
 
+const sectionKicker: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '13px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  margin: 0,
+}
+
+const sectionTitle: CSSProperties = {
+  margin: '8px 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '28px',
+  letterSpacing: '-0.04em',
+  lineHeight: 1.1,
+}
+
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.76)',
   lineHeight: 1.65,
 }
 
@@ -1525,28 +1687,28 @@ const bannerBlueStyle: CSSProperties = {
   marginBottom: '16px',
   padding: '14px 16px',
   borderRadius: '16px',
-  background: 'rgba(37, 91, 227, 0.08)',
-  border: '1px solid rgba(37, 91, 227, 0.14)',
+  background: 'rgba(37, 91, 227, 0.12)',
+  border: '1px solid rgba(37, 91, 227, 0.20)',
 }
 
 const bannerSlateStyle: CSSProperties = {
   marginBottom: '16px',
   padding: '14px 16px',
   borderRadius: '16px',
-  background: 'rgba(15, 22, 50, 0.04)',
-  border: '1px solid rgba(15, 22, 50, 0.08)',
-  color: '#51607a',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: '#dbeafe',
   fontWeight: 700,
 }
 
 const bannerTitleStyle: CSSProperties = {
-  color: '#255BE3',
+  color: '#8fb7ff',
   fontWeight: 800,
   marginBottom: '4px',
 }
 
 const bannerMetaStyle: CSSProperties = {
-  color: '#4b5e93',
+  color: '#cbd5e1',
   lineHeight: 1.5,
 }
 
@@ -1558,7 +1720,6 @@ const formGridStyle: CSSProperties = {
 
 const toggleGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
   gap: '12px',
   marginTop: '18px',
 }
@@ -1570,18 +1731,19 @@ const toggleCardStyle: CSSProperties = {
   gap: '14px',
   padding: '14px 16px',
   borderRadius: '16px',
-  background: 'rgba(15, 22, 50, 0.03)',
-  border: '1px solid rgba(15, 22, 50, 0.06)',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color: '#e7eefb',
 }
 
 const toggleTitleStyle: CSSProperties = {
   fontWeight: 800,
-  color: '#0f1632',
+  color: '#f8fbff',
   marginBottom: 4,
 }
 
 const toggleTextStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   lineHeight: 1.5,
   fontSize: '.94rem',
 }
@@ -1599,22 +1761,102 @@ const miniActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const primaryButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
+  color: '#071622',
+  border: '1px solid rgba(133, 171, 255, 0.18)',
+  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
+  cursor: 'pointer',
+}
+
+const ghostButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'rgba(14, 27, 49, 0.9)',
+  color: '#ebf1fd',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+  cursor: 'pointer',
+}
+
+const ghostButtonSmall: CSSProperties = {
+  ...ghostButton,
+  minHeight: '42px',
+  padding: '0 14px',
+}
+
+const secondaryLinkButton: CSSProperties = {
+  ...ghostButton,
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  height: '48px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  padding: '0 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
+const textareaStyle: CSSProperties = {
+  width: '100%',
+  minHeight: '118px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  padding: '12px 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const smallLabelStyle: CSSProperties = {
+  ...labelStyle,
+  marginBottom: '6px',
+}
+
 const infoTextStyle: CSSProperties = {
-  color: '#255BE3',
+  color: '#8fb7ff',
   marginTop: '14px',
   marginBottom: 0,
   fontWeight: 600,
 }
 
 const successTextStyle: CSSProperties = {
-  color: '#0f8f52',
+  color: '#86efac',
   marginTop: '14px',
   marginBottom: 0,
   fontWeight: 600,
 }
 
 const errorTextStyle: CSSProperties = {
-  color: '#c43f3f',
+  color: '#fca5a5',
   marginTop: '14px',
   marginBottom: 0,
   fontWeight: 600,
@@ -1629,9 +1871,8 @@ const slotListStyle: CSSProperties = {
 const slotCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'linear-gradient(180deg, rgba(248,250,255,0.98) 0%, #ffffff 100%)',
-  border: '1px solid rgba(37, 91, 227, 0.10)',
-  boxShadow: '0 16px 40px rgba(15, 22, 50, 0.05)',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
 }
 
 const slotHeaderStyle: CSSProperties = {
@@ -1651,7 +1892,10 @@ const slotHeaderLeftStyle: CSSProperties = {
 }
 
 const slotLabelInputStyle: CSSProperties = {
-  minWidth: 180,
+  ...inputStyle,
+  minWidth: '180px',
+  maxWidth: '220px',
+  height: '42px',
   fontWeight: 700,
 }
 
@@ -1661,11 +1905,74 @@ const slotPlayersGridStyle: CSSProperties = {
   gap: '12px',
 }
 
-const pillRowStyle: CSSProperties = {
+const heroBadgeRowStyleCompact: CSSProperties = {
   display: 'flex',
   gap: '8px',
   flexWrap: 'wrap',
   marginTop: '14px',
+}
+
+const badgeBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  fontSize: '0.82rem',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.02em',
+  border: '1px solid transparent',
+}
+
+const badgeBlue: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+  borderColor: 'rgba(98, 154, 255, 0.18)',
+}
+
+const badgeSlate: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#e8eef9',
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+}
+
+
+const metricGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '18px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '22px',
+  padding: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'linear-gradient(180deg, rgba(12,25,45,0.94), rgba(9,18,34,0.96))',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  minWidth: 0,
+}
+
+const metricCardAccent: CSSProperties = {
+  borderColor: 'rgba(111,236,168,0.34)',
+}
+
+const metricLabel: CSSProperties = {
+  color: 'rgba(224, 234, 247, 0.7)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
+}
+
+const metricValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
 }
 
 const stackStyle: CSSProperties = {
@@ -1676,16 +1983,16 @@ const stackStyle: CSSProperties = {
 }
 
 const mutedTextStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   margin: 0,
   lineHeight: 1.6,
 }
 
 const poolCardStyle: CSSProperties = {
-  border: '1px solid rgba(15, 22, 50, 0.08)',
+  border: '1px solid rgba(255,255,255,0.08)',
   borderRadius: '18px',
   padding: '14px',
-  background: '#ffffff',
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const poolCardTopStyle: CSSProperties = {
@@ -1697,13 +2004,13 @@ const poolCardTopStyle: CSSProperties = {
 }
 
 const playerNameStyle: CSSProperties = {
-  color: '#0f1632',
+  color: '#f8fbff',
   fontWeight: 800,
   fontSize: '1rem',
 }
 
 const playerMetaStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   fontSize: '0.92rem',
   lineHeight: 1.55,
   marginTop: '4px',
@@ -1718,24 +2025,105 @@ const statusBadgeStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
+const pillRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '14px',
+}
+
+const miniPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const miniPillBlueStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+}
+
+const assignedPillStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(96, 221, 116, 0.14)',
+  color: '#dffad5',
+}
+
 const cardNoteTextStyle: CSSProperties = {
   margin: '10px 0 0 0',
-  color: '#0f1632',
+  color: '#e7eefb',
   lineHeight: 1.58,
 }
 
 const subtleNoteTextStyle: CSSProperties = {
   margin: '8px 0 0 0',
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   lineHeight: 1.58,
   fontSize: '0.92rem',
 }
 
+const compareGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '10px',
+}
+
+const compareCardStyle: CSSProperties = {
+  borderRadius: '16px',
+  padding: '12px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const compareLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 700,
+  marginBottom: '6px',
+}
+
+const compareValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '18px',
+}
+
+const goodBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(96, 221, 116, 0.14)',
+  color: '#dffad5',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const warnBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(255, 93, 93, 0.10)',
+  color: '#fecaca',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
 const savedScenarioCardStyle: CSSProperties = {
-  border: '1px solid rgba(15, 22, 50, 0.08)',
+  border: '1px solid rgba(255,255,255,0.08)',
   borderRadius: '18px',
   padding: '14px',
-  background: '#ffffff',
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const savedScenarioCardActiveStyle: CSSProperties = {
@@ -1751,13 +2139,13 @@ const savedScenarioTopStyle: CSSProperties = {
 }
 
 const savedScenarioTitleStyle: CSSProperties = {
-  color: '#0f1632',
+  color: '#f8fbff',
   fontWeight: 800,
   fontSize: '1rem',
 }
 
 const savedScenarioMetaStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   fontSize: '0.92rem',
   lineHeight: 1.55,
   marginTop: '4px',
@@ -1777,8 +2165,55 @@ const dangerButtonStyle: CSSProperties = {
   padding: '10px 12px',
   borderRadius: '12px',
   background: 'rgba(255, 93, 93, 0.08)',
-  color: '#c43f3f',
+  color: '#fca5a5',
   border: '1px solid rgba(255, 93, 93, 0.18)',
   fontWeight: 700,
   cursor: 'pointer',
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 0 0',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }

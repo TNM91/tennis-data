@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type MatchRow = {
@@ -89,6 +90,16 @@ type DoublesPair = {
   notes: string[]
 }
 
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/captains-corner', label: "Captain's Corner" },
+]
+
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
   const text = (value || '').trim()
   return text || fallback
@@ -162,6 +173,11 @@ function adjustedDoublesScore(player: RosterPlayer) {
   return base + preferredRoleBonusDoubles(player) - limitedPenalty(player)
 }
 
+function average(values: number[]) {
+  if (!values.length) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
 export default function LineupProjectionPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -173,6 +189,18 @@ export default function LineupProjectionPage() {
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
+  const [screenWidth, setScreenWidth] = useState(1280)
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     void loadLeaguesAndTeams()
@@ -242,6 +270,7 @@ export default function LineupProjectionPage() {
 
       if (!matchIds.length) {
         setRoster([])
+        setRosterLoading(false)
         return
       }
 
@@ -278,8 +307,7 @@ export default function LineupProjectionPage() {
 
       for (const participant of typedParticipants) {
         const expectedSide = sideByMatchId.get(participant.match_id)
-        if (!expectedSide) continue
-        if (participant.side !== expectedSide) continue
+        if (!expectedSide || participant.side !== expectedSide) continue
 
         const player = normalizePlayerRelation(participant.players)
         if (!player) continue
@@ -450,8 +478,11 @@ export default function LineupProjectionPage() {
           notes.push('Strong doubles-role fit')
         }
 
-        const combinedDoubles =
-          (adjustedDoublesScore(player1) + adjustedDoublesScore(player2)) / 2
+        if (player1.preferredRole === 'singles' && player2.preferredRole === 'singles') {
+          notes.push('Lower doubles-role fit')
+        }
+
+        const combinedDoubles = (adjustedDoublesScore(player1) + adjustedDoublesScore(player2)) / 2
 
         pairs.push({
           player1,
@@ -529,791 +560,433 @@ export default function LineupProjectionPage() {
     return { available, unavailable, singlesOnly, doublesOnly, limited }
   }, [roster])
 
+  const lineupStrength = useMemo(() => {
+    const singles = suggestedLineup.singles
+      .map((player) => player.singlesDynamic)
+      .filter((value): value is number => typeof value === 'number')
+    const doubles = suggestedLineup.doubles.map((pair) => pair.combinedDoubles)
+
+    const all = [...singles, ...doubles]
+    return all.length ? average(all) : 0
+  }, [suggestedLineup])
+
+  const confidenceLabel = useMemo(() => {
+    if (lineupStrength >= 4.5) return 'Strong'
+    if (lineupStrength >= 4.0) return 'Balanced'
+    return 'Risky'
+  }, [lineupStrength])
+
+  const builderHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (selectedLeagueLabel) params.set('league', selectedLeagueLabel.split(' · ')[0])
+    if (selectedLeagueKey) params.set('flight', selectedLeagueKey.split('___')[1] || '')
+    if (selectedTeam) params.set('team', selectedTeam)
+    if (selectedDate) params.set('date', selectedDate)
+    const query = params.toString()
+    return query ? `/captains-corner/lineup-builder?${query}` : '/captains-corner/lineup-builder'
+  }, [selectedLeagueLabel, selectedLeagueKey, selectedTeam, selectedDate])
+
   return (
-    <main className="page-shell-tight lineup-page">
-      <div className="lineup-top-links">
-        <Link href="/" className="button-ghost">Home</Link>
-        <Link href="/rankings" className="button-ghost">Rankings</Link>
-        <Link href="/matchup" className="button-ghost">Matchup</Link>
-        <Link href="/leagues" className="button-ghost">Leagues</Link>
-        <Link href="/captains-corner" className="button-ghost">Captain&apos;s Corner</Link>
-        <Link href="/admin" className="button-ghost">Admin</Link>
-      </div>
+    <main style={pageStyle}>
+      <div style={orbOne} />
+      <div style={orbTwo} />
+      <div style={gridGlow} />
 
-      <section className="hero-panel lineup-hero-panel">
-        <div className="hero-inner lineup-hero-inner">
-          <div className="lineup-hero-copy">
-            <div className="section-kicker lineup-kicker">Lineup Projection</div>
-            <h1 className="lineup-title">Build a smarter lineup from the available roster.</h1>
-            <p className="lineup-subtitle">
-              Pick a league, team, and optional match date to generate lineup suggestions using
-              dynamic ratings, roster usage, preferences, and availability.
-            </p>
+      <header style={headerStyle}>
+        <div style={headerInnerResponsive(isTablet)}>
+          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+            <BrandWordmark compact={isMobile} top />
+          </Link>
 
-            <div className="lineup-hero-badges">
-              <span className="badge badge-blue">{leagueOptions.length} league / flight options</span>
-              <span className="badge badge-slate">{matches.length} matches loaded</span>
-              <span className="badge badge-green">Captain planning tool</span>
-            </div>
+          <nav style={navStyleResponsive(isTablet)}>
+            {NAV_LINKS.map((link) => {
+              const isActive = link.href === '/captains-corner'
+              return (
+                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
+                  {link.label}
+                </Link>
+              )
+            })}
+            <Link href="/admin" style={navLink}>Admin</Link>
+          </nav>
+        </div>
+      </header>
+
+      <section style={heroShellResponsive(isTablet, isMobile)}>
+        <div>
+          <div style={eyebrow}>Captain tools</div>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Projection</h1>
+          <p style={heroTextStyle}>
+            Build a smarter lineup from the available roster. Pick a league, team, and optional
+            match date to generate lineup suggestions using dynamic ratings, roster usage,
+            preferences, and availability.
+          </p>
+
+          <div style={heroButtonRowStyle}>
+            <Link href={builderHref} style={primaryButton}>Build in Lineup Builder</Link>
+            <Link href="/captains-corner" style={ghostButton}>Back to Captain&apos;s Corner</Link>
           </div>
 
-          <div className="glass-card panel-pad lineup-hero-side">
-            <div className="lineup-side-label">Projection logic</div>
-            <div className="lineup-side-value">Ratings + usage + availability</div>
-            <div className="lineup-side-text">
-              Singles and doubles recommendations are adjusted for availability status and preferred role,
-              then ranked from the most competitive options.
-            </div>
+          <div style={heroMetricGridStyle(isSmallMobile)}>
+            <MetricStat label="League / flight options" value={String(leagueOptions.length)} />
+            <MetricStat label="Matches loaded" value={String(matches.length)} />
+            <MetricStat label="Projection confidence" value={confidenceLabel} />
+          </div>
+        </div>
+
+        <div style={quickStartCard}>
+          <div style={quickStartLabel}>Projection logic</div>
+          <div style={quickStartValue}>Ratings + usage + availability</div>
+          <div style={quickStartText}>
+            Singles and doubles recommendations are adjusted for availability status and preferred role,
+            then ranked from the most competitive options.
+          </div>
+
+          <div style={workflowListStyle}>
+            {[
+              ['1', 'Choose team context', 'Filter down to the exact league, team, and optional match date.'],
+              ['2', 'Review projected lineup', 'See projected singles and doubles built from the available roster.'],
+              ['3', 'Push into builder', 'Open the Lineup Builder to turn this estimate into a saved scenario.'],
+            ].map(([step, title, text]) => (
+              <div key={step} style={workflowRowStyle}>
+                <div style={workflowNumberStyle}>{step}</div>
+                <div>
+                  <div style={workflowTitleStyle}>{title}</div>
+                  <div style={workflowTextStyle}>{text}</div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="surface-card panel-pad lineup-controls-card">
-        <div className="lineup-controls-head">
-          <div>
-            <div className="section-kicker">Filters</div>
-            <h2 className="lineup-section-title">Choose your team context</h2>
-          </div>
-        </div>
-
-        <div className="lineup-filter-grid">
-          <div>
-            <label className="label">League / Flight</label>
-            <select
-              value={selectedLeagueKey}
-              onChange={(e) => {
-                setSelectedLeagueKey(e.target.value)
-                setSelectedTeam('')
-                setSelectedDate('')
-                setRoster([])
-              }}
-              className="select"
-            >
-              <option value="">Select league</option>
-              {leagueOptions.map((option) => {
-                const key = buildLeagueKey(option.leagueName, option.flight)
-                return (
-                  <option key={key} value={key}>
-                    {option.leagueName} · {option.flight}
-                  </option>
-                )
-              })}
-            </select>
+      <section style={contentWrap}>
+        <section style={surfaceCardStrong}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Filters</p>
+              <h2 style={sectionTitle}>Choose your team context</h2>
+              <p style={sectionBodyTextStyle}>
+                Start with league, team, and optional match date. Then the page will rebuild your current projection.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <label className="label">Team</label>
-            <select
-              value={selectedTeam}
-              onChange={(e) => {
-                setSelectedTeam(e.target.value)
-                setSelectedDate('')
-                setRoster([])
-              }}
-              className="select"
-              disabled={!selectedLeagueKey}
-            >
-              <option value="">Select team</option>
-              {teamsForLeague.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
+          <div style={filterGridResponsive(isTablet)}>
+            <div>
+              <label style={labelStyle}>League / Flight</label>
+              <select
+                value={selectedLeagueKey}
+                onChange={(e) => {
+                  setSelectedLeagueKey(e.target.value)
+                  setSelectedTeam('')
+                  setSelectedDate('')
+                  setRoster([])
+                }}
+                style={inputStyle}
+              >
+                <option value="">Select league</option>
+                {leagueOptions.map((option) => {
+                  const key = buildLeagueKey(option.leagueName, option.flight)
+                  return (
+                    <option key={key} value={key}>
+                      {option.leagueName} · {option.flight}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Team</label>
+              <select
+                value={selectedTeam}
+                onChange={(e) => {
+                  setSelectedTeam(e.target.value)
+                  setSelectedDate('')
+                  setRoster([])
+                }}
+                style={inputStyle}
+                disabled={!selectedLeagueKey}
+              >
+                <option value="">Select team</option>
+                {teamsForLeague.map((team) => (
+                  <option key={team} value={team}>{team}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Match Date (optional)</label>
+              <select
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                style={inputStyle}
+                disabled={!selectedTeam}
+              >
+                <option value="">No date filter</option>
+                {relevantDates.map((date) => (
+                  <option key={date} value={date}>{formatDate(date)}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div>
-            <label className="label">Match Date (optional)</label>
-            <select
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="select"
-              disabled={!selectedTeam}
-            >
-              <option value="">No date filter</option>
-              {relevantDates.map((date) => (
-                <option key={date} value={date}>
-                  {formatDate(date)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+          {loading ? (
+            <div style={stateBox}>Loading lineup data...</div>
+          ) : error ? (
+            <div style={errorBox}>{error}</div>
+          ) : !selectedLeagueKey || !selectedTeam ? (
+            <div style={stateBox}>Choose a league and team to generate a projected lineup.</div>
+          ) : rosterLoading ? (
+            <div style={stateBox}>Loading roster...</div>
+          ) : roster.length === 0 ? (
+            <div style={stateBox}>No roster usage found for this team yet.</div>
+          ) : (
+            <>
+              <div style={heroBadgeRowStyleCompact}>
+                <span style={miniPillBlue}><strong>{selectedTeam}</strong></span>
+                <span style={miniPillSlate}><strong>{selectedLeagueLabel}</strong></span>
+                {selectedDate ? <span style={miniPillSlate}>Date: <strong>{formatDate(selectedDate)}</strong></span> : null}
+                <span style={miniPillGreen}><strong>{roster.length}</strong> players</span>
+              </div>
 
-        {loading ? (
-          <div className="lineup-state-box">Loading lineup data...</div>
-        ) : error ? (
-          <div className="lineup-error-box">{error}</div>
-        ) : !selectedLeagueKey || !selectedTeam ? (
-          <div className="lineup-state-box">
-            Choose a league and team to generate a projected lineup.
-          </div>
-        ) : rosterLoading ? (
-          <div className="lineup-state-box">Loading roster...</div>
-        ) : roster.length === 0 ? (
-          <div className="lineup-state-box">No roster usage found for this team yet.</div>
-        ) : (
+              <div style={heroBadgeRowStyleCompact}>
+                <SummaryPill label="Available" value={availabilitySummary.available} tone="green" />
+                <SummaryPill label="Unavailable" value={availabilitySummary.unavailable} tone="red" />
+                <SummaryPill label="Singles Only" value={availabilitySummary.singlesOnly} tone="blue" />
+                <SummaryPill label="Doubles Only" value={availabilitySummary.doublesOnly} tone="purple" />
+                <SummaryPill label="Limited" value={availabilitySummary.limited} tone="amber" />
+              </div>
+            </>
+          )}
+        </section>
+
+        {!!roster.length && !rosterLoading ? (
           <>
-            <div className="lineup-summary-row">
-              <span className="badge badge-blue">
-                <strong>{selectedTeam}</strong>
-              </span>
-              <span className="badge badge-slate">
-                <strong>{selectedLeagueLabel}</strong>
-              </span>
-              {selectedDate ? (
-                <span className="badge badge-slate">
-                  Date: <strong>{formatDate(selectedDate)}</strong>
-                </span>
-              ) : null}
-              <span className="badge badge-green">
-                <strong>{roster.length}</strong> players
-              </span>
-            </div>
+            <section style={projectionGridResponsive(isSmallMobile, isTablet)}>
+              <ProjectionCard
+                label="Projected lineup strength"
+                value={lineupStrength.toFixed(2)}
+                subtext="Average of projected singles and doubles strength scores."
+              />
+              <ProjectionCard
+                label="Confidence"
+                value={confidenceLabel}
+                subtext="Simple confidence read based on the projected lineup strength."
+              />
+              <ProjectionCard
+                label="Builder ready"
+                value={selectedTeam ? 'Yes' : 'No'}
+                subtext="Send this team context into the full Lineup Builder."
+                accent
+              />
+            </section>
 
-            <div className="lineup-summary-row">
-              <SummaryBadge label="Available" value={availabilitySummary.available} tone="green" />
-              <SummaryBadge label="Unavailable" value={availabilitySummary.unavailable} tone="red" />
-              <SummaryBadge label="Singles Only" value={availabilitySummary.singlesOnly} tone="blue" />
-              <SummaryBadge label="Doubles Only" value={availabilitySummary.doublesOnly} tone="purple" />
-              <SummaryBadge label="Limited" value={availabilitySummary.limited} tone="amber" />
-            </div>
-
-            <section className="lineup-block">
-              <div className="lineup-section-head">
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
                 <div>
-                  <div className="section-kicker">Suggested Lineup</div>
-                  <h2 className="lineup-section-title">Best current estimate</h2>
-                  <div className="lineup-section-sub">
-                    Uses ratings, availability, and role preferences.
-                  </div>
+                  <p style={sectionKicker}>Suggested lineup</p>
+                  <h2 style={sectionTitle}>Best current estimate</h2>
+                  <p style={sectionBodyTextStyle}>Uses ratings, availability, and role preferences.</p>
                 </div>
               </div>
 
-              <div className="card-grid lineup-projection-grid">
-                <div className="surface-card panel-pad lineup-projection-card">
-                  <div className="lineup-card-title">Projected Singles</div>
+              <div style={compareGridResponsive(isTablet)}>
+                <div style={surfaceCard}>
+                  <div style={cardTitleStyle}>Projected Singles</div>
                   {suggestedLineup.singles.length ? (
                     suggestedLineup.singles.map((player, index) => (
-                      <div key={player.id} className="lineup-line-item">
-                        <div className="lineup-line-main">
+                      <div key={player.id} style={lineItemStyle}>
+                        <div style={lineMainStyle}>
                           <strong>S{index + 1}:</strong> {player.name}
                         </div>
-                        <div className="lineup-line-meta">
-                          Singles DR: {formatRating(player.singlesDynamic)} ·{' '}
-                          {getAvailabilityLabel(player.availabilityStatus)}
+                        <div style={lineMetaStyle}>
+                          Singles DR: {formatRating(player.singlesDynamic)} · {getAvailabilityLabel(player.availabilityStatus)}
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="lineup-empty-mini">Not enough eligible singles players.</div>
+                    <div style={emptyMiniStyle}>Not enough eligible singles players.</div>
                   )}
                 </div>
 
-                <div className="surface-card panel-pad lineup-projection-card">
-                  <div className="lineup-card-title">Projected Doubles</div>
+                <div style={surfaceCard}>
+                  <div style={cardTitleStyle}>Projected Doubles</div>
                   {suggestedLineup.doubles.length ? (
                     suggestedLineup.doubles.map((pair, index) => (
-                      <div
-                        key={`${pair.player1.id}-${pair.player2.id}`}
-                        className="lineup-line-item"
-                      >
-                        <div className="lineup-line-main">
+                      <div key={`${pair.player1.id}-${pair.player2.id}`} style={lineItemStyle}>
+                        <div style={lineMainStyle}>
                           <strong>D{index + 1}:</strong> {pair.player1.name} / {pair.player2.name}
                         </div>
-                        <div className="lineup-line-meta">
-                          Pair DR: {pair.combinedDoubles.toFixed(2)}
-                        </div>
-                        {pair.notes.length ? (
-                          <div className="lineup-line-note">{pair.notes.join(' · ')}</div>
-                        ) : null}
+                        <div style={lineMetaStyle}>Pair DR: {pair.combinedDoubles.toFixed(2)}</div>
+                        {pair.notes.length ? <div style={lineNoteStyle}>{pair.notes.join(' · ')}</div> : null}
                       </div>
                     ))
                   ) : (
-                    <div className="lineup-empty-mini">Not enough eligible doubles players.</div>
+                    <div style={emptyMiniStyle}>Not enough eligible doubles players.</div>
                   )}
                 </div>
               </div>
 
               {suggestedLineup.notes.length ? (
-                <div className="surface-card-strong panel-pad lineup-notes-card">
-                  <div className="lineup-notes-title">Captain Suggestions</div>
-                  <div className="lineup-notes-list">
+                <div style={surfaceCardStrongInset}>
+                  <div style={notesTitleStyle}>Captain suggestions</div>
+                  <div style={notesListStyle}>
                     {suggestedLineup.notes.map((note) => (
-                      <div key={note} className="lineup-note-row">
-                        • {note}
-                      </div>
+                      <div key={note} style={noteRowStyle}>• {note}</div>
                     ))}
                   </div>
                 </div>
               ) : null}
             </section>
 
-            <section className="lineup-block">
-              <div className="lineup-section-head">
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
                 <div>
-                  <div className="section-kicker">Roster Pool</div>
-                  <h2 className="lineup-section-title">Available team pool</h2>
-                  <div className="lineup-section-sub">
-                    Current roster after applying match-date availability.
-                  </div>
+                  <p style={sectionKicker}>Roster pool</p>
+                  <h2 style={sectionTitle}>Available team pool</h2>
+                  <p style={sectionBodyTextStyle}>Current roster after applying match-date availability.</p>
                 </div>
               </div>
 
-              <div className="card-grid lineup-roster-grid">
+              <div style={rosterGridResponsive(isSmallMobile, isTablet)}>
                 {roster.map((player) => (
-                  <div key={player.id} className="surface-card panel-pad lineup-player-card">
-                    <div className="lineup-player-name">{player.name}</div>
-                    <div className="lineup-player-meta">
+                  <div key={player.id} style={surfaceCard}>
+                    <div style={playerNameStyle}>{player.name}</div>
+                    <div style={playerMetaStyle}>
                       {player.appearances} appearances · Flight {safeText(player.flight)}
                     </div>
 
-                    <div className="lineup-status-row">
-                      <span
-                        className={`lineup-status-badge ${
-                          player.availabilityStatus === 'unavailable'
-                            ? 'is-unavailable'
-                            : player.availabilityStatus === 'limited'
-                              ? 'is-limited'
-                              : player.availabilityStatus === 'singles_only'
-                                ? 'is-singles-only'
-                                : player.availabilityStatus === 'doubles_only'
-                                  ? 'is-doubles-only'
-                                  : 'is-available'
-                        }`}
-                      >
-                        {getAvailabilityLabel(player.availabilityStatus)}
-                      </span>
-
-                      {player.preferredRole ? (
-                        <span className="lineup-role-badge">Prefers {player.preferredRole}</span>
-                      ) : null}
+                    <div style={pillRowStyle}>
+                      <span style={statusPillFor(player.availabilityStatus)}>{getAvailabilityLabel(player.availabilityStatus)}</span>
+                      {player.preferredRole ? <span style={miniPillSlate}>Prefers {player.preferredRole}</span> : null}
                     </div>
 
-                    <div className="lineup-mini-grid">
+                    <div style={miniGridResponsive(isSmallMobile)}>
                       <MiniStat label="Overall" value={formatRating(player.overallDynamic)} />
                       <MiniStat label="Singles" value={formatRating(player.singlesDynamic)} />
                       <MiniStat label="Doubles" value={formatRating(player.doublesDynamic)} />
                     </div>
 
                     {player.availabilityNotes ? (
-                      <div className="lineup-note-box">
-                        <strong>Availability:</strong> {player.availabilityNotes}
-                      </div>
+                      <div style={noteBoxStyle}><strong>Availability:</strong> {player.availabilityNotes}</div>
                     ) : null}
 
                     {player.lineupNotes ? (
-                      <div className="lineup-note-box">
-                        <strong>Captain note:</strong> {player.lineupNotes}
-                      </div>
+                      <div style={noteBoxStyle}><strong>Captain note:</strong> {player.lineupNotes}</div>
                     ) : null}
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="lineup-block">
-              <div className="lineup-section-head">
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
                 <div>
-                  <div className="section-kicker">Singles Depth</div>
-                  <h2 className="lineup-section-title">Top singles options</h2>
-                  <div className="lineup-section-sub">
+                  <p style={sectionKicker}>Singles depth</p>
+                  <h2 style={sectionTitle}>Top singles options</h2>
+                  <p style={sectionBodyTextStyle}>
                     Ranked by singles dynamic rating, adjusted for availability and role preference.
-                  </div>
+                  </p>
                 </div>
               </div>
 
-              <div className="surface-card lineup-list-card">
+              <div style={listCardStyle}>
                 {singlesProjection.map((player, index) => (
-                  <div key={player.id} className="lineup-list-row">
-                    <div className="lineup-list-main">
+                  <div key={player.id} style={listRowResponsive(isMobile)}>
+                    <div style={listMainStyle}>
                       <strong>{index + 1}.</strong> {player.name}
                     </div>
-                    <div className="lineup-list-meta">
-                      Singles DR: {formatRating(player.singlesDynamic)}
-                    </div>
+                    <div style={listMetaStyle}>Singles DR: {formatRating(player.singlesDynamic)}</div>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="lineup-block">
-              <div className="lineup-section-head">
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
                 <div>
-                  <div className="section-kicker">Doubles Depth</div>
-                  <h2 className="lineup-section-title">Top doubles pairings</h2>
-                  <div className="lineup-section-sub">
+                  <p style={sectionKicker}>Doubles depth</p>
+                  <h2 style={sectionTitle}>Top doubles pairings</h2>
+                  <p style={sectionBodyTextStyle}>
                     Ranked by average doubles dynamic rating, adjusted for availability and role preference.
-                  </div>
+                  </p>
                 </div>
               </div>
 
-              <div className="surface-card lineup-list-card">
+              <div style={listCardStyle}>
                 {doublesPairs.map((pair, index) => (
-                  <div key={`${pair.player1.id}-${pair.player2.id}`} className="lineup-list-row">
-                    <div className="lineup-list-main">
+                  <div key={`${pair.player1.id}-${pair.player2.id}`} style={listRowResponsive(isMobile)}>
+                    <div style={listMainStyle}>
                       <strong>{index + 1}.</strong> {pair.player1.name} / {pair.player2.name}
-                      {pair.notes.length ? (
-                        <div className="lineup-pair-note-inline">{pair.notes.join(' · ')}</div>
-                      ) : null}
+                      {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' · ')}</div> : null}
                     </div>
-                    <div className="lineup-list-meta">
-                      Pair DR: {pair.combinedDoubles.toFixed(2)}
-                    </div>
+                    <div style={listMetaStyle}>Pair DR: {pair.combinedDoubles.toFixed(2)}</div>
                   </div>
                 ))}
               </div>
             </section>
           </>
-        )}
+        ) : null}
       </section>
 
-      <style jsx>{`
-        .lineup-page {
-          padding-top: 1.25rem;
-          padding-bottom: 2.5rem;
-        }
+      <footer style={footerStyle}>
+        <div style={footerInnerResponsive(isMobile)}>
+          <div style={footerRowResponsive(isTablet)}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
 
-        .lineup-top-links {
-          display: flex;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-          margin-bottom: 1rem;
-        }
+            <div style={footerLinksResponsive(isTablet)}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            </div>
 
-        .lineup-hero-panel {
-          overflow: hidden;
-          margin-bottom: 1rem;
-        }
-
-        .lineup-hero-inner {
-          display: grid;
-          grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
-          gap: 1rem;
-          align-items: stretch;
-        }
-
-        .lineup-hero-copy {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 0.85rem;
-        }
-
-        .lineup-kicker {
-          color: rgba(217, 231, 255, 0.82);
-        }
-
-        .lineup-title {
-          margin: 0;
-          color: #ffffff;
-          font-size: clamp(2rem, 4vw, 3.2rem);
-          line-height: 1;
-          letter-spacing: -0.04em;
-          font-weight: 900;
-        }
-
-        .lineup-subtitle {
-          margin: 0;
-          max-width: 52rem;
-          color: rgba(219, 234, 254, 0.9);
-          font-size: 1rem;
-          line-height: 1.7;
-          font-weight: 500;
-        }
-
-        .lineup-hero-badges {
-          display: flex;
-          gap: 0.65rem;
-          flex-wrap: wrap;
-          margin-top: 0.15rem;
-        }
-
-        .lineup-hero-side {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 0.65rem;
-        }
-
-        .lineup-side-label {
-          color: rgba(217, 231, 255, 0.82);
-          font-size: 0.8rem;
-          font-weight: 700;
-          line-height: 1.5;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .lineup-side-value {
-          color: #ffffff;
-          font-size: 1.85rem;
-          line-height: 1.05;
-          font-weight: 900;
-          letter-spacing: -0.04em;
-        }
-
-        .lineup-side-text {
-          color: rgba(219, 234, 254, 0.88);
-          font-size: 0.95rem;
-          line-height: 1.65;
-          font-weight: 500;
-        }
-
-        .lineup-controls-card {
-          min-width: 0;
-        }
-
-        .lineup-controls-head {
-          margin-bottom: 1rem;
-        }
-
-        .lineup-section-title {
-          margin: 0.25rem 0 0;
-          color: #0f172a;
-          font-size: 1.35rem;
-          line-height: 1.2;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-        }
-
-        .lineup-filter-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 1rem;
-        }
-
-        .lineup-state-box {
-          margin-top: 1rem;
-          border-radius: 1rem;
-          padding: 1rem 1.05rem;
-          background: #f8fafc;
-          border: 1px dashed #cbd5e1;
-          color: #475569;
-          font-size: 0.96rem;
-          line-height: 1.6;
-          font-weight: 600;
-          text-align: center;
-        }
-
-        .lineup-error-box {
-          margin-top: 1rem;
-          border-radius: 1rem;
-          padding: 1rem 1.05rem;
-          background: rgba(239, 68, 68, 0.08);
-          border: 1px solid rgba(239, 68, 68, 0.18);
-          color: #991b1b;
-          font-size: 0.96rem;
-          line-height: 1.6;
-          font-weight: 700;
-        }
-
-        .lineup-summary-row {
-          margin-top: 1rem;
-          display: flex;
-          gap: 0.65rem;
-          flex-wrap: wrap;
-        }
-
-        .lineup-block {
-          margin-top: 1.5rem;
-        }
-
-        .lineup-section-head {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 1rem;
-          flex-wrap: wrap;
-          margin-bottom: 1rem;
-        }
-
-        .lineup-section-sub {
-          margin-top: 0.45rem;
-          color: #64748b;
-          font-size: 0.94rem;
-          line-height: 1.6;
-          font-weight: 500;
-        }
-
-        .lineup-projection-grid {
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-          gap: 1rem;
-        }
-
-        .lineup-projection-card {
-          min-width: 0;
-        }
-
-        .lineup-card-title {
-          color: #0f172a;
-          font-size: 1.15rem;
-          line-height: 1.2;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-          margin-bottom: 0.85rem;
-        }
-
-        .lineup-line-item {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 1rem;
-          padding: 0.9rem 0.95rem;
-        }
-
-        .lineup-line-item + .lineup-line-item {
-          margin-top: 0.75rem;
-        }
-
-        .lineup-line-main {
-          color: #0f172a;
-          font-size: 0.96rem;
-          line-height: 1.55;
-          font-weight: 700;
-        }
-
-        .lineup-line-meta {
-          color: #64748b;
-          font-size: 0.82rem;
-          line-height: 1.55;
-          margin-top: 0.25rem;
-          font-weight: 600;
-        }
-
-        .lineup-line-note {
-          color: #92400e;
-          font-size: 0.78rem;
-          line-height: 1.5;
-          margin-top: 0.35rem;
-          font-weight: 800;
-        }
-
-        .lineup-empty-mini {
-          color: #64748b;
-          font-size: 0.94rem;
-          line-height: 1.6;
-          font-weight: 600;
-        }
-
-        .lineup-notes-card {
-          margin-top: 1rem;
-        }
-
-        .lineup-notes-title {
-          color: #ffffff;
-          font-size: 1rem;
-          font-weight: 800;
-          margin-bottom: 0.55rem;
-        }
-
-        .lineup-notes-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.35rem;
-        }
-
-        .lineup-note-row {
-          color: rgba(231, 240, 255, 0.9);
-          font-size: 0.92rem;
-          line-height: 1.6;
-          font-weight: 600;
-        }
-
-        .lineup-roster-grid {
-          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-          gap: 1rem;
-        }
-
-        .lineup-player-card {
-          min-width: 0;
-        }
-
-        .lineup-player-name {
-          color: #0f172a;
-          font-size: 1.22rem;
-          line-height: 1.2;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-        }
-
-        .lineup-player-meta {
-          color: #64748b;
-          font-size: 0.92rem;
-          line-height: 1.6;
-          margin-top: 0.35rem;
-          margin-bottom: 0.9rem;
-          font-weight: 500;
-        }
-
-        .lineup-status-row {
-          display: flex;
-          gap: 0.55rem;
-          flex-wrap: wrap;
-          margin-bottom: 0.9rem;
-        }
-
-        .lineup-status-badge,
-        .lineup-role-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0.42rem 0.7rem;
-          border-radius: 999px;
-          font-size: 0.74rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: 0.02em;
-        }
-
-        .lineup-status-badge.is-available {
-          background: rgba(34, 197, 94, 0.12);
-          color: #166534;
-        }
-
-        .lineup-status-badge.is-unavailable {
-          background: rgba(239, 68, 68, 0.12);
-          color: #991b1b;
-        }
-
-        .lineup-status-badge.is-singles-only {
-          background: rgba(37, 99, 235, 0.12);
-          color: #1d4ed8;
-        }
-
-        .lineup-status-badge.is-doubles-only {
-          background: rgba(109, 40, 217, 0.12);
-          color: #6d28d9;
-        }
-
-        .lineup-status-badge.is-limited {
-          background: rgba(245, 158, 11, 0.14);
-          color: #92400e;
-        }
-
-        .lineup-role-badge {
-          background: #f1f5f9;
-          color: #334155;
-        }
-
-        .lineup-mini-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 0.75rem;
-        }
-
-        .lineup-note-box {
-          margin-top: 0.75rem;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 0.9rem;
-          padding: 0.75rem 0.8rem;
-          color: #475569;
-          font-size: 0.84rem;
-          line-height: 1.55;
-          font-weight: 500;
-        }
-
-        .lineup-list-card {
-          overflow: hidden;
-          padding: 0;
-        }
-
-        .lineup-list-row {
-          display: flex;
-          justify-content: space-between;
-          gap: 0.85rem;
-          align-items: center;
-          padding: 0.95rem 1rem;
-          border-bottom: 1px solid #e2e8f0;
-        }
-
-        .lineup-list-row:last-child {
-          border-bottom: 0;
-        }
-
-        .lineup-list-main {
-          color: #0f172a;
-          font-size: 0.96rem;
-          line-height: 1.55;
-          font-weight: 700;
-        }
-
-        .lineup-list-meta {
-          color: #255be3;
-          font-size: 0.88rem;
-          line-height: 1.3;
-          font-weight: 800;
-          white-space: nowrap;
-        }
-
-        .lineup-pair-note-inline {
-          color: #92400e;
-          font-size: 0.78rem;
-          line-height: 1.45;
-          margin-top: 0.28rem;
-          font-weight: 800;
-        }
-
-        @media (max-width: 980px) {
-          .lineup-hero-inner {
-            grid-template-columns: 1fr;
-          }
-
-          .lineup-filter-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (max-width: 720px) {
-          .lineup-mini-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .lineup-list-row {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .lineup-list-meta {
-            white-space: normal;
-          }
-        }
-      `}</style>
+            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
+              © {new Date().getFullYear()} TenAceIQ
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
+  )
+}
+
+function ProjectionCard({
+  label,
+  value,
+  subtext,
+  accent = false,
+}: {
+  label: string
+  value: string
+  subtext: string
+  accent?: boolean
+}) {
+  return (
+    <div style={{ ...surfaceCard, ...(accent ? projectionCardAccentStyle : {}) }}>
+      <p style={sectionKicker}>{label}</p>
+      <div style={projectionValueStyle}>{value}</div>
+      <p style={sectionBodyTextStyle}>{subtext}</p>
+    </div>
   )
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="surface-card lineup-mini-stat">
-      <div className="lineup-mini-stat-label">{label}</div>
-      <div className="lineup-mini-stat-value">{value}</div>
-
-      <style jsx>{`
-        .lineup-mini-stat {
-          padding: 0.8rem 0.85rem;
-          min-width: 0;
-        }
-
-        .lineup-mini-stat-label {
-          color: #64748b;
-          font-size: 0.76rem;
-          margin-bottom: 0.25rem;
-          font-weight: 700;
-        }
-
-        .lineup-mini-stat-value {
-          color: #0f172a;
-          font-weight: 800;
-          font-size: 0.98rem;
-          line-height: 1.2;
-        }
-      `}</style>
+    <div style={miniStatStyle}>
+      <div style={miniStatLabelStyle}>{label}</div>
+      <div style={miniStatValueStyle}>{value}</div>
     </div>
   )
 }
 
-function SummaryBadge({
+function SummaryPill({
   label,
   value,
   tone,
@@ -1322,54 +995,875 @@ function SummaryBadge({
   value: number
   tone: 'green' | 'red' | 'blue' | 'purple' | 'amber'
 }) {
+  return <span style={summaryPillStyle(tone)}>{label}: {value}</span>
+}
+
+function MetricStat({ label, value }: { label: string; value: string }) {
   return (
-    <span className={`lineup-summary-badge is-${tone}`}>
-      {label}: {value}
-
-      <style jsx>{`
-        .lineup-summary-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          padding: 0.55rem 0.8rem;
-          border-radius: 999px;
-          font-size: 0.78rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: 0.02em;
-          border: 1px solid transparent;
-        }
-
-        .lineup-summary-badge.is-green {
-          background: rgba(34, 197, 94, 0.12);
-          color: #166534;
-          border-color: rgba(34, 197, 94, 0.18);
-        }
-
-        .lineup-summary-badge.is-red {
-          background: rgba(239, 68, 68, 0.12);
-          color: #991b1b;
-          border-color: rgba(239, 68, 68, 0.18);
-        }
-
-        .lineup-summary-badge.is-blue {
-          background: rgba(37, 99, 235, 0.12);
-          color: #1d4ed8;
-          border-color: rgba(37, 99, 235, 0.18);
-        }
-
-        .lineup-summary-badge.is-purple {
-          background: rgba(109, 40, 217, 0.12);
-          color: #6d28d9;
-          border-color: rgba(109, 40, 217, 0.18);
-        }
-
-        .lineup-summary-badge.is-amber {
-          background: rgba(245, 158, 11, 0.14);
-          color: #92400e;
-          border-color: rgba(245, 158, 11, 0.18);
-        }
-      `}</style>
-    </span>
+    <div style={heroMetricCardStyle}>
+      <div style={metricLabelStyle}>{label}</div>
+      <div style={metricValueStyleHero}>{value}</div>
+    </div>
   )
+}
+
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
+      />
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
+    </div>
+  )
+}
+
+function headerInnerResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+}
+
+function navStyleResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
+}
+
+function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroShell,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.15fr) minmax(280px, 360px)',
+    gap: isMobile ? '18px' : '24px',
+    padding: isMobile ? '26px 18px' : '34px 26px',
+  }
+}
+
+function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroTitleStyle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
+  }
+}
+
+function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...heroMetricGridBaseStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function filterGridResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...filterGridStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...projectionGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function compareGridResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...compareGridStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+}
+
+function rosterGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...rosterGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function miniGridResponsive(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...miniGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function listRowResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...listRowStyle,
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
+  }
+}
+
+function footerInnerResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+}
+
+function footerRowResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+}
+
+function footerLinksResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+}
+
+function summaryPillStyle(tone: 'green' | 'red' | 'blue' | 'purple' | 'amber'): CSSProperties {
+  const base: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.55rem 0.8rem',
+    borderRadius: '999px',
+    fontSize: '0.78rem',
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: '0.02em',
+    border: '1px solid transparent',
+  }
+
+  if (tone === 'green') {
+    return { ...base, background: 'rgba(34, 197, 94, 0.12)', color: '#dffad5', borderColor: 'rgba(34, 197, 94, 0.18)' }
+  }
+  if (tone === 'red') {
+    return { ...base, background: 'rgba(239, 68, 68, 0.12)', color: '#fecaca', borderColor: 'rgba(239, 68, 68, 0.18)' }
+  }
+  if (tone === 'blue') {
+    return { ...base, background: 'rgba(37, 99, 235, 0.12)', color: '#c7dbff', borderColor: 'rgba(37, 99, 235, 0.18)' }
+  }
+  if (tone === 'purple') {
+    return { ...base, background: 'rgba(109, 40, 217, 0.12)', color: '#ddd6fe', borderColor: 'rgba(109, 40, 217, 0.18)' }
+  }
+  return { ...base, background: 'rgba(245, 158, 11, 0.14)', color: '#fde68a', borderColor: 'rgba(245, 158, 11, 0.18)' }
+}
+
+function statusPillFor(status: AvailabilityStatus): CSSProperties {
+  if (status === 'available') return summaryPillStyle('green')
+  if (status === 'unavailable') return summaryPillStyle('red')
+  if (status === 'singles_only') return summaryPillStyle('blue')
+  if (status === 'doubles_only') return summaryPillStyle('purple')
+  return summaryPillStyle('amber')
+}
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  position: 'relative',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
+  padding: '24px 18px 56px',
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-100px',
+  right: '-60px',
+  width: '360px',
+  height: '360px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
+  filter: 'blur(10px)',
+  pointerEvents: 'none',
+}
+
+const orbTwo: CSSProperties = {
+  position: 'absolute',
+  top: '60px',
+  left: '-100px',
+  width: '320px',
+  height: '320px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
+  filter: 'blur(12px)',
+  pointerEvents: 'none',
+}
+
+const gridGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+  backgroundSize: '64px 64px',
+  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+}
+
+const headerInner: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+}
+
+const brandWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+}
+
+const navStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+}
+
+const navLink: CSSProperties = {
+  padding: '13px 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(12, 28, 52, 0.78)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '15px',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const activeNavLink: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
+  border: '1px solid rgba(130, 244, 118, 0.22)',
+}
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+  display: 'grid',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  alignSelf: 'flex-start',
+  minHeight: '38px',
+  padding: '8px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(130, 244, 118, 0.28)',
+  background: 'rgba(89, 145, 73, 0.14)',
+  color: '#d9e7ef',
+  fontWeight: 800,
+  fontSize: '14px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  marginBottom: '4px',
+}
+
+const heroTitleStyle: CSSProperties = {
+  margin: 0,
+  color: '#f7fbff',
+  fontWeight: 900,
+  lineHeight: 0.98,
+  letterSpacing: '-0.055em',
+  maxWidth: '760px',
+}
+
+const heroTextStyle: CSSProperties = {
+  marginTop: 16,
+  marginBottom: 0,
+  maxWidth: 820,
+  color: 'rgba(255,255,255,0.78)',
+  fontSize: '1.02rem',
+  lineHeight: 1.72,
+}
+
+const heroButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 12,
+  marginTop: 22,
+}
+
+const heroMetricGridBaseStyle: CSSProperties = {
+  marginTop: 22,
+  display: 'grid',
+  gap: '14px',
+}
+
+const heroMetricCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
+}
+
+const metricLabelStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
+}
+
+const metricValueStyleHero: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '1.05rem',
+  fontWeight: 800,
+  lineHeight: 1.4,
+}
+
+const quickStartCard: CSSProperties = {
+  borderRadius: '28px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  padding: '20px',
+}
+
+const quickStartLabel: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.82)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const quickStartValue: CSSProperties = {
+  marginTop: 8,
+  color: '#ffffff',
+  fontSize: '30px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const quickStartText: CSSProperties = {
+  marginTop: 10,
+  color: 'rgba(219, 234, 254, 0.88)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const workflowListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  marginTop: 16,
+}
+
+const workflowRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  alignItems: 'flex-start',
+}
+
+const workflowNumberStyle: CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 800,
+  fontSize: '.92rem',
+  color: '#0f1632',
+  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
+  flexShrink: 0,
+}
+
+const workflowTitleStyle: CSSProperties = {
+  fontWeight: 700,
+  color: '#ffffff',
+  marginBottom: 4,
+}
+
+const workflowTextStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  lineHeight: 1.55,
+  fontSize: '.95rem',
+}
+
+const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '18px',
+}
+
+const surfaceCardStrong: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
+  background:
+    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+}
+
+const surfaceCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+}
+
+const surfaceCardStrongInset: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
+  background: 'linear-gradient(135deg, rgba(8, 34, 75, 0.7) 0%, rgba(4, 18, 45, 0.72) 58%, rgba(7, 36, 46, 0.72) 100%)',
+  boxShadow: '0 18px 40px rgba(2, 8, 23, 0.18)',
+}
+
+const sectionCard: CSSProperties = {
+  ...surfaceCardStrong,
+}
+
+const sectionHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '16px',
+  flexWrap: 'wrap',
+  marginBottom: '16px',
+}
+
+const sectionKicker: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '13px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  margin: 0,
+}
+
+const sectionTitle: CSSProperties = {
+  margin: '8px 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '28px',
+  letterSpacing: '-0.04em',
+  lineHeight: 1.1,
+}
+
+const sectionBodyTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  maxWidth: 780,
+}
+
+const filterGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+}
+
+const stateBox: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '18px',
+  padding: '18px',
+  background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
+  border: '1px solid rgba(128,174,255,0.14)',
+  color: '#dbeafe',
+  fontSize: '15px',
+  lineHeight: 1.7,
+  fontWeight: 600,
+  textAlign: 'center',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const errorBox: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '16px',
+  padding: '12px 14px',
+  background: 'rgba(239, 68, 68, 0.08)',
+  border: '1px solid rgba(239, 68, 68, 0.18)',
+  color: '#fecaca',
+  fontWeight: 700,
+  fontSize: '14px',
+}
+
+const heroBadgeRowStyleCompact: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '14px',
+}
+
+const badgeBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const miniPillSlate: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
+}
+
+const miniPillBlue: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+}
+
+const miniPillGreen: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(96, 221, 116, 0.14)',
+  color: '#dffad5',
+}
+
+const projectionGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+}
+
+const projectionCardAccentStyle: CSSProperties = {
+  border: '1px solid rgba(111, 236, 168, 0.34)',
+}
+
+const projectionValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '36px',
+  lineHeight: 1,
+  letterSpacing: '-0.04em',
+  marginTop: '8px',
+  marginBottom: '10px',
+}
+
+const compareGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+}
+
+const cardTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '1.15rem',
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
+  marginBottom: '0.85rem',
+}
+
+const lineItemStyle: CSSProperties = {
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '1rem',
+  padding: '0.9rem 0.95rem',
+  marginBottom: '0.75rem',
+}
+
+const lineMainStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '0.96rem',
+  lineHeight: 1.55,
+  fontWeight: 700,
+}
+
+const lineMetaStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '0.82rem',
+  lineHeight: 1.55,
+  marginTop: '0.25rem',
+  fontWeight: 600,
+}
+
+const lineNoteStyle: CSSProperties = {
+  color: '#fde68a',
+  fontSize: '0.78rem',
+  lineHeight: 1.5,
+  marginTop: '0.35rem',
+  fontWeight: 800,
+}
+
+const emptyMiniStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '0.94rem',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const notesTitleStyle: CSSProperties = {
+  color: '#ffffff',
+  fontSize: '1rem',
+  fontWeight: 800,
+  marginBottom: '0.55rem',
+}
+
+const notesListStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0.35rem',
+}
+
+const noteRowStyle: CSSProperties = {
+  color: 'rgba(231, 240, 255, 0.9)',
+  fontSize: '0.92rem',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const rosterGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+}
+
+const playerNameStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '1.22rem',
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
+}
+
+const playerMetaStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '0.92rem',
+  lineHeight: 1.6,
+  marginTop: '0.35rem',
+  marginBottom: '0.9rem',
+  fontWeight: 500,
+}
+
+const pillRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginBottom: '0.9rem',
+}
+
+const miniGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '0.75rem',
+}
+
+const miniStatStyle: CSSProperties = {
+  padding: '0.8rem 0.85rem',
+  minWidth: 0,
+  borderRadius: '18px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.05)',
+}
+
+const miniStatLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '0.76rem',
+  marginBottom: '0.25rem',
+  fontWeight: 700,
+}
+
+const miniStatValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 800,
+  fontSize: '0.98rem',
+  lineHeight: 1.2,
+}
+
+const noteBoxStyle: CSSProperties = {
+  marginTop: '0.75rem',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '0.9rem',
+  padding: '0.75rem 0.8rem',
+  color: 'rgba(224,234,247,0.82)',
+  fontSize: '0.84rem',
+  lineHeight: 1.55,
+  fontWeight: 500,
+}
+
+const listCardStyle: CSSProperties = {
+  overflow: 'hidden',
+  padding: 0,
+  borderRadius: '28px',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+}
+
+const listRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '0.85rem',
+  padding: '0.95rem 1rem',
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+}
+
+const listMainStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '0.96rem',
+  lineHeight: 1.55,
+  fontWeight: 700,
+}
+
+const listMetaStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: '0.88rem',
+  lineHeight: 1.3,
+  fontWeight: 800,
+  whiteSpace: 'nowrap',
+}
+
+const pairNoteInlineStyle: CSSProperties = {
+  color: '#fde68a',
+  fontSize: '0.78rem',
+  lineHeight: 1.45,
+  marginTop: '0.28rem',
+  fontWeight: 800,
+}
+
+const primaryButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
+  color: '#071622',
+  border: '1px solid rgba(133, 171, 255, 0.18)',
+  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
+}
+
+const ghostButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'rgba(14, 27, 49, 0.9)',
+  color: '#ebf1fd',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  height: '48px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  padding: '0 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 0 0',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }

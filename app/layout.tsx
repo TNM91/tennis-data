@@ -72,7 +72,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased">
         <Script
           id="google-adsense"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
           crossOrigin="anonymous"
         />

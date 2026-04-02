@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -110,12 +111,22 @@ type AccuracyState = {
 const DEFAULT_RATING = 3.0
 const RATING_DIVISOR = 0.35
 
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/captains-corner', label: "Captain's Corner" },
+]
+
 export default function MatchupPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
   const [accuracyLoading, setAccuracyLoading] = useState(false)
+  const [screenWidth, setScreenWidth] = useState(1280)
 
   const [matchType, setMatchType] = useState<MatchType>('singles')
 
@@ -136,6 +147,17 @@ export default function MatchupPage() {
     low: null,
     sampleSize: 0,
   })
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     void loadPlayers()
@@ -651,35 +673,12 @@ export default function MatchupPage() {
     })
   }
 
-  const playerA = useMemo(
-    () => players.find((player) => player.id === playerAId) || null,
-    [players, playerAId]
-  )
-
-  const playerB = useMemo(
-    () => players.find((player) => player.id === playerBId) || null,
-    [players, playerBId]
-  )
-
-  const teamA1 = useMemo(
-    () => players.find((player) => player.id === teamA1Id) || null,
-    [players, teamA1Id]
-  )
-
-  const teamA2 = useMemo(
-    () => players.find((player) => player.id === teamA2Id) || null,
-    [players, teamA2Id]
-  )
-
-  const teamB1 = useMemo(
-    () => players.find((player) => player.id === teamB1Id) || null,
-    [players, teamB1Id]
-  )
-
-  const teamB2 = useMemo(
-    () => players.find((player) => player.id === teamB2Id) || null,
-    [players, teamB2Id]
-  )
+  const playerA = useMemo(() => players.find((player) => player.id === playerAId) || null, [players, playerAId])
+  const playerB = useMemo(() => players.find((player) => player.id === playerBId) || null, [players, playerBId])
+  const teamA1 = useMemo(() => players.find((player) => player.id === teamA1Id) || null, [players, teamA1Id])
+  const teamA2 = useMemo(() => players.find((player) => player.id === teamA2Id) || null, [players, teamA2Id])
+  const teamB1 = useMemo(() => players.find((player) => player.id === teamB1Id) || null, [players, teamB1Id])
+  const teamB2 = useMemo(() => players.find((player) => player.id === teamB2Id) || null, [players, teamB2Id])
 
   const singlesSelected = !!playerA && !!playerB && playerAId !== playerBId
   const doublesSelected =
@@ -689,31 +688,21 @@ export default function MatchupPage() {
     !!teamB2 &&
     areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
-  const availablePlayersForA = useMemo(
-    () => players.filter((player) => player.id !== playerBId),
-    [players, playerBId]
-  )
-
-  const availablePlayersForB = useMemo(
-    () => players.filter((player) => player.id !== playerAId),
-    [players, playerAId]
-  )
+  const availablePlayersForA = useMemo(() => players.filter((player) => player.id !== playerBId), [players, playerBId])
+  const availablePlayersForB = useMemo(() => players.filter((player) => player.id !== playerAId), [players, playerAId])
 
   const availableTeamA1 = useMemo(
     () => players.filter((player) => ![teamA2Id, teamB1Id, teamB2Id].includes(player.id)),
     [players, teamA2Id, teamB1Id, teamB2Id]
   )
-
   const availableTeamA2 = useMemo(
     () => players.filter((player) => ![teamA1Id, teamB1Id, teamB2Id].includes(player.id)),
     [players, teamA1Id, teamB1Id, teamB2Id]
   )
-
   const availableTeamB1 = useMemo(
     () => players.filter((player) => ![teamA1Id, teamA2Id, teamB2Id].includes(player.id)),
     [players, teamA1Id, teamA2Id, teamB2Id]
   )
-
   const availableTeamB2 = useMemo(
     () => players.filter((player) => ![teamA1Id, teamA2Id, teamB1Id].includes(player.id)),
     [players, teamA1Id, teamA2Id, teamB1Id]
@@ -748,11 +737,7 @@ export default function MatchupPage() {
         rightSelected: right,
         gap,
         higherRatedLabel:
-          left === right
-            ? 'Even matchup'
-            : left > right
-              ? `${playerA.name} leads`
-              : `${playerB.name} leads`,
+          left === right ? 'Even matchup' : left > right ? `${playerA.name} leads` : `${playerB.name} leads`,
         favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
         leftProfileHref: `/players/${playerA.id}`,
         rightProfileHref: `/players/${playerB.id}`,
@@ -792,27 +777,13 @@ export default function MatchupPage() {
       rightSelected: right,
       gap,
       higherRatedLabel:
-        left === right
-          ? 'Even matchup'
-          : left > right
-            ? `${teamALabel} leads`
-            : `${teamBLabel} leads`,
+        left === right ? 'Even matchup' : left > right ? `${teamALabel} leads` : `${teamBLabel} leads`,
       favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
       leftProfileHref: null,
       rightProfileHref: null,
       engineRatingView,
     }
-  }, [
-    matchType,
-    singlesSelected,
-    doublesSelected,
-    playerA,
-    playerB,
-    teamA1,
-    teamA2,
-    teamB1,
-    teamB2,
-  ])
+  }, [matchType, singlesSelected, doublesSelected, playerA, playerB, teamA1, teamA2, teamB1, teamB2])
 
   const displayGap = useMemo(() => {
     if (!comparison) return 0
@@ -822,11 +793,11 @@ export default function MatchupPage() {
         : ratingView === 'singles'
           ? comparison.leftRatings.singles
           : comparison.leftRatings.doubles) -
-        (ratingView === 'overall'
-          ? comparison.rightRatings.overall
-          : ratingView === 'singles'
-            ? comparison.rightRatings.singles
-            : comparison.rightRatings.doubles)
+      (ratingView === 'overall'
+        ? comparison.rightRatings.overall
+        : ratingView === 'singles'
+          ? comparison.rightRatings.singles
+          : comparison.rightRatings.doubles)
     )
   }, [comparison, ratingView])
 
@@ -862,8 +833,7 @@ export default function MatchupPage() {
     const underdogLabel =
       favoriteLabel === comparison.leftLabel ? comparison.rightLabel : comparison.leftLabel
 
-    const likelyWinner =
-      leftWinProbability === rightWinProbability ? 'Even' : favoriteLabel
+    const likelyWinner = leftWinProbability === rightWinProbability ? 'Even' : favoriteLabel
 
     return {
       leftWinProbability,
@@ -871,11 +841,7 @@ export default function MatchupPage() {
       likelyWinner,
       confidenceLabel: getConfidenceLabel(favoriteProbability),
       upsetIndicator: getUpsetIndicator(favoriteProbability),
-      expectedOutcome: getExpectedOutcomeText(
-        favoriteProbability,
-        favoriteLabel,
-        underdogLabel
-      ),
+      expectedOutcome: getExpectedOutcomeText(favoriteProbability, favoriteLabel, underdogLabel),
       ratingDiffText: `${formatRating(comparison.gap)} pts`,
       favoriteEdgeText: `${formatPercent(favoriteProbability)} vs ${formatPercent(underdogProbability)}`,
       favoriteLabel,
@@ -883,842 +849,521 @@ export default function MatchupPage() {
     }
   }, [comparison])
 
+  const dynamicHeaderInner: CSSProperties = {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+
+  const dynamicNavStyle: CSSProperties = {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
+
+  const dynamicHeroWrap: CSSProperties = {
+    ...heroWrap,
+    padding: isMobile ? '14px 16px 22px' : '10px 18px 24px',
+  }
+
+  const dynamicHeroShell: CSSProperties = {
+    ...heroShell,
+    padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
+  }
+
+  const dynamicHeroContent: CSSProperties = {
+    ...heroContent,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+    gap: isMobile ? '18px' : '22px',
+  }
+
+  const dynamicHeroTitle: CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
+    lineHeight: isMobile ? 1.04 : 0.98,
+    maxWidth: '560px',
+  }
+
+  const dynamicHeroText: CSSProperties = {
+    ...heroText,
+    fontSize: isMobile ? '16px' : '18px',
+    maxWidth: '560px',
+  }
+
+  const dynamicEngineCard: CSSProperties = {
+    ...engineCard,
+    position: isTablet ? 'relative' : 'sticky',
+    top: isTablet ? 'auto' : '24px',
+  }
+
+  const dynamicToolbarTop: CSSProperties = {
+    ...toolbarTop,
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
+  }
+
+  const dynamicSelectorGrid: CSSProperties = {
+    ...selectorGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : matchType === 'singles'
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(2, minmax(0, 1fr))',
+  }
+
+  const dynamicCompareGrid: CSSProperties = {
+    ...compareGrid,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) 220px minmax(0, 1fr)',
+  }
+
+  const dynamicCenterColumn: CSSProperties = {
+    ...centerColumn,
+    order: isTablet ? -1 : 0,
+  }
+
+  const dynamicRatingGrid: CSSProperties = {
+    ...ratingGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicMetricGrid: CSSProperties = {
+    ...metricGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isMobile
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicFooterInner: CSSProperties = {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+
+  const dynamicFooterRow: CSSProperties = {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+
+  const dynamicFooterLinks: CSSProperties = {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+
+  const dynamicFooterBottom: CSSProperties = {
+    ...footerBottom,
+    marginLeft: isTablet ? 0 : 'auto',
+  }
+
   return (
-    <main className="page-shell-tight matchup-page">
-      <div className="matchup-top-links">
-        <Link href="/" className="button-ghost">Home</Link>
-        <Link href="/rankings" className="button-ghost">Rankings</Link>
-        <Link href="/matchup" className="button-ghost">Matchup</Link>
-        <Link href="/admin" className="button-ghost">Admin</Link>
+    <main style={pageStyle}>
+      <div style={orbOne} />
+      <div style={orbTwo} />
+      <div style={gridGlow} />
+
+      <header style={headerStyle}>
+        <div style={dynamicHeaderInner}>
+          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+            <BrandWordmark compact={isMobile} top />
+          </Link>
+
+          <nav style={dynamicNavStyle}>
+            {NAV_LINKS.map((link) => {
+              const isActive = link.href === '/matchup'
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    ...navLink,
+                    ...(isActive ? activeNavLink : {}),
+                  }}
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
+            <Link href="/admin" style={navLink}>Admin</Link>
+          </nav>
+        </div>
+      </header>
+
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
+
+          <div style={dynamicHeroContent}>
+            <div style={heroLeft}>
+              <div style={eyebrow}>Matchup comparison</div>
+              <h1 style={dynamicHeroTitle}>Compare singles players or doubles teams.</h1>
+              <p style={dynamicHeroText}>
+                See rating gaps, projected win probability, confidence, upset risk,
+                model accuracy, and head-to-head history before match day.
+              </p>
+
+              <div style={heroHintRow}>
+                <span style={heroHintPill}>{capitalize(matchType)} mode</span>
+                <span style={heroHintPill}>{capitalize(ratingView)} display</span>
+                <span style={heroHintPill}>{capitalize(getEngineRatingView(matchType))} engine</span>
+              </div>
+            </div>
+
+            <div style={dynamicEngineCard}>
+              <div style={engineLabel}>Projection engine</div>
+              <div style={engineValue}>{capitalize(getEngineRatingView(matchType))}</div>
+              <div style={engineText}>
+                Projections always use match-type-specific dynamic ratings even when the on-screen
+                comparison display is switched to overall, singles, or doubles.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={contentWrap}>
+        <article style={controlsCard}>
+          <div style={dynamicToolbarTop}>
+            <div style={toggleStack}>
+              <div style={toggleLabel}>Match type</div>
+              <div style={toggleGroup}>
+                <button
+                  onClick={() => setMatchType('singles')}
+                  style={{
+                    ...toggleButton,
+                    ...(matchType === 'singles' ? toggleButtonGreen : {}),
+                  }}
+                >
+                  Singles
+                </button>
+                <button
+                  onClick={() => setMatchType('doubles')}
+                  style={{
+                    ...toggleButton,
+                    ...(matchType === 'doubles' ? toggleButtonGreen : {}),
+                  }}
+                >
+                  Doubles
+                </button>
+              </div>
+            </div>
+
+            <div style={toggleStack}>
+              <div style={toggleLabel}>Display ratings</div>
+              <div style={toggleGroup}>
+                <button
+                  onClick={() => setRatingView('overall')}
+                  style={{
+                    ...toggleButton,
+                    ...(ratingView === 'overall' ? toggleButtonBlue : {}),
+                  }}
+                >
+                  Overall
+                </button>
+                <button
+                  onClick={() => setRatingView('singles')}
+                  style={{
+                    ...toggleButton,
+                    ...(ratingView === 'singles' ? toggleButtonBlue : {}),
+                  }}
+                >
+                  Singles
+                </button>
+                <button
+                  onClick={() => setRatingView('doubles')}
+                  style={{
+                    ...toggleButton,
+                    ...(ratingView === 'doubles' ? toggleButtonBlue : {}),
+                  }}
+                >
+                  Doubles
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {matchType === 'singles' ? (
+            <div style={dynamicSelectorGrid}>
+              <SelectField
+                label="Player A"
+                value={playerAId}
+                onChange={setPlayerAId}
+                options={availablePlayersForA}
+                disabled={loading}
+              />
+              <SelectField
+                label="Player B"
+                value={playerBId}
+                onChange={setPlayerBId}
+                options={availablePlayersForB}
+                disabled={loading}
+              />
+            </div>
+          ) : (
+            <div style={dynamicSelectorGrid}>
+              <SelectField
+                label="Team A · Player 1"
+                value={teamA1Id}
+                onChange={setTeamA1Id}
+                options={availableTeamA1}
+                disabled={loading}
+              />
+              <SelectField
+                label="Team A · Player 2"
+                value={teamA2Id}
+                onChange={setTeamA2Id}
+                options={availableTeamA2}
+                disabled={loading}
+              />
+              <SelectField
+                label="Team B · Player 1"
+                value={teamB1Id}
+                onChange={setTeamB1Id}
+                options={availableTeamB1}
+                disabled={loading}
+              />
+              <SelectField
+                label="Team B · Player 2"
+                value={teamB2Id}
+                onChange={setTeamB2Id}
+                options={availableTeamB2}
+                disabled={loading}
+              />
+            </div>
+          )}
+
+          {error ? (
+            <div style={errorBanner}>{error}</div>
+          ) : null}
+
+          {loading ? (
+            <div style={emptyState}>Loading players...</div>
+          ) : !comparison ? (
+            <div style={emptyState}>
+              {matchType === 'singles'
+                ? 'Select two different players to compare.'
+                : 'Select four different players to compare doubles teams.'}
+            </div>
+          ) : (
+            <>
+              <div style={dynamicCompareGrid}>
+                <CompareCard
+                  title={comparison.leftLabel}
+                  subtitle={comparison.leftLocation}
+                  ratings={comparison.leftRatings}
+                  projectionRating={comparison.leftSelected}
+                  ratingView={ratingView}
+                  projectionView={comparison.engineRatingView}
+                  profileHref={comparison.leftProfileHref}
+                  favored={comparison.favoredSide === 'left'}
+                  dynamicRatingGrid={dynamicRatingGrid}
+                />
+
+                <div style={dynamicCenterColumn}>
+                  <div style={vsBadge}>VS</div>
+
+                  <div style={gapCard}>
+                    <div style={gapLabel}>{capitalize(ratingView)} rating gap</div>
+                    <div style={gapValue}>{formatRating(displayGap)}</div>
+                    <div style={gapMeta}>{displayHigherRatedLabel}</div>
+                  </div>
+                </div>
+
+                <CompareCard
+                  title={comparison.rightLabel}
+                  subtitle={comparison.rightLocation}
+                  ratings={comparison.rightRatings}
+                  projectionRating={comparison.rightSelected}
+                  ratingView={ratingView}
+                  projectionView={comparison.engineRatingView}
+                  profileHref={comparison.rightProfileHref}
+                  favored={comparison.favoredSide === 'right'}
+                  dynamicRatingGrid={dynamicRatingGrid}
+                />
+              </div>
+
+              <article style={summaryCard}>
+                <h2 style={sectionTitle}>Quick read</h2>
+                <p style={paragraph}>
+                  In <strong>{ratingView}</strong>,{' '}
+                  {displayHigherRatedLabel === 'Even matchup'
+                    ? `${comparison.leftLabel} and ${comparison.rightLabel} are currently even.`
+                    : `${displayHigherRatedLabel} by ${formatRating(displayGap)} points.`}{' '}
+                  Projection uses <strong>{comparison.engineRatingView}</strong> dynamic ratings because this is a{' '}
+                  <strong>{matchType}</strong> matchup.
+                </p>
+              </article>
+
+              {projection ? (
+                <article style={summaryCard}>
+                  <h2 style={sectionTitle}>Projection</h2>
+
+                  <div style={dynamicMetricGrid}>
+                    <MetricCard label={`${comparison.leftLabel} win probability`} value={formatPercent(projection.leftWinProbability)} />
+                    <MetricCard label={`${comparison.rightLabel} win probability`} value={formatPercent(projection.rightWinProbability)} />
+                    <MetricCard label="Projected winner" value={projection.likelyWinner} />
+                    <MetricCard label="Confidence" value={projection.confidenceLabel} />
+                    <MetricCard label="Projection gap" value={projection.ratingDiffText} />
+                    <MetricCard label="Favorite edge" value={projection.favoriteEdgeText} />
+                  </div>
+
+                  <div style={calloutCard}>
+                    <div>
+                      <div style={calloutTitle}>{projection.expectedOutcome}</div>
+                      <div style={calloutSub}>
+                        Favorite: <strong>{projection.favoriteLabel}</strong> · Underdog:{' '}
+                        <strong>{projection.underdogLabel}</strong>
+                      </div>
+                    </div>
+
+                    <div style={upsetPill}>{projection.upsetIndicator}</div>
+                  </div>
+                </article>
+              ) : null}
+
+              <article style={summaryCard}>
+                <div style={summaryHead}>
+                  <h2 style={sectionTitle}>Model accuracy</h2>
+                  <div style={metaNote}>Based on recent {matchType} matches</div>
+                </div>
+
+                {accuracyLoading ? (
+                  <p style={paragraph}>Calculating accuracy...</p>
+                ) : accuracy.sampleSize === 0 ? (
+                  <p style={paragraph}>Not enough history yet.</p>
+                ) : (
+                  <>
+                    <div style={dynamicMetricGrid}>
+                      <MetricCard label="Overall" value={formatNullablePercent(accuracy.overall)} />
+                      <MetricCard label="High confidence" value={formatNullablePercent(accuracy.high)} />
+                      <MetricCard label="Medium confidence" value={formatNullablePercent(accuracy.medium)} />
+                      <MetricCard label="Low confidence" value={formatNullablePercent(accuracy.low)} />
+                    </div>
+
+                    <p style={{ ...paragraph, marginTop: '16px' }}>
+                      Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the current
+                      rating favorite would have been correct on recent historical matchups.
+                    </p>
+                  </>
+                )}
+              </article>
+
+              <article style={summaryCard}>
+                <h2 style={sectionTitle}>Head-to-head</h2>
+
+                {headToHeadLoading ? (
+                  <p style={paragraph}>Loading head-to-head...</p>
+                ) : !headToHead || headToHead.total === 0 ? (
+                  <p style={paragraph}>No head-to-head matches found.</p>
+                ) : (
+                  <>
+                    <div style={dynamicMetricGrid}>
+                      <MetricCard label="Total matches" value={String(headToHead.total)} />
+                      <MetricCard
+                        label="Overall record"
+                        value={`${headToHead.winsA} - ${headToHead.winsB}`}
+                        sub={`${comparison.leftLabel} vs ${comparison.rightLabel}`}
+                      />
+                      <MetricCard label="Singles record" value={`${headToHead.singlesA} - ${headToHead.singlesB}`} />
+                      <MetricCard label="Doubles record" value={`${headToHead.doublesA} - ${headToHead.doublesB}`} />
+                    </div>
+
+                    {headToHead.lastMatch ? (
+                      <p style={{ ...paragraph, marginTop: '16px' }}>
+                        <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} ·{' '}
+                        {capitalize(headToHead.lastMatch.matchType)} ·{' '}
+                        {headToHead.lastMatch.score || 'No score entered'} · Winner:{' '}
+                        {headToHead.lastMatch.winner === 'A' ? comparison.leftLabel : comparison.rightLabel}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </article>
+            </>
+          )}
+        </article>
+      </section>
+
+      <footer style={footerStyle}>
+        <div style={dynamicFooterInner}>
+          <div style={dynamicFooterRow}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
+
+            <div style={dynamicFooterLinks}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            </div>
+
+            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
+          </div>
+        </div>
+      </footer>
+    </main>
+  )
+}
+
+function CompareCard({
+  title,
+  subtitle,
+  ratings,
+  projectionRating,
+  ratingView,
+  projectionView,
+  profileHref,
+  favored,
+  dynamicRatingGrid,
+}: {
+  title: string
+  subtitle: string
+  ratings: { overall: number; singles: number; doubles: number }
+  projectionRating: number
+  ratingView: RatingView
+  projectionView: RatingView
+  profileHref: string | null
+  favored: boolean
+  dynamicRatingGrid: CSSProperties
+}) {
+  return (
+    <div
+      style={{
+        ...compareCard,
+        ...(favored ? favoredCompareCard : {}),
+      }}
+    >
+      <div style={compareHead}>
+        <div>
+          <div style={compareTitle}>{title}</div>
+          <div style={compareSubtitle}>{subtitle}</div>
+        </div>
+
+        {profileHref ? (
+          <Link href={profileHref} style={miniGhostButton}>
+            View profile
+          </Link>
+        ) : null}
       </div>
 
-      <section className="hero-panel matchup-hero-panel">
-        <div className="hero-inner matchup-hero-inner">
-          <div className="matchup-hero-copy">
-            <div className="section-kicker matchup-kicker">Matchup Comparison</div>
-            <h1 className="matchup-title">Compare singles players or doubles teams.</h1>
-            <p className="matchup-subtitle">
-              Compare dynamic ratings, projected win probability, expected outcome,
-              confidence, upset watch, and head-to-head history before match day.
-            </p>
+      <div style={dynamicRatingGrid}>
+        <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} />
+        <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} />
+        <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} />
+      </div>
 
-            <div className="matchup-hero-badges">
-              <span className="badge badge-blue">{capitalize(matchType)} mode</span>
-              <span className="badge badge-slate">{capitalize(ratingView)} display</span>
-              <span className="badge badge-green">
-                {matchType === 'singles' ? 'Singles engine' : 'Doubles engine'}
-              </span>
-            </div>
-          </div>
-
-          <div className="glass-card panel-pad matchup-hero-side">
-            <div className="matchup-side-title">Projection engine</div>
-            <div className="matchup-side-value">{capitalize(getEngineRatingView(matchType))}</div>
-            <div className="matchup-side-text">
-              Projections always use match-type-specific dynamic ratings even when the on-screen
-              comparison display is switched to overall, singles, or doubles.
-            </div>
-          </div>
+      <div style={highlightBox}>
+        <div style={highlightLabel}>
+          {projectionView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
         </div>
-      </section>
-
-      <section className="surface-card panel-pad matchup-toolbar-card">
-        <div className="matchup-toolbar-top">
-          <div className="matchup-mode-toggle">
-            <button
-              onClick={() => setMatchType('singles')}
-              className={`matchup-pill-btn ${matchType === 'singles' ? 'is-active' : ''}`}
-            >
-              Singles
-            </button>
-            <button
-              onClick={() => setMatchType('doubles')}
-              className={`matchup-pill-btn ${matchType === 'doubles' ? 'is-active' : ''}`}
-            >
-              Doubles
-            </button>
-          </div>
-
-          <div className="matchup-mode-toggle">
-            <button
-              onClick={() => setRatingView('overall')}
-              className={`matchup-pill-btn ${ratingView === 'overall' ? 'is-active alt' : ''}`}
-            >
-              Overall
-            </button>
-            <button
-              onClick={() => setRatingView('singles')}
-              className={`matchup-pill-btn ${ratingView === 'singles' ? 'is-active alt' : ''}`}
-            >
-              Singles
-            </button>
-            <button
-              onClick={() => setRatingView('doubles')}
-              className={`matchup-pill-btn ${ratingView === 'doubles' ? 'is-active alt' : ''}`}
-            >
-              Doubles
-            </button>
-          </div>
-        </div>
-
-        {matchType === 'singles' ? (
-          <div className="matchup-select-grid">
-            <div>
-              <label className="label">Player A</label>
-              <select
-                value={playerAId}
-                onChange={(e) => setPlayerAId(e.target.value)}
-                className="select"
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availablePlayersForA.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Player B</label>
-              <select
-                value={playerBId}
-                onChange={(e) => setPlayerBId(e.target.value)}
-                className="select"
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availablePlayersForB.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        ) : (
-          <div className="matchup-doubles-grid">
-            <div>
-              <label className="label">Team A - Player 1</label>
-              <select
-                value={teamA1Id}
-                onChange={(e) => setTeamA1Id(e.target.value)}
-                className="select"
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availableTeamA1.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Team A - Player 2</label>
-              <select
-                value={teamA2Id}
-                onChange={(e) => setTeamA2Id(e.target.value)}
-                className="select"
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availableTeamA2.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Team B - Player 1</label>
-              <select
-                value={teamB1Id}
-                onChange={(e) => setTeamB1Id(e.target.value)}
-                className="select"
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availableTeamB1.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="label">Team B - Player 2</label>
-              <select
-                value={teamB2Id}
-                onChange={(e) => setTeamB2Id(e.target.value)}
-                className="select"
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availableTeamB2.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
-        {error ? (
-          <div className="matchup-error-box">
-            <p>{error}</p>
-          </div>
-        ) : null}
-
-        {loading ? (
-          <div className="matchup-empty-state">Loading players...</div>
-        ) : !comparison ? (
-          <div className="matchup-empty-state">
-            {matchType === 'singles'
-              ? 'Select two different players to compare.'
-              : 'Select four different players to compare doubles teams.'}
-          </div>
-        ) : (
-          <>
-            <div className="matchup-compare-grid">
-              <div className={`surface-card panel-pad matchup-side-card ${comparison.favoredSide === 'left' ? 'is-favored' : ''}`}>
-                <div className="matchup-side-head">
-                  <div>
-                    <div className="matchup-side-name">{comparison.leftLabel}</div>
-                    <div className="matchup-side-meta">{comparison.leftLocation}</div>
-                  </div>
-
-                  {comparison.leftProfileHref ? (
-                    <Link href={comparison.leftProfileHref} className="button-ghost matchup-profile-link">
-                      View Profile
-                    </Link>
-                  ) : null}
-                </div>
-
-                <div className="matchup-rating-grid">
-                  <RatingPill
-                    label="Overall"
-                    value={comparison.leftRatings.overall}
-                    active={ratingView === 'overall'}
-                  />
-                  <RatingPill
-                    label="Singles"
-                    value={comparison.leftRatings.singles}
-                    active={ratingView === 'singles'}
-                  />
-                  <RatingPill
-                    label="Doubles"
-                    value={comparison.leftRatings.doubles}
-                    active={ratingView === 'doubles'}
-                  />
-                </div>
-
-                <div className="matchup-highlight-box">
-                  <div className="matchup-highlight-label">
-                    {comparison.engineRatingView === 'singles'
-                      ? 'Singles projection rating'
-                      : 'Doubles projection rating'}
-                  </div>
-                  <div className="matchup-highlight-value">{formatRating(comparison.leftSelected)}</div>
-                </div>
-              </div>
-
-              <div className="matchup-center-column">
-                <div className="matchup-vs-badge">VS</div>
-
-                <div className="surface-card-strong panel-pad matchup-gap-card">
-                  <div className="matchup-gap-label">{capitalize(ratingView)} Rating Gap</div>
-                  <div className="matchup-gap-value">{formatRating(displayGap)}</div>
-                  <div className="matchup-gap-meta">{displayHigherRatedLabel}</div>
-                </div>
-              </div>
-
-              <div className={`surface-card panel-pad matchup-side-card ${comparison.favoredSide === 'right' ? 'is-favored' : ''}`}>
-                <div className="matchup-side-head">
-                  <div>
-                    <div className="matchup-side-name">{comparison.rightLabel}</div>
-                    <div className="matchup-side-meta">{comparison.rightLocation}</div>
-                  </div>
-
-                  {comparison.rightProfileHref ? (
-                    <Link href={comparison.rightProfileHref} className="button-ghost matchup-profile-link">
-                      View Profile
-                    </Link>
-                  ) : null}
-                </div>
-
-                <div className="matchup-rating-grid">
-                  <RatingPill
-                    label="Overall"
-                    value={comparison.rightRatings.overall}
-                    active={ratingView === 'overall'}
-                  />
-                  <RatingPill
-                    label="Singles"
-                    value={comparison.rightRatings.singles}
-                    active={ratingView === 'singles'}
-                  />
-                  <RatingPill
-                    label="Doubles"
-                    value={comparison.rightRatings.doubles}
-                    active={ratingView === 'doubles'}
-                  />
-                </div>
-
-                <div className="matchup-highlight-box">
-                  <div className="matchup-highlight-label">
-                    {comparison.engineRatingView === 'singles'
-                      ? 'Singles projection rating'
-                      : 'Doubles projection rating'}
-                  </div>
-                  <div className="matchup-highlight-value">{formatRating(comparison.rightSelected)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="surface-card panel-pad matchup-summary-card">
-              <h2 className="matchup-section-title">Quick Read</h2>
-              <p className="matchup-paragraph">
-                In <strong>{ratingView}</strong>,{' '}
-                {displayHigherRatedLabel === 'Even matchup'
-                  ? `${comparison.leftLabel} and ${comparison.rightLabel} are currently even.`
-                  : `${displayHigherRatedLabel} by ${formatRating(displayGap)} points.`}{' '}
-                Projection uses <strong>{comparison.engineRatingView}</strong> dynamic ratings because this is a{' '}
-                <strong>{matchType}</strong> matchup.
-              </p>
-            </div>
-
-            {projection ? (
-              <div className="surface-card panel-pad matchup-summary-card">
-                <h2 className="matchup-section-title">Projection</h2>
-
-                <div className="metric-grid matchup-metric-grid">
-                  <MetricCard
-                    label={`${comparison.leftLabel} win probability`}
-                    value={formatPercent(projection.leftWinProbability)}
-                  />
-                  <MetricCard
-                    label={`${comparison.rightLabel} win probability`}
-                    value={formatPercent(projection.rightWinProbability)}
-                  />
-                  <MetricCard label="Projected winner" value={projection.likelyWinner} />
-                  <MetricCard label="Confidence" value={projection.confidenceLabel} />
-                  <MetricCard label="Projection rating gap" value={projection.ratingDiffText} />
-                  <MetricCard label="Favorite edge" value={projection.favoriteEdgeText} />
-                </div>
-
-                <div className="matchup-callout">
-                  <div>
-                    <div className="matchup-callout-title">{projection.expectedOutcome}</div>
-                    <div className="matchup-callout-sub">
-                      Favorite: <strong>{projection.favoriteLabel}</strong> · Underdog:{' '}
-                      <strong>{projection.underdogLabel}</strong>
-                    </div>
-                  </div>
-
-                  <div className="matchup-upset-pill">{projection.upsetIndicator}</div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="surface-card panel-pad matchup-summary-card">
-              <div className="matchup-summary-head">
-                <h2 className="matchup-section-title">Model Accuracy</h2>
-                <div className="matchup-meta-note">Based on recent {matchType} matches</div>
-              </div>
-
-              {accuracyLoading ? (
-                <p className="matchup-paragraph">Calculating accuracy...</p>
-              ) : accuracy.sampleSize === 0 ? (
-                <p className="matchup-paragraph">Not enough history yet.</p>
-              ) : (
-                <>
-                  <div className="metric-grid matchup-metric-grid">
-                    <MetricCard label="Overall" value={formatNullablePercent(accuracy.overall)} />
-                    <MetricCard label="High confidence" value={formatNullablePercent(accuracy.high)} />
-                    <MetricCard label="Medium confidence" value={formatNullablePercent(accuracy.medium)} />
-                    <MetricCard label="Low confidence" value={formatNullablePercent(accuracy.low)} />
-                  </div>
-
-                  <p className="matchup-paragraph matchup-top-gap">
-                    Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the current
-                    rating favorite would have been correct on recent historical matchups.
-                  </p>
-                </>
-              )}
-            </div>
-
-            <div className="surface-card panel-pad matchup-summary-card">
-              <h2 className="matchup-section-title">Head-to-Head</h2>
-
-              {headToHeadLoading ? (
-                <p className="matchup-paragraph">Loading head-to-head...</p>
-              ) : !headToHead || headToHead.total === 0 ? (
-                <p className="matchup-paragraph">No head-to-head matches found.</p>
-              ) : (
-                <>
-                  <div className="metric-grid matchup-metric-grid">
-                    <MetricCard label="Total Matches" value={String(headToHead.total)} />
-                    <MetricCard
-                      label="Overall Record"
-                      value={`${headToHead.winsA} - ${headToHead.winsB}`}
-                      sub={`${comparison.leftLabel} vs ${comparison.rightLabel}`}
-                    />
-                    <MetricCard
-                      label="Singles Record"
-                      value={`${headToHead.singlesA} - ${headToHead.singlesB}`}
-                    />
-                    <MetricCard
-                      label="Doubles Record"
-                      value={`${headToHead.doublesA} - ${headToHead.doublesB}`}
-                    />
-                  </div>
-
-                  {headToHead.lastMatch ? (
-                    <p className="matchup-paragraph matchup-top-gap">
-                      <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} •{' '}
-                      {capitalize(headToHead.lastMatch.matchType)} •{' '}
-                      {headToHead.lastMatch.score || 'No score entered'} • Winner:{' '}
-                      {headToHead.lastMatch.winner === 'A'
-                        ? comparison.leftLabel
-                        : comparison.rightLabel}
-                    </p>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </>
-        )}
-      </section>
-
-      <style jsx>{`
-        .matchup-page {
-          padding-top: 1.25rem;
-          padding-bottom: 2.5rem;
-        }
-
-        .matchup-top-links {
-          display: flex;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-          margin-bottom: 1rem;
-        }
-
-        .matchup-hero-panel {
-          overflow: hidden;
-          margin-bottom: 1rem;
-        }
-
-        .matchup-hero-inner {
-          display: grid;
-          grid-template-columns: minmax(0, 1.15fr) minmax(280px, 360px);
-          gap: 1rem;
-          align-items: stretch;
-        }
-
-        .matchup-hero-copy {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 0.85rem;
-        }
-
-        .matchup-kicker {
-          color: rgba(217, 231, 255, 0.82);
-        }
-
-        .matchup-title {
-          margin: 0;
-          color: #ffffff;
-          font-size: clamp(2rem, 4vw, 3.3rem);
-          line-height: 1;
-          letter-spacing: -0.04em;
-          font-weight: 900;
-        }
-
-        .matchup-subtitle {
-          margin: 0;
-          max-width: 52rem;
-          color: rgba(219, 234, 254, 0.9);
-          font-size: 1rem;
-          line-height: 1.7;
-          font-weight: 500;
-        }
-
-        .matchup-hero-badges {
-          display: flex;
-          gap: 0.65rem;
-          flex-wrap: wrap;
-          margin-top: 0.15rem;
-        }
-
-        .matchup-hero-side {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 0.65rem;
-        }
-
-        .matchup-side-title {
-          color: rgba(217, 231, 255, 0.82);
-          font-size: 0.8rem;
-          font-weight: 700;
-          line-height: 1.5;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .matchup-side-value {
-          color: #ffffff;
-          font-size: 2rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.04em;
-        }
-
-        .matchup-side-text {
-          color: rgba(219, 234, 254, 0.88);
-          font-size: 0.95rem;
-          line-height: 1.65;
-          font-weight: 500;
-        }
-
-        .matchup-toolbar-card {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-        }
-
-        .matchup-toolbar-top {
-          display: flex;
-          justify-content: space-between;
-          gap: 1rem;
-          align-items: flex-start;
-          flex-wrap: wrap;
-        }
-
-        .matchup-mode-toggle {
-          display: flex;
-          gap: 0.55rem;
-          flex-wrap: wrap;
-          padding: 0.4rem;
-          border-radius: 1rem;
-          background: #f8fbff;
-          border: 1px solid rgba(37, 91, 227, 0.1);
-        }
-
-        .matchup-pill-btn {
-          border: 0;
-          border-radius: 0.8rem;
-          background: transparent;
-          color: #103170;
-          padding: 0.82rem 1rem;
-          font-size: 0.92rem;
-          font-weight: 800;
-          cursor: pointer;
-          transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-        }
-
-        .matchup-pill-btn:hover {
-          background: rgba(37, 91, 227, 0.06);
-        }
-
-        .matchup-pill-btn.is-active {
-          background: linear-gradient(135deg, #56d8ae 0%, #b8e61a 100%);
-          color: #07152f;
-          box-shadow: 0 12px 26px rgba(184, 230, 26, 0.22);
-        }
-
-        .matchup-pill-btn.is-active.alt {
-          background: linear-gradient(135deg, #255be3 0%, #3fa7ff 100%);
-          color: #ffffff;
-          box-shadow: 0 12px 28px rgba(37, 91, 227, 0.2);
-        }
-
-        .matchup-select-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 1rem;
-        }
-
-        .matchup-doubles-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 1rem;
-        }
-
-        .matchup-error-box {
-          border-radius: 1rem;
-          padding: 0.95rem 1rem;
-          background: rgba(239, 68, 68, 0.08);
-          border: 1px solid rgba(239, 68, 68, 0.18);
-          color: #991b1b;
-        }
-
-        .matchup-error-box p {
-          margin: 0;
-          font-size: 0.94rem;
-          line-height: 1.6;
-          font-weight: 700;
-        }
-
-        .matchup-empty-state {
-          border-radius: 1rem;
-          padding: 1rem 1.05rem;
-          background: #f8fafc;
-          border: 1px dashed #cbd5e1;
-          color: #475569;
-          font-size: 0.96rem;
-          line-height: 1.6;
-          font-weight: 600;
-          text-align: center;
-        }
-
-        .matchup-compare-grid {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
-          gap: 1rem;
-          align-items: stretch;
-        }
-
-        .matchup-side-card {
-          min-width: 0;
-        }
-
-        .matchup-side-card.is-favored {
-          border-color: rgba(184, 230, 26, 0.38);
-          box-shadow: 0 16px 36px rgba(184, 230, 26, 0.12);
-        }
-
-        .matchup-side-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 0.75rem;
-          margin-bottom: 1rem;
-        }
-
-        .matchup-side-name {
-          color: #0f172a;
-          font-size: 1.45rem;
-          line-height: 1.15;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-
-        .matchup-side-meta {
-          margin-top: 0.35rem;
-          color: #64748b;
-          font-size: 0.92rem;
-          line-height: 1.5;
-          font-weight: 500;
-        }
-
-        .matchup-profile-link {
-          white-space: nowrap;
-        }
-
-        .matchup-rating-grid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 0.75rem;
-          margin-bottom: 1rem;
-        }
-
-        .matchup-highlight-box {
-          border-radius: 1rem;
-          padding: 1rem;
-          background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
-          border: 1px solid rgba(37, 91, 227, 0.12);
-        }
-
-        .matchup-highlight-label {
-          color: #64748b;
-          font-size: 0.8rem;
-          line-height: 1.5;
-          font-weight: 700;
-        }
-
-        .matchup-highlight-value {
-          margin-top: 0.35rem;
-          color: #255be3;
-          font-size: 2rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.04em;
-        }
-
-        .matchup-center-column {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          gap: 1rem;
-        }
-
-        .matchup-vs-badge {
-          width: 4.8rem;
-          height: 4.8rem;
-          border-radius: 999px;
-          background: linear-gradient(135deg, #255be3 0%, #3fa7ff 100%);
-          color: #ffffff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.35rem;
-          line-height: 1;
-          font-weight: 900;
-          box-shadow: 0 14px 30px rgba(37, 91, 227, 0.22);
-        }
-
-        .matchup-gap-card {
-          width: 100%;
-          text-align: center;
-        }
-
-        .matchup-gap-label {
-          color: rgba(217, 231, 255, 0.82);
-          font-size: 0.8rem;
-          line-height: 1.5;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-
-        .matchup-gap-value {
-          margin-top: 0.4rem;
-          color: #ffffff;
-          font-size: 2rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.04em;
-        }
-
-        .matchup-gap-meta {
-          margin-top: 0.45rem;
-          color: #d9f84a;
-          font-size: 0.92rem;
-          line-height: 1.5;
-          font-weight: 800;
-        }
-
-        .matchup-summary-card {
-          margin-top: 1rem;
-        }
-
-        .matchup-section-title {
-          margin: 0;
-          color: #0f172a;
-          font-size: 1.35rem;
-          line-height: 1.2;
-          font-weight: 900;
-          letter-spacing: -0.02em;
-        }
-
-        .matchup-paragraph {
-          margin: 0.8rem 0 0;
-          color: #475569;
-          font-size: 0.96rem;
-          line-height: 1.7;
-          font-weight: 500;
-        }
-
-        .matchup-top-gap {
-          margin-top: 0.95rem;
-        }
-
-        .matchup-metric-grid {
-          margin-top: 1rem;
-        }
-
-        .matchup-callout {
-          margin-top: 1rem;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.85rem;
-          flex-wrap: wrap;
-          border-radius: 1rem;
-          padding: 1rem;
-          background: linear-gradient(180deg, #f7fbff 0%, #eff6ff 100%);
-          border: 1px solid rgba(37, 91, 227, 0.14);
-        }
-
-        .matchup-callout-title {
-          color: #0f172a;
-          font-size: 1rem;
-          line-height: 1.45;
-          font-weight: 800;
-        }
-
-        .matchup-callout-sub {
-          margin-top: 0.25rem;
-          color: #475569;
-          font-size: 0.9rem;
-          line-height: 1.6;
-          font-weight: 500;
-        }
-
-        .matchup-upset-pill {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          padding: 0.65rem 0.8rem;
-          background: #fff7ed;
-          border: 1px solid #fed7aa;
-          color: #c2410c;
-          font-size: 0.76rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: 0.03em;
-          text-transform: uppercase;
-          white-space: nowrap;
-        }
-
-        .matchup-summary-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-        }
-
-        .matchup-meta-note {
-          color: #64748b;
-          font-size: 0.8rem;
-          line-height: 1.5;
-          font-weight: 700;
-        }
-
-        @media (max-width: 980px) {
-          .matchup-hero-inner {
-            grid-template-columns: 1fr;
-          }
-
-          .matchup-compare-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .matchup-center-column {
-            order: -1;
-          }
-        }
-
-        @media (max-width: 760px) {
-          .matchup-select-grid,
-          .matchup-doubles-grid,
-          .matchup-rating-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-    </main>
+        <div style={highlightValue}>{formatRating(projectionRating)}</div>
+      </div>
+    </div>
   )
 }
 
@@ -1732,40 +1377,14 @@ function RatingPill({
   active?: boolean
 }) {
   return (
-    <div className={`matchup-rating-pill ${active ? 'is-active' : ''}`}>
-      <div className="matchup-rating-pill-label">{label}</div>
-      <div className="matchup-rating-pill-value">{formatRating(value)}</div>
-
-      <style jsx>{`
-        .matchup-rating-pill {
-          border-radius: 1rem;
-          padding: 0.9rem 0.95rem;
-          background: #ffffff;
-          border: 1px solid rgba(148, 163, 184, 0.2);
-        }
-
-        .matchup-rating-pill.is-active {
-          background: #eff6ff;
-          border-color: rgba(37, 91, 227, 0.22);
-          box-shadow: inset 0 0 0 1px rgba(37, 91, 227, 0.04);
-        }
-
-        .matchup-rating-pill-label {
-          color: #64748b;
-          font-size: 0.75rem;
-          line-height: 1.5;
-          font-weight: 700;
-        }
-
-        .matchup-rating-pill-value {
-          margin-top: 0.3rem;
-          color: #0f172a;
-          font-size: 1.2rem;
-          line-height: 1;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-      `}</style>
+    <div
+      style={{
+        ...ratingPill,
+        ...(active ? ratingPillActive : {}),
+      }}
+    >
+      <div style={ratingPillLabel}>{label}</div>
+      <div style={ratingPillValue}>{formatRating(value)}</div>
     </div>
   )
 }
@@ -1780,35 +1399,95 @@ function MetricCard({
   sub?: string
 }) {
   return (
-    <div className="metric-card">
-      <div className="matchup-metric-label">{label}</div>
-      <div className="matchup-metric-value">{value}</div>
-      {sub ? <div className="matchup-metric-sub">{sub}</div> : null}
+    <div style={metricCard}>
+      <div style={metricLabel}>{label}</div>
+      <div style={metricValue}>{value}</div>
+      {sub ? <div style={metricSub}>{sub}</div> : null}
+    </div>
+  )
+}
 
-      <style jsx>{`
-        .matchup-metric-label {
-          color: #64748b;
-          font-size: 0.82rem;
-          margin-bottom: 0.4rem;
-          font-weight: 700;
-        }
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Player[]
+  disabled: boolean
+}) {
+  return (
+    <div>
+      <label style={inputLabel}>{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={selectStyle}
+        disabled={disabled}
+      >
+        <option value="">Select player</option>
+        {options.map((player) => (
+          <option key={player.id} value={player.id}>
+            {player.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
 
-        .matchup-metric-value {
-          color: #0f172a;
-          font-size: clamp(1.25rem, 2vw, 1.75rem);
-          line-height: 1.1;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
 
-        .matchup-metric-sub {
-          margin-top: 0.35rem;
-          color: #64748b;
-          font-size: 0.8rem;
-          line-height: 1.5;
-          font-weight: 600;
-        }
-      `}</style>
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: compact ? '8px' : '10px',
+        lineHeight: 1,
+      }}
+    >
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{
+          width: `${iconSize}px`,
+          height: `${iconSize}px`,
+          display: 'block',
+          objectFit: 'contain',
+        }}
+      />
+
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
     </div>
   )
 }
@@ -1867,18 +1546,10 @@ function getExpectedOutcomeText(
   favoriteLabel: string,
   underdogLabel: string
 ) {
-  if (favoriteProbability >= 0.75) {
-    return `${favoriteLabel} is a strong favorite over ${underdogLabel}.`
-  }
-  if (favoriteProbability >= 0.66) {
-    return `${favoriteLabel} has a clear edge over ${underdogLabel}.`
-  }
-  if (favoriteProbability >= 0.58) {
-    return `${favoriteLabel} is favored, but ${underdogLabel} is very live.`
-  }
-  if (favoriteProbability >= 0.52) {
-    return `${favoriteLabel} has a slight edge in a tight matchup.`
-  }
+  if (favoriteProbability >= 0.75) return `${favoriteLabel} is a strong favorite over ${underdogLabel}.`
+  if (favoriteProbability >= 0.66) return `${favoriteLabel} has a clear edge over ${underdogLabel}.`
+  if (favoriteProbability >= 0.58) return `${favoriteLabel} is favored, but ${underdogLabel} is very live.`
+  if (favoriteProbability >= 0.52) return `${favoriteLabel} has a slight edge in a tight matchup.`
   return `This matchup projects as nearly even.`
 }
 
@@ -1920,4 +1591,698 @@ function formatDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  position: 'relative',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-90px',
+  left: '-110px',
+  width: '340px',
+  height: '340px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
+  pointerEvents: 'none',
+}
+
+const orbTwo: CSSProperties = {
+  position: 'absolute',
+  right: '-120px',
+  top: '180px',
+  width: '340px',
+  height: '340px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
+  pointerEvents: 'none',
+}
+
+const gridGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
+  backgroundRepeat: 'repeat, repeat',
+  backgroundSize: '34px 34px, 34px 34px',
+  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '24px 18px 0',
+}
+
+const headerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  display: 'flex',
+  justifyContent: 'space-between',
+}
+
+const brandWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+  marginLeft: '2px',
+}
+
+const navStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+}
+
+const navLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.9)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+  letterSpacing: '0.01em',
+  padding: '10px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(122,170,255,0.16)',
+  background: 'rgba(22,42,78,0.42)',
+  backdropFilter: 'blur(14px)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  transition: 'all 180ms ease',
+}
+
+const activeNavLink: CSSProperties = {
+  color: '#06111f',
+  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
+  border: '1px solid rgba(134,239,172,0.45)',
+  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
+}
+
+const heroWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+}
+
+const heroShell: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '30px',
+  background:
+    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow:
+    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
+  position: 'relative',
+}
+
+const heroNoise: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+  pointerEvents: 'none',
+}
+
+const heroContent: CSSProperties = {
+  display: 'grid',
+  alignItems: 'stretch',
+  position: 'relative',
+  zIndex: 1,
+}
+
+const heroLeft: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  gap: '16px',
+  minWidth: 0,
+}
+
+const heroTitle: CSSProperties = {
+  margin: 0,
+  color: '#f8fbff',
+  fontWeight: 900,
+  letterSpacing: '-0.045em',
+}
+
+const heroText: CSSProperties = {
+  margin: 0,
+  color: 'rgba(224,236,249,0.86)',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  alignItems: 'center',
+  padding: '7px 11px',
+  borderRadius: '999px',
+  color: '#d6e9ff',
+  background: 'rgba(74,123,211,0.18)',
+  border: '1px solid rgba(130,178,255,0.18)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const heroHintRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '4px',
+}
+
+const heroHintPill: CSSProperties = {
+  border: '1px solid rgba(137,182,255,0.14)',
+  background: 'rgba(43,78,138,0.34)',
+  color: '#e2efff',
+  borderRadius: '999px',
+  padding: '10px 14px',
+  fontSize: '13px',
+  fontWeight: 700,
+}
+
+const engineCard: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(128,174,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const engineLabel: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.82)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const engineValue: CSSProperties = {
+  marginTop: '8px',
+  color: '#ffffff',
+  fontSize: '32px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const engineText: CSSProperties = {
+  marginTop: '10px',
+  color: 'rgba(219, 234, 254, 0.88)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto',
+  padding: '0 18px 0',
+}
+
+const controlsCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
+  background:
+    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  minWidth: 0,
+  marginBottom: '16px',
+}
+
+const toolbarTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '16px',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
+}
+
+const toggleStack: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const toggleLabel: CSSProperties = {
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const toggleGroup: CSSProperties = {
+  display: 'inline-flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  padding: '6px',
+  borderRadius: '20px',
+  background: 'linear-gradient(180deg, rgba(18,35,68,0.92) 0%, rgba(11,24,49,0.9) 100%)',
+  border: '1px solid rgba(128,174,255,0.18)',
+  boxShadow: '0 12px 26px rgba(8, 23, 48, 0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const toggleButton: CSSProperties = {
+  border: 0,
+  borderRadius: '14px',
+  background: 'transparent',
+  color: '#dbeafe',
+  padding: '12px 18px',
+  fontSize: '14px',
+  fontWeight: 800,
+  cursor: 'pointer',
+  letterSpacing: '-0.01em',
+  transition: 'all 180ms ease',
+}
+
+const toggleButtonGreen: CSSProperties = {
+  background: 'linear-gradient(135deg, #67f19a 0%, #b8e61a 100%)',
+  color: '#06172f',
+  boxShadow: '0 14px 28px rgba(184, 230, 26, 0.24), inset 0 1px 0 rgba(255,255,255,0.34)',
+}
+
+const toggleButtonBlue: CSSProperties = {
+  background: 'linear-gradient(135deg, #255be3 0%, #4d9cff 100%)',
+  color: '#ffffff',
+  boxShadow: '0 14px 28px rgba(37, 91, 227, 0.24), inset 0 1px 0 rgba(255,255,255,0.24)',
+}
+
+const selectorGrid: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  marginBottom: '16px',
+}
+
+const inputLabel: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const selectStyle: CSSProperties = {
+  width: '100%',
+  height: '52px',
+  borderRadius: '18px',
+  border: '1px solid rgba(138,182,255,0.16)',
+  background: 'rgba(10,20,40,0.6)',
+  color: '#f7fbff',
+  padding: '0 14px',
+  fontSize: '14px',
+  fontWeight: 700,
+  outline: 'none',
+}
+
+const errorBanner: CSSProperties = {
+  marginBottom: '16px',
+  borderRadius: '16px',
+  padding: '12px 14px',
+  background: 'rgba(239, 68, 68, 0.08)',
+  border: '1px solid rgba(239, 68, 68, 0.18)',
+  color: '#fecaca',
+  fontWeight: 700,
+  fontSize: '14px',
+}
+
+const emptyState: CSSProperties = {
+  borderRadius: '18px',
+  padding: '18px',
+  background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
+  border: '1px solid rgba(128,174,255,0.14)',
+  color: '#dbeafe',
+  fontSize: '15px',
+  lineHeight: 1.7,
+  fontWeight: 600,
+  textAlign: 'center',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const compareGrid: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  alignItems: 'stretch',
+}
+
+const compareCard: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(128,174,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+}
+
+const favoredCompareCard: CSSProperties = {
+  borderColor: 'rgba(184, 230, 26, 0.38)',
+  boxShadow: '0 16px 36px rgba(184, 230, 26, 0.12), inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const compareHead: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '12px',
+  marginBottom: '16px',
+}
+
+const compareTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const compareSubtitle: CSSProperties = {
+  marginTop: '6px',
+  color: '#c0d5f5',
+  fontSize: '14px',
+  lineHeight: 1.5,
+  fontWeight: 500,
+}
+
+const miniGhostButton: CSSProperties = {
+  whiteSpace: 'nowrap',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.07)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '13px',
+}
+
+const ratingGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  marginBottom: '16px',
+}
+
+const ratingPill: CSSProperties = {
+  borderRadius: '16px',
+  padding: '14px 14px',
+  background: '#ffffff',
+  border: '1px solid rgba(148, 163, 184, 0.2)',
+}
+
+const ratingPillActive: CSSProperties = {
+  background: '#eff6ff',
+  borderColor: 'rgba(37, 91, 227, 0.22)',
+  boxShadow: 'inset 0 0 0 1px rgba(37, 91, 227, 0.04)',
+}
+
+const ratingPillLabel: CSSProperties = {
+  color: '#64748b',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const ratingPillValue: CSSProperties = {
+  marginTop: '4px',
+  color: '#0f172a',
+  fontSize: '20px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const highlightBox: CSSProperties = {
+  borderRadius: '16px',
+  padding: '16px',
+  background: 'linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%)',
+  border: '1px solid rgba(37, 91, 227, 0.12)',
+}
+
+const highlightLabel: CSSProperties = {
+  color: '#64748b',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const highlightValue: CSSProperties = {
+  marginTop: '6px',
+  color: '#255be3',
+  fontSize: '32px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const centerColumn: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: '16px',
+}
+
+const vsBadge: CSSProperties = {
+  width: '76px',
+  height: '76px',
+  borderRadius: '999px',
+  background: 'linear-gradient(135deg, #255be3 0%, #3fa7ff 100%)',
+  color: '#ffffff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '22px',
+  lineHeight: 1,
+  fontWeight: 900,
+  boxShadow: '0 14px 30px rgba(37, 91, 227, 0.22)',
+}
+
+const gapCard: CSSProperties = {
+  width: '100%',
+  textAlign: 'center',
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(128,174,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const gapLabel: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.82)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const gapValue: CSSProperties = {
+  marginTop: '6px',
+  color: '#ffffff',
+  fontSize: '32px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const gapMeta: CSSProperties = {
+  marginTop: '6px',
+  color: '#d9f84a',
+  fontSize: '14px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
+const summaryCard: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(128,174,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const sectionTitle: CSSProperties = {
+  margin: 0,
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
+}
+
+const paragraph: CSSProperties = {
+  margin: '12px 0 0',
+  color: '#dbeafe',
+  fontSize: '15px',
+  lineHeight: 1.7,
+  fontWeight: 500,
+}
+
+const metricGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  marginTop: '16px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.08)',
+  border: '1px solid rgba(255,255,255,0.10)',
+}
+
+const metricLabel: CSSProperties = {
+  color: '#c6dbfb',
+  fontSize: '13px',
+  marginBottom: '8px',
+  fontWeight: 700,
+}
+
+const metricValue: CSSProperties = {
+  color: '#ffffff',
+  fontSize: '28px',
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const metricSub: CSSProperties = {
+  marginTop: '6px',
+  color: '#cbd5e1',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 600,
+}
+
+const calloutCard: CSSProperties = {
+  marginTop: '16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  borderRadius: '16px',
+  padding: '16px',
+  background: 'linear-gradient(180deg, #f7fbff 0%, #eff6ff 100%)',
+  border: '1px solid rgba(37, 91, 227, 0.14)',
+}
+
+const calloutTitle: CSSProperties = {
+  color: '#0f172a',
+  fontSize: '16px',
+  lineHeight: 1.45,
+  fontWeight: 800,
+}
+
+const calloutSub: CSSProperties = {
+  marginTop: '4px',
+  color: '#475569',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 500,
+}
+
+const upsetPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  padding: '10px 12px',
+  background: '#fff7ed',
+  border: '1px solid #fed7aa',
+  color: '#c2410c',
+  fontSize: '12px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+}
+
+const summaryHead: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+}
+
+const metaNote: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '12px 18px 20px',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }

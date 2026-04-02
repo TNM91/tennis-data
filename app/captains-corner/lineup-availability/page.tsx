@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '../../../lib/supabase'
@@ -80,6 +81,16 @@ type LeagueOption = {
   flight: string
 }
 
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/captains-corner', label: "Captain's Corner" },
+]
+
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
   const text = (value || '').trim()
   return text || fallback
@@ -128,20 +139,40 @@ function statusLabel(status: AvailabilityStatus) {
   }
 }
 
-function statusBadgeClass(status: AvailabilityStatus) {
-  switch (status) {
-    case 'available':
-      return 'badge-green'
-    case 'unavailable':
-      return 'badge-slate'
-    case 'singles_only':
-    case 'doubles_only':
-      return 'badge-blue'
-    case 'limited':
-      return 'badge-slate'
-    default:
-      return 'badge-slate'
+function summaryPillStyle(tone: 'green' | 'red' | 'blue' | 'purple' | 'amber' | 'slate'): CSSProperties {
+  const base: CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0.55rem 0.8rem',
+    borderRadius: '999px',
+    fontSize: '0.78rem',
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: '0.02em',
+    border: '1px solid transparent',
   }
+
+  if (tone === 'green') return { ...base, background: 'rgba(34, 197, 94, 0.12)', color: '#dffad5', borderColor: 'rgba(34, 197, 94, 0.18)' }
+  if (tone === 'red') return { ...base, background: 'rgba(239, 68, 68, 0.12)', color: '#fecaca', borderColor: 'rgba(239, 68, 68, 0.18)' }
+  if (tone === 'blue') return { ...base, background: 'rgba(37, 99, 235, 0.12)', color: '#c7dbff', borderColor: 'rgba(37, 99, 235, 0.18)' }
+  if (tone === 'purple') return { ...base, background: 'rgba(109, 40, 217, 0.12)', color: '#ddd6fe', borderColor: 'rgba(109, 40, 217, 0.18)' }
+  if (tone === 'amber') return { ...base, background: 'rgba(245, 158, 11, 0.14)', color: '#fde68a', borderColor: 'rgba(245, 158, 11, 0.18)' }
+  return { ...base, background: 'rgba(255,255,255,0.08)', color: '#dfe8f8', borderColor: 'rgba(255,255,255,0.10)' }
+}
+
+function statusPillFor(status: AvailabilityStatus): CSSProperties {
+  if (status === 'available') return summaryPillStyle('green')
+  if (status === 'unavailable') return summaryPillStyle('red')
+  if (status === 'singles_only') return summaryPillStyle('blue')
+  if (status === 'doubles_only') return summaryPillStyle('purple')
+  return summaryPillStyle('amber')
+}
+
+function viabilityLabel(available: number, unavailable: number, limited: number) {
+  if (available >= 6 && unavailable === 0) return 'Strong'
+  if (available >= 5 && limited <= 2) return 'Playable'
+  return 'Thin'
 }
 
 export default function LineupAvailabilityPage() {
@@ -160,6 +191,18 @@ export default function LineupAvailabilityPage() {
   const [availabilityMap, setAvailabilityMap] = useState<
     Record<string, { status: AvailabilityStatus; notes: string }>
   >({})
+  const [screenWidth, setScreenWidth] = useState(1280)
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     void loadMatches()
@@ -232,6 +275,7 @@ export default function LineupAvailabilityPage() {
       if (!matchIds.length) {
         setRoster([])
         setAvailabilityMap({})
+        setRosterLoading(false)
         return
       }
 
@@ -268,8 +312,7 @@ export default function LineupAvailabilityPage() {
 
       for (const participant of typedParticipants) {
         const expectedSide = sideByMatchId.get(participant.match_id)
-        if (!expectedSide) continue
-        if (participant.side !== expectedSide) continue
+        if (!expectedSide || participant.side !== expectedSide) continue
 
         const player = normalizePlayerRelation(participant.players)
         if (!player) continue
@@ -304,6 +347,7 @@ export default function LineupAvailabilityPage() {
           defaults[player.id] = { status: 'available', notes: '' }
         }
         setAvailabilityMap(defaults)
+        setRosterLoading(false)
         return
       }
 
@@ -390,9 +434,7 @@ export default function LineupAvailabilityPage() {
       const flight = safeText(row.flight)
       const key = buildLeagueKey(leagueName, flight)
 
-      if (!map.has(key)) {
-        map.set(key, { leagueName, flight })
-      }
+      if (!map.has(key)) map.set(key, { leagueName, flight })
     }
 
     return [...map.values()].sort((a, b) => {
@@ -431,9 +473,7 @@ export default function LineupAvailabilityPage() {
       const teamMatch =
         safeText(row.home_team) === selectedTeam || safeText(row.away_team) === selectedTeam
 
-      if (teamMatch && row.match_date) {
-        dateSet.add(row.match_date)
-      }
+      if (teamMatch && row.match_date) dateSet.add(row.match_date)
     }
 
     return [...dateSet].sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
@@ -462,6 +502,11 @@ export default function LineupAvailabilityPage() {
     return counts
   }, [roster, availabilityMap])
 
+  const viability = useMemo(
+    () => viabilityLabel(availabilitySummary.available, availabilitySummary.unavailable, availabilitySummary.limited),
+    [availabilitySummary]
+  )
+
   function updatePlayerStatus(playerId: string, status: AvailabilityStatus) {
     setAvailabilityMap((prev) => ({
       ...prev,
@@ -482,120 +527,117 @@ export default function LineupAvailabilityPage() {
     }))
   }
 
+  function applyBulkStatus(status: AvailabilityStatus) {
+    const next: Record<string, { status: AvailabilityStatus; notes: string }> = {}
+    for (const player of roster) {
+      next[player.id] = {
+        status,
+        notes: availabilityMap[player.id]?.notes || '',
+      }
+    }
+    setAvailabilityMap(next)
+    setStatus(`Set all players to ${statusLabel(status)}.`)
+  }
+
+  function resetStatuses() {
+    const next: Record<string, { status: AvailabilityStatus; notes: string }> = {}
+    for (const player of roster) {
+      next[player.id] = { status: 'available', notes: '' }
+    }
+    setAvailabilityMap(next)
+    setStatus('Reset all players to Available.')
+  }
+
   return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div style={heroGridStyle}>
-            <div>
-              <div className="badge badge-blue" style={{ marginBottom: 14 }}>
-                Captain Tools
-              </div>
+    <main style={pageStyle}>
+      <div style={orbOne} />
+      <div style={orbTwo} />
+      <div style={gridGlow} />
 
-              <p className="section-kicker" style={{ marginBottom: 10 }}>
-                Availability management
-              </p>
+      <header style={headerStyle}>
+        <div style={headerInnerResponsive(isTablet)}>
+          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+            <BrandWordmark compact={isMobile} top />
+          </Link>
 
-              <h1 style={heroTitleStyle}>Lineup Availability</h1>
-
-              <p style={heroTextStyle}>
-                Set player availability for a team and match date so lineup decisions start
-                from realistic captain inputs instead of guesswork.
-              </p>
-
-              <div style={heroButtonRowStyle}>
-                <Link href="/captains-corner/lineup-builder" className="button-primary">
-                  Open Lineup Builder
+          <nav style={navStyleResponsive(isTablet)}>
+            {NAV_LINKS.map((link) => {
+              const isActive = link.href === '/captains-corner'
+              return (
+                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
+                  {link.label}
                 </Link>
-                <Link
-                  href="/captains-corner/scenario-comparison"
-                  className="button-secondary"
-                >
-                  Compare Scenarios
-                </Link>
-              </div>
+              )
+            })}
+            <Link href="/admin" style={navLink}>Admin</Link>
+          </nav>
+        </div>
+      </header>
 
-              <div className="metric-grid" style={heroMetricGridStyle}>
-                <div className="metric-card">
-                  <div className="section-kicker">League / Flight</div>
-                  <div style={metricValueStyle}>{selectedLeagueLabel || 'Not selected'}</div>
-                </div>
+      <section style={heroShellResponsive(isTablet, isMobile)}>
+        <div>
+          <div style={eyebrow}>Captain tools</div>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Availability</h1>
+          <p style={heroTextStyle}>
+            Set player availability for a team and match date so lineup decisions start from realistic
+            captain inputs instead of guesswork.
+          </p>
 
-                <div className="metric-card">
-                  <div className="section-kicker">Team</div>
-                  <div style={metricValueStyle}>{selectedTeam || 'Not selected'}</div>
-                </div>
+          <div style={heroButtonRowStyle}>
+            <button type="button" onClick={saveAvailability} style={primaryButton} disabled={saving || !selectedDate}>
+              {saving ? 'Saving...' : 'Save Availability'}
+            </button>
+            <Link href="/captains-corner/lineup-builder" style={ghostButton}>Open Lineup Builder</Link>
+          </div>
 
-                <div className="metric-card">
-                  <div className="section-kicker">Match Date</div>
-                  <div style={metricValueStyle}>
-                    {selectedDate ? formatDate(selectedDate) : 'Not selected'}
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div style={heroMetricGridStyle(isSmallMobile)}>
+            <MetricStat label="League / Flight" value={selectedLeagueLabel || 'Not selected'} />
+            <MetricStat label="Team" value={selectedTeam || 'Not selected'} />
+            <MetricStat label="Viability" value={viability} />
+          </div>
+        </div>
 
-            <div className="glass-card panel-pad">
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Workflow
-              </p>
-              <h2 style={sideHeroTitleStyle}>Select the match context, set each player, save</h2>
+        <div style={quickStartCard}>
+          <div style={quickStartLabel}>Workflow</div>
+          <div style={quickStartValue}>Choose, set, save</div>
+          <div style={quickStartText}>
+            Load the right roster, set each player’s status, capture notes, then save the match-date availability
+            that feeds your builder and projection pages.
+          </div>
 
-              <div style={workflowListStyle}>
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>1</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Choose league, team, and date</div>
-                    <div style={workflowTextStyle}>
-                      Load the roster from prior team match usage for the right match context.
-                    </div>
-                  </div>
-                </div>
-
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>2</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Set each player’s availability</div>
-                    <div style={workflowTextStyle}>
-                      Mark players as available, unavailable, singles-only, doubles-only, or limited.
-                    </div>
-                  </div>
-                </div>
-
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>3</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Add notes for lineup context</div>
-                    <div style={workflowTextStyle}>
-                      Capture details like late arrival, court preference, or match-day restrictions.
-                    </div>
-                  </div>
+          <div style={workflowListStyle}>
+            {[
+              ['1', 'Pick match context', 'Choose league, team, and date to pull the right roster usage pool.'],
+              ['2', 'Set every player', 'Mark available, out, singles-only, doubles-only, or limited.'],
+              ['3', 'Save once', 'Use the saved availability everywhere else in Captain’s Corner.'],
+            ].map(([step, title, text]) => (
+              <div key={step} style={workflowRowStyle}>
+                <div style={workflowNumberStyle}>{step}</div>
+                <div>
+                  <div style={workflowTitleStyle}>{title}</div>
+                  <div style={workflowTextStyle}>{text}</div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="section">
-        <div className="surface-card-strong panel-pad">
+      <section style={contentWrap}>
+        <section style={surfaceCardStrong}>
           <div style={sectionHeaderStyle}>
             <div>
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Match filters
-              </p>
-              <h2 className="section-title" style={{ marginBottom: 8 }}>
-                Load the right roster and match context
-              </h2>
+              <p style={sectionKicker}>Match filters</p>
+              <h2 style={sectionTitle}>Load the right roster and match context</h2>
               <p style={sectionBodyTextStyle}>
                 Choose a league, team, and match date to manage availability for that lineup pool.
               </p>
             </div>
           </div>
 
-          <div style={filtersGridStyle}>
+          <div style={filtersGridResponsive(isTablet)}>
             <div>
-              <label className="label">League / Flight</label>
+              <label style={labelStyle}>League / Flight</label>
               <select
                 value={selectedLeagueKey}
                 onChange={(e) => {
@@ -605,7 +647,7 @@ export default function LineupAvailabilityPage() {
                   setRoster([])
                   setAvailabilityMap({})
                 }}
-                className="select"
+                style={inputStyle}
               >
                 <option value="">Select league</option>
                 {leagueOptions.map((option) => {
@@ -620,7 +662,7 @@ export default function LineupAvailabilityPage() {
             </div>
 
             <div>
-              <label className="label">Team</label>
+              <label style={labelStyle}>Team</label>
               <select
                 value={selectedTeam}
                 onChange={(e) => {
@@ -629,144 +671,93 @@ export default function LineupAvailabilityPage() {
                   setRoster([])
                   setAvailabilityMap({})
                 }}
-                className="select"
+                style={inputStyle}
                 disabled={!selectedLeagueKey}
               >
                 <option value="">Select team</option>
                 {teamsForLeague.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
+                  <option key={team} value={team}>{team}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="label">Match Date</label>
+              <label style={labelStyle}>Match Date</label>
               <select
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="select"
+                style={inputStyle}
                 disabled={!selectedTeam}
               >
                 <option value="">Select date</option>
                 {relevantDates.map((date) => (
-                  <option key={date} value={date}>
-                    {formatDate(date)}
-                  </option>
+                  <option key={date} value={date}>{formatDate(date)}</option>
                 ))}
               </select>
             </div>
           </div>
 
           {!!selectedTeam && (
-            <div style={pillRowStyle}>
-              <span className="badge badge-slate">{selectedTeam}</span>
-              {selectedLeagueLabel ? (
-                <span className="badge badge-blue">{selectedLeagueLabel}</span>
-              ) : null}
-              <span className="badge badge-slate">
-                {selectedDate ? formatDate(selectedDate) : 'No match date selected'}
-              </span>
+            <div style={heroBadgeRowStyleCompact}>
+              <span style={miniPillSlate}>{selectedTeam}</span>
+              {selectedLeagueLabel ? <span style={miniPillBlue}>{selectedLeagueLabel}</span> : null}
+              <span style={miniPillSlate}>{selectedDate ? formatDate(selectedDate) : 'No match date selected'}</span>
             </div>
           )}
-        </div>
-      </section>
+        </section>
 
-      {loading ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
+        {loading ? (
+          <section style={surfaceCard}>
             <p style={mutedTextStyle}>Loading availability inputs...</p>
-          </div>
-        </section>
-      ) : error ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
+          </section>
+        ) : error ? (
+          <section style={surfaceCard}>
             <p style={errorTextStyle}>{error}</p>
-          </div>
-        </section>
-      ) : !selectedLeagueKey || !selectedTeam ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
-            <h3 className="section-title" style={{ marginBottom: 8 }}>
-              Start by selecting a league and team
-            </h3>
+          </section>
+        ) : !selectedLeagueKey || !selectedTeam ? (
+          <section style={surfaceCard}>
+            <h3 style={sectionTitleSmall}>Start by selecting a league and team</h3>
             <p style={mutedTextStyle}>
               Once selected, this page will load the roster usage history and let you set availability for the chosen match date.
             </p>
-          </div>
-        </section>
-      ) : rosterLoading ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
-            <p style={mutedTextStyle}>Loading roster and saved availability...</p>
-          </div>
-        </section>
-      ) : roster.length === 0 ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
-            <h3 className="section-title" style={{ marginBottom: 8 }}>
-              No roster usage found yet
-            </h3>
-            <p style={mutedTextStyle}>
-              This team does not have enough prior `match_players` history yet to build an availability roster.
-            </p>
-          </div>
-        </section>
-      ) : (
-        <>
-          <section className="section">
-            <div className="metric-grid" style={availabilityMetricsStyle}>
-              <div className="metric-card">
-                <div className="section-kicker">Roster Size</div>
-                <div style={metricValueStyle}>{roster.length}</div>
-              </div>
-              <div className="metric-card">
-                <div className="section-kicker">Available</div>
-                <div style={metricValueStyle}>{availabilitySummary.available}</div>
-              </div>
-              <div className="metric-card">
-                <div className="section-kicker">Unavailable</div>
-                <div style={metricValueStyle}>{availabilitySummary.unavailable}</div>
-              </div>
-              <div className="metric-card">
-                <div className="section-kicker">Singles Only</div>
-                <div style={metricValueStyle}>{availabilitySummary.singles_only}</div>
-              </div>
-              <div className="metric-card">
-                <div className="section-kicker">Doubles Only</div>
-                <div style={metricValueStyle}>{availabilitySummary.doubles_only}</div>
-              </div>
-              <div className="metric-card">
-                <div className="section-kicker">Limited</div>
-                <div style={metricValueStyle}>{availabilitySummary.limited}</div>
-              </div>
-            </div>
           </section>
+        ) : rosterLoading ? (
+          <section style={surfaceCard}>
+            <p style={mutedTextStyle}>Loading roster and saved availability...</p>
+          </section>
+        ) : roster.length === 0 ? (
+          <section style={surfaceCard}>
+            <h3 style={sectionTitleSmall}>No roster usage found yet</h3>
+            <p style={mutedTextStyle}>
+              This team does not have enough prior match player history yet to build an availability roster.
+            </p>
+          </section>
+        ) : (
+          <>
+            <section style={metricsGridResponsive(isSmallMobile, isTablet)}>
+              <MetricCard label="Roster Size" value={String(roster.length)} />
+              <MetricCard label="Available" value={String(availabilitySummary.available)} />
+              <MetricCard label="Unavailable" value={String(availabilitySummary.unavailable)} />
+              <MetricCard label="Singles Only" value={String(availabilitySummary.singles_only)} />
+              <MetricCard label="Doubles Only" value={String(availabilitySummary.doubles_only)} />
+              <MetricCard label="Limited" value={String(availabilitySummary.limited)} />
+            </section>
 
-          <section className="section">
-            <div className="surface-card panel-pad">
+            <section style={sectionCard}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p className="section-kicker" style={{ marginBottom: 8 }}>
-                    Roster availability
-                  </p>
-                  <h2 className="section-title" style={{ marginBottom: 8 }}>
-                    Set match-day status for each player
-                  </h2>
+                  <p style={sectionKicker}>Bulk actions</p>
+                  <h2 style={sectionTitle}>Set the whole roster faster</h2>
                   <p style={sectionBodyTextStyle}>
-                    Update each player’s status and add optional notes for lineup building context.
+                    Apply a quick baseline first, then fine-tune individual players below.
                   </p>
                 </div>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={saveAvailability}
-                  disabled={saving || !selectedDate}
-                  className="button-primary"
-                >
-                  {saving ? 'Saving...' : 'Save Availability'}
-                </button>
+              <div style={bulkActionsWrapStyle}>
+                <button type="button" style={ghostButtonSmall} onClick={() => applyBulkStatus('available')}>All Available</button>
+                <button type="button" style={ghostButtonSmall} onClick={() => applyBulkStatus('unavailable')}>All Unavailable</button>
+                <button type="button" style={ghostButtonSmall} onClick={resetStatuses}>Reset</button>
               </div>
 
               {!selectedDate ? (
@@ -776,8 +767,24 @@ export default function LineupAvailabilityPage() {
               ) : null}
 
               {status ? <div style={successBoxStyle}>{status}</div> : null}
+            </section>
 
-              <div style={rosterGridStyle}>
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Roster availability</p>
+                  <h2 style={sectionTitle}>Set match-day status for each player</h2>
+                  <p style={sectionBodyTextStyle}>
+                    Update each player’s status and add optional notes for lineup building context.
+                  </p>
+                </div>
+
+                <button type="button" onClick={saveAvailability} disabled={saving || !selectedDate} style={primaryButton}>
+                  {saving ? 'Saving...' : 'Save Availability'}
+                </button>
+              </div>
+
+              <div style={rosterGridResponsive(isSmallMobile, isTablet)}>
                 {roster.map((player) => {
                   const current = availabilityMap[player.id] || {
                     status: 'available' as AvailabilityStatus,
@@ -785,7 +792,7 @@ export default function LineupAvailabilityPage() {
                   }
 
                   return (
-                    <article key={player.id} style={playerCardStyle}>
+                    <article key={player.id} style={surfaceCard}>
                       <div style={playerTopStyle}>
                         <div>
                           <div style={playerNameStyle}>{player.name}</div>
@@ -798,29 +805,19 @@ export default function LineupAvailabilityPage() {
                         </div>
 
                         <div style={ratingsStackStyle}>
-                          <span className={`badge ${statusBadgeClass(current.status)}`}>
-                            {statusLabel(current.status)}
-                          </span>
-                          <div className="badge badge-slate">
-                            OVR {formatRating(player.overallDynamic)}
-                          </div>
+                          <span style={statusPillFor(current.status)}>{statusLabel(current.status)}</span>
+                          <div style={miniPillSlate}>OVR {formatRating(player.overallDynamic)}</div>
                         </div>
                       </div>
 
                       <div style={pillRowStyle}>
-                        <span className="badge badge-slate">
-                          S {formatRating(player.singlesDynamic)}
-                        </span>
-                        <span className="badge badge-slate">
-                          D {formatRating(player.doublesDynamic)}
-                        </span>
+                        <span style={miniPillSlate}>S {formatRating(player.singlesDynamic)}</span>
+                        <span style={miniPillSlate}>D {formatRating(player.doublesDynamic)}</span>
                       </div>
 
-                      {player.lineupNotes ? (
-                        <p style={lineupNoteStyle}>{player.lineupNotes}</p>
-                      ) : null}
+                      {player.lineupNotes ? <p style={lineupNoteStyle}>{player.lineupNotes}</p> : null}
 
-                      <div style={statusGridStyle}>
+                      <div style={statusGridResponsive(isSmallMobile)}>
                         {(
                           [
                             'available',
@@ -839,7 +836,7 @@ export default function LineupAvailabilityPage() {
                               onClick={() => updatePlayerStatus(player.id, statusOption)}
                               style={{
                                 ...statusButtonStyle,
-                                ...(isActive ? activeStatusButtonStyle : null),
+                                ...(isActive ? activeStatusButtonStyle : {}),
                               }}
                             >
                               {statusLabel(statusOption)}
@@ -849,15 +846,12 @@ export default function LineupAvailabilityPage() {
                       </div>
 
                       <div style={{ marginTop: 14 }}>
-                        <label className="label" style={{ marginBottom: 8 }}>
-                          Notes
-                        </label>
+                        <label style={labelStyle}>Notes</label>
                         <textarea
                           value={current.notes}
                           onChange={(e) => updatePlayerNotes(player.id, e.target.value)}
                           placeholder="Optional notes like late arrival, doubles only, court preference, or limited match-day window."
-                          className="textarea"
-                          style={{ minHeight: 92 }}
+                          style={textareaStyle}
                         />
                       </div>
                     </article>
@@ -866,35 +860,316 @@ export default function LineupAvailabilityPage() {
               </div>
 
               <div style={saveFooterStyle}>
-                <button
-                  type="button"
-                  onClick={saveAvailability}
-                  disabled={saving || !selectedDate}
-                  className="button-primary"
-                >
+                <button type="button" onClick={saveAvailability} disabled={saving || !selectedDate} style={primaryButton}>
                   {saving ? 'Saving...' : 'Save Availability'}
                 </button>
               </div>
+            </section>
+          </>
+        )}
+      </section>
+
+      <footer style={footerStyle}>
+        <div style={footerInnerResponsive(isMobile)}>
+          <div style={footerRowResponsive(isTablet)}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
+
+            <div style={footerLinksResponsive(isTablet)}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
             </div>
-          </section>
-        </>
-      )}
+
+            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
+              © {new Date().getFullYear()} TenAceIQ
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
 
-const heroGridStyle: CSSProperties = {
+function MetricStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={heroMetricCardStyle}>
+      <div style={metricLabelStyle}>{label}</div>
+      <div style={metricValueStyleHero}>{value}</div>
+    </div>
+  )
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={heroMetricCardStyle}>
+      <div style={metricLabelStyle}>{label}</div>
+      <div style={metricValueStyleHero}>{value}</div>
+    </div>
+  )
+}
+
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
+      />
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
+    </div>
+  )
+}
+
+function headerInnerResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+}
+
+function navStyleResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
+}
+
+function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroShell,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+    gap: isMobile ? '18px' : '24px',
+    padding: isMobile ? '26px 18px' : '34px 26px',
+  }
+}
+
+function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroTitleStyle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
+  }
+}
+
+function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...heroMetricGridBaseStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function filtersGridResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...filtersGridStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function metricsGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...availabilityMetricsStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(3, minmax(0, 1fr))' : 'repeat(6, minmax(0, 1fr))',
+  }
+}
+
+function rosterGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...rosterGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function statusGridResponsive(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...statusGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+}
+
+function footerInnerResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+}
+
+function footerRowResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+}
+
+function footerLinksResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+}
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  position: 'relative',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
+  padding: '24px 18px 56px',
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-100px',
+  right: '-60px',
+  width: '360px',
+  height: '360px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
+  filter: 'blur(10px)',
+  pointerEvents: 'none',
+}
+
+const orbTwo: CSSProperties = {
+  position: 'absolute',
+  top: '60px',
+  left: '-100px',
+  width: '320px',
+  height: '320px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
+  filter: 'blur(12px)',
+  pointerEvents: 'none',
+}
+
+const gridGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+  backgroundSize: '64px 64px',
+  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+}
+
+const headerInner: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+}
+
+const brandWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+}
+
+const navStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+}
+
+const navLink: CSSProperties = {
+  padding: '13px 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(12, 28, 52, 0.78)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '15px',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const activeNavLink: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
+  border: '1px solid rgba(130, 244, 118, 0.22)',
+}
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
-  gap: '24px',
-  alignItems: 'stretch',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  alignSelf: 'flex-start',
+  minHeight: '38px',
+  padding: '8px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(130, 244, 118, 0.28)',
+  background: 'rgba(89, 145, 73, 0.14)',
+  color: '#d9e7ef',
+  fontWeight: 800,
+  fontSize: '14px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  marginBottom: '4px',
 }
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
-  fontSize: 'clamp(2.15rem, 4vw, 3.1rem)',
-  lineHeight: 1.02,
-  letterSpacing: '-0.03em',
+  color: '#f7fbff',
+  fontWeight: 900,
+  lineHeight: 0.98,
+  letterSpacing: '-0.055em',
+  maxWidth: '760px',
 }
 
 const heroTextStyle: CSSProperties = {
@@ -913,38 +1188,76 @@ const heroButtonRowStyle: CSSProperties = {
   marginTop: 22,
 }
 
-const heroMetricGridStyle: CSSProperties = {
+const heroMetricGridBaseStyle: CSSProperties = {
   marginTop: 22,
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  display: 'grid',
+  gap: '14px',
 }
 
-const availabilityMetricsStyle: CSSProperties = {
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+const heroMetricCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
 }
 
-const metricValueStyle: CSSProperties = {
-  marginTop: 6,
+const metricLabelStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
+}
+
+const metricValueStyleHero: CSSProperties = {
+  color: '#f8fbff',
   fontSize: '1.05rem',
   fontWeight: 800,
+  lineHeight: 1.4,
 }
 
-const sideHeroTitleStyle: CSSProperties = {
+const quickStartCard: CSSProperties = {
+  borderRadius: '28px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  padding: '20px',
+}
+
+const quickStartLabel: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.82)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const quickStartValue: CSSProperties = {
+  marginTop: 8,
+  color: '#ffffff',
+  fontSize: '30px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const quickStartText: CSSProperties = {
   marginTop: 10,
-  marginBottom: 14,
-  fontSize: '1.35rem',
-  lineHeight: 1.14,
+  color: 'rgba(219, 234, 254, 0.88)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
 }
 
 const workflowListStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  marginTop: 16,
 }
 
 const workflowRowStyle: CSSProperties = {
   display: 'flex',
   gap: 12,
   alignItems: 'flex-start',
-  paddingTop: 2,
 }
 
 const workflowNumberStyle: CSSProperties = {
@@ -973,6 +1286,37 @@ const workflowTextStyle: CSSProperties = {
   fontSize: '.95rem',
 }
 
+const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '18px',
+}
+
+const surfaceCardStrong: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
+  background:
+    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+}
+
+const surfaceCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+}
+
+const sectionCard: CSSProperties = {
+  ...surfaceCardStrong,
+}
+
 const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -982,38 +1326,85 @@ const sectionHeaderStyle: CSSProperties = {
   marginBottom: '16px',
 }
 
+const sectionKicker: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '13px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  margin: 0,
+}
+
+const sectionTitle: CSSProperties = {
+  margin: '8px 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '28px',
+  letterSpacing: '-0.04em',
+  lineHeight: 1.1,
+}
+
+const sectionTitleSmall: CSSProperties = {
+  margin: '8px 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '22px',
+  letterSpacing: '-0.03em',
+  lineHeight: 1.15,
+}
+
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.76)',
   lineHeight: 1.65,
   maxWidth: 760,
 }
 
 const filtersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   gap: '14px',
 }
 
-const pillRowStyle: CSSProperties = {
+const heroBadgeRowStyleCompact: CSSProperties = {
   display: 'flex',
   gap: '8px',
   flexWrap: 'wrap',
+  marginTop: '14px',
+}
+
+const availabilityMetricsStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+}
+
+const bulkActionsWrapStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
+const noticeStyle: CSSProperties = {
   marginTop: '16px',
+  padding: '14px 16px',
+  borderRadius: '14px',
+  background: 'rgba(255, 214, 102, 0.14)',
+  border: '1px solid rgba(255, 214, 102, 0.34)',
+  color: '#fde68a',
+  lineHeight: 1.55,
+}
+
+const successBoxStyle: CSSProperties = {
+  marginTop: '16px',
+  padding: '14px 16px',
+  borderRadius: '14px',
+  background: 'rgba(112, 255, 165, 0.12)',
+  border: '1px solid rgba(112, 255, 165, 0.30)',
+  color: '#dffad5',
 }
 
 const rosterGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
   gap: '16px',
-}
-
-const playerCardStyle: CSSProperties = {
-  borderRadius: '18px',
-  padding: '18px',
-  background: 'linear-gradient(180deg, rgba(248,250,255,0.98) 0%, #ffffff 100%)',
-  border: '1px solid rgba(15, 22, 50, 0.08)',
-  boxShadow: '0 16px 40px rgba(15, 22, 50, 0.05)',
 }
 
 const playerTopStyle: CSSProperties = {
@@ -1025,13 +1416,13 @@ const playerTopStyle: CSSProperties = {
 }
 
 const playerNameStyle: CSSProperties = {
-  color: '#0f1632',
+  color: '#f8fbff',
   fontSize: '1.15rem',
   fontWeight: 800,
 }
 
 const playerMetaStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   marginTop: '6px',
   fontSize: '0.92rem',
   lineHeight: 1.55,
@@ -1047,27 +1438,25 @@ const ratingsStackStyle: CSSProperties = {
 const lineupNoteStyle: CSSProperties = {
   marginTop: '12px',
   marginBottom: 0,
-  color: '#0f1632',
+  color: '#e7eefb',
   lineHeight: 1.58,
   fontSize: '.95rem',
 }
 
 const statusGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '10px',
   marginTop: '14px',
 }
 
 const statusButtonStyle: CSSProperties = {
-  border: '1px solid rgba(15, 22, 50, 0.12)',
-  background: '#ffffff',
-  color: '#334155',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#dbeafe',
   padding: '10px 12px',
   borderRadius: '12px',
   fontWeight: 700,
   cursor: 'pointer',
-  textTransform: 'none',
 }
 
 const activeStatusButtonStyle: CSSProperties = {
@@ -1077,39 +1466,135 @@ const activeStatusButtonStyle: CSSProperties = {
   boxShadow: '0 10px 24px rgba(37, 91, 227, 0.22)',
 }
 
+const textareaStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 92,
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  padding: '12px 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
 const saveFooterStyle: CSSProperties = {
   marginTop: '22px',
   display: 'flex',
   justifyContent: 'flex-start',
 }
 
-const noticeStyle: CSSProperties = {
-  marginBottom: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: 'rgba(255, 214, 102, 0.14)',
-  border: '1px solid rgba(255, 214, 102, 0.34)',
-  color: '#7a5a00',
-  lineHeight: 1.55,
+const primaryButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
+  color: '#071622',
+  border: '1px solid rgba(133, 171, 255, 0.18)',
+  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
 }
 
-const successBoxStyle: CSSProperties = {
-  marginBottom: '16px',
-  padding: '14px 16px',
+const ghostButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'rgba(14, 27, 49, 0.9)',
+  color: '#ebf1fd',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+}
+
+const ghostButtonSmall: CSSProperties = {
+  ...ghostButton,
+  minHeight: '42px',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  height: '48px',
   borderRadius: '14px',
-  background: 'rgba(112, 255, 165, 0.12)',
-  border: '1px solid rgba(112, 255, 165, 0.30)',
-  color: '#0f8f52',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  padding: '0 14px',
+  fontSize: '14px',
+  outline: 'none',
 }
 
 const mutedTextStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   margin: 0,
   lineHeight: 1.65,
 }
 
 const errorTextStyle: CSSProperties = {
-  color: '#b42318',
+  color: '#fecaca',
   margin: 0,
   lineHeight: 1.65,
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 0 0',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }

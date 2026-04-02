@@ -1,7 +1,11 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 type ScenarioRow = {
@@ -17,11 +21,31 @@ type ScenarioRow = {
   notes: string | null
 }
 
+type PlayerRow = {
+  id: string
+  name: string
+  singles_dynamic_rating: number | null
+  doubles_dynamic_rating: number | null
+  overall_dynamic_rating: number | null
+}
+
 type NormalizedSlot = {
   key: string
   label: string
+  slotType: 'singles' | 'doubles'
   players: string[]
+  playerIds: string[]
 }
+
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/captains-corner', label: "Captain's Corner" },
+]
 
 function formatDate(value: string | null) {
   if (!value) return '—'
@@ -35,47 +59,51 @@ function cleanText(value: unknown) {
 }
 
 function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.map((v) => (v ?? '').trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b))
+  return Array.from(new Set(values.map((v) => (v ?? '').trim()).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  )
 }
 
 function safeArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
-function playerNamesFromUnknown(value: unknown): string[] {
+function extractPlayers(value: unknown): Array<{ id: string; name: string }> {
   if (!value) return []
 
   if (typeof value === 'string') {
     const trimmed = value.trim()
-    return trimmed ? [trimmed] : []
+    return trimmed ? [{ id: '', name: trimmed }] : []
   }
 
   if (Array.isArray(value)) {
-    return value.flatMap((item) => playerNamesFromUnknown(item))
+    return value.flatMap((item) => extractPlayers(item))
   }
 
   if (typeof value === 'object' && value !== null) {
     const obj = value as Record<string, unknown>
 
-    const directName =
-      cleanText(obj.name) ||
-      cleanText(obj.player) ||
-      cleanText(obj.player_name)
+    const directName = cleanText(obj.playerName) || cleanText(obj.name) || cleanText(obj.player) || cleanText(obj.player_name)
+    const directId = cleanText(obj.playerId) || cleanText(obj.id)
 
-    if (directName) return [directName]
+    if (directName) return [{ id: directId, name: directName }]
 
     return [
-      ...(obj.players ? playerNamesFromUnknown(obj.players) : []),
-      ...(obj.names ? playerNamesFromUnknown(obj.names) : []),
-      ...(obj.roster ? playerNamesFromUnknown(obj.roster) : []),
-      ...(obj.player_1 ? playerNamesFromUnknown(obj.player_1) : []),
-      ...(obj.player_2 ? playerNamesFromUnknown(obj.player_2) : []),
+      ...(obj.players ? extractPlayers(obj.players) : []),
+      ...(obj.names ? extractPlayers(obj.names) : []),
+      ...(obj.roster ? extractPlayers(obj.roster) : []),
+      ...(obj.player_1 ? extractPlayers(obj.player_1) : []),
+      ...(obj.player_2 ? extractPlayers(obj.player_2) : []),
     ]
   }
 
   return []
+}
+
+function inferSlotType(label: string, count: number): 'singles' | 'doubles' {
+  const lower = label.toLowerCase()
+  if (lower.includes('double') || lower.includes('court')) return 'doubles'
+  return count >= 2 ? 'doubles' : 'singles'
 }
 
 function normalizeSlots(raw: unknown): NormalizedSlot[] {
@@ -96,7 +124,9 @@ function normalizeSlots(raw: unknown): NormalizedSlot[] {
       return {
         key: `slot-${index}`,
         label: `Slot ${index + 1}`,
+        slotType: 'singles',
         players: item.trim() ? [item.trim()] : [],
+        playerIds: [],
       }
     }
 
@@ -111,7 +141,7 @@ function normalizeSlots(raw: unknown): NormalizedSlot[] {
         cleanText(obj.line) ||
         `Slot ${index + 1}`
 
-      const players = playerNamesFromUnknown(
+      const extracted = extractPlayers(
         obj.players ??
           obj.player_names ??
           obj.names ??
@@ -122,159 +152,108 @@ function normalizeSlots(raw: unknown): NormalizedSlot[] {
       return {
         key: cleanText(obj.id) || `slot-${index}`,
         label,
-        players,
+        slotType: inferSlotType(label, extracted.length),
+        players: extracted.map((p) => p.name).filter(Boolean),
+        playerIds: extracted.map((p) => p.id).filter(Boolean),
       }
     }
 
     return {
       key: `slot-${index}`,
       label: `Slot ${index + 1}`,
+      slotType: 'singles',
       players: [],
+      playerIds: [],
     }
   })
 }
 
 function slotsToMap(slots: NormalizedSlot[]) {
   const map = new Map<string, NormalizedSlot>()
-
-  for (const slot of slots) {
-    map.set(slot.label, slot)
-  }
-
+  for (const slot of slots) map.set(slot.label, slot)
   return map
 }
 
-function countChangedSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[]) {
+function strengthForSlot(slot: NormalizedSlot | undefined, players: PlayerRow[]) {
+  if (!slot) return null
+  const resolved = slot.playerIds
+    .map((id) => players.find((p) => p.id === id))
+    .filter(Boolean) as PlayerRow[]
+
+  if (!resolved.length) return null
+
+  if (slot.slotType === 'singles') {
+    const p = resolved[0]
+    return p.singles_dynamic_rating ?? p.overall_dynamic_rating
+  }
+
+  const values = resolved
+    .map((p) => p.doubles_dynamic_rating ?? p.overall_dynamic_rating)
+    .filter((v): v is number => typeof v === 'number')
+  if (!values.length) return null
+  return values.reduce((a, b) => a + b, 0) / values.length
+}
+
+function formatStrength(value: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+}
+
+function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[], players: PlayerRow[]) {
   const leftMap = slotsToMap(leftSlots)
   const rightMap = slotsToMap(rightSlots)
+  const labels = Array.from(new Set([...leftMap.keys(), ...rightMap.keys()])).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true })
+  )
 
-  const labels = Array.from(new Set([...leftMap.keys(), ...rightMap.keys()]))
+  const rows = labels.map((label) => {
+    const leftSlot = leftMap.get(label)
+    const rightSlot = rightMap.get(label)
 
-  return labels.reduce((count, label) => {
-    const leftPlayers = leftMap.get(label)?.players ?? []
-    const rightPlayers = rightMap.get(label)?.players ?? []
-
+    const leftPlayers = leftSlot?.players ?? []
+    const rightPlayers = rightSlot?.players ?? []
     const leftText = leftPlayers.length ? leftPlayers.join(' / ') : '—'
     const rightText = rightPlayers.length ? rightPlayers.join(' / ') : '—'
+    const changed = leftText !== rightText
 
-    return leftText !== rightText ? count + 1 : count
-  }, 0)
-}
+    const leftStrength = strengthForSlot(leftSlot, players)
+    const rightStrength = strengthForSlot(rightSlot, players)
+    const diff =
+      typeof leftStrength === 'number' && typeof rightStrength === 'number'
+        ? leftStrength - rightStrength
+        : null
 
-function ScenarioMeta({ scenario }: { scenario: ScenarioRow }) {
-  return (
-    <div className="metric-grid" style={metaGridStyle}>
-      <div className="metric-card">
-        <div className="section-kicker">Scenario</div>
-        <div style={metaValueStyle}>{scenario.scenario_name || 'Untitled'}</div>
-      </div>
+    return {
+      label,
+      leftText,
+      rightText,
+      changed,
+      leftStrength,
+      rightStrength,
+      diff,
+    }
+  })
 
-      <div className="metric-card">
-        <div className="section-kicker">League</div>
-        <div style={metaValueStyle}>{scenario.league_name || '—'}</div>
-      </div>
+  const changedCount = rows.filter((row) => row.changed).length
+  const comparable = rows.filter((row) => typeof row.diff === 'number')
+  const avgDiff = comparable.length
+    ? comparable.reduce((sum, row) => sum + (row.diff ?? 0), 0) / comparable.length
+    : 0
 
-      <div className="metric-card">
-        <div className="section-kicker">Flight</div>
-        <div style={metaValueStyle}>{scenario.flight || '—'}</div>
-      </div>
-
-      <div className="metric-card">
-        <div className="section-kicker">Match Date</div>
-        <div style={metaValueStyle}>{formatDate(scenario.match_date)}</div>
-      </div>
-
-      <div className="metric-card">
-        <div className="section-kicker">Team</div>
-        <div style={metaValueStyle}>{scenario.team_name || '—'}</div>
-      </div>
-
-      <div className="metric-card">
-        <div className="section-kicker">Opponent</div>
-        <div style={metaValueStyle}>{scenario.opponent_team || '—'}</div>
-      </div>
-    </div>
-  )
-}
-
-function SlotComparisonTable({
-  title,
-  leftSlots,
-  rightSlots,
-}: {
-  title: string
-  leftSlots: NormalizedSlot[]
-  rightSlots: NormalizedSlot[]
-}) {
-  const leftMap = slotsToMap(leftSlots)
-  const rightMap = slotsToMap(rightSlots)
-
-  const labels = Array.from(
-    new Set([...leftMap.keys(), ...rightMap.keys()])
-  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-
-  return (
-    <section className="surface-card panel-pad">
-      <div style={tableHeaderStyle}>
-        <div>
-          <p className="section-kicker" style={{ marginBottom: 8 }}>
-            Comparison table
-          </p>
-          <h3 className="section-title" style={{ marginBottom: 0 }}>
-            {title}
-          </h3>
-        </div>
-
-        <div className="badge badge-slate">
-          {labels.length} slot{labels.length === 1 ? '' : 's'}
-        </div>
-      </div>
-
-      {labels.length === 0 ? (
-        <p style={mutedTextStyle}>No saved slots found.</p>
-      ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Slot</th>
-                <th>Scenario A</th>
-                <th>Scenario B</th>
-                <th>Changed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {labels.map((label) => {
-                const leftPlayers = leftMap.get(label)?.players ?? []
-                const rightPlayers = rightMap.get(label)?.players ?? []
-
-                const leftText = leftPlayers.length ? leftPlayers.join(' / ') : '—'
-                const rightText = rightPlayers.length ? rightPlayers.join(' / ') : '—'
-                const changed = leftText !== rightText
-
-                return (
-                  <tr key={label}>
-                    <td style={tableLabelCellStyle}>{label}</td>
-                    <td>{leftText}</td>
-                    <td>{rightText}</td>
-                    <td>
-                      <span className={changed ? 'badge badge-blue' : 'badge badge-green'}>
-                        {changed ? 'Changed' : 'Same'}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  )
+  return {
+    rows,
+    changedCount,
+    avgDiff,
+    projection: 1 / (1 + Math.exp(-avgDiff * 3.2)),
+    biggestSwing:
+      comparable.sort((a, b) => Math.abs(b.diff ?? 0) - Math.abs(a.diff ?? 0))[0] ?? null,
+  }
 }
 
 export default function ScenarioComparisonPage() {
+  const searchParams = useSearchParams()
+
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
+  const [players, setPlayers] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -282,80 +261,90 @@ export default function ScenarioComparisonPage() {
   const [flightFilter, setFlightFilter] = useState('')
   const [teamFilter, setTeamFilter] = useState('')
   const [dateFilter, setDateFilter] = useState('')
-
   const [leftId, setLeftId] = useState('')
   const [rightId, setRightId] = useState('')
+  const [screenWidth, setScreenWidth] = useState(1280)
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const params = new URLSearchParams(window.location.search)
-
-    setLeagueFilter(params.get('league') ?? '')
-    setFlightFilter(params.get('flight') ?? '')
-    setTeamFilter(params.get('team') ?? '')
-    setDateFilter(params.get('date') ?? '')
-    setLeftId(params.get('left') ?? '')
-    setRightId(params.get('right') ?? '')
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  useEffect(() => {
+    setLeagueFilter(searchParams.get('league') ?? '')
+    setFlightFilter(searchParams.get('flight') ?? '')
+    setTeamFilter(searchParams.get('team') ?? '')
+    setDateFilter(searchParams.get('date') ?? '')
+    setLeftId(searchParams.get('left') ?? '')
+    setRightId(searchParams.get('right') ?? '')
+  }, [searchParams])
 
   useEffect(() => {
     let mounted = true
 
-    async function loadScenarios() {
+    async function load() {
       setLoading(true)
       setError(null)
 
-      const { data, error } = await supabase
-        .from('lineup_scenarios')
-        .select(`
-          id,
-          scenario_name,
-          league_name,
-          flight,
-          match_date,
-          team_name,
-          opponent_team,
-          slots_json,
-          opponent_slots_json,
-          notes
-        `)
-        .order('match_date', { ascending: false })
-        .order('scenario_name', { ascending: true })
+      const [scenarioResult, playersResult] = await Promise.all([
+        supabase
+          .from('lineup_scenarios')
+          .select(`
+            id,
+            scenario_name,
+            league_name,
+            flight,
+            match_date,
+            team_name,
+            opponent_team,
+            slots_json,
+            opponent_slots_json,
+            notes
+          `)
+          .order('match_date', { ascending: false })
+          .order('scenario_name', { ascending: true }),
+        supabase
+          .from('players')
+          .select(`
+            id,
+            name,
+            singles_dynamic_rating,
+            doubles_dynamic_rating,
+            overall_dynamic_rating
+          `)
+          .order('name', { ascending: true }),
+      ])
 
       if (!mounted) return
 
-      if (error) {
-        setError(error.message)
-        setScenarios([])
+      if (scenarioResult.error) {
+        setError(scenarioResult.error.message)
+      } else if (playersResult.error) {
+        setError(playersResult.error.message)
       } else {
-        setScenarios((data ?? []) as ScenarioRow[])
+        setScenarios((scenarioResult.data ?? []) as ScenarioRow[])
+        setPlayers((playersResult.data ?? []) as PlayerRow[])
       }
 
       setLoading(false)
     }
 
-    loadScenarios()
+    load()
 
     return () => {
       mounted = false
     }
   }, [])
 
-  const leagueOptions = useMemo(
-    () => uniqueSorted(scenarios.map((scenario) => scenario.league_name)),
-    [scenarios]
-  )
-
-  const flightOptions = useMemo(
-    () => uniqueSorted(scenarios.map((scenario) => scenario.flight)),
-    [scenarios]
-  )
-
-  const teamOptions = useMemo(
-    () => uniqueSorted(scenarios.map((scenario) => scenario.team_name)),
-    [scenarios]
-  )
+  const leagueOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.league_name)), [scenarios])
+  const flightOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.flight)), [scenarios])
+  const teamOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.team_name)), [scenarios])
 
   const filteredScenarios = useMemo(() => {
     return scenarios.filter((scenario) => {
@@ -363,7 +352,6 @@ export default function ScenarioComparisonPage() {
       const flightMatch = !flightFilter || scenario.flight === flightFilter
       const teamMatch = !teamFilter || scenario.team_name === teamFilter
       const dateMatch = !dateFilter || scenario.match_date === dateFilter
-
       return leagueMatch && flightMatch && teamMatch && dateMatch
     })
   }, [scenarios, leagueFilter, flightFilter, teamFilter, dateFilter])
@@ -375,154 +363,132 @@ export default function ScenarioComparisonPage() {
       return
     }
 
-    const leftStillValid = filteredScenarios.some((scenario) => scenario.id === leftId)
-    const rightStillValid = filteredScenarios.some((scenario) => scenario.id === rightId)
+    const leftValid = filteredScenarios.some((scenario) => scenario.id === leftId)
+    const rightValid = filteredScenarios.some((scenario) => scenario.id === rightId)
 
-    const safeLeftId = leftStillValid ? leftId : filteredScenarios[0]?.id ?? ''
+    const nextLeft = leftValid ? leftId : filteredScenarios[0]?.id ?? ''
+    if (!leftValid) setLeftId(nextLeft)
 
-    if (!leftStillValid) {
-      setLeftId(safeLeftId)
-    }
-
-    if (!rightStillValid) {
+    if (!rightValid) {
       const nextRight =
-        filteredScenarios.find((scenario) => scenario.id !== safeLeftId)?.id ??
+        filteredScenarios.find((scenario) => scenario.id !== nextLeft)?.id ??
         filteredScenarios[1]?.id ??
         filteredScenarios[0]?.id ??
         ''
-
       setRightId(nextRight)
     }
   }, [filteredScenarios, leftId, rightId])
 
-  const leftScenario =
-    filteredScenarios.find((scenario) => scenario.id === leftId) ?? null
-  const rightScenario =
-    filteredScenarios.find((scenario) => scenario.id === rightId) ?? null
+  const leftScenario = filteredScenarios.find((scenario) => scenario.id === leftId) ?? null
+  const rightScenario = filteredScenarios.find((scenario) => scenario.id === rightId) ?? null
 
   const leftTeamSlots = normalizeSlots(leftScenario?.slots_json)
   const rightTeamSlots = normalizeSlots(rightScenario?.slots_json)
-
   const leftOpponentSlots = normalizeSlots(leftScenario?.opponent_slots_json)
   const rightOpponentSlots = normalizeSlots(rightScenario?.opponent_slots_json)
 
-  const teamChangedCount = useMemo(
-    () => countChangedSlots(leftTeamSlots, rightTeamSlots),
-    [leftTeamSlots, rightTeamSlots]
+  const yourComparison = useMemo(
+    () => compareSlots(leftTeamSlots, rightTeamSlots, players),
+    [leftTeamSlots, rightTeamSlots, players]
   )
 
-  const opponentChangedCount = useMemo(
-    () => countChangedSlots(leftOpponentSlots, rightOpponentSlots),
-    [leftOpponentSlots, rightOpponentSlots]
+  const opponentComparison = useMemo(
+    () => compareSlots(leftOpponentSlots, rightOpponentSlots, players),
+    [leftOpponentSlots, rightOpponentSlots, players]
   )
+
+  const overallProjection = useMemo(() => {
+    const combinedDiff = (yourComparison.avgDiff - opponentComparison.avgDiff) / 2
+    return 1 / (1 + Math.exp(-combinedDiff * 3.2))
+  }, [yourComparison.avgDiff, opponentComparison.avgDiff])
+
+  const builderHref = (scenarioId: string) =>
+    `/captains-corner/lineup-builder?left=${encodeURIComponent(scenarioId)}`
 
   return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div style={heroGridStyle}>
-            <div>
-              <div className="badge badge-blue" style={{ marginBottom: 14 }}>
-                Captain Tools
-              </div>
+    <main style={pageStyle}>
+      <div style={orbOne} />
+      <div style={orbTwo} />
+      <div style={gridGlow} />
 
-              <p className="section-kicker" style={{ marginBottom: 10 }}>
-                Scenario analysis
-              </p>
+      <header style={headerStyle}>
+        <div style={headerInnerResponsive(isTablet)}>
+          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+            <BrandWordmark compact={isMobile} top />
+          </Link>
 
-              <h1 style={heroTitleStyle}>Scenario Comparison</h1>
-
-              <p style={heroTextStyle}>
-                Compare saved lineup scenarios side by side to spot lineup changes,
-                opponent changes, and note differences before finalizing your
-                match-day plan.
-              </p>
-
-              <div style={heroButtonRowStyle}>
-                <Link href="/captains-corner/lineup-builder" className="button-primary">
-                  Open Lineup Builder
+          <nav style={navStyleResponsive(isTablet)}>
+            {NAV_LINKS.map((link) => {
+              const isActive = link.href === '/captains-corner'
+              return (
+                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
+                  {link.label}
                 </Link>
-                <Link href="/captains-corner" className="button-secondary">
-                  Back to Captain&apos;s Corner
-                </Link>
-              </div>
+              )
+            })}
+            <Link href="/admin" style={navLink}>Admin</Link>
+          </nav>
+        </div>
+      </header>
 
-              <div className="metric-grid" style={heroMetricGridStyle}>
-                <div className="metric-card">
-                  <div className="section-kicker">Filtered scenarios</div>
-                  <div style={metricValueStyle}>
-                    {filteredScenarios.length}
-                  </div>
-                </div>
+      <section style={heroShellResponsive(isTablet, isMobile)}>
+        <div>
+          <div style={eyebrow}>Captain tools</div>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Scenario Comparison</h1>
+          <p style={heroTextStyle}>
+            Compare saved lineup scenarios side by side, see where the lineup changed, identify
+            the biggest swing lines, and decide which version gives you the strongest overall edge.
+          </p>
 
-                <div className="metric-card">
-                  <div className="section-kicker">Your lineup changes</div>
-                  <div style={metricValueStyle}>
-                    {leftScenario && rightScenario ? teamChangedCount : '—'}
-                  </div>
-                </div>
+          <div style={heroButtonRowStyle}>
+            <Link href="/captains-corner/lineup-builder" style={primaryButton}>
+              Open Lineup Builder
+            </Link>
+            <Link href="/captains-corner" style={ghostButton}>
+              Back to Captain&apos;s Corner
+            </Link>
+          </div>
 
-                <div className="metric-card">
-                  <div className="section-kicker">Opponent changes</div>
-                  <div style={metricValueStyle}>
-                    {leftScenario && rightScenario ? opponentChangedCount : '—'}
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div style={heroMetricGridStyle(isSmallMobile)}>
+            <MetricStat label="Filtered scenarios" value={String(filteredScenarios.length)} />
+            <MetricStat
+              label="Your lineup changes"
+              value={leftScenario && rightScenario ? String(yourComparison.changedCount) : '—'}
+            />
+            <MetricStat
+              label="Opponent changes"
+              value={leftScenario && rightScenario ? String(opponentComparison.changedCount) : '—'}
+            />
+          </div>
+        </div>
 
-            <div className="glass-card panel-pad">
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Comparison workflow
-              </p>
-              <h2 style={sideHeroTitleStyle}>Filter, select, compare, decide</h2>
-
-              <div style={workflowListStyle}>
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>1</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Narrow the scenario set</div>
-                    <div style={workflowTextStyle}>
-                      Filter by league, flight, team, and date to isolate the right saved versions.
-                    </div>
-                  </div>
-                </div>
-
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>2</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Choose Scenario A and B</div>
-                    <div style={workflowTextStyle}>
-                      Select the two versions you want to evaluate side by side.
-                    </div>
-                  </div>
-                </div>
-
-                <div style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>3</div>
-                  <div>
-                    <div style={workflowTitleStyle}>Review lineup changes</div>
-                    <div style={workflowTextStyle}>
-                      See which slots changed and compare the supporting notes behind each version.
-                    </div>
-                  </div>
+        <div style={quickStartCard}>
+          <p style={sectionKicker}>Decision support</p>
+          <h2 style={quickStartTitle}>Find the version you actually want to field</h2>
+          <div style={workflowListStyle}>
+            {[
+              ['1', 'Filter the saved set', 'Narrow by league, flight, team, and date so only relevant versions remain.'],
+              ['2', 'Compare A vs B', 'Line-by-line changes, strength differences, and notes all in one view.'],
+              ['3', 'Send the winner back', 'Jump back to the builder with the scenario you want to keep iterating.'],
+            ].map(([step, title, text]) => (
+              <div key={step} style={workflowRowStyle}>
+                <div style={workflowNumberStyle}>{step}</div>
+                <div>
+                  <div style={workflowTitleStyle}>{title}</div>
+                  <div style={workflowTextStyle}>{text}</div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="section">
-        <div className="surface-card-strong panel-pad">
+      <section style={contentWrap}>
+        <section style={surfaceCardStrong}>
           <div style={sectionHeaderStyle}>
             <div>
-              <p className="section-kicker" style={{ marginBottom: 8 }}>
-                Scenario filters
-              </p>
-              <h2 className="section-title" style={{ marginBottom: 8 }}>
-                Narrow the comparison set
-              </h2>
+              <p style={sectionKicker}>Scenario filters</p>
+              <h2 style={sectionTitle}>Narrow the comparison set</h2>
               <p style={sectionBodyTextStyle}>
                 Use filters to isolate the saved scenarios that matter for the current match context.
               </p>
@@ -530,7 +496,7 @@ export default function ScenarioComparisonPage() {
 
             <button
               type="button"
-              className="button-ghost"
+              style={ghostButtonSmall}
               onClick={() => {
                 setLeagueFilter('')
                 setFlightFilter('')
@@ -546,239 +512,595 @@ export default function ScenarioComparisonPage() {
 
           <div style={filtersGridStyle}>
             <div>
-              <label className="label">League</label>
-              <select
-                value={leagueFilter}
-                onChange={(e) => setLeagueFilter(e.target.value)}
-                className="select"
-              >
+              <label style={labelStyle}>League</label>
+              <select value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
                 <option value="">All</option>
                 {leagueOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <option key={option} value={option}>{option}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="label">Flight</label>
-              <select
-                value={flightFilter}
-                onChange={(e) => setFlightFilter(e.target.value)}
-                className="select"
-              >
+              <label style={labelStyle}>Flight</label>
+              <select value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
                 <option value="">All</option>
                 {flightOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <option key={option} value={option}>{option}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="label">Team</label>
-              <select
-                value={teamFilter}
-                onChange={(e) => setTeamFilter(e.target.value)}
-                className="select"
-              >
+              <label style={labelStyle}>Team</label>
+              <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
                 <option value="">All</option>
                 {teamOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <option key={option} value={option}>{option}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="label">Match Date</label>
-              <input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="input"
-              />
+              <label style={labelStyle}>Match Date</label>
+              <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={inputStyle} />
             </div>
           </div>
 
           <div style={filterFooterStyle}>
-            <span className="badge badge-slate">
-              {filteredScenarios.length} saved scenario
-              {filteredScenarios.length === 1 ? '' : 's'}
-            </span>
+            <span style={miniPillSlate}>{filteredScenarios.length} saved scenario{filteredScenarios.length === 1 ? '' : 's'}</span>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {loading ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
+        {loading ? (
+          <section style={surfaceCard}>
             <p style={mutedTextStyle}>Loading saved scenarios...</p>
-          </div>
-        </section>
-      ) : error ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
+          </section>
+        ) : error ? (
+          <section style={surfaceCard}>
             <p style={errorTextStyle}>Unable to load scenarios: {error}</p>
-          </div>
-        </section>
-      ) : filteredScenarios.length === 0 ? (
-        <section className="section">
-          <div className="surface-card panel-pad">
-            <h3 className="section-title" style={{ marginBottom: 10 }}>
-              No saved scenarios found
-            </h3>
+          </section>
+        ) : filteredScenarios.length === 0 ? (
+          <section style={surfaceCard}>
+            <h3 style={sectionTitle}>No saved scenarios found</h3>
             <p style={mutedTextStyle}>
               Save lineup scenarios in the Lineup Builder, then come back here to compare them side by side.
             </p>
-          </div>
-        </section>
-      ) : (
-        <>
-          <section className="section">
-            <div style={compareGridStyle}>
-              <div className="surface-card panel-pad">
-                <div style={comparePanelHeaderStyle}>
-                  <div>
-                    <p className="section-kicker" style={{ marginBottom: 8 }}>
-                      Scenario A
-                    </p>
-                    <h2 className="section-title" style={{ marginBottom: 0 }}>
-                      Left-side scenario
-                    </h2>
-                  </div>
-                  <span className="badge badge-blue">Scenario A</span>
-                </div>
-
-                <div style={{ marginTop: 16 }}>
-                  <label className="label">Select scenario</label>
-                  <select
-                    value={leftId}
-                    onChange={(e) => setLeftId(e.target.value)}
-                    className="select"
-                  >
-                    {filteredScenarios.map((scenario) => (
-                      <option key={scenario.id} value={scenario.id}>
-                        {scenario.scenario_name} • {scenario.team_name || '—'} •{' '}
-                        {formatDate(scenario.match_date)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {leftScenario ? (
-                  <div style={{ marginTop: 18 }}>
-                    <ScenarioMeta scenario={leftScenario} />
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="surface-card panel-pad">
-                <div style={comparePanelHeaderStyle}>
-                  <div>
-                    <p className="section-kicker" style={{ marginBottom: 8 }}>
-                      Scenario B
-                    </p>
-                    <h2 className="section-title" style={{ marginBottom: 0 }}>
-                      Right-side scenario
-                    </h2>
-                  </div>
-                  <span className="badge badge-green">Scenario B</span>
-                </div>
-
-                <div style={{ marginTop: 16 }}>
-                  <label className="label">Select scenario</label>
-                  <select
-                    value={rightId}
-                    onChange={(e) => setRightId(e.target.value)}
-                    className="select"
-                  >
-                    {filteredScenarios.map((scenario) => (
-                      <option key={scenario.id} value={scenario.id}>
-                        {scenario.scenario_name} • {scenario.team_name || '—'} •{' '}
-                        {formatDate(scenario.match_date)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {rightScenario ? (
-                  <div style={{ marginTop: 18 }}>
-                    <ScenarioMeta scenario={rightScenario} />
-                  </div>
-                ) : null}
-              </div>
-            </div>
           </section>
+        ) : (
+          <>
+            <section style={compareGridResponsive(isTablet)}>
+              <ScenarioPanel
+                title="Scenario A"
+                badgeStyle={miniPillBlue}
+                selectedId={leftId}
+                onChange={setLeftId}
+                scenarios={filteredScenarios}
+                scenario={leftScenario}
+                builderHref={leftScenario ? builderHref(leftScenario.id) : '/captains-corner/lineup-builder'}
+              />
 
-          {leftScenario && rightScenario ? (
-            <>
-              <section className="section">
-                <SlotComparisonTable
-                  title="Your Lineup Comparison"
-                  leftSlots={leftTeamSlots}
-                  rightSlots={rightTeamSlots}
-                />
-              </section>
+              <ScenarioPanel
+                title="Scenario B"
+                badgeStyle={miniPillGreen}
+                selectedId={rightId}
+                onChange={setRightId}
+                scenarios={filteredScenarios}
+                scenario={rightScenario}
+                builderHref={rightScenario ? builderHref(rightScenario.id) : '/captains-corner/lineup-builder'}
+              />
+            </section>
 
-              <section className="section">
-                <SlotComparisonTable
-                  title="Opponent Lineup Comparison"
-                  leftSlots={leftOpponentSlots}
-                  rightSlots={rightOpponentSlots}
-                />
-              </section>
+            {leftScenario && rightScenario ? (
+              <>
+                <section style={projectionGridResponsive(isSmallMobile, isTablet)}>
+                  <ProjectionCard
+                    title="Your lineup edge"
+                    projection={yourComparison.projection}
+                    avgDiff={yourComparison.avgDiff}
+                    changedCount={yourComparison.changedCount}
+                    biggestSwing={yourComparison.biggestSwing}
+                  />
+                  <ProjectionCard
+                    title="Opponent lineup edge"
+                    projection={opponentComparison.projection}
+                    avgDiff={opponentComparison.avgDiff}
+                    changedCount={opponentComparison.changedCount}
+                    biggestSwing={opponentComparison.biggestSwing}
+                  />
+                  <OverallCard projection={overallProjection} />
+                </section>
 
-              <section className="section">
-                <div style={notesGridStyle}>
-                  <div className="surface-card panel-pad">
-                    <p className="section-kicker" style={{ marginBottom: 8 }}>
-                      Scenario A
-                    </p>
-                    <h3 className="section-title" style={{ marginBottom: 14 }}>
-                      Saved notes
-                    </h3>
-                    <p style={notesTextStyle}>
-                      {leftScenario.notes?.trim() || 'No notes saved.'}
-                    </p>
-                  </div>
+                <ComparisonTable title="Your lineup comparison" comparison={yourComparison} />
+                <ComparisonTable title="Opponent lineup comparison" comparison={opponentComparison} />
 
-                  <div className="surface-card panel-pad">
-                    <p className="section-kicker" style={{ marginBottom: 8 }}>
-                      Scenario B
-                    </p>
-                    <h3 className="section-title" style={{ marginBottom: 14 }}>
-                      Saved notes
-                    </h3>
-                    <p style={notesTextStyle}>
-                      {rightScenario.notes?.trim() || 'No notes saved.'}
-                    </p>
-                  </div>
-                </div>
-              </section>
-            </>
-          ) : null}
-        </>
-      )}
+                <section style={notesGridResponsive(isTablet)}>
+                  <NotesCard label="Scenario A" scenario={leftScenario} />
+                  <NotesCard label="Scenario B" scenario={rightScenario} />
+                </section>
+              </>
+            ) : null}
+          </>
+        )}
+      </section>
+
+      <footer style={footerStyle}>
+        <div style={footerInnerResponsive(isMobile)}>
+          <div style={footerRowResponsive(isTablet)}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
+
+            <div style={footerLinksResponsive(isTablet)}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            </div>
+
+            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
+              © {new Date().getFullYear()} TenAceIQ
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
 
-const heroGridStyle: CSSProperties = {
+function ScenarioPanel({
+  title,
+  badgeStyle,
+  selectedId,
+  onChange,
+  scenarios,
+  scenario,
+  builderHref,
+}: {
+  title: string
+  badgeStyle: CSSProperties
+  selectedId: string
+  onChange: (value: string) => void
+  scenarios: ScenarioRow[]
+  scenario: ScenarioRow | null
+  builderHref: string
+}) {
+  return (
+    <div style={surfaceCard}>
+      <div style={panelTopStyle}>
+        <div>
+          <p style={sectionKicker}>{title}</p>
+          <h2 style={sectionTitleSmall}>Comparison panel</h2>
+        </div>
+        <span style={badgeStyle}>{title}</span>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <label style={labelStyle}>Select scenario</label>
+        <select value={selectedId} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+          {scenarios.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.scenario_name} • {item.team_name || '—'} • {formatDate(item.match_date)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {scenario ? (
+        <>
+          <div style={metaGridStylePanel}>
+            <MetaCard label="Scenario" value={scenario.scenario_name || 'Untitled'} />
+            <MetaCard label="League" value={scenario.league_name || '—'} />
+            <MetaCard label="Flight" value={scenario.flight || '—'} />
+            <MetaCard label="Match Date" value={formatDate(scenario.match_date)} />
+            <MetaCard label="Team" value={scenario.team_name || '—'} />
+            <MetaCard label="Opponent" value={scenario.opponent_team || '—'} />
+          </div>
+
+          <div style={actionRowStyle}>
+            <Link href={builderHref} style={primaryButtonSmall}>Edit in Builder</Link>
+          </div>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+function ProjectionCard({
+  title,
+  projection,
+  avgDiff,
+  changedCount,
+  biggestSwing,
+}: {
+  title: string
+  projection: number
+  avgDiff: number
+  changedCount: number
+  biggestSwing: { label: string; diff: number | null } | null
+}) {
+  return (
+    <div style={surfaceCard}>
+      <p style={sectionKicker}>{title}</p>
+      <div style={projectionValueStyle}>{Math.round(projection * 100)}%</div>
+      <p style={sectionBodyTextStyle}>
+        Avg edge {avgDiff >= 0 ? '+' : ''}{avgDiff.toFixed(2)} across comparable lines.
+      </p>
+      <div style={pillRowStyle}>
+        <span style={miniPillSlate}>{changedCount} changed</span>
+        {biggestSwing ? (
+          <span style={miniPillBlue}>
+            Biggest swing: {biggestSwing.label} ({(biggestSwing.diff ?? 0) >= 0 ? '+' : ''}{(biggestSwing.diff ?? 0).toFixed(2)})
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function OverallCard({ projection }: { projection: number }) {
+  const leftPct = Math.round(projection * 100)
+  const rightPct = 100 - leftPct
+
+  return (
+    <div style={surfaceCardStrong}>
+      <p style={sectionKicker}>Overall readout</p>
+      <div style={projectionValueStyle}>{leftPct}% / {rightPct}%</div>
+      <p style={sectionBodyTextStyle}>
+        Quick combined read of which side looks stronger across the compared lineup versions.
+      </p>
+      <div style={pillRowStyle}>
+        <span style={leftPct >= rightPct ? miniPillGreen : miniPillBlue}>Scenario A {leftPct >= rightPct ? 'favored' : 'trails'}</span>
+        <span style={rightPct > leftPct ? miniPillGreen : miniPillSlate}>Scenario B {rightPct > leftPct ? 'favored' : 'trails'}</span>
+      </div>
+    </div>
+  )
+}
+
+function ComparisonTable({
+  title,
+  comparison,
+}: {
+  title: string
+  comparison: ReturnType<typeof compareSlots>
+}) {
+  return (
+    <section style={surfaceCard}>
+      <div style={tableHeaderStyle}>
+        <div>
+          <p style={sectionKicker}>Comparison table</p>
+          <h3 style={sectionTitleSmall}>{title}</h3>
+        </div>
+        <span style={miniPillSlate}>{comparison.rows.length} slots</span>
+      </div>
+
+      {comparison.rows.length === 0 ? (
+        <p style={mutedTextStyle}>No saved slots found.</p>
+      ) : (
+        <div style={tableWrapStyle}>
+          <table style={tableStyle}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Slot</th>
+                <th style={thStyle}>Scenario A</th>
+                <th style={thStyle}>Scenario B</th>
+                <th style={thStyle}>Strength</th>
+                <th style={thStyle}>Changed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.rows.map((row) => {
+                const changed = row.changed
+                const diff = row.diff
+                const diffText =
+                  typeof diff === 'number'
+                    ? `${diff >= 0 ? 'A +' : 'B +'}${Math.abs(diff).toFixed(2)}`
+                    : '—'
+
+                return (
+                  <tr key={row.label}>
+                    <td style={tdLabelStyle}>{row.label}</td>
+                    <td style={tdStyle}>{row.leftText}</td>
+                    <td style={tdStyle}>{row.rightText}</td>
+                    <td style={tdStyle}>
+                      <span style={typeof diff === 'number' ? (diff >= 0 ? miniPillBlue : warnPill) : miniPillSlate}>
+                        {diffText}
+                      </span>
+                    </td>
+                    <td style={tdStyle}>
+                      <span style={changed ? miniPillBlue : miniPillGreen}>{changed ? 'Changed' : 'Same'}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function NotesCard({ label, scenario }: { label: string; scenario: ScenarioRow }) {
+  return (
+    <div style={surfaceCard}>
+      <p style={sectionKicker}>{label}</p>
+      <h3 style={sectionTitleSmall}>Saved notes</h3>
+      <p style={notesTextStyle}>{scenario.notes?.trim() || 'No notes saved.'}</p>
+    </div>
+  )
+}
+
+function MetaCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={metaCardStyle}>
+      <div style={metaLabelStyle}>{label}</div>
+      <div style={metaValueStyle}>{value}</div>
+    </div>
+  )
+}
+
+function MetricStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={heroMetricCardStyle}>
+      <div style={metricLabelStyle}>{label}</div>
+      <div style={metricValueStyleHero}>{value}</div>
+    </div>
+  )
+}
+
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
+      />
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
+    </div>
+  )
+}
+
+function headerInnerResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+}
+
+function navStyleResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
+}
+
+function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroShell,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+    gap: isMobile ? '18px' : '24px',
+    padding: isMobile ? '26px 18px' : '34px 26px',
+  }
+}
+
+function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
+  return {
+    ...heroTitleStyle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
+  }
+}
+
+function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...heroMetricGridBaseStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function compareGridResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...compareGridStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+}
+
+function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...projectionGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+function notesGridResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...notesGridStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+}
+
+function footerInnerResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+}
+
+function footerRowResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+}
+
+function footerLinksResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+}
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  position: 'relative',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
+  padding: '24px 18px 56px',
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-100px',
+  right: '-60px',
+  width: '360px',
+  height: '360px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
+  filter: 'blur(10px)',
+  pointerEvents: 'none',
+}
+
+const orbTwo: CSSProperties = {
+  position: 'absolute',
+  top: '60px',
+  left: '-100px',
+  width: '320px',
+  height: '320px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
+  filter: 'blur(12px)',
+  pointerEvents: 'none',
+}
+
+const gridGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+  backgroundSize: '64px 64px',
+  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+}
+
+const headerInner: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+}
+
+const brandWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+}
+
+const navStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+}
+
+const navLink: CSSProperties = {
+  padding: '13px 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(12, 28, 52, 0.78)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '15px',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const activeNavLink: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
+  border: '1px solid rgba(130, 244, 118, 0.22)',
+}
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
-  gap: '24px',
-  alignItems: 'stretch',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  alignSelf: 'flex-start',
+  minHeight: '38px',
+  padding: '8px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(130, 244, 118, 0.28)',
+  background: 'rgba(89, 145, 73, 0.14)',
+  color: '#d9e7ef',
+  fontWeight: 800,
+  fontSize: '14px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  marginBottom: '4px',
 }
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
-  fontSize: 'clamp(2.15rem, 4vw, 3.1rem)',
-  lineHeight: 1.02,
-  letterSpacing: '-0.03em',
+  color: '#f7fbff',
+  fontWeight: 900,
+  lineHeight: 0.98,
+  letterSpacing: '-0.055em',
+  maxWidth: '760px',
 }
 
 const heroTextStyle: CSSProperties = {
@@ -797,22 +1119,46 @@ const heroButtonRowStyle: CSSProperties = {
   marginTop: 22,
 }
 
-const heroMetricGridStyle: CSSProperties = {
+const heroMetricGridBaseStyle: CSSProperties = {
   marginTop: 22,
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  display: 'grid',
+  gap: '14px',
 }
 
-const metricValueStyle: CSSProperties = {
-  marginTop: 6,
-  fontSize: '1.08rem',
+const heroMetricCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
+}
+
+const metricLabelStyle: CSSProperties = {
+  color: 'rgba(255,255,255,0.72)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
+}
+
+const metricValueStyleHero: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '1.05rem',
   fontWeight: 800,
+  lineHeight: 1.4,
 }
 
-const sideHeroTitleStyle: CSSProperties = {
+const quickStartCard: CSSProperties = {
+  borderRadius: '28px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  padding: '20px',
+}
+
+const quickStartTitle: CSSProperties = {
   marginTop: 10,
   marginBottom: 14,
   fontSize: '1.35rem',
   lineHeight: 1.14,
+  color: '#ffffff',
 }
 
 const workflowListStyle: CSSProperties = {
@@ -824,7 +1170,6 @@ const workflowRowStyle: CSSProperties = {
   display: 'flex',
   gap: 12,
   alignItems: 'flex-start',
-  paddingTop: 2,
 }
 
 const workflowNumberStyle: CSSProperties = {
@@ -853,6 +1198,33 @@ const workflowTextStyle: CSSProperties = {
   fontSize: '.95rem',
 }
 
+const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '18px',
+}
+
+const surfaceCardStrong: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
+  background:
+    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+}
+
+const surfaceCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+}
+
 const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -862,9 +1234,36 @@ const sectionHeaderStyle: CSSProperties = {
   marginBottom: '16px',
 }
 
+const sectionKicker: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '13px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  margin: 0,
+}
+
+const sectionTitle: CSSProperties = {
+  margin: '8px 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '28px',
+  letterSpacing: '-0.04em',
+  lineHeight: 1.1,
+}
+
+const sectionTitleSmall: CSSProperties = {
+  margin: '8px 0 0 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '22px',
+  letterSpacing: '-0.03em',
+  lineHeight: 1.15,
+}
+
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.76)',
   lineHeight: 1.65,
   maxWidth: 780,
 }
@@ -886,11 +1285,20 @@ const filterFooterStyle: CSSProperties = {
 
 const compareGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
   gap: '20px',
 }
 
-const comparePanelHeaderStyle: CSSProperties = {
+const projectionGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
+}
+
+const notesGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '20px',
+}
+
+const panelTopStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
@@ -898,22 +1306,154 @@ const comparePanelHeaderStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
-const notesGridStyle: CSSProperties = {
+const metaGridStylePanel: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-  gap: '20px',
-}
-
-const metaGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
   gap: '10px',
+  marginTop: '18px',
+}
+
+const metaCardStyle: CSSProperties = {
+  borderRadius: '16px',
+  padding: '12px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const metaLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 700,
+  marginBottom: '6px',
 }
 
 const metaValueStyle: CSSProperties = {
-  marginTop: 6,
+  color: '#f8fbff',
   fontWeight: 800,
-  color: '#0f1632',
   lineHeight: 1.45,
+}
+
+const actionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap',
+  marginTop: '16px',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  height: '48px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  padding: '0 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
+const primaryButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
+  color: '#071622',
+  border: '1px solid rgba(133, 171, 255, 0.18)',
+  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
+}
+
+const ghostButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'rgba(14, 27, 49, 0.9)',
+  color: '#ebf1fd',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+}
+
+const ghostButtonSmall: CSSProperties = {
+  ...ghostButton,
+  minHeight: '42px',
+}
+
+const primaryButtonSmall: CSSProperties = {
+  ...primaryButton,
+  minHeight: '42px',
+}
+
+const heroMetricGridStyleBase: CSSProperties = {
+  display: 'grid',
+}
+
+const projectionValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '36px',
+  lineHeight: 1,
+  letterSpacing: '-0.04em',
+  marginTop: '8px',
+  marginBottom: '10px',
+}
+
+const pillRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '12px',
+}
+
+const badgeBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const miniPillSlate: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
+}
+
+const miniPillBlue: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+}
+
+const miniPillGreen: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(96, 221, 116, 0.14)',
+  color: '#dffad5',
+}
+
+const warnPill: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(255, 93, 93, 0.10)',
+  color: '#fecaca',
 }
 
 const tableHeaderStyle: CSSProperties = {
@@ -925,26 +1465,102 @@ const tableHeaderStyle: CSSProperties = {
   marginBottom: '14px',
 }
 
-const tableLabelCellStyle: CSSProperties = {
-  fontWeight: 800,
-  color: '#0f1632',
+const tableWrapStyle: CSSProperties = {
+  width: '100%',
+  overflowX: 'auto',
+  borderRadius: '18px',
+  border: '1px solid rgba(255,255,255,0.08)',
 }
 
-const notesTextStyle: CSSProperties = {
-  margin: 0,
-  color: '#0f1632',
-  lineHeight: 1.7,
-  whiteSpace: 'pre-wrap',
+const tableStyle: CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+}
+
+const thStyle: CSSProperties = {
+  textAlign: 'left',
+  padding: '14px',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#c7dbff',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const tdStyle: CSSProperties = {
+  padding: '14px',
+  borderTop: '1px solid rgba(255,255,255,0.08)',
+  color: '#f8fbff',
+  verticalAlign: 'top',
+}
+
+const tdLabelStyle: CSSProperties = {
+  ...tdStyle,
+  fontWeight: 800,
 }
 
 const mutedTextStyle: CSSProperties = {
-  color: 'var(--muted-foreground, #667085)',
+  color: 'rgba(224,234,247,0.72)',
   margin: 0,
   lineHeight: 1.65,
 }
 
 const errorTextStyle: CSSProperties = {
-  color: '#b42318',
+  color: '#fca5a5',
   margin: 0,
   lineHeight: 1.65,
+}
+
+const notesTextStyle: CSSProperties = {
+  margin: 0,
+  color: '#e7eefb',
+  lineHeight: 1.7,
+  whiteSpace: 'pre-wrap',
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 0 0',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }

@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -90,7 +93,6 @@ export default function TeamsPage() {
       if (matchesError) throw new Error(matchesError.message)
 
       const typedMatches = (matchRows || []) as MatchRow[]
-
       const matchIds = typedMatches.map((match) => match.id)
 
       let matchPlayers: MatchPlayerRow[] = []
@@ -117,14 +119,8 @@ export default function TeamsPage() {
         const flight = safeText(match.flight, 'Unknown Flight')
 
         const teamEntries = [
-          {
-            team: safeText(match.home_team),
-            side: 'A' as const,
-          },
-          {
-            team: safeText(match.away_team),
-            side: 'B' as const,
-          },
+          { team: safeText(match.home_team), side: 'A' as const },
+          { team: safeText(match.away_team), side: 'B' as const },
         ]
 
         for (const entry of teamEntries) {
@@ -215,14 +211,11 @@ export default function TeamsPage() {
     return next
   }, [teams, search, sortBy, filterBy])
 
-  const totalMatches = useMemo(() => {
-    return teams.reduce((sum, team) => sum + team.matches, 0)
-  }, [teams])
+  const totalMatches = useMemo(() => teams.reduce((sum, team) => sum + team.matches, 0), [teams])
 
   const avgRoster = useMemo(() => {
     if (teams.length === 0) return 0
-    const total = teams.reduce((sum, team) => sum + team.players, 0)
-    return total / teams.length
+    return teams.reduce((sum, team) => sum + team.players, 0) / teams.length
   }, [teams])
 
   const topWinPct = useMemo(() => {
@@ -230,7 +223,75 @@ export default function TeamsPage() {
     return Math.max(...teams.map((team) => getWinPct(team)))
   }, [teams])
 
-  const heroTitleSize = isSmallMobile ? '34px' : isMobile ? '42px' : '58px'
+  const winningTeams = useMemo(() => teams.filter((team) => team.wins > team.losses).length, [teams])
+
+  const dynamicHeaderInner: CSSProperties = {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+
+  const dynamicNavStyle: CSSProperties = {
+    ...navStyle,
+    flexWrap: 'wrap',
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+  }
+
+  const dynamicHeroShell: CSSProperties = {
+    ...heroShell,
+    padding: isMobile ? '26px 18px' : '34px 26px',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.3fr) minmax(320px, 0.72fr)',
+    gap: isMobile ? '18px' : '22px',
+  }
+
+  const dynamicHeroTitle: CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '58px',
+  }
+
+  const dynamicSearchPanel: CSSProperties = {
+    ...searchPanel,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicCardGrid: CSSProperties = {
+    ...cardGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isTablet
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicSectionHeader: CSSProperties = {
+    ...sectionHeader,
+    alignItems: isMobile ? 'flex-start' : 'flex-end',
+  }
+
+  const dynamicFooterInner: CSSProperties = {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+
+  const dynamicFooterRow: CSSProperties = {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+
+  const dynamicFooterLinks: CSSProperties = {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+
+  const dynamicFooterBottom: CSSProperties = {
+    ...footerBottom,
+    marginLeft: isTablet ? 0 : 'auto',
+  }
 
   return (
     <main style={pageStyle}>
@@ -239,28 +300,12 @@ export default function TeamsPage() {
       <div style={gridGlow} />
 
       <header style={headerStyle}>
-        <div
-          style={{
-            ...headerInner,
-            flexDirection: isTablet ? 'column' : 'row',
-            alignItems: isTablet ? 'flex-start' : 'center',
-            gap: isTablet ? '14px' : '18px',
-          }}
-        >
+        <div style={dynamicHeaderInner}>
           <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <div style={brandMark}>TA</div>
-            <div style={brandText}>
-              <span style={{ color: '#f8fbff' }}>TenAce</span>
-              <span style={brandIQ}>IQ</span>
-            </div>
+            <BrandWordmark compact={isMobile} top />
           </Link>
 
-          <nav
-            style={{
-              ...navStyle,
-              flexWrap: 'wrap',
-            }}
-          >
+          <nav style={dynamicNavStyle}>
             {NAV_LINKS.map((link) => {
               const isActive = link.href === '/teams'
               return (
@@ -276,35 +321,23 @@ export default function TeamsPage() {
                 </Link>
               )
             })}
+            <Link href="/admin" style={navLink}>Admin</Link>
           </nav>
         </div>
       </header>
 
-      <section
-        style={{
-          ...heroShell,
-          padding: isMobile ? '26px 18px' : '34px 26px',
-          gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.3fr) minmax(320px, 0.72fr)',
-          gap: isMobile ? '18px' : '22px',
-        }}
-      >
+      <section style={dynamicHeroShell}>
         <div>
           <div style={eyebrow}>Team directory</div>
-          <h1 style={{ ...heroTitle, fontSize: heroTitleSize }}>
+          <h1 style={dynamicHeroTitle}>
             Browse teams by league and flight, then jump into roster and match history fast.
           </h1>
           <p style={heroText}>
-            This should be your team discovery page — not just a plain list. Search by team, filter by league context,
-            compare depth, and open the full team page when you want the details.
+            This is your team discovery page for captain and league workflows. Search by team,
+            filter by league context, compare depth, and open the full team page when you want the details.
           </p>
 
-          <div
-            style={{
-              ...searchPanel,
-              flexDirection: isSmallMobile ? 'column' : 'row',
-              alignItems: isSmallMobile ? 'stretch' : 'center',
-            }}
-          >
+          <div style={dynamicSearchPanel}>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -340,8 +373,8 @@ export default function TeamsPage() {
           </div>
 
           <div style={{ ...summaryMetricGrid, marginTop: '12px' }}>
-            <MetricBlock label="Best win %" value={formatPercent(topWinPct)} />
-            <MetricBlock label="Winning teams" value={String(teams.filter((team) => team.wins > team.losses).length)} />
+            <MetricBlock label="Best win %" value={formatPercent(topWinPct)} accent />
+            <MetricBlock label="Winning teams" value={String(winningTeams)} />
           </div>
 
           <div style={summaryHint}>
@@ -359,7 +392,7 @@ export default function TeamsPage() {
       ) : null}
 
       <section style={contentWrap}>
-        <div style={sectionHeader}>
+        <div style={dynamicSectionHeader}>
           <div>
             <div style={sectionKicker}>Browse</div>
             <h2 style={sectionTitle}>Team cards built for league and captain workflows</h2>
@@ -374,21 +407,14 @@ export default function TeamsPage() {
         ) : filteredTeams.length === 0 ? (
           <div style={loadingCard}>No teams matched that search.</div>
         ) : (
-          <div
-            style={{
-              ...cardGrid,
-              gridTemplateColumns: isSmallMobile
-                ? '1fr'
-                : isTablet
-                  ? 'repeat(2, minmax(0, 1fr))'
-                  : 'repeat(3, minmax(0, 1fr))',
-            }}
-          >
+          <div style={dynamicCardGrid}>
             {filteredTeams.map((team) => {
-              const href = `/leagues/${encodeURIComponent(team.team)}?league=${encodeURIComponent(team.league)}&flight=${encodeURIComponent(team.flight)}`
+              const href = `/teams/${encodeURIComponent(team.team)}?league=${encodeURIComponent(team.league)}&flight=${encodeURIComponent(team.flight)}`
 
               return (
                 <Link key={team.key} href={href} style={teamCard}>
+                  <div style={cardGlow} />
+
                   <div style={teamCardTopRow}>
                     <div style={miniKicker}>Team</div>
                     <div style={matchCountPill}>{team.matches} matches</div>
@@ -420,13 +446,47 @@ export default function TeamsPage() {
           </div>
         )}
       </section>
+
+      <footer style={footerStyle}>
+        <div style={dynamicFooterInner}>
+          <div style={dynamicFooterRow}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
+
+            <div style={dynamicFooterLinks}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            </div>
+
+            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
 
-function MetricBlock({ label, value }: { label: string; value: string }) {
+function MetricBlock({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string
+  value: string
+  accent?: boolean
+}) {
   return (
-    <div style={summaryMetricCard}>
+    <div
+      style={{
+        ...summaryMetricCard,
+        ...(accent ? summaryMetricCardAccent : {}),
+      }}
+    >
       <div style={summaryMetricLabel}>{label}</div>
       <div style={summaryMetricValue}>{value}</div>
     </div>
@@ -438,6 +498,58 @@ function TeamStat({ label, value }: { label: string; value: string }) {
     <div style={teamStatCard}>
       <div style={teamStatLabel}>{label}</div>
       <div style={teamStatValue}>{value}</div>
+    </div>
+  )
+}
+
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: compact ? '8px' : '10px',
+        lineHeight: 1,
+      }}
+    >
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{
+          width: `${iconSize}px`,
+          height: `${iconSize}px`,
+          display: 'block',
+          objectFit: 'contain',
+        }}
+      />
+
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
     </div>
   )
 }
@@ -495,8 +607,8 @@ const pageStyle: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.22), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
-  padding: '28px 18px 56px',
+    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
+  padding: '24px 18px 56px',
 }
 
 const orbOne: CSSProperties = {
@@ -506,7 +618,7 @@ const orbOne: CSSProperties = {
   width: '360px',
   height: '360px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(122, 255, 98, 0.18), rgba(122,255,98,0) 68%)',
+  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
   filter: 'blur(10px)',
   pointerEvents: 'none',
 }
@@ -548,39 +660,14 @@ const headerInner: CSSProperties = {
 const brandWrap: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: '12px',
   textDecoration: 'none',
-}
-
-const brandMark: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '44px',
-  height: '44px',
-  borderRadius: '14px',
-  background: 'linear-gradient(135deg, rgba(37,91,227,0.95), rgba(96,221,116,0.9))',
-  color: '#04101e',
-  fontWeight: 900,
-  fontSize: '16px',
-  letterSpacing: '-0.04em',
-  boxShadow: '0 14px 30px rgba(0,0,0,0.24)',
-}
-
-const brandText: CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  gap: '1px',
-  fontWeight: 900,
-  fontSize: '28px',
-  letterSpacing: '-0.05em',
-  lineHeight: 1,
 }
 
 const brandIQ: CSSProperties = {
   background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
 }
 
 const navStyle: CSSProperties = {
@@ -716,6 +803,11 @@ const summaryMetricCard: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
 }
 
+const summaryMetricCardAccent: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(31,102,74,0.92) 0%, rgba(42,162,96,0.84) 100%)',
+  border: '1px solid rgba(134,239,172,0.24)',
+}
+
 const summaryMetricLabel: CSSProperties = {
   color: 'rgba(220,231,244,0.7)',
   fontWeight: 700,
@@ -759,7 +851,6 @@ const contentWrap: CSSProperties = {
 const sectionHeader: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'flex-end',
   gap: '16px',
   marginBottom: '16px',
   flexWrap: 'wrap',
@@ -817,15 +908,29 @@ const cardGrid: CSSProperties = {
 }
 
 const teamCard: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
   textDecoration: 'none',
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(12,25,45,0.94), rgba(9,18,34,0.96))',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
   padding: '20px',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const cardGlow: CSSProperties = {
+  position: 'absolute',
+  top: '-70px',
+  right: '-50px',
+  width: '180px',
+  height: '180px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
+  pointerEvents: 'none',
 }
 
 const teamCardTopRow: CSSProperties = {
+  position: 'relative',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -854,6 +959,7 @@ const matchCountPill: CSSProperties = {
 }
 
 const teamName: CSSProperties = {
+  position: 'relative',
   color: '#f8fbff',
   fontSize: '28px',
   fontWeight: 900,
@@ -863,6 +969,7 @@ const teamName: CSSProperties = {
 }
 
 const teamMeta: CSSProperties = {
+  position: 'relative',
   color: 'rgba(223,232,248,0.74)',
   fontSize: '15px',
   fontWeight: 700,
@@ -870,6 +977,7 @@ const teamMeta: CSSProperties = {
 }
 
 const recordRow: CSSProperties = {
+  position: 'relative',
   display: 'flex',
   gap: '8px',
   flexWrap: 'wrap',
@@ -913,6 +1021,7 @@ const recordPillNeutral: CSSProperties = {
 }
 
 const teamStatGrid: CSSProperties = {
+  position: 'relative',
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '10px',
@@ -941,6 +1050,7 @@ const teamStatValue: CSSProperties = {
 }
 
 const teamCardFooter: CSSProperties = {
+  position: 'relative',
   marginTop: '18px',
   display: 'flex',
   alignItems: 'center',
@@ -956,4 +1066,51 @@ const profileLinkText: CSSProperties = {
 const arrowText: CSSProperties = {
   fontWeight: 900,
   fontSize: '18px',
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 0 0',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }
