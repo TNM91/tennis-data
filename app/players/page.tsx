@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -37,6 +38,8 @@ export default function PlayersPage() {
   const [sortBy, setSortBy] = useState<SortKey>('overall')
   const [filterBy, setFilterBy] = useState<FilterKey>('all')
   const [screenWidth, setScreenWidth] = useState(1280)
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  const [searchFocused, setSearchFocused] = useState(false)
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -74,7 +77,6 @@ export default function PlayersPage() {
 
       const typedPlayers = (playerRows || []) as PlayerRow[]
       const playerIds = typedPlayers.map((player) => player.id)
-
       const matchCounts = new Map<string, number>()
 
       if (playerIds.length > 0) {
@@ -143,7 +145,135 @@ export default function PlayersPage() {
     return players.reduce((sum, player) => sum + player.matches, 0)
   }, [players])
 
-  const heroTitleSize = isSmallMobile ? '36px' : isMobile ? '46px' : '62px'
+  const dynamicHeaderInner: CSSProperties = {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
+
+  const dynamicNavStyle: CSSProperties = {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
+
+  const dynamicHeroWrap: CSSProperties = {
+    ...heroWrap,
+    padding: isMobile ? '14px 16px 24px' : '10px 18px 24px',
+  }
+
+  const dynamicHeroShell: CSSProperties = {
+    ...heroShell,
+    padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
+  }
+
+  const dynamicHeroContent: CSSProperties = {
+    ...heroContent,
+    gridTemplateColumns: isTablet
+      ? '1fr'
+      : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+    gap: isMobile ? '18px' : '22px',
+  }
+
+  const dynamicHeroTitle: CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
+    lineHeight: isMobile ? 1.04 : 0.98,
+    maxWidth: '520px',
+  }
+
+  const dynamicHeroText: CSSProperties = {
+    ...heroText,
+    fontSize: isMobile ? '16px' : '18px',
+    maxWidth: '520px',
+  }
+
+  const dynamicControlsShell: CSSProperties = {
+    ...controlsShell,
+    padding: isMobile ? '16px' : '18px',
+    boxShadow: searchFocused
+      ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(72,161,255,0.18)'
+      : controlsShell.boxShadow,
+    position: isTablet ? 'relative' : 'sticky',
+    top: isTablet ? 'auto' : '24px',
+  }
+
+  const dynamicControlsTopRow: CSSProperties = {
+    ...controlsTopRow,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'flex-start' : 'center',
+  }
+
+  const dynamicControlsRow: CSSProperties = {
+    ...controlsRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'stretch' : 'center',
+  }
+
+  const dynamicSearchInputWrap: CSSProperties = {
+    ...searchInputWrap,
+    width: '100%',
+    minWidth: 0,
+  }
+
+  const dynamicSearchInput: CSSProperties = {
+    ...searchInput,
+    boxShadow: searchFocused ? '0 0 0 2px rgba(64,145,255,0.18)' : 'none',
+  }
+
+  const dynamicSelectStyle: CSSProperties = {
+    ...selectStyle,
+    width: isTablet ? '100%' : 'auto',
+    minWidth: isTablet ? 0 : '150px',
+  }
+
+  const dynamicHeroStatsGrid: CSSProperties = {
+    ...heroStatsGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+
+  const dynamicSectionHeader: CSSProperties = {
+    ...sectionHeader,
+    alignItems: isMobile ? 'flex-start' : 'flex-end',
+  }
+
+  const dynamicCardGrid: CSSProperties = {
+    ...cardGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isTablet
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicRatingRow: CSSProperties = {
+    ...ratingRow,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicFooterInner: CSSProperties = {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+
+  const dynamicFooterRow: CSSProperties = {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+
+  const dynamicFooterLinks: CSSProperties = {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+
+  const dynamicFooterBottom: CSSProperties = {
+    ...footerBottom,
+    marginLeft: isTablet ? 0 : 'auto',
+  }
 
   return (
     <main style={pageStyle}>
@@ -152,28 +282,12 @@ export default function PlayersPage() {
       <div style={gridGlow} />
 
       <header style={headerStyle}>
-        <div
-          style={{
-            ...headerInner,
-            flexDirection: isTablet ? 'column' : 'row',
-            alignItems: isTablet ? 'flex-start' : 'center',
-            gap: isTablet ? '14px' : '18px',
-          }}
-        >
+        <div style={dynamicHeaderInner}>
           <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <div style={brandMark}>TA</div>
-            <div style={brandText}>
-              <span style={{ color: '#f8fbff' }}>TenAce</span>
-              <span style={brandIQ}>IQ</span>
-            </div>
+            <BrandWordmark compact={isMobile} top />
           </Link>
 
-          <nav
-            style={{
-              ...navStyle,
-              flexWrap: 'wrap',
-            }}
-          >
+          <nav style={dynamicNavStyle}>
             {NAV_LINKS.map((link) => {
               const isActive = link.href === '/players'
               return (
@@ -196,72 +310,99 @@ export default function PlayersPage() {
         </div>
       </header>
 
-      <section
-        style={{
-          ...heroShell,
-          padding: isMobile ? '28px 18px' : '38px 28px',
-          gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(320px, 0.75fr)',
-          gap: isMobile ? '18px' : '22px',
-        }}
-      >
-        <div>
-          <div style={eyebrow}>Players</div>
-          <h1 style={{ ...heroTitle, fontSize: heroTitleSize }}>
-            Find any player fast and jump straight into the full TenAceIQ profile.
-          </h1>
-          <p style={heroText}>
-            Use the directory to search by name or location, sort by overall, singles, or doubles strength,
-            and move directly into each player profile for trends, history, and matchup prep.
-          </p>
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
 
-          <div
-            style={{
-              ...searchPanel,
-              flexDirection: isSmallMobile ? 'column' : 'row',
-              alignItems: isSmallMobile ? 'stretch' : 'center',
-            }}
-          >
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search player name or location"
-              style={searchInput}
-            />
+          <div style={dynamicHeroContent}>
+            <div style={heroLeft}>
+              <div style={eyebrow}>Players</div>
 
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={selectStyle}>
-              <option value="overall">Sort: Overall</option>
-              <option value="singles">Sort: Singles</option>
-              <option value="doubles">Sort: Doubles</option>
-              <option value="name">Sort: Name</option>
-            </select>
+              <h1 style={dynamicHeroTitle}>
+                Find any player fast and jump straight into the full TenAceIQ profile.
+              </h1>
 
-            <select value={filterBy} onChange={(e) => setFilterBy(e.target.value as FilterKey)} style={selectStyle}>
-              <option value="all">All players</option>
-              <option value="with-matches">With matches</option>
-              <option value="high-rated">4.0+ overall</option>
-            </select>
-          </div>
-        </div>
+              <p style={dynamicHeroText}>
+                Search by name or location, sort by overall, singles, or doubles strength,
+                and move directly into each player profile for trends, history, and matchup prep.
+              </p>
 
-        <div style={summaryCard}>
-          <div>
-            <div style={summaryTitle}>Directory snapshot</div>
-
-            <div style={summaryMetricGrid}>
-              <MetricBlock label="Players" value={String(players.length)} />
-              <MetricBlock label="Showing" value={String(filteredPlayers.length)} />
-              <MetricBlock label="Top overall" value={formatRating(topOverall)} />
-              <MetricBlock label="Avg overall" value={formatRating(avgOverall)} />
+              <div style={heroHintRow}>
+                <span style={heroHintPill}>Search faster</span>
+                <span style={heroHintPill}>Compare stronger</span>
+                <span style={heroHintPill}>Plan smarter</span>
+              </div>
             </div>
-          </div>
 
-          <div style={summaryFooterWrap}>
-            <div style={summaryInlineStat}>
-              <span style={summaryInlineLabel}>Tracked matches</span>
-              <span style={summaryInlineValue}>{totalMatches}</span>
-            </div>
-            <div style={summaryHint}>
-              Search here, open a profile, then use Matchup or Captain&apos;s Corner when you need deeper prep.
+            <div style={heroRight}>
+              <div style={dynamicControlsShell}>
+                <div style={dynamicControlsTopRow}>
+                  <div style={controlsLabel}>Player controls</div>
+                  {!isTablet ? <div style={controlsHint}>Search, sort, and filter</div> : null}
+                </div>
+
+                <div style={dynamicControlsRow}>
+                  <div style={dynamicSearchInputWrap}>
+                    <div style={searchIconWrap}>
+                      <SearchIcon />
+                    </div>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      onFocus={() => setSearchFocused(true)}
+                      onBlur={() => setSearchFocused(false)}
+                      placeholder="Search player name or location..."
+                      style={dynamicSearchInput}
+                    />
+                  </div>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortKey)}
+                    style={dynamicSelectStyle}
+                  >
+                    <option value="overall">Sort: Overall</option>
+                    <option value="singles">Sort: Singles</option>
+                    <option value="doubles">Sort: Doubles</option>
+                    <option value="name">Sort: Name</option>
+                  </select>
+
+                  <select
+                    value={filterBy}
+                    onChange={(e) => setFilterBy(e.target.value as FilterKey)}
+                    style={dynamicSelectStyle}
+                  >
+                    <option value="all">All players</option>
+                    <option value="with-matches">With matches</option>
+                    <option value="high-rated">4.0+ overall</option>
+                  </select>
+                </div>
+
+                <div style={controlsHelperText}>
+                  Use the directory to move from a broad search into exact player profiles in one step.
+                </div>
+              </div>
+
+              <div style={summaryCard}>
+                <div style={summaryTitle}>Directory snapshot</div>
+
+                <div style={dynamicHeroStatsGrid}>
+                  <StatChip label="Players" value={String(players.length)} />
+                  <StatChip label="Showing" value={String(filteredPlayers.length)} />
+                  <StatChip label="Top overall" value={formatRating(topOverall)} accent />
+                  <StatChip label="Avg overall" value={formatRating(avgOverall)} />
+                </div>
+
+                <div style={summaryFooterWrap}>
+                  <div style={summaryInlineStat}>
+                    <span style={summaryInlineLabel}>Tracked matches</span>
+                    <span style={summaryInlineValue}>{totalMatches}</span>
+                  </div>
+                  <div style={summaryHint}>
+                    Search here, open a profile, then use Matchup or Captain&apos;s Corner when you need deeper prep.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -276,7 +417,7 @@ export default function PlayersPage() {
       ) : null}
 
       <section style={contentWrap}>
-        <div style={sectionHeader}>
+        <div style={dynamicSectionHeader}>
           <div>
             <div style={sectionKicker}>Directory</div>
             <h2 style={sectionTitle}>Browse player cards and open each full profile</h2>
@@ -291,50 +432,90 @@ export default function PlayersPage() {
         ) : filteredPlayers.length === 0 ? (
           <div style={loadingCard}>No players matched that search.</div>
         ) : (
-          <div
-            style={{
-              ...cardGrid,
-              gridTemplateColumns: isSmallMobile
-                ? '1fr'
-                : isTablet
-                  ? 'repeat(2, minmax(0, 1fr))'
-                  : 'repeat(3, minmax(0, 1fr))',
-            }}
-          >
-            {filteredPlayers.map((player) => (
-              <Link key={player.id} href={`/players/${player.id}`} style={playerCard}>
-                <div style={playerCardTopRow}>
-                  <div style={miniKicker}>Player</div>
-                  <div style={matchCountPill}>{player.matches} matches</div>
-                </div>
+          <div style={dynamicCardGrid}>
+            {filteredPlayers.map((player) => {
+              const isHovered = hoveredCard === player.id
+              return (
+                <Link
+                  key={player.id}
+                  href={`/players/${player.id}`}
+                  style={{
+                    ...playerCard,
+                    ...(isHovered ? playerCardHover : {}),
+                  }}
+                  onMouseEnter={() => setHoveredCard(player.id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                >
+                  <div style={cardAccentGlow} />
 
-                <div style={playerName}>{player.name}</div>
-                <div style={playerLocation}>{player.location || 'Location not set'}</div>
+                  <div style={playerCardTopRow}>
+                    <div style={miniKicker}>Player</div>
+                    <div style={matchCountPill}>{player.matches} matches</div>
+                  </div>
 
-                <div style={ratingRow}>
-                  <RatingPill label="Overall" value={getRating(player, 'overall')} accent />
-                  <RatingPill label="Singles" value={getRating(player, 'singles')} />
-                  <RatingPill label="Doubles" value={getRating(player, 'doubles')} />
-                </div>
+                  <div style={playerName}>{player.name}</div>
+                  <div style={playerLocation}>{player.location || 'Location not set'}</div>
 
-                <div style={playerCardFooter}>
-                  <span style={profileLinkText}>Open full profile</span>
-                  <span style={arrowText}>→</span>
-                </div>
-              </Link>
-            ))}
+                  <div style={dynamicRatingRow}>
+                    <RatingPill label="Overall" value={getRating(player, 'overall')} accent />
+                    <RatingPill label="Singles" value={getRating(player, 'singles')} />
+                    <RatingPill label="Doubles" value={getRating(player, 'doubles')} />
+                  </div>
+
+                  <div style={playerCardFooter}>
+                    <span style={profileLinkText}>Open full profile</span>
+                    <span style={arrowText}>→</span>
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
       </section>
+
+      <footer style={footerStyle}>
+        <div style={dynamicFooterInner}>
+          <div style={dynamicFooterRow}>
+            <Link href="/" style={footerBrandLink}>
+              <BrandWordmark compact={false} footer />
+            </Link>
+
+            <div style={dynamicFooterLinks}>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            </div>
+
+            <div style={dynamicFooterBottom}>
+              © {new Date().getFullYear()} TenAceIQ
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   )
 }
 
-function MetricBlock({ label, value }: { label: string; value: string }) {
+function StatChip({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string
+  value: string
+  accent?: boolean
+}) {
   return (
-    <div style={summaryMetricCard}>
-      <div style={summaryMetricLabel}>{label}</div>
-      <div style={summaryMetricValue}>{value}</div>
+    <div
+      style={{
+        ...statChip,
+        ...(accent ? statChipAccent : {}),
+      }}
+    >
+      <div style={statChipLabel}>{label}</div>
+      <div style={statChipValue}>{value}</div>
     </div>
   )
 }
@@ -361,6 +542,67 @@ function RatingPill({
   )
 }
 
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: compact ? '8px' : '10px',
+        lineHeight: 1,
+      }}
+    >
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{
+          width: `${iconSize}px`,
+          height: `${iconSize}px`,
+          display: 'block',
+          objectFit: 'contain',
+        }}
+      />
+
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
+      </div>
+    </div>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
+      <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" strokeWidth="1.9" />
+      <path d="M16 16l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function getRating(player: PlayerRow, view: Exclude<SortKey, 'name'>) {
   if (view === 'singles') return toNumber(player.singles_dynamic_rating)
   if (view === 'doubles') return toNumber(player.doubles_dynamic_rating)
@@ -380,31 +622,28 @@ const pageStyle: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.22), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
-  padding: '28px 18px 56px',
+    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
 }
 
 const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-100px',
-  right: '-60px',
-  width: '360px',
-  height: '360px',
+  top: '-90px',
+  left: '-110px',
+  width: '340px',
+  height: '340px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(122, 255, 98, 0.18), rgba(122,255,98,0) 68%)',
-  filter: 'blur(10px)',
+  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
   pointerEvents: 'none',
 }
 
 const orbTwo: CSSProperties = {
   position: 'absolute',
-  top: '60px',
-  left: '-100px',
-  width: '320px',
-  height: '320px',
+  right: '-120px',
+  top: '180px',
+  width: '340px',
+  height: '340px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
-  filter: 'blur(12px)',
+  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
   pointerEvents: 'none',
 }
 
@@ -412,20 +651,23 @@ const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
   backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-  backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
+  backgroundRepeat: 'repeat, repeat',
+  backgroundSize: '34px 34px, 34px 34px',
+  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
   pointerEvents: 'none',
 }
 
 const headerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
+  padding: '24px 18px 0',
 }
 
 const headerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
 }
@@ -433,152 +675,231 @@ const headerInner: CSSProperties = {
 const brandWrap: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  gap: '12px',
   textDecoration: 'none',
 }
 
-const brandMark: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  width: '44px',
-  height: '44px',
-  borderRadius: '14px',
-  background: 'linear-gradient(135deg, rgba(37,91,227,0.95), rgba(96,221,116,0.9))',
-  color: '#04101e',
-  fontWeight: 900,
-  fontSize: '16px',
-  letterSpacing: '-0.04em',
-  boxShadow: '0 14px 30px rgba(0,0,0,0.24)',
-}
-
-const brandText: CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  gap: '1px',
-  fontWeight: 900,
-  fontSize: '28px',
-  letterSpacing: '-0.05em',
-  lineHeight: 1,
-}
-
 const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+  marginLeft: '2px',
 }
 
 const navStyle: CSSProperties = {
   display: 'flex',
+  alignItems: 'center',
   gap: '10px',
 }
 
 const navLink: CSSProperties = {
-  padding: '13px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
-  color: '#e7eefb',
+  color: 'rgba(231,243,255,0.9)',
   textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  fontSize: '14px',
+  fontWeight: 700,
+  letterSpacing: '0.01em',
+  padding: '10px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(122,170,255,0.16)',
+  background: 'rgba(22,42,78,0.42)',
+  backdropFilter: 'blur(14px)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  transition: 'all 180ms ease',
 }
 
 const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
+  color: '#06111f',
+  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
+  border: '1px solid rgba(134,239,172,0.45)',
+  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
+}
+
+const heroWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
 }
 
 const heroShell: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
+  width: '100%',
   maxWidth: '1240px',
-  margin: '0 auto 18px',
+  margin: '0 auto',
+  borderRadius: '30px',
+  background:
+    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow:
+    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflow: 'hidden',
+  position: 'relative',
+}
+
+const heroNoise: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+  pointerEvents: 'none',
+}
+
+const heroContent: CSSProperties = {
   display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+  alignItems: 'stretch',
+  position: 'relative',
+  zIndex: 1,
+}
+
+const heroLeft: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  gap: '16px',
+  minWidth: 0,
+}
+
+const heroRight: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  alignContent: 'start',
+  minWidth: 0,
 }
 
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
+  width: 'fit-content',
   alignItems: 'center',
-  minHeight: '38px',
-  padding: '8px 14px',
+  padding: '7px 11px',
   borderRadius: '999px',
-  border: '1px solid rgba(130, 244, 118, 0.28)',
-  background: 'rgba(89, 145, 73, 0.14)',
-  color: '#d9e7ef',
+  color: '#d6e9ff',
+  background: 'rgba(74,123,211,0.18)',
+  border: '1px solid rgba(130,178,255,0.18)',
+  fontSize: '12px',
   fontWeight: 800,
-  fontSize: '14px',
-  marginBottom: '18px',
+  letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  letterSpacing: '0.04em',
 }
 
 const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
-  color: '#f7fbff',
+  margin: 0,
+  color: '#f8fbff',
   fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: '-0.055em',
-  maxWidth: '760px',
+  letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
-  margin: '0 0 20px',
-  color: 'rgba(224, 234, 247, 0.84)',
-  fontSize: '18px',
-  lineHeight: 1.6,
-  maxWidth: '720px',
+  margin: 0,
+  color: 'rgba(224,236,249,0.86)',
+  lineHeight: 1.65,
+  fontWeight: 500,
 }
 
-const searchPanel: CSSProperties = {
+const heroHintRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '4px',
+}
+
+const heroHintPill: CSSProperties = {
+  border: '1px solid rgba(137,182,255,0.14)',
+  background: 'rgba(43,78,138,0.34)',
+  color: '#e2efff',
+  borderRadius: '999px',
+  padding: '10px 14px',
+  fontSize: '13px',
+  fontWeight: 700,
+}
+
+const controlsShell: CSSProperties = {
+  borderRadius: '24px',
+  background:
+    'linear-gradient(180deg, rgba(43,78,138,0.42) 0%, rgba(20,37,73,0.56) 100%)',
+  border: '1px solid rgba(142,184,255,0.18)',
+  boxShadow:
+    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+  zIndex: 3,
+}
+
+const controlsTopRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '12px',
+  marginBottom: '12px',
+  alignItems: 'center',
+}
+
+const controlsLabel: CSSProperties = {
+  color: '#f6fbff',
+  fontSize: '15px',
+  fontWeight: 800,
+  letterSpacing: '-0.02em',
+}
+
+const controlsHint: CSSProperties = {
+  color: 'rgba(204,220,241,0.76)',
+  fontSize: '12px',
+  fontWeight: 700,
+  whiteSpace: 'nowrap',
+}
+
+const controlsRow: CSSProperties = {
   display: 'flex',
   gap: '12px',
-  padding: '14px',
-  borderRadius: '24px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(10, 20, 37, 0.64)',
-  maxWidth: '860px',
+  alignItems: 'center',
+  minWidth: 0,
+}
+
+const searchInputWrap: CSSProperties = {
+  position: 'relative',
+  flex: 1,
+}
+
+const searchIconWrap: CSSProperties = {
+  position: 'absolute',
+  left: '14px',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  color: 'rgba(210,226,244,0.82)',
+  pointerEvents: 'none',
 }
 
 const searchInput: CSSProperties = {
-  flex: 1,
-  minWidth: '220px',
-  height: '52px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.04)',
-  color: '#f5f8ff',
-  padding: '0 16px',
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(138,182,255,0.16)',
+  background: 'rgba(10,20,40,0.6)',
+  color: '#f7fbff',
+  padding: '15px 16px 15px 46px',
   fontSize: '15px',
   outline: 'none',
 }
 
 const selectStyle: CSSProperties = {
   height: '52px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f5f8ff',
+  borderRadius: '18px',
+  border: '1px solid rgba(138,182,255,0.16)',
+  background: 'rgba(10,20,40,0.6)',
+  color: '#f7fbff',
   padding: '0 14px',
-  fontSize: '15px',
+  fontSize: '14px',
+  fontWeight: 700,
   outline: 'none',
 }
 
+const controlsHelperText: CSSProperties = {
+  marginTop: '12px',
+  color: 'rgba(216,230,246,0.78)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+}
+
 const summaryCard: CSSProperties = {
-  borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  borderRadius: '24px',
   padding: '18px',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  minHeight: '100%',
-  gap: '18px',
+  border: '1px solid rgba(128,174,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
 }
 
 const summaryTitle: CSSProperties = {
@@ -589,37 +910,44 @@ const summaryTitle: CSSProperties = {
   marginBottom: '14px',
 }
 
-const summaryMetricGrid: CSSProperties = {
+const heroStatsGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '12px',
+  gap: '10px',
 }
 
-const summaryMetricCard: CSSProperties = {
-  borderRadius: '20px',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.08)',
+const statChip: CSSProperties = {
+  borderRadius: '18px',
+  padding: '12px 12px 11px',
+  background: 'rgba(26,42,71,0.58)',
+  border: '1px solid rgba(74,123,211,0.24)',
+  minWidth: 0,
 }
 
-const summaryMetricLabel: CSSProperties = {
-  color: 'rgba(220,231,244,0.7)',
+const statChipAccent: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(31,102,74,0.92) 0%, rgba(42,162,96,0.84) 100%)',
+  border: '1px solid rgba(134,239,172,0.24)',
+}
+
+const statChipLabel: CSSProperties = {
+  color: 'rgba(198,214,230,0.74)',
+  fontSize: '12px',
   fontWeight: 700,
-  fontSize: '13px',
-  marginBottom: '8px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '6px',
 }
 
-const summaryMetricValue: CSSProperties = {
+const statChipValue: CSSProperties = {
   color: '#f8fbff',
+  fontSize: '20px',
   fontWeight: 900,
-  fontSize: '34px',
-  letterSpacing: '-0.05em',
-  lineHeight: 1,
+  letterSpacing: '-0.03em',
 }
 
 const summaryFooterWrap: CSSProperties = {
   display: 'grid',
   gap: '14px',
+  marginTop: '14px',
 }
 
 const summaryInlineStat: CSSProperties = {
@@ -640,7 +968,9 @@ const summaryInlineLabel: CSSProperties = {
 }
 
 const summaryInlineValue: CSSProperties = {
-  color: '#f8fbff',
+  background: 'linear-gradient(135deg, #9af2bd, #4ade80 55%, #22c55e)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
   fontWeight: 900,
   fontSize: '22px',
   letterSpacing: '-0.04em',
@@ -668,12 +998,12 @@ const contentWrap: CSSProperties = {
   zIndex: 2,
   maxWidth: '1240px',
   margin: '0 auto',
+  padding: '0 18px 0',
 }
 
 const sectionHeader: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'flex-end',
   gap: '16px',
   marginBottom: '16px',
   flexWrap: 'wrap',
@@ -706,14 +1036,15 @@ const secondaryLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
+  minHeight: '48px',
+  padding: '0 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(14, 27, 49, 0.9)',
-  color: '#ebf1fd',
+  border: '1px solid rgba(109, 239, 171, 0.34)',
+  background: 'linear-gradient(135deg, rgba(88, 224, 135, 0.98), rgba(40, 205, 110, 0.92))',
+  color: '#071622',
   textDecoration: 'none',
-  fontWeight: 800,
+  fontWeight: 900,
+  boxShadow: '0 14px 34px rgba(45, 196, 106, 0.24), inset 0 1px 0 rgba(255,255,255,0.26)',
 }
 
 const loadingCard: CSSProperties = {
@@ -731,15 +1062,36 @@ const cardGrid: CSSProperties = {
 }
 
 const playerCard: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
   textDecoration: 'none',
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(12,25,45,0.94), rgba(9,18,34,0.96))',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
   padding: '20px',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+}
+
+const playerCardHover: CSSProperties = {
+  transform: 'translateY(-3px)',
+  boxShadow: '0 22px 48px rgba(10,28,58,0.2)',
+  border: '1px solid rgba(158,197,255,0.28)',
+}
+
+const cardAccentGlow: CSSProperties = {
+  position: 'absolute',
+  top: '-70px',
+  right: '-50px',
+  width: '180px',
+  height: '180px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
+  pointerEvents: 'none',
 }
 
 const playerCardTopRow: CSSProperties = {
+  position: 'relative',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -748,7 +1100,7 @@ const playerCardTopRow: CSSProperties = {
 }
 
 const miniKicker: CSSProperties = {
-  color: '#87aeff',
+  color: '#bad7ff',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -761,13 +1113,15 @@ const matchCountPill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(37,91,227,0.14)',
-  color: '#b8d0ff',
+  background: 'rgba(255,255,255,0.12)',
+  color: '#d6e6ff',
   fontSize: '12px',
   fontWeight: 800,
+  border: '1px solid rgba(255,255,255,0.10)',
 }
 
 const playerName: CSSProperties = {
+  position: 'relative',
   color: '#f8fbff',
   fontSize: '28px',
   fontWeight: 900,
@@ -777,28 +1131,31 @@ const playerName: CSSProperties = {
 }
 
 const playerLocation: CSSProperties = {
-  color: 'rgba(223,232,248,0.74)',
+  position: 'relative',
+  color: 'rgba(223,232,248,0.82)',
   fontSize: '15px',
   fontWeight: 700,
   marginBottom: '16px',
 }
 
 const ratingRow: CSSProperties = {
+  position: 'relative',
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: '10px',
 }
 
 const ratingPill: CSSProperties = {
   borderRadius: '18px',
   padding: '12px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.08)',
+  minWidth: 0,
 }
 
 const ratingPillAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(112,228,86,0.2), rgba(69,189,150,0.14))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
+  background: 'linear-gradient(135deg, rgba(88, 224, 135, 0.30), rgba(32, 200, 109, 0.18))',
+  border: '1px solid rgba(111, 236, 168, 0.34)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(38, 196, 102, 0.12)',
 }
 
 const ratingPillLabel: CSSProperties = {
@@ -817,19 +1174,91 @@ const ratingPillValue: CSSProperties = {
 }
 
 const playerCardFooter: CSSProperties = {
+  position: 'relative',
   marginTop: '18px',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
   color: '#dfe9fb',
+  gap: '12px',
 }
 
 const profileLinkText: CSSProperties = {
-  fontWeight: 800,
-  fontSize: '14px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  background: 'linear-gradient(135deg, rgba(103, 241, 154, 1), rgba(40, 205, 110, 0.94))',
+  color: '#071622',
+  fontWeight: 900,
+  fontSize: '13px',
+  letterSpacing: '0.01em',
+  boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
 }
 
 const arrowText: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '40px',
+  height: '40px',
+  borderRadius: '999px',
+  background: 'rgba(91, 233, 146, 0.12)',
+  border: '1px solid rgba(109, 239, 171, 0.18)',
+  color: '#9df0bf',
   fontWeight: 900,
   fontSize: '18px',
+}
+
+const iconSvgStyle: CSSProperties = {
+  width: '22px',
+  height: '22px',
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 18px 20px',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }
