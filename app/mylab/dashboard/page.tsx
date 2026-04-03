@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
 const PRIMARY_LINKS = [
