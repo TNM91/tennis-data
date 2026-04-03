@@ -19,7 +19,7 @@ const NAV_LINKS = [
   { href: '/captain', label: 'Captain' },
 ]
 
-export default function LoginPage() {
+export default function JoinPage() {
   const router = useRouter()
 
   const [role, setRole] = useState<UserRole>('public')
@@ -28,9 +28,11 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -86,25 +88,38 @@ export default function LoginPage() {
     }
 
     if (!password) {
-      setError('Enter your password.')
+      setError('Create a password.')
+      return
+    }
+
+    if (password.length < 8) {
+      setError('Use at least 8 characters for your password.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
       return
     }
 
     setSubmitting(true)
     setError('')
+    setMessage('')
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
       })
 
       if (error) throw new Error(error.message)
 
-      router.push('/dashboard')
-      router.refresh()
+      setMessage('Account created. You can now sign in with your email and password.')
+      setTimeout(() => {
+        router.push('/login')
+      }, 1000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in.')
+      setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
       setSubmitting(false)
     }
@@ -144,7 +159,7 @@ export default function LoginPage() {
         <div style={gridGlow} />
         <div style={topBlueWash} />
         <section style={loadingShell}>
-          <div style={loadingCard}>Checking sign-in status...</div>
+          <div style={loadingCard}>Checking account status...</div>
         </section>
       </main>
     )
@@ -171,8 +186,8 @@ export default function LoginPage() {
                 {link.label}
               </Link>
             ))}
-            <Link href="/join" style={ctaNavLink}>
-              Join
+            <Link href="/login" style={ctaNavLink}>
+              Login
             </Link>
           </nav>
         </div>
@@ -180,10 +195,11 @@ export default function LoginPage() {
 
       <section style={heroShellResponsive}>
         <div>
-          <div style={eyebrow}>Member access</div>
-          <h1 style={heroTitle}>Sign in with your email and password.</h1>
+          <div style={eyebrow}>Create member account</div>
+          <h1 style={heroTitle}>Join TenAceIQ with email and password.</h1>
           <p style={heroText}>
-            Access My Lab, Captain tools, followed players and teams, and your private member dashboard.
+            Set up your member account to unlock My Lab, follow players and teams,
+            and use Captain tools for weekly team prep.
           </p>
 
           <div style={pillRow}>
@@ -194,23 +210,23 @@ export default function LoginPage() {
           </div>
 
           <div style={featurePanel}>
-            <div style={featureLabel}>Member tools</div>
+            <div style={featureLabel}>Why join</div>
             <div style={formGridResponsive}>
               <FeatureCard
-                title="My Lab"
-                text="Follow players, teams, and leagues with a personalized activity feed."
+                title="Follow your world"
+                text="Save the players, teams, and leagues you care about most."
               />
               <FeatureCard
-                title="Captain’s Corner"
-                text="Manage availability, lineups, messaging, and match-week planning."
+                title="Captain planning"
+                text="Track availability, build lineups, and prepare for match day."
               />
               <FeatureCard
-                title="Saved context"
-                text="Keep your team and season context organized in one workspace."
+                title="Member dashboard"
+                text="Use My Lab as your personalized home base."
               />
               <FeatureCard
-                title="Admin access"
-                text="Admins automatically see elevated tools after signing in."
+                title="Future upgrades"
+                text="Your account is the foundation for premium tools and saved workflows."
               />
             </div>
           </div>
@@ -247,8 +263,8 @@ export default function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit} style={formCard}>
-              <div style={formLabel}>Password sign in</div>
-              <h2 style={formTitle}>Welcome back</h2>
+              <div style={formLabel}>New member setup</div>
+              <h2 style={formTitle}>Create your account</h2>
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -261,6 +277,7 @@ export default function LoginPage() {
                 onChange={(e) => {
                   setEmail(e.target.value)
                   setError('')
+                  setMessage('')
                 }}
                 placeholder="you@example.com"
                 style={inputStyle}
@@ -269,50 +286,59 @@ export default function LoginPage() {
               <label htmlFor="password" style={inputLabel}>
                 Password
               </label>
-              <div style={passwordWrap}>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value)
-                    setError('')
-                  }}
-                  placeholder="Enter your password"
-                  style={passwordInputStyle}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  style={togglePasswordButton}
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setError('')
+                  setMessage('')
+                }}
+                placeholder="At least 8 characters"
+                style={inputStyle}
+              />
 
-              <button type="submit" disabled={submitting} style={submitButton}>
-                {submitting ? 'Signing in...' : 'Sign in'}
+              <label htmlFor="confirmPassword" style={inputLabel}>
+                Confirm password
+              </label>
+              <input
+                id="confirmPassword"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  setError('')
+                  setMessage('')
+                }}
+                placeholder="Re-enter your password"
+                style={inputStyle}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                style={togglePasswordButton}
+              >
+                {showPassword ? 'Hide passwords' : 'Show passwords'}
               </button>
 
+              <button type="submit" disabled={submitting} style={submitButton}>
+                {submitting ? 'Creating account...' : 'Create account'}
+              </button>
+
+              {message ? <div style={successBanner}>{message}</div> : null}
               {error ? <div style={errorBanner}>{error}</div> : null}
 
               <div style={helperRow}>
-                <Link href="/join" style={inlineLink}>
-                  Create account
-                </Link>
-                <Link href="/forgot-password" style={inlineLinkMuted}>
-                  Forgot password?
+                <span style={helperText}>Already have an account?</span>
+                <Link href="/login" style={inlineLink}>
+                  Sign in
                 </Link>
               </div>
             </form>
-
-            <div style={footerPrompt}>
-              Need the public experience first?{' '}
-              <Link href="/explore" style={inlineLink}>
-                Explore TA-IQ
-              </Link>
-            </div>
           </div>
         </div>
       </section>
@@ -745,19 +771,8 @@ const inputStyle: CSSProperties = {
   outline: 'none',
 }
 
-const passwordWrap: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
-  gap: '10px',
-  alignItems: 'center',
-}
-
-const passwordInputStyle: CSSProperties = {
-  ...inputStyle,
-}
-
 const togglePasswordButton: CSSProperties = {
-  minHeight: '52px',
+  minHeight: '46px',
   padding: '0 16px',
   borderRadius: '16px',
   border: '1px solid rgba(116,190,255,0.22)',
@@ -780,6 +795,16 @@ const submitButton: CSSProperties = {
   boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
+const successBanner: CSSProperties = {
+  borderRadius: '16px',
+  padding: '12px 14px',
+  background: 'rgba(96,221,116,0.12)',
+  border: '1px solid rgba(130,244,118,0.18)',
+  color: '#e7ffd0',
+  fontWeight: 700,
+  fontSize: '14px',
+}
+
 const errorBanner: CSSProperties = {
   borderRadius: '16px',
   padding: '12px 14px',
@@ -796,11 +821,10 @@ const helperRow: CSSProperties = {
   gap: '12px',
   flexWrap: 'wrap',
   marginTop: '4px',
+  alignItems: 'center',
 }
 
-const footerPrompt: CSSProperties = {
-  marginTop: '16px',
-  textAlign: 'center',
+const helperText: CSSProperties = {
   color: 'rgba(224,236,249,0.74)',
   fontSize: '14px',
   lineHeight: 1.6,
@@ -810,12 +834,6 @@ const inlineLink: CSSProperties = {
   color: '#c7dbff',
   textDecoration: 'none',
   fontWeight: 800,
-}
-
-const inlineLinkMuted: CSSProperties = {
-  color: 'rgba(224,236,249,0.74)',
-  textDecoration: 'none',
-  fontWeight: 700,
 }
 
 const loadingShell: CSSProperties = {

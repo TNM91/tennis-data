@@ -351,8 +351,8 @@ export default function HomePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(380px, 0.86fr)',
-    gap: isMobile ? '20px' : '26px',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(400px, 0.86fr)',
+    gap: isMobile ? '18px' : '24px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
@@ -400,7 +400,7 @@ export default function HomePage() {
 
   const dynamicLogoPanel: CSSProperties = {
     ...logoPanel,
-    minHeight: isMobile ? '248px' : '292px',
+    minHeight: isMobile ? '272px' : '332px',
   }
 
   const dynamicActionGrid: CSSProperties = {
@@ -624,8 +624,8 @@ export default function HomePage() {
                         height={512}
                         priority
                         style={{
-                          width: isMobile ? '118px' : '132px',
-                          height: isMobile ? '118px' : '132px',
+                          width: isMobile ? '150px' : '190px',
+                          height: isMobile ? '150px' : '190px',
                           display: 'block',
                           objectFit: 'contain',
                         }}
@@ -810,15 +810,15 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
+  const iconSize = compact ? 30 : top ? 28 : footer ? 34 : 34
+  const fontSize = compact ? 27 : top ? 30 : footer ? 29 : 29
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '10px' : '12px',
+        gap: compact ? '10px' : top ? '14px' : '12px',
         lineHeight: 1,
       }}
     >
@@ -839,11 +839,11 @@ function BrandWordmark({
       <div
         style={{
           fontWeight: 900,
-          letterSpacing: '-0.045em',
+          letterSpacing: top ? '-0.05em' : '-0.045em',
           fontSize: `${fontSize}px`,
-          lineHeight: 1,
+          lineHeight: 0.96,
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
         }}
       >
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
@@ -1133,8 +1133,10 @@ const heroContent: CSSProperties = {
 const heroLeft: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  justifyContent: 'center',
+  justifyContent: 'flex-start',
+  alignItems: 'flex-start',
   gap: '18px',
+  paddingTop: '2px',
 }
 
 const heroRight: CSSProperties = {
@@ -1148,6 +1150,7 @@ const eyebrow: CSSProperties = {
   width: 'fit-content',
   alignItems: 'center',
   padding: '8px 14px',
+  marginTop: '-4px',
   borderRadius: '999px',
   color: '#d6e9ff',
   background: 'rgba(37,91,227,0.18)',
@@ -1397,17 +1400,17 @@ const logoPanelInner: CSSProperties = {
   justifyContent: 'center',
   alignItems: 'center',
   height: '100%',
-  padding: '18px 20px 20px',
+  padding: '14px 20px 18px',
   textAlign: 'center',
 }
 
 const logoOrbWrap: CSSProperties = {
   position: 'relative',
-  width: '188px',
-  height: '188px',
+  width: '236px',
+  height: '236px',
   display: 'grid',
   placeItems: 'center',
-  margin: '8px auto 12px',
+  margin: '2px auto 10px',
 }
 
 const logoOrbOuter: CSSProperties = {
@@ -1415,43 +1418,43 @@ const logoOrbOuter: CSSProperties = {
   inset: 0,
   borderRadius: '999px',
   background:
-    'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)',
+    'radial-gradient(circle, rgba(116,190,255,0.22) 0%, rgba(116,190,255,0.08) 42%, rgba(116,190,255,0) 74%)',
   filter: 'blur(1px)',
 }
 
 const logoOrbMiddle: CSSProperties = {
   position: 'absolute',
-  inset: '14px',
+  inset: '12px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.28)',
+  border: '1px solid rgba(116,190,255,0.16)',
   boxShadow:
-    '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)',
+    '0 0 0 1px rgba(155,225,29,0.05), inset 0 0 26px rgba(74,163,255,0.12)',
 }
 
 const logoOrbInner: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  width: '142px',
-  height: '142px',
+  width: '182px',
+  height: '182px',
   borderRadius: '999px',
   display: 'grid',
   placeItems: 'center',
   background:
-    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
+    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.07), rgba(255,255,255,0.02) 32%, rgba(8,26,49,0.74) 100%)',
+  border: '1px solid rgba(255,255,255,0.06)',
   boxShadow:
-    '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)',
+    '0 18px 38px rgba(0,0,0,0.22), inset 0 0 0 1px rgba(74,163,255,0.06)',
 }
 
 const heroBrandText: CSSProperties = {
   display: 'flex',
   alignItems: 'baseline',
   justifyContent: 'center',
-  gap: '2px',
+  gap: '1px',
   fontWeight: 900,
-  letterSpacing: '-0.05em',
-  fontSize: '36px',
-  lineHeight: 1,
+  letterSpacing: '-0.055em',
+  fontSize: '42px',
+  lineHeight: 0.96,
 }
 
 const logoPanelText: CSSProperties = {
