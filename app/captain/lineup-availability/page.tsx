@@ -1372,6 +1372,31 @@ const heroBadgeRowStyleCompact: CSSProperties = {
   marginTop: '14px',
 }
 
+
+const miniPillSlate: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  height: '28px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
+}
+
+const miniPillBlue: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  height: '28px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+}
+
 const availabilityMetricsStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
