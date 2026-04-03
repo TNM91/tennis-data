@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -89,7 +90,9 @@ export default function CaptainAvailabilityPage() {
 
     loadAuth()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const nextRole = getUserRole(session?.user?.id ?? null)
       setRole(nextRole)
       setAuthLoading(false)
@@ -1296,6 +1299,7 @@ const footerUtilityLink: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
 }
+
 const footerBottom: CSSProperties = {
   color: 'rgba(197,213,234,0.72)',
   fontSize: '13px',
