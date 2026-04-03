@@ -153,7 +153,9 @@ export default function DashboardPage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(350px, 0.95fr)',
+    gridTemplateColumns: isTablet
+      ? '1fr'
+      : 'minmax(0, 1.05fr) minmax(350px, 0.95fr)',
     gap: isMobile ? '20px' : '26px',
   }
 
@@ -172,7 +174,11 @@ export default function DashboardPage() {
 
   const dynamicActionGrid: CSSProperties = {
     ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(4, minmax(220px, 1fr))',
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isTablet
+        ? 'repeat(2, minmax(220px, 1fr))'
+        : 'repeat(4, minmax(220px, 1fr))',
     gap: isMobile ? '14px' : '16px',
   }
 
@@ -288,8 +294,8 @@ export default function DashboardPage() {
               </h1>
 
               <p style={dynamicHeroText}>
-                My Lab is your member workspace for followed players, teams, leagues, and
-                personalized recent activity across the platform.
+                My Lab is your member workspace for followed players, teams,
+                leagues, and personalized recent activity across the platform.
               </p>
 
               <div style={explorePills}>
@@ -394,7 +400,9 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
+            <div style={dynamicFooterBottom}>
+              © {new Date().getFullYear()} TenAceIQ
+            </div>
           </div>
         </div>
       </footer>
@@ -430,8 +438,10 @@ function ActionCard({
   onLeave: () => void
   accent?: 'blue' | 'green'
 }) {
-  const iconStyle = accent === 'green' ? actionCardIconGreen : actionCardIconBlue
-  const ctaStyle = accent === 'green' ? actionFooterCtaGreen : actionFooterCtaBlue
+  const iconStyle =
+    accent === 'green' ? actionCardIconGreen : actionCardIconBlue
+  const ctaStyle =
+    accent === 'green' ? actionFooterCtaGreen : actionFooterCtaBlue
 
   return (
     <Link
@@ -535,7 +545,14 @@ function IconBase({ children }: { children: ReactNode }) {
 function PlayerIcon() {
   return (
     <IconBase>
-      <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle
+        cx="12"
+        cy="8"
+        r="3.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
       <path
         d="M6.5 19c1.3-3.1 3.4-4.7 5.5-4.7S16.2 15.9 17.5 19"
         fill="none"
@@ -550,8 +567,22 @@ function PlayerIcon() {
 function TeamIcon() {
   return (
     <IconBase>
-      <circle cx="9" cy="9" r="2.3" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="16.5" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle
+        cx="9"
+        cy="9"
+        r="2.3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <circle
+        cx="16.5"
+        cy="8"
+        r="2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
       <path
         d="M4.8 19c.9-2.5 2.6-3.9 4.2-3.9 1.7 0 3.3 1.4 4.2 3.9M13.8 18.8c.7-1.9 1.9-2.9 3.3-2.9 1.2 0 2.3.8 3.1 2.4"
         fill="none"
@@ -614,7 +645,11 @@ function CaptainIcon() {
 
 function TennisPulseIcon() {
   return (
-    <svg viewBox="0 0 32 32" style={{ width: '82%', height: '82%', display: 'block' }} aria-hidden="true">
+    <svg
+      viewBox="0 0 32 32"
+      style={{ width: '82%', height: '82%', display: 'block' }}
+      aria-hidden="true"
+    >
       <path
         d="M11 6.5c1.9 0 3.7.5 5.2 1.4M7.7 9.2c-1.8 2-2.9 4.6-2.9 7.5M7.7 23c-1.8-2-2.9-4.6-2.9-7.5M11 25.7c1.9 0 3.7-.5 5.2-1.4"
         fill="none"
@@ -622,7 +657,14 @@ function TennisPulseIcon() {
         strokeWidth="1.8"
         strokeLinecap="round"
       />
-      <circle cx="22" cy="16" r="5.2" fill="none" stroke="#EAF4FF" strokeWidth="1.8" />
+      <circle
+        cx="22"
+        cy="16"
+        r="5.2"
+        fill="none"
+        stroke="#EAF4FF"
+        strokeWidth="1.8"
+      />
       <path
         d="M0 16h6.3l2-4.2 2.2 8 2.1-5 1.6 1.2h3"
         fill="none"
@@ -730,18 +772,11 @@ const navLink: CSSProperties = {
   padding: '12px 18px',
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
+  background:
+    'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   backdropFilter: 'blur(14px)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   transition: 'all 180ms ease',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const navButtonReset: CSSProperties = {
@@ -767,9 +802,8 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background: `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
+  background:
+    'linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)',
   border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
     '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
@@ -780,12 +814,8 @@ const heroShell: CSSProperties = {
 const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background: `
-    radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%),
-    radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%),
-    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%),
-    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
-  `,
+  background:
+    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)',
   pointerEvents: 'none',
 }
 
@@ -802,12 +832,6 @@ const heroLeft: CSSProperties = {
   flexDirection: 'column',
   justifyContent: 'center',
   gap: '18px',
-}
-
-const heroRight: CSSProperties = {
-  display: 'grid',
-  gap: '16px',
-  alignContent: 'start',
 }
 
 const eyebrow: CSSProperties = {
@@ -918,7 +942,8 @@ const metricsGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '20px',
   padding: '18px 16px',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  background:
+    'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
   border: '1px solid rgba(116,190,255,0.16)',
   minHeight: '132px',
 }
@@ -1010,7 +1035,8 @@ const feedGrid: CSSProperties = {
 const feedCard: CSSProperties = {
   borderRadius: '20px',
   padding: '16px 15px',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  background:
+    'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
   border: '1px solid rgba(116,190,255,0.16)',
   minHeight: '150px',
 }
@@ -1063,14 +1089,17 @@ const actionCard: CSSProperties = {
   background:
     'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
   border: '1px solid rgba(116,190,255,0.16)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
-  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+  boxShadow:
+    '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  transition:
+    'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
 }
 
 const actionCardHover: CSSProperties = {
   transform: 'translateY(-4px)',
   border: '1px solid rgba(116,190,255,0.30)',
-  boxShadow: '0 22px 52px rgba(7,18,40,0.26), inset 0 0 32px rgba(116,190,255,0.05)',
+  boxShadow:
+    '0 22px 52px rgba(7,18,40,0.26), inset 0 0 32px rgba(116,190,255,0.05)',
 }
 
 const actionCardTop: CSSProperties = {
@@ -1158,7 +1187,8 @@ const loadingCard: CSSProperties = {
   borderRadius: '22px',
   padding: '18px 20px',
   color: '#eaf4ff',
-  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
+  background:
+    'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
   border: '1px solid rgba(116,190,255,0.18)',
   fontSize: '15px',
   fontWeight: 700,
@@ -1185,7 +1215,8 @@ const footerInner: CSSProperties = {
   background:
     'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
   border: '1px solid rgba(116,190,255,0.12)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow:
+    '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const footerRow: CSSProperties = {
