@@ -80,9 +80,7 @@ export default function RootLayout({
         <div className="site-bg" aria-hidden="true" />
         <div className="site-grid" aria-hidden="true" />
 
-        <div className="relative flex min-h-screen flex-col">
-          {children}
-        </div>
+        <div className="relative flex min-h-screen flex-col">{children}</div>
       </body>
     </html>
   )

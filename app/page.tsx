@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../lib/supabase'
+import { getUserRole, type UserRole } from '@/lib/roles'
 
 type PlayerSearchRow = {
   id: string
@@ -25,18 +26,17 @@ type QuickAction =
   | { type: 'route'; label: string; href: string }
 
 const QUICK_ACTION_STORAGE_KEY = 'tenaceiq_recent_players'
+
 const FALLBACK_QUICK_ACTIONS: QuickAction[] = [
-  { type: 'route', label: 'Top doubles players', href: '/rankings' },
-  { type: 'route', label: 'Captain tools', href: '/captains-corner' },
+  { type: 'route', label: 'Explore rankings', href: '/rankings' },
+  { type: 'route', label: 'Browse leagues', href: '/leagues' },
 ]
 
-const NAV_LINKS = [
+const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
+  { href: '/captain', label: 'Captain' },
 ]
 
 export default function HomePage() {
@@ -55,12 +55,14 @@ export default function HomePage() {
   const [inputFocused, setInputFocused] = useState(false)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [recentPlayerActions, setRecentPlayerActions] = useState<QuickAction[]>([])
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
 
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
   const shouldShowSuggestions = showSuggestions && trimmedSearch.length >= 2
   const quickActions = useMemo(
     () => [...recentPlayerActions, ...FALLBACK_QUICK_ACTIONS].slice(0, 3),
-    [recentPlayerActions]
+    [recentPlayerActions],
   )
 
   const isTablet = screenWidth < 1080
@@ -78,6 +80,7 @@ export default function HomePage() {
     const timer = window.setTimeout(() => {
       inputRef.current?.focus()
     }, 220)
+
     return () => window.clearTimeout(timer)
   }, [])
 
@@ -90,7 +93,7 @@ export default function HomePage() {
       const sanitized: QuickAction[] = parsed
         .filter(
           (item): item is { label: string; playerId: string } =>
-            typeof item.label === 'string' && typeof item.playerId === 'string'
+            typeof item.label === 'string' && typeof item.playerId === 'string',
         )
         .slice(0, 2)
         .map((item) => ({
@@ -103,6 +106,28 @@ export default function HomePage() {
     } catch {
       setRecentPlayerActions([])
     }
+  }, [])
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        setRole(getUserRole(data.user?.id ?? null))
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+
+    loadUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setRole(getUserRole(session?.user?.id ?? null))
+      setAuthLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -185,7 +210,7 @@ export default function HomePage() {
 
     try {
       const exact = suggestions.find(
-        (row) => row.name.toLowerCase() === query.toLowerCase()
+        (row) => row.name.toLowerCase() === query.toLowerCase(),
       )
 
       if (exact) {
@@ -222,7 +247,7 @@ export default function HomePage() {
     const updated: QuickAction[] = [
       { type: 'player', label: player.name, playerId: player.id },
       ...recentPlayerActions.filter(
-        (item) => item.type !== 'player' || item.playerId !== player.id
+        (item) => item.type !== 'player' || item.playerId !== player.id,
       ),
     ].slice(0, 2)
 
@@ -233,12 +258,15 @@ export default function HomePage() {
         QUICK_ACTION_STORAGE_KEY,
         JSON.stringify(
           updated
-            .filter((item): item is Extract<QuickAction, { type: 'player' }> => item.type === 'player')
+            .filter(
+              (item): item is Extract<QuickAction, { type: 'player' }> =>
+                item.type === 'player',
+            )
             .map((item) => ({
               label: item.label,
               playerId: item.playerId,
-            }))
-        )
+            })),
+        ),
       )
     } catch {
       // ignore localStorage issues
@@ -262,10 +290,14 @@ export default function HomePage() {
     router.push(`/players/${action.playerId}`)
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
+
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (!shouldShowSuggestions || suggestions.length === 0) {
-      return
-    }
+    if (!shouldShowSuggestions || suggestions.length === 0) return
 
     if (event.key === 'ArrowDown') {
       event.preventDefault()
@@ -297,7 +329,7 @@ export default function HomePage() {
     ...headerInner,
     flexDirection: isTablet ? 'column' : 'row',
     alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
+    gap: isTablet ? '16px' : '22px',
   }
 
   const dynamicNavStyle: CSSProperties = {
@@ -309,40 +341,40 @@ export default function HomePage() {
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
-    padding: isMobile ? '14px 16px 24px' : '10px 18px 24px',
+    padding: isMobile ? '18px 16px 26px' : '14px 22px 28px',
   }
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isMobile ? '26px 18px 22px' : '34px 28px 24px',
+    padding: isMobile ? '28px 18px 24px' : '38px 30px 28px',
   }
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.12fr) minmax(360px, 0.88fr)',
-    gap: isMobile ? '18px' : '22px',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(380px, 0.86fr)',
+    gap: isMobile ? '20px' : '26px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
-    lineHeight: isMobile ? 1.05 : 0.98,
-    maxWidth: '720px',
+    fontSize: isSmallMobile ? '36px' : isMobile ? '50px' : '66px',
+    lineHeight: isMobile ? 1.04 : 0.97,
+    maxWidth: '760px',
   }
 
   const dynamicHeroText: CSSProperties = {
     ...heroText,
     fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '640px',
+    maxWidth: '650px',
   }
 
   const dynamicSearchShell: CSSProperties = {
     ...searchShell,
-    padding: isMobile ? '16px' : '18px',
-    marginBottom: '16px',
+    padding: isMobile ? '18px' : '20px',
+    marginBottom: '18px',
     boxShadow: inputFocused
-      ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(72,161,255,0.18)'
-      : searchShell.boxShadow,
+      ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(74,163,255,0.18)'
+      : (searchShell.boxShadow as string),
   }
 
   const dynamicSearchRow: CSSProperties = {
@@ -358,7 +390,7 @@ export default function HomePage() {
 
   const dynamicSearchInput: CSSProperties = {
     ...searchInput,
-    boxShadow: inputFocused ? '0 0 0 2px rgba(64,145,255,0.18)' : 'none',
+    boxShadow: inputFocused ? '0 0 0 2px rgba(74,163,255,0.18)' : 'none',
   }
 
   const dynamicSearchButton: CSSProperties = {
@@ -368,13 +400,13 @@ export default function HomePage() {
 
   const dynamicLogoPanel: CSSProperties = {
     ...logoPanel,
-    minHeight: isMobile ? '220px' : '252px',
+    minHeight: isMobile ? '248px' : '292px',
   }
 
   const dynamicActionGrid: CSSProperties = {
     ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(240px, 1fr))',
-    gap: isMobile ? '12px' : '14px',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(4, minmax(220px, 1fr))',
+    gap: isMobile ? '14px' : '16px',
   }
 
   const dynamicFooterInner: CSSProperties = {
@@ -404,6 +436,7 @@ export default function HomePage() {
       <div style={orbOne} />
       <div style={orbTwo} />
       <div style={gridGlow} />
+      <div style={topBlueWash} />
 
       <header style={headerStyle}>
         <div style={dynamicHeaderInner}>
@@ -412,7 +445,7 @@ export default function HomePage() {
           </Link>
 
           <nav style={dynamicNavStyle}>
-            {NAV_LINKS.map((link) => {
+            {PRIMARY_LINKS.map((link) => {
               const isActive = link.href === '/'
               return (
                 <Link
@@ -427,9 +460,39 @@ export default function HomePage() {
                 </Link>
               )
             })}
-            <Link href="/admin" style={navLink}>
-              Admin
+
+            <Link href="/leagues" style={navLink}>
+              Leagues
             </Link>
+
+            {authLoading ? (
+              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
+            ) : role === 'public' ? (
+              <>
+                <Link href="/login" style={navLink}>
+                  Login
+                </Link>
+                <Link href="/join" style={ctaNavLink}>
+                  Join
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/dashboard" style={ctaNavLink}>
+                  My Lab
+                </Link>
+
+                {role === 'admin' ? (
+                  <Link href="/admin" style={navLink}>
+                    Admin
+                  </Link>
+                ) : null}
+
+                <button type="button" onClick={handleLogout} style={navButtonReset}>
+                  Logout
+                </button>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -443,13 +506,15 @@ export default function HomePage() {
               <div style={eyebrow}>Know more. Plan better. Compete smarter.</div>
 
               <h1 style={dynamicHeroTitle}>
-                The fastest way to check player stats, compare matchups, and prepare your lineup.
+                The fastest way to check player stats, compare matchups, and run your tennis season.
               </h1>
 
               <p style={dynamicHeroText}>
-                Search players first, then move straight into matchups, rankings, team context, and captain tools.
+                Search players first, then move straight into public exploration, matchup prep,
+                league context, and member tools like My Lab and Captain workflows.
               </p>
 
+              <div style={quickActionLabel}>Recent / featured</div>
               <div style={quickActionWrap}>
                 {quickActions.map((action) => (
                   <button
@@ -546,28 +611,43 @@ export default function HomePage() {
               <div style={dynamicLogoPanel}>
                 <div style={logoGlow} />
                 <div style={logoRing} />
+
                 <div style={logoPanelInner}>
-                  <Image
-                    src="/logo-icon.png"
-                    alt="TenAceIQ"
-                    width={512}
-                    height={512}
-                    priority
-                    style={{
-                      width: isMobile ? '108px' : '118px',
-                      height: isMobile ? '108px' : '118px',
-                      display: 'block',
-                      margin: isMobile ? '14px auto 12px' : '18px auto 12px',
-                      objectFit: 'contain',
-                    }}
-                  />
+                  <div style={logoOrbWrap}>
+                    <div style={logoOrbOuter} />
+                    <div style={logoOrbMiddle} />
+                    <div style={logoOrbInner}>
+                      <Image
+                        src="/logo-icon.png"
+                        alt="TenAceIQ"
+                        width={512}
+                        height={512}
+                        priority
+                        style={{
+                          width: isMobile ? '118px' : '132px',
+                          height: isMobile ? '118px' : '132px',
+                          display: 'block',
+                          objectFit: 'contain',
+                        }}
+                      />
+                    </div>
+                  </div>
+
                   <div style={heroBrandText}>
                     <span style={heroTenAce}>TenAce</span>
                     <span style={heroIQ}>IQ</span>
                   </div>
+
                   <p style={logoPanelText}>
-                    Premium player analytics, matchup insight, league context, and captain prep built for competitive tennis.
+                    Premium player analytics, matchup insight, league context, and captain prep
+                    built for competitive tennis.
                   </p>
+
+                  <div style={membershipPills}>
+                    <span style={pillBlue}>Public Explore</span>
+                    <span style={pillGreen}>Member My Lab</span>
+                    <span style={pillSlate}>Admin Tools</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -575,13 +655,13 @@ export default function HomePage() {
 
           <div style={dynamicActionGrid}>
             <ActionCard
-              href="/players"
-              eyebrow="Explore"
-              title="Players"
-              text="Profiles, ratings, and performance history."
-              icon={<PlayersIcon />}
-              hovered={hoveredCard === '/players'}
-              onEnter={() => setHoveredCard('/players')}
+              href="/explore"
+              eyebrow="Discover"
+              title="Explore"
+              text="Players, rankings, leagues, teams, and public activity."
+              icon={<ExploreIcon />}
+              hovered={hoveredCard === '/explore'}
+              onEnter={() => setHoveredCard('/explore')}
               onLeave={() => setHoveredCard(null)}
               accent="blue"
             />
@@ -589,8 +669,8 @@ export default function HomePage() {
             <ActionCard
               href="/matchup"
               eyebrow="Prepare"
-              title="Matchup"
-              text="Compare players before match day."
+              title="Matchups"
+              text="Compare players before match day and see projected edges."
               icon={<MatchupIcon />}
               hovered={hoveredCard === '/matchup'}
               onEnter={() => setHoveredCard('/matchup')}
@@ -599,15 +679,27 @@ export default function HomePage() {
             />
 
             <ActionCard
-              href="/captains-corner"
-              eyebrow="Captain tools"
-              title="Captain's Corner"
-              text="Lineups, scenarios, and captain prep."
-              icon={<CaptainIcon />}
-              hovered={hoveredCard === '/captains-corner'}
-              onEnter={() => setHoveredCard('/captains-corner')}
+              href={role === 'public' ? '/join' : '/dashboard'}
+              eyebrow="Members"
+              title="My Lab"
+              text="Follow players, teams, and leagues with a personalized feed."
+              icon={<LabIcon />}
+              hovered={hoveredCard === 'my-lab'}
+              onEnter={() => setHoveredCard('my-lab')}
               onLeave={() => setHoveredCard(null)}
               accent="blue"
+            />
+
+            <ActionCard
+              href="/captain"
+              eyebrow="Captain tools"
+              title="Captain"
+              text="Availability, messaging, lineups, scenarios, and season context."
+              icon={<CaptainIcon />}
+              hovered={hoveredCard === '/captain'}
+              onEnter={() => setHoveredCard('/captain')}
+              onLeave={() => setHoveredCard(null)}
+              accent="green"
             />
           </div>
         </div>
@@ -621,16 +713,27 @@ export default function HomePage() {
             </Link>
 
             <div style={dynamicFooterLinks}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+              <Link href="/explore" style={footerUtilityLink}>
+                Explore
+              </Link>
+              <Link href="/players" style={footerUtilityLink}>
+                Players
+              </Link>
+              <Link href="/rankings" style={footerUtilityLink}>
+                Rankings
+              </Link>
+              <Link href="/matchup" style={footerUtilityLink}>
+                Matchups
+              </Link>
+              <Link href="/leagues" style={footerUtilityLink}>
+                Leagues
+              </Link>
+              <Link href="/captain" style={footerUtilityLink}>
+                Captain
+              </Link>
             </div>
 
-            <div style={dynamicFooterBottom}>
-              © {new Date().getFullYear()} TenAceIQ
-            </div>
+            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
           </div>
         </div>
       </footer>
@@ -707,15 +810,15 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '8px' : '10px',
+        gap: compact ? '10px' : '12px',
         lineHeight: 1,
       }}
     >
@@ -762,18 +865,27 @@ function SearchIcon() {
   return (
     <IconBase>
       <circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M16 16l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+      <path
+        d="M16 16l3.5 3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
     </IconBase>
   )
 }
 
-function PlayersIcon() {
+function ExploreIcon() {
   return (
     <IconBase>
-      <circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="16" cy="9" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M4.5 18c.7-2.6 2.6-4 5.5-4s4.8 1.4 5.5 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M14.5 18c.5-1.8 1.8-2.8 3.9-3.1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M12 3l2.6 5.4L20 11l-5.4 2.6L12 19l-2.6-5.4L4 11l5.4-2.6z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
     </IconBase>
   )
 }
@@ -781,9 +893,49 @@ function PlayersIcon() {
 function MatchupIcon() {
   return (
     <IconBase>
-      <path d="M4 17.5V6.8c0-.7.6-1.3 1.3-1.3H12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M20 6.5v10.7c0 .7-.6 1.3-1.3 1.3H12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M9 8.8h5.5M9 12h6.6M9 15.2h4.3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M4 17.5V6.8c0-.7.6-1.3 1.3-1.3H12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M20 6.5v10.7c0 .7-.6 1.3-1.3 1.3H12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M9 8.8h5.5M9 12h6.6M9 15.2h4.3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </IconBase>
+  )
+}
+
+function LabIcon() {
+  return (
+    <IconBase>
+      <path
+        d="M9 4v4.2l-3.6 6.3A2 2 0 0 0 7.1 18h9.8a2 2 0 0 0 1.7-3.5L15 8.2V4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8.2 13h7.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </IconBase>
   )
 }
@@ -791,9 +943,27 @@ function MatchupIcon() {
 function CaptainIcon() {
   return (
     <IconBase>
-      <path d="M7 18v-7.5c0-1.2.8-2 2-2h6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M17.5 5.5l2 2-4.8 4.8-2.8.7.7-2.8z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M6.5 18.5h11" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M7 18v-7.5c0-1.2.8-2 2-2h6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M17.5 5.5l2 2-4.8 4.8-2.8.7.7-2.8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M6.5 18.5h11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </IconBase>
   )
 }
@@ -802,29 +972,37 @@ const pageStyle: CSSProperties = {
   minHeight: '100vh',
   position: 'relative',
   overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
+  background: `
+    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
+    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
+  `,
 }
 
 const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
+  top: '-120px',
+  left: '-140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
+  background:
+    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
 const orbTwo: CSSProperties = {
   position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
+  right: '-140px',
+  top: '140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
+  background:
+    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
@@ -839,15 +1017,26 @@ const gridGlow: CSSProperties = {
   pointerEvents: 'none',
 }
 
+const topBlueWash: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '420px',
+  background:
+    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
+  pointerEvents: 'none',
+}
+
 const headerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '24px 18px 0',
+  padding: '18px 24px 0',
 }
 
 const headerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
@@ -862,29 +1051,43 @@ const brandWrap: CSSProperties = {
 const navStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '10px',
+  gap: '12px',
 }
 
 const navLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.9)',
+  color: 'rgba(238,247,255,0.94)',
   textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
+  fontSize: '15px',
+  fontWeight: 800,
   letterSpacing: '0.01em',
-  padding: '10px 14px',
+  padding: '12px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(122,170,255,0.16)',
-  background: 'rgba(22,42,78,0.42)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   transition: 'all 180ms ease',
 }
 
+const ctaNavLink: CSSProperties = {
+  ...navLink,
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+}
+
+const navButtonReset: CSSProperties = {
+  ...navLink,
+  cursor: 'pointer',
+  appearance: 'none',
+}
+
 const activeNavLink: CSSProperties = {
-  color: '#06111f',
-  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
-  border: '1px solid rgba(134,239,172,0.45)',
-  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -894,14 +1097,15 @@ const heroWrap: CSSProperties = {
 
 const heroShell: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background:
-    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
-  border: '1px solid rgba(128,174,255,0.12)',
+  background: `
+    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
+  `,
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
-    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -909,15 +1113,19 @@ const heroShell: CSSProperties = {
 const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+  background: `
+    radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%),
+    radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%),
+    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%),
+    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
+  `,
   pointerEvents: 'none',
 }
 
 const heroContent: CSSProperties = {
   display: 'grid',
   alignItems: 'stretch',
-  marginBottom: '18px',
+  marginBottom: '20px',
   position: 'relative',
   zIndex: 1,
 }
@@ -926,12 +1134,12 @@ const heroLeft: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
-  gap: '16px',
+  gap: '18px',
 }
 
 const heroRight: CSSProperties = {
   display: 'grid',
-  gap: '14px',
+  gap: '16px',
   alignContent: 'start',
 }
 
@@ -939,13 +1147,13 @@ const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
   alignItems: 'center',
-  padding: '7px 11px',
+  padding: '8px 14px',
   borderRadius: '999px',
   color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  background: 'rgba(37,91,227,0.18)',
+  border: '1px solid rgba(116,190,255,0.22)',
   fontSize: '12px',
-  fontWeight: 800,
+  fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
 }
@@ -954,69 +1162,84 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: '-0.05em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
   color: 'rgba(224,236,249,0.86)',
-  lineHeight: 1.65,
+  lineHeight: 1.7,
   fontWeight: 500,
 }
 
 const heroIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
   marginLeft: '2px',
 }
 
+const heroTenAce: CSSProperties = {
+  color: '#f8fbff',
+}
+
+const quickActionLabel: CSSProperties = {
+  color: 'rgba(202,220,241,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
 const quickActionWrap: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
-  marginTop: '4px',
+  marginTop: '2px',
 }
 
 const quickActionButton: CSSProperties = {
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
-  color: '#e2efff',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background:
+    'linear-gradient(180deg, rgba(54,108,198,0.22) 0%, rgba(29,63,121,0.18) 100%)',
+  color: '#eaf4ff',
   borderRadius: '999px',
-  padding: '10px 14px',
+  padding: '11px 16px',
   fontSize: '13px',
   fontWeight: 700,
   cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const searchShell: CSSProperties = {
   borderRadius: '24px',
-  background:
-    'linear-gradient(180deg, rgba(43,78,138,0.42) 0%, rgba(20,37,73,0.56) 100%)',
-  border: '1px solid rgba(142,184,255,0.18)',
+  background: `
+    linear-gradient(180deg, rgba(68, 132, 229, 0.20) 0%, rgba(40, 83, 158, 0.18) 28%, rgba(16, 36, 70, 0.72) 100%)
+  `,
+  border: '1px solid rgba(116,190,255,0.24)',
   boxShadow:
-    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 40px rgba(116,190,255,0.05)',
 }
 
 const searchTopRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '12px',
-  marginBottom: '12px',
+  marginBottom: '14px',
   alignItems: 'center',
 }
 
 const searchLabel: CSSProperties = {
   color: '#f6fbff',
-  fontSize: '15px',
+  fontSize: '16px',
   fontWeight: 800,
   letterSpacing: '-0.02em',
 }
 
 const searchShortcutHint: CSSProperties = {
   color: 'rgba(204,220,241,0.76)',
-  fontSize: '12px',
+  fontSize: '13px',
   fontWeight: 700,
 }
 
@@ -1048,37 +1271,62 @@ const searchIconWrap: CSSProperties = {
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
+  border: '1px solid rgba(74,163,255,0.18)',
   background: 'rgba(10,20,40,0.6)',
   color: '#f7fbff',
-  padding: '15px 16px 15px 46px',
+  padding: '17px 16px 17px 46px',
   fontSize: '15px',
   outline: 'none',
 }
 
 const searchButton: CSSProperties = {
-  border: '1px solid rgba(117,255,188,0.38)',
-  background: 'linear-gradient(135deg, #22c55e 0%, #86efac 100%)',
-  color: '#03111d',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: '#08111d',
   borderRadius: '18px',
-  padding: '15px 18px',
-  fontSize: '14px',
-  fontWeight: 900,
+  padding: '17px 22px',
+  fontSize: '15px',
+  fontWeight: 800,
   cursor: 'pointer',
-  boxShadow: '0 14px 28px rgba(34,197,94,0.18)',
+  minWidth: '128px',
+}
+
+const searchHelperText: CSSProperties = {
+  marginTop: '12px',
+  color: 'rgba(205,220,241,0.75)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+}
+
+const searchErrorStyle: CSSProperties = {
+  marginTop: '12px',
+  padding: '10px 12px',
+  borderRadius: '14px',
+  background: 'rgba(255,104,104,0.12)',
+  border: '1px solid rgba(255,130,130,0.18)',
+  color: '#ffd3d3',
+  fontSize: '13px',
+  fontWeight: 700,
 }
 
 const suggestionsDropdown: CSSProperties = {
   position: 'absolute',
+  top: 'calc(100% + 8px)',
   left: 0,
   right: 0,
-  top: 'calc(100% + 10px)',
-  borderRadius: '20px',
+  zIndex: 20,
+  borderRadius: '18px',
   overflow: 'hidden',
-  background: 'rgba(15,29,58,0.98)',
-  border: '1px solid rgba(138,182,255,0.16)',
-  boxShadow: '0 24px 60px rgba(6,18,42,0.28)',
-  zIndex: 10,
+  border: '1px solid rgba(74,163,255,0.18)',
+  background: 'rgba(9,18,35,0.96)',
+  backdropFilter: 'blur(18px)',
+  boxShadow: '0 20px 48px rgba(0,0,0,0.3)',
+}
+
+const suggestionStatus: CSSProperties = {
+  padding: '14px 16px',
+  color: 'rgba(210,226,244,0.8)',
+  fontSize: '14px',
 }
 
 const suggestionItem: CSSProperties = {
@@ -1087,17 +1335,16 @@ const suggestionItem: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '12px',
-  border: 0,
-  background: 'transparent',
-  color: '#f7fbff',
   padding: '14px 16px',
-  textAlign: 'left',
+  background: 'transparent',
+  border: 0,
+  color: '#f7fbff',
   cursor: 'pointer',
-  borderBottom: '1px solid rgba(255,255,255,0.05)',
+  textAlign: 'left',
 }
 
 const suggestionItemActive: CSSProperties = {
-  background: 'linear-gradient(90deg, rgba(72,133,232,0.18) 0%, rgba(74,222,128,0.1) 100%)',
+  background: 'rgba(37,91,227,0.24)',
 }
 
 const suggestionPrimary: CSSProperties = {
@@ -1107,72 +1354,93 @@ const suggestionPrimary: CSSProperties = {
 
 const suggestionSecondary: CSSProperties = {
   fontSize: '12px',
-  fontWeight: 800,
-  color: '#bde7ff',
-}
-
-const suggestionStatus: CSSProperties = {
-  padding: '16px',
-  color: 'rgba(211,225,242,0.78)',
-  fontSize: '14px',
-}
-
-const searchHelperText: CSSProperties = {
-  marginTop: '12px',
-  color: 'rgba(216,230,246,0.78)',
-  fontSize: '13px',
-  lineHeight: 1.6,
-}
-
-const searchErrorStyle: CSSProperties = {
-  marginTop: '10px',
-  color: '#ffcbcb',
-  fontSize: '13px',
-  fontWeight: 700,
+  color: 'rgba(192,212,240,0.72)',
 }
 
 const logoPanel: CSSProperties = {
   position: 'relative',
+  borderRadius: '26px',
   overflow: 'hidden',
-  borderRadius: '24px',
-  background:
-    'linear-gradient(180deg, rgba(72,124,206,0.42) 0%, rgba(36,66,116,0.52) 100%)',
-  border: '1px solid rgba(144,189,255,0.2)',
+  background: `
+    linear-gradient(180deg, rgba(24, 49, 93, 0.68) 0%, rgba(16, 33, 64, 0.84) 30%, rgba(13, 26, 50, 0.96) 100%)
+  `,
+  border: '1px solid rgba(116,190,255,0.20)',
   boxShadow:
-    '0 18px 40px rgba(10,28,58,0.16), inset 0 1px 0 rgba(255,255,255,0.06)',
+    '0 20px 48px rgba(7,18,40,0.24), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 56px rgba(116,190,255,0.05)',
 }
 
 const logoGlow: CSSProperties = {
   position: 'absolute',
-  inset: 0,
+  inset: 'auto auto 8px 50%',
+  width: '250px',
+  height: '250px',
+  transform: 'translateX(-50%)',
+  borderRadius: '999px',
   background:
-    'radial-gradient(circle at 50% 20%, rgba(110,187,255,0.18), transparent 38%), radial-gradient(circle at 50% 100%, rgba(74,222,128,0.08), transparent 40%)',
+    'radial-gradient(circle, rgba(116,190,255,0.18) 0%, rgba(155,225,29,0.08) 34%, rgba(116,190,255,0) 72%)',
   pointerEvents: 'none',
 }
 
 const logoRing: CSSProperties = {
   position: 'absolute',
-  top: '50%',
-  left: '50%',
-  width: '220px',
-  height: '220px',
-  transform: 'translate(-50%, -50%)',
-  borderRadius: '999px',
-  border: '1px solid rgba(170,208,255,0.14)',
-  boxShadow: '0 0 0 24px rgba(124,176,255,0.05), 0 0 0 54px rgba(124,176,255,0.03)',
+  inset: '22px',
+  borderRadius: '24px',
+  border: '1px solid rgba(116,190,255,0.12)',
   pointerEvents: 'none',
 }
 
 const logoPanelInner: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  minHeight: '100%',
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'center',
   justifyContent: 'center',
+  alignItems: 'center',
+  height: '100%',
+  padding: '18px 20px 20px',
   textAlign: 'center',
-  padding: '22px 20px 28px',
+}
+
+const logoOrbWrap: CSSProperties = {
+  position: 'relative',
+  width: '188px',
+  height: '188px',
+  display: 'grid',
+  placeItems: 'center',
+  margin: '8px auto 12px',
+}
+
+const logoOrbOuter: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  borderRadius: '999px',
+  background:
+    'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(1px)',
+}
+
+const logoOrbMiddle: CSSProperties = {
+  position: 'absolute',
+  inset: '14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.28)',
+  boxShadow:
+    '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)',
+}
+
+const logoOrbInner: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: '142px',
+  height: '142px',
+  borderRadius: '999px',
+  display: 'grid',
+  placeItems: 'center',
+  background:
+    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  boxShadow:
+    '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)',
 }
 
 const heroBrandText: CSSProperties = {
@@ -1181,22 +1449,58 @@ const heroBrandText: CSSProperties = {
   justifyContent: 'center',
   gap: '2px',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
-  fontSize: '38px',
+  letterSpacing: '-0.05em',
+  fontSize: '36px',
   lineHeight: 1,
-  marginBottom: '10px',
-}
-
-const heroTenAce: CSSProperties = {
-  color: '#f8fbff',
 }
 
 const logoPanelText: CSSProperties = {
-  margin: 0,
-  color: 'rgba(226,238,249,0.82)',
-  lineHeight: 1.6,
+  margin: '12px auto 0',
+  maxWidth: '320px',
+  color: 'rgba(224,236,249,0.82)',
   fontSize: '14px',
-  maxWidth: '330px',
+  lineHeight: 1.65,
+}
+
+const membershipPills: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginTop: '16px',
+}
+
+const pillBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.04em',
+}
+
+const pillBlue: CSSProperties = {
+  ...pillBase,
+  color: '#dcebff',
+  background: 'rgba(37,91,227,0.16)',
+  border: '1px solid rgba(74,163,255,0.18)',
+}
+
+const pillGreen: CSSProperties = {
+  ...pillBase,
+  color: '#e7ffd0',
+  background: 'rgba(155,225,29,0.14)',
+  border: '1px solid rgba(155,225,29,0.24)',
+}
+
+const pillSlate: CSSProperties = {
+  ...pillBase,
+  color: '#dfe8f7',
+  background: 'rgba(255,255,255,0.08)',
+  border: '1px solid rgba(255,255,255,0.1)',
 }
 
 const actionGrid: CSSProperties = {
@@ -1206,53 +1510,55 @@ const actionGrid: CSSProperties = {
 }
 
 const actionCard: CSSProperties = {
-  borderRadius: '22px',
-  padding: '18px',
-  textDecoration: 'none',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
-  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'space-between',
-  minHeight: '210px',
+  gap: '18px',
+  minHeight: '220px',
+  borderRadius: '24px',
+  padding: '22px',
+  textDecoration: 'none',
+  color: '#eff6ff',
+  background:
+    'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
 }
 
 const actionCardHover: CSSProperties = {
-  transform: 'translateY(-3px)',
-  boxShadow: '0 22px 48px rgba(10,28,58,0.2)',
-  border: '1px solid rgba(158,197,255,0.28)',
+  transform: 'translateY(-4px)',
+  border: '1px solid rgba(116,190,255,0.30)',
+  boxShadow: '0 22px 52px rgba(7,18,40,0.26), inset 0 0 32px rgba(116,190,255,0.05)',
 }
 
 const actionCardTop: CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
   alignItems: 'center',
-  marginBottom: '24px',
+  justifyContent: 'flex-start',
 }
 
 const actionCardIcon: CSSProperties = {
-  width: '50px',
-  height: '50px',
-  borderRadius: '16px',
+  width: '58px',
+  height: '58px',
+  borderRadius: '18px',
   display: 'grid',
   placeItems: 'center',
-  color: '#f8fbff',
+  transition: 'transform 180ms ease',
 }
 
 const actionCardIconBlue: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(59,130,246,0.94) 0%, rgba(125,211,252,0.88) 100%)',
-  boxShadow: '0 12px 24px rgba(59,130,246,0.18)',
+  background: 'rgba(37,91,227,0.16)',
+  color: '#cfe4ff',
 }
 
 const actionCardIconGreen: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(34,197,94,0.94) 0%, rgba(110,231,183,0.88) 100%)',
-  boxShadow: '0 12px 24px rgba(34,197,94,0.16)',
+  background: 'rgba(155,225,29,0.14)',
+  color: '#efffd5',
 }
 
 const actionCardIconHover: CSSProperties = {
-  transform: 'translateY(-1px) scale(1.02)',
+  transform: 'scale(1.04)',
 }
 
 const actionBody: CSSProperties = {
@@ -1261,104 +1567,103 @@ const actionBody: CSSProperties = {
 }
 
 const actionEyebrow: CSSProperties = {
-  color: '#cfe4ff',
+  color: 'rgba(188,208,232,0.8)',
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.12em',
+  letterSpacing: '0.11em',
   textTransform: 'uppercase',
 }
 
 const actionTitle: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: '22px',
+  fontSize: '27px',
+  lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: '-0.04em',
+  color: '#f8fbff',
 }
 
 const actionText: CSSProperties = {
-  color: 'rgba(223,235,248,0.84)',
-  lineHeight: 1.65,
-  fontWeight: 500,
   fontSize: '14px',
+  lineHeight: 1.7,
+  color: 'rgba(215,229,247,0.78)',
 }
 
 const actionFooterRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  marginTop: '18px',
+  marginTop: 'auto',
 }
 
 const actionFooterCtaBlue: CSSProperties = {
-  color: '#dceeff',
+  color: '#d5e8ff',
   fontSize: '13px',
-  fontWeight: 900,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
+  fontWeight: 800,
 }
 
 const actionFooterCtaGreen: CSSProperties = {
-  color: '#bbf7d0',
+  color: '#e7ffd0',
   fontSize: '13px',
-  fontWeight: 900,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
+  fontWeight: 800,
 }
 
 const actionFooterArrow: CSSProperties = {
-  color: '#f8fbff',
+  color: 'rgba(216,230,246,0.78)',
   fontSize: '18px',
-  fontWeight: 900,
+  fontWeight: 800,
 }
 
 const iconSvgStyle: CSSProperties = {
-  width: '22px',
-  height: '22px',
+  width: '24px',
+  height: '24px',
+  display: 'block',
 }
 
 const footerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  padding: '0 18px 20px',
+  marginTop: '26px',
+  padding: '0 18px 24px',
 }
 
 const footerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  borderRadius: '24px',
+  background:
+    'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const footerRow: CSSProperties = {
   display: 'flex',
-  width: '100%',
+  alignItems: 'center',
+  gap: '18px',
 }
 
 const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
   textDecoration: 'none',
-  flexShrink: 0,
+  display: 'inline-flex',
+  alignItems: 'center',
 }
 
 const footerLinks: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px 14px',
+  gap: '12px 14px',
 }
 
 const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
+  color: 'rgba(215,229,247,0.8)',
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 700,
 }
 
 const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+  fontWeight: 700,
 }

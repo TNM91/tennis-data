@@ -5,8 +5,9 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getUserRole, type UserRole } from '@/lib/roles'
 
 type TeamMatch = {
   id: string
@@ -73,12 +74,9 @@ type PairingSummary = {
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
+  { href: '/captain', label: 'Captain' },
 ]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -118,11 +116,17 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`
 }
 
+
 export default function CaptainsCornerPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
+
   const teamParam = searchParams.get('team') || ''
   const leagueParam = searchParams.get('league') || ''
   const flightParam = searchParams.get('flight') || ''
+
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedTeam, setSelectedTeam] = useState(teamParam)
@@ -148,6 +152,30 @@ export default function CaptainsCornerPage() {
   }, [])
 
   useEffect(() => {
+    async function loadAuth() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const nextRole = getUserRole(data.user?.id ?? null)
+        setRole(nextRole)
+        if (nextRole === 'public') router.replace('/login')
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+
+    loadAuth()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const nextRole = getUserRole(session?.user?.id ?? null)
+      setRole(nextRole)
+      setAuthLoading(false)
+      if (nextRole === 'public') router.replace('/login')
+    })
+
+    return () => subscription.unsubscribe()
+  }, [router])
+
+  useEffect(() => {
     void loadTeamOptions()
   }, [])
 
@@ -156,9 +184,16 @@ export default function CaptainsCornerPage() {
     void loadSelectedTeam()
   }, [selectedTeam, selectedLeague, selectedFlight])
 
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
+
   async function loadTeamOptions() {
     setLoadingOptions(true)
     setError('')
+
     try {
       const { data, error } = await supabase
         .from('matches')
@@ -167,15 +202,19 @@ export default function CaptainsCornerPage() {
       if (error) throw new Error(error.message)
 
       const map = new Map<string, TeamOption>()
+
       for (const row of (data || []) as any[]) {
         const league = safeText(row.league_name, 'Unknown League')
         const flight = safeText(row.flight, 'Unknown Flight')
+
         for (const side of [safeText(row.home_team), safeText(row.away_team)]) {
           if (side === 'Unknown') continue
           const key = `${side}__${league}__${flight}`
+
           if (!map.has(key)) {
             map.set(key, { team: side, league, flight, matches: 0 })
           }
+
           map.get(key)!.matches += 1
         }
       }
@@ -197,12 +236,12 @@ export default function CaptainsCornerPage() {
     } finally {
       setLoadingOptions(false)
     }
-
   }
 
   async function loadSelectedTeam() {
     setLoadingTeam(true)
     setError('')
+
     try {
       let query = supabase
         .from('matches')
@@ -267,21 +306,25 @@ export default function CaptainsCornerPage() {
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
+
     for (const match of matches) {
       if (safeText(match.home_team) === selectedTeam) map.set(match.id, 'A')
       if (safeText(match.away_team) === selectedTeam) map.set(match.id, 'B')
     }
+
     return map
   }, [matches, selectedTeam])
 
   const roster = useMemo<TeamPlayerSummary[]>(() => {
     const map = new Map<string, TeamPlayerSummary>()
+
     for (const row of participants) {
       const side = teamSideByMatchId.get(row.match_id)
       if (!side || row.side !== side) continue
 
       const player = normalizePlayerRelation(row.players)
       if (!player) continue
+
       const match = matches.find((m) => m.id === row.match_id)
       if (!match) continue
 
@@ -311,18 +354,21 @@ export default function CaptainsCornerPage() {
 
   const pairings = useMemo<PairingSummary[]>(() => {
     const map = new Map<string, PairingSummary>()
+
     for (const match of matches) {
       if (match.match_type !== 'doubles') continue
+
       const side = teamSideByMatchId.get(match.id)
       if (!side) continue
 
       const teamPlayers = participants
-        .filter((row) => row.match_id == match.id && row.side === side)
+        .filter((row) => row.match_id === match.id && row.side === side)
         .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
         .map((row) => normalizePlayerRelation(row.players))
         .filter(Boolean) as NonNullable<ReturnType<typeof normalizePlayerRelation>>[]
 
       if (teamPlayers.length < 2) continue
+
       const pair = teamPlayers.slice(0, 2).sort((a, b) => a.name.localeCompare(b.name))
       const key = `${pair[0].id}__${pair[1].id}`
 
@@ -357,7 +403,11 @@ export default function CaptainsCornerPage() {
 
   const recommendedSingles = useMemo(() => {
     return [...roster]
-      .sort((a, b) => ((b.singlesDynamic || 0) + b.appearances * 0.04) - ((a.singlesDynamic || 0) + a.appearances * 0.04))
+      .sort(
+        (a, b) =>
+          ((b.singlesDynamic || 0) + b.appearances * 0.04) -
+          ((a.singlesDynamic || 0) + a.appearances * 0.04)
+      )
       .slice(0, 4)
   }, [roster])
 
@@ -366,14 +416,17 @@ export default function CaptainsCornerPage() {
     let losses = 0
     let doubles = 0
     let singles = 0
+
     for (const match of matches) {
       const side = teamSideByMatchId.get(match.id)
       if (!side) continue
       if (match.winner_side === side) wins += 1
       else losses += 1
+
       if (match.match_type === 'doubles') doubles += 1
       else singles += 1
     }
+
     return {
       matches: matches.length,
       wins,
@@ -390,22 +443,39 @@ export default function CaptainsCornerPage() {
     : '/teams'
 
   const lineupBuilderHref = selectedTeam
-    ? `/captains-corner/lineup-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captains-corner/lineup-builder'
+    ? `/captain/lineup-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/lineup-builder'
 
   const availabilityHref = selectedTeam
-    ? `/captains-corner/lineup-availability?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captains-corner/lineup-availability'
+    ? `/captain/availability?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/availability'
 
   const scenarioHref = selectedTeam
-    ? `/captains-corner/scenario-comparison?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captains-corner/scenario-comparison'
+    ? `/captain/scenario-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/scenario-builder'
+
+  if (authLoading) {
+    return (
+      <main style={pageStyle}>
+        <div style={orbOne} />
+        <div style={orbTwo} />
+        <div style={gridGlow} />
+        <div style={topBlueWash} />
+        <section style={loadingShell}>
+          <div style={loadingCard}>Loading Captain dashboard...</div>
+        </section>
+      </main>
+    )
+  }
+
+  if (role === 'public') return null
 
   return (
     <main style={pageStyle}>
       <div style={orbOne} />
       <div style={orbTwo} />
       <div style={gridGlow} />
+      <div style={topBlueWash} />
 
       <header style={headerStyle}>
         <div style={headerInnerResponsive(isTablet)}>
@@ -415,14 +485,20 @@ export default function CaptainsCornerPage() {
 
           <nav style={navStyleResponsive(isTablet)}>
             {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/captains-corner'
+              const isActive = link.href === '/captain'
               return (
-                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{ ...navLink, ...(isActive && link.href === '/captain' ? activeNavLink : {}) }}
+                >
                   {link.label}
                 </Link>
               )
             })}
-            <Link href="/admin" style={navLink}>Admin</Link>
+            <Link href="/dashboard" style={ctaNavLink}>My Lab</Link>
+            {role === 'admin' ? <Link href="/admin" style={navLink}>Admin</Link> : null}
+            <button type="button" onClick={handleLogout} style={navButtonReset}>Logout</button>
           </nav>
         </div>
       </header>
@@ -433,7 +509,7 @@ export default function CaptainsCornerPage() {
           <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Captain&apos;s Corner</h1>
           <p style={heroText}>
             A strategic command center for captains. Choose your team, review lineup intelligence,
-            track availability, build match-day options, && compare scenarios with real team context.
+            track availability, build match-day options, and compare scenarios with real team context.
           </p>
 
           <div style={selectorPanelResponsive(isSmallMobile)}>
@@ -449,11 +525,15 @@ export default function CaptainsCornerPage() {
               }}
               style={selectStyle}
             >
-              {filteredTeamOptions.map((option) => (
-                <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
-                  {option.team} · {option.league} · {option.flight}
-                </option>
-              ))}
+              {loadingOptions && !filteredTeamOptions.length ? (
+                <option>Loading teams...</option>
+              ) : (
+                filteredTeamOptions.map((option) => (
+                  <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
+                    {option.team} · {option.league} · {option.flight}
+                  </option>
+                ))
+              )}
             </select>
 
             <Link href={lineupBuilderHref} style={primaryButton}>
@@ -471,11 +551,12 @@ export default function CaptainsCornerPage() {
         <div style={quickStartCard}>
           <div style={quickStartLabel}>Captain quick start</div>
           <h2 style={quickStartTitle}>Build better lineups with a repeatable process</h2>
+
           <div style={workflowStack}>
             {[
               ['1', 'Check availability', 'Start with the right player pool before building anything.'],
-              ['2', 'Use lineup intelligence', 'Lean on best singles && doubles history before making choices.'],
-              ['3', 'Build && compare', 'Open lineup builder, test options, then compare final scenarios.'],
+              ['2', 'Use lineup intelligence', 'Lean on best singles and doubles history before making choices.'],
+              ['3', 'Build and compare', 'Open lineup builder, test options, then compare final scenarios.'],
             ].map(([step, title, text]) => (
               <div key={step} style={workflowRow}>
                 <div style={workflowStep}>{step}</div>
@@ -519,22 +600,22 @@ export default function CaptainsCornerPage() {
             <ActionCard
               badge="Strategy"
               title="Lineup Builder"
-              description="Build your strongest options using actual team context && lineup intelligence."
+              description="Build your strongest options using actual team context and lineup intelligence."
               href={lineupBuilderHref}
               cta="Open Lineup Builder"
               accent
             />
             <ActionCard
               badge="Comparison"
-              title="Scenario Comparison"
-              description="Review saved lineups side by side before committing to match-day decisions."
+              title="Scenario Builder"
+              description="Review and compare likely opponent and saved lineup scenarios."
               href={scenarioHref}
-              cta="Open Scenario Comparison"
+              cta="Open Scenario Builder"
             />
             <ActionCard
               badge="Team Context"
               title="Open Team Page"
-              description="Go deeper into roster usage, match history, && full team detail."
+              description="Go deeper into roster usage, match history, and full team detail."
               href={currentTeamHref}
               cta="Open Team Page"
             />
@@ -546,7 +627,7 @@ export default function CaptainsCornerPage() {
             <div>
               <div style={sectionKicker}>Lineup intelligence preview</div>
               <h2 style={sectionTitle}>Best signals for {selectedTeam || 'your team'}</h2>
-              <div style={sectionSub}>A quick preview of the players && pairings you should be thinking about first.</div>
+              <div style={sectionSub}>A quick preview of the players and pairings you should be thinking about first.</div>
             </div>
           </div>
 
@@ -578,7 +659,7 @@ export default function CaptainsCornerPage() {
 
               <div style={insightCard}>
                 <div style={insightLabel}>Best doubles pairs</div>
-                <div style={insightSub}>Pairs ranked by win rate first, then sample size && average doubles dynamic rating.</div>
+                <div style={insightSub}>Pairs ranked by win rate first, then sample size and average doubles dynamic rating.</div>
                 <div style={stackList}>
                   {pairings.length === 0 ? (
                     <div style={emptyLine}>No doubles pair history yet.</div>
@@ -591,7 +672,10 @@ export default function CaptainsCornerPage() {
                             {pair.wins}-{pair.losses} together · {pair.appearances} doubles lines
                           </div>
                         </div>
-                        <div style={pillStrong}>{formatRating(pair.avgDoublesRating)}</div>
+                        <div>
+                          <div style={pillStrong}>{formatRating(pair.avgDoublesRating)}</div>
+                          <div style={pillHelper}>{formatPercent(getWinPct(pair.wins, pair.losses))}</div>
+                        </div>
                       </div>
                     ))
                   )}
@@ -609,12 +693,11 @@ export default function CaptainsCornerPage() {
               <BrandWordmark compact={false} footer />
             </Link>
             <div style={footerLinksResponsive(isTablet)}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/explore" style={footerUtilityLink}>Explore</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchups</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
               <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
             </div>
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
               © {new Date().getFullYear()} TenAceIQ
@@ -674,11 +757,11 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '10px' : '12px', lineHeight: 1 }}>
       <Image
         src="/logo-icon.png"
         alt="TenAceIQ"
@@ -704,14 +787,12 @@ function BrandWordmark({
   )
 }
 
-
-
 function headerInnerResponsive(isTablet: boolean): CSSProperties {
   return {
     ...headerInner,
     flexDirection: isTablet ? 'column' : 'row',
     alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
+    gap: isTablet ? '16px' : '22px',
   }
 }
 
@@ -727,7 +808,7 @@ function navStyleResponsive(isTablet: boolean): CSSProperties {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.12fr) minmax(320px, 0.78fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.12fr) minmax(340px, 0.82fr)',
     padding: isMobile ? '26px 18px' : '34px 26px',
     gap: isMobile ? '18px' : '22px',
   }
@@ -792,37 +873,39 @@ function footerLinksResponsive(isTablet: boolean): CSSProperties {
   }
 }
 
-
 const pageStyle: CSSProperties = {
   minHeight: '100vh',
   position: 'relative',
   overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
-  padding: '24px 18px 56px',
+  background: `
+    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
+    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
+  `,
 }
 
 const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-100px',
-  right: '-60px',
-  width: '360px',
-  height: '360px',
+  top: '-120px',
+  left: '-140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
-  filter: 'blur(10px)',
+  background: 'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
 const orbTwo: CSSProperties = {
   position: 'absolute',
-  top: '60px',
-  left: '-100px',
-  width: '320px',
-  height: '320px',
+  right: '-140px',
+  top: '140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
-  filter: 'blur(12px)',
+  background: 'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
@@ -830,20 +913,34 @@ const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
   backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-  backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
+  backgroundRepeat: 'repeat, repeat',
+  backgroundSize: '34px 34px, 34px 34px',
+  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
+  pointerEvents: 'none',
+}
+
+const topBlueWash: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '420px',
+  background:
+    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
   pointerEvents: 'none',
 }
 
 const headerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
+  padding: '18px 24px 0',
 }
 
 const headerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1280px',
+  margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
 }
@@ -855,44 +952,66 @@ const brandWrap: CSSProperties = {
 }
 
 const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
+  marginLeft: '2px',
 }
 
 const navStyle: CSSProperties = {
   display: 'flex',
-  gap: '10px',
+  gap: '12px',
 }
 
 const navLink: CSSProperties = {
-  padding: '13px 18px',
+  padding: '12px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const ctaNavLink: CSSProperties = {
+  ...navLink,
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+}
+
+const navButtonReset: CSSProperties = {
+  ...navLink,
+  cursor: 'pointer',
+  appearance: 'none',
 }
 
 const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
+  ...ctaNavLink,
 }
 
 const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
+  maxWidth: '1280px',
+  margin: '14px auto 18px',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+}
+
+const heroNoise: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%)',
+  pointerEvents: 'none',
 }
 
 const eyebrow: CSSProperties = {
@@ -902,8 +1021,8 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(130, 244, 118, 0.28)',
-  background: 'rgba(89, 145, 73, 0.14)',
+  border: '1px solid rgba(130,244,118,0.28)',
+  background: 'rgba(89,145,73,0.14)',
   color: '#d9e7ef',
   fontWeight: 800,
   fontSize: '14px',
@@ -923,7 +1042,7 @@ const heroTitle: CSSProperties = {
 
 const heroText: CSSProperties = {
   margin: '0 0 20px',
-  color: 'rgba(224, 234, 247, 0.84)',
+  color: 'rgba(224,234,247,0.84)',
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '760px',
@@ -935,7 +1054,7 @@ const selectorPanel: CSSProperties = {
   padding: '14px',
   borderRadius: '24px',
   border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(10, 20, 37, 0.64)',
+  background: 'rgba(10,20,37,0.64)',
   maxWidth: '860px',
 }
 
@@ -952,11 +1071,27 @@ const selectStyle: CSSProperties = {
   outline: 'none',
 }
 
+const primaryButton: CSSProperties = {
+  minHeight: '52px',
+  padding: '0 18px',
+  borderRadius: '16px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '14px',
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+}
+
 const heroBadgeRow: CSSProperties = {
   display: 'flex',
-  gap: '0.65rem',
+  gap: '10px',
   flexWrap: 'wrap',
-  marginTop: '0.8rem',
+  marginTop: '14px',
 }
 
 const badgeBase: CSSProperties = {
@@ -966,194 +1101,175 @@ const badgeBase: CSSProperties = {
   minHeight: '36px',
   padding: '0 14px',
   borderRadius: '999px',
-  fontSize: '0.82rem',
+  fontSize: '13px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '0.02em',
   border: '1px solid transparent',
 }
 
 const badgeBlue: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(37, 91, 227, 0.16)',
+  background: 'rgba(37,91,227,0.16)',
   color: '#c7dbff',
-  borderColor: 'rgba(98, 154, 255, 0.18)',
+  borderColor: 'rgba(98,154,255,0.18)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(96, 221, 116, 0.14)',
+  background: 'rgba(96,221,116,0.14)',
   color: '#dffad5',
-  borderColor: 'rgba(130, 244, 118, 0.2)',
+  borderColor: 'rgba(130,244,118,0.2)',
 }
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#e8eef9',
-  borderColor: 'rgba(255, 255, 255, 0.1)',
+  background: 'rgba(255,255,255,0.08)',
+  color: '#ecf4ff',
+  borderColor: 'rgba(255,255,255,0.1)',
 }
 
 const quickStartCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  background: 'linear-gradient(180deg, rgba(37, 56, 84, 0.88), rgba(21, 37, 64, 0.88))',
-  padding: '20px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
+  boxShadow: '0 22px 52px rgba(7,18,40,0.24)',
+  padding: '22px',
   minHeight: '100%',
 }
 
 const quickStartLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: '#e7ffd0',
   fontSize: '12px',
-  lineHeight: 1.5,
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
 }
 
 const quickStartTitle: CSSProperties = {
-  marginTop: '10px',
-  marginBottom: '14px',
-  fontSize: '1.35rem',
-  lineHeight: 1.15,
-  color: '#ffffff',
+  margin: '8px 0 14px',
+  color: '#f8fbff',
+  fontSize: '28px',
+  lineHeight: 1.04,
   fontWeight: 900,
+  letterSpacing: '-0.045em',
 }
 
 const workflowStack: CSSProperties = {
   display: 'grid',
-  gap: '12px',
+  gap: '14px',
 }
 
 const workflowRow: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: '40px minmax(0, 1fr)',
   gap: '12px',
-  alignItems: 'flex-start',
-  padding: '12px 0',
+  alignItems: 'start',
 }
 
 const workflowStep: CSSProperties = {
-  width: '32px',
-  height: '32px',
+  width: '40px',
+  height: '40px',
   borderRadius: '999px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: '.92rem',
-  color: '#0f1632',
-  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
-  flexShrink: 0,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: '#08111d',
+  fontWeight: 900,
+  fontSize: '15px',
 }
 
 const workflowTitle: CSSProperties = {
-  fontWeight: 700,
-  color: '#ffffff',
+  color: '#f8fbff',
+  fontSize: '16px',
+  fontWeight: 800,
   marginBottom: '4px',
 }
 
 const workflowText: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
-  lineHeight: 1.55,
-  fontSize: '.96rem',
-}
-
-const errorCard: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
-  padding: '22px',
-  borderRadius: '28px',
-  border: '1px solid rgba(255,100,100,0.2)',
-  background: 'rgba(62,16,22,0.78)',
-  color: '#fee2e2',
-  fontWeight: 700,
+  color: 'rgba(224,236,249,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.6,
 }
 
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
+  display: 'grid',
+  gap: '18px',
+  padding: '0 24px 28px',
 }
 
 const metricGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
-  marginBottom: '18px',
 }
 
 const metricCard: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-  background: 'linear-gradient(180deg, rgba(12, 25, 45, 0.94), rgba(9, 18, 34, 0.96))',
-  boxShadow: '0 18px 40px rgba(0, 0, 0, 0.22)',
-  minWidth: 0,
+  borderRadius: '20px',
+  padding: '18px',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18)',
 }
 
 const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(111, 236, 168, 0.34)',
+  background: 'linear-gradient(180deg, rgba(34,64,118,0.78) 0%, rgba(16,33,64,0.9) 100%)',
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(224, 234, 247, 0.7)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
+  color: 'rgba(188,208,232,0.8)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
 }
 
 const metricValue: CSSProperties = {
+  marginTop: '8px',
   color: '#f8fbff',
-  fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
-  lineHeight: 1.15,
+  fontSize: '24px',
+  lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: '-0.03em',
 }
 
 const sectionCard: CSSProperties = {
-  borderRadius: '30px',
-  border: '1px solid rgba(255, 255, 255, 0.08)',
-  background: 'linear-gradient(180deg, rgba(11, 22, 39, 0.92), rgba(9, 18, 34, 0.96))',
-  boxShadow: '0 24px 56px rgba(0, 0, 0, 0.24)',
-  padding: '22px',
-  marginBottom: '18px',
+  borderRadius: '28px',
+  padding: '24px',
+  background: 'linear-gradient(180deg, rgba(20,42,80,0.42) 0%, rgba(11,23,44,0.76) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  boxShadow: '0 20px 48px rgba(7,18,40,0.18)',
 }
 
 const sectionHead: CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  gap: '1rem',
-  flexWrap: 'wrap',
-  marginBottom: '1rem',
+  marginBottom: '18px',
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'rgba(188,208,232,0.8)',
+  fontSize: '12px',
   fontWeight: 800,
-  fontSize: '13px',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: '0.11em',
   marginBottom: '8px',
 }
 
 const sectionTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
-  fontSize: '1.45rem',
-  lineHeight: 1.2,
+  fontSize: '32px',
+  lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: '-0.04em',
 }
 
 const sectionSub: CSSProperties = {
-  marginTop: '0.45rem',
-  color: 'rgba(224, 234, 247, 0.72)',
-  fontSize: '0.94rem',
+  marginTop: '10px',
+  color: 'rgba(224,236,249,0.78)',
+  fontSize: '14px',
   lineHeight: 1.65,
-  fontWeight: 500,
 }
 
 const actionGrid: CSSProperties = {
@@ -1164,95 +1280,82 @@ const actionGrid: CSSProperties = {
 const actionCard: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
-  borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(12, 25, 45, 0.94), rgba(9, 18, 34, 0.96))',
-  boxShadow: '0 18px 40px rgba(0, 0, 0, 0.22)',
+  borderRadius: '24px',
+  background: 'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  minHeight: '220px',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18)',
 }
 
 const actionCardAccent: CSSProperties = {
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.28), rgba(28,49,95,0.46))',
+  background: 'linear-gradient(180deg, rgba(23,55,78,0.88) 0%, rgba(11,40,38,0.94) 100%)',
+  border: '1px solid rgba(155,225,29,0.18)',
 }
 
 const actionBar: CSSProperties = {
   height: '4px',
-  width: '100%',
-  background: 'linear-gradient(90deg, #255BE3 0%, #61a8ff 55%, #c7ff5e 100%)',
+  background: 'linear-gradient(90deg, #74beff 0%, #9be11d 100%)',
 }
 
 const actionBody: CSSProperties = {
-  padding: '18px',
+  padding: '20px',
+  display: 'grid',
+  gap: '12px',
 }
 
 const badgePill: CSSProperties = {
   display: 'inline-flex',
+  width: 'fit-content',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
   background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
+  color: '#e7eefb',
   fontSize: '12px',
   fontWeight: 800,
-  marginBottom: '14px',
+  letterSpacing: '0.04em',
+  border: '1px solid rgba(255,255,255,0.1)',
 }
 
 const actionTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
-  fontSize: '1.18rem',
-  lineHeight: 1.2,
+  fontSize: '24px',
+  lineHeight: 1.05,
   fontWeight: 900,
+  letterSpacing: '-0.035em',
 }
 
 const actionText: CSSProperties = {
-  marginTop: '12px',
-  marginBottom: 0,
-  color: 'rgba(224, 234, 247, 0.72)',
-  lineHeight: 1.7,
-  minHeight: '82px',
-}
-
-const primaryButton: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  fontWeight: 800,
-  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
-  color: '#071622',
-  border: '1px solid rgba(133, 171, 255, 0.18)',
-  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
-}
-
-const ghostButton: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  fontWeight: 800,
-  background: 'rgba(14, 27, 49, 0.9)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
+  margin: 0,
+  color: 'rgba(224,236,249,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.65,
 }
 
 const primaryButtonSmall: CSSProperties = {
   ...primaryButton,
   minHeight: '44px',
-  marginTop: '18px',
+  width: 'fit-content',
+  fontSize: '13px',
 }
 
 const secondaryButtonSmall: CSSProperties = {
-  ...ghostButton,
   minHeight: '44px',
-  marginTop: '18px',
+  width: 'fit-content',
+  padding: '0 16px',
+  borderRadius: '999px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '13px',
+  color: '#e7eefb',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
+  border: '1px solid rgba(116,190,255,0.22)',
 }
 
 const insightGrid: CSSProperties = {
@@ -1261,121 +1364,168 @@ const insightGrid: CSSProperties = {
 }
 
 const insightCard: CSSProperties = {
-  borderRadius: '28px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.28), rgba(28,49,95,0.46))',
-  boxShadow: '0 18px 40px rgba(0, 0, 0, 0.22)',
-  padding: '18px',
+  borderRadius: '24px',
+  padding: '20px',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18)',
 }
 
 const insightLabel: CSSProperties = {
   color: '#f8fbff',
-  fontSize: '1.18rem',
-  lineHeight: 1.2,
+  fontSize: '20px',
   fontWeight: 900,
+  letterSpacing: '-0.03em',
 }
 
 const insightSub: CSSProperties = {
-  marginTop: '0.45rem',
-  color: 'rgba(224, 234, 247, 0.72)',
-  fontSize: '0.92rem',
+  marginTop: '8px',
+  color: 'rgba(224,236,249,0.76)',
+  fontSize: '14px',
   lineHeight: 1.6,
 }
 
 const stackList: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '0.75rem',
-  marginTop: '0.9rem',
+  display: 'grid',
+  gap: '12px',
+  marginTop: '16px',
 }
 
 const listCard: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  gap: '0.75rem',
+  gap: '14px',
   alignItems: 'center',
   borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.05)',
-  padding: '0.9rem',
+  padding: '14px',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.07)',
 }
 
 const listTitle: CSSProperties = {
   color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '0.98rem',
-  lineHeight: 1.3,
+  fontSize: '15px',
+  fontWeight: 800,
+  lineHeight: 1.4,
 }
 
 const listMeta: CSSProperties = {
-  marginTop: '0.3rem',
-  color: 'rgba(224, 234, 247, 0.72)',
-  fontSize: '0.84rem',
-  lineHeight: 1.5,
+  marginTop: '4px',
+  color: 'rgba(224,236,249,0.7)',
+  fontSize: '13px',
+  lineHeight: 1.55,
 }
 
 const pillStrong: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: '4.25rem',
-  padding: '0.55rem 0.8rem',
+  minWidth: '62px',
+  minHeight: '36px',
+  padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(37, 91, 227, 0.16)',
-  color: '#d8e7ff',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: '#08111d',
   fontWeight: 900,
-  fontSize: '0.9rem',
+  fontSize: '13px',
+}
+
+const pillHelper: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(224,236,249,0.68)',
+  fontSize: '12px',
+  fontWeight: 700,
+  textAlign: 'center',
 }
 
 const emptyLine: CSSProperties = {
-  color: '#dfe8f8',
-  fontWeight: 600,
-  lineHeight: 1.6,
+  color: 'rgba(224,236,249,0.7)',
+  fontSize: '14px',
+}
+
+const stateBox: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  color: '#e7eefb',
+  fontWeight: 700,
+}
+
+const errorCard: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1280px',
+  margin: '0 auto 18px',
+  padding: '14px 18px',
+  borderRadius: '18px',
+  background: 'rgba(142, 32, 32, 0.18)',
+  border: '1px solid rgba(255, 122, 122, 0.26)',
+  color: '#ffd7d7',
+  fontWeight: 700,
+}
+
+const loadingShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1280px',
+  margin: '40px auto',
+  padding: '0 24px',
+}
+
+const loadingCard: CSSProperties = {
+  borderRadius: '22px',
+  padding: '18px 20px',
+  color: '#eaf4ff',
+  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  fontSize: '15px',
+  fontWeight: 700,
 }
 
 const footerStyle: CSSProperties = {
   position: 'relative',
-  zIndex: 2,
-  padding: '28px 0 0',
+  zIndex: 1,
+  marginTop: '8px',
+  padding: '0 18px 24px',
 }
 
 const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  borderRadius: '24px',
+  background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18)',
 }
 
 const footerRow: CSSProperties = {
   display: 'flex',
-  width: '100%',
+  alignItems: 'center',
+  gap: '18px',
 }
 
 const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
   textDecoration: 'none',
-  flexShrink: 0,
+  display: 'inline-flex',
+  alignItems: 'center',
 }
 
 const footerLinks: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px 14px',
+  gap: '12px 14px',
 }
 
 const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
+  color: 'rgba(215,229,247,0.8)',
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 700,
 }
 
 const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+  fontWeight: 700,
 }
