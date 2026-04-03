@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -436,7 +437,7 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const iconSize = compact ? 34 : top ? 56 : footer ? 44 : 36
   const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
@@ -448,22 +449,19 @@ function BrandWordmark({
         lineHeight: 1,
       }}
     >
-      <span
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority={top}
         style={{
           width: `${iconSize}px`,
           height: `${iconSize}px`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '999px',
-          background:
-            'radial-gradient(circle at 30% 30%, rgba(155,225,29,0.28), rgba(74,163,255,0.18) 55%, rgba(74,163,255,0.04) 100%)',
-          boxShadow: '0 0 28px rgba(116,190,255,0.18)',
-          overflow: 'hidden',
+          display: 'block',
+          objectFit: 'contain',
         }}
-      >
-        <TennisPulseIcon />
-      </span>
+      />
 
       <div
         style={{
@@ -472,7 +470,7 @@ function BrandWordmark({
           fontSize: `${fontSize}px`,
           lineHeight: 1,
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
         }}
       >
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>

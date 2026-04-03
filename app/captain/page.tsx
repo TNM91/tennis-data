@@ -77,6 +77,7 @@ const NAV_LINKS = [
   { href: '/explore', label: 'Explore' },
   { href: '/matchup', label: 'Matchups' },
   { href: '/captain', label: 'Captain' },
+  { href: '/leagues', label: 'Leagues' },
 ]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -1025,7 +1026,7 @@ const eyebrow: CSSProperties = {
   background: 'rgba(89,145,73,0.14)',
   color: '#d9e7ef',
   fontWeight: 800,
-  fontSize: '14px',
+  fontSize: '15px',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: '4px',

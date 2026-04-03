@@ -31,11 +31,10 @@ type LeagueCard = {
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
   { href: '/leagues', label: 'Leagues' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/captain', label: 'Captain' },
 ]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -324,6 +323,7 @@ export default function LeaguesPage() {
       <div style={orbOne} />
       <div style={orbTwo} />
       <div style={gridGlow} />
+      <div style={topBlueWash} />
 
       <header style={headerStyle}>
         <div style={dynamicHeaderInner}>
@@ -347,7 +347,6 @@ export default function LeaguesPage() {
                 </Link>
               )
             })}
-            <Link href="/admin" style={navLink}>Admin</Link>
           </nav>
         </div>
       </header>
@@ -492,11 +491,10 @@ export default function LeaguesPage() {
             </Link>
 
             <div style={dynamicFooterLinks}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/explore" style={footerUtilityLink}>Explore</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchups</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
             </div>
 
             <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
@@ -562,8 +560,8 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
     <div
@@ -609,29 +607,37 @@ const pageStyle: CSSProperties = {
   minHeight: '100vh',
   position: 'relative',
   overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
+  background: `
+    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
+    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
+  `,
 }
 
 const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
+  top: '-120px',
+  left: '-140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
+  background:
+    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
 const orbTwo: CSSProperties = {
   position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
+  right: '-140px',
+  top: '140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
+  background:
+    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
@@ -646,15 +652,26 @@ const gridGlow: CSSProperties = {
   pointerEvents: 'none',
 }
 
+const topBlueWash: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '420px',
+  background:
+    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
+  pointerEvents: 'none',
+}
+
 const headerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '24px 18px 0',
+  padding: '18px 24px 0',
 }
 
 const headerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
@@ -667,7 +684,7 @@ const brandWrap: CSSProperties = {
 }
 
 const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
@@ -677,29 +694,29 @@ const brandIQ: CSSProperties = {
 const navStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '10px',
+  gap: '12px',
 }
 
 const navLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.9)',
+  color: 'rgba(238,247,255,0.94)',
   textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
+  fontSize: '15px',
+  fontWeight: 800,
   letterSpacing: '0.01em',
-  padding: '10px 14px',
+  padding: '12px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(122,170,255,0.16)',
-  background: 'rgba(22,42,78,0.42)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   transition: 'all 180ms ease',
 }
 
 const activeNavLink: CSSProperties = {
-  color: '#06111f',
-  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
-  border: '1px solid rgba(134,239,172,0.45)',
-  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -709,14 +726,15 @@ const heroWrap: CSSProperties = {
 
 const heroShell: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background:
-    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
-  border: '1px solid rgba(128,174,255,0.12)',
+  background: `
+    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
+  `,
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
-    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -724,8 +742,12 @@ const heroShell: CSSProperties = {
 const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+  background: `
+    radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%),
+    radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%),
+    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%),
+    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
+  `,
   pointerEvents: 'none',
 }
 
@@ -762,13 +784,13 @@ const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
   alignItems: 'center',
-  padding: '7px 11px',
+  padding: '8px 14px',
   borderRadius: '999px',
   color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  background: 'rgba(37,91,227,0.18)',
+  border: '1px solid rgba(116,190,255,0.22)',
   fontSize: '12px',
-  fontWeight: 800,
+  fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
 }
@@ -781,21 +803,26 @@ const heroHintRow: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
-  color: '#e2efff',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background:
+    'linear-gradient(180deg, rgba(54,108,198,0.22) 0%, rgba(29,63,121,0.18) 100%)',
+  color: '#eaf4ff',
   borderRadius: '999px',
-  padding: '10px 14px',
+  padding: '11px 16px',
   fontSize: '13px',
   fontWeight: 700,
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const coverageCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.24)',
+  background: `
+    linear-gradient(180deg, rgba(68, 132, 229, 0.20) 0%, rgba(40, 83, 158, 0.18) 28%, rgba(16, 36, 70, 0.72) 100%)
+  `,
+  boxShadow:
+    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 40px rgba(116,190,255,0.05)',
 }
 
 const coverageLabel: CSSProperties = {
@@ -827,9 +854,9 @@ const coverageText: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
-  padding: '0 18px 0',
+  padding: '0 24px 0',
 }
 
 const summaryGrid: CSSProperties = {
@@ -841,15 +868,15 @@ const summaryGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(55,109,198,0.26) 0%, rgba(25,52,99,0.34) 100%)',
+  boxShadow: '0 16px 38px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
 }
 
 const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-  boxShadow: '0 16px 34px rgba(43, 195, 104, 0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 16px 34px rgba(155,225,29,0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
 }
 
 const metricLabel: CSSProperties = {
@@ -873,10 +900,10 @@ const metricValue: CSSProperties = {
 const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
+  border: '1px solid rgba(116,190,255,0.18)',
   background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(11, 34, 75, 0.98) 0%, rgba(8, 25, 58, 0.98) 58%, rgba(10, 30, 58, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
   marginBottom: '16px',
 }
@@ -945,6 +972,7 @@ const searchInput: CSSProperties = {
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
   outline: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const selectStyle: CSSProperties = {
@@ -1115,16 +1143,16 @@ const iconSvgStyle: CSSProperties = {
 const footerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '12px 18px 20px',
+  padding: '12px 24px 20px',
 }
 
 const footerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '22px',
   background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
+  border: '1px solid rgba(116,190,255,0.16)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
@@ -1150,6 +1178,7 @@ const footerUtilityLink: CSSProperties = {
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 700,
+  letterSpacing: '0.01em',
 }
 
 const footerBottom: CSSProperties = {

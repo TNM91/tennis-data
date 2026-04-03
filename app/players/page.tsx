@@ -23,11 +23,10 @@ type PlayerCard = PlayerRow & {
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
+  { href: '/captain', label: 'Captain' },
   { href: '/leagues', label: 'Leagues' },
-  { href: '/captains-corner', label: "Captain's Corner" },
 ]
 
 export default function PlayersPage() {
@@ -289,7 +288,7 @@ export default function PlayersPage() {
 
           <nav style={dynamicNavStyle}>
             {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/players'
+              const isActive = link.href === '/explore'
               return (
                 <Link
                   key={link.href}
@@ -303,8 +302,11 @@ export default function PlayersPage() {
                 </Link>
               )
             })}
-            <Link href="/admin" style={navLink}>
-              Admin
+            <Link href="/login" style={navLink}>
+              Login
+            </Link>
+            <Link href="/join" style={activeNavLink}>
+              Join
             </Link>
           </nav>
         </div>
@@ -551,8 +553,8 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
     <div
@@ -666,7 +668,7 @@ const headerStyle: CSSProperties = {
 
 const headerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
@@ -679,7 +681,7 @@ const brandWrap: CSSProperties = {
 }
 
 const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
@@ -695,23 +697,23 @@ const navStyle: CSSProperties = {
 const navLink: CSSProperties = {
   color: 'rgba(231,243,255,0.9)',
   textDecoration: 'none',
-  fontSize: '14px',
+  fontSize: '15px',
   fontWeight: 700,
   letterSpacing: '0.01em',
-  padding: '10px 14px',
+  padding: '12px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(122,170,255,0.16)',
-  background: 'rgba(22,42,78,0.42)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   transition: 'all 180ms ease',
 }
 
 const activeNavLink: CSSProperties = {
   color: '#06111f',
-  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
-  border: '1px solid rgba(134,239,172,0.45)',
-  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -721,14 +723,16 @@ const heroWrap: CSSProperties = {
 
 const heroShell: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
   background:
-    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
-  border: '1px solid rgba(128,174,255,0.12)',
+    `
+    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
+  `,
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
-    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -985,7 +989,7 @@ const summaryHint: CSSProperties = {
 const errorCard: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto 18px',
   padding: '22px',
   borderRadius: '28px',
@@ -996,7 +1000,7 @@ const errorCard: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   padding: '0 18px 0',
 }
@@ -1224,11 +1228,11 @@ const footerStyle: CSSProperties = {
 
 const footerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '22px',
   background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
@@ -1246,11 +1250,11 @@ const footerBrandLink: CSSProperties = {
 const footerLinks: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px 14px',
+  gap: '12px 14px',
 }
 
 const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
+  color: 'rgba(215,229,247,0.8)',
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 700,

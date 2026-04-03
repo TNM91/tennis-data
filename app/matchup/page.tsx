@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { getUserRole, type UserRole } from '@/lib/roles'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -111,22 +113,23 @@ type AccuracyState = {
 const DEFAULT_RATING = 3.0
 const RATING_DIVISOR = 0.35
 
-const NAV_LINKS = [
+const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
+  { href: '/captain', label: 'Captain' },
 ]
 
 export default function MatchupPage() {
+  const router = useRouter()
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
   const [accuracyLoading, setAccuracyLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(1280)
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
 
   const [matchType, setMatchType] = useState<MatchType>('singles')
 
@@ -158,6 +161,29 @@ export default function MatchupPage() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        setRole(getUserRole(data.user?.id ?? null))
+      } finally {
+        setAuthLoading(false)
+      }
+    }
+
+    loadUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setRole(getUserRole(session?.user?.id ?? null))
+      setAuthLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
 
   useEffect(() => {
     void loadPlayers()
@@ -959,11 +985,18 @@ export default function MatchupPage() {
     marginLeft: isTablet ? 0 : 'auto',
   }
 
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
+
   return (
     <main style={pageStyle}>
       <div style={orbOne} />
       <div style={orbTwo} />
       <div style={gridGlow} />
+      <div style={topBlueWash} />
 
       <header style={headerStyle}>
         <div style={dynamicHeaderInner}>
@@ -972,7 +1005,7 @@ export default function MatchupPage() {
           </Link>
 
           <nav style={dynamicNavStyle}>
-            {NAV_LINKS.map((link) => {
+            {PRIMARY_LINKS.map((link) => {
               const isActive = link.href === '/matchup'
               return (
                 <Link
@@ -980,14 +1013,46 @@ export default function MatchupPage() {
                   href={link.href}
                   style={{
                     ...navLink,
-                    ...(isActive ? activeNavLink : {}),
+                    ...(isActive && link.href === '/matchup' ? activeNavLink : {}),
                   }}
                 >
                   {link.label}
                 </Link>
               )
             })}
-            <Link href="/admin" style={navLink}>Admin</Link>
+
+            <Link href="/leagues" style={navLink}>
+              Leagues
+            </Link>
+
+            {authLoading ? (
+              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
+            ) : role === 'public' ? (
+              <>
+                <Link href="/login" style={navLink}>
+                  Login
+                </Link>
+                <Link href="/join" style={ctaNavLink}>
+                  Join
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/dashboard" style={ctaNavLink}>
+                  My Lab
+                </Link>
+
+                {role === 'admin' ? (
+                  <Link href="/admin" style={navLink}>
+                    Admin
+                  </Link>
+                ) : null}
+
+                <button type="button" onClick={handleLogout} style={navButtonReset}>
+                  Logout
+                </button>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -1295,11 +1360,12 @@ export default function MatchupPage() {
             </Link>
 
             <div style={dynamicFooterLinks}>
+              <Link href="/explore" style={footerUtilityLink}>Explore</Link>
               <Link href="/players" style={footerUtilityLink}>Players</Link>
               <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchups</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
             </div>
 
             <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
@@ -1449,15 +1515,15 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '8px' : '10px',
+        gap: compact ? '10px' : '12px',
         lineHeight: 1,
       }}
     >
@@ -1482,11 +1548,11 @@ function BrandWordmark({
           fontSize: `${fontSize}px`,
           lineHeight: 1,
           display: 'flex',
-          alignItems: 'baseline',
+          alignItems: 'center',
         }}
       >
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
+        <span style={heroIQ}>IQ</span>
       </div>
     </div>
   )
@@ -1597,29 +1663,37 @@ const pageStyle: CSSProperties = {
   minHeight: '100vh',
   position: 'relative',
   overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
+  background: `
+    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
+    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
+  `,
 }
 
 const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
+  top: '-120px',
+  left: '-140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
+  background:
+    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
 const orbTwo: CSSProperties = {
   position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
+  right: '-140px',
+  top: '140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
+  background:
+    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
@@ -1634,15 +1708,26 @@ const gridGlow: CSSProperties = {
   pointerEvents: 'none',
 }
 
+const topBlueWash: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '420px',
+  background:
+    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
+  pointerEvents: 'none',
+}
+
 const headerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '24px 18px 0',
+  padding: '18px 24px 0',
 }
 
 const headerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
@@ -1654,8 +1739,8 @@ const brandWrap: CSSProperties = {
   textDecoration: 'none',
 }
 
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
+const heroIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
@@ -1665,29 +1750,43 @@ const brandIQ: CSSProperties = {
 const navStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '10px',
+  gap: '12px',
 }
 
 const navLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.9)',
+  color: 'rgba(238,247,255,0.94)',
   textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
+  fontSize: '15px',
+  fontWeight: 800,
   letterSpacing: '0.01em',
-  padding: '10px 14px',
+  padding: '12px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(122,170,255,0.16)',
-  background: 'rgba(22,42,78,0.42)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   transition: 'all 180ms ease',
 }
 
+const ctaNavLink: CSSProperties = {
+  ...navLink,
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+}
+
+const navButtonReset: CSSProperties = {
+  ...navLink,
+  cursor: 'pointer',
+  appearance: 'none',
+}
+
 const activeNavLink: CSSProperties = {
-  color: '#06111f',
-  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
-  border: '1px solid rgba(134,239,172,0.45)',
-  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -1697,14 +1796,16 @@ const heroWrap: CSSProperties = {
 
 const heroShell: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
   background:
-    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
-  border: '1px solid rgba(128,174,255,0.12)',
+    `
+    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
+  `,
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
-    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -1713,7 +1814,7 @@ const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
   background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)',
   pointerEvents: 'none',
 }
 
@@ -1781,9 +1882,9 @@ const heroHintPill: CSSProperties = {
 const engineCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const engineLabel: CSSProperties = {
@@ -1814,7 +1915,7 @@ const engineText: CSSProperties = {
 const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   padding: '0 18px 0',
 }
@@ -1867,7 +1968,7 @@ const toggleButton: CSSProperties = {
   border: 0,
   borderRadius: '14px',
   background: 'transparent',
-  color: '#dbeafe',
+  color: 'rgba(224,236,249,0.78)',
   padding: '12px 18px',
   fontSize: '14px',
   fontWeight: 800,
@@ -1883,9 +1984,9 @@ const toggleButtonGreen: CSSProperties = {
 }
 
 const toggleButtonBlue: CSSProperties = {
-  background: 'linear-gradient(135deg, #255be3 0%, #4d9cff 100%)',
+  background: 'linear-gradient(135deg, #2f6ff5 0%, #61a6ff 100%)',
   color: '#ffffff',
-  boxShadow: '0 14px 28px rgba(37, 91, 227, 0.24), inset 0 1px 0 rgba(255,255,255,0.24)',
+  boxShadow: '0 14px 28px rgba(74, 163, 255, 0.22), inset 0 1px 0 rgba(255,255,255,0.24)',
 }
 
 const selectorGrid: CSSProperties = {
@@ -1933,7 +2034,7 @@ const emptyState: CSSProperties = {
   padding: '18px',
   background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
   border: '1px solid rgba(128,174,255,0.14)',
-  color: '#dbeafe',
+  color: 'rgba(224,236,249,0.78)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 600,
@@ -1950,15 +2051,15 @@ const compareGrid: CSSProperties = {
 const compareCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
 }
 
 const favoredCompareCard: CSSProperties = {
-  borderColor: 'rgba(184, 230, 26, 0.38)',
-  boxShadow: '0 16px 36px rgba(184, 230, 26, 0.12), inset 0 1px 0 rgba(255,255,255,0.05)',
+  borderColor: 'rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const compareHead: CSSProperties = {
@@ -1979,7 +2080,7 @@ const compareTitle: CSSProperties = {
 
 const compareSubtitle: CSSProperties = {
   marginTop: '6px',
-  color: '#c0d5f5',
+  color: 'rgba(224,236,249,0.78)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
@@ -2087,9 +2188,9 @@ const gapCard: CSSProperties = {
   textAlign: 'center',
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const gapLabel: CSSProperties = {
@@ -2122,9 +2223,9 @@ const summaryCard: CSSProperties = {
   marginTop: '16px',
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const sectionTitle: CSSProperties = {
@@ -2138,7 +2239,7 @@ const sectionTitle: CSSProperties = {
 
 const paragraph: CSSProperties = {
   margin: '12px 0 0',
-  color: '#dbeafe',
+  color: 'rgba(224,236,249,0.78)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 500,
@@ -2153,12 +2254,12 @@ const metricGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.10)',
 }
 
 const metricLabel: CSSProperties = {
-  color: '#c6dbfb',
+  color: 'rgba(217, 231, 255, 0.82)',
   fontSize: '13px',
   marginBottom: '8px',
   fontWeight: 700,
@@ -2174,7 +2275,7 @@ const metricValue: CSSProperties = {
 
 const metricSub: CSSProperties = {
   marginTop: '6px',
-  color: '#cbd5e1',
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 600,
@@ -2248,11 +2349,11 @@ const footerStyle: CSSProperties = {
 
 const footerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
@@ -2274,14 +2375,14 @@ const footerLinks: CSSProperties = {
 }
 
 const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
+  color: 'rgba(215,229,247,0.8)',
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 700,
 }
 
 const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '13px',
   fontWeight: 600,
   whiteSpace: 'nowrap',

@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { href: '/explore', label: 'Explore' },
   { href: '/matchup', label: 'Matchups' },
   { href: '/captain', label: 'Captain' },
+  { href: '/leagues', label: 'Leagues' },
 ]
 
 export default function ForgotPasswordPage() {
@@ -338,7 +339,7 @@ const navStyle: CSSProperties = { display: 'flex', gap: '12px' }
 const navLink: CSSProperties = { padding: '12px 18px', borderRadius: '999px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)', color: '#e7eefb', textDecoration: 'none', fontWeight: 800, fontSize: '15px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }
 const ctaNavLink: CSSProperties = { ...navLink, color: '#08111d', background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', border: '1px solid rgba(155,225,29,0.34)', boxShadow: '0 10px 28px rgba(155,225,29,0.18)' }
 const heroShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '14px auto 24px', display: 'grid', borderRadius: '34px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)', boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)' }
-const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(130,244,118,0.28)', background: 'rgba(89,145,73,0.14)', color: '#d9e7ef', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
+const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(130,244,118,0.28)', background: 'rgba(89,145,73,0.14)', color: '#d9e7ef', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
 const heroTitle: CSSProperties = { margin: '0 0 12px', color: '#f7fbff', fontWeight: 900, lineHeight: 0.98, letterSpacing: '-0.055em', maxWidth: '760px', fontSize: '58px' }
 const heroText: CSSProperties = { margin: '0 0 20px', color: 'rgba(224,234,247,0.84)', fontSize: '18px', lineHeight: 1.6, maxWidth: '760px' }
 const pillRow: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }
