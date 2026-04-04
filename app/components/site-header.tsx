@@ -1,7 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { NAV_LINKS } from '@/lib/nav'
+
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
+  { href: '/captain', label: 'Captain' },
+]
 
 export default function SiteHeader({ active }: { active?: string }) {
   return (
@@ -18,7 +24,7 @@ export default function SiteHeader({ active }: { active?: string }) {
           border: '1px solid rgba(255,255,255,0.12)',
         }}
       >
-        <Link href="/" style={{ fontWeight: 900, color: '#fff' }}>
+        <Link href="/" style={{ fontWeight: 900, color: '#fff', textDecoration: 'none' }}>
           TenAce<span style={{ color: '#9be11d' }}>IQ</span>
         </Link>
 
