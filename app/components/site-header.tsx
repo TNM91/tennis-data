@@ -1,86 +1,216 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import { supabase } from '@/lib/supabase'
+import { getUserRole, type UserRole } from '@/lib/roles'
 
-const NAV_LINKS = [
+const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/explore', label: 'Explore' },
   { href: '/matchup', label: 'Matchups' },
   { href: '/captain', label: 'Captain' },
 ]
 
+function isActiveLink(active: string | undefined, pathname: string, href: string) {
+  if (active) {
+    if (active === href) return true
+    if (href !== '/' && active.startsWith(href)) return true
+  }
+
+  if (pathname === href) return true
+  if (href !== '/' && pathname.startsWith(href)) return true
+  return false
+}
+
+const headerStyle = {
+  position: 'relative',
+  zIndex: 2,
+} as const
+
+const brandWrap = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+} as const
+
+const navLink = {
+  padding: '12px 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '15px',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+  transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+} as const
+
+const ctaNavLink = {
+  ...navLink,
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+} as const
+
+const activeNavLink = {
+  ...ctaNavLink,
+} as const
+
 export default function SiteHeader({ active }: { active?: string }) {
+  const pathname = usePathname()
+  const router = useRouter()
+
+  const [screenWidth, setScreenWidth] = useState(1280)
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadUser() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        if (!mounted) return
+        setRole(getUserRole(data.user?.id ?? null))
+      } finally {
+        if (mounted) setAuthLoading(false)
+      }
+    }
+
+    loadUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setRole(getUserRole(session?.user?.id ?? null))
+      setAuthLoading(false)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
+
+  const headerPadding = isMobile ? '18px 16px 0' : '18px 24px 0'
+
+  const headerInner = useMemo(
+    () => ({
+      width: '100%',
+      maxWidth: '1280px',
+      margin: '0 auto',
+      display: 'flex',
+      justifyContent: 'space-between',
+      flexDirection: isTablet ? ('column' as const) : ('row' as const),
+      alignItems: isTablet ? ('flex-start' as const) : ('center' as const),
+      gap: isTablet ? '16px' : '22px',
+    }),
+    [isTablet],
+  )
+
+  const navStyle = useMemo(
+    () => ({
+      display: 'flex',
+      gap: '12px',
+      width: isTablet ? '100%' : 'auto',
+      justifyContent: isTablet ? ('flex-start' as const) : ('flex-end' as const),
+      flexWrap: 'wrap' as const,
+    }),
+    [isTablet],
+  )
+
+  const navButtonReset = {
+    ...navLink,
+    cursor: 'pointer',
+    appearance: 'none' as const,
+  }
+
   return (
-    <header style={{ padding: '20px 18px 0', position: 'relative', zIndex: 2 }}>
-      <div
-        style={{
-          maxWidth: 1200,
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '14px 18px',
-          borderRadius: 22,
-          background: 'rgba(8,26,49,0.72)',
-          border: '1px solid rgba(255,255,255,0.12)',
-          backdropFilter: 'blur(14px)',
-          boxShadow: '0 14px 40px rgba(2, 10, 24, 0.18)',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
-        <Link
-          href="/"
-          style={{
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-          }}
-          aria-label="TenAceIQ home"
-        >
-          <BrandWordmark />
+    <header style={{ ...headerStyle, padding: headerPadding }}>
+      <div style={headerInner}>
+        <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+          <BrandWordmark compact={isMobile} top />
         </Link>
 
-        <nav style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 999,
-                textDecoration: 'none',
-                fontWeight: 700,
-                background:
-                  active === l.href
-                    ? 'linear-gradient(135deg,#9be11d,#4ade80)'
-                    : 'rgba(255,255,255,0.06)',
-                color: active === l.href ? '#04121f' : '#fff',
-                border:
-                  active === l.href
-                    ? '1px solid rgba(155,225,29,0.34)'
-                    : '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav style={navStyle} aria-label="Primary">
+          {PRIMARY_LINKS.map((link) => {
+            const activeNow = isActiveLink(active, pathname, link.href)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  ...navLink,
+                  ...(activeNow ? activeNavLink : {}),
+                }}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
 
           <Link
             href="/leagues"
             style={{
-              padding: '10px 14px',
-              borderRadius: 999,
-              textDecoration: 'none',
-              fontWeight: 700,
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.08)',
+              ...navLink,
+              ...(isActiveLink(active, pathname, '/leagues') ? activeNavLink : {}),
             }}
           >
             Leagues
           </Link>
+
+          {authLoading ? (
+            <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
+          ) : role === 'public' ? (
+            <>
+              <Link href="/login" style={navLink}>
+                Login
+              </Link>
+              <Link href="/join" style={ctaNavLink}>
+                Join
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/dashboard" style={ctaNavLink}>
+                My Lab
+              </Link>
+              {role === 'admin' ? (
+                <Link href="/admin" style={navLink}>
+                  Admin
+                </Link>
+              ) : null}
+              <button type="button" onClick={handleLogout} style={navButtonReset}>
+                Logout
+              </button>
+            </>
+          )}
         </nav>
       </div>
     </header>

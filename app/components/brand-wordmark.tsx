@@ -5,19 +5,21 @@ import Image from 'next/image'
 export default function BrandWordmark({
   compact = false,
   footer = false,
+  top = false,
 }: {
   compact?: boolean
   footer?: boolean
+  top?: boolean
 }) {
-  const iconSize = compact ? 32 : 38
-  const fontSize = compact ? 26 : 30
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '10px' : '12px',
+        gap: compact ? '8px' : '10px',
         lineHeight: 1,
       }}
     >
@@ -26,7 +28,7 @@ export default function BrandWordmark({
         alt="TenAceIQ"
         width={iconSize}
         height={iconSize}
-        priority
+        priority={top}
         style={{
           width: `${iconSize}px`,
           height: `${iconSize}px`,
@@ -48,7 +50,7 @@ export default function BrandWordmark({
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
         <span
           style={{
-            background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+            background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',

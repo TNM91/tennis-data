@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -11,6 +10,7 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
@@ -29,13 +29,6 @@ type AvailabilityPlayer = {
   status: AvailabilityStatus
   note?: string
 }
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
   const text = (value || '').trim()
@@ -69,7 +62,6 @@ export default function CaptainAvailabilityPage() {
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
-
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -120,12 +112,6 @@ export default function CaptainAvailabilityPage() {
     if (!selectedTeam) return
     void loadRoster()
   }, [selectedTeam, selectedLeague, selectedFlight])
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
 
   async function loadTeamOptions() {
     setLoadingOptions(true)
@@ -214,8 +200,8 @@ export default function CaptainAvailabilityPage() {
 
       const teamSides = new Map<string, 'A' | 'B'>()
       for (const match of (matches || []) as any[]) {
-        if (safeText(match.home_team) == selectedTeam) teamSides.set(match.id, 'A')
-        if (safeText(match.away_team) == selectedTeam) teamSides.set(match.id, 'B')
+        if (safeText(match.home_team) === selectedTeam) teamSides.set(match.id, 'A')
+        if (safeText(match.away_team) === selectedTeam) teamSides.set(match.id, 'B')
       }
 
       const rosterMap = new Map<string, AvailabilityPlayer>()
@@ -256,8 +242,8 @@ export default function CaptainAvailabilityPage() {
   function updateStatus(playerId: string, status: AvailabilityStatus) {
     setPlayers((current) =>
       current.map((player) =>
-        player.id === playerId ? { ...player, status } : player
-      )
+        player.id === playerId ? { ...player, status } : player,
+      ),
     )
   }
 
@@ -267,244 +253,199 @@ export default function CaptainAvailabilityPage() {
 
   const counts = useMemo(() => {
     return {
-      in: players.filter((p) => p.status == 'in').length,
-      out: players.filter((p) => p.status == 'out').length,
-      maybe: players.filter((p) => p.status == 'maybe').length,
-      unanswered: players.filter((p) => p.status == 'unanswered').length,
+      in: players.filter((p) => p.status === 'in').length,
+      out: players.filter((p) => p.status === 'out').length,
+      maybe: players.filter((p) => p.status === 'maybe').length,
+      unanswered: players.filter((p) => p.status === 'unanswered').length,
     }
   }, [players])
 
   if (authLoading) {
     return (
-      <main style={pageStyle}>
-        <div style={orbOne} />
-        <div style={orbTwo} />
-        <div style={gridGlow} />
-        <div style={topBlueWash} />
-        <section style={loadingShell}>
+      <SiteShell active="/captain">
+        <section style={loadingWrap}>
           <div style={loadingCard}>Loading availability...</div>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   if (role === 'public') return null
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
+    <SiteShell active="/captain">
+      <div style={pageWrap}>
+        <section style={heroShellResponsive(isTablet, isMobile)}>
+          <div>
+            <div style={eyebrow}>Captain availability</div>
+            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>
+              Know who you have before you build the lineup.
+            </h1>
+            <p style={heroText}>
+              Use this page as your weekly captain checkpoint. Select the team, view availability status,
+              follow up with non-responders, and move directly into lineup building once the roster is clear.
+            </p>
 
-      <header style={headerStyle}>
-        <div style={headerInnerResponsive(isTablet)}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
+            <div style={selectorPanelResponsive(isSmallMobile)}>
+              <select
+                value={selectedTeam}
+                onChange={(e) => {
+                  const option = filteredTeamOptions.find((item) => item.team === e.target.value)
+                  setSelectedTeam(e.target.value)
+                  if (option) {
+                    setSelectedLeague(option.league)
+                    setSelectedFlight(option.flight)
+                  }
+                }}
+                style={selectStyle}
+              >
+                {loadingOptions && !filteredTeamOptions.length ? (
+                  <option>Loading teams...</option>
+                ) : (
+                  filteredTeamOptions.map((option) => (
+                    <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
+                      {option.team} · {option.league} · {option.flight}
+                    </option>
+                  ))
+                )}
+              </select>
 
-          <nav style={navStyleResponsive(isTablet)}>
-            {NAV_LINKS.map((link) => {
-              const isActive = link.href == '/captain'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{ ...navLink, ...(isActive && link.href == '/captain' ? activeNavLink : {}) }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-            <Link href="/dashboard" style={ctaNavLink}>My Lab</Link>
-            {role === 'admin' ? <Link href="/admin" style={navLink}>Admin</Link> : null}
-            <button type="button" onClick={handleLogout} style={navButtonReset}>Logout</button>
-          </nav>
-        </div>
-      </header>
+              <input
+                value={weekLabel}
+                onChange={(e) => setWeekLabel(e.target.value)}
+                style={textInputStyle}
+                placeholder="Wednesday · 8:30 PM"
+              />
 
-      <section style={heroShellResponsive(isTablet, isMobile)}>
-        <div>
-          <div style={eyebrow}>Captain availability</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Know who you have before you build the lineup.</h1>
-          <p style={heroText}>
-            Use this page as your weekly captain checkpoint. Select the team, view availability status,
-            follow up with non-responders, and move directly into lineup building once the roster is clear.
-          </p>
-
-          <div style={selectorPanelResponsive(isSmallMobile)}>
-            <select
-              value={selectedTeam}
-              onChange={(e) => {
-                const option = filteredTeamOptions.find((item) => item.team == e.target.value)
-                setSelectedTeam(e.target.value)
-                if (option) {
-                  setSelectedLeague(option.league)
-                  setSelectedFlight(option.flight)
-                }
-              }}
-              style={selectStyle}
-            >
-              {loadingOptions && !filteredTeamOptions.length ? (
-                <option>Loading teams...</option>
-              ) : (
-                filteredTeamOptions.map((option) => (
-                  <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
-                    {option.team} · {option.league} · {option.flight}
-                  </option>
-                ))
-              )}
-            </select>
-
-            <input
-              value={weekLabel}
-              onChange={(e) => setWeekLabel(e.target.value)}
-              style={textInputStyle}
-              placeholder="Wednesday · 8:30 PM"
-            />
-
-            <button
-              type="button"
-              style={primaryButton}
-              onClick={() => setRequestSent(true)}
-            >
-              Send Request
-            </button>
-          </div>
-
-          <div style={heroBadgeRow}>
-            <span style={badgeBlue}>{counts.in} available</span>
-            <span style={badgeGreen}>{counts.maybe} maybe</span>
-            <span style={badgeSlate}>{counts.unanswered} unanswered</span>
-          </div>
-        </div>
-
-        <div style={quickStartCard}>
-          <div style={quickStartLabel}>Availability snapshot</div>
-          <h2 style={quickStartTitle}>{selectedTeam || 'Select a team'}</h2>
-          <div style={quickStartMeta}>{selectedLeague || 'League'} · {selectedFlight || 'Flight'}</div>
-
-          <div style={statusGrid}>
-            <div style={statusCard}>
-              <div style={statusLabelGreen}>In</div>
-              <div style={statusValue}>{counts.in}</div>
+              <button
+                type="button"
+                style={primaryButton}
+                onClick={() => setRequestSent(true)}
+              >
+                Send Request
+              </button>
             </div>
-            <div style={statusCard}>
-              <div style={statusLabelBlue}>Out</div>
-              <div style={statusValue}>{counts.out}</div>
-            </div>
-            <div style={statusCard}>
-              <div style={statusLabelSlate}>No reply</div>
-              <div style={statusValue}>{counts.unanswered}</div>
+
+            <div style={heroBadgeRow}>
+              <span style={badgeBlue}>{counts.in} available</span>
+              <span style={badgeGreen}>{counts.maybe} maybe</span>
+              <span style={badgeSlate}>{counts.unanswered} unanswered</span>
             </div>
           </div>
 
-          {requestSent ? (
-            <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
-          ) : (
-            <div style={helperBanner}>Set your match label and send a request when ready.</div>
-          )}
-        </div>
-      </section>
-
-      {error ? <section style={errorCard}>{error}</section> : null}
-
-      <section style={contentWrap}>
-        <div style={metricGridResponsive(isSmallMobile, isMobile)}>
-          <MetricCard label="Available" value={String(counts.in)} accent="green" />
-          <MetricCard label="Unavailable" value={String(counts.out)} accent="blue" />
-          <MetricCard label="Maybe" value={String(counts.maybe)} accent="slate" />
-          <MetricCard label="Unanswered" value={String(counts.unanswered)} accent="slate" />
-        </div>
-
-        <section style={sectionCard}>
-          <div style={sectionHeadResponsive(isTablet)}>
-            <div>
-              <div style={sectionKicker}>Weekly roster</div>
-              <h2 style={sectionTitle}>Player responses</h2>
-              <div style={sectionSub}>Update statuses as you hear back, then move straight into lineup planning.</div>
+          <div style={quickStartCard}>
+            <div style={quickStartLabel}>Availability snapshot</div>
+            <h2 style={quickStartTitle}>{selectedTeam || 'Select a team'}</h2>
+            <div style={quickStartMeta}>
+              {selectedLeague || 'League'} · {selectedFlight || 'Flight'}
             </div>
 
-            <div style={sectionActions}>
-              <Link href="/captain/lineup-builder" style={sectionCtaPrimary}>
-                Build Lineup
-              </Link>
-              <Link href="/captain/messaging" style={sectionCtaSecondary}>
-                Text Team
-              </Link>
+            <div style={statusGrid}>
+              <div style={statusCard}>
+                <div style={statusLabelGreen}>In</div>
+                <div style={statusValue}>{counts.in}</div>
+              </div>
+              <div style={statusCard}>
+                <div style={statusLabelBlue}>Out</div>
+                <div style={statusValue}>{counts.out}</div>
+              </div>
+              <div style={statusCard}>
+                <div style={statusLabelSlate}>No reply</div>
+                <div style={statusValue}>{counts.unanswered}</div>
+              </div>
             </div>
+
+            {requestSent ? (
+              <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
+            ) : (
+              <div style={helperBanner}>Set your match label and send a request when ready.</div>
+            )}
           </div>
-
-          {loadingRoster ? (
-            <div style={stateBox}>Loading roster...</div>
-          ) : players.length == 0 ? (
-            <div style={stateBox}>No roster found yet for this team selection.</div>
-          ) : (
-            <div style={playerList}>
-              {players.map((player) => (
-                <div key={player.id} style={playerRowResponsive(isSmallMobile)}>
-                  <div>
-                    <div style={playerName}>{player.name}</div>
-                    <div style={playerMeta}>{selectedTeam || 'Team'} · {weekLabel}</div>
-                  </div>
-
-                  <div style={statusButtonRowResponsive(isSmallMobile)}>
-                    <button
-                      type="button"
-                      style={{ ...statusButton, ...(player.status == 'in' ? statusButtonIn : {}) }}
-                      onClick={() => updateStatus(player.id, 'in')}
-                    >
-                      In
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...statusButton, ...(player.status == 'out' ? statusButtonOut : {}) }}
-                      onClick={() => updateStatus(player.id, 'out')}
-                    >
-                      Out
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...statusButton, ...(player.status == 'maybe' ? statusButtonMaybe : {}) }}
-                      onClick={() => updateStatus(player.id, 'maybe')}
-                    >
-                      Maybe
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...statusButton, ...(player.status == 'unanswered' ? statusButtonUnanswered : {}) }}
-                      onClick={() => updateStatus(player.id, 'unanswered')}
-                    >
-                      Unanswered
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
-      </section>
 
-      <footer style={footerStyle}>
-        <div style={footerInnerResponsive(isMobile)}>
-          <div style={footerRowResponsive(isTablet)}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-            <div style={footerLinksResponsive(isTablet)}>
-              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
-              <Link href="/captain/availability" style={footerUtilityLink}>Availability</Link>
-              <Link href="/captain/messaging" style={footerUtilityLink}>Messaging</Link>
-              <Link href="/captain/lineup-builder" style={footerUtilityLink}>Lineup Builder</Link>
-              <Link href="/captain/scenario-builder" style={footerUtilityLink}>Scenarios</Link>
-            </div>
-            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              © {new Date().getFullYear()} TenAceIQ
-            </div>
+        {error ? <section style={errorCard}>{error}</section> : null}
+
+        <section style={contentWrap}>
+          <div style={metricGridResponsive(isSmallMobile, isMobile)}>
+            <MetricCard label="Available" value={String(counts.in)} accent="green" />
+            <MetricCard label="Unavailable" value={String(counts.out)} accent="blue" />
+            <MetricCard label="Maybe" value={String(counts.maybe)} accent="slate" />
+            <MetricCard label="Unanswered" value={String(counts.unanswered)} accent="slate" />
           </div>
-        </div>
-      </footer>
-    </main>
+
+          <section style={sectionCard}>
+            <div style={sectionHeadResponsive(isTablet)}>
+              <div>
+                <div style={sectionKicker}>Weekly roster</div>
+                <h2 style={sectionTitle}>Player responses</h2>
+                <div style={sectionSub}>
+                  Update statuses as you hear back, then move straight into lineup planning.
+                </div>
+              </div>
+
+              <div style={sectionActions}>
+                <Link href="/captain/lineup-builder" style={sectionCtaPrimary}>
+                  Build Lineup
+                </Link>
+                <Link href="/captain/messaging" style={sectionCtaSecondary}>
+                  Text Team
+                </Link>
+              </div>
+            </div>
+
+            {loadingRoster ? (
+              <div style={stateBox}>Loading roster...</div>
+            ) : players.length === 0 ? (
+              <div style={stateBox}>No roster found yet for this team selection.</div>
+            ) : (
+              <div style={playerList}>
+                {players.map((player) => (
+                  <div key={player.id} style={playerRowResponsive(isSmallMobile)}>
+                    <div>
+                      <div style={playerName}>{player.name}</div>
+                      <div style={playerMeta}>
+                        {selectedTeam || 'Team'} · {weekLabel}
+                      </div>
+                    </div>
+
+                    <div style={statusButtonRowResponsive(isSmallMobile)}>
+                      <button
+                        type="button"
+                        style={{ ...statusButton, ...(player.status === 'in' ? statusButtonIn : {}) }}
+                        onClick={() => updateStatus(player.id, 'in')}
+                      >
+                        In
+                      </button>
+                      <button
+                        type="button"
+                        style={{ ...statusButton, ...(player.status === 'out' ? statusButtonOut : {}) }}
+                        onClick={() => updateStatus(player.id, 'out')}
+                      >
+                        Out
+                      </button>
+                      <button
+                        type="button"
+                        style={{ ...statusButton, ...(player.status === 'maybe' ? statusButtonMaybe : {}) }}
+                        onClick={() => updateStatus(player.id, 'maybe')}
+                      >
+                        Maybe
+                      </button>
+                      <button
+                        type="button"
+                        style={{ ...statusButton, ...(player.status === 'unanswered' ? statusButtonUnanswered : {}) }}
+                        onClick={() => updateStatus(player.id, 'unanswered')}
+                      >
+                        Unanswered
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </section>
+      </div>
+    </SiteShell>
   )
 }
 
@@ -521,89 +462,17 @@ function MetricCard({
     <div
       style={{
         ...metricCard,
-        ...(accent == 'green'
+        ...(accent === 'green'
           ? metricCardGreen
-          : accent == 'blue'
-          ? metricCardBlue
-          : metricCardSlate),
+          : accent === 'blue'
+            ? metricCardBlue
+            : metricCardSlate),
       }}
     >
       <div style={metricLabel}>{label}</div>
       <div style={metricValue}>{value}</div>
     </div>
   )
-}
-
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '10px' : '12px', lineHeight: 1 }}>
-      <span
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '999px',
-          background:
-            'radial-gradient(circle at 30% 30%, rgba(155,225,29,0.28), rgba(74,163,255,0.18) 55%, rgba(74,163,255,0.04) 100%)',
-          boxShadow: '0 0 28px rgba(116,190,255,0.18)',
-          overflow: 'hidden',
-        }}
-      >
-        <Image
-          src="/logo-icon.png"
-          alt="TenAceIQ"
-          width={iconSize}
-          height={iconSize}
-          priority
-          style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-        />
-      </span>
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-function headerInnerResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
-}
-
-function navStyleResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
 }
 
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
@@ -663,155 +532,18 @@ function statusButtonRowResponsive(isSmallMobile: boolean): CSSProperties {
   }
 }
 
-function footerInnerResponsive(isMobile: boolean): CSSProperties {
-  return {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-}
-
-function footerRowResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-}
-
-function footerLinksResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
+const pageWrap: CSSProperties = {
+  width: 'min(1280px, calc(100% - 48px))',
+  margin: '0 auto',
+  display: 'grid',
+  gap: '18px',
+  padding: '14px 0 28px',
   position: 'relative',
   zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-}
-
-const navButtonReset: CSSProperties = {
-  ...navLink,
-  cursor: 'pointer',
-  appearance: 'none',
-}
-
-const activeNavLink: CSSProperties = {
-  ...ctaNavLink,
 }
 
 const heroShell: CSSProperties = {
   position: 'relative',
-  zIndex: 2,
-  maxWidth: '1280px',
-  margin: '14px auto 18px',
   display: 'grid',
   borderRadius: '34px',
   border: '1px solid rgba(116,190,255,0.22)',
@@ -1040,13 +772,8 @@ const helperBanner: CSSProperties = {
 }
 
 const contentWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1280px',
-  margin: '0 auto',
   display: 'grid',
   gap: '18px',
-  padding: '0 24px 28px',
 }
 
 const metricGrid: CSSProperties = {
@@ -1239,10 +966,6 @@ const stateBox: CSSProperties = {
 }
 
 const errorCard: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1280px',
-  margin: '0 auto 18px',
   padding: '14px 18px',
   borderRadius: '18px',
   background: 'rgba(142, 32, 32, 0.18)',
@@ -1251,12 +974,12 @@ const errorCard: CSSProperties = {
   fontWeight: 700,
 }
 
-const loadingShell: CSSProperties = {
+const loadingWrap: CSSProperties = {
+  width: 'min(1280px, calc(100% - 48px))',
+  margin: '0 auto',
+  padding: '40px 0',
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1280px',
-  margin: '40px auto',
-  padding: '0 24px',
 }
 
 const loadingCard: CSSProperties = {
@@ -1266,52 +989,5 @@ const loadingCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
   border: '1px solid rgba(116,190,255,0.18)',
   fontSize: '15px',
-  fontWeight: 700,
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  marginTop: '8px',
-  padding: '0 18px 24px',
-}
-
-const footerInner: CSSProperties = {
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '24px',
-  background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '18px',
-}
-
-const footerBrandLink: CSSProperties = {
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '13px',
   fontWeight: 700,
 }
