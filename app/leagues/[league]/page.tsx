@@ -38,6 +38,7 @@ const NAV_LINKS = [
   { href: '/rankings', label: 'Rankings' },
   { href: '/matchup', label: 'Matchup' },
   { href: '/leagues', label: 'Leagues' },
+  { href: '/teams', label: 'Teams' },
   { href: '/captains-corner', label: "Captain's Corner" },
 ]
 
@@ -317,7 +318,7 @@ export default function LeagueDetailPage() {
 
   const dynamicMiniGrid: CSSProperties = {
     ...miniGrid,
-    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   }
 
   const dynamicMatchTop: CSSProperties = {
@@ -560,6 +561,7 @@ export default function LeagueDetailPage() {
               <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
               <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
               <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
             </div>
 

@@ -31,10 +31,12 @@ type LeagueCard = {
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
   { href: '/leagues', label: 'Leagues' },
-  { href: '/captain', label: 'Captain' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/captains-corner', label: "Captain's Corner" },
 ]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -347,6 +349,7 @@ export default function LeaguesPage() {
                 </Link>
               )
             })}
+            <Link href="/admin" style={navLink}>Admin</Link>
           </nav>
         </div>
       </header>
@@ -491,10 +494,12 @@ export default function LeaguesPage() {
             </Link>
 
             <div style={dynamicFooterLinks}>
-              <Link href="/explore" style={footerUtilityLink}>Explore</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchups</Link>
+              <Link href="/players" style={footerUtilityLink}>Players</Link>
+              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
+              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
+              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
+              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
             </div>
 
             <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>

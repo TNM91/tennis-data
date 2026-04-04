@@ -2,9 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -62,13 +62,11 @@ type MatchPlayerRow = {
   } | null
 }
 
-const NAV_LINKS = [
+const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchups' },
+  { href: '/captain', label: 'Captain' },
 ]
 
 export default function PlayerProfilePage() {
@@ -121,18 +119,14 @@ export default function PlayerProfilePage() {
         .eq('id', playerId)
         .single()
 
-      if (playerError) {
-        throw new Error(playerError.message)
-      }
+      if (playerError) throw new Error(playerError.message)
 
       const { data: playerMatchRefs, error: playerMatchRefsError } = await supabase
         .from('match_players')
         .select('match_id')
         .eq('player_id', playerId)
 
-      if (playerMatchRefsError) {
-        throw new Error(playerMatchRefsError.message)
-      }
+      if (playerMatchRefsError) throw new Error(playerMatchRefsError.message)
 
       const matchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id))]
 
@@ -153,9 +147,7 @@ export default function PlayerProfilePage() {
           .order('match_date', { ascending: false })
           .order('id', { ascending: false })
 
-        if (matchesError) {
-          throw new Error(matchesError.message)
-        }
+        if (matchesError) throw new Error(matchesError.message)
 
         matchRows = (matchesData || []) as MatchRow[]
 
@@ -173,9 +165,7 @@ export default function PlayerProfilePage() {
           `)
           .in('match_id', matchIds)
 
-        if (participantsError) {
-          throw new Error(participantsError.message)
-        }
+        if (participantsError) throw new Error(participantsError.message)
 
         participantRows = (participantsData || []) as unknown as MatchPlayerRow[]
       }
@@ -204,14 +194,16 @@ export default function PlayerProfilePage() {
         const opponentSide: MatchSide = playerSide === 'A' ? 'B' : 'A'
 
         const playerTeam = (playerSide === 'A' ? sideA : sideB).map(
-          (p) => p.players?.name || 'Unknown Player'
+          (p) => p.players?.name || 'Unknown Player',
         )
         const opponentTeam = (opponentSide === 'A' ? sideA : sideB).map(
-          (p) => p.players?.name || 'Unknown Player'
+          (p) => p.players?.name || 'Unknown Player',
         )
 
         const partnerNames = playerTeam.filter(
-          (name) => normalizeName(name).toLowerCase() !== normalizeName(playerData.name).toLowerCase()
+          (name) =>
+            normalizeName(name).toLowerCase() !==
+            normalizeName(playerData.name).toLowerCase(),
         )
 
         const isWin =
@@ -238,9 +230,7 @@ export default function PlayerProfilePage() {
         .order('snapshot_date', { ascending: true })
         .order('id', { ascending: true })
 
-      if (snapshotsError) {
-        throw new Error(snapshotsError.message)
-      }
+      if (snapshotsError) throw new Error(snapshotsError.message)
 
       setPlayer(playerData as Player)
       setMatches(groupedMatches)
@@ -259,12 +249,12 @@ export default function PlayerProfilePage() {
 
   const wins = useMemo(
     () => filteredMatches.filter((match) => match.result === 'W').length,
-    [filteredMatches]
+    [filteredMatches],
   )
 
   const losses = useMemo(
     () => filteredMatches.filter((match) => match.result === 'L').length,
-    [filteredMatches]
+    [filteredMatches],
   )
 
   const totalMatches = filteredMatches.length
@@ -274,7 +264,9 @@ export default function PlayerProfilePage() {
   const chartPoints = useMemo(() => {
     const relevantSnapshots =
       ratingView === 'overall'
-        ? snapshots.filter((snapshot) => !snapshot.rating_type || snapshot.rating_type === 'overall')
+        ? snapshots.filter(
+            (snapshot) => !snapshot.rating_type || snapshot.rating_type === 'overall',
+          )
         : snapshots.filter((snapshot) => snapshot.rating_type === ratingView)
 
     return relevantSnapshots.map((snapshot, index) => ({
@@ -288,11 +280,17 @@ export default function PlayerProfilePage() {
     if (!player) return 3.5
 
     if (ratingView === 'singles') {
-      return toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
+      return toRatingNumber(
+        player.singles_dynamic_rating ?? player.overall_dynamic_rating,
+        3.5,
+      )
     }
 
     if (ratingView === 'doubles') {
-      return toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5)
+      return toRatingNumber(
+        player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
+        3.5,
+      )
     }
 
     return toRatingNumber(player.overall_dynamic_rating, 3.5)
@@ -301,81 +299,84 @@ export default function PlayerProfilePage() {
   const staticOverall = useMemo(() => toRatingNumber(player?.overall_rating, 3.5), [player])
   const staticSingles = useMemo(
     () => toRatingNumber(player?.singles_rating ?? player?.overall_rating, 3.5),
-    [player]
+    [player],
   )
   const staticDoubles = useMemo(
     () => toRatingNumber(player?.doubles_rating ?? player?.overall_rating, 3.5),
-    [player]
+    [player],
   )
 
-  const nextThreshold = useMemo(() => getNextThreshold(selectedDynamicRating), [selectedDynamicRating])
+  const nextThreshold = useMemo(
+    () => getNextThreshold(selectedDynamicRating),
+    [selectedDynamicRating],
+  )
   const progressInfo = useMemo(
     () => getProgressToNextLevel(selectedDynamicRating, nextThreshold),
-    [selectedDynamicRating, nextThreshold]
+    [selectedDynamicRating, nextThreshold],
   )
 
-  const dynamicHeaderInner = {
+  const dynamicHeaderInner: CSSProperties = {
     ...headerInner,
-    flexDirection: isTablet ? ('column' as const) : ('row' as const),
-    alignItems: isTablet ? ('flex-start' as const) : ('center' as const),
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
     gap: isTablet ? '14px' : '18px',
   }
 
-  const dynamicNavStyle = {
+  const dynamicNavStyle: CSSProperties = {
     ...navStyle,
     width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? ('flex-start' as const) : ('flex-end' as const),
-    flexWrap: 'wrap' as const,
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
   }
 
-  const dynamicHeroWrap = {
+  const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
     padding: isMobile ? '14px 16px 24px' : '10px 18px 24px',
   }
 
-  const dynamicHeroShell = {
+  const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
   }
 
-  const dynamicHeroContent = {
+  const dynamicHeroContent: CSSProperties = {
     ...heroContent,
     gridTemplateColumns: isTablet
       ? '1fr'
-      : 'minmax(0, 0.92fr) minmax(0, 1.08fr)',
+      : 'minmax(0, 0.96fr) minmax(0, 1.04fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
-  const dynamicHeroTitle = {
+  const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
     fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
     lineHeight: isMobile ? 1.04 : 0.98,
-    maxWidth: '520px',
+    maxWidth: '560px',
   }
 
-  const dynamicHeroText = {
+  const dynamicHeroText: CSSProperties = {
     ...heroText,
     fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '520px',
+    maxWidth: '560px',
   }
 
-  const dynamicRightColumn = {
+  const dynamicRightColumn: CSSProperties = {
     ...heroRight,
-    position: isTablet ? ('relative' as const) : ('sticky' as const),
+    position: isTablet ? 'relative' : 'sticky',
     top: isTablet ? 'auto' : '24px',
   }
 
-  const dynamicSegmentWrap = {
+  const dynamicSegmentWrap: CSSProperties = {
     ...segmentWrap,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicFocusMetrics = {
+  const dynamicFocusMetrics: CSSProperties = {
     ...focusMetrics,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   }
 
-  const dynamicStatsGrid = {
+  const dynamicStatsGrid: CSSProperties = {
     ...statsGrid,
     gridTemplateColumns: isSmallMobile
       ? '1fr'
@@ -384,29 +385,29 @@ export default function PlayerProfilePage() {
         : 'repeat(4, minmax(0, 1fr))',
   }
 
-  const dynamicContentGrid = {
+  const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
     gridTemplateColumns: '1fr',
   }
 
-  const dynamicFooterInner = {
+  const dynamicFooterInner: CSSProperties = {
     ...footerInner,
     padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
   }
 
-  const dynamicFooterRow = {
+  const dynamicFooterRow: CSSProperties = {
     ...footerRow,
-    flexDirection: isTablet ? ('column' as const) : ('row' as const),
-    alignItems: isTablet ? ('flex-start' as const) : ('center' as const),
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
     gap: isTablet ? '12px' : '18px',
   }
 
-  const dynamicFooterLinks = {
+  const dynamicFooterLinks: CSSProperties = {
     ...footerLinks,
-    justifyContent: isTablet ? ('flex-start' as const) : ('center' as const),
+    justifyContent: isTablet ? 'flex-start' : 'center',
   }
 
-  const dynamicFooterBottom = {
+  const dynamicFooterBottom: CSSProperties = {
     ...footerBottom,
     marginLeft: isTablet ? 0 : 'auto',
   }
@@ -417,6 +418,7 @@ export default function PlayerProfilePage() {
         <div style={orbOne} />
         <div style={orbTwo} />
         <div style={gridGlow} />
+        <div style={topBlueWash} />
 
         <header style={headerStyle}>
           <div style={dynamicHeaderInner}>
@@ -425,12 +427,14 @@ export default function PlayerProfilePage() {
             </Link>
 
             <nav style={dynamicNavStyle}>
-              {NAV_LINKS.map((link) => (
+              {PRIMARY_LINKS.map((link) => (
                 <Link key={link.href} href={link.href} style={navLink}>
                   {link.label}
                 </Link>
               ))}
-              <Link href="/admin" style={navLink}>Admin</Link>
+              <Link href="/leagues" style={navLink}>
+                Leagues
+              </Link>
             </nav>
           </div>
         </header>
@@ -451,6 +455,7 @@ export default function PlayerProfilePage() {
         <div style={orbOne} />
         <div style={orbTwo} />
         <div style={gridGlow} />
+        <div style={topBlueWash} />
 
         <header style={headerStyle}>
           <div style={dynamicHeaderInner}>
@@ -459,12 +464,14 @@ export default function PlayerProfilePage() {
             </Link>
 
             <nav style={dynamicNavStyle}>
-              {NAV_LINKS.map((link) => (
+              {PRIMARY_LINKS.map((link) => (
                 <Link key={link.href} href={link.href} style={navLink}>
                   {link.label}
                 </Link>
               ))}
-              <Link href="/admin" style={navLink}>Admin</Link>
+              <Link href="/leagues" style={navLink}>
+                Leagues
+              </Link>
             </nav>
           </div>
         </header>
@@ -488,6 +495,7 @@ export default function PlayerProfilePage() {
       <div style={orbOne} />
       <div style={orbTwo} />
       <div style={gridGlow} />
+      <div style={topBlueWash} />
 
       <header style={headerStyle}>
         <div style={dynamicHeaderInner}>
@@ -496,7 +504,7 @@ export default function PlayerProfilePage() {
           </Link>
 
           <nav style={dynamicNavStyle}>
-            {NAV_LINKS.map((link) => {
+            {PRIMARY_LINKS.map((link) => {
               const isActive = link.href === '/players'
               return (
                 <Link
@@ -504,14 +512,17 @@ export default function PlayerProfilePage() {
                   href={link.href}
                   style={{
                     ...navLink,
-                    ...(isActive ? activeNavLink : {}),
+                    ...(isActive && link.href === '/players' ? activeNavLink : {}),
                   }}
                 >
                   {link.label}
                 </Link>
               )
             })}
-            <Link href="/admin" style={navLink}>Admin</Link>
+
+            <Link href="/leagues" style={navLink}>
+              Leagues
+            </Link>
           </nav>
         </div>
       </header>
@@ -522,7 +533,7 @@ export default function PlayerProfilePage() {
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
-              <div style={eyebrow}>Player profile</div>
+              <div style={eyebrow}>Player profile preview</div>
 
               <h1 style={dynamicHeroTitle}>{player.name}</h1>
 
@@ -542,6 +553,7 @@ export default function PlayerProfilePage() {
                       Current {ratingView} dynamic rating vs. next threshold
                     </div>
                   </div>
+
                   <div style={meterValueGroup}>
                     <div style={meterCurrent}>{selectedDynamicRating.toFixed(2)}</div>
                     <div style={meterTarget}>Next: {nextThreshold.toFixed(1)}</div>
@@ -571,7 +583,7 @@ export default function PlayerProfilePage() {
                   <div>
                     <div style={focusLabel}>Rating focus</div>
                     <div style={focusSubtitle}>
-                      Switch between overall, singles, and doubles.
+                      Previewing the shared home/matchup shell on player profiles.
                     </div>
                   </div>
 
@@ -634,9 +646,30 @@ export default function PlayerProfilePage() {
                 <div style={summaryTitle}>Quick profile view</div>
 
                 <div style={summaryStatsGrid}>
-                  <StatChip label="Overall" value={formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))} />
-                  <StatChip label="Singles" value={formatRating(toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5))} />
-                  <StatChip label="Doubles" value={formatRating(toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5))} />
+                  <StatChip
+                    label="Overall"
+                    value={formatRating(
+                      toRatingNumber(player.overall_dynamic_rating, 3.5),
+                    )}
+                  />
+                  <StatChip
+                    label="Singles"
+                    value={formatRating(
+                      toRatingNumber(
+                        player.singles_dynamic_rating ?? player.overall_dynamic_rating,
+                        3.5,
+                      ),
+                    )}
+                  />
+                  <StatChip
+                    label="Doubles"
+                    value={formatRating(
+                      toRatingNumber(
+                        player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
+                        3.5,
+                      ),
+                    )}
+                  />
                   <StatChip label="Tracked" value={String(totalMatches)} />
                 </div>
               </div>
@@ -647,40 +680,57 @@ export default function PlayerProfilePage() {
 
       <section style={contentWrap}>
         <div style={dynamicStatsGrid}>
-          <article style={{ ...statCard, ...statCardAccentBlue }}>
+          <article style={{ ...statCard, ...statCardAccentGreen }}>
             <div style={statLabel}>Current {capitalize(ratingView)} dynamic</div>
             <div style={statValue}>{selectedDynamicRating.toFixed(2)}</div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Overall</div>
             <div style={statValue}>
               {formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))}
             </div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Singles</div>
             <div style={statValue}>
-              {formatRating(toRatingNumber(player.singles_dynamic_rating ?? player.overall_dynamic_rating, 3.5))}
+              {formatRating(
+                toRatingNumber(
+                  player.singles_dynamic_rating ?? player.overall_dynamic_rating,
+                  3.5,
+                ),
+              )}
             </div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Doubles</div>
             <div style={statValue}>
-              {formatRating(toRatingNumber(player.doubles_dynamic_rating ?? player.overall_dynamic_rating, 3.5))}
+              {formatRating(
+                toRatingNumber(
+                  player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
+                  3.5,
+                ),
+              )}
             </div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Wins</div>
             <div style={statValue}>{wins}</div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Losses</div>
             <div style={statValue}>{losses}</div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Win rate</div>
             <div style={statValue}>{winPct}%</div>
           </article>
+
           <article style={statCard}>
             <div style={statLabel}>Tracked matches</div>
             <div style={statValue}>{totalMatches}</div>
@@ -730,7 +780,7 @@ export default function PlayerProfilePage() {
                   </thead>
                   <tbody>
                     {mostRecentMatches.map((match) => (
-                      <tr key={match.id} style={tableRow}>
+                      <tr key={match.id}>
                         <td style={tableCell}>{formatDate(match.date)}</td>
                         <td style={tableCell}>{capitalize(match.matchType)}</td>
                         <td style={tableCell}>{match.partner || '—'}</td>
@@ -764,16 +814,27 @@ export default function PlayerProfilePage() {
             </Link>
 
             <div style={dynamicFooterLinks}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+              <Link href="/explore" style={footerUtilityLink}>
+                Explore
+              </Link>
+              <Link href="/players" style={footerUtilityLink}>
+                Players
+              </Link>
+              <Link href="/rankings" style={footerUtilityLink}>
+                Rankings
+              </Link>
+              <Link href="/matchup" style={footerUtilityLink}>
+                Matchups
+              </Link>
+              <Link href="/leagues" style={footerUtilityLink}>
+                Leagues
+              </Link>
+              <Link href="/captain" style={footerUtilityLink}>
+                Captain
+              </Link>
             </div>
 
-            <div style={dynamicFooterBottom}>
-              © {new Date().getFullYear()} TenAceIQ
-            </div>
+            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
           </div>
         </div>
       </footer>
@@ -797,8 +858,22 @@ function StatChip({
         ...(accent ? chipStatAccent : {}),
       }}
     >
-      <div style={chipStatLabel}>{label}</div>
-      <div style={chipStatValue}>{value}</div>
+      <div
+        style={{
+          ...chipStatLabel,
+          ...(accent ? { color: 'rgba(255,255,255,0.82)' } : {}),
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          ...chipStatValue,
+          ...(accent ? { color: '#07111d' } : {}),
+        }}
+      >
+        {value}
+      </div>
     </div>
   )
 }
@@ -812,15 +887,15 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
+  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: compact ? '8px' : '10px',
+        gap: compact ? '10px' : '12px',
         lineHeight: 1,
       }}
     >
@@ -849,7 +924,7 @@ function BrandWordmark({
         }}
       >
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
+        <span style={heroIQ}>IQ</span>
       </div>
     </div>
   )
@@ -890,7 +965,7 @@ function SimpleLineChart({
           </linearGradient>
         </defs>
 
-        <rect x="0" y="0" width={width} height={height} rx="20" fill="rgba(8, 20, 44, 0.9)" />
+        <rect x="0" y="0" width={width} height={height} rx="20" fill="rgba(255,255,255,0.04)" />
 
         {[0.2, 0.4, 0.6, 0.8].map((line, index) => {
           const y = padding + (height - padding * 2) * line
@@ -901,13 +976,19 @@ function SimpleLineChart({
               x2={width - padding}
               y1={y}
               y2={y}
-              stroke="rgba(167, 190, 255, 0.12)"
+              stroke="rgba(255,255,255,0.10)"
               strokeWidth="1"
             />
           )
         })}
 
-        <path d={path} fill="none" stroke="url(#playerLineGradient)" strokeWidth="4" strokeLinecap="round" />
+        <path
+          d={path}
+          fill="none"
+          stroke="url(#playerLineGradient)"
+          strokeWidth="4"
+          strokeLinecap="round"
+        />
 
         {points.map((point, index) => {
           const x = padding + index * xStep
@@ -916,8 +997,8 @@ function SimpleLineChart({
 
           return (
             <g key={`${point.date}-${index}`}>
-              <circle cx={x} cy={y} r="10" fill="rgba(37, 91, 227, 0.14)" />
-              <circle cx={x} cy={y} r="4.5" fill="#dff7ff" />
+              <circle cx={x} cy={y} r="10" fill="rgba(37, 91, 227, 0.12)" />
+              <circle cx={x} cy={y} r="4.5" fill="#255BE3" />
             </g>
           )
         })}
@@ -978,37 +1059,45 @@ function getProgressToNextLevel(rating: number, next: number) {
   return { previous, percent, remaining }
 }
 
-const pageStyle = {
+const pageStyle: CSSProperties = {
   minHeight: '100vh',
   position: 'relative',
   overflow: 'hidden',
+  background: `
+    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
+    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
+  `,
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-120px',
+  left: '-140px',
+  width: '420px',
+  height: '420px',
+  borderRadius: '999px',
   background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
-} as const
-
-const orbOne = {
-  position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
+    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
-} as const
+}
 
-const orbTwo = {
+const orbTwo: CSSProperties = {
   position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
+  right: '-140px',
+  top: '140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
+  background:
+    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
-} as const
+}
 
-const gridGlow = {
+const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
   backgroundImage:
@@ -1017,114 +1106,125 @@ const gridGlow = {
   backgroundSize: '34px 34px, 34px 34px',
   maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
   pointerEvents: 'none',
-} as const
+}
 
-const headerStyle = {
+const topBlueWash: CSSProperties = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '420px',
+  background:
+    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '24px 18px 0',
-} as const
+  padding: '18px 24px 0',
+}
 
-const headerInner = {
+const headerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   display: 'flex',
   justifyContent: 'space-between',
-} as const
+}
 
-const brandWrap = {
+const brandWrap: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   textDecoration: 'none',
-} as const
+}
 
-const brandIQ = {
-  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
+const heroIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
   marginLeft: '2px',
-} as const
+}
 
-const navStyle = {
+const navStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  gap: '10px',
-} as const
+  gap: '12px',
+}
 
-const navLink = {
-  color: 'rgba(231,243,255,0.9)',
+const navLink: CSSProperties = {
+  color: 'rgba(238,247,255,0.94)',
   textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
+  fontSize: '15px',
+  fontWeight: 800,
   letterSpacing: '0.01em',
-  padding: '10px 14px',
+  padding: '12px 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(122,170,255,0.16)',
-  background: 'rgba(22,42,78,0.42)',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
   backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   transition: 'all 180ms ease',
-} as const
+}
 
-const activeNavLink = {
-  color: '#06111f',
-  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
-  border: '1px solid rgba(134,239,172,0.45)',
-  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
-} as const
+const activeNavLink: CSSProperties = {
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+}
 
-const heroWrap = {
+const heroWrap: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-} as const
+}
 
-const heroShell = {
+const heroShell: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
   background:
-    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
-  border: '1px solid rgba(128,174,255,0.12)',
+    'linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)',
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
-    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
+    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
   overflow: 'hidden',
   position: 'relative',
-} as const
+}
 
-const heroNoise = {
+const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
   background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)',
   pointerEvents: 'none',
-} as const
+}
 
-const heroContent = {
+const heroContent: CSSProperties = {
   display: 'grid',
   alignItems: 'stretch',
   position: 'relative',
   zIndex: 1,
-} as const
+}
 
-const heroLeft = {
+const heroLeft: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'center',
   gap: '16px',
   minWidth: 0,
-} as const
+}
 
-const heroRight = {
+const heroRight: CSSProperties = {
   display: 'grid',
   gap: '14px',
   alignContent: 'start',
   minWidth: 0,
-} as const
+}
 
-const eyebrow = {
+const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
   alignItems: 'center',
@@ -1137,30 +1237,30 @@ const eyebrow = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-} as const
+}
 
-const heroTitle = {
+const heroTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
   fontWeight: 900,
   letterSpacing: '-0.045em',
-} as const
+}
 
-const heroText = {
+const heroText: CSSProperties = {
   margin: 0,
   color: 'rgba(224,236,249,0.86)',
   lineHeight: 1.65,
   fontWeight: 500,
-} as const
+}
 
-const heroHintRow = {
+const heroHintRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '4px',
-} as const
+}
 
-const heroHintPill = {
+const heroHintPill: CSSProperties = {
   border: '1px solid rgba(137,182,255,0.14)',
   background: 'rgba(43,78,138,0.34)',
   color: '#e2efff',
@@ -1168,79 +1268,79 @@ const heroHintPill = {
   padding: '10px 14px',
   fontSize: '13px',
   fontWeight: 700,
-} as const
+}
 
-const meterCard = {
+const meterCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   maxWidth: '560px',
-} as const
+}
 
-const meterHeader = {
+const meterHeader: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start',
   flexWrap: 'wrap',
   marginBottom: '14px',
-} as const
+}
 
-const meterLabel = {
+const meterLabel: CSSProperties = {
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '22px',
   letterSpacing: '-0.03em',
-} as const
+}
 
-const meterSubtext = {
+const meterSubtext: CSSProperties = {
   marginTop: '4px',
   color: 'rgba(220,231,244,0.78)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
-} as const
+}
 
-const meterValueGroup = {
+const meterValueGroup: CSSProperties = {
   textAlign: 'right',
-} as const
+}
 
-const meterCurrent = {
+const meterCurrent: CSSProperties = {
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '32px',
   lineHeight: 1,
   letterSpacing: '-0.04em',
-} as const
+}
 
-const meterTarget = {
+const meterTarget: CSSProperties = {
   marginTop: '6px',
-  color: '#bbf7d0',
+  color: '#d9f84a',
   fontWeight: 800,
   fontSize: '13px',
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-} as const
+}
 
-const meterTrack = {
+const meterTrack: CSSProperties = {
   width: '100%',
   height: '14px',
   borderRadius: '999px',
   background: 'rgba(255,255,255,0.08)',
   border: '1px solid rgba(255,255,255,0.08)',
   overflow: 'hidden',
-} as const
+}
 
-const meterFill = {
+const meterFill: CSSProperties = {
   height: '100%',
   borderRadius: '999px',
-  background: 'linear-gradient(135deg, rgba(103, 241, 154, 1), rgba(40, 205, 110, 0.94))',
-  boxShadow: '0 10px 24px rgba(43, 195, 104, 0.22)',
-} as const
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 60%, #22c55e 100%)',
+  boxShadow: '0 10px 24px rgba(155,225,29,0.25)',
+}
 
-const meterFooter = {
+const meterFooter: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '12px',
@@ -1248,41 +1348,41 @@ const meterFooter = {
   color: 'rgba(214,228,248,0.74)',
   fontSize: '13px',
   fontWeight: 700,
-} as const
+}
 
-const focusCard = {
+const focusCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-} as const
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
 
-const focusHead = {
+const focusHead: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'flex-start',
   flexWrap: 'wrap',
   marginBottom: '14px',
-} as const
+}
 
-const focusLabel = {
+const focusLabel: CSSProperties = {
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
-} as const
+}
 
-const focusSubtitle = {
+const focusSubtitle: CSSProperties = {
   marginTop: '4px',
   color: 'rgba(220,231,244,0.78)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
-} as const
+}
 
-const secondaryMiniLink = {
+const secondaryMiniLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -1295,15 +1395,15 @@ const secondaryMiniLink = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
-} as const
+}
 
-const segmentWrap = {
+const segmentWrap: CSSProperties = {
   display: 'grid',
   gap: '10px',
   marginBottom: '14px',
-} as const
+}
 
-const segmentButton = {
+const segmentButton: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.10)',
   borderRadius: '16px',
   background: 'rgba(255,255,255,0.06)',
@@ -1313,219 +1413,216 @@ const segmentButton = {
   fontSize: '14px',
   fontWeight: 800,
   cursor: 'pointer',
-} as const
+}
 
-const segmentButtonActive = {
-  background: 'linear-gradient(135deg, rgba(103, 241, 154, 1), rgba(40, 205, 110, 0.94))',
-  color: '#071622',
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-  boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
-} as const
+const segmentButtonActive: CSSProperties = {
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  color: '#04121f',
+  border: '1px solid rgba(155,225,29,0.45)',
+  boxShadow: '0 12px 30px rgba(155,225,29,0.25)',
+}
 
-const focusMetrics = {
+const focusMetrics: CSSProperties = {
   display: 'grid',
   gap: '10px',
-} as const
+}
 
-const summaryCard = {
+const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
-} as const
+}
 
-const summaryTitle = {
+const summaryTitle: CSSProperties = {
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
   marginBottom: '14px',
-} as const
+}
 
-const summaryStatsGrid = {
+const summaryStatsGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '10px',
-} as const
+}
 
-const chipStat = {
+const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'rgba(26,42,71,0.58)',
-  border: '1px solid rgba(74,123,211,0.24)',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.10)',
   minWidth: 0,
-} as const
+}
 
-const chipStatAccent = {
-  background: 'linear-gradient(135deg, rgba(31,102,74,0.92) 0%, rgba(42,162,96,0.84) 100%)',
-  border: '1px solid rgba(134,239,172,0.24)',
-} as const
+const chipStatAccent: CSSProperties = {
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  border: '1px solid rgba(155,225,29,0.35)',
+}
 
-const chipStatLabel = {
-  color: 'rgba(198,214,230,0.74)',
+const chipStatLabel: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.82)',
   fontSize: '12px',
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '6px',
-} as const
+}
 
-const chipStatValue = {
-  color: '#f8fbff',
+const chipStatValue: CSSProperties = {
+  color: '#ffffff',
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
-} as const
+}
 
-const statsGrid = {
+const statsGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
-  marginBottom: '16px',
-} as const
+  marginBottom: '26px',
+}
 
-const statCard = {
+const statCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
-} as const
+}
 
-const statCardAccentBlue = {
-  border: '1px solid rgba(91, 162, 255, 0.26)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.18), inset 0 0 0 1px rgba(59,130,246,0.08)',
-} as const
+const statCardAccentGreen: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.32)',
+  boxShadow: '0 10px 30px rgba(155,225,29,0.12), inset 0 0 0 1px rgba(155,225,29,0.06)',
+}
 
-const statLabel = {
-  color: 'rgba(198,216,248,0.78)',
+const statLabel: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.82)',
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 750,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
-} as const
+}
 
-const statValue = {
+const statValue: CSSProperties = {
   marginTop: '8px',
-  color: '#f8fbff',
+  color: '#ffffff',
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: '-0.04em',
-} as const
+}
 
-const contentWrap = {
+const contentWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   maxWidth: '1240px',
   margin: '0 auto',
-  padding: '0 18px 0',
-} as const
+  padding: '32px 18px 10px',
+}
 
-const contentGrid = {
+const contentGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
-} as const
+}
 
-const panelCard = {
+const panelCard: CSSProperties = {
   borderRadius: '28px',
-  padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  padding: '22px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
   minWidth: 0,
-} as const
+}
 
-const panelHead = {
+const panelHead: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-start',
   justifyContent: 'space-between',
   gap: '12px',
   marginBottom: '16px',
   flexWrap: 'wrap',
-} as const
+}
 
-const sectionKicker = {
-  color: '#8fb7ff',
+const sectionKicker: CSSProperties = {
+  color: '#93c5fd',
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   marginBottom: '8px',
-} as const
+}
 
-const panelTitle = {
+const panelTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
-} as const
+}
 
-const panelChip = {
+const panelChip: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   minHeight: '38px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(16, 39, 77, 0.84)',
-  color: 'rgba(220, 232, 255, 0.92)',
-  border: '1px solid rgba(82, 127, 201, 0.2)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#d9f84a',
+  border: '1px solid rgba(155,225,29,0.25)',
   fontWeight: 800,
   fontSize: '13px',
-} as const
+}
 
-const emptyText = {
+const emptyText: CSSProperties = {
   margin: 0,
-  color: 'rgba(220, 231, 252, 0.78)',
+  color: 'rgba(224,236,249,0.78)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 550,
-} as const
+}
 
-const tableWrap = {
-  overflowX: 'auto' as const,
+const tableWrap: CSSProperties = {
+  overflowX: 'auto',
   borderRadius: '20px',
-  border: '1px solid rgba(160, 185, 234, 0.12)',
-  background: 'rgba(7, 20, 45, 0.62)',
-} as const
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+}
 
-const dataTable = {
+const dataTable: CSSProperties = {
   width: '100%',
-  borderCollapse: 'collapse' as const,
+  borderCollapse: 'collapse',
   minWidth: '760px',
-} as const
+}
 
-const tableHead = {
+const tableHead: CSSProperties = {
   padding: '15px 16px',
-  textAlign: 'left' as const,
-  color: 'rgba(190, 210, 245, 0.8)',
+  textAlign: 'left',
+  color: 'rgba(217, 231, 255, 0.72)',
   fontSize: '12px',
   letterSpacing: '0.05em',
-  textTransform: 'uppercase' as const,
+  textTransform: 'uppercase',
   fontWeight: 800,
-  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-  background: 'rgba(10, 27, 58, 0.78)',
-  whiteSpace: 'nowrap' as const,
-} as const
+  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  whiteSpace: 'nowrap',
+}
 
-const tableRow = {} as const
-
-const tableCell = {
+const tableCell: CSSProperties = {
   padding: '16px',
-  color: '#e9f2ff',
+  color: '#f8fbff',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 600,
-  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-  verticalAlign: 'top' as const,
-} as const
+  borderTop: '1px solid rgba(255,255,255,0.06)',
+  verticalAlign: 'top',
+}
 
-const resultPill = {
+const resultPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -1535,115 +1632,115 @@ const resultPill = {
   fontSize: '12px',
   fontWeight: 900,
   letterSpacing: '0.04em',
-} as const
+}
 
-const resultWin = {
-  background: 'rgba(95, 223, 163, 0.14)',
-  color: '#a9ffc8',
-  border: '1px solid rgba(95, 223, 163, 0.2)',
-} as const
+const resultWin: CSSProperties = {
+  background: 'rgba(155,225,29,0.14)',
+  color: '#d9f84a',
+  border: '1px solid rgba(155,225,29,0.24)',
+}
 
-const resultLoss = {
-  background: 'rgba(255, 107, 107, 0.14)',
-  color: '#ffc2c2',
-  border: '1px solid rgba(255, 107, 107, 0.18)',
-} as const
+const resultLoss: CSSProperties = {
+  background: 'rgba(255, 60, 40, 0.10)',
+  color: '#ffb4ab',
+  border: '1px solid rgba(255, 60, 40, 0.16)',
+}
 
-const loadingCard = {
+const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(11, 22, 39, 0.82)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.08)',
   color: '#dfe8f8',
   fontWeight: 700,
   position: 'relative',
   zIndex: 1,
-} as const
+}
 
-const errorCard = {
+const errorCard: CSSProperties = {
   padding: '22px',
   borderRadius: '28px',
-  border: '1px solid rgba(255,100,100,0.2)',
-  background: 'rgba(62,16,22,0.78)',
+  border: '1px solid rgba(255, 60, 40, 0.18)',
+  background: 'rgba(19,30,54,0.92)',
   position: 'relative',
   zIndex: 1,
-} as const
+}
 
-const sectionTitle = {
+const sectionTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
   fontWeight: 900,
   fontSize: '30px',
   letterSpacing: '-0.04em',
-} as const
+}
 
-const sectionText = {
+const sectionText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(232, 239, 248, 0.84)',
+  color: 'rgba(224,236,249,0.78)',
   lineHeight: 1.6,
-} as const
+}
 
-const chartShell = {
+const chartShell: CSSProperties = {
   width: '100%',
-} as const
+}
 
-const chartSvg = {
+const chartSvg: CSSProperties = {
   width: '100%',
   height: 'auto',
   display: 'block',
   overflow: 'visible',
-} as const
+}
 
-const chartMeta = {
+const chartMeta: CSSProperties = {
   marginTop: '0.9rem',
-  color: 'rgba(219, 230, 255, 0.78)',
+  color: 'rgba(224,236,249,0.72)',
   fontSize: '0.9rem',
   fontWeight: 600,
-} as const
+}
 
-const footerStyle = {
+const footerStyle: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '28px 18px 20px',
-} as const
+  padding: '12px 18px 20px',
+}
 
-const footerInner = {
+const footerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
+  border: '1px solid rgba(116,190,255,0.22)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-} as const
+}
 
-const footerRow = {
+const footerRow: CSSProperties = {
   display: 'flex',
   width: '100%',
-} as const
+}
 
-const footerBrandLink = {
+const footerBrandLink: CSSProperties = {
   display: 'inline-flex',
   textDecoration: 'none',
   flexShrink: 0,
-} as const
+}
 
-const footerLinks = {
+const footerLinks: CSSProperties = {
   display: 'flex',
-  flexWrap: 'wrap' as const,
+  flexWrap: 'wrap',
   gap: '10px 14px',
-} as const
+}
 
-const footerUtilityLink = {
-  color: 'rgba(231,243,255,0.86)',
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(215,229,247,0.8)',
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 700,
-} as const
+}
 
-const footerBottom = {
-  color: 'rgba(190,205,224,0.74)',
+const footerBottom: CSSProperties = {
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '13px',
   fontWeight: 600,
-  whiteSpace: 'nowrap' as const,
-} as const
+  whiteSpace: 'nowrap',
+}
