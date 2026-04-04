@@ -26,11 +26,18 @@ type Player = {
   doubles_dynamic_rating: number | null
 }
 
+type PlayerRelation = Player | Player[] | null
+
 type MatchPlayer = {
   match_id: string
   side: 'A' | 'B'
   player_id: string
-  players: Player
+  players: PlayerRelation
+}
+
+function normalizePlayer(player: PlayerRelation): Player | null {
+  if (!player) return null
+  return Array.isArray(player) ? player[0] ?? null : player
 }
 
 export default function TeamPage() {
@@ -68,7 +75,7 @@ export default function TeamPage() {
       `)
       .in('match_id', ids)
 
-    setPlayers(playerData || [])
+    setPlayers((playerData || []) as MatchPlayer[])
     setLoading(false)
   }
 
@@ -76,7 +83,7 @@ export default function TeamPage() {
     const map = new Map()
 
     players.forEach((p) => {
-      const player = p.players
+      const player = normalizePlayer(p.players)
       if (!player) return
 
       if (!map.has(player.id)) {
@@ -113,7 +120,7 @@ export default function TeamPage() {
 
       if (!map.has(key)) {
         map.set(key, {
-          names: pair.map((p) => p.players.name),
+          names: pair.map((p) => normalizePlayer(p.players)?.name || 'Unknown'),
         })
       }
     })
@@ -179,3 +186,4 @@ export default function TeamPage() {
     </main>
   )
 }
+

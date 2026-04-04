@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -8,7 +10,7 @@ import {
   useMemo,
   useState,
 } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
@@ -42,11 +44,10 @@ function safeText(value: string | null | undefined, fallback = 'Unknown') {
 
 export default function CaptainAvailabilityPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
-  const teamParam = searchParams.get('team') || ''
-  const leagueParam = searchParams.get('league') || ''
-  const flightParam = searchParams.get('flight') || ''
+  const [teamParam, setTeamParam] = useState('')
+  const [leagueParam, setLeagueParam] = useState('')
+  const [flightParam, setFlightParam] = useState('')
 
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
@@ -68,6 +69,15 @@ export default function CaptainAvailabilityPage() {
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
+
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setTeamParam(params.get('team') || '')
+    setLeagueParam(params.get('league') || '')
+    setFlightParam(params.get('flight') || '')
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)

@@ -244,12 +244,12 @@ export default function HomePage() {
   }
 
   function saveRecentPlayer(player: PlayerSearchRow) {
-    const updated: QuickAction[] = [
-      { type: 'player', label: player.name, playerId: player.id },
+    const updated = [
+      { type: 'player' as const, label: player.name, playerId: player.id },
       ...recentPlayerActions.filter(
         (item) => item.type !== 'player' || item.playerId !== player.id,
       ),
-    ].slice(0, 2)
+    ].slice(0, 2) as QuickAction[]
 
     setRecentPlayerActions(updated)
 
@@ -341,7 +341,7 @@ export default function HomePage() {
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
-    padding: isMobile ? '18px 16px 24px' : '14px 22px 28px',
+    padding: isMobile ? '18px 16px 26px' : '14px 22px 28px',
   }
 
   const dynamicHeroShell: CSSProperties = {
@@ -351,21 +351,21 @@ export default function HomePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(380px, 0.86fr)',
     gap: isMobile ? '20px' : '26px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '48px' : '62px',
-    lineHeight: isMobile ? 1.04 : 0.98,
+    fontSize: isSmallMobile ? '36px' : isMobile ? '50px' : '66px',
+    lineHeight: isMobile ? 1.04 : 0.97,
     maxWidth: '760px',
   }
 
   const dynamicHeroText: CSSProperties = {
     ...heroText,
     fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '640px',
+    maxWidth: '650px',
   }
 
   const dynamicSearchShell: CSSProperties = {
@@ -400,7 +400,7 @@ export default function HomePage() {
 
   const dynamicLogoPanel: CSSProperties = {
     ...logoPanel,
-    minHeight: isMobile ? '236px' : '276px',
+    minHeight: isMobile ? '248px' : '292px',
   }
 
   const dynamicActionGrid: CSSProperties = {
@@ -624,8 +624,8 @@ export default function HomePage() {
                         height={512}
                         priority
                         style={{
-                          width: isMobile ? '146px' : '172px',
-                          height: isMobile ? '146px' : '172px',
+                          width: isMobile ? '118px' : '132px',
+                          height: isMobile ? '118px' : '132px',
                           display: 'block',
                           objectFit: 'contain',
                         }}
@@ -810,7 +810,7 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 34 : top ? 56 : footer ? 44 : 36
+  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
   const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
 
   return (
@@ -843,7 +843,7 @@ function BrandWordmark({
           fontSize: `${fontSize}px`,
           lineHeight: 1,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'baseline',
         }}
       >
         <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
@@ -1445,7 +1445,7 @@ const logoOrbInner: CSSProperties = {
 
 const heroBrandText: CSSProperties = {
   display: 'flex',
-  alignItems: 'center',
+  alignItems: 'baseline',
   justifyContent: 'center',
   gap: '2px',
   fontWeight: 900,

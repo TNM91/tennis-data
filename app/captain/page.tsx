@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
@@ -77,7 +77,6 @@ const NAV_LINKS = [
   { href: '/explore', label: 'Explore' },
   { href: '/matchup', label: 'Matchups' },
   { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
 ]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -120,19 +119,14 @@ function formatPercent(value: number) {
 
 export default function CaptainsCornerPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-
-  const teamParam = searchParams.get('team') || ''
-  const leagueParam = searchParams.get('league') || ''
-  const flightParam = searchParams.get('flight') || ''
 
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
-  const [selectedTeam, setSelectedTeam] = useState(teamParam)
-  const [selectedLeague, setSelectedLeague] = useState(leagueParam)
-  const [selectedFlight, setSelectedFlight] = useState(flightParam)
+  const [selectedTeam, setSelectedTeam] = useState('')
+  const [selectedLeague, setSelectedLeague] = useState('')
+  const [selectedFlight, setSelectedFlight] = useState('')
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [participants, setParticipants] = useState<MatchPlayer[]>([])
@@ -144,6 +138,13 @@ export default function CaptainsCornerPage() {
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSelectedTeam(params.get('team') || '')
+    setSelectedLeague(params.get('league') || '')
+    setSelectedFlight(params.get('flight') || '')
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
@@ -227,7 +228,7 @@ export default function CaptainsCornerPage() {
 
       setTeamOptions(next)
 
-      if (!teamParam && next.length > 0) {
+      if (!selectedTeam && next.length > 0) {
         setSelectedTeam(next[0].team)
         setSelectedLeague(next[0].league)
         setSelectedFlight(next[0].flight)
@@ -1026,7 +1027,7 @@ const eyebrow: CSSProperties = {
   background: 'rgba(89,145,73,0.14)',
   color: '#d9e7ef',
   fontWeight: 800,
-  fontSize: '15px',
+  fontSize: '14px',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: '4px',

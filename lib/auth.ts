@@ -1,19 +1,15 @@
 'use client'
 
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
 export type AuthState = {
-  user: {
-    id: string
-    email?: string | null
-  } | null
+  user: { id: string; email?: string | null } | null
   role: UserRole
   loading: boolean
 }
 
 export async function getClientAuthState(): Promise<AuthState> {
-  const supabase = createClient()
   const { data, error } = await supabase.auth.getUser()
 
   if (error || !data.user) {

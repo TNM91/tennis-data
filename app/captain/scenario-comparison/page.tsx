@@ -5,7 +5,6 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 type ScenarioRow = {
@@ -250,8 +249,6 @@ function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[],
 }
 
 export default function ScenarioComparisonPage() {
-  const searchParams = useSearchParams()
-
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -277,13 +274,16 @@ export default function ScenarioComparisonPage() {
   }, [])
 
   useEffect(() => {
-    setLeagueFilter(searchParams.get('league') ?? '')
-    setFlightFilter(searchParams.get('flight') ?? '')
-    setTeamFilter(searchParams.get('team') ?? '')
-    setDateFilter(searchParams.get('date') ?? '')
-    setLeftId(searchParams.get('left') ?? '')
-    setRightId(searchParams.get('right') ?? '')
-  }, [searchParams])
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    setLeagueFilter(params.get('league') ?? '')
+    setFlightFilter(params.get('flight') ?? '')
+    setTeamFilter(params.get('team') ?? '')
+    setDateFilter(params.get('date') ?? '')
+    setLeftId(params.get('left') ?? '')
+    setRightId(params.get('right') ?? '')
+  }, [])
 
   useEffect(() => {
     let mounted = true
