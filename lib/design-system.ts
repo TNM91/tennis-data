@@ -4,37 +4,48 @@ export const pageBackground: CSSProperties = {
   position: 'relative',
   minHeight: '100vh',
   overflow: 'hidden',
+  background: `
+    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
+    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
+    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
+    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
+  `,
 }
 
 export const orbOne: CSSProperties = {
   position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
+  top: '-120px',
+  left: '-140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
   background:
-    'radial-gradient(circle, rgba(74,163,255,0.16) 0%, transparent 70%)',
+    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
 export const orbTwo: CSSProperties = {
   position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
+  right: '-140px',
+  top: '140px',
+  width: '420px',
+  height: '420px',
   borderRadius: '999px',
   background:
-    'radial-gradient(circle, rgba(155,225,29,0.08) 0%, transparent 68%)',
+    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  filter: 'blur(8px)',
   pointerEvents: 'none',
 }
 
 export const topBlueWash: CSSProperties = {
   position: 'absolute',
-  inset: 0,
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '420px',
   background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.18), transparent 55%)',
+    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
   pointerEvents: 'none',
 }
 

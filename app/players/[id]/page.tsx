@@ -1,10 +1,10 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import SiteShell from '@/app/components/site-shell'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -61,13 +61,6 @@ type MatchPlayerRow = {
     name: string
   } | null
 }
-
-const PRIMARY_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-]
 
 export default function PlayerProfilePage() {
   const params = useParams()
@@ -315,20 +308,6 @@ export default function PlayerProfilePage() {
     [selectedDynamicRating, nextThreshold],
   )
 
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
     padding: isMobile ? '14px 16px 24px' : '10px 18px 24px',
@@ -390,92 +369,22 @@ export default function PlayerProfilePage() {
     gridTemplateColumns: '1fr',
   }
 
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
-  }
-
   if (loading) {
     return (
-      <main style={pageStyle}>
-        <div style={orbOne} />
-        <div style={orbTwo} />
-        <div style={gridGlow} />
-        <div style={topBlueWash} />
-
-        <header style={headerStyle}>
-          <div style={dynamicHeaderInner}>
-            <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-              <BrandWordmark compact={isMobile} top />
-            </Link>
-
-            <nav style={dynamicNavStyle}>
-              {PRIMARY_LINKS.map((link) => (
-                <Link key={link.href} href={link.href} style={navLink}>
-                  {link.label}
-                </Link>
-              ))}
-              <Link href="/leagues" style={navLink}>
-                Leagues
-              </Link>
-            </nav>
-          </div>
-        </header>
-
+      <SiteShell active="/players">
         <section style={dynamicHeroWrap}>
           <div style={dynamicHeroShell}>
             <div style={heroNoise} />
             <div style={loadingCard}>Loading player profile...</div>
           </div>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   if (error || !player) {
     return (
-      <main style={pageStyle}>
-        <div style={orbOne} />
-        <div style={orbTwo} />
-        <div style={gridGlow} />
-        <div style={topBlueWash} />
-
-        <header style={headerStyle}>
-          <div style={dynamicHeaderInner}>
-            <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-              <BrandWordmark compact={isMobile} top />
-            </Link>
-
-            <nav style={dynamicNavStyle}>
-              {PRIMARY_LINKS.map((link) => (
-                <Link key={link.href} href={link.href} style={navLink}>
-                  {link.label}
-                </Link>
-              ))}
-              <Link href="/leagues" style={navLink}>
-                Leagues
-              </Link>
-            </nav>
-          </div>
-        </header>
-
+      <SiteShell active="/players">
         <section style={dynamicHeroWrap}>
           <div style={dynamicHeroShell}>
             <div style={heroNoise} />
@@ -486,47 +395,12 @@ export default function PlayerProfilePage() {
             </div>
           </div>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
-
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {PRIMARY_LINKS.map((link) => {
-              const isActive = link.href === '/players'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(isActive && link.href === '/players' ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-
-            <Link href="/leagues" style={navLink}>
-              Leagues
-            </Link>
-          </nav>
-        </div>
-      </header>
-
+    <SiteShell active="/players">
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
@@ -805,40 +679,7 @@ export default function PlayerProfilePage() {
           </article>
         </div>
       </section>
-
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/explore" style={footerUtilityLink}>
-                Explore
-              </Link>
-              <Link href="/players" style={footerUtilityLink}>
-                Players
-              </Link>
-              <Link href="/rankings" style={footerUtilityLink}>
-                Rankings
-              </Link>
-              <Link href="/matchup" style={footerUtilityLink}>
-                Matchups
-              </Link>
-              <Link href="/leagues" style={footerUtilityLink}>
-                Leagues
-              </Link>
-              <Link href="/captain" style={footerUtilityLink}>
-                Captain
-              </Link>
-            </div>
-
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
-          </div>
-        </div>
-      </footer>
-    </main>
+    </SiteShell>
   )
 }
 
@@ -873,58 +714,6 @@ function StatChip({
         }}
       >
         {value}
-      </div>
-    </div>
-  )
-}
-
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '10px' : '12px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={heroIQ}>IQ</span>
       </div>
     </div>
   )
@@ -965,7 +754,7 @@ function SimpleLineChart({
           </linearGradient>
         </defs>
 
-        <rect x="0" y="0" width={width} height={height} rx="20" fill="rgba(255,255,255,0.04)" />
+        <rect x="0" y="0" width={width} height={height} rx="20" fill="#0f1c38" />
 
         {[0.2, 0.4, 0.6, 0.8].map((line, index) => {
           const y = padding + (height - padding * 2) * line
@@ -997,7 +786,7 @@ function SimpleLineChart({
 
           return (
             <g key={`${point.date}-${index}`}>
-              <circle cx={x} cy={y} r="10" fill="rgba(37, 91, 227, 0.12)" />
+              <circle cx={x} cy={y} r="10" fill="rgba(37, 91, 227, 0.18)" />
               <circle cx={x} cy={y} r="4.5" fill="#255BE3" />
             </g>
           )
@@ -1057,122 +846,6 @@ function getProgressToNextLevel(rating: number, next: number) {
   const remaining = Math.max(0, next - rating)
 
   return { previous, percent, remaining }
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const heroIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(238,247,255,0.94)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: 800,
-  letterSpacing: '0.01em',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
-  transition: 'all 180ms ease',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -1274,8 +947,8 @@ const meterCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
   border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.88) 0%, rgba(10,22,44,0.96) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
   maxWidth: '560px',
 }
 
@@ -1328,8 +1001,8 @@ const meterTrack: CSSProperties = {
   width: '100%',
   height: '14px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.06)',
   overflow: 'hidden',
 }
 
@@ -1353,9 +1026,9 @@ const meterFooter: CSSProperties = {
 const focusCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,38,74,0.88) 0%, rgba(10,22,44,0.94) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
 }
 
 const focusHead: CSSProperties = {
@@ -1430,9 +1103,9 @@ const focusMetrics: CSSProperties = {
 const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(17,36,72,0.88) 0%, rgba(10,22,44,0.94) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
@@ -1453,8 +1126,8 @@ const summaryStatsGrid: CSSProperties = {
 const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(19,34,62,0.92)',
+  border: '1px solid rgba(116,190,255,0.10)',
   minWidth: 0,
 }
 
@@ -1488,9 +1161,9 @@ const statsGrid: CSSProperties = {
 const statCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,38,74,0.88) 0%, rgba(10,22,44,0.94) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
@@ -1533,9 +1206,9 @@ const contentGrid: CSSProperties = {
 const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '22px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,38,74,0.88) 0%, rgba(10,22,44,0.94) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
@@ -1589,8 +1262,8 @@ const emptyText: CSSProperties = {
 const tableWrap: CSSProperties = {
   overflowX: 'auto',
   borderRadius: '20px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(15,28,54,0.92)',
 }
 
 const dataTable: CSSProperties = {
@@ -1607,8 +1280,8 @@ const tableHead: CSSProperties = {
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
   fontWeight: 800,
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  background: 'rgba(255,255,255,0.02)',
   whiteSpace: 'nowrap',
 }
 
@@ -1650,7 +1323,7 @@ const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
   border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.08)',
+  background: 'rgba(19,30,54,0.92)',
   color: '#dfe8f8',
   fontWeight: 700,
   position: 'relative',
@@ -1696,51 +1369,4 @@ const chartMeta: CSSProperties = {
   color: 'rgba(224,236,249,0.72)',
   fontSize: '0.9rem',
   fontWeight: 600,
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '12px 18px 20px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
 }

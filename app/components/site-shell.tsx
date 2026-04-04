@@ -1,5 +1,8 @@
 'use client'
 
+import { ReactNode } from 'react'
+import SiteHeader from '@/app/components/site-header'
+import SiteFooter from '@/app/components/site-footer'
 import {
   pageBackground,
   orbOne,
@@ -7,14 +10,12 @@ import {
   gridGlow,
   topBlueWash,
 } from '@/lib/design-system'
-import SiteHeader from './site-header'
-import SiteFooter from './site-footer'
 
 export default function SiteShell({
   children,
   active,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   active?: string
 }) {
   return (
