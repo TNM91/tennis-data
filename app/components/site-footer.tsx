@@ -25,7 +25,7 @@ export default function SiteFooter() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const footerPadding = isMobile ? '0 16px 24px' : '0 24px 24px'
+  const footerPadding = isMobile ? '4px 16px 24px' : '6px 24px 24px'
 
   const footerInner = useMemo(
     () => ({
@@ -33,10 +33,10 @@ export default function SiteFooter() {
       maxWidth: '1280px',
       margin: '0 auto',
       borderRadius: '24px',
-      background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
+      background: 'linear-gradient(180deg, rgba(21,42,80,0.56) 0%, rgba(12,24,46,0.90) 100%)',
       border: '1px solid rgba(116,190,255,0.12)',
       boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
-      padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+      padding: isMobile ? '18px 16px 16px' : '18px 22px 16px',
     }),
     [isMobile],
   )
@@ -46,7 +46,7 @@ export default function SiteFooter() {
       display: 'flex',
       alignItems: isTablet ? ('flex-start' as const) : ('center' as const),
       flexDirection: isTablet ? ('column' as const) : ('row' as const),
-      gap: isTablet ? '12px' : '18px',
+      gap: isTablet ? '14px' : '20px',
     }),
     [isTablet],
   )
@@ -57,6 +57,7 @@ export default function SiteFooter() {
       flexWrap: 'wrap' as const,
       gap: '12px 14px',
       justifyContent: isTablet ? ('flex-start' as const) : ('center' as const),
+      alignItems: 'center',
     }),
     [isTablet],
   )
@@ -66,13 +67,22 @@ export default function SiteFooter() {
     fontSize: '13px',
     fontWeight: 700,
     marginLeft: isTablet ? 0 : 'auto',
-  }
+  } as const
 
   return (
     <footer style={{ position: 'relative', zIndex: 1, marginTop: '26px', padding: footerPadding }}>
       <div style={footerInner}>
         <div style={footerRow}>
-          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+          <Link
+            href="/"
+            style={{
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              minHeight: isMobile ? '60px' : '64px',
+            }}
+            aria-label="TenAceIQ home"
+          >
             <BrandWordmark footer />
           </Link>
 

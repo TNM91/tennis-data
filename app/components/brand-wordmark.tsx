@@ -13,78 +13,112 @@ export default function BrandWordmark({
   footer = false,
   top = false,
 }: BrandWordmarkProps) {
-  const iconSize = top ? (compact ? 52 : 64) : footer ? 38 : compact ? 44 : 46
-  const fontSize = top ? (compact ? 29 : 36) : footer ? 26 : compact ? 24 : 25
-  const gap = top ? (compact ? '11px' : '13px') : compact ? '9px' : '10px'
+  const iconSize = top ? (compact ? 86 : 104) : footer ? 76 : compact ? 64 : 68
+  const fontSize = top ? (compact ? 32 : 40) : footer ? 31 : compact ? 26 : 28
 
   return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap,
-        lineHeight: 1,
-        minWidth: 0,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority={top}
-        sizes={
-          top
-            ? '(max-width: 820px) 52px, 64px'
-            : footer
-              ? '38px'
-              : compact
-                ? '44px'
-                : '46px'
-        }
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-          objectPosition: 'center',
-          flexShrink: 0,
-          transform: top ? 'translateY(1px)' : 'translateY(0.5px)',
-          filter: top
-            ? 'drop-shadow(0 8px 18px rgba(37,91,227,0.18))'
-            : footer
-              ? 'drop-shadow(0 4px 10px rgba(8,17,29,0.18))'
-              : 'drop-shadow(0 5px 12px rgba(37,91,227,0.12))',
-        }}
-      />
-
+    <>
       <div
         style={{
-          display: 'flex',
-          alignItems: 'baseline',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 0,
+          lineHeight: 1,
           minWidth: 0,
-          fontWeight: 900,
-          letterSpacing: top ? '-0.048em' : '-0.042em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 0.96,
-          textRendering: 'geometricPrecision',
-          whiteSpace: 'nowrap',
+          overflow: 'visible',
         }}
       >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span
+        <div
+          className="data-ball-spin-wrap"
           style={{
-            marginLeft: '2px',
-            background: 'linear-gradient(135deg, #9BE11D 0%, #7ED321 45%, #C7F36B 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: footer ? 'brightness(1.03)' : 'none',
+            width: `${iconSize}px`,
+            height: `${iconSize}px`,
+            flexShrink: 0,
+            marginRight: '-21px',
+            transform: 'translateY(1px)',
+            overflow: 'visible',
           }}
         >
-          IQ
-        </span>
+          <Image
+            src="/logo-icon.png"
+            alt="TenAceIQ"
+            width={iconSize}
+            height={iconSize}
+            priority={top}
+            className="data-ball-spin"
+            style={{
+              width: `${iconSize}px`,
+              height: `${iconSize}px`,
+              objectFit: 'contain',
+              display: 'block',
+              filter: top
+                ? 'drop-shadow(0 14px 30px rgba(37,91,227,0.22))'
+                : 'drop-shadow(0 6px 14px rgba(37,91,227,0.14))',
+            }}
+          />
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            fontWeight: 900,
+            fontSize: `${fontSize}px`,
+            letterSpacing: '-0.045em',
+            lineHeight: 0.92,
+            whiteSpace: 'nowrap',
+            transform: 'translateX(-1px)',
+            paddingRight: '4px',
+            overflow: 'visible',
+          }}
+        >
+          <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+
+          <span
+            style={{
+              marginLeft: '0px',
+              background: 'linear-gradient(135deg, #9BE11D 0%, #7ED321 45%, #C7F36B 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              fontWeight: 900,
+              paddingRight: '2px',
+            }}
+          >
+            IQ
+          </span>
+        </div>
       </div>
-    </div>
+
+      <style jsx>{`
+        .data-ball-spin-wrap {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .data-ball-spin {
+          transform-origin: center center;
+          animation: tenaceiq-ball-spin 3.8s linear infinite;
+          will-change: transform;
+        }
+
+        @keyframes tenaceiq-ball-spin {
+          from {
+            transform: rotate(0deg) scale(1.08);
+          }
+          to {
+            transform: rotate(360deg) scale(1.08);
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .data-ball-spin {
+            animation: none;
+            transform: scale(1.08);
+          }
+        }
+      `}</style>
+    </>
   )
 }

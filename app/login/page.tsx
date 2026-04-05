@@ -6,6 +6,7 @@ import {
   CSSProperties,
   FormEvent,
   useEffect,
+  useMemo,
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
@@ -20,6 +21,17 @@ const NAV_LINKS = [
   { href: '/leagues', label: 'Leagues' },
 ]
 
+const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
+
+function resolvePostLoginRoute(candidate: string | null | undefined) {
+  if (!candidate) return DEFAULT_POST_LOGIN_ROUTE
+  if (!candidate.startsWith('/')) return DEFAULT_POST_LOGIN_ROUTE
+  if (candidate.startsWith('//')) return DEFAULT_POST_LOGIN_ROUTE
+  if (candidate.startsWith('/login')) return DEFAULT_POST_LOGIN_ROUTE
+  if (candidate.startsWith('/join')) return DEFAULT_POST_LOGIN_ROUTE
+  return candidate
+}
+
 export default function LoginPage() {
   const router = useRouter()
 
@@ -32,6 +44,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  const postLoginRoute = useMemo(() => {
+    if (typeof window === 'undefined') return DEFAULT_POST_LOGIN_ROUTE
+    return resolvePostLoginRoute(new URLSearchParams(window.location.search).get('next'))
+  }, [])
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -52,7 +69,7 @@ export default function LoginPage() {
         setRole(nextRole)
 
         if (nextRole !== 'public') {
-          router.replace('/dashboard')
+          router.replace(postLoginRoute)
         }
       } finally {
         setAuthLoading(false)
@@ -69,12 +86,12 @@ export default function LoginPage() {
       setAuthLoading(false)
 
       if (nextRole !== 'public') {
-        router.replace('/dashboard')
+        router.replace(postLoginRoute)
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [postLoginRoute, router])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -102,7 +119,7 @@ export default function LoginPage() {
 
       if (error) throw new Error(error.message)
 
-      router.push('/dashboard')
+      router.push(postLoginRoute)
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
