@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import FollowButton from '@/app/components/follow-button'
 
 type SortKey = 'name' | 'matches' | 'players' | 'winPct' | 'latest'
 type FilterKey = 'all' | 'active' | 'winning' | 'deep-roster'
@@ -353,6 +354,21 @@ export default function TeamsPage() {
                       <div style={recordPillWin}>{team.wins} wins</div>
                       <div style={recordPillLoss}>{team.losses} losses</div>
                       <div style={recordPillNeutral}>{formatPercent(getWinPct(team))} win %</div>
+                    </div>
+
+                    <div
+                      style={followRow}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                      }}
+                    >
+                      <FollowButton
+                        entityType="team"
+                        entityId={team.key}
+                        entityName={team.team}
+                        subtitle={`${team.league} · ${team.flight}`}
+                      />
                     </div>
 
                     <div style={teamStatGrid}>
@@ -834,4 +850,12 @@ const profileLinkText: CSSProperties = {
 const arrowText: CSSProperties = {
   fontWeight: 900,
   fontSize: '18px',
+}
+
+
+const followRow: CSSProperties = {
+  position: 'relative',
+  marginBottom: '14px',
+  display: 'flex',
+  justifyContent: 'flex-start',
 }

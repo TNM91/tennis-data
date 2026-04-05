@@ -743,29 +743,48 @@ export default function CaptainAnalyticsPage() {
     return items.slice(0, 4)
   }, [weeklyReadiness, lineupStrength, pairingStats, slowResponders])
 
-  const statCards = useMemo(
+  type MetricTone = 'good' | 'warn' | 'info'
+
+  type StatCard = {
+    id: string
+    label: string
+    value: string
+    helper: string
+    tone: MetricTone
+  }
+
+  const statCards = useMemo<StatCard[]>(
     () => [
       {
+        id: 'weekly-readiness',
         label: 'Weekly readiness',
         value: readinessScore == null ? '—' : `${Math.round(readinessScore * 100)}%`,
         helper: weeklyReadiness
           ? `${weeklyReadiness.yes} yes • ${weeklyReadiness.noResponse} no reply`
           : 'No availability data found',
-        tone: readinessScore != null && readinessScore >= 0.75 ? 'good' : readinessScore != null && readinessScore < 0.55 ? 'warn' : 'info',
+        tone:
+          readinessScore != null && readinessScore >= 0.75
+            ? 'good'
+            : readinessScore != null && readinessScore < 0.55
+              ? 'warn'
+              : 'info',
       },
       {
+        id: 'players-in-scope',
         label: 'Players in scope',
         value: String(filteredPlayers.length),
         helper: flightFilter || 'All flights',
         tone: 'info',
       },
       {
+        id: 'saved-lineup-scenarios',
         label: 'Saved lineup scenarios',
         value: String(filteredScenarios.length),
         helper: lineupStrength[0]?.name ? `Top: ${lineupStrength[0].name}` : 'No saved scenarios',
         tone: 'info',
       },
       {
+        id: 'recent-matches',
         label: 'Recent matches',
         value: String(filteredMatches.length),
         helper: teamFilter || 'All teams',
@@ -802,7 +821,7 @@ export default function CaptainAnalyticsPage() {
 
             <div style={heroMetricGridStyle(isSmallMobile)}>
               {statCards.map((card) => (
-                <MetricCard key={card.label} {...card} />
+                <MetricCard key={card.id} label={card.label} value={card.value} helper={card.helper} tone={card.tone} />
               ))}
             </div>
           </div>

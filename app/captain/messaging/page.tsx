@@ -509,12 +509,21 @@ export default function CaptainMessagingPage() {
         setResponses(readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY))
         setLineups(readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY))
 
-        const eventDetails = readLocal<Array<{ key: string; location: string; directions: string; arrivalTime: string; notes: string }>>(EVENT_DETAILS_STORAGE_KEY)
-        if (eventDetails[0]) {
-          setEventLocation(eventDetails[0].location || '')
-          setEventDirections(eventDetails[0].directions || '')
-          setEventArrivalTime(eventDetails[0].arrivalTime || '')
-          setEventNotes(eventDetails[0].notes || '')
+        type EventDetail = {
+  key: string
+  location: string
+  directions: string
+  arrivalTime: string
+  notes: string
+}
+
+        const eventDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY)
+        const detail = eventDetails[0]
+        if (detail) {
+          setEventLocation(detail.location || '')
+          setEventDirections(detail.directions || '')
+          setEventArrivalTime(detail.arrivalTime || '')
+          setEventNotes(detail.notes || '')
         }
       } catch (err) {
         if (!mounted) return
@@ -811,8 +820,8 @@ export default function CaptainMessagingPage() {
       team_name: teamFilter,
       league_name: leagueFilter || null,
       flight: flightFilter || null,
-      season_label: seasonFilter || inferSeasonLabel(selectedMatch?.match_date) || null,
-      session_label: sessionFilter || inferSessionLabel(selectedMatch?.match_date) || null,
+      season_label: seasonFilter || inferSeasonLabel(selectedMatch?.match_date ?? null) || null,
+      session_label: sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null,
       full_name: fullName,
       phone,
       role: draftContact.role || null,
@@ -907,8 +916,8 @@ export default function CaptainMessagingPage() {
           team_name: teamFilter,
           league_name: leagueFilter || null,
           flight: flightFilter || null,
-          season_label: seasonFilter || inferSeasonLabel(selectedMatch?.match_date) || null,
-          session_label: sessionFilter || inferSessionLabel(selectedMatch?.match_date) || null,
+          season_label: seasonFilter || inferSeasonLabel(selectedMatch?.match_date ?? null) || null,
+          session_label: sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null,
           full_name,
           phone,
           role,

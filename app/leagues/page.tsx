@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import FollowButton from '@/app/components/follow-button'
 
 type MatchLeagueRow = {
   id: string
@@ -461,9 +462,21 @@ export default function LeaguesPage() {
                         <div style={leagueFlight}>{league.flight}</div>
                       </div>
 
-                      <Link href={buildLeagueHref(league)} style={primaryButton}>
-                        View Season
-                      </Link>
+                      <div style={leagueActionStack}>
+                        <div onClick={(e) => e.stopPropagation()} style={followWrap}>
+                          <FollowButton
+                            entityType="league"
+                            entityId={league.key}
+                            entityName={league.leagueName}
+                            subtitle={[league.flight, league.ustaSection, league.districtArea]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          />
+                        </div>
+                        <Link href={buildLeagueHref(league)} style={primaryButton}>
+                          View Season
+                        </Link>
+                      </div>
                     </div>
 
                     <div style={dynamicLeagueDetailGrid}>
@@ -1080,6 +1093,18 @@ const leagueFlight: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const leagueActionStack: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  alignItems: 'flex-end',
+}
+
+const followWrap: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'flex-end',
 }
 
 const primaryButton: CSSProperties = {

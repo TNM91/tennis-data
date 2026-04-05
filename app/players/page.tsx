@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import FollowButton from '@/app/components/follow-button'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated'
@@ -457,6 +458,19 @@ export default function PlayersPage() {
 
                   <div style={playerName}>{player.name}</div>
                   <div style={playerLocation}>{player.location || 'Location not set'}</div>
+
+                  <div
+                    style={followButtonWrap}
+                    onClick={(event) => event.preventDefault()}
+                    onMouseDown={(event) => event.stopPropagation()}
+                  >
+                    <FollowButton
+                      entityType="player"
+                      entityId={player.id}
+                      entityName={player.name}
+                      subtitle={player.location || ''}
+                    />
+                  </div>
 
                   <div style={dynamicRatingRow}>
                     <RatingPill label="Overall" value={getRating(player, 'overall')} accent />
@@ -1265,4 +1279,13 @@ const footerBottom: CSSProperties = {
   fontSize: '13px',
   fontWeight: 600,
   whiteSpace: 'nowrap',
+}
+
+
+const followButtonWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  marginBottom: '16px',
+  display: 'flex',
+  alignItems: 'center',
 }
