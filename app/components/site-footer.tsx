@@ -13,24 +13,6 @@ const LINKS = [
   { href: '/captain', label: 'Captain' },
 ]
 
-const footerStyle = {
-  position: 'relative',
-  zIndex: 1,
-} as const
-
-const footerBrandLink = {
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-} as const
-
-const footerUtilityLink = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-} as const
-
 export default function SiteFooter() {
   const [screenWidth, setScreenWidth] = useState(1280)
   const isTablet = screenWidth < 1080
@@ -87,16 +69,25 @@ export default function SiteFooter() {
   }
 
   return (
-    <footer style={{ ...footerStyle, marginTop: '26px', padding: footerPadding }}>
+    <footer style={{ position: 'relative', zIndex: 1, marginTop: '26px', padding: footerPadding }}>
       <div style={footerInner}>
         <div style={footerRow}>
-          <Link href="/" style={footerBrandLink}>
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
             <BrandWordmark footer />
           </Link>
 
           <div style={footerLinks}>
             {LINKS.map((link) => (
-              <Link key={link.href} href={link.href} style={footerUtilityLink}>
+              <Link
+                key={link.href}
+                href={link.href}
+                style={{
+                  color: 'rgba(215,229,247,0.8)',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                }}
+              >
                 {link.label}
               </Link>
             ))}

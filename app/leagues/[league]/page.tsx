@@ -2,11 +2,12 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import SiteShell from '@/app/components/site-shell'
+import FollowButton from '@/app/components/follow-button'
 
 type LeagueMatchRow = {
   id: string
@@ -31,16 +32,6 @@ type TeamSummary = {
   losses: number
   latestMatchDate: string | null
 }
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
-]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
   const text = (value || '').trim()
@@ -223,7 +214,7 @@ export default function LeagueDetailPage() {
     if (teamFilter === 'all') return rows
     return rows.filter(
       (row) =>
-        safeText(row.home_team) === teamFilter || safeText(row.away_team) === teamFilter
+        safeText(row.home_team) === teamFilter || safeText(row.away_team) === teamFilter,
     )
   }, [rows, teamFilter])
 
@@ -242,32 +233,9 @@ export default function LeagueDetailPage() {
     }
   }, [rows, teamSummaries])
 
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
-  const dynamicHeroWrap: CSSProperties = {
-    ...heroWrap,
-    padding: isMobile ? '14px 16px 22px' : '10px 18px 24px',
-  }
-
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
-  }
-
-  const dynamicHeroContent: CSSProperties = {
-    ...heroContent,
     gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(300px, 1.05fr)',
     gap: isMobile ? '18px' : '22px',
   }
@@ -333,98 +301,52 @@ export default function LeagueDetailPage() {
     alignItems: isMobile ? 'flex-start' : 'center',
   }
 
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
-  }
-
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
+    <SiteShell active="/leagues">
+      <section style={pageContent}>
+        <section style={dynamicHeroShell}>
+          <div>
+            <div style={eyebrow}>League Season</div>
+            <h1 style={dynamicHeroTitle}>{leagueInfo.leagueName}</h1>
+            <p style={dynamicHeroText}>
+              {leagueInfo.flight} · {leagueInfo.section} · {leagueInfo.district}
+            </p>
 
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/leagues'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(isActive ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-            <Link href="/admin" style={navLink}>Admin</Link>
-          </nav>
-        </div>
-      </header>
-
-      <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-
-          <div style={dynamicHeroContent}>
-            <div style={heroLeft}>
-              <div style={eyebrow}>League Season</div>
-              <h1 style={dynamicHeroTitle}>{leagueInfo.leagueName}</h1>
-              <p style={dynamicHeroText}>
-                {leagueInfo.flight} · {leagueInfo.section} · {leagueInfo.district}
-              </p>
-
-              <div style={heroHintRow}>
-                <span style={heroHintPill}>{stats.matchCount} matches</span>
-                <span style={heroHintPill}>{stats.teams} teams</span>
-                <span style={heroHintPill}>Latest: {formatDate(stats.latest)}</span>
-              </div>
+            <div style={heroHintRow}>
+              <span style={heroHintPill}>{stats.matchCount} matches</span>
+              <span style={heroHintPill}>{stats.teams} teams</span>
+              <span style={heroHintPill}>Latest: {formatDate(stats.latest)}</span>
             </div>
 
-            <div style={dynamicSeasonToolsCard}>
-              <div style={seasonToolsLabel}>Season tools</div>
-              <div style={seasonToolsValue}>{leagueInfo.flight}</div>
-              <div style={seasonToolsText}>
-                Review team performance, standings-style summaries, and match history for this league segment.
-              </div>
-
-              <div style={seasonToolsActions}>
-                <Link href="/leagues" style={ghostButton}>
-                  Back to Leagues
-                </Link>
-              </div>
+            <div style={heroActions}>
+              <FollowButton
+                entityType="league"
+                entityId={leagueInfo.leagueName}
+                entityName={leagueInfo.leagueName}
+                subtitle={[leagueInfo.flight, leagueInfo.section, leagueInfo.district]
+                  .filter(Boolean)
+                  .join(' · ')}
+              />
+              <Link href="/leagues" style={ghostButton}>
+                Back to Leagues
+              </Link>
             </div>
           </div>
-        </div>
-      </section>
 
-      <section style={contentWrap}>
+          <div style={dynamicSeasonToolsCard}>
+            <div style={seasonToolsLabel}>Season tools</div>
+            <div style={seasonToolsValue}>{leagueInfo.flight}</div>
+            <div style={seasonToolsText}>
+              Review team performance, standings-style summaries, and match history for this league segment.
+            </div>
+
+            <div style={seasonToolsActions}>
+              <span style={miniPillSlate}>{leagueInfo.section}</span>
+              <span style={miniPillGreen}>{leagueInfo.district}</span>
+            </div>
+          </div>
+        </section>
+
         <div style={dynamicMetricGrid}>
           <MetricCard label="Matches" value={String(stats.matchCount)} />
           <MetricCard label="Teams" value={String(stats.teams)} />
@@ -548,28 +470,7 @@ export default function LeagueDetailPage() {
           )}
         </article>
       </section>
-
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
-            </div>
-
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
-          </div>
-        </div>
-      </footer>
-    </main>
+    </SiteShell>
   )
 }
 
@@ -610,209 +511,27 @@ function MiniStatCard({
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '8px' : '10px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
+const pageContent: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  padding: '24px 18px 0',
-}
-
-const headerInner: CSSProperties = {
   width: '100%',
-  maxWidth: '1240px',
+  maxWidth: '1280px',
   margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #4ade80 0%, #bbf7d0 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.9)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-  letterSpacing: '0.01em',
-  padding: '10px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(122,170,255,0.16)',
-  background: 'rgba(22,42,78,0.42)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-  transition: 'all 180ms ease',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#06111f',
-  background: 'linear-gradient(135deg, #4ade80 0%, #86efac 100%)',
-  border: '1px solid rgba(134,239,172,0.45)',
-  boxShadow: '0 10px 30px rgba(74,222,128,0.22)',
-}
-
-const heroWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
+  padding: '18px 24px 0',
+  display: 'grid',
+  gap: '18px',
 }
 
 const heroShell: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
-  margin: '0 auto',
-  borderRadius: '30px',
-  background:
-    'linear-gradient(180deg, rgba(16,29,56,0.84) 0%, rgba(13,25,48,0.72) 100%)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow:
-    '0 24px 80px rgba(6,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.05)',
-  overflow: 'hidden',
   position: 'relative',
-}
-
-const heroNoise: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
-  pointerEvents: 'none',
-}
-
-const heroContent: CSSProperties = {
   display: 'grid',
-  alignItems: 'stretch',
-  position: 'relative',
-  zIndex: 1,
-}
-
-const heroLeft: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '16px',
-  minWidth: 0,
-}
-
-const heroTitle: CSSProperties = {
-  margin: 0,
-  color: '#f8fbff',
-  fontWeight: 900,
-  letterSpacing: '-0.045em',
-}
-
-const heroText: CSSProperties = {
-  margin: 0,
-  color: 'rgba(224,236,249,0.86)',
-  lineHeight: 1.65,
-  fontWeight: 500,
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background:
+    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 56%, rgba(12,46,62,0.84) 100%)',
+  boxShadow: '0 28px 80px rgba(3,10,24,0.30)',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
 }
 
 const eyebrow: CSSProperties = {
@@ -830,11 +549,25 @@ const eyebrow: CSSProperties = {
   textTransform: 'uppercase',
 }
 
+const heroTitle: CSSProperties = {
+  margin: '16px 0 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  letterSpacing: '-0.045em',
+}
+
+const heroText: CSSProperties = {
+  margin: '14px 0 0',
+  color: 'rgba(224,236,249,0.86)',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
 const heroHintRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
-  marginTop: '4px',
+  marginTop: '16px',
 }
 
 const heroHintPill: CSSProperties = {
@@ -845,6 +578,13 @@ const heroHintPill: CSSProperties = {
   padding: '10px 14px',
   fontSize: '13px',
   fontWeight: 700,
+}
+
+const heroActions: CSSProperties = {
+  marginTop: '18px',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '12px',
 }
 
 const seasonToolsCard: CSSProperties = {
@@ -885,7 +625,7 @@ const seasonToolsActions: CSSProperties = {
   marginTop: '16px',
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '12px',
+  gap: '10px',
 }
 
 const ghostButton: CSSProperties = {
@@ -903,18 +643,31 @@ const ghostButton: CSSProperties = {
   fontSize: '13px',
 }
 
-const contentWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto',
-  padding: '0 18px 0',
+const miniPillBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const miniPillSlate: CSSProperties = {
+  ...miniPillBase,
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
+}
+
+const miniPillGreen: CSSProperties = {
+  ...miniPillBase,
+  background: 'rgba(155,225,29,0.14)',
+  color: '#e7ffd1',
 }
 
 const metricGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
-  marginBottom: '16px',
 }
 
 const metricCard: CSSProperties = {
@@ -957,7 +710,6 @@ const panelCard: CSSProperties = {
     'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
   boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
   minWidth: 0,
-  marginBottom: '16px',
 }
 
 const stateBox: CSSProperties = {
@@ -1227,51 +979,4 @@ const subMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '12px 18px 20px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
 }

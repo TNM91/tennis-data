@@ -433,8 +433,10 @@ export default function CaptainHubPage() {
       doubles,
       latest: matches[0]?.match_date || null,
       roster: roster.length,
+      topPairWinPct: pairings[0] ? formatPercent(getWinPct(pairings[0].wins, pairings[0].losses)) : '—',
+      singlesCore: recommendedSingles.length,
     }
-  }, [matches, teamSideByMatchId, roster.length])
+  }, [matches, teamSideByMatchId, roster.length, pairings, recommendedSingles.length])
 
   const currentTeamHref = selectedTeam
     ? `/teams/${encodeURIComponent(selectedTeam)}?league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
@@ -451,6 +453,14 @@ export default function CaptainHubPage() {
   const scenarioHref = selectedTeam
     ? `/captain/scenario-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
     : '/captain/scenario-builder'
+
+  const messagingHref = selectedTeam
+    ? `/captain/messaging?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/messaging'
+
+  const analyticsHref = selectedTeam
+    ? `/captain/analytics?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/analytics'
 
   if (authLoading) {
     return (
@@ -473,8 +483,8 @@ export default function CaptainHubPage() {
             <h1 style={heroTitle}>Captain&apos;s Corner</h1>
             <p style={heroText}>
               A strategic command center for captains. Choose your team, review lineup intelligence,
-              track availability, build match-day options, and compare scenarios with real team
-              context.
+              track availability, build match-day options, compare scenarios, communicate with your
+              roster, and manage weekly decisions with real team context.
             </p>
 
             <div style={heroControlRow}>
@@ -515,18 +525,20 @@ export default function CaptainHubPage() {
                 {quickStats.wins}-{quickStats.losses} record
               </span>
               <span style={badgeSlate}>{quickStats.roster} active players</span>
+              <span style={badgeBlue}>Top pair {quickStats.topPairWinPct}</span>
             </div>
           </div>
 
           <div style={heroRightCard}>
             <div style={miniKicker}>Captain quick start</div>
-            <h2 style={quickStartTitle}>Build better lineups with a repeatable process</h2>
+            <h2 style={quickStartTitle}>Run the full weekly workflow in one place</h2>
 
             <div style={workflowStack}>
               {[
                 ['1', 'Check availability', 'Start with the right player pool before building anything.'],
-                ['2', 'Use lineup intelligence', 'Lean on best singles and doubles history before making choices.'],
-                ['3', 'Build and compare', 'Open lineup builder, test options, then compare final scenarios.'],
+                ['2', 'Build and compare', 'Use lineup builder and scenario tools to pressure-test options.'],
+                ['3', 'Communicate and confirm', 'Send lineup, directions, and reminders from the weekly messaging console.'],
+                ['4', 'Review captain IQ', 'Use analytics to spot dependable players, pairings, and weekly risks.'],
               ].map(([step, title, text]) => (
                 <div key={step} style={workflowRow}>
                   <div style={workflowStep}>{step}</div>
@@ -547,6 +559,8 @@ export default function CaptainHubPage() {
           <MetricCard label="League" value={selectedLeague || '—'} />
           <MetricCard label="Flight" value={selectedFlight || '—'} />
           <MetricCard label="Latest match" value={formatDate(quickStats.latest)} accent />
+          <MetricCard label="Singles core" value={String(quickStats.singlesCore)} />
+          <MetricCard label="Top pair win rate" value={quickStats.topPairWinPct} />
         </section>
 
         <section style={sectionCard}>
@@ -562,7 +576,7 @@ export default function CaptainHubPage() {
             <ActionCard
               badge="Availability"
               title="Availability Tracker"
-              description="Track who is in, out, or uncertain before building any lineup."
+              description="Track who is in, out, tentative, or still needs follow-up before building anything."
               href={availabilityHref}
               cta="Open Availability"
             />
@@ -582,12 +596,71 @@ export default function CaptainHubPage() {
               cta="Open Scenario Builder"
             />
             <ActionCard
+              badge="Messaging"
+              title="Weekly Messaging"
+              description="Text availability checks, lineup announcements, directions, reminders, and follow-ups by team and session."
+              href={messagingHref}
+              cta="Open Messaging"
+            />
+            <ActionCard
+              badge="Captain IQ"
+              title="Captain Analytics"
+              description="Review dependability, pairings, roster usage, and lineup signals before finalizing decisions."
+              href={analyticsHref}
+              cta="Open Analytics"
+            />
+            <ActionCard
               badge="Team Context"
               title="Open Team Page"
               description="Go deeper into roster usage, match history, and full team detail."
               href={currentTeamHref}
               cta="Open Team Page"
             />
+          </div>
+        </section>
+
+        <section style={sectionCard}>
+          <div style={sectionHead}>
+            <div>
+              <div style={sectionKicker}>Captain command flow</div>
+              <h2 style={sectionTitle}>What to do next for {selectedTeam || 'your team'}</h2>
+              <div style={sectionSub}>
+                These are the highest-value pages to open as you move from planning to match-day execution.
+              </div>
+            </div>
+          </div>
+
+          <div style={commandGrid}>
+            <div style={commandCard}>
+              <div style={commandStep}>Step 1</div>
+              <div style={commandTitle}>Lock the player pool</div>
+              <div style={commandText}>
+                Check availability first so every later decision is based on the players who can actually play.
+              </div>
+              <Link href={availabilityHref} style={secondaryButtonSmall}>Go to Availability</Link>
+            </div>
+            <div style={commandCard}>
+              <div style={commandStep}>Step 2</div>
+              <div style={commandTitle}>Build and compare lineups</div>
+              <div style={commandText}>
+                Use lineup builder and scenario tools together to create the best version before you communicate it.
+              </div>
+              <div style={commandButtonRow}>
+                <Link href={lineupBuilderHref} style={primaryButtonSmall}>Lineup Builder</Link>
+                <Link href={scenarioHref} style={secondaryButtonSmall}>Compare Scenarios</Link>
+              </div>
+            </div>
+            <div style={commandCardAccent}>
+              <div style={commandStep}>Step 3</div>
+              <div style={commandTitle}>Send the weekly plan</div>
+              <div style={commandText}>
+                Open messaging to send lineups, arrival time, directions, and reminders to the right group.
+              </div>
+              <div style={commandButtonRow}>
+                <Link href={messagingHref} style={primaryButtonSmall}>Open Messaging</Link>
+                <Link href={analyticsHref} style={secondaryButtonSmall}>Open Captain IQ</Link>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1154,6 +1227,59 @@ const actionText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: 14,
   lineHeight: 1.7,
+}
+
+const commandGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: 16,
+}
+
+const commandCard: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.05)',
+}
+
+const commandCardAccent: CSSProperties = {
+  ...commandCard,
+  border: '1px solid rgba(74,222,128,0.18)',
+  boxShadow: '0 14px 34px rgba(74,222,128,0.08)',
+}
+
+const commandStep: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  padding: '7px 11px',
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 800,
+  color: '#dcfce7',
+  border: '1px solid rgba(74,222,128,0.2)',
+  background: 'rgba(17,39,27,0.88)',
+}
+
+const commandTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 20,
+  fontWeight: 900,
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const commandText: CSSProperties = {
+  color: 'rgba(229,238,251,0.76)',
+  fontSize: 14,
+  lineHeight: 1.7,
+}
+
+const commandButtonRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
 }
 
 const insightGrid: CSSProperties = {

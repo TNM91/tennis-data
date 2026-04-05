@@ -25,26 +25,15 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   return false
 }
 
-const headerStyle = {
-  position: 'relative',
-  zIndex: 2,
-} as const
-
-const brandWrap = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-} as const
-
 const navLink = {
-  padding: '12px 18px',
+  padding: '11px 17px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(40,82,150,0.26) 0%, rgba(18,40,78,0.24) 100%)',
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
-  fontSize: '15px',
+  fontSize: '14px',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
   display: 'inline-flex',
   alignItems: 'center',
@@ -57,7 +46,7 @@ const navLink = {
 const ctaNavLink = {
   ...navLink,
   color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
   border: '1px solid rgba(155,225,29,0.34)',
   boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 } as const
@@ -137,7 +126,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const navStyle = useMemo(
     () => ({
       display: 'flex',
-      gap: '12px',
+      gap: '10px',
       width: isTablet ? '100%' : 'auto',
       justifyContent: isTablet ? ('flex-start' as const) : ('flex-end' as const),
       flexWrap: 'wrap' as const,
@@ -152,9 +141,13 @@ export default function SiteHeader({ active }: { active?: string }) {
   }
 
   return (
-    <header style={{ ...headerStyle, padding: headerPadding }}>
+    <header style={{ position: 'relative', zIndex: 2, padding: headerPadding }}>
       <div style={headerInner}>
-        <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
+        <Link
+          href="/"
+          style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
+          aria-label="TenAceIQ home"
+        >
           <BrandWordmark compact={isMobile} top />
         </Link>
 

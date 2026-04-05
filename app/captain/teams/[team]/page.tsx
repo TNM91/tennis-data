@@ -2,11 +2,12 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
+import SiteShell from '@/app/components/site-shell'
+import FollowButton from '@/app/components/follow-button'
 
 type TeamMatch = {
   id: string
@@ -105,6 +106,18 @@ export default function TeamPage() {
   const [players, setPlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [screenWidth, setScreenWidth] = useState(1280)
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     if (!team) return
@@ -326,196 +339,211 @@ export default function TeamPage() {
     },
   ]
 
+  const dynamicHeroShell: CSSProperties = {
+    ...heroShell,
+    padding: isMobile ? '26px 18px' : '34px 26px',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(300px, 0.85fr)',
+    gap: isMobile ? '18px' : '22px',
+  }
+
+  const dynamicHeroTitle: CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '56px',
+  }
+
+  const dynamicMetricGrid: CSSProperties = {
+    ...metricGridStyle,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isTablet
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(4, minmax(0, 1fr))',
+  }
+
+  const dynamicCardGrid: CSSProperties = {
+    ...cardGridStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+
   if (loading) {
     return (
-      <main className="page-shell">
-        <header className="site-header">
-          <Link href="/" className="brand">
-            <Image src="/logo-icon.png" width={36} height={36} alt="TenAceIQ" />
-            <span>
-              TenAce<span className="iq">IQ</span>
-            </span>
-          </Link>
-        </header>
-
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <p className="section-kicker">Team Intelligence</p>
-            <h1>Loading team page...</h1>
-            <p>Pulling roster, matches, and lineup context.</p>
-          </div>
+      <SiteShell active="/teams">
+        <section style={pageContent}>
+          <section style={dynamicHeroShell}>
+            <div>
+              <p style={eyebrow}>Team Intelligence</p>
+              <h1 style={dynamicHeroTitle}>Loading team page...</h1>
+              <p style={heroText}>Pulling roster, matches, and lineup context.</p>
+            </div>
+          </section>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   return (
-    <main className="page-shell">
-      <header className="site-header">
-        <Link href="/" className="brand">
-          <Image src="/logo-icon.png" width={36} height={36} alt="TenAceIQ" />
-          <span>
-            TenAce<span className="iq">IQ</span>
-          </span>
-        </Link>
-
-        <nav className="site-nav" aria-label="Primary">
-          <Link href="/">Home</Link>
-          <Link href="/players">Players</Link>
-          <Link href="/rankings">Rankings</Link>
-          <Link href="/matchup">Matchup</Link>
-          <Link href="/leagues">Leagues</Link>
-          <Link href="/teams">Teams</Link>
-          <Link href="/captain">Captain&apos;s Corner</Link>
-        </nav>
-      </header>
-
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div className="hero-copy">
-            <p className="section-kicker">Team Intelligence</p>
-            <h1>{team || 'Team Detail'}</h1>
-            <p>
+    <SiteShell active="/teams">
+      <section style={pageContent}>
+        <section style={dynamicHeroShell}>
+          <div>
+            <p style={eyebrow}>Team Intelligence</p>
+            <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
+            <p style={heroText}>
               Full roster, recent form, top singles strength, doubles chemistry, and captain workflow tools in one
               place.
             </p>
 
-            <div className="hero-badge-row">
-              {teamMeta.league ? <span className="badge badge-blue">{teamMeta.league}</span> : null}
-              {teamMeta.flight ? <span className="badge badge-green">{teamMeta.flight}</span> : null}
-              {teamMeta.section ? <span className="badge">{teamMeta.section}</span> : null}
-              <span className="badge">{matches.length} matches tracked</span>
+            <div style={heroBadgeRow}>
+              {teamMeta.league ? <span style={badgeBlue}>{teamMeta.league}</span> : null}
+              {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
+              {teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
+              <span style={badgeSlate}>{matches.length} matches tracked</span>
             </div>
 
-            <div className="hero-actions">
-              <Link className="button-primary" href={`/captain/lineup-builder?team=${encodeURIComponent(team)}`}>
+            <div style={heroActions}>
+              <Link style={buttonPrimary} href={`/captain/lineup-builder?team=${encodeURIComponent(team)}`}>
                 Open lineup builder
               </Link>
-              <Link className="button-secondary" href={`/captain/availability?team=${encodeURIComponent(team)}`}>
+              <Link style={buttonSecondary} href={`/captain/availability?team=${encodeURIComponent(team)}`}>
                 Check availability
               </Link>
-              <Link className="button-ghost" href="/teams">
+              <div style={followButtonWrap}>
+                <FollowButton
+                  entityType="team"
+                  entityId={team}
+                  entityName={team}
+                  subtitle={teamMeta.league ?? teamMeta.flight ?? undefined}
+                />
+              </div>
+              <Link style={buttonGhost} href="/teams">
                 Back to teams
               </Link>
             </div>
           </div>
-        </div>
-      </section>
 
-      {error ? (
-        <section className="section">
-          <div className="surface-card">
-            <h2 className="section-title">Something went wrong</h2>
-            <p>{error}</p>
+          <div style={summaryCard}>
+            <div style={summaryTitle}>Team snapshot</div>
+
+            <div style={summaryMetricGrid}>
+              <MetricCard label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses tracked" />
+              <MetricCard label="Roster size" value={String(roster.length)} subtle="Players who have appeared" />
+              <MetricCard label="Matches" value={String(matches.length)} subtle="Singles and doubles logged" />
+              <MetricCard
+                label="Latest match"
+                value={formatDate(recentMatch?.match_date)}
+                subtle={recentMatch ? `vs ${getOpponent(recentMatch, team)}` : 'No recent match yet'}
+              />
+            </div>
+
+            {teamMeta.district ? <div style={summaryHint}>{teamMeta.district}</div> : null}
           </div>
         </section>
-      ) : null}
 
-      <section className="section">
-        <div className="metric-grid">
-          <article className="metric-card">
-            <span className="metric-label">Record</span>
-            <strong className="metric-value">
-              {record.wins}-{record.losses}
-            </strong>
-            <span className="metric-subtle">Wins / losses tracked</span>
+        {error ? (
+          <section style={surfaceCard}>
+            <h2 style={sectionTitle}>Something went wrong</h2>
+            <p style={bodyText}>{error}</p>
+          </section>
+        ) : null}
+
+        <section style={dynamicMetricGrid}>
+          <article style={metricCard}>
+            <span style={metricLabel}>Record</span>
+            <strong style={metricValue}>{record.wins}-{record.losses}</strong>
+            <span style={metricSubtle}>Wins / losses tracked</span>
           </article>
 
-          <article className="metric-card">
-            <span className="metric-label">Roster Size</span>
-            <strong className="metric-value">{roster.length}</strong>
-            <span className="metric-subtle">Players who have appeared</span>
+          <article style={metricCard}>
+            <span style={metricLabel}>Roster Size</span>
+            <strong style={metricValue}>{roster.length}</strong>
+            <span style={metricSubtle}>Players who have appeared</span>
           </article>
 
-          <article className="metric-card">
-            <span className="metric-label">Matches</span>
-            <strong className="metric-value">{matches.length}</strong>
-            <span className="metric-subtle">Singles and doubles logged</span>
+          <article style={metricCard}>
+            <span style={metricLabel}>Matches</span>
+            <strong style={metricValue}>{matches.length}</strong>
+            <span style={metricSubtle}>Singles and doubles logged</span>
           </article>
 
-          <article className="metric-card">
-            <span className="metric-label">Latest Match</span>
-            <strong className="metric-value">{formatDate(recentMatch?.match_date)}</strong>
-            <span className="metric-subtle">
+          <article style={metricCard}>
+            <span style={metricLabel}>Latest Match</span>
+            <strong style={metricValue}>{formatDate(recentMatch?.match_date)}</strong>
+            <span style={metricSubtle}>
               {recentMatch ? `vs ${getOpponent(recentMatch, team)}` : 'No recent match yet'}
             </span>
           </article>
-        </div>
-      </section>
+        </section>
 
-      <section className="section">
-        <div className="card-grid">
-          <article className="surface-card surface-card-strong">
-            <div className="section-heading-row">
+        <section style={dynamicCardGrid}>
+          <article style={surfaceCardStrong}>
+            <div style={sectionHeadingRow}>
               <div>
-                <p className="section-kicker">Singles Core</p>
-                <h2 className="section-title">Top Singles Options</h2>
+                <p style={sectionKicker}>Singles Core</p>
+                <h2 style={sectionTitle}>Top Singles Options</h2>
               </div>
             </div>
 
             {bestSingles.length ? (
-              <div className="stack-list">
+              <div style={stackList}>
                 {bestSingles.map((player, index) => (
-                  <div key={player.id} className="list-row">
+                  <div key={player.id} style={listRow}>
                     <div>
                       <strong>
                         {index + 1}. {player.name}
                       </strong>
-                      <div className="muted-text">
+                      <div style={mutedText}>
                         {player.singlesAppearances} singles starts · {player.wins}-{player.losses} record
                       </div>
                     </div>
-                    <span className="badge badge-blue">{formatRating(player.singles_dynamic_rating)}</span>
+                    <span style={badgeBlue}>{formatRating(player.singles_dynamic_rating)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="empty-state">No singles data available yet.</p>
+              <p style={emptyState}>No singles data available yet.</p>
             )}
           </article>
 
-          <article className="surface-card surface-card-strong">
-            <div className="section-heading-row">
+          <article style={surfaceCardStrong}>
+            <div style={sectionHeadingRow}>
               <div>
-                <p className="section-kicker">Doubles Chemistry</p>
-                <h2 className="section-title">Best Pairs</h2>
+                <p style={sectionKicker}>Doubles Chemistry</p>
+                <h2 style={sectionTitle}>Best Pairs</h2>
               </div>
             </div>
 
             {pairings.length ? (
-              <div className="stack-list">
+              <div style={stackList}>
                 {pairings.slice(0, 6).map((pair) => (
-                  <div key={pair.key} className="list-row">
+                  <div key={pair.key} style={listRow}>
                     <div>
                       <strong>{pair.names.join(' / ')}</strong>
-                      <div className="muted-text">
+                      <div style={mutedText}>
                         {pair.appearances} matches together · {pair.wins}-{pair.losses} record
                       </div>
                     </div>
-                    <span className="badge badge-green">{pair.avgRating.toFixed(2)}</span>
+                    <span style={badgeGreen}>{pair.avgRating.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="empty-state">No doubles pairings available yet.</p>
+              <p style={emptyState}>No doubles pairings available yet.</p>
             )}
           </article>
-        </div>
-      </section>
+        </section>
 
-      <section className="section">
-        <div className="card-grid">
-          <article className="surface-card">
-            <div className="section-heading-row">
+        <section style={dynamicCardGrid}>
+          <article style={surfaceCard}>
+            <div style={sectionHeadingRow}>
               <div>
-                <p className="section-kicker">Captain Tools</p>
-                <h2 className="section-title">Next Best Actions</h2>
+                <p style={sectionKicker}>Captain Tools</p>
+                <h2 style={sectionTitle}>Next Best Actions</h2>
               </div>
             </div>
 
-            <div className="stack-list">
+            <div style={stackList}>
               {captainLinks.map((item) => (
-                <Link key={item.title} href={item.href} className="list-link-card">
+                <Link key={item.title} href={item.href} style={listLinkCard}>
                   <strong>{item.title}</strong>
                   <span>{item.description}</span>
                 </Link>
@@ -523,69 +551,67 @@ export default function TeamPage() {
             </div>
           </article>
 
-          <article className="surface-card">
-            <div className="section-heading-row">
+          <article style={surfaceCard}>
+            <div style={sectionHeadingRow}>
               <div>
-                <p className="section-kicker">Depth View</p>
-                <h2 className="section-title">Top Doubles Players</h2>
+                <p style={sectionKicker}>Depth View</p>
+                <h2 style={sectionTitle}>Top Doubles Players</h2>
               </div>
             </div>
 
             {bestDoubles.length ? (
-              <div className="stack-list">
+              <div style={stackList}>
                 {bestDoubles.map((player, index) => (
-                  <div key={player.id} className="list-row">
+                  <div key={player.id} style={listRow}>
                     <div>
                       <strong>
                         {index + 1}. {player.name}
                       </strong>
-                      <div className="muted-text">
+                      <div style={mutedText}>
                         {player.doublesAppearances} doubles starts · {player.wins}-{player.losses} record
                       </div>
                     </div>
-                    <span className="badge">{formatRating(player.doubles_dynamic_rating)}</span>
+                    <span style={badgeSlate}>{formatRating(player.doubles_dynamic_rating)}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="empty-state">No doubles depth data available yet.</p>
+              <p style={emptyState}>No doubles depth data available yet.</p>
             )}
           </article>
-        </div>
-      </section>
+        </section>
 
-      <section className="section">
-        <div className="surface-card">
-          <div className="section-heading-row">
+        <section style={surfaceCard}>
+          <div style={sectionHeadingRow}>
             <div>
-              <p className="section-kicker">Recent Form</p>
-              <h2 className="section-title">Match History</h2>
+              <p style={sectionKicker}>Recent Form</p>
+              <h2 style={sectionTitle}>Match History</h2>
             </div>
           </div>
 
           {matchCards.length ? (
-            <div className="table-wrap">
-              <table className="data-table">
+            <div style={tableWrap}>
+              <table style={dataTable}>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Opponent</th>
-                    <th>Venue</th>
-                    <th>Format</th>
-                    <th>Score</th>
-                    <th>Result</th>
+                    <th style={tableHeaderCell}>Date</th>
+                    <th style={tableHeaderCell}>Opponent</th>
+                    <th style={tableHeaderCell}>Venue</th>
+                    <th style={tableHeaderCell}>Format</th>
+                    <th style={tableHeaderCell}>Score</th>
+                    <th style={tableHeaderCell}>Result</th>
                   </tr>
                 </thead>
                 <tbody>
                   {matchCards.map((match) => (
                     <tr key={match.id}>
-                      <td>{formatDate(match.match_date)}</td>
-                      <td>{match.opponent}</td>
-                      <td>{match.venueLabel}</td>
-                      <td>{match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '—'}</td>
-                      <td>{match.score || '—'}</td>
-                      <td>
-                        <span className={`badge ${match.won ? 'badge-green' : 'badge-blue'}`}>
+                      <td style={tableCell}>{formatDate(match.match_date)}</td>
+                      <td style={tableCell}>{match.opponent}</td>
+                      <td style={tableCell}>{match.venueLabel}</td>
+                      <td style={tableCell}>{match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '—'}</td>
+                      <td style={tableCell}>{match.score || '—'}</td>
+                      <td style={tableCell}>
+                        <span style={match.won ? badgeGreen : badgeBlue}>
                           {match.won ? 'Win' : 'Loss'}
                         </span>
                       </td>
@@ -595,47 +621,45 @@ export default function TeamPage() {
               </table>
             </div>
           ) : (
-            <p className="empty-state">No team matches found yet.</p>
+            <p style={emptyState}>No team matches found yet.</p>
           )}
-        </div>
-      </section>
+        </section>
 
-      <section className="section">
-        <div className="surface-card">
-          <div className="section-heading-row">
+        <section style={surfaceCard}>
+          <div style={sectionHeadingRow}>
             <div>
-              <p className="section-kicker">Roster</p>
-              <h2 className="section-title">Player Breakdown</h2>
+              <p style={sectionKicker}>Roster</p>
+              <h2 style={sectionTitle}>Player Breakdown</h2>
             </div>
           </div>
 
           {roster.length ? (
-            <div className="table-wrap">
-              <table className="data-table">
+            <div style={tableWrap}>
+              <table style={dataTable}>
                 <thead>
                   <tr>
-                    <th>Player</th>
-                    <th>Singles</th>
-                    <th>Doubles</th>
-                    <th>Appearances</th>
-                    <th>Record</th>
+                    <th style={tableHeaderCell}>Player</th>
+                    <th style={tableHeaderCell}>Singles</th>
+                    <th style={tableHeaderCell}>Doubles</th>
+                    <th style={tableHeaderCell}>Appearances</th>
+                    <th style={tableHeaderCell}>Record</th>
                   </tr>
                 </thead>
                 <tbody>
                   {roster.map((player) => (
                     <tr key={player.id}>
-                      <td>
+                      <td style={tableCell}>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <Link href={`/players/${player.id}`}>
+                          <Link href={`/players/${player.id}`} style={playerLink}>
                             <strong>{player.name}</strong>
                           </Link>
-                          {player.location ? <span className="muted-text">{player.location}</span> : null}
+                          {player.location ? <span style={mutedText}>{player.location}</span> : null}
                         </div>
                       </td>
-                      <td>{formatRating(player.singles_dynamic_rating)}</td>
-                      <td>{formatRating(player.doubles_dynamic_rating)}</td>
-                      <td>{player.appearances}</td>
-                      <td>
+                      <td style={tableCell}>{formatRating(player.singles_dynamic_rating)}</td>
+                      <td style={tableCell}>{formatRating(player.doubles_dynamic_rating)}</td>
+                      <td style={tableCell}>{player.appearances}</td>
+                      <td style={tableCell}>
                         {player.wins}-{player.losses}
                       </td>
                     </tr>
@@ -644,31 +668,390 @@ export default function TeamPage() {
               </table>
             </div>
           ) : (
-            <p className="empty-state">No roster data available for this team yet.</p>
+            <p style={emptyState}>No roster data available for this team yet.</p>
           )}
-        </div>
+        </section>
       </section>
-
-      <footer className="site-footer">
-        <div className="footer-brand">
-          <Link href="/" className="brand">
-            <Image src="/logo-icon.png" width={30} height={30} alt="TenAceIQ" />
-            <span>
-              TenAce<span className="iq">IQ</span>
-            </span>
-          </Link>
-          <p>Know more. Plan better. Compete smarter.</p>
-        </div>
-
-        <div className="footer-links">
-          <Link href="/players">Players</Link>
-          <Link href="/rankings">Rankings</Link>
-          <Link href="/matchup">Matchup</Link>
-          <Link href="/leagues">Leagues</Link>
-          <Link href="/teams">Teams</Link>
-          <Link href="/captain">Captain&apos;s Corner</Link>
-        </div>
-      </footer>
-    </main>
+    </SiteShell>
   )
+}
+
+function MetricCard({
+  label,
+  value,
+  subtle,
+}: {
+  label: string
+  value: string
+  subtle: string
+}) {
+  return (
+    <div style={summaryMetricCard}>
+      <div style={summaryMetricLabel}>{label}</div>
+      <div style={summaryMetricValue}>{value}</div>
+      <div style={summaryHintSmall}>{subtle}</div>
+    </div>
+  )
+}
+
+const pageContent: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  width: '100%',
+  maxWidth: '1280px',
+  margin: '0 auto',
+  padding: '18px 24px 0',
+  display: 'grid',
+  gap: '18px',
+}
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background:
+    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 56%, rgba(12,46,62,0.84) 100%)',
+  boxShadow: '0 28px 80px rgba(3,10,24,0.30)',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '38px',
+  padding: '8px 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#d9e7ef',
+  fontWeight: 800,
+  fontSize: '14px',
+  marginBottom: '18px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+}
+
+const heroTitle: CSSProperties = {
+  margin: '0 0 12px',
+  color: '#f7fbff',
+  fontWeight: 900,
+  lineHeight: 0.98,
+  letterSpacing: '-0.055em',
+  maxWidth: '760px',
+}
+
+const heroText: CSSProperties = {
+  margin: '0 0 20px',
+  color: 'rgba(224, 234, 247, 0.84)',
+  fontSize: '18px',
+  lineHeight: 1.6,
+  maxWidth: '720px',
+}
+
+const heroBadgeRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginBottom: '18px',
+}
+
+const heroActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '12px',
+  alignItems: 'center',
+}
+
+const buttonPrimary: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  color: '#071622',
+  border: '1px solid rgba(155,225,29,0.34)',
+  boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)',
+}
+
+const buttonSecondary: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
+  color: '#ebf1fd',
+  border: '1px solid rgba(116,190,255,0.18)',
+}
+
+const buttonGhost: CSSProperties = {
+  ...buttonSecondary,
+  background: 'rgba(255,255,255,0.06)',
+}
+
+const followButtonWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+}
+
+const badgeBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const badgeBlue: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+}
+
+const badgeGreen: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(155,225,29,0.14)',
+  color: '#e7ffd1',
+}
+
+const badgeSlate: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
+}
+
+const summaryCard: CSSProperties = {
+  borderRadius: '28px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.72), rgba(21,37,64,0.76))',
+  padding: '18px',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+  minHeight: '100%',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const summaryTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '24px',
+  letterSpacing: '-0.03em',
+  marginBottom: '14px',
+}
+
+const summaryMetricGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '12px',
+}
+
+const summaryMetricCard: CSSProperties = {
+  borderRadius: '20px',
+  padding: '14px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const summaryMetricLabel: CSSProperties = {
+  color: 'rgba(220,231,244,0.7)',
+  fontWeight: 700,
+  fontSize: '13px',
+  marginBottom: '8px',
+}
+
+const summaryMetricValue: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '28px',
+  letterSpacing: '-0.05em',
+  lineHeight: 1,
+}
+
+const summaryHint: CSSProperties = {
+  marginTop: '14px',
+  color: 'rgba(224, 234, 247, 0.76)',
+  lineHeight: 1.6,
+  fontSize: '14px',
+}
+
+const summaryHintSmall: CSSProperties = {
+  marginTop: '8px',
+  color: 'rgba(224, 234, 247, 0.72)',
+  lineHeight: 1.5,
+  fontSize: '13px',
+}
+
+const metricGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+}
+
+const metricLabel: CSSProperties = {
+  color: 'rgba(225,236,250,0.72)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
+  display: 'block',
+}
+
+const metricValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '1.8rem',
+  fontWeight: 900,
+  lineHeight: 1.1,
+  display: 'block',
+}
+
+const metricSubtle: CSSProperties = {
+  marginTop: '8px',
+  color: 'rgba(224,234,247,0.72)',
+  lineHeight: 1.55,
+  fontSize: '0.9rem',
+  display: 'block',
+}
+
+const cardGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
+}
+
+const surfaceCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+}
+
+const surfaceCardStrong: CSSProperties = {
+  ...surfaceCard,
+  background:
+    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
+}
+
+const sectionHeadingRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '16px',
+  marginBottom: '16px',
+  flexWrap: 'wrap',
+}
+
+const sectionKicker: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '13px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  margin: 0,
+}
+
+const sectionTitle: CSSProperties = {
+  margin: '8px 0 0',
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '28px',
+  letterSpacing: '-0.04em',
+}
+
+const bodyText: CSSProperties = {
+  margin: '10px 0 0',
+  color: 'rgba(232, 239, 248, 0.84)',
+  lineHeight: 1.6,
+}
+
+const stackList: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const listRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '14px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const mutedText: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  lineHeight: 1.55,
+  fontSize: '0.92rem',
+  marginTop: '4px',
+}
+
+const emptyState: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  margin: 0,
+  lineHeight: 1.65,
+}
+
+const listLinkCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  textDecoration: 'none',
+  color: '#f8fbff',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const tableWrap: CSSProperties = {
+  width: '100%',
+  overflowX: 'auto',
+  borderRadius: '18px',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const dataTable: CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+}
+
+const tableHeaderCell: CSSProperties = {
+  textAlign: 'left',
+  padding: '14px',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#c7dbff',
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const tableCell: CSSProperties = {
+  padding: '14px',
+  borderTop: '1px solid rgba(255,255,255,0.08)',
+  color: '#f8fbff',
+  verticalAlign: 'top',
+}
+
+const playerLink: CSSProperties = {
+  color: '#f8fbff',
+  textDecoration: 'none',
 }

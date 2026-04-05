@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -13,6 +12,7 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import DataBallHero from '@/app/components/data-ball-hero'
 import { supabase } from '../lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 
@@ -351,7 +351,7 @@ export default function HomePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(380px, 0.86fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(360px, 0.92fr)',
     gap: isMobile ? '20px' : '26px',
   }
 
@@ -371,7 +371,7 @@ export default function HomePage() {
   const dynamicSearchShell: CSSProperties = {
     ...searchShell,
     padding: isMobile ? '18px' : '20px',
-    marginBottom: '18px',
+    marginBottom: 0,
     boxShadow: inputFocused
       ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(74,163,255,0.18)'
       : (searchShell.boxShadow as string),
@@ -608,46 +608,37 @@ export default function HomePage() {
                 {searchError ? <div style={searchErrorStyle}>{searchError}</div> : null}
               </form>
 
-              <div style={dynamicLogoPanel}>
-                <div style={logoGlow} />
-                <div style={logoRing} />
-
-                <div style={logoPanelInner}>
-                  <div style={logoOrbWrap}>
-                    <div style={logoOrbOuter} />
-                    <div style={logoOrbMiddle} />
-                    <div style={logoOrbInner}>
-                      <Image
-                        src="/logo-icon.png"
-                        alt="TenAceIQ"
-                        width={512}
-                        height={512}
-                        priority
-                        style={{
-                          width: isMobile ? '118px' : '132px',
-                          height: isMobile ? '118px' : '132px',
-                          display: 'block',
-                          objectFit: 'contain',
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={heroBrandText}>
-                    <span style={heroTenAce}>TenAce</span>
-                    <span style={heroIQ}>IQ</span>
-                  </div>
-
-                  <p style={logoPanelText}>
-                    Premium player analytics, matchup insight, league context, and captain prep
-                    built for competitive tennis.
-                  </p>
-
-                  <div style={membershipPills}>
-                    <span style={pillBlue}>Public Explore</span>
-                    <span style={pillGreen}>Member My Lab</span>
-                    <span style={pillSlate}>Admin Tools</span>
-                  </div>
+              <div style={{ ...dynamicLogoPanel, padding: 0 }}>
+                <div
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: isMobile ? '260px' : '320px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: isMobile ? '18px' : '22px',
+                      borderRadius: '24px',
+                      border: '1px solid rgba(116,190,255,0.10)',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      width: isMobile ? '200px' : '260px',
+                      height: isMobile ? '200px' : '260px',
+                      borderRadius: '999px',
+                      background:
+                        'radial-gradient(circle, rgba(116,190,255,0.16) 0%, rgba(155,225,29,0.06) 40%, rgba(116,190,255,0) 72%)',
+                      filter: 'blur(12px)',
+                    }}
+                  />
+                  <DataBallHero />
                 </div>
               </div>
             </div>
@@ -822,12 +813,11 @@ function BrandWordmark({
         lineHeight: 1,
       }}
     >
-      <Image
+      <img
         src="/logo-icon.png"
         alt="TenAceIQ"
         width={iconSize}
         height={iconSize}
-        priority
         style={{
           width: `${iconSize}px`,
           height: `${iconSize}px`,
@@ -1180,10 +1170,6 @@ const heroIQ: CSSProperties = {
   marginLeft: '2px',
 }
 
-const heroTenAce: CSSProperties = {
-  color: '#f8fbff',
-}
-
 const quickActionLabel: CSSProperties = {
   color: 'rgba(202,220,241,0.78)',
   fontSize: '12px',
@@ -1367,140 +1353,6 @@ const logoPanel: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.20)',
   boxShadow:
     '0 20px 48px rgba(7,18,40,0.24), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 56px rgba(116,190,255,0.05)',
-}
-
-const logoGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 'auto auto 8px 50%',
-  width: '250px',
-  height: '250px',
-  transform: 'translateX(-50%)',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.18) 0%, rgba(155,225,29,0.08) 34%, rgba(116,190,255,0) 72%)',
-  pointerEvents: 'none',
-}
-
-const logoRing: CSSProperties = {
-  position: 'absolute',
-  inset: '22px',
-  borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  pointerEvents: 'none',
-}
-
-const logoPanelInner: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
-  alignItems: 'center',
-  height: '100%',
-  padding: '18px 20px 20px',
-  textAlign: 'center',
-}
-
-const logoOrbWrap: CSSProperties = {
-  position: 'relative',
-  width: '188px',
-  height: '188px',
-  display: 'grid',
-  placeItems: 'center',
-  margin: '8px auto 12px',
-}
-
-const logoOrbOuter: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(1px)',
-}
-
-const logoOrbMiddle: CSSProperties = {
-  position: 'absolute',
-  inset: '14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.28)',
-  boxShadow:
-    '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)',
-}
-
-const logoOrbInner: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  width: '142px',
-  height: '142px',
-  borderRadius: '999px',
-  display: 'grid',
-  placeItems: 'center',
-  background:
-    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow:
-    '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)',
-}
-
-const heroBrandText: CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'center',
-  gap: '2px',
-  fontWeight: 900,
-  letterSpacing: '-0.05em',
-  fontSize: '36px',
-  lineHeight: 1,
-}
-
-const logoPanelText: CSSProperties = {
-  margin: '12px auto 0',
-  maxWidth: '320px',
-  color: 'rgba(224,236,249,0.82)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-}
-
-const membershipPills: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'center',
-  flexWrap: 'wrap',
-  gap: '8px',
-  marginTop: '16px',
-}
-
-const pillBase: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
-  borderRadius: '999px',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.04em',
-}
-
-const pillBlue: CSSProperties = {
-  ...pillBase,
-  color: '#dcebff',
-  background: 'rgba(37,91,227,0.16)',
-  border: '1px solid rgba(74,163,255,0.18)',
-}
-
-const pillGreen: CSSProperties = {
-  ...pillBase,
-  color: '#e7ffd0',
-  background: 'rgba(155,225,29,0.14)',
-  border: '1px solid rgba(155,225,29,0.24)',
-}
-
-const pillSlate: CSSProperties = {
-  ...pillBase,
-  color: '#dfe8f7',
-  background: 'rgba(255,255,255,0.08)',
-  border: '1px solid rgba(255,255,255,0.1)',
 }
 
 const actionGrid: CSSProperties = {

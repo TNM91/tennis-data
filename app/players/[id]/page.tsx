@@ -5,6 +5,7 @@ import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import FollowButton from '@/app/components/follow-button'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -412,6 +413,15 @@ export default function PlayerProfilePage() {
               <h1 style={dynamicHeroTitle}>{player.name}</h1>
 
               <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
+
+              <div style={followRow}>
+                <FollowButton
+                  entityType="player"
+                  entityId={player.id}
+                  entityName={player.name}
+                  subtitle={player.location || ''}
+                />
+              </div>
 
               <div style={heroHintRow}>
                 <span style={heroHintPill}>{totalMatches} matches</span>
@@ -924,6 +934,13 @@ const heroText: CSSProperties = {
   color: 'rgba(224,236,249,0.86)',
   lineHeight: 1.65,
   fontWeight: 500,
+}
+
+const followRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '12px',
+  marginTop: '-4px',
 }
 
 const heroHintRow: CSSProperties = {

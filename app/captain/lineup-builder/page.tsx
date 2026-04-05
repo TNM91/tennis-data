@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
+import SiteShell from '@/app/components/site-shell'
 
 type PlayerRow = {
   id: string
@@ -70,7 +71,7 @@ const NAV_LINKS = [
   { href: '/matchup', label: 'Matchup' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/captain', label: "Captain's Corner" },
 ]
 
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = [
@@ -753,7 +754,7 @@ export default function LineupBuilderPage() {
     if (matchDate) params.set('date', matchDate)
     if (currentScenarioId) params.set('left', currentScenarioId)
     const query = params.toString()
-    return query ? `/captains-corner/scenario-comparison?${query}` : '/captains-corner/scenario-comparison'
+    return query ? `/captain/scenario-comparison?${query}` : '/captain/scenario-comparison'
   }, [leagueName, flight, teamName, matchDate, currentScenarioId])
 
   const analysis = useMemo(() => {
@@ -775,32 +776,9 @@ export default function LineupBuilderPage() {
   }, [analysis.lines])
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-
-      <header style={headerStyle}>
-        <div style={headerInnerResponsive(isTablet)}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={navStyleResponsive(isTablet)}>
-            {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/captains-corner'
-              return (
-                <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
-                  {link.label}
-                </Link>
-              )
-            })}
-            <Link href="/admin" style={navLink}>Admin</Link>
-          </nav>
-        </div>
-      </header>
-
-      <section style={heroShellResponsive(isTablet, isMobile)}>
+    <SiteShell active="/captain">
+      <div style={pageWrap}>
+        <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
           <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
@@ -846,7 +824,7 @@ export default function LineupBuilderPage() {
         </div>
       </section>
 
-      <section style={contentWrap}>
+        <section style={contentWrap}>
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
             <section style={surfaceCardStrong}>
@@ -1162,29 +1140,8 @@ export default function LineupBuilderPage() {
         </div>
       </section>
 
-      <footer style={footerStyle}>
-        <div style={footerInnerResponsive(isMobile)}>
-          <div style={footerRowResponsive(isTablet)}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={footerLinksResponsive(isTablet)}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
-            </div>
-
-            <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              © {new Date().getFullYear()} TenAceIQ
-            </div>
-          </div>
-        </div>
-      </footer>
-    </main>
+      </div>
+    </SiteShell>
   )
 }
 
@@ -1387,6 +1344,16 @@ function footerLinksResponsive(isTablet: boolean): CSSProperties {
     ...footerLinks,
     justifyContent: isTablet ? 'flex-start' : 'center',
   }
+}
+
+const pageWrap: CSSProperties = {
+  width: 'min(1280px, calc(100% - 48px))',
+  margin: '0 auto',
+  display: 'grid',
+  gap: '18px',
+  padding: '14px 0 28px',
+  position: 'relative',
+  zIndex: 2,
 }
 
 const pageStyle: CSSProperties = {

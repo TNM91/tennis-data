@@ -2,10 +2,10 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import SiteShell from '@/app/components/site-shell'
 
 type SortKey = 'name' | 'matches' | 'players' | 'winPct' | 'latest'
 type FilterKey = 'all' | 'active' | 'winning' | 'deep-roster'
@@ -37,16 +37,6 @@ type TeamCard = {
   losses: number
   latestMatch: string | null
 }
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
-]
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<TeamCard[]>([])
@@ -225,20 +215,6 @@ export default function TeamsPage() {
 
   const winningTeams = useMemo(() => teams.filter((team) => team.wins > team.losses).length, [teams])
 
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    flexWrap: 'wrap',
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-  }
-
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '26px 18px' : '34px 26px',
@@ -271,203 +247,131 @@ export default function TeamsPage() {
     alignItems: isMobile ? 'flex-start' : 'flex-end',
   }
 
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
-  }
-
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/teams'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(isActive ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-            <Link href="/admin" style={navLink}>Admin</Link>
-          </nav>
-        </div>
-      </header>
-
-      <section style={dynamicHeroShell}>
-        <div>
-          <div style={eyebrow}>Team directory</div>
-          <h1 style={dynamicHeroTitle}>
-            Browse teams by league and flight, then jump into roster and match history fast.
-          </h1>
-          <p style={heroText}>
-            This is your team discovery page for captain and league workflows. Search by team,
-            filter by league context, compare depth, and open the full team page when you want the details.
-          </p>
-
-          <div style={dynamicSearchPanel}>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search team, league, or flight"
-              style={searchInput}
-            />
-
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={selectStyle}>
-              <option value="matches">Sort: Matches</option>
-              <option value="players">Sort: Players Used</option>
-              <option value="winPct">Sort: Win %</option>
-              <option value="latest">Sort: Latest Match</option>
-              <option value="name">Sort: Name</option>
-            </select>
-
-            <select value={filterBy} onChange={(e) => setFilterBy(e.target.value as FilterKey)} style={selectStyle}>
-              <option value="all">All teams</option>
-              <option value="active">3+ matches</option>
-              <option value="winning">Winning record</option>
-              <option value="deep-roster">6+ players used</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={summaryCard}>
-          <div style={summaryTitle}>Directory snapshot</div>
-
-          <div style={summaryMetricGrid}>
-            <MetricBlock label="Teams" value={String(teams.length)} />
-            <MetricBlock label="Showing" value={String(filteredTeams.length)} />
-            <MetricBlock label="Total matches" value={String(totalMatches)} />
-            <MetricBlock label="Avg roster" value={formatNumber(avgRoster)} />
-          </div>
-
-          <div style={{ ...summaryMetricGrid, marginTop: '12px' }}>
-            <MetricBlock label="Best win %" value={formatPercent(topWinPct)} accent />
-            <MetricBlock label="Winning teams" value={String(winningTeams)} />
-          </div>
-
-          <div style={summaryHint}>
-            Best flow: discover the team here, open the team page, then use Matchup or Captain&apos;s Corner for prep.
-          </div>
-        </div>
-      </section>
-
-      {error ? (
-        <section style={errorCard}>
-          <div style={sectionKicker}>Teams</div>
-          <h2 style={sectionTitle}>Unable to load teams</h2>
-          <p style={sectionText}>{error}</p>
-        </section>
-      ) : null}
-
-      <section style={contentWrap}>
-        <div style={dynamicSectionHeader}>
+    <SiteShell active="/teams">
+      <section style={pageContent}>
+        <section style={dynamicHeroShell}>
           <div>
-            <div style={sectionKicker}>Browse</div>
-            <h2 style={sectionTitle}>Team cards built for league and captain workflows</h2>
+            <div style={eyebrow}>Team directory</div>
+            <h1 style={dynamicHeroTitle}>
+              Browse teams by league and flight, then jump into roster and match history fast.
+            </h1>
+            <p style={heroText}>
+              This is your team discovery page for captain and league workflows. Search by team,
+              filter by league context, compare depth, and open the full team page when you want the details.
+            </p>
+
+            <div style={dynamicSearchPanel}>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search team, league, or flight"
+                style={searchInput}
+              />
+
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={selectStyle}>
+                <option value="matches">Sort: Matches</option>
+                <option value="players">Sort: Players Used</option>
+                <option value="winPct">Sort: Win %</option>
+                <option value="latest">Sort: Latest Match</option>
+                <option value="name">Sort: Name</option>
+              </select>
+
+              <select value={filterBy} onChange={(e) => setFilterBy(e.target.value as FilterKey)} style={selectStyle}>
+                <option value="all">All teams</option>
+                <option value="active">3+ matches</option>
+                <option value="winning">Winning record</option>
+                <option value="deep-roster">6+ players used</option>
+              </select>
+            </div>
           </div>
-          <Link href="/leagues" style={secondaryLink}>
-            Open leagues
-          </Link>
-        </div>
 
-        {loading ? (
-          <div style={loadingCard}>Loading team directory...</div>
-        ) : filteredTeams.length === 0 ? (
-          <div style={loadingCard}>No teams matched that search.</div>
-        ) : (
-          <div style={dynamicCardGrid}>
-            {filteredTeams.map((team) => {
-              const href = `/teams/${encodeURIComponent(team.team)}?league=${encodeURIComponent(team.league)}&flight=${encodeURIComponent(team.flight)}`
+          <div style={summaryCard}>
+            <div style={summaryTitle}>Directory snapshot</div>
 
-              return (
-                <Link key={team.key} href={href} style={teamCard}>
-                  <div style={cardGlow} />
-
-                  <div style={teamCardTopRow}>
-                    <div style={miniKicker}>Team</div>
-                    <div style={matchCountPill}>{team.matches} matches</div>
-                  </div>
-
-                  <div style={teamName}>{team.team}</div>
-                  <div style={teamMeta}>
-                    {team.league} · {team.flight}
-                  </div>
-
-                  <div style={recordRow}>
-                    <div style={recordPillWin}>{team.wins} wins</div>
-                    <div style={recordPillLoss}>{team.losses} losses</div>
-                    <div style={recordPillNeutral}>{formatPercent(getWinPct(team))} win %</div>
-                  </div>
-
-                  <div style={teamStatGrid}>
-                    <TeamStat label="Players used" value={String(team.players)} />
-                    <TeamStat label="Latest" value={formatShortDate(team.latestMatch)} />
-                  </div>
-
-                  <div style={teamCardFooter}>
-                    <span style={profileLinkText}>Open team page</span>
-                    <span style={arrowText}>→</span>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+            <div style={summaryMetricGrid}>
+              <MetricBlock label="Teams" value={String(teams.length)} />
+              <MetricBlock label="Showing" value={String(filteredTeams.length)} />
+              <MetricBlock label="Total matches" value={String(totalMatches)} />
+              <MetricBlock label="Avg roster" value={formatNumber(avgRoster)} />
             </div>
 
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
+            <div style={{ ...summaryMetricGrid, marginTop: '12px' }}>
+              <MetricBlock label="Best win %" value={formatPercent(topWinPct)} accent />
+              <MetricBlock label="Winning teams" value={String(winningTeams)} />
+            </div>
+
+            <div style={summaryHint}>
+              Best flow: discover the team here, open the team page, then use Matchup or Captain&apos;s Corner for prep.
+            </div>
           </div>
-        </div>
-      </footer>
-    </main>
+        </section>
+
+        {error ? (
+          <section style={errorCard}>
+            <div style={sectionKicker}>Teams</div>
+            <h2 style={sectionTitle}>Unable to load teams</h2>
+            <p style={sectionText}>{error}</p>
+          </section>
+        ) : null}
+
+        <section style={contentWrap}>
+          <div style={dynamicSectionHeader}>
+            <div>
+              <div style={sectionKicker}>Browse</div>
+              <h2 style={sectionTitle}>Team cards built for league and captain workflows</h2>
+            </div>
+            <Link href="/leagues" style={secondaryLink}>
+              Open leagues
+            </Link>
+          </div>
+
+          {loading ? (
+            <div style={loadingCard}>Loading team directory...</div>
+          ) : filteredTeams.length === 0 ? (
+            <div style={loadingCard}>No teams matched that search.</div>
+          ) : (
+            <div style={dynamicCardGrid}>
+              {filteredTeams.map((team) => {
+                const href = `/teams/${encodeURIComponent(team.team)}?league=${encodeURIComponent(team.league)}&flight=${encodeURIComponent(team.flight)}`
+
+                return (
+                  <Link key={team.key} href={href} style={teamCard}>
+                    <div style={cardGlow} />
+
+                    <div style={teamCardTopRow}>
+                      <div style={miniKicker}>Team</div>
+                      <div style={matchCountPill}>{team.matches} matches</div>
+                    </div>
+
+                    <div style={teamName}>{team.team}</div>
+                    <div style={teamMeta}>
+                      {team.league} · {team.flight}
+                    </div>
+
+                    <div style={recordRow}>
+                      <div style={recordPillWin}>{team.wins} wins</div>
+                      <div style={recordPillLoss}>{team.losses} losses</div>
+                      <div style={recordPillNeutral}>{formatPercent(getWinPct(team))} win %</div>
+                    </div>
+
+                    <div style={teamStatGrid}>
+                      <TeamStat label="Players used" value={String(team.players)} />
+                      <TeamStat label="Latest" value={formatShortDate(team.latestMatch)} />
+                    </div>
+
+                    <div style={teamCardFooter}>
+                      <span style={profileLinkText}>Open team page</span>
+                      <span style={arrowText}>→</span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      </section>
+    </SiteShell>
   )
 }
 
@@ -498,58 +402,6 @@ function TeamStat({ label, value }: { label: string; value: string }) {
     <div style={teamStatCard}>
       <div style={teamStatLabel}>{label}</div>
       <div style={teamStatValue}>{value}</div>
-    </div>
-  )
-}
-
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '8px' : '10px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
     </div>
   )
 }
@@ -602,106 +454,25 @@ function isLaterDate(next: string | null, current: string | null) {
   return nextTime > currentTime
 }
 
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
-  padding: '24px 18px 56px',
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-100px',
-  right: '-60px',
-  width: '360px',
-  height: '360px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
-  filter: 'blur(10px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  top: '60px',
-  left: '-100px',
-  width: '320px',
-  height: '320px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
-  filter: 'blur(12px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-  backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
+const pageContent: CSSProperties = {
   position: 'relative',
   zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
-}
-
-const headerInner: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-}
-
-const navLink: CSSProperties = {
-  padding: '13px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
-}
-
-const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
+  width: '100%',
+  maxWidth: '1280px',
+  margin: '0 auto',
+  padding: '18px 24px 0',
 }
 
 const heroShell: CSSProperties = {
   position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
   display: 'grid',
   borderRadius: '34px',
   border: '1px solid rgba(107, 162, 255, 0.18)',
-  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+  background:
+    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 56%, rgba(12,46,62,0.84) 100%)',
+  boxShadow: '0 28px 80px rgba(3,10,24,0.30)',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
 }
 
 const eyebrow: CSSProperties = {
@@ -710,8 +481,8 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(130, 244, 118, 0.28)',
-  background: 'rgba(89, 145, 73, 0.14)',
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.12)',
   color: '#d9e7ef',
   fontWeight: 800,
   fontSize: '14px',
@@ -742,8 +513,8 @@ const searchPanel: CSSProperties = {
   gap: '12px',
   padding: '14px',
   borderRadius: '24px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(10, 20, 37, 0.64)',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(10, 20, 37, 0.44)',
   maxWidth: '860px',
 }
 
@@ -773,13 +544,14 @@ const selectStyle: CSSProperties = {
 
 const summaryCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.72), rgba(21,37,64,0.76))',
   padding: '18px',
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'space-between',
   minHeight: '100%',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const summaryTitle: CSSProperties = {
@@ -804,7 +576,7 @@ const summaryMetricCard: CSSProperties = {
 }
 
 const summaryMetricCardAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(31,102,74,0.92) 0%, rgba(42,162,96,0.84) 100%)',
+  background: 'linear-gradient(135deg, rgba(63,121,64,0.62) 0%, rgba(47,153,94,0.58) 100%)',
   border: '1px solid rgba(134,239,172,0.24)',
 }
 
@@ -831,21 +603,15 @@ const summaryHint: CSSProperties = {
 }
 
 const errorCard: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
+  marginTop: '18px',
   padding: '22px',
   borderRadius: '28px',
   border: '1px solid rgba(255,100,100,0.2)',
-  background: 'rgba(62,16,22,0.78)',
+  background: 'rgba(62,16,22,0.52)',
 }
 
 const contentWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto',
+  marginTop: '18px',
 }
 
 const sectionHeader: CSSProperties = {
@@ -886,8 +652,8 @@ const secondaryLink: CSSProperties = {
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(14, 27, 49, 0.9)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
   color: '#ebf1fd',
   textDecoration: 'none',
   fontWeight: 800,
@@ -897,7 +663,7 @@ const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
   border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(11, 22, 39, 0.82)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.10) 0%, rgba(16,34,70,0.30) 100%)',
   color: '#dfe8f8',
   fontWeight: 700,
 }
@@ -913,9 +679,11 @@ const teamCard: CSSProperties = {
   textDecoration: 'none',
   borderRadius: '28px',
   border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.24) 0%, rgba(28,49,95,0.34) 100%)',
   padding: '20px',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.05)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
 }
 
 const cardGlow: CSSProperties = {
@@ -1066,51 +834,4 @@ const profileLinkText: CSSProperties = {
 const arrowText: CSSProperties = {
   fontWeight: 900,
   fontSize: '18px',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '28px 0 0',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
 }
