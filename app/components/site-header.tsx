@@ -210,7 +210,7 @@ export default function SiteHeader({ active }: { active?: string }) {
             }}
             aria-label="TenAceIQ home"
           >
-            <BrandWordmark top compact={false} />
+            <BrandWordmark top />
           </Link>
 
           <nav style={navStyle} aria-label="Primary">

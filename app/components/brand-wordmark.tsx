@@ -13,8 +13,15 @@ export default function BrandWordmark({
   footer = false,
   top = false,
 }: BrandWordmarkProps) {
-  const iconSize = top ? (compact ? 86 : 104) : footer ? 76 : compact ? 64 : 68
-  const fontSize = top ? (compact ? 32 : 40) : footer ? 31 : compact ? 26 : 28
+  const isHeader = top
+  const isFooter = footer
+
+  const iconSize = isHeader ? (compact ? 88 : 106) : isFooter ? 82 : compact ? 66 : 72
+  const fontSize = isHeader ? (compact ? 33 : 41) : isFooter ? 33 : compact ? 27 : 30
+
+  // keep lockup spacing visually consistent across header + footer
+  const imagePull = isHeader ? -21 : isFooter ? -21 : -16
+  const textPull = isHeader ? -1 : isFooter ? -1 : 0
 
   return (
     <>
@@ -28,13 +35,16 @@ export default function BrandWordmark({
           overflow: 'visible',
         }}
       >
-        <div
-          className="data-ball-spin-wrap"
+        <span
+          className="taiq-ball-wrap"
           style={{
             width: `${iconSize}px`,
             height: `${iconSize}px`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             flexShrink: 0,
-            marginRight: '-21px',
+            marginRight: `${imagePull}px`,
             transform: 'translateY(1px)',
             overflow: 'visible',
           }}
@@ -45,44 +55,49 @@ export default function BrandWordmark({
             width={iconSize}
             height={iconSize}
             priority={top}
-            className="data-ball-spin"
+            className="taiq-ball-spin"
             style={{
               width: `${iconSize}px`,
               height: `${iconSize}px`,
               objectFit: 'contain',
+              objectPosition: 'center',
               display: 'block',
-              filter: top
+              transformOrigin: 'center center',
+              filter: isHeader
                 ? 'drop-shadow(0 14px 30px rgba(37,91,227,0.22))'
-                : 'drop-shadow(0 6px 14px rgba(37,91,227,0.14))',
+                : isFooter
+                  ? 'drop-shadow(0 10px 22px rgba(8,17,29,0.22))'
+                  : 'drop-shadow(0 8px 18px rgba(37,91,227,0.16))',
             }}
           />
-        </div>
+        </span>
 
         <div
           style={{
             display: 'flex',
             alignItems: 'baseline',
+            minWidth: 0,
             fontWeight: 900,
             fontSize: `${fontSize}px`,
             letterSpacing: '-0.045em',
             lineHeight: 0.92,
             whiteSpace: 'nowrap',
-            transform: 'translateX(-1px)',
+            transform: `translateX(${textPull}px)`,
             paddingRight: '4px',
             overflow: 'visible',
+            textRendering: 'geometricPrecision',
           }}
         >
-          <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-
+          <span style={{ color: isFooter ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
           <span
             style={{
-              marginLeft: '0px',
+              marginLeft: 0,
+              paddingRight: '2px',
               background: 'linear-gradient(135deg, #9BE11D 0%, #7ED321 45%, #C7F36B 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
-              fontWeight: 900,
-              paddingRight: '2px',
+              filter: isFooter ? 'brightness(1.03)' : 'none',
             }}
           >
             IQ
@@ -91,31 +106,28 @@ export default function BrandWordmark({
       </div>
 
       <style jsx>{`
-        .data-ball-spin-wrap {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
+        .taiq-ball-wrap {
+          pointer-events: none;
         }
 
-        .data-ball-spin {
-          transform-origin: center center;
-          animation: tenaceiq-ball-spin 3.8s linear infinite;
+        .taiq-ball-spin {
+          animation: taiqSpin 4.8s linear infinite;
           will-change: transform;
         }
 
-        @keyframes tenaceiq-ball-spin {
+        @keyframes taiqSpin {
           from {
-            transform: rotate(0deg) scale(1.08);
+            transform: rotate(0deg) scale(1.1);
           }
           to {
-            transform: rotate(360deg) scale(1.08);
+            transform: rotate(360deg) scale(1.1);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .data-ball-spin {
+          .taiq-ball-spin {
             animation: none;
-            transform: scale(1.08);
+            transform: scale(1.1);
           }
         }
       `}</style>

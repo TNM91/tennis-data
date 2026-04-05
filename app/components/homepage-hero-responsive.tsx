@@ -141,7 +141,7 @@ export default function HomePageHeroResponsive() {
             </div>
 
             <div style={{ marginTop: '18px' }}>
-              <BrandWordmark top compact={false} />
+              <BrandWordmark top />
             </div>
 
             <h1
@@ -613,7 +613,7 @@ export default function HomePageHeroResponsive() {
                   minHeight: '72px',
                 }}
               >
-                <BrandWordmark top compact={false} />
+                <BrandWordmark top />
               </div>
             </div>
           </div>
