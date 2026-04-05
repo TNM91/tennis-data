@@ -12,6 +12,7 @@ const PRIMARY_LINKS = [
   { href: '/explore', label: 'Explore' },
   { href: '/matchup', label: 'Matchups' },
   { href: '/captain', label: 'Captain' },
+  { href: '/leagues', label: 'Leagues' },
 ]
 
 function isActiveLink(active: string | undefined, pathname: string, href: string) {
@@ -62,6 +63,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const [screenWidth, setScreenWidth] = useState(1280)
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -101,6 +103,10 @@ export default function SiteHeader({ active }: { active?: string }) {
     }
   }, [])
 
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname, screenWidth])
+
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/')
@@ -114,22 +120,36 @@ export default function SiteHeader({ active }: { active?: string }) {
       width: '100%',
       maxWidth: '1280px',
       margin: '0 auto',
-      display: 'flex',
-      justifyContent: 'space-between',
-      flexDirection: isTablet ? ('column' as const) : ('row' as const),
-      alignItems: isTablet ? ('flex-start' as const) : ('center' as const),
-      gap: isTablet ? '16px' : '22px',
+      borderRadius: '24px',
+      border: '1px solid rgba(116,190,255,0.14)',
+      background: 'linear-gradient(180deg, rgba(18,36,68,0.88) 0%, rgba(10,20,38,0.94) 100%)',
+      boxShadow: '0 20px 50px rgba(5,12,25,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
+      overflow: 'hidden',
     }),
-    [isTablet],
+    [],
+  )
+
+  const topRow = useMemo(
+    () => ({
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: '16px',
+      padding: isMobile ? '14px 14px' : '16px 18px',
+      minHeight: isMobile ? '78px' : '88px',
+    }),
+    [isMobile],
   )
 
   const navStyle = useMemo(
     () => ({
-      display: 'flex',
+      display: isTablet ? 'none' : 'flex',
       gap: '10px',
-      width: isTablet ? '100%' : 'auto',
-      justifyContent: isTablet ? ('flex-start' as const) : ('flex-end' as const),
+      justifyContent: 'flex-end' as const,
       flexWrap: 'wrap' as const,
+      alignItems: 'center',
     }),
     [isTablet],
   )
@@ -138,73 +158,194 @@ export default function SiteHeader({ active }: { active?: string }) {
     ...navLink,
     cursor: 'pointer',
     appearance: 'none' as const,
+    fontFamily: 'inherit',
   }
+
+  const mobileToggleStyle = {
+    width: '48px',
+    height: '48px',
+    borderRadius: '14px',
+    border: '1px solid rgba(116,190,255,0.18)',
+    background: 'linear-gradient(180deg, rgba(40,82,150,0.26) 0%, rgba(18,40,78,0.24) 100%)',
+    color: '#F1F7FF',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    display: isTablet ? 'inline-flex' : 'none',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    flexShrink: 0,
+  } as const
+
+  const mobilePanelStyle = {
+    display: isTablet ? 'block' : 'none',
+    maxHeight: menuOpen ? '720px' : '0px',
+    opacity: menuOpen ? 1 : 0,
+    overflow: 'hidden',
+    transition: 'max-height 220ms ease, opacity 160ms ease',
+    borderTop: menuOpen ? '1px solid rgba(116,190,255,0.10)' : '1px solid transparent',
+    padding: menuOpen ? '12px 14px 14px' : '0 14px',
+  } as const
+
+  const mobileLinkStyle = {
+    ...navLink,
+    width: '100%',
+    justifyContent: 'space-between',
+    minHeight: '52px',
+    padding: '0 16px',
+    borderRadius: '16px',
+  } as const
 
   return (
     <header style={{ position: 'relative', zIndex: 2, padding: headerPadding }}>
       <div style={headerInner}>
-        <Link
-          href="/"
-          style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
-          aria-label="TenAceIQ home"
-        >
-          <BrandWordmark compact={isMobile} top />
-        </Link>
-
-        <nav style={navStyle} aria-label="Primary">
-          {PRIMARY_LINKS.map((link) => {
-            const activeNow = isActiveLink(active, pathname, link.href)
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                style={{
-                  ...navLink,
-                  ...(activeNow ? activeNavLink : {}),
-                }}
-              >
-                {link.label}
-              </Link>
-            )
-          })}
-
+        <div style={topRow}>
           <Link
-            href="/leagues"
+            href="/"
             style={{
-              ...navLink,
-              ...(isActiveLink(active, pathname, '/leagues') ? activeNavLink : {}),
+              display: 'inline-flex',
+              alignItems: 'center',
+              textDecoration: 'none',
+              minWidth: 0,
+              flexShrink: 1,
             }}
+            aria-label="TenAceIQ home"
           >
-            Leagues
+            <BrandWordmark top compact={false} />
           </Link>
 
-          {authLoading ? (
-            <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
-          ) : role === 'public' ? (
-            <>
-              <Link href="/login" style={navLink}>
-                Login
-              </Link>
-              <Link href="/join" style={ctaNavLink}>
-                Join
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link href="/dashboard" style={ctaNavLink}>
-                My Lab
-              </Link>
-              {role === 'admin' ? (
-                <Link href="/admin" style={navLink}>
-                  Admin
+          <nav style={navStyle} aria-label="Primary">
+            {PRIMARY_LINKS.map((link) => {
+              const activeNow = isActiveLink(active, pathname, link.href)
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  style={{
+                    ...navLink,
+                    ...(activeNow ? activeNavLink : {}),
+                  }}
+                >
+                  {link.label}
                 </Link>
-              ) : null}
-              <button type="button" onClick={handleLogout} style={navButtonReset}>
-                Logout
-              </button>
-            </>
-          )}
-        </nav>
+              )
+            })}
+
+            {authLoading ? (
+              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
+            ) : role === 'public' ? (
+              <>
+                <Link href="/login" style={navLink}>
+                  Login
+                </Link>
+                <Link href="/join" style={ctaNavLink}>
+                  Join
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/dashboard" style={ctaNavLink}>
+                  My Lab
+                </Link>
+                {role === 'admin' ? (
+                  <Link href="/admin" style={navLink}>
+                    Admin
+                  </Link>
+                ) : null}
+                <button type="button" onClick={handleLogout} style={navButtonReset}>
+                  Logout
+                </button>
+              </>
+            )}
+          </nav>
+
+          <button
+            type="button"
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((prev) => !prev)}
+            style={mobileToggleStyle}
+          >
+            ☰
+          </button>
+        </div>
+
+        <div style={mobilePanelStyle}>
+          <nav style={{ display: 'grid', gap: '10px' }} aria-label="Mobile primary">
+            {PRIMARY_LINKS.map((link) => {
+              const activeNow = isActiveLink(active, pathname, link.href)
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    ...mobileLinkStyle,
+                    ...(activeNow ? activeNavLink : {}),
+                  }}
+                >
+                  <span>{link.label}</span>
+                  <span style={{ opacity: activeNow ? 0.7 : 0.38 }}>→</span>
+                </Link>
+              )
+            })}
+
+            {authLoading ? (
+              <span style={{ ...mobileLinkStyle, opacity: 0.72 }}>Loading...</span>
+            ) : role === 'public' ? (
+              <>
+                <Link href="/login" onClick={() => setMenuOpen(false)} style={mobileLinkStyle}>
+                  <span>Login</span>
+                  <span style={{ opacity: 0.38 }}>→</span>
+                </Link>
+                <Link
+                  href="/join"
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    ...mobileLinkStyle,
+                    ...ctaNavLink,
+                    borderRadius: '16px',
+                  }}
+                >
+                  <span>Join</span>
+                  <span style={{ opacity: 0.6 }}>→</span>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    ...mobileLinkStyle,
+                    ...ctaNavLink,
+                    borderRadius: '16px',
+                  }}
+                >
+                  <span>My Lab</span>
+                  <span style={{ opacity: 0.6 }}>→</span>
+                </Link>
+                {role === 'admin' ? (
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileLinkStyle}>
+                    <span>Admin</span>
+                    <span style={{ opacity: 0.38 }}>→</span>
+                  </Link>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    ...mobileLinkStyle,
+                    ...navButtonReset,
+                    borderRadius: '16px',
+                  }}
+                >
+                  <span>Logout</span>
+                  <span style={{ opacity: 0.38 }}>→</span>
+                </button>
+              </>
+            )}
+          </nav>
+        </div>
       </div>
     </header>
   )

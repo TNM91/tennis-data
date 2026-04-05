@@ -141,7 +141,7 @@ export default function HomePageHeroResponsive() {
             </div>
 
             <div style={{ marginTop: '18px' }}>
-              <BrandWordmark top={!isMobile} compact={isMobile} />
+              <BrandWordmark top compact={false} />
             </div>
 
             <h1
@@ -387,10 +387,25 @@ export default function HomePageHeroResponsive() {
           >
             <span style={{ color: '#dff0ff', fontSize: '22px' }}>👤</span>
           </div>
-          <div style={{ marginTop: '14px', color: '#f8fbff', fontSize: '22px', fontWeight: 900, letterSpacing: '-0.03em' }}>
+          <div
+            style={{
+              marginTop: '14px',
+              color: '#f8fbff',
+              fontSize: '22px',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+            }}
+          >
             Player intelligence
           </div>
-          <div style={{ marginTop: '8px', color: 'rgba(210,225,244,0.76)', fontSize: '14px', lineHeight: 1.6 }}>
+          <div
+            style={{
+              marginTop: '8px',
+              color: 'rgba(210,225,244,0.76)',
+              fontSize: '14px',
+              lineHeight: 1.6,
+            }}
+          >
             Search player profiles, rating movement, historical results, and recent momentum.
           </div>
         </Link>
@@ -409,10 +424,25 @@ export default function HomePageHeroResponsive() {
           >
             <span style={{ color: '#efffc9', fontSize: '22px' }}>🏆</span>
           </div>
-          <div style={{ marginTop: '14px', color: '#f8fbff', fontSize: '22px', fontWeight: 900, letterSpacing: '-0.03em' }}>
+          <div
+            style={{
+              marginTop: '14px',
+              color: '#f8fbff',
+              fontSize: '22px',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+            }}
+          >
             League context
           </div>
-          <div style={{ marginTop: '8px', color: 'rgba(210,225,244,0.76)', fontSize: '14px', lineHeight: 1.6 }}>
+          <div
+            style={{
+              marginTop: '8px',
+              color: 'rgba(210,225,244,0.76)',
+              fontSize: '14px',
+              lineHeight: 1.6,
+            }}
+          >
             Move from individual analysis to team and league-level context without losing clarity.
           </div>
         </Link>
@@ -431,10 +461,25 @@ export default function HomePageHeroResponsive() {
           >
             <span style={{ color: '#dff0ff', fontSize: '22px' }}>🧠</span>
           </div>
-          <div style={{ marginTop: '14px', color: '#f8fbff', fontSize: '22px', fontWeight: 900, letterSpacing: '-0.03em' }}>
+          <div
+            style={{
+              marginTop: '14px',
+              color: '#f8fbff',
+              fontSize: '22px',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+            }}
+          >
             Captain tools
           </div>
-          <div style={{ marginTop: '8px', color: 'rgba(210,225,244,0.76)', fontSize: '14px', lineHeight: 1.6 }}>
+          <div
+            style={{
+              marginTop: '8px',
+              color: 'rgba(210,225,244,0.76)',
+              fontSize: '14px',
+              lineHeight: 1.6,
+            }}
+          >
             Use availability, lineup planning, and matchup logic to make better decisions faster.
           </div>
         </Link>
@@ -469,14 +514,41 @@ export default function HomePageHeroResponsive() {
             }}
           />
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={{ color: '#8fb8ff', fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div
+              style={{
+                color: '#8fb8ff',
+                fontSize: '12px',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
               Built for real teams
             </div>
-            <div style={{ marginTop: '10px', color: '#f8fbff', fontSize: isMobile ? '26px' : '32px', fontWeight: 900, lineHeight: 1.04, letterSpacing: '-0.04em', maxWidth: '560px' }}>
+            <div
+              style={{
+                marginTop: '10px',
+                color: '#f8fbff',
+                fontSize: isMobile ? '26px' : '32px',
+                fontWeight: 900,
+                lineHeight: 1.04,
+                letterSpacing: '-0.04em',
+                maxWidth: '560px',
+              }}
+            >
               Turn tennis data into better lineup decisions.
             </div>
-            <div style={{ marginTop: '10px', color: 'rgba(210,225,244,0.76)', fontSize: '15px', lineHeight: 1.7, maxWidth: '620px' }}>
-              TenAceIQ is designed to bridge the gap between ratings, real match context, and the decisions captains and players actually need to make each week.
+            <div
+              style={{
+                marginTop: '10px',
+                color: 'rgba(210,225,244,0.76)',
+                fontSize: '15px',
+                lineHeight: 1.7,
+                maxWidth: '620px',
+              }}
+            >
+              TenAceIQ is designed to bridge the gap between ratings, real match context, and the
+              decisions captains and players actually need to make each week.
             </div>
           </div>
         </div>
@@ -487,34 +559,62 @@ export default function HomePageHeroResponsive() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            gap: '14px',
+            gap: '16px',
           }}
         >
           <div>
-            <div style={{ color: '#8fb8ff', fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            <div
+              style={{
+                color: '#8fb8ff',
+                fontSize: '12px',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
               Current brand
             </div>
-            <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+
+            <div
+              style={{
+                marginTop: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                flexWrap: 'wrap',
+              }}
+            >
               <div
                 style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '18px',
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '20px',
                   display: 'grid',
                   placeItems: 'center',
                   background: 'linear-gradient(180deg, rgba(28,51,93,0.8) 0%, rgba(12,22,41,0.92) 100%)',
                   border: '1px solid rgba(116,190,255,0.16)',
+                  boxShadow: '0 16px 36px rgba(5,12,25,0.24)',
+                  flexShrink: 0,
                 }}
               >
                 <Image
                   src="/logo-icon.png"
                   alt="TenAceIQ"
-                  width={34}
-                  height={34}
-                  style={{ width: '34px', height: '34px', objectFit: 'contain' }}
+                  width={48}
+                  height={48}
+                  style={{ width: '48px', height: '48px', objectFit: 'contain' }}
                 />
               </div>
-              <BrandWordmark compact />
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  minHeight: '72px',
+                }}
+              >
+                <BrandWordmark top compact={false} />
+              </div>
             </div>
           </div>
 
