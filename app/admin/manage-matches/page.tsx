@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
@@ -291,17 +292,26 @@ export default function ManageMatchesPage() {
 
   if (authLoading) {
     return (
-      <main className="page-shell-tight">
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <div className="section-kicker">Admin Tool</div>
-            <h1 className="page-title">Checking access...</h1>
-            <p className="page-subtitle">
-              Verifying administrator permissions and loading match management tools.
-            </p>
-          </div>
+      <SiteShell active="/admin">
+        <section
+          style={{
+            width: '100%',
+            maxWidth: '1280px',
+            margin: '0 auto',
+            padding: '18px 24px 0',
+          }}
+        >
+          <section className="hero-panel">
+            <div className="hero-inner">
+              <div className="section-kicker">Admin Tool</div>
+              <h1 className="page-title">Checking access...</h1>
+              <p className="page-subtitle">
+                Verifying administrator permissions and loading match management tools.
+              </p>
+            </div>
+          </section>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
@@ -310,220 +320,266 @@ export default function ManageMatchesPage() {
   }
 
   return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div className="section-kicker">Admin Tool</div>
-          <h1 className="page-title">Manage Matches</h1>
-          <p className="page-subtitle">
-            View, search, filter, and delete singles or doubles matches stored in the
-            matches and match_players structure.
-          </p>
-        </div>
-      </section>
+    <SiteShell active="/admin">
+      <section
+        style={{
+          width: '100%',
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '18px 24px 0',
+        }}
+      >
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Tool</div>
+            <h1 className="page-title">Manage Matches</h1>
+            <p className="page-subtitle">
+              View, search, filter, and delete singles or doubles matches stored in the
+              matches and match_players structure.
+            </p>
+          </div>
+        </section>
 
-      <section className="surface-card panel-pad section">
-        <div
+        <section
+          className="surface-card panel-pad section"
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            gap: 16,
-            flexWrap: 'wrap',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: 16,
-              flex: 1,
-              minWidth: 320,
+              position: 'absolute',
+              top: '-90px',
+              right: '-70px',
+              width: '240px',
+              height: '240px',
+              borderRadius: '999px',
+              background:
+                'radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)',
+              pointerEvents: 'none',
             }}
-          >
-            <Field label="Search">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Player, score, source, line..."
-                className="input"
-                disabled={loading || refreshing}
-              />
-            </Field>
+          />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-120px',
+              left: '-60px',
+              width: '220px',
+              height: '220px',
+              borderRadius: '999px',
+              background:
+                'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)',
+              pointerEvents: 'none',
+            }}
+          />
 
-            <Field label="Match Type">
-              <select
-                value={matchTypeFilter}
-                onChange={(e) => setMatchTypeFilter(e.target.value as 'all' | MatchType)}
-                className="select"
-                disabled={loading || refreshing}
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end',
+                gap: 16,
+                flexWrap: 'wrap',
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: 16,
+                  flex: 1,
+                  minWidth: 320,
+                }}
               >
-                <option value="all">All</option>
-                <option value="singles">Singles</option>
-                <option value="doubles">Doubles</option>
-              </select>
-            </Field>
+                <Field label="Search">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Player, score, source, line..."
+                    className="input"
+                    disabled={loading || refreshing}
+                  />
+                </Field>
+
+                <Field label="Match Type">
+                  <select
+                    value={matchTypeFilter}
+                    onChange={(e) => setMatchTypeFilter(e.target.value as 'all' | MatchType)}
+                    className="select"
+                    disabled={loading || refreshing}
+                  >
+                    <option value="all">All</option>
+                    <option value="singles">Singles</option>
+                    <option value="doubles">Doubles</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  onClick={() => void loadMatches(true)}
+                  className="button-ghost"
+                  style={{
+                    background: 'rgba(15,23,42,0.24)',
+                    color: '#dbeafe',
+                    border: '1px solid rgba(116,190,255,0.12)',
+                    opacity: refreshing ? 0.7 : 1,
+                    cursor: refreshing ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={refreshing || loading}
+                >
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
+
+                <button
+                  onClick={handleRecalculateRatings}
+                  className="button-primary"
+                  style={{
+                    opacity: recalculating ? 0.7 : 1,
+                    cursor: recalculating ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={recalculating || loading}
+                >
+                  {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
+                </button>
+              </div>
+            </div>
+
+            {message && (
+              <div
+                className="badge badge-green"
+                style={{
+                  marginTop: 16,
+                  minHeight: 44,
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  padding: '10px 14px',
+                }}
+              >
+                {message}
+              </div>
+            )}
+
+            {error && (
+              <div
+                className="badge"
+                style={{
+                  marginTop: 16,
+                  minHeight: 44,
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  padding: '10px 14px',
+                  background: 'rgba(220,38,38,0.12)',
+                  color: '#fca5a5',
+                  border: '1px solid rgba(220,38,38,0.18)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <div className="metric-grid" style={{ marginTop: 20 }}>
+              <MetricCard label="Total Matches" value={matches.length} />
+              <MetricCard label="Filtered Matches" value={filteredMatches.length} />
+              <MetricCard
+                label="Singles"
+                value={matches.filter((m) => m.matchType === 'singles').length}
+              />
+              <MetricCard
+                label="Doubles"
+                value={matches.filter((m) => m.matchType === 'doubles').length}
+              />
+            </div>
+
+            {loading ? (
+              <p style={{ marginTop: 20 }} className="subtle-text">
+                Loading matches...
+              </p>
+            ) : filteredMatches.length === 0 ? (
+              <p style={{ marginTop: 20 }} className="subtle-text">
+                No matches found.
+              </p>
+            ) : (
+              <div className="table-wrap" style={{ marginTop: 20 }}>
+                <table className="data-table" style={{ minWidth: 1300 }}>
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Side A</th>
+                      <th>Side B</th>
+                      <th>Winner</th>
+                      <th>Score</th>
+                      <th>Line</th>
+                      <th>Source</th>
+                      <th>External ID</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMatches.map((match) => (
+                      <tr key={match.id}>
+                        <td>{match.matchDate}</td>
+                        <td>{capitalize(match.matchType)}</td>
+                        <td>
+                          <div style={{ minWidth: 180 }}>
+                            <strong>{match.sideA.map((player) => player.name).join(' / ')}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ minWidth: 180 }}>
+                            <strong>{match.sideB.map((player) => player.name).join(' / ')}</strong>
+                          </div>
+                        </td>
+                        <td>{match.winnerSide}</td>
+                        <td>{match.score}</td>
+                        <td>{match.lineNumber || '—'}</td>
+                        <td>{match.source || '—'}</td>
+                        <td>{match.externalMatchId || '—'}</td>
+                        <td>
+                          <button
+                            onClick={() => void handleDeleteMatch(match.id)}
+                            disabled={deletingId === match.id}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minHeight: 40,
+                              padding: '0 14px',
+                              border: 'none',
+                              borderRadius: 12,
+                              background:
+                                'linear-gradient(135deg, rgba(239,68,68,0.95) 0%, rgba(220,38,38,0.95) 100%)',
+                              color: '#ffffff',
+                              fontWeight: 700,
+                              fontSize: '0.9rem',
+                              opacity: deletingId === match.id ? 0.7 : 1,
+                              cursor: deletingId === match.id ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 12px 24px rgba(127,29,29,0.22)',
+                            }}
+                          >
+                            {deletingId === match.id ? 'Deleting...' : 'Delete'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              onClick={() => void loadMatches(true)}
-              className="button-ghost"
-              style={{
-                background: 'rgba(15,23,42,0.06)',
-                color: '#0f172a',
-                border: '1px solid rgba(15,23,42,0.08)',
-                opacity: refreshing ? 0.7 : 1,
-                cursor: refreshing ? 'not-allowed' : 'pointer',
-              }}
-              disabled={refreshing || loading}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-
-            <button
-              onClick={handleRecalculateRatings}
-              className="button-primary"
-              style={{
-                opacity: recalculating ? 0.7 : 1,
-                cursor: recalculating ? 'not-allowed' : 'pointer',
-              }}
-              disabled={recalculating || loading}
-            >
-              {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
-            </button>
-          </div>
-        </div>
-
-        {message && (
-          <div
-            className="badge badge-green"
-            style={{
-              marginTop: 16,
-              minHeight: 44,
-              width: '100%',
-              justifyContent: 'flex-start',
-              padding: '10px 14px',
-            }}
-          >
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div
-            className="badge"
-            style={{
-              marginTop: 16,
-              minHeight: 44,
-              width: '100%',
-              justifyContent: 'flex-start',
-              padding: '10px 14px',
-              background: 'rgba(220,38,38,0.12)',
-              color: '#991b1b',
-              border: '1px solid rgba(220,38,38,0.18)',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <div className="metric-grid" style={{ marginTop: 20 }}>
-          <MetricCard label="Total Matches" value={matches.length} />
-          <MetricCard label="Filtered Matches" value={filteredMatches.length} />
-          <MetricCard
-            label="Singles"
-            value={matches.filter((m) => m.matchType === 'singles').length}
-          />
-          <MetricCard
-            label="Doubles"
-            value={matches.filter((m) => m.matchType === 'doubles').length}
-          />
-        </div>
-
-        {loading ? (
-          <p style={{ marginTop: 20 }} className="subtle-text">
-            Loading matches...
-          </p>
-        ) : filteredMatches.length === 0 ? (
-          <p style={{ marginTop: 20 }} className="subtle-text">
-            No matches found.
-          </p>
-        ) : (
-          <div className="table-wrap" style={{ marginTop: 20 }}>
-            <table className="data-table" style={{ minWidth: 1300 }}>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Side A</th>
-                  <th>Side B</th>
-                  <th>Winner</th>
-                  <th>Score</th>
-                  <th>Line</th>
-                  <th>Source</th>
-                  <th>External ID</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMatches.map((match) => (
-                  <tr key={match.id}>
-                    <td>{match.matchDate}</td>
-                    <td>{capitalize(match.matchType)}</td>
-                    <td>
-                      <div style={{ minWidth: 180 }}>
-                        <strong>{match.sideA.map((player) => player.name).join(' / ')}</strong>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ minWidth: 180 }}>
-                        <strong>{match.sideB.map((player) => player.name).join(' / ')}</strong>
-                      </div>
-                    </td>
-                    <td>{match.winnerSide}</td>
-                    <td>{match.score}</td>
-                    <td>{match.lineNumber || '—'}</td>
-                    <td>{match.source || '—'}</td>
-                    <td>{match.externalMatchId || '—'}</td>
-                    <td>
-                      <button
-                        onClick={() => void handleDeleteMatch(match.id)}
-                        disabled={deletingId === match.id}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          minHeight: 40,
-                          padding: '0 14px',
-                          border: 'none',
-                          borderRadius: 12,
-                          background: '#dc2626',
-                          color: '#ffffff',
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          opacity: deletingId === match.id ? 0.7 : 1,
-                          cursor: deletingId === match.id ? 'not-allowed' : 'pointer',
-                        }}
-                      >
-                        {deletingId === match.id ? 'Deleting...' : 'Delete'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        </section>
       </section>
-    </main>
+    </SiteShell>
   )
 }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
@@ -297,17 +298,26 @@ export default function ManagePlayersPage() {
 
   if (authLoading) {
     return (
-      <main className="page-shell-tight">
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <div className="section-kicker">Admin Tool</div>
-            <h1 className="page-title">Checking access...</h1>
-            <p className="page-subtitle">
-              Verifying administrator permissions and loading player management tools.
-            </p>
-          </div>
+      <SiteShell active="/admin">
+        <section
+          style={{
+            width: '100%',
+            maxWidth: '1280px',
+            margin: '0 auto',
+            padding: '18px 24px 0',
+          }}
+        >
+          <section className="hero-panel">
+            <div className="hero-inner">
+              <div className="section-kicker">Admin Tool</div>
+              <h1 className="page-title">Checking access...</h1>
+              <p className="page-subtitle">
+                Verifying administrator permissions and loading player management tools.
+              </p>
+            </div>
+          </section>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
@@ -316,297 +326,343 @@ export default function ManagePlayersPage() {
   }
 
   return (
-    <main className="page-shell">
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div className="section-kicker">Admin Tool</div>
-          <h1 className="page-title">Manage Players</h1>
-          <p className="page-subtitle">
-            View, search, edit, and delete players using the singles, doubles, and overall
-            ratings structure.
-          </p>
-        </div>
-      </section>
+    <SiteShell active="/admin">
+      <section
+        style={{
+          width: '100%',
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: '18px 24px 0',
+        }}
+      >
+        <section className="hero-panel">
+          <div className="hero-inner">
+            <div className="section-kicker">Admin Tool</div>
+            <h1 className="page-title">Manage Players</h1>
+            <p className="page-subtitle">
+              View, search, edit, and delete players using the singles, doubles, and overall
+              ratings structure.
+            </p>
+          </div>
+        </section>
 
-      <section className="surface-card panel-pad section">
-        <div
+        <section
+          className="surface-card panel-pad section"
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'end',
-            gap: '16px',
-            flexWrap: 'wrap',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '16px',
-              flex: 1,
-              minWidth: '320px',
+              position: 'absolute',
+              top: '-90px',
+              right: '-70px',
+              width: '240px',
+              height: '240px',
+              borderRadius: '999px',
+              background:
+                'radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)',
+              pointerEvents: 'none',
             }}
-          >
-            <Field label="Search">
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Player name or location"
-                className="input"
-                disabled={loading || refreshing}
-              />
-            </Field>
-
-            <Field label="Sort By">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="select"
-                disabled={loading || refreshing}
-              >
-                <option value="name">Name</option>
-                <option value="location">Location</option>
-                <option value="singles_rating">Singles Rating</option>
-                <option value="singles_dynamic_rating">Singles Dynamic</option>
-                <option value="doubles_rating">Doubles Rating</option>
-                <option value="doubles_dynamic_rating">Doubles Dynamic</option>
-                <option value="overall_rating">Overall Rating</option>
-                <option value="overall_dynamic_rating">Overall Dynamic</option>
-              </select>
-            </Field>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '12px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              onClick={() => loadPlayers(true)}
-              className="button-ghost"
-              style={{
-                background: 'rgba(15,23,42,0.06)',
-                color: '#0f172a',
-                border: '1px solid rgba(15,23,42,0.08)',
-                opacity: refreshing ? 0.7 : 1,
-                cursor: refreshing ? 'not-allowed' : 'pointer',
-              }}
-              disabled={refreshing || loading}
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </button>
-
-            <button
-              onClick={handleRecalculateRatings}
-              className="button-primary"
-              style={{
-                opacity: recalculating ? 0.7 : 1,
-                cursor: recalculating ? 'not-allowed' : 'pointer',
-              }}
-              disabled={recalculating || loading}
-            >
-              {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
-            </button>
-          </div>
-        </div>
-
-        {message && (
-          <div
-            className="badge badge-green"
-            style={{
-              marginTop: '16px',
-              minHeight: 44,
-              width: '100%',
-              justifyContent: 'flex-start',
-              padding: '10px 14px',
-            }}
-          >
-            {message}
-          </div>
-        )}
-
-        {error && (
-          <div
-            className="badge"
-            style={{
-              marginTop: '16px',
-              minHeight: 44,
-              width: '100%',
-              justifyContent: 'flex-start',
-              padding: '10px 14px',
-              background: 'rgba(220,38,38,0.12)',
-              color: '#991b1b',
-              border: '1px solid rgba(220,38,38,0.18)',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <div className="metric-grid" style={{ marginTop: '20px' }}>
-          <MetricCard label="Total Players" value={players.length} />
-          <MetricCard label="Filtered Players" value={filteredPlayers.length} />
-          <MetricCard
-            label="Editable Rows"
-            value={filteredPlayers.length}
           />
-        </div>
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-120px',
+              left: '-60px',
+              width: '220px',
+              height: '220px',
+              borderRadius: '999px',
+              background:
+                'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)',
+              pointerEvents: 'none',
+            }}
+          />
 
-        {loading ? (
-          <p style={{ marginTop: '20px' }} className="subtle-text">
-            Loading players...
-          </p>
-        ) : filteredPlayers.length === 0 ? (
-          <p style={{ marginTop: '20px' }} className="subtle-text">
-            No players found.
-          </p>
-        ) : (
-          <div className="table-wrap" style={{ marginTop: '20px' }}>
-            <table className="data-table" style={{ minWidth: 1250 }}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Location</th>
-                  <th>Singles</th>
-                  <th>Singles Dynamic</th>
-                  <th>Doubles</th>
-                  <th>Doubles Dynamic</th>
-                  <th>Overall</th>
-                  <th>Overall Dynamic</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPlayers.map((player) => (
-                  <tr key={player.id}>
-                    <td>
-                      <input
-                        value={String(getPlayerValue(player, 'name') || '')}
-                        onChange={(e) => updatePlayerField(player.id, 'name', e.target.value)}
-                        className="input"
-                        style={{ minWidth: 180, padding: '10px 12px' }}
-                        disabled={savingId === player.id || deletingId === player.id}
-                      />
-                    </td>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'end',
+                gap: '16px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '16px',
+                  flex: 1,
+                  minWidth: '320px',
+                }}
+              >
+                <Field label="Search">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Player name or location"
+                    className="input"
+                    disabled={loading || refreshing}
+                  />
+                </Field>
 
-                    <td>
-                      <input
-                        value={String(getPlayerValue(player, 'location') || '')}
-                        onChange={(e) => updatePlayerField(player.id, 'location', e.target.value)}
-                        className="input"
-                        style={{ minWidth: 150, padding: '10px 12px' }}
-                        disabled={savingId === player.id || deletingId === player.id}
-                      />
-                    </td>
+                <Field label="Sort By">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    className="select"
+                    disabled={loading || refreshing}
+                  >
+                    <option value="name">Name</option>
+                    <option value="location">Location</option>
+                    <option value="singles_rating">Singles Rating</option>
+                    <option value="singles_dynamic_rating">Singles Dynamic</option>
+                    <option value="doubles_rating">Doubles Rating</option>
+                    <option value="doubles_dynamic_rating">Doubles Dynamic</option>
+                    <option value="overall_rating">Overall Rating</option>
+                    <option value="overall_dynamic_rating">Overall Dynamic</option>
+                  </select>
+                </Field>
+              </div>
 
-                    <td>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={String(getPlayerValue(player, 'singles_rating') ?? '')}
-                        onChange={(e) =>
-                          updatePlayerField(player.id, 'singles_rating', e.target.value)
-                        }
-                        className="input"
-                        style={{ width: 110, padding: '10px 12px' }}
-                        disabled={savingId === player.id || deletingId === player.id}
-                      />
-                    </td>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '12px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  onClick={() => loadPlayers(true)}
+                  className="button-ghost"
+                  style={{
+                    background: 'rgba(15,23,42,0.24)',
+                    color: '#dbeafe',
+                    border: '1px solid rgba(116,190,255,0.12)',
+                    opacity: refreshing ? 0.7 : 1,
+                    cursor: refreshing ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={refreshing || loading}
+                >
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
 
-                    <td>{formatRating(player.singles_dynamic_rating)}</td>
+                <button
+                  onClick={handleRecalculateRatings}
+                  className="button-primary"
+                  style={{
+                    opacity: recalculating ? 0.7 : 1,
+                    cursor: recalculating ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={recalculating || loading}
+                >
+                  {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
+                </button>
+              </div>
+            </div>
 
-                    <td>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={String(getPlayerValue(player, 'doubles_rating') ?? '')}
-                        onChange={(e) =>
-                          updatePlayerField(player.id, 'doubles_rating', e.target.value)
-                        }
-                        className="input"
-                        style={{ width: 110, padding: '10px 12px' }}
-                        disabled={savingId === player.id || deletingId === player.id}
-                      />
-                    </td>
+            {message && (
+              <div
+                className="badge badge-green"
+                style={{
+                  marginTop: '16px',
+                  minHeight: 44,
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  padding: '10px 14px',
+                }}
+              >
+                {message}
+              </div>
+            )}
 
-                    <td>{formatRating(player.doubles_dynamic_rating)}</td>
+            {error && (
+              <div
+                className="badge"
+                style={{
+                  marginTop: '16px',
+                  minHeight: 44,
+                  width: '100%',
+                  justifyContent: 'flex-start',
+                  padding: '10px 14px',
+                  background: 'rgba(220,38,38,0.12)',
+                  color: '#fca5a5',
+                  border: '1px solid rgba(220,38,38,0.18)',
+                }}
+              >
+                {error}
+              </div>
+            )}
 
-                    <td>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={String(getPlayerValue(player, 'overall_rating') ?? '')}
-                        onChange={(e) =>
-                          updatePlayerField(player.id, 'overall_rating', e.target.value)
-                        }
-                        className="input"
-                        style={{ width: 110, padding: '10px 12px' }}
-                        disabled={savingId === player.id || deletingId === player.id}
-                      />
-                    </td>
+            <div className="metric-grid" style={{ marginTop: '20px' }}>
+              <MetricCard label="Total Players" value={players.length} />
+              <MetricCard label="Filtered Players" value={filteredPlayers.length} />
+              <MetricCard
+                label="Editable Rows"
+                value={filteredPlayers.length}
+              />
+            </div>
 
-                    <td>{formatRating(player.overall_dynamic_rating)}</td>
+            {loading ? (
+              <p style={{ marginTop: '20px' }} className="subtle-text">
+                Loading players...
+              </p>
+            ) : filteredPlayers.length === 0 ? (
+              <p style={{ marginTop: '20px' }} className="subtle-text">
+                No players found.
+              </p>
+            ) : (
+              <div className="table-wrap" style={{ marginTop: '20px' }}>
+                <table className="data-table" style={{ minWidth: 1250 }}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Location</th>
+                      <th>Singles</th>
+                      <th>Singles Dynamic</th>
+                      <th>Doubles</th>
+                      <th>Doubles Dynamic</th>
+                      <th>Overall</th>
+                      <th>Overall Dynamic</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlayers.map((player) => (
+                      <tr key={player.id}>
+                        <td>
+                          <input
+                            value={String(getPlayerValue(player, 'name') || '')}
+                            onChange={(e) => updatePlayerField(player.id, 'name', e.target.value)}
+                            className="input"
+                            style={{ minWidth: 180, padding: '10px 12px' }}
+                            disabled={savingId === player.id || deletingId === player.id}
+                          />
+                        </td>
 
-                    <td>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '8px',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <button
-                          onClick={() => handleSavePlayer(player)}
-                          className="button-secondary"
-                          style={{
-                            minHeight: 40,
-                            padding: '0 14px',
-                            opacity:
-                              savingId === player.id || !isPlayerDirty(player.id) ? 0.7 : 1,
-                            cursor:
-                              savingId === player.id || !isPlayerDirty(player.id)
-                                ? 'not-allowed'
-                                : 'pointer',
-                          }}
-                          disabled={savingId === player.id || !isPlayerDirty(player.id)}
-                        >
-                          {savingId === player.id ? 'Saving...' : 'Save'}
-                        </button>
+                        <td>
+                          <input
+                            value={String(getPlayerValue(player, 'location') || '')}
+                            onChange={(e) => updatePlayerField(player.id, 'location', e.target.value)}
+                            className="input"
+                            style={{ minWidth: 150, padding: '10px 12px' }}
+                            disabled={savingId === player.id || deletingId === player.id}
+                          />
+                        </td>
 
-                        <button
-                          onClick={() => handleDeletePlayer(player)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: 40,
-                            padding: '0 14px',
-                            border: 'none',
-                            borderRadius: 12,
-                            background: '#dc2626',
-                            color: '#ffffff',
-                            fontWeight: 700,
-                            fontSize: '0.9rem',
-                            opacity: deletingId === player.id ? 0.7 : 1,
-                            cursor: deletingId === player.id ? 'not-allowed' : 'pointer',
-                          }}
-                          disabled={deletingId === player.id}
-                        >
-                          {deletingId === player.id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        <td>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={String(getPlayerValue(player, 'singles_rating') ?? '')}
+                            onChange={(e) =>
+                              updatePlayerField(player.id, 'singles_rating', e.target.value)
+                            }
+                            className="input"
+                            style={{ width: 110, padding: '10px 12px' }}
+                            disabled={savingId === player.id || deletingId === player.id}
+                          />
+                        </td>
+
+                        <td>{formatRating(player.singles_dynamic_rating)}</td>
+
+                        <td>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={String(getPlayerValue(player, 'doubles_rating') ?? '')}
+                            onChange={(e) =>
+                              updatePlayerField(player.id, 'doubles_rating', e.target.value)
+                            }
+                            className="input"
+                            style={{ width: 110, padding: '10px 12px' }}
+                            disabled={savingId === player.id || deletingId === player.id}
+                          />
+                        </td>
+
+                        <td>{formatRating(player.doubles_dynamic_rating)}</td>
+
+                        <td>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={String(getPlayerValue(player, 'overall_rating') ?? '')}
+                            onChange={(e) =>
+                              updatePlayerField(player.id, 'overall_rating', e.target.value)
+                            }
+                            className="input"
+                            style={{ width: 110, padding: '10px 12px' }}
+                            disabled={savingId === player.id || deletingId === player.id}
+                          />
+                        </td>
+
+                        <td>{formatRating(player.overall_dynamic_rating)}</td>
+
+                        <td>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '8px',
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            <button
+                              onClick={() => handleSavePlayer(player)}
+                              className="button-secondary"
+                              style={{
+                                minHeight: 40,
+                                padding: '0 14px',
+                                opacity:
+                                  savingId === player.id || !isPlayerDirty(player.id) ? 0.7 : 1,
+                                cursor:
+                                  savingId === player.id || !isPlayerDirty(player.id)
+                                    ? 'not-allowed'
+                                    : 'pointer',
+                              }}
+                              disabled={savingId === player.id || !isPlayerDirty(player.id)}
+                            >
+                              {savingId === player.id ? 'Saving...' : 'Save'}
+                            </button>
+
+                            <button
+                              onClick={() => handleDeletePlayer(player)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minHeight: 40,
+                                padding: '0 14px',
+                                border: 'none',
+                                borderRadius: 12,
+                                background:
+                                  'linear-gradient(135deg, rgba(239,68,68,0.95) 0%, rgba(220,38,38,0.95) 100%)',
+                                color: '#ffffff',
+                                fontWeight: 700,
+                                fontSize: '0.9rem',
+                                opacity: deletingId === player.id ? 0.7 : 1,
+                                cursor: deletingId === player.id ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 12px 24px rgba(127,29,29,0.22)',
+                              }}
+                              disabled={deletingId === player.id}
+                            >
+                              {deletingId === player.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
+        </section>
       </section>
-    </main>
+    </SiteShell>
   )
 }
 
