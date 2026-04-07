@@ -28,9 +28,23 @@ export type PreparedImportRow = {
   date: string
   matchType: MatchType
   source: string
-  externalMatchId?: string | null
-  lineNumber?: string | null
+
+  /**
+   * Locked to accept both strings and numbers from parser outputs.
+   * The engine normalizes these to strings before inserting.
+   */
+  externalMatchId?: string | number | null
+  lineNumber?: string | number | null
+
+  /**
+   * Optional extra match fields for workflows like scorecard import.
+   * These are merged directly into the matches insert payload.
+   */
   matchInsertOverrides?: Record<string, unknown>
+
+  /**
+   * Optional defaults applied when a missing player must be created.
+   */
   createPlayerDefaults?: Partial<PlayerRecord>
 }
 
@@ -196,7 +210,7 @@ export async function commitImportPreview(
   const {
     createMissingPlayers: shouldCreateMissingPlayers = true,
     recalculateRatings = true,
-    failFast = true,
+    failFast = false,
   } = options
 
   const rowFailures: InvalidImportRow[] = []
@@ -260,9 +274,9 @@ export async function commitImportPreview(
         match_type: row.matchType,
         score: normalizeResult(row.score),
         winner_side: row.winnerSide,
-        line_number: normalizeNullableText(row.lineNumber),
+        line_number: normalizeOptionalStringLike(row.lineNumber),
         source: normalizeSource(row.source, 'import'),
-        external_match_id: normalizeNullableText(row.externalMatchId),
+        external_match_id: normalizeOptionalStringLike(row.externalMatchId),
         dedupe_key: dedupeKey,
         ...(row.matchInsertOverrides || {}),
       }
@@ -339,16 +353,13 @@ export async function commitImportPreview(
     }
   }
 
-  const failedRowCount = rowFailures.length
-  const skippedDuplicateMatchCount = duplicateSkipIds.size
-
   return {
     parsedCount: preview.parsedCount,
     participantRowCount: preview.participantRowCount,
     uniqueMatchCount: preview.uniqueMatchCount,
     insertedMatchCount,
-    skippedDuplicateMatchCount,
-    failedRowCount,
+    skippedDuplicateMatchCount: duplicateSkipIds.size,
+    failedRowCount: rowFailures.length,
     createdPlayerCount: createdPlayers.length,
     ratingsRecalculated,
     rowFailures,
@@ -634,6 +645,12 @@ export function normalizeResult(result: string) {
 
 export function normalizeNullableText(value: string | null | undefined) {
   const normalized = (value ?? '').trim()
+  return normalized ? normalized : null
+}
+
+export function normalizeOptionalStringLike(value: string | number | null | undefined) {
+  if (value === null || value === undefined) return null
+  const normalized = String(value).trim()
   return normalized ? normalized : null
 }
 

@@ -2,9 +2,14 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 
@@ -59,20 +64,73 @@ type ScenarioRow = {
   notes: string | null
 }
 
+type PredictionSnapshotInsert = {
+  scenario_id: string | null
+  scenario_name: string
+  league_name: string | null
+  flight: string | null
+  match_date: string | null
+  team_name: string | null
+  opponent_team: string | null
+  projected_team_win_pct: number | null
+  projected_score_for: number | null
+  projected_score_against: number | null
+  favored_lines: number
+  underdog_lines: number
+  swing_line_label: string | null
+  strongest_line_label: string | null
+  weakest_line_label: string | null
+  confidence_score: number | null
+  confidence_tier: string | null
+  slots_json: unknown
+  opponent_slots_json: unknown
+  line_projections_json: unknown
+  notes: string | null
+  source: string
+}
+
 type PoolPlayer = PlayerRow & {
   availabilityStatus: string | null
   availabilityNotes: string | null
 }
 
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captain', label: "Captain's Corner" },
-]
+type OptimizerMode = 'best' | 'safe' | 'upside'
+
+type LineProjection = {
+  label: string
+  slotType: 'singles' | 'doubles'
+  teamPlayers: SlotPlayer[]
+  opponentPlayers: SlotPlayer[]
+  playerCount: number
+  yourStrength: number | null
+  opponentStrength: number | null
+  yourRating: number | null
+  opponentRating: number | null
+  diff: number | null
+  projection: number | null
+}
+
+type LineupStrengthAnalysis = {
+  lines: LineProjection[]
+  avgDiff: number
+  projection: number
+}
+
+type OptimizedLineupPlan = {
+  mode: OptimizerMode
+  title: string
+  subtitle: string
+  slots: LineupSlot[]
+  bench: PoolPlayer[]
+  analysis: LineupStrengthAnalysis
+  score: number
+}
+
+type RecommendationCard = {
+  title: string
+  body: string
+  tone: 'good' | 'warn' | 'info'
+}
 
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = [
   createSinglesSlot('s1', 'Singles 1'),
@@ -118,6 +176,16 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
+function cleanText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function uniqueSorted(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => (value ?? '').trim()).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b)
+  )
+}
+
 function formatDate(value: string | null) {
   if (!value) return '—'
   const date = new Date(value)
@@ -125,58 +193,60 @@ function formatDate(value: string | null) {
   return date.toLocaleDateString()
 }
 
-function cleanText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
+function formatRating(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
+  return value.toFixed(2)
 }
 
-function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.map((value) => (value ?? '').trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b))
+function formatPercent(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
+  return `${Math.round(value * 100)}%`
 }
 
 function availabilityRank(status: string | null | undefined) {
   const normalized = (status ?? '').trim().toLowerCase()
-
   if (normalized === 'available' || normalized === 'yes' || normalized === 'in') return 0
   if (normalized === 'maybe') return 1
   if (normalized === 'unknown' || normalized === '') return 2
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') return 3
-
   return 2
 }
 
-function statusTone(status: string | null | undefined) {
-  const normalized = (status ?? '').trim().toLowerCase()
+function reliabilityWeight(status: string | null | undefined) {
+  const rank = availabilityRank(status)
+  if (rank === 0) return 1
+  if (rank === 1) return 0.82
+  if (rank === 2) return 0.66
+  return 0.35
+}
 
+function statusTone(status: string | null | undefined): CSSProperties {
+  const normalized = (status ?? '').trim().toLowerCase()
   if (normalized === 'available' || normalized === 'yes' || normalized === 'in') {
     return {
-      background: 'rgba(112, 255, 165, 0.12)',
-      color: '#0f8f52',
-      border: '1px solid rgba(112, 255, 165, 0.28)',
+      background: 'rgba(72, 187, 120, 0.16)',
+      color: '#d1fae5',
+      border: '1px solid rgba(72, 187, 120, 0.32)',
     }
   }
-
   if (normalized === 'maybe') {
     return {
-      background: 'rgba(255, 214, 102, 0.14)',
-      color: '#9a6700',
-      border: '1px solid rgba(255, 214, 102, 0.34)',
+      background: 'rgba(245, 158, 11, 0.16)',
+      color: '#fde68a',
+      border: '1px solid rgba(245, 158, 11, 0.32)',
     }
   }
-
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') {
     return {
-      background: 'rgba(255, 93, 93, 0.10)',
-      color: '#c43f3f',
-      border: '1px solid rgba(255, 93, 93, 0.24)',
+      background: 'rgba(239, 68, 68, 0.16)',
+      color: '#fecaca',
+      border: '1px solid rgba(239, 68, 68, 0.32)',
     }
   }
-
   return {
-    background: 'rgba(37, 91, 227, 0.08)',
-    color: '#4c67a7',
-    border: '1px solid rgba(37, 91, 227, 0.14)',
+    background: 'rgba(37, 99, 235, 0.14)',
+    color: '#bfdbfe',
+    border: '1px solid rgba(37, 99, 235, 0.28)',
   }
 }
 
@@ -191,60 +261,80 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
 
     const slotType = obj.slotType === 'doubles' ? 'doubles' : 'singles'
     const label = cleanText(obj.label) || `Slot ${index + 1}`
+    const id = cleanText(obj.id) || `slot-${index + 1}`
 
     const rawPlayers = Array.isArray(obj.players) ? obj.players : []
-    const normalizedPlayers = rawPlayers.map((player) => {
-      const p =
+    const players = rawPlayers.map((player) => {
+      const entry =
         typeof player === 'object' && player !== null
           ? (player as Record<string, unknown>)
           : {}
-
       return {
-        playerId: cleanText(p.playerId),
-        playerName: cleanText(p.playerName),
+        playerId: cleanText(entry.playerId),
+        playerName: cleanText(entry.playerName),
       }
     })
 
     return {
-      id: cleanText(obj.id) || `slot-${index + 1}`,
+      id,
       label,
       slotType,
       players:
         slotType === 'doubles'
           ? [
-              normalizedPlayers[0] ?? { playerId: '', playerName: '' },
-              normalizedPlayers[1] ?? { playerId: '', playerName: '' },
+              players[0] ?? { playerId: '', playerName: '' },
+              players[1] ?? { playerId: '', playerName: '' },
             ]
-          : [normalizedPlayers[0] ?? { playerId: '', playerName: '' }],
+          : [players[0] ?? { playerId: '', playerName: '' }],
     }
   })
 }
 
 function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
   const selected = slot.players
-    .map((slotPlayer) => players.find((p) => p.id === slotPlayer.playerId))
+    .map((slotPlayer) => players.find((player) => player.id === slotPlayer.playerId))
     .filter(Boolean) as PlayerRow[]
 
   if (!selected.length) return null
 
   if (slot.slotType === 'singles') {
-    return selected[0].singles_dynamic_rating ?? selected[0].singles_rating ?? selected[0].overall_dynamic_rating ?? selected[0].overall_rating
+    const first = selected[0]
+    return (
+      first.singles_dynamic_rating ??
+      first.singles_rating ??
+      first.overall_dynamic_rating ??
+      first.overall_rating
+    )
   }
 
   const values = selected
-    .map((p) => p.doubles_dynamic_rating ?? p.doubles_rating ?? p.overall_dynamic_rating ?? p.overall_rating)
-    .filter((v): v is number => typeof v === 'number')
+    .map((player) => player.doubles_dynamic_rating ?? player.doubles_rating ?? player.overall_dynamic_rating ?? player.overall_rating)
+    .filter((value): value is number => typeof value === 'number')
 
   if (!values.length) return null
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-function formatStrength(value: number | null) {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+function probabilityFromDiff(diff: number | null | undefined) {
+  if (typeof diff !== 'number' || Number.isNaN(diff)) return null
+  return 1 / (1 + Math.exp(-diff * 3.2))
 }
 
-function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlot[], players: PlayerRow[]) {
-  const lines = teamSlots.map((slot, index) => {
+function projectionTier(value: number | null | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'Unknown'
+  if (value >= 0.7) return 'Strong edge'
+  if (value >= 0.58) return 'Lean your side'
+  if (value >= 0.42) return 'Toss-up'
+  if (value >= 0.3) return 'Need help elsewhere'
+  return 'Clear underdog'
+}
+
+function compareLineupStrength(
+  teamSlots: LineupSlot[],
+  opponentSlots: LineupSlot[],
+  players: PlayerRow[]
+): LineupStrengthAnalysis {
+  const lines: LineProjection[] = teamSlots.map((slot, index) => {
     const opponentSlot = opponentSlots[index]
     const yourStrength = selectedLineStrength(slot, players)
     const opponentStrength = opponentSlot ? selectedLineStrength(opponentSlot, players) : null
@@ -256,24 +346,408 @@ function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlo
     return {
       label: slot.label,
       slotType: slot.slotType,
+      teamPlayers: slot.players.map((player) => ({ ...player })),
+      opponentPlayers: opponentSlot ? opponentSlot.players.map((player) => ({ ...player })) : [],
+      playerCount: slot.slotType === 'doubles' ? 2 : 1,
       yourStrength,
       opponentStrength,
+      yourRating: yourStrength,
+      opponentRating: opponentStrength,
       diff,
+      projection: probabilityFromDiff(diff),
     }
   })
 
-  const diffs = lines
-    .map((line) => line.diff)
-    .filter((value): value is number => typeof value === 'number')
-
+  const diffs = lines.map((line) => line.diff).filter((value): value is number => typeof value === 'number')
   const avgDiff = diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0
   const projection = 1 / (1 + Math.exp(-avgDiff * 3.2))
 
-  return {
-    lines,
-    avgDiff,
-    projection,
+  return { lines, avgDiff, projection }
+}
+
+function scorePoolPlayerForSlot(player: PoolPlayer, slotType: 'singles' | 'doubles') {
+  const primary =
+    slotType === 'singles'
+      ? player.singles_dynamic_rating ?? player.singles_rating ?? player.overall_dynamic_rating ?? player.overall_rating ?? 0
+      : player.doubles_dynamic_rating ?? player.doubles_rating ?? player.overall_dynamic_rating ?? player.overall_rating ?? 0
+
+  const secondary =
+    slotType === 'singles'
+      ? player.doubles_dynamic_rating ?? player.overall_dynamic_rating ?? player.overall_rating ?? 0
+      : player.singles_dynamic_rating ?? player.overall_dynamic_rating ?? player.overall_rating ?? 0
+
+  const roleBoost =
+    slotType === 'singles'
+      ? (player.preferred_role ?? '').toLowerCase().includes('single') ? 0.12 : 0
+      : (player.preferred_role ?? '').toLowerCase().includes('double') ? 0.12 : 0
+
+  return primary * 1.1 + secondary * 0.12 + roleBoost
+}
+
+function recommendLineupFromPool(
+  baseSlots: LineupSlot[],
+  playerPool: PoolPlayer[],
+  mode: 'balanced' | 'ceiling' = 'balanced'
+) {
+  const nextSlots = cloneSlots(baseSlots)
+  const available = [...playerPool]
+  const used = new Set<string>()
+
+  const pickBest = (slotType: 'singles' | 'doubles') => {
+    const ranked = available
+      .filter((player) => !used.has(player.id))
+      .map((player) => ({
+        player,
+        score:
+          scorePoolPlayerForSlot(player, slotType) +
+          reliabilityWeight(player.availabilityStatus) * 0.18 +
+          (mode === 'ceiling' ? (player.overall_dynamic_rating ?? player.overall_rating ?? 0) * 0.04 : 0),
+      }))
+      .sort((a, b) => b.score - a.score)
+
+    const best = ranked[0]?.player ?? null
+    if (best) used.add(best.id)
+    return best
   }
+
+  for (const slot of nextSlots) {
+    if (slot.slotType === 'singles') {
+      const best = pickBest('singles')
+      slot.players = [{ playerId: best?.id ?? '', playerName: best?.name ?? '' }]
+      continue
+    }
+
+    const first = pickBest('doubles')
+    const second = pickBest('doubles')
+    slot.players = [
+      { playerId: first?.id ?? '', playerName: first?.name ?? '' },
+      { playerId: second?.id ?? '', playerName: second?.name ?? '' },
+    ]
+  }
+
+  const bench = available.filter((player) => !used.has(player.id))
+  return { slots: nextSlots, bench }
+}
+
+function lineupOptimizerScore(
+  slots: LineupSlot[],
+  pool: PoolPlayer[],
+  opponentSlots: LineupSlot[],
+  players: PlayerRow[],
+  mode: OptimizerMode
+) {
+  const analysis = compareLineupStrength(slots, opponentSlots, players)
+  const filledCount = slots.reduce((sum, slot) => sum + slot.players.filter((player) => player.playerId).length, 0)
+  const totalCount = slots.reduce((sum, slot) => sum + (slot.slotType === 'doubles' ? 2 : 1), 0)
+  const completeness = totalCount ? filledCount / totalCount : 0
+
+  const usedIds = new Set(slots.flatMap((slot) => slot.players.map((player) => player.playerId)).filter(Boolean))
+
+  const reliabilityValues = pool
+    .filter((player) => usedIds.has(player.id))
+    .map((player) => reliabilityWeight(player.availabilityStatus))
+
+  const reliability = reliabilityValues.length
+    ? reliabilityValues.reduce((sum, value) => sum + value, 0) / reliabilityValues.length
+    : 0
+
+  const favoredLines = analysis.lines.filter((line) => typeof line.projection === 'number' && line.projection >= 0.5).length
+  const underdogLines = analysis.lines.filter((line) => typeof line.projection === 'number' && line.projection < 0.5).length
+  const weakestProjection = analysis.lines.reduce((lowest, line) => Math.min(lowest, typeof line.projection === 'number' ? line.projection : 1), 1)
+  const strongestProjection = analysis.lines.reduce((highest, line) => Math.max(highest, typeof line.projection === 'number' ? line.projection : 0), 0)
+  const swingLineCount = analysis.lines.filter((line) => {
+    const value = typeof line.projection === 'number' ? line.projection : null
+    return typeof value === 'number' && value >= 0.42 && value <= 0.58
+  }).length
+
+  const safeBias =
+    mode === 'safe'
+      ? reliability * 30 + completeness * 22 + weakestProjection * 24 - underdogLines * 3
+      : 0
+
+  const upsideBias =
+    mode === 'upside'
+      ? strongestProjection * 26 + favoredLines * 6 + Math.max(0, analysis.avgDiff) * 10
+      : 0
+
+  const bestBias =
+    mode === 'best'
+      ? reliability * 10 + favoredLines * 5 + swingLineCount * 4 + completeness * 12
+      : 0
+
+  const score =
+    analysis.projection * 100 +
+    analysis.avgDiff * 18 +
+    completeness * 16 +
+    safeBias +
+    upsideBias +
+    bestBias
+
+  return { analysis, score }
+}
+
+function optimizeLineupFromPool(
+  baseSlots: LineupSlot[],
+  playerPool: PoolPlayer[],
+  opponentSlots: LineupSlot[],
+  players: PlayerRow[],
+  mode: OptimizerMode
+): OptimizedLineupPlan {
+  const teamSlots = cloneSlots(baseSlots)
+  const used = new Set<string>()
+  const totalNeeded = teamSlots.reduce((sum, slot) => sum + (slot.slotType === 'doubles' ? 2 : 1), 0)
+
+  const topPool = [...playerPool]
+    .sort((a, b) => {
+      const aOverall = a.overall_dynamic_rating ?? a.overall_rating ?? 0
+      const bOverall = b.overall_dynamic_rating ?? b.overall_rating ?? 0
+      return bOverall - aOverall
+    })
+    .slice(0, Math.max(totalNeeded + 6, 12))
+
+  const opponentSinglesByStrength = opponentSlots
+    .map((slot, index) => ({ slot, index, strength: selectedLineStrength(slot, players) ?? 3.5 }))
+    .filter((item) => item.slot.slotType === 'singles')
+    .sort((a, b) => {
+      if (mode === 'upside') return a.strength - b.strength
+      return b.strength - a.strength
+    })
+
+  const opponentDoublesByStrength = opponentSlots
+    .map((slot, index) => ({ slot, index, strength: selectedLineStrength(slot, players) ?? 3.5 }))
+    .filter((item) => item.slot.slotType === 'doubles')
+    .sort((a, b) => {
+      if (mode === 'upside') return a.strength - b.strength
+      return b.strength - a.strength
+    })
+
+  const rankSingles = (player: PoolPlayer) => {
+    const singlesValue =
+      player.singles_dynamic_rating ??
+      player.singles_rating ??
+      player.overall_dynamic_rating ??
+      player.overall_rating ??
+      0
+    const overallValue = player.overall_dynamic_rating ?? player.overall_rating ?? 0
+    const reliability = reliabilityWeight(player.availabilityStatus)
+    const roleBoost = (player.preferred_role ?? '').toLowerCase().includes('single') ? 0.18 : 0
+
+    if (mode === 'safe') return singlesValue * 1.1 + overallValue * 0.12 + reliability * 0.6 + roleBoost
+    if (mode === 'upside') return singlesValue * 1.18 + overallValue * 0.24 + roleBoost
+    return singlesValue * 1.14 + overallValue * 0.18 + reliability * 0.26 + roleBoost
+  }
+
+  const rankDoubles = (a: PoolPlayer, b: PoolPlayer) => {
+    const aD =
+      a.doubles_dynamic_rating ?? a.doubles_rating ?? a.overall_dynamic_rating ?? a.overall_rating ?? 0
+    const bD =
+      b.doubles_dynamic_rating ?? b.doubles_rating ?? b.overall_dynamic_rating ?? b.overall_rating ?? 0
+    const avg = (aD + bD) / 2
+    const balance = 1 - Math.min(0.4, Math.abs(aD - bD) / 4)
+    const reliability =
+      (reliabilityWeight(a.availabilityStatus) + reliabilityWeight(b.availabilityStatus)) / 2
+    const roleBoost =
+      ((a.preferred_role ?? '').toLowerCase().includes('double') ? 0.14 : 0) +
+      ((b.preferred_role ?? '').toLowerCase().includes('double') ? 0.14 : 0)
+
+    if (mode === 'safe') return avg * 1.06 + balance * 0.45 + reliability * 0.55 + roleBoost
+    if (mode === 'upside') return avg * 1.18 + Math.max(aD, bD) * 0.1 + roleBoost
+    return avg * 1.11 + balance * 0.28 + reliability * 0.22 + roleBoost
+  }
+
+  const singlesCandidates = topPool
+    .filter((player) => !used.has(player.id))
+    .map((player) => ({ player, score: rankSingles(player) }))
+    .sort((a, b) => b.score - a.score)
+
+  const singlesSlots = teamSlots
+    .map((slot, index) => ({ slot, index }))
+    .filter((item) => item.slot.slotType === 'singles')
+
+  const selectedSingles = singlesCandidates.slice(0, singlesSlots.length).map((item) => item.player)
+
+  const orderedSinglesSlots =
+    opponentSinglesByStrength.length === singlesSlots.length
+      ? opponentSinglesByStrength.map((item) => item.index)
+      : singlesSlots.map((item) => item.index)
+
+  selectedSingles.forEach((player, orderIndex) => {
+    const slotIndex = orderedSinglesSlots[orderIndex]
+    if (typeof slotIndex !== 'number') return
+    teamSlots[slotIndex].players = [{ playerId: player.id, playerName: player.name }]
+    used.add(player.id)
+  })
+
+  const remainingAfterSingles = topPool.filter((player) => !used.has(player.id))
+  const doublesSlots = teamSlots
+    .map((slot, index) => ({ slot, index }))
+    .filter((item) => item.slot.slotType === 'doubles')
+
+  const pairCandidates: Array<{ a: PoolPlayer; b: PoolPlayer; score: number }> = []
+  for (let i = 0; i < remainingAfterSingles.length; i += 1) {
+    for (let j = i + 1; j < remainingAfterSingles.length; j += 1) {
+      const a = remainingAfterSingles[i]
+      const b = remainingAfterSingles[j]
+      pairCandidates.push({ a, b, score: rankDoubles(a, b) })
+    }
+  }
+
+  pairCandidates.sort((a, b) => b.score - a.score)
+
+  const selectedPairs: Array<{ a: PoolPlayer; b: PoolPlayer; score: number }> = []
+  const pairUsed = new Set<string>()
+  for (const pair of pairCandidates) {
+    if (pairUsed.has(pair.a.id) || pairUsed.has(pair.b.id)) continue
+    selectedPairs.push(pair)
+    pairUsed.add(pair.a.id)
+    pairUsed.add(pair.b.id)
+    if (selectedPairs.length >= doublesSlots.length) break
+  }
+
+  const orderedDoublesSlots =
+    opponentDoublesByStrength.length === doublesSlots.length
+      ? opponentDoublesByStrength.map((item) => item.index)
+      : doublesSlots.map((item) => item.index)
+
+  selectedPairs.forEach((pair, orderIndex) => {
+    const slotIndex = orderedDoublesSlots[orderIndex]
+    if (typeof slotIndex !== 'number') return
+    teamSlots[slotIndex].players = [
+      { playerId: pair.a.id, playerName: pair.a.name },
+      { playerId: pair.b.id, playerName: pair.b.name },
+    ]
+    used.add(pair.a.id)
+    used.add(pair.b.id)
+  })
+
+  const bench = topPool.filter((player) => !used.has(player.id))
+  const scored = lineupOptimizerScore(teamSlots, playerPool, opponentSlots, players, mode)
+
+  const title =
+    mode === 'best'
+      ? 'Best opponent-aware lineup'
+      : mode === 'safe'
+        ? 'Counter-stack lineup'
+        : 'Attack weak lines lineup'
+
+  const subtitle =
+    mode === 'best'
+      ? 'Balanced to maximize total projected match win chance against the current opponent build.'
+      : mode === 'safe'
+        ? 'Places your most reliable strength into the opponent’s strongest lines to reduce collapse risk.'
+        : 'Targets weaker opponent lines to create bigger expected wins and higher-upside court stacking.'
+
+  return {
+    mode,
+    title,
+    subtitle,
+    slots: teamSlots,
+    bench: bench.slice(0, 6),
+    analysis: scored.analysis,
+    score: scored.score,
+  }
+}
+
+function rebuildCandidateWithLocks(
+  candidateSlots: LineupSlot[],
+  currentSlots: LineupSlot[],
+  lockedSlotIds: Set<string>,
+  lockedPlayerIds: Set<string>,
+  playerPool: PoolPlayer[]
+) {
+  const next = cloneSlots(candidateSlots)
+  const currentMap = new Map(currentSlots.map((slot) => [slot.id, cloneSlots([slot])[0]]))
+  const used = new Set<string>()
+
+  const scoreForFill = (player: PoolPlayer, slotType: 'singles' | 'doubles') =>
+    scorePoolPlayerForSlot(player, slotType) + reliabilityWeight(player.availabilityStatus) * 0.15
+
+  next.forEach((slot, index) => {
+    if (!lockedSlotIds.has(slot.id)) return
+    const current = currentMap.get(slot.id)
+    if (!current) return
+    next[index] = current
+    current.players.forEach((player) => {
+      if (player.playerId) used.add(player.playerId)
+    })
+  })
+
+  next.forEach((slot) => {
+    if (lockedSlotIds.has(slot.id)) return
+    const current = currentMap.get(slot.id)
+    if (!current) return
+
+    slot.players = slot.players.map((player, idx) => {
+      const lockedCurrent = current.players[idx]
+      if (
+        lockedCurrent?.playerId &&
+        lockedPlayerIds.has(lockedCurrent.playerId) &&
+        !used.has(lockedCurrent.playerId)
+      ) {
+        used.add(lockedCurrent.playerId)
+        return { ...lockedCurrent }
+      }
+      return player
+    })
+  })
+
+  next.forEach((slot) => {
+    slot.players = slot.players.map((player) => {
+      if (!player.playerId) return player
+      if (used.has(player.playerId)) return { playerId: '', playerName: '' }
+      used.add(player.playerId)
+      return player
+    })
+  })
+
+  const pickBest = (slotType: 'singles' | 'doubles') => {
+    const ranked = playerPool
+      .filter((player) => !used.has(player.id))
+      .map((player) => ({ player, score: scoreForFill(player, slotType) }))
+      .sort((a, b) => b.score - a.score)
+
+    const best = ranked[0]?.player ?? null
+    if (best) used.add(best.id)
+    return best
+  }
+
+  next.forEach((slot) => {
+    slot.players = slot.players.map((player) => {
+      if (player.playerId) return player
+      const best = pickBest(slot.slotType)
+      return {
+        playerId: best?.id ?? '',
+        playerName: best?.name ?? '',
+      }
+    })
+  })
+
+  return next
+}
+
+function getLineupWarnings(teamSlots: LineupSlot[], opponentSlots: LineupSlot[]) {
+  const warnings: string[] = []
+
+  const validateSlots = (slots: LineupSlot[], sideLabel: string) => {
+    for (const slot of slots) {
+      const filled = slot.players.filter((player) => player.playerId)
+      if (slot.slotType === 'singles' && filled.length < 1) warnings.push(`${sideLabel} ${slot.label} is missing a player.`)
+      if (slot.slotType === 'doubles' && filled.length < 2) warnings.push(`${sideLabel} ${slot.label} needs two players.`)
+
+      const ids = filled.map((player) => player.playerId)
+      if (new Set(ids).size !== ids.length) warnings.push(`${sideLabel} ${slot.label} contains the same player twice.`)
+    }
+  }
+
+  validateSlots(teamSlots, 'Your')
+  validateSlots(opponentSlots, 'Opponent')
+  return Array.from(new Set(warnings))
+}
+
+function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
+  if (tone === 'good') return bannerGreenStyle
+  if (tone === 'warn') return warningCardStyle
+  return bannerBlueStyle
 }
 
 export default function LineupBuilderPage() {
@@ -283,6 +757,7 @@ export default function LineupBuilderPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
   const [currentScenarioId, setCurrentScenarioId] = useState('')
@@ -304,6 +779,13 @@ export default function LineupBuilderPage() {
 
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_TEAM_SLOTS))
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+  const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
+  const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
+
+  const [prefillScenarioId, setPrefillScenarioId] = useState('')
+  const [prefillPairIds, setPrefillPairIds] = useState<string[]>([])
+  const [prefillSingleId, setPrefillSingleId] = useState('')
+  const [prefillApplied, setPrefillApplied] = useState(false)
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -314,6 +796,28 @@ export default function LineupBuilderPage() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const scenario = params.get('scenario') || params.get('left') || ''
+    const team = params.get('team') || ''
+    const league = params.get('league') || ''
+    const nextFlight = params.get('flight') || ''
+    const nextDate = params.get('date') || ''
+    const opponent = params.get('opponent') || ''
+    const pair = (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean)
+    const single = params.get('single') || ''
+
+    if (scenario) setPrefillScenarioId(scenario)
+    if (team) setTeamName(team)
+    if (league) setLeagueName(league)
+    if (nextFlight) setFlight(nextFlight)
+    if (nextDate) setMatchDate(nextDate)
+    if (opponent) setOpponentTeam(opponent)
+    if (pair.length) setPrefillPairIds(pair)
+    if (single) setPrefillSingleId(single)
   }, [])
 
   useEffect(() => {
@@ -390,7 +894,7 @@ export default function LineupBuilderPage() {
       setLoading(false)
     }
 
-    loadData()
+    void loadData()
 
     return () => {
       mounted = false
@@ -494,17 +998,36 @@ export default function LineupBuilderPage() {
     return ids
   }, [teamSlots, opponentSlots])
 
-  function playerLabel(player: PoolPlayer) {
-    const overall = player.overall_dynamic_rating ?? player.overall_rating
-    const singles = player.singles_dynamic_rating
-    const doubles = player.doubles_dynamic_rating
-    const status = player.availabilityStatus ? ` • ${player.availabilityStatus}` : ''
+  const lockedSlotIdSet = useMemo(() => new Set(lockedSlotIds), [lockedSlotIds])
+  const lockedPlayerIdSet = useMemo(() => new Set(lockedPlayerIds), [lockedPlayerIds])
 
-    return `${player.name}${
-      overall !== null ? ` • OVR ${overall.toFixed(2)}` : ''
-    }${singles !== null ? ` • S ${singles.toFixed(2)}` : ''}${
-      doubles !== null ? ` • D ${doubles.toFixed(2)}` : ''
-    }${status}`
+  const compareHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (leagueName) params.set('league', leagueName)
+    if (flight) params.set('flight', flight)
+    if (teamName) params.set('team', teamName)
+    if (matchDate) params.set('date', matchDate)
+    if (currentScenarioId) params.set('left', currentScenarioId)
+    const query = params.toString()
+    return query ? `/captain/scenario-comparison?${query}` : '/captain/scenario-comparison'
+  }, [leagueName, flight, teamName, matchDate, currentScenarioId])
+
+  function toggleLockedSlot(slotId: string) {
+    setLockedSlotIds((current) =>
+      current.includes(slotId) ? current.filter((id) => id !== slotId) : [...current, slotId]
+    )
+  }
+
+  function toggleLockedPlayer(playerId: string) {
+    if (!playerId) return
+    setLockedPlayerIds((current) =>
+      current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
+    )
+  }
+
+  function clearLocks() {
+    setLockedSlotIds([])
+    setLockedPlayerIds([])
   }
 
   function getPlayerById(playerId: string) {
@@ -538,7 +1061,6 @@ export default function LineupBuilderPage() {
   function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
     const update = (slots: LineupSlot[]) =>
       slots.map((slot) => (slot.id === slotId ? { ...slot, label } : slot))
-
     if (side === 'team') setTeamSlots((current) => update(current))
     else setOpponentSlots((current) => update(current))
   }
@@ -548,7 +1070,6 @@ export default function LineupBuilderPage() {
     const labelBase = slotType === 'singles' ? 'Singles' : 'Doubles'
     const source = side === 'team' ? teamSlots : opponentSlots
     const nextCount = source.filter((slot) => slot.slotType === slotType).length + 1
-
     const newSlot =
       slotType === 'singles'
         ? createSinglesSlot(id, `${labelBase} ${nextCount}`)
@@ -572,15 +1093,15 @@ export default function LineupBuilderPage() {
     setOpponentTeam('')
     setMatchDate('')
     setNotes('')
-    setLoadingScenarioId('')
     setTeamSlots(cloneSlots(DEFAULT_TEAM_SLOTS))
     setOpponentSlots(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+    clearLocks()
     setMessage('Builder reset.')
     setError('')
   }
 
   async function refreshSavedScenarios() {
-    const { data, error } = await supabase
+    const { data, error: nextError } = await supabase
       .from('lineup_scenarios')
       .select(`
         id,
@@ -597,8 +1118,8 @@ export default function LineupBuilderPage() {
       .order('match_date', { ascending: false })
       .order('scenario_name', { ascending: true })
 
-    if (error) {
-      setError(error.message)
+    if (nextError) {
+      setError(nextError.message)
       return []
     }
 
@@ -621,6 +1142,200 @@ export default function LineupBuilderPage() {
     }
   }
 
+  const analysis = useMemo(
+    () => compareLineupStrength(teamSlots, opponentSlots, players),
+    [teamSlots, opponentSlots, players]
+  )
+
+  const favoredLines = useMemo(
+    () => analysis.lines.filter((line) => typeof line.projection === 'number' && line.projection >= 0.5).length,
+    [analysis.lines]
+  )
+
+  const underdogLines = useMemo(
+    () => analysis.lines.filter((line) => typeof line.projection === 'number' && line.projection < 0.5).length,
+    [analysis.lines]
+  )
+
+  const bestLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.diff === 'number')
+      .sort((a, b) => (b.diff ?? 0) - (a.diff ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
+  const weakestLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.diff === 'number')
+      .sort((a, b) => (a.diff ?? 0) - (b.diff ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
+  const swingLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.projection === 'number' && line.projection >= 0.45 && line.projection <= 0.55)
+      .sort((a, b) => Math.abs((a.projection ?? 0.5) - 0.5) - Math.abs((b.projection ?? 0.5) - 0.5))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
+  const weakestOpponentLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.opponentStrength === 'number')
+      .sort((a, b) => (a.opponentStrength ?? 0) - (b.opponentStrength ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
+  const expectedScoreline = useMemo(() => {
+    const projectedWins = analysis.lines
+      .map((line) => line.projection)
+      .filter((value): value is number => typeof value === 'number')
+      .reduce((sum, value) => sum + value, 0)
+
+    const countedLines = analysis.lines.filter((line) => typeof line.projection === 'number').length
+    const projectedLosses = countedLines - projectedWins
+
+    return {
+      projectedWins,
+      projectedLosses,
+      countedLines,
+      label: countedLines ? `${projectedWins.toFixed(1)} - ${projectedLosses.toFixed(1)}` : '—',
+    }
+  }, [analysis.lines])
+
+  const confidenceScore = useMemo(() => {
+    const completionScore = analysis.lines.length
+      ? analysis.lines.filter((line) => {
+          const teamFilled = line.teamPlayers.filter((player) => player.playerId).length === line.playerCount
+          const oppFilled = line.opponentPlayers.filter((player) => player.playerId).length === line.playerCount
+          return teamFilled && oppFilled
+        }).length / analysis.lines.length
+      : 0
+
+    const availabilityResolved = availablePlayerPool.length
+      ? availablePlayerPool.filter((player) => {
+          const normalized = (player.availabilityStatus ?? '').trim().toLowerCase()
+          return normalized === 'available' || normalized === 'yes' || normalized === 'in' || normalized === 'maybe'
+        }).length / availablePlayerPool.length
+      : 1
+
+    const avgGap =
+      analysis.lines.map((line) => Math.abs(line.diff ?? 0)).reduce((sum, value) => sum + value, 0) /
+      Math.max(analysis.lines.length, 1)
+
+    const gapScore = Math.max(0, Math.min(1, avgGap / 0.75))
+    const score = completionScore * 0.45 + availabilityResolved * 0.2 + gapScore * 0.35
+
+    return {
+      value: score,
+      label: `${Math.round(score * 100)}%`,
+      tier: score >= 0.75 ? 'High confidence' : score >= 0.55 ? 'Moderate confidence' : 'Low confidence',
+    }
+  }, [analysis.lines, availablePlayerPool])
+
+  const explainabilityCards = useMemo<RecommendationCard[]>(() => {
+    const cards: RecommendationCard[] = []
+
+    if (bestLine && typeof bestLine.diff === 'number') {
+      cards.push({
+        title: 'Strongest edge',
+        body: `${bestLine.label} is your biggest projected advantage at ${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)} with ${formatPercent(bestLine.projection)} win probability.`,
+        tone: 'good',
+      })
+    }
+
+    if (weakestLine && typeof weakestLine.diff === 'number') {
+      cards.push({
+        title: 'Biggest risk',
+        body: `${weakestLine.label} is your toughest court right now at ${weakestLine.diff >= 0 ? '+' : ''}${weakestLine.diff.toFixed(2)}. This line needs the most attention before you lock.`,
+        tone: 'warn',
+      })
+    }
+
+    if (swingLine) {
+      cards.push({
+        title: 'Swing match',
+        body: `${swingLine.label} is closest to even at ${formatPercent(swingLine.projection)}. Small player swaps here are the most likely to flip the overall result.`,
+        tone: 'info',
+      })
+    }
+
+    if (weakestOpponentLine) {
+      cards.push({
+        title: 'Opponent weakness',
+        body: `${weakestOpponentLine.label} is the opponent’s weakest projected line. If you want to attack a court, start there.`,
+        tone: 'good',
+      })
+    }
+
+    cards.push({
+      title: 'Expected scoreline',
+      body: `This lineup projects to ${expectedScoreline.label} with ${favoredLines} favored line(s) and ${underdogLines} underdog line(s).`,
+      tone: 'info',
+    })
+
+    cards.push({
+      title: 'Projection confidence',
+      body: `${confidenceScore.tier} based on lineup completeness, availability confidence, and the size of your projected gaps.`,
+      tone: confidenceScore.value >= 0.75 ? 'good' : confidenceScore.value < 0.55 ? 'warn' : 'info',
+    })
+
+    return cards.slice(0, 6)
+  }, [bestLine, weakestLine, swingLine, weakestOpponentLine, expectedScoreline, favoredLines, underdogLines, confidenceScore])
+
+  function buildPredictionTrackingPayload(source: string, scenarioIdOverride?: string | null): PredictionSnapshotInsert {
+    return {
+      scenario_id: scenarioIdOverride ?? (currentScenarioId || null),
+      scenario_name: scenarioName.trim() || 'Untitled Scenario',
+      league_name: leagueName || null,
+      flight: flight || null,
+      match_date: matchDate || null,
+      team_name: teamName || null,
+      opponent_team: opponentTeam || null,
+      projected_team_win_pct: typeof analysis.projection === 'number' ? analysis.projection : null,
+      projected_score_for: expectedScoreline.countedLines ? expectedScoreline.projectedWins : null,
+      projected_score_against: expectedScoreline.countedLines ? expectedScoreline.projectedLosses : null,
+      favored_lines: favoredLines,
+      underdog_lines: underdogLines,
+      swing_line_label: swingLine?.label ?? null,
+      strongest_line_label: bestLine?.label ?? null,
+      weakest_line_label: weakestLine?.label ?? null,
+      confidence_score: confidenceScore.value,
+      confidence_tier: confidenceScore.tier,
+      slots_json: teamSlots,
+      opponent_slots_json: opponentSlots,
+      line_projections_json: analysis.lines.map((line) => ({
+        label: line.label,
+        slotType: line.slotType,
+        teamPlayers: line.teamPlayers,
+        opponentPlayers: line.opponentPlayers,
+        yourRating: line.yourRating,
+        opponentRating: line.opponentRating,
+        diff: line.diff,
+        projection: line.projection,
+      })),
+      notes: notes.trim() || null,
+      source,
+    }
+  }
+
+  async function trackPredictionSnapshot(source: string, scenarioIdOverride?: string | null, silent = false) {
+    setTrackingSnapshot(true)
+    const payload = buildPredictionTrackingPayload(source, scenarioIdOverride)
+    const { error: insertError } = await supabase.from('lineup_prediction_snapshots').insert(payload)
+    setTrackingSnapshot(false)
+
+    if (insertError) {
+      if (!silent) setError(insertError.message)
+      return false
+    }
+
+    if (!silent) {
+      setMessage('Prediction snapshot tracked successfully.')
+      setError('')
+    }
+    return true
+  }
+
   async function saveScenario(asNew = false) {
     setSaving(true)
     setError('')
@@ -633,10 +1348,10 @@ export default function LineupBuilderPage() {
     }
 
     const normalizedName = scenarioName.trim().toLowerCase()
-    const duplicate = savedScenarios.find((s) => {
-      const sameName = (s.scenario_name ?? '').trim().toLowerCase() === normalizedName
-      const sameTeam = (s.team_name ?? '') === (teamName || '')
-      const sameDate = (s.match_date ?? '') === (matchDate || '')
+    const duplicate = savedScenarios.find((scenario) => {
+      const sameName = scenario.scenario_name.trim().toLowerCase() === normalizedName
+      const sameTeam = (scenario.team_name ?? '') === (teamName || '')
+      const sameDate = (scenario.match_date ?? '') === (matchDate || '')
       return sameName && sameTeam && sameDate
     })
 
@@ -649,53 +1364,55 @@ export default function LineupBuilderPage() {
     const payload = buildScenarioPayload()
 
     if (currentScenarioId && !asNew) {
-      const { error } = await supabase
-        .from('lineup_scenarios')
-        .update(payload)
-        .eq('id', currentScenarioId)
-
+      const { error: updateError } = await supabase.from('lineup_scenarios').update(payload).eq('id', currentScenarioId)
       setSaving(false)
-      if (error) {
-        setError(error.message)
+
+      if (updateError) {
+        setError(updateError.message)
         return
       }
 
       await refreshSavedScenarios()
-      setMessage('Scenario updated successfully.')
+      const tracked = await trackPredictionSnapshot('scenario-update', currentScenarioId, true)
+      setMessage(tracked ? 'Scenario updated and prediction snapshot tracked.' : 'Scenario updated successfully.')
       return
     }
 
-    const { data, error } = await supabase
-      .from('lineup_scenarios')
-      .insert(payload)
-      .select('id')
-      .single()
-
+    const { data, error: insertError } = await supabase.from('lineup_scenarios').insert(payload).select('id').single()
     setSaving(false)
-    if (error) {
-      setError(error.message)
+
+    if (insertError) {
+      setError(insertError.message)
       return
     }
 
     if (data?.id) setCurrentScenarioId(data.id)
     await refreshSavedScenarios()
-    setMessage(asNew ? 'Scenario saved as new successfully.' : 'Scenario saved successfully.')
+    const tracked = await trackPredictionSnapshot(asNew ? 'scenario-save-new' : 'scenario-save', data?.id ?? null, true)
+    setMessage(
+      tracked
+        ? asNew
+          ? 'Scenario saved as new and prediction snapshot tracked.'
+          : 'Scenario saved and prediction snapshot tracked.'
+        : asNew
+          ? 'Scenario saved as new successfully.'
+          : 'Scenario saved successfully.'
+    )
   }
 
   async function deleteScenario(scenarioId: string) {
-    const scenario = savedScenarios.find((row) => row.id === scenarioId)
-    const confirmed = window.confirm(`Delete scenario "${scenario?.scenario_name ?? 'this scenario'}"?`)
+    const confirmed = window.confirm('Delete this saved scenario?')
     if (!confirmed) return
 
     setDeletingScenarioId(scenarioId)
     setError('')
     setMessage('')
 
-    const { error } = await supabase.from('lineup_scenarios').delete().eq('id', scenarioId)
+    const { error: deleteError } = await supabase.from('lineup_scenarios').delete().eq('id', scenarioId)
     setDeletingScenarioId('')
 
-    if (error) {
-      setError(error.message)
+    if (deleteError) {
+      setError(deleteError.message)
       return
     }
 
@@ -736,95 +1453,189 @@ export default function LineupBuilderPage() {
 
     setTeamSlots(loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS))
     setOpponentSlots(loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS))
+    clearLocks()
 
     setLoadingScenarioId('')
     setMessage('Scenario loaded into the builder.')
   }
 
-  const currentScenario = useMemo(
-    () => savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null,
-    [savedScenarios, currentScenarioId]
-  )
+  useEffect(() => {
+    if (prefillApplied) return
 
-  const compareHref = useMemo(() => {
-    const params = new URLSearchParams()
-    if (leagueName) params.set('league', leagueName)
-    if (flight) params.set('flight', flight)
-    if (teamName) params.set('team', teamName)
-    if (matchDate) params.set('date', matchDate)
-    if (currentScenarioId) params.set('left', currentScenarioId)
-    const query = params.toString()
-    return query ? `/captain/scenario-comparison?${query}` : '/captain/scenario-comparison'
-  }, [leagueName, flight, teamName, matchDate, currentScenarioId])
+    if (prefillScenarioId) {
+      const scenario = savedScenarios.find((item) => item.id === prefillScenarioId)
+      if (!scenario) return
+      void loadScenario(prefillScenarioId)
+      setPrefillApplied(true)
+      return
+    }
 
-  const analysis = useMemo(() => {
-    return compareLineupStrength(teamSlots, opponentSlots, players)
-  }, [teamSlots, opponentSlots, players])
+    if (prefillSingleId || prefillPairIds.length) {
+      setTeamSlots((current) => {
+        const next = cloneSlots(current)
 
-  const bestLine = useMemo(() => {
-    const scored = analysis.lines
-      .filter((line) => typeof line.diff === 'number')
-      .sort((a, b) => (b.diff ?? 0) - (a.diff ?? 0))
-    return scored[0] ?? null
-  }, [analysis.lines])
+        if (prefillSingleId) {
+          const player = getPlayerById(prefillSingleId)
+          const firstSingles = next.find((slot) => slot.slotType === 'singles')
+          if (player && firstSingles) {
+            firstSingles.players = [{ playerId: player.id, playerName: player.name }]
+          }
+        }
 
-  const weakestLine = useMemo(() => {
-    const scored = analysis.lines
-      .filter((line) => typeof line.diff === 'number')
-      .sort((a, b) => (a.diff ?? 0) - (b.diff ?? 0))
-    return scored[0] ?? null
-  }, [analysis.lines])
+        if (prefillPairIds.length) {
+          const pairPlayers = prefillPairIds.map((id) => getPlayerById(id)).filter(Boolean) as PlayerRow[]
+          const firstDoubles = next.find((slot) => slot.slotType === 'doubles')
+          if (pairPlayers.length && firstDoubles) {
+            firstDoubles.players = [
+              { playerId: pairPlayers[0]?.id ?? '', playerName: pairPlayers[0]?.name ?? '' },
+              { playerId: pairPlayers[1]?.id ?? '', playerName: pairPlayers[1]?.name ?? '' },
+            ]
+          }
+        }
+
+        return next
+      })
+
+      setMessage('Analytics context loaded into the lineup builder.')
+      setPrefillApplied(true)
+    }
+  }, [prefillApplied, prefillScenarioId, prefillSingleId, prefillPairIds, savedScenarios, players])
+
+  const lineupWarnings = useMemo(() => getLineupWarnings(teamSlots, opponentSlots), [teamSlots, opponentSlots])
+
+  const eliteRecommendation = useMemo(() => {
+    const balanced = recommendLineupFromPool(teamSlots, availablePlayerPool, 'balanced')
+    return {
+      slots: balanced.slots,
+      bench: balanced.bench.slice(0, 6),
+      analysis: compareLineupStrength(balanced.slots, opponentSlots, players),
+    }
+  }, [teamSlots, availablePlayerPool, opponentSlots, players])
+
+  const optimizedPlans = useMemo(() => {
+    return [
+      optimizeLineupFromPool(teamSlots, availablePlayerPool, opponentSlots, players, 'best'),
+      optimizeLineupFromPool(teamSlots, availablePlayerPool, opponentSlots, players, 'safe'),
+      optimizeLineupFromPool(teamSlots, availablePlayerPool, opponentSlots, players, 'upside'),
+    ]
+  }, [teamSlots, availablePlayerPool, opponentSlots, players])
+
+  const bestOptimizedPlan = optimizedPlans[0] ?? null
+
+  function applyOptimizedPlan(mode: OptimizerMode) {
+    const plan = optimizedPlans.find((item) => item.mode === mode)
+    if (!plan) return
+
+    const nextSlots = rebuildCandidateWithLocks(
+      plan.slots,
+      teamSlots,
+      lockedSlotIdSet,
+      lockedPlayerIdSet,
+      availablePlayerPool
+    )
+
+    setTeamSlots(nextSlots)
+    setMessage(`${plan.title} applied${lockedSlotIds.length || lockedPlayerIds.length ? ' with locks preserved' : ''}.`)
+    setError('')
+  }
+
+  function applyRecommendedTeamLineup() {
+    const next = recommendLineupFromPool(teamSlots, availablePlayerPool, 'balanced')
+    const rebuilt = rebuildCandidateWithLocks(
+      next.slots,
+      teamSlots,
+      lockedSlotIdSet,
+      lockedPlayerIdSet,
+      availablePlayerPool
+    )
+    setTeamSlots(rebuilt)
+    setMessage(`Balanced recommendation applied${lockedSlotIds.length || lockedPlayerIds.length ? ' around your locks' : ''}.`)
+    setError('')
+  }
+
+  function rebuildAroundLocks() {
+    const rebuilt = rebuildCandidateWithLocks(
+      teamSlots,
+      teamSlots,
+      lockedSlotIdSet,
+      lockedPlayerIdSet,
+      availablePlayerPool
+    )
+    setTeamSlots(rebuilt)
+    setMessage('Lineup rebuilt around your locked lines and players.')
+    setError('')
+  }
+
+  function applyRecommendedOpponentLineup() {
+    const next = recommendLineupFromPool(opponentSlots, availablePlayerPool, 'ceiling')
+    setOpponentSlots(next.slots)
+    setMessage('Projected opponent lineup applied.')
+    setError('')
+  }
+
+  const heroStats = [
+    { label: 'Scenario mode', value: currentScenarioId ? 'Editing saved scenario' : 'New scenario' },
+    { label: 'Player pool', value: `${availablePlayerPool.length} available` },
+    { label: 'Saved versions', value: `${scenarioOptions.length} scenarios` },
+    { label: 'Win chance', value: formatPercent(analysis.projection) },
+  ]
+
+  const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
 
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
         <section style={heroShellResponsive(isTablet, isMobile)}>
-        <div>
-          <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
-          <p style={heroTextStyle}>
-            Build match-day lineups, work from availability-aware player pools, save multiple scenarios,
-            compare versions, and pressure-test your expected edge line by line.
-          </p>
+          <div>
+            <div style={eyebrow}>Captain tools</div>
+            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
+            <p style={heroTextStyle}>
+              Build match-day lineups, work from availability-aware player pools, save multiple scenarios,
+              compare versions, and pressure-test your expected edge line by line.
+            </p>
 
-          <div style={heroButtonRowStyle}>
-            <Link href={compareHref} style={primaryButton}>
-              Compare Saved Scenarios
-            </Link>
-            <button type="button" onClick={resetBuilder} style={ghostButton}>
-              Reset Builder
-            </button>
+            <div style={heroButtonRowStyle}>
+              <Link href={compareHref} style={primaryButton}>Compare Saved Scenarios</Link>
+              <button type="button" onClick={resetBuilder} style={ghostButton}>Reset Builder</button>
+            </div>
+
+            <div style={heroMetricGridStyle(isSmallMobile)}>
+              {heroStats.map((stat) => (
+                <MetricStat key={stat.label} label={stat.label} value={stat.value} />
+              ))}
+            </div>
           </div>
 
-          <div style={heroMetricGridStyle(isSmallMobile)}>
-            <MetricStat label="Scenario Mode" value={currentScenarioId ? 'Editing saved scenario' : 'New scenario'} />
-            <MetricStat label="Player Pool" value={`${availablePlayerPool.length} available`} />
-            <MetricStat label="Saved Versions" value={`${scenarioOptions.length} scenarios`} />
-          </div>
-        </div>
-
-        <div style={quickStartCard}>
-          <p style={sectionKicker}>Builder workflow</p>
-          <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
-          <div style={workflowListStyle}>
-            {[
-              ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
-              ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
-              ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
-            ].map(([step, title, text]) => (
-              <div key={step} style={workflowRowStyle}>
-                <div style={workflowNumberStyle}>{step}</div>
-                <div>
-                  <div style={workflowTitleStyle}>{title}</div>
-                  <div style={workflowTextStyle}>{text}</div>
+          <div style={quickStartCard}>
+            <p style={sectionKicker}>Builder workflow</p>
+            <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
+            <div style={workflowListStyle}>
+              {[
+                ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
+                ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
+                ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
+              ].map(([step, title, text]) => (
+                <div key={step} style={workflowRowStyle}>
+                  <div style={workflowNumberStyle}>{step}</div>
+                  <div>
+                    <div style={workflowTitleStyle}>{title}</div>
+                    <div style={workflowTextStyle}>{text}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              ))}
+            </div>
 
-        <section style={contentWrap}>
+            <div style={{ marginTop: 18 }}>
+              <span style={miniPillSlateStyle}>
+                {currentScenario ? `Loaded: ${currentScenario.scenario_name}` : 'No scenario loaded'}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        {!!message && <div style={bannerGreenStyle}>{message}</div>}
+        {!!error && <div style={warningCardStyle}>{error}</div>}
+
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
             <section style={surfaceCardStrong}>
@@ -832,153 +1643,131 @@ export default function LineupBuilderPage() {
                 <div>
                   <p style={sectionKicker}>Scenario setup</p>
                   <h2 style={sectionTitle}>Match and scenario details</h2>
-                  <p style={sectionBodyTextStyle}>Save a new version or update the scenario currently loaded into the builder.</p>
+                  <p style={sectionBodyTextStyle}>
+                    Save multiple versions for the same team/date and compare them later.
+                  </p>
+                </div>
+
+                <div style={actionRowStyle}>
+                  <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                    {saving ? 'Saving…' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
+                  </button>
+                  <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
+                    Save as New
+                  </button>
+                  <button type="button" onClick={() => void trackPredictionSnapshot('manual-track')} style={ghostButton} disabled={trackingSnapshot}>
+                    {trackingSnapshot ? 'Tracking…' : 'Track Snapshot'}
+                  </button>
                 </div>
               </div>
 
-              {currentScenario ? (
-                <div style={bannerBlueStyle}>
-                  <div style={bannerTitleStyle}>Editing saved scenario: {currentScenario.scenario_name}</div>
-                  <div style={bannerMetaStyle}>
-                    {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
-                    {currentScenario.match_date ? ` • ${formatDate(currentScenario.match_date)}` : ''}
-                  </div>
-                </div>
-              ) : (
-                <div style={bannerSlateStyle}>Creating a new scenario</div>
-              )}
-
-              <div style={formGridStyle}>
-                <div>
-                  <label style={labelStyle}>Scenario Name</label>
-                  <input value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="Example: Safer Doubles Version" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Match Date</label>
-                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>League</label>
-                  <input list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} placeholder="League name" style={inputStyle} />
+              <div style={filtersGridStyle}>
+                <Field label="Scenario name">
+                  <input value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} style={inputStyle} placeholder="Spring Week 4 best build" />
+                </Field>
+                <Field label="League">
+                  <input list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} style={inputStyle} placeholder="League name" />
                   <datalist id="league-options">
-                    {leagueOptions.map((option) => <option key={option} value={option} />)}
+                    {leagueOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
-                </div>
-                <div>
-                  <label style={labelStyle}>Flight</label>
-                  <input list="flight-options" value={flight} onChange={(e) => setFlight(e.target.value)} placeholder="Flight" style={inputStyle} />
+                </Field>
+                <Field label="Flight">
+                  <input list="flight-options" value={flight} onChange={(e) => setFlight(e.target.value)} style={inputStyle} placeholder="Flight" />
                   <datalist id="flight-options">
-                    {flightOptions.map((option) => <option key={option} value={option} />)}
+                    {flightOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
-                </div>
-                <div>
-                  <label style={labelStyle}>Team Name</label>
-                  <input list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Your team" style={inputStyle} />
+                </Field>
+                <Field label="Match date">
+                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
+                </Field>
+                <Field label="Team">
+                  <input list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} style={inputStyle} placeholder="Your team" />
                   <datalist id="team-options">
-                    {teamOptions.map((option) => <option key={option} value={option} />)}
+                    {teamOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
-                </div>
-                <div>
-                  <label style={labelStyle}>Opponent Team</label>
-                  <input value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} placeholder="Opponent team" style={inputStyle} />
-                </div>
+                </Field>
+                <Field label="Opponent">
+                  <input value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} style={inputStyle} placeholder="Opponent team" />
+                </Field>
               </div>
 
-              <div style={{ marginTop: 18 }}>
-                <label style={labelStyle}>Captain Notes</label>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Matchups, player preferences, injury notes, weather backups, etc." style={textareaStyle} />
-              </div>
+              <Field label="Notes">
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} style={textareaStyle} rows={4} placeholder="Anything captains should remember for this build…" />
+              </Field>
 
-              <div style={toggleGridResponsive(isSmallMobile)}>
-                <label style={toggleCardStyle}>
-                  <div>
-                    <div style={toggleTitleStyle}>Availability-filtered pool</div>
-                    <div style={toggleTextStyle}>Use lineup availability records when they exist for the selected match context.</div>
-                  </div>
+              <div style={toggleRowStyle}>
+                <label style={checkLabelStyle}>
                   <input type="checkbox" checked={availabilityOnly} onChange={(e) => setAvailabilityOnly(e.target.checked)} />
+                  Availability-only player pool
                 </label>
-
-                <label style={toggleCardStyle}>
-                  <div>
-                    <div style={toggleTitleStyle}>Hide unavailable players</div>
-                    <div style={toggleTextStyle}>Remove players marked out or unavailable from your selection list.</div>
-                  </div>
+                <label style={checkLabelStyle}>
                   <input type="checkbox" checked={hideUnavailable} onChange={(e) => setHideUnavailable(e.target.checked)} />
+                  Hide unavailable players
                 </label>
               </div>
-
-              <div style={actionRowStyle}>
-                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
-                  {saving ? 'Saving...' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
-                </button>
-                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
-                  Save as New
-                </button>
-                <Link href={compareHref} style={secondaryLinkButton}>Open Comparison</Link>
-              </div>
-
-              {currentScenarioId ? <p style={infoTextStyle}>Loaded scenario is ready for update and comparison.</p> : null}
-              {message ? <p style={successTextStyle}>{message}</p> : null}
-              {error ? <p style={errorTextStyle}>{error}</p> : null}
             </section>
 
             <section style={surfaceCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Saved scenarios</p>
+                  <h2 style={sectionTitle}>Load, overwrite, or delete saved versions</h2>
+                </div>
+                <span style={miniPillBlueStyle}>{scenarioOptions.length} in scope</span>
+              </div>
+
+              <div style={stackStyle}>
+                {scenarioOptions.length ? scenarioOptions.map((scenario) => (
+                  <div key={scenario.id} style={listCardStyleCompact}>
+                    <div>
+                      <div style={listTitleStyle}>{scenario.scenario_name}</div>
+                      <div style={listMetaStyle}>
+                        {scenario.team_name || 'No team'} • {scenario.opponent_team || 'No opponent'} • {formatDate(scenario.match_date)}
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => void loadScenario(scenario.id)} disabled={loadingScenarioId === scenario.id}>
+                        {loadingScenarioId === scenario.id ? 'Loading…' : 'Load'}
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => void deleteScenario(scenario.id)} disabled={deletingScenarioId === scenario.id}>
+                        {deletingScenarioId === scenario.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                )) : (
+                  <p style={mutedTextStyle}>No saved scenarios match the current filters yet.</p>
+                )}
+              </div>
+            </section>
+
+            <section style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Your lineup</p>
-                  <h2 style={sectionTitle}>Build your side</h2>
-                  <p style={sectionBodyTextStyle}>Create singles and doubles slots for your expected match-day lineup.</p>
+                  <h2 style={sectionTitle}>Build your team courts</h2>
                 </div>
-
-                <div style={miniActionRowStyle}>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'singles')}>+ Singles Slot</button>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'doubles')}>+ Doubles Slot</button>
+                <div style={actionRowStyle}>
+                  <button type="button" onClick={() => addSlot('team', 'singles')} style={ghostButtonSmallButton}>+ Singles</button>
+                  <button type="button" onClick={() => addSlot('team', 'doubles')} style={ghostButtonSmallButton}>+ Doubles</button>
                 </div>
               </div>
 
-              <div style={slotListStyle}>
+              <div style={stackStyle}>
                 {teamSlots.map((slot) => (
                   <SlotEditor
                     key={slot.id}
-                    slot={slot}
                     side="team"
-                    playerPool={availablePlayerPool}
-                    assignedPlayerIds={assignedPlayerIds}
-                    setSlotLabel={setSlotLabel}
-                    setSlotPlayer={setSlotPlayer}
-                    removeSlot={removeSlot}
-                    playerLabel={playerLabel}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <section style={surfaceCard}>
-              <div style={sectionHeaderStyle}>
-                <div>
-                  <p style={sectionKicker}>Opponent projection</p>
-                  <h2 style={sectionTitle}>Model the other side</h2>
-                  <p style={sectionBodyTextStyle}>Capture your expected opponent lineup or your best working guess.</p>
-                </div>
-
-                <div style={miniActionRowStyle}>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'singles')}>+ Singles Slot</button>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'doubles')}>+ Doubles Slot</button>
-                </div>
-              </div>
-
-              <div style={slotListStyle}>
-                {opponentSlots.map((slot) => (
-                  <SlotEditor
-                    key={slot.id}
                     slot={slot}
-                    side="opponent"
                     playerPool={availablePlayerPool}
                     assignedPlayerIds={assignedPlayerIds}
-                    setSlotLabel={setSlotLabel}
-                    setSlotPlayer={setSlotPlayer}
-                    removeSlot={removeSlot}
-                    playerLabel={playerLabel}
+                    onPlayerChange={setSlotPlayer}
+                    onLabelChange={setSlotLabel}
+                    onRemove={removeSlot}
+                    toggleLockedSlot={toggleLockedSlot}
+                    toggleLockedPlayer={toggleLockedPlayer}
+                    lockedSlotIds={lockedSlotIdSet}
+                    lockedPlayerIds={lockedPlayerIdSet}
                   />
                 ))}
               </div>
@@ -986,236 +1775,231 @@ export default function LineupBuilderPage() {
           </div>
 
           <div style={columnStyle}>
-            <section style={surfaceCard}>
-              <p style={sectionKicker}>Live projection</p>
-              <h2 style={sectionTitle}>Strength by line</h2>
-              <p style={sectionBodyTextStyle}>A quick heuristic based on selected dynamic ratings for each slot.</p>
+            <section style={surfaceCardStrong}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Opponent lineup</p>
+                  <h2 style={sectionTitle}>Project the other side</h2>
+                </div>
+                <div style={actionRowStyle}>
+                  <button type="button" onClick={() => addSlot('opponent', 'singles')} style={ghostButtonSmallButton}>+ Singles</button>
+                  <button type="button" onClick={() => addSlot('opponent', 'doubles')} style={ghostButtonSmallButton}>+ Doubles</button>
+                </div>
+              </div>
+
+              <div style={stackStyle}>
+                {opponentSlots.map((slot) => (
+                  <SlotEditor
+                    key={slot.id}
+                    side="opponent"
+                    slot={slot}
+                    playerPool={availablePlayerPool}
+                    assignedPlayerIds={assignedPlayerIds}
+                    onPlayerChange={setSlotPlayer}
+                    onLabelChange={setSlotLabel}
+                    onRemove={removeSlot}
+                    toggleLockedSlot={() => undefined}
+                    toggleLockedPlayer={() => undefined}
+                    lockedSlotIds={new Set()}
+                    lockedPlayerIds={new Set()}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section style={surfaceCardStrong}>
+              <p style={sectionKicker}>Elite builder assist</p>
+              <h2 style={sectionTitle}>Auto-build, warnings, and bench ideas</h2>
+              <p style={sectionBodyTextStyle}>
+                Use the recommendation engine to fill the strongest balanced lineup from the current pool, then review
+                conflicts before saving.
+              </p>
+
+              <div style={actionRowStyleWrap}>
+                <button type="button" onClick={applyRecommendedTeamLineup} style={primaryButton}>Apply Balanced Build</button>
+                <button type="button" onClick={applyRecommendedOpponentLineup} style={ghostButton}>Auto-Fill Opponent</button>
+                <button type="button" onClick={rebuildAroundLocks} style={ghostButton}>Rebuild Around Locks</button>
+                <button type="button" onClick={clearLocks} style={ghostButton}>Clear Locks</button>
+              </div>
 
               <div style={heroBadgeRowStyleCompact}>
-                <span style={badgeBlue}>Projected win chance {formatStrength(analysis.projection * 100)}%</span>
-                <span style={badgeSlate}>Avg edge {formatStrength(analysis.avgDiff)}</span>
+                <span style={badgeGreen}>Recommended win chance {formatPercent(eliteRecommendation.analysis.projection)}</span>
+                <span style={badgeBlue}>Edge {analysis.avgDiff.toFixed(2)}</span>
+                <span style={badgeSlate}>{eliteRecommendation.bench.length} bench options</span>
+              </div>
+
+              {lineupWarnings.length ? (
+                <div style={stackStyle}>
+                  {lineupWarnings.map((warning) => <div key={warning} style={warningCardStyle}>{warning}</div>)}
+                </div>
+              ) : (
+                <div style={bannerGreenStyle}>No lineup conflicts detected. Slots are filled cleanly with no duplicate player assignments inside a line.</div>
+              )}
+
+              <div style={{ marginTop: 16 }}>
+                <div style={sectionKicker}>Bench / alternates</div>
+                <div style={stackStyleCompact}>
+                  {eliteRecommendation.bench.length ? eliteRecommendation.bench.map((player) => (
+                    <div key={player.id} style={listCardStyleCompact}>
+                      <div>
+                        <div style={listTitleStyle}>{player.name}</div>
+                        <div style={listMetaStyle}>
+                          OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} • S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} • D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
+                        </div>
+                      </div>
+                      <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
+                        {player.availabilityStatus || 'unknown'}
+                      </span>
+                    </div>
+                  )) : (
+                    <p style={mutedTextStyle}>No bench players are left after the recommendation engine fills the lineup.</p>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section style={surfaceCard}>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Optimizer plans</p>
+                  <h3 style={sectionTitleSmall}>Three different lineup strategies</h3>
+                </div>
+                <span style={miniPillSlateStyle}>{bestOptimizedPlan ? `${bestOptimizedPlan.score.toFixed(1)} top score` : '—'}</span>
+              </div>
+
+              <div style={stackStyle}>
+                {optimizedPlans.map((plan) => (
+                  <div key={plan.mode} style={listCardStyle}>
+                    <div>
+                      <div style={listTitleStyle}>{plan.title}</div>
+                      <div style={listMetaStyle}>{plan.subtitle}</div>
+                      <div style={pillRowStyle}>
+                        <span style={miniPillGreenStyle}>Win {formatPercent(plan.analysis.projection)}</span>
+                        <span style={miniPillBlueStyle}>Avg diff {plan.analysis.avgDiff.toFixed(2)}</span>
+                        <span style={miniPillSlateStyle}>{plan.bench.length} bench</span>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => applyOptimizedPlan(plan.mode)} style={ghostButtonSmallButton}>
+                      Apply
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <div style={columnStyle}>
+            <section style={surfaceCardStrong}>
+              <p style={sectionKicker}>Projection</p>
+              <h2 style={sectionTitle}>Match-level outlook</h2>
+
+              <div style={projectionHeroStyle}>
+                <div style={projectionValueStyle}>{formatPercent(analysis.projection)}</div>
+                <div style={projectionTierStyle}>{projectionTier(analysis.projection)}</div>
+              </div>
+
+              <div style={pillRowStyle}>
+                <span style={miniPillGreenStyle}>Favored lines {favoredLines}</span>
+                <span style={miniPillSlateStyle}>Underdog lines {underdogLines}</span>
+                <span style={miniPillBlueStyle}>Confidence {confidenceScore.label}</span>
               </div>
 
               <div style={stackStyle}>
                 {analysis.lines.map((line) => (
-                  <div key={line.label} style={poolCardStyle}>
-                    <div style={poolCardTopStyle}>
-                      <div>
-                        <div style={playerNameStyle}>{line.label}</div>
-                        <div style={playerMetaStyle}>{line.slotType === 'singles' ? 'Singles line' : 'Doubles line'}</div>
-                      </div>
-                      <span style={typeof line.diff === 'number' && line.diff >= 0 ? goodBadgeStyle : warnBadgeStyle}>
-                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
-                      </span>
-                    </div>
-
-                    <div style={compareGridStyle}>
-                      <div style={compareCardStyle}>
-                        <div style={compareLabelStyle}>Your side</div>
-                        <div style={compareValueStyle}>{formatStrength(line.yourStrength)}</div>
-                      </div>
-                      <div style={compareCardStyle}>
-                        <div style={compareLabelStyle}>Opponent</div>
-                        <div style={compareValueStyle}>{formatStrength(line.opponentStrength)}</div>
+                  <div key={line.label} style={listCardStyleCompact}>
+                    <div>
+                      <div style={listTitleStyle}>{line.label}</div>
+                      <div style={listMetaStyle}>
+                        Your {formatRating(line.yourRating)} • Opp {formatRating(line.opponentRating)} • Diff {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
                       </div>
                     </div>
+                    <span style={typeof line.projection === 'number' && line.projection >= 0.5 ? miniPillGreenStyle : miniPillSlateStyle}>
+                      {formatPercent(line.projection)}
+                    </span>
                   </div>
                 ))}
               </div>
+            </section>
 
-              <div style={{ marginTop: 14 }}>
-                <div style={sectionKicker}>Readout</div>
-                <p style={sectionBodyTextStyle}>
-                  Best line: <strong>{bestLine?.label ?? '—'}</strong>. Weakest line: <strong>{weakestLine?.label ?? '—'}</strong>.
-                </p>
+            <section style={surfaceCard}>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Expected scoreline</p>
+                  <h3 style={sectionTitleSmall}>{expectedScoreline.label}</h3>
+                </div>
+                <span style={miniPillGreenStyle}>Expected scoreline {expectedScoreline.label}</span>
+              </div>
+              <p style={sectionBodyTextStyle}>
+                This rolls up the individual court probabilities into a match-level expectation.
+                Use it as a directional planning tool, not a guarantee.
+              </p>
+            </section>
+
+            <section style={surfaceCard}>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Why the model likes or dislikes this build</p>
+                  <h3 style={sectionTitleSmall}>Explainability cards</h3>
+                </div>
+                <span style={miniPillBlueStyle}>Auto-generated</span>
+              </div>
+
+              <div style={stackStyle}>
+                {explainabilityCards.map((card) => (
+                  <div key={card.title} style={toneCardStyle(card.tone)}>
+                    <div style={listTitleStyle}>{card.title}</div>
+                    <div style={listMetaStyleStrong}>{card.body}</div>
+                  </div>
+                ))}
               </div>
             </section>
 
             <section style={surfaceCard}>
-              <p style={sectionKicker}>Player pool</p>
-              <h2 style={sectionTitle}>Availability-aware options</h2>
-              <p style={sectionBodyTextStyle}>Sorted by availability first, then overall strength.</p>
-
-              <div style={heroBadgeRowStyleCompact}>
-                <span style={badgeSlate}>{availablePlayerPool.length} players</span>
-                <span style={badgeBlue}>{availabilityForSelection.length} availability rows</span>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Player pool</p>
+                  <h3 style={sectionTitleSmall}>Availability-aware ranking</h3>
+                </div>
+                <span style={miniPillSlateStyle}>{availablePlayerPool.length} players</span>
               </div>
 
-              <div style={stackStyle}>
-                {loading ? (
-                  <p style={mutedTextStyle}>Loading players...</p>
-                ) : availablePlayerPool.length === 0 ? (
-                  <p style={mutedTextStyle}>No players match the current filters.</p>
-                ) : (
-                  availablePlayerPool.map((player) => {
-                    const tone = statusTone(player.availabilityStatus)
-                    const assigned = assignedPlayerIds.has(player.id)
+              <div style={stackStyleCompact}>
+                {availablePlayerPool.length ? availablePlayerPool.map((player) => (
+                  <div key={player.id} style={listCardStyleCompact}>
+                    <div>
+                      <div style={listTitleStyle}>{player.name}</div>
+                      <div style={listMetaStyle}>
+                        OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} • S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} • D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}{player.location ? ` • ${player.location}` : ''}
+                      </div>
+                      {player.lineup_notes ? <div style={tinyNoteStyle}>{player.lineup_notes}</div> : null}
+                    </div>
 
-                    return (
-                      <article key={player.id} style={poolCardStyle}>
-                        <div style={poolCardTopStyle}>
-                          <div>
-                            <div style={playerNameStyle}>{player.name}</div>
-                            <div style={playerMetaStyle}>
-                              {player.preferred_role || 'No role set'}
-                              {player.location ? ` • ${player.location}` : ''}
-                              {player.flight ? ` • ${player.flight}` : ''}
-                            </div>
-                          </div>
-
-                          <span style={{ ...statusBadgeStyle, ...tone }}>
-                            {player.availabilityStatus || 'Unknown'}
-                          </span>
-                        </div>
-
-                        <div style={pillRowStyle}>
-                          <span style={miniPillStyle}>OVR {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
-                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}</span>
-                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}</span>
-                          {assigned ? <span style={assignedPillStyle}>Assigned</span> : null}
-                        </div>
-
-                        {player.lineup_notes ? <p style={cardNoteTextStyle}>{player.lineup_notes}</p> : null}
-                        {player.availabilityNotes ? <p style={subtleNoteTextStyle}>Availability note: {player.availabilityNotes}</p> : null}
-                      </article>
-                    )
-                  })
-                )}
-              </div>
-            </section>
-
-            <section style={surfaceCard}>
-              <p style={sectionKicker}>Saved scenarios</p>
-              <h2 style={sectionTitle}>Reload or clean up prior versions</h2>
-              <p style={sectionBodyTextStyle}>Load a saved scenario into the builder, then tweak, compare, resave, or delete it.</p>
-
-              <div style={stackStyle}>
-                {scenarioOptions.length === 0 ? (
-                  <p style={mutedTextStyle}>No saved scenarios for the current filters.</p>
-                ) : (
-                  scenarioOptions.map((scenario) => {
-                    const isCurrent = scenario.id === currentScenarioId
-                    const isDeleting = deletingScenarioId === scenario.id
-                    const isLoading = loadingScenarioId === scenario.id
-
-                    return (
-                      <article key={scenario.id} style={{ ...savedScenarioCardStyle, ...(isCurrent ? savedScenarioCardActiveStyle : {}) }}>
-                        <div style={savedScenarioTopStyle}>
-                          <div>
-                            <div style={savedScenarioTitleStyle}>{scenario.scenario_name}</div>
-                            <div style={savedScenarioMetaStyle}>
-                              {scenario.team_name || '—'} vs {scenario.opponent_team || '—'}
-                            </div>
-                            <div style={savedScenarioMetaStyle}>
-                              {scenario.league_name || '—'}
-                              {scenario.flight ? ` • ${scenario.flight}` : ''}
-                              {scenario.match_date ? ` • ${formatDate(scenario.match_date)}` : ''}
-                            </div>
-                            {isCurrent ? (
-                              <div style={{ marginTop: 8 }}>
-                                <span style={miniPillBlueStyle}>Currently loaded</span>
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div style={savedScenarioActionsStyle}>
-                            <button type="button" style={ghostButtonSmall} onClick={() => loadScenario(scenario.id)} disabled={isLoading || isDeleting}>
-                              {isLoading ? 'Loading...' : 'Load'}
-                            </button>
-
-                            <button type="button" onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading} style={dangerButtonStyle}>
-                              {isDeleting ? 'Deleting...' : 'Delete'}
-                            </button>
-                          </div>
-                        </div>
-
-                        {scenario.notes ? <p style={cardNoteTextStyle}>{scenario.notes}</p> : null}
-                      </article>
-                    )
-                  })
+                    <div style={rightPillStackStyle}>
+                      <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
+                        {player.availabilityStatus || 'unknown'}
+                      </span>
+                      {assignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
+                    </div>
+                  </div>
+                )) : (
+                  <p style={mutedTextStyle}>
+                    {loading ? 'Loading player pool…' : 'No players match the current scope.'}
+                  </p>
                 )}
               </div>
             </section>
           </div>
         </div>
-      </section>
-
       </div>
     </SiteShell>
   )
 }
 
-function SlotEditor({
-  slot,
-  side,
-  playerPool,
-  assignedPlayerIds,
-  setSlotLabel,
-  setSlotPlayer,
-  removeSlot,
-  playerLabel,
-}: {
-  slot: LineupSlot
-  side: 'team' | 'opponent'
-  playerPool: PoolPlayer[]
-  assignedPlayerIds: Set<string>
-  setSlotLabel: (side: 'team' | 'opponent', slotId: string, label: string) => void
-  setSlotPlayer: (
-    side: 'team' | 'opponent',
-    slotId: string,
-    playerIndex: number,
-    playerId: string
-  ) => void
-  removeSlot: (side: 'team' | 'opponent', slotId: string) => void
-  playerLabel: (player: PoolPlayer) => string
-}) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div style={slotCardStyle}>
-      <div style={slotHeaderStyle}>
-        <div style={slotHeaderLeftStyle}>
-          <input
-            value={slot.label}
-            onChange={(e) => setSlotLabel(side, slot.id, e.target.value)}
-            style={slotLabelInputStyle}
-          />
-          <span style={slot.slotType === 'singles' ? miniPillBlueStyle : assignedPillStyle}>
-            {slot.slotType === 'singles' ? 'Singles' : 'Doubles'}
-          </span>
-        </div>
-
-        <button type="button" onClick={() => removeSlot(side, slot.id)} style={dangerButtonStyle}>
-          Remove
-        </button>
-      </div>
-
-      <div style={slotPlayersGridStyle}>
-        {slot.players.map((selectedPlayer, index) => (
-          <div key={`${slot.id}-${index}`}>
-            <label style={smallLabelStyle}>
-              {slot.slotType === 'doubles' ? `Player ${index + 1}` : 'Player'}
-            </label>
-
-            <select
-              value={selectedPlayer.playerId}
-              onChange={(e) => setSlotPlayer(side, slot.id, index, e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">Select player</option>
-              {playerPool.map((player) => {
-                const isTakenElsewhere =
-                  player.id !== selectedPlayer.playerId && assignedPlayerIds.has(player.id)
-
-                return (
-                  <option key={player.id} value={player.id} disabled={isTakenElsewhere}>
-                    {playerLabel(player)}
-                    {isTakenElsewhere ? ' • already assigned' : ''}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-        ))}
-      </div>
+    <div>
+      <label style={labelStyle}>{label}</label>
+      {children}
     </div>
   )
 }
@@ -1224,523 +2008,361 @@ function MetricStat({ label, value }: { label: string; value: string }) {
   return (
     <div style={heroMetricCardStyle}>
       <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyle}>{value}</div>
+      <div style={metricValueStyleHero}>{value}</div>
     </div>
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
+function SlotEditor({
+  side,
+  slot,
+  playerPool,
+  assignedPlayerIds,
+  onPlayerChange,
+  onLabelChange,
+  onRemove,
+  toggleLockedSlot,
+  toggleLockedPlayer,
+  lockedSlotIds,
+  lockedPlayerIds,
 }: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
+  side: 'team' | 'opponent'
+  slot: LineupSlot
+  playerPool: PoolPlayer[]
+  assignedPlayerIds: Set<string>
+  onPlayerChange: (side: 'team' | 'opponent', slotId: string, playerIndex: number, playerId: string) => void
+  onLabelChange: (side: 'team' | 'opponent', slotId: string, label: string) => void
+  onRemove: (side: 'team' | 'opponent', slotId: string) => void
+  toggleLockedSlot: (slotId: string) => void
+  toggleLockedPlayer: (playerId: string) => void
+  lockedSlotIds: Set<string>
+  lockedPlayerIds: Set<string>
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
-
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-      />
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
+    <div style={slotCardStyle}>
+      <div style={slotHeaderStyle}>
+        <div style={slotHeaderLeftStyle}>
+          <input
+            value={slot.label}
+            onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
+            style={slotLabelInputStyle}
+          />
+          <span style={miniPillSlateStyle}>{slot.slotType}</span>
+          {side === 'team' ? (
+            <button type="button" style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
+              {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
+            </button>
+          ) : null}
+        </div>
+
+        <button type="button" style={ghostButtonSmallButton} onClick={() => onRemove(side, slot.id)}>
+          Remove
+        </button>
+      </div>
+
+      <div style={slotPlayersGridStyle}>
+        {slot.players.map((player, index) => (
+          <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
+            <select
+              value={player.playerId}
+              onChange={(e) => onPlayerChange(side, slot.id, index, e.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Select player</option>
+              {playerPool.map((poolPlayer) => {
+                const disabled =
+                  poolPlayer.id !== player.playerId &&
+                  assignedPlayerIds.has(poolPlayer.id) &&
+                  side === 'team'
+
+                return (
+                  <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
+                    {poolPlayer.name} • OVR {formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}
+                  </option>
+                )
+              })}
+            </select>
+
+            {side === 'team' && player.playerId ? (
+              <button
+                type="button"
+                style={lockedPlayerIds.has(player.playerId) ? pillButtonActive : pillButton}
+                onClick={() => toggleLockedPlayer(player.playerId)}
+              >
+                {lockedPlayerIds.has(player.playerId) ? 'player locked' : 'lock player'}
+              </button>
+            ) : null}
+          </div>
+        ))}
       </div>
     </div>
   )
 }
 
-function headerInnerResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-}
-
-function navStyleResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-}
-
-function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
-    gap: isMobile ? '18px' : '24px',
-    padding: isMobile ? '26px 18px' : '34px 26px',
-  }
-}
-
-function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProperties {
-  return {
-    ...heroTitleStyle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '50px',
-  }
-}
-
-function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-}
-
-function builderLayoutResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...builderLayoutStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
-  }
-}
-
-function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
-  return {
-    ...toggleGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
-  }
-}
-
-function footerInnerResponsive(isMobile: boolean): CSSProperties {
-  return {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-}
-
-function footerRowResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-}
-
-function footerLinksResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-}
-
 const pageWrap: CSSProperties = {
-  width: 'min(1280px, calc(100% - 48px))',
-  margin: '0 auto',
+  padding: '24px 24px 56px',
   display: 'grid',
-  gap: '18px',
-  padding: '14px 0 28px',
-  position: 'relative',
-  zIndex: 2,
+  gap: 24,
 }
 
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
+const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : '1.3fr 0.9fr',
+  gap: isMobile ? 16 : 22,
+  padding: isMobile ? 18 : 26,
+  borderRadius: 28,
+  border: '1px solid rgba(96, 165, 250, 0.18)',
   background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
-  padding: '24px 18px 56px',
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-100px',
-  right: '-60px',
-  width: '360px',
-  height: '360px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
-  filter: 'blur(10px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  top: '60px',
-  left: '-100px',
-  width: '320px',
-  height: '320px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
-  filter: 'blur(12px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-  backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
-}
-
-const headerInner: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-}
-
-const navLink: CSSProperties = {
-  padding: '13px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
-}
-
-const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
-}
+    'radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 34%), linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98))',
+  boxShadow: '0 30px 70px rgba(2, 6, 23, 0.34)',
+})
 
 const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(130, 244, 118, 0.28)',
-  background: 'rgba(89, 145, 73, 0.14)',
-  color: '#d9e7ef',
+  color: '#93c5fd',
+  fontSize: 12,
   fontWeight: 800,
-  fontSize: '14px',
+  letterSpacing: '0.12em',
   textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
+  marginBottom: 10,
 }
 
-
-const heroShell: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
-  display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
-}
+const heroTitleResponsive = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
+  margin: 0,
+  color: '#f8fafc',
+  fontSize: isSmallMobile ? 32 : isMobile ? 40 : 52,
+  lineHeight: 1.02,
+  letterSpacing: '-0.04em',
+  fontWeight: 900,
+})
 
 const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 820,
-  color: 'rgba(255,255,255,0.78)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
+  color: '#bfdbfe',
+  lineHeight: 1.65,
+  fontSize: 16,
+  maxWidth: 760,
+  marginTop: 14,
 }
-
-const heroTitleStyle: CSSProperties = {
-  margin: 0,
-  color: '#f7fbff',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: '-0.055em',
-  maxWidth: '760px',
-}
-
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 12,
-  marginTop: 22,
+  marginTop: 18,
 }
 
-const heroMetricGridBaseStyle: CSSProperties = {
-  marginTop: 22,
+const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gap: '14px',
-}
+  gridTemplateColumns: isSmallMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
+  gap: 12,
+  marginTop: 22,
+})
 
 const heroMetricCardStyle: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.06)',
+  borderRadius: 22,
+  padding: '16px 16px 14px',
+  background: 'rgba(15, 23, 42, 0.7)',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  minHeight: 96,
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
 }
 
-const metricValueStyle: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: '1.05rem',
-  fontWeight: 800,
-  lineHeight: 1.4,
+const metricValueStyleHero: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 28,
+  fontWeight: 900,
+  marginTop: 10,
 }
 
 const quickStartCard: CSSProperties = {
-  borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
-  padding: '20px',
+  borderRadius: 24,
+  padding: 22,
+  background: 'rgba(15, 23, 42, 0.74)',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
 }
 
 const quickStartTitle: CSSProperties = {
-  marginTop: 10,
-  marginBottom: 14,
-  fontSize: '1.35rem',
-  lineHeight: 1.14,
-  color: '#ffffff',
+  margin: '6px 0 0',
+  color: '#f8fafc',
+  fontSize: 28,
+  lineHeight: 1.1,
+  fontWeight: 900,
 }
 
 const workflowListStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gap: 14,
+  marginTop: 18,
 }
 
 const workflowRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  alignItems: 'flex-start',
-}
-
-const workflowNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 999,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontWeight: 800,
-  fontSize: '.92rem',
-  color: '#0f1632',
-  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
-  flexShrink: 0,
-}
-
-const workflowTitleStyle: CSSProperties = {
-  fontWeight: 700,
-  color: '#ffffff',
-  marginBottom: 4,
-}
-
-const workflowTextStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
-  lineHeight: 1.55,
-  fontSize: '.95rem',
-}
-
-const contentWrap: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto',
-}
-
-const builderLayoutStyle: CSSProperties = {
   display: 'grid',
-  gap: '20px',
+  gridTemplateColumns: '42px 1fr',
+  gap: 12,
   alignItems: 'start',
 }
 
+const workflowNumberStyle: CSSProperties = {
+  width: 42,
+  height: 42,
+  borderRadius: 999,
+  background: 'rgba(37, 99, 235, 0.22)',
+  color: '#dbeafe',
+  display: 'grid',
+  placeItems: 'center',
+  fontWeight: 900,
+}
+
+const workflowTitleStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontWeight: 800,
+  fontSize: 15,
+}
+
+const workflowTextStyle: CSSProperties = {
+  color: '#cbd5e1',
+  fontSize: 14,
+  lineHeight: 1.55,
+  marginTop: 4,
+}
+
+const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr 1fr',
+  gap: 22,
+})
+
 const columnStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '20px',
+  display: 'grid',
+  gap: 22,
+  alignContent: 'start',
 }
 
 const surfaceCardStrong: CSSProperties = {
-  borderRadius: '28px',
-  padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  borderRadius: 26,
+  padding: 22,
+  border: '1px solid rgba(96, 165, 250, 0.16)',
+  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98))',
+  boxShadow: '0 18px 50px rgba(2, 6, 23, 0.26)',
 }
 
 const surfaceCard: CSSProperties = {
-  borderRadius: '28px',
-  padding: '20px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  borderRadius: 24,
+  padding: 20,
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+  background: 'rgba(15, 23, 42, 0.92)',
+  boxShadow: '0 16px 42px rgba(2, 6, 23, 0.18)',
 }
 
 const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap',
-  marginBottom: '16px',
+  gap: 12,
+  marginBottom: 18,
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
-  fontWeight: 800,
-  fontSize: '13px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
   margin: 0,
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
 }
 
 const sectionTitle: CSSProperties = {
-  margin: '8px 0',
-  color: '#f8fbff',
+  margin: '8px 0 0',
+  color: '#f8fafc',
+  fontSize: 26,
+  lineHeight: 1.08,
   fontWeight: 900,
-  fontSize: '28px',
-  letterSpacing: '-0.04em',
+}
+
+const sectionTitleSmall: CSSProperties = {
+  margin: '6px 0 0',
+  color: '#f8fafc',
+  fontSize: 20,
   lineHeight: 1.1,
+  fontWeight: 800,
 }
 
 const sectionBodyTextStyle: CSSProperties = {
-  margin: 0,
-  color: 'rgba(224,234,247,0.76)',
-  lineHeight: 1.65,
-}
-
-const bannerBlueStyle: CSSProperties = {
-  marginBottom: '16px',
-  padding: '14px 16px',
-  borderRadius: '16px',
-  background: 'rgba(37, 91, 227, 0.12)',
-  border: '1px solid rgba(37, 91, 227, 0.20)',
-}
-
-const bannerSlateStyle: CSSProperties = {
-  marginBottom: '16px',
-  padding: '14px 16px',
-  borderRadius: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  color: '#dbeafe',
-  fontWeight: 700,
-}
-
-const bannerTitleStyle: CSSProperties = {
-  color: '#8fb7ff',
-  fontWeight: 800,
-  marginBottom: '4px',
-}
-
-const bannerMetaStyle: CSSProperties = {
+  marginTop: 10,
   color: '#cbd5e1',
-  lineHeight: 1.5,
+  fontSize: 14,
+  lineHeight: 1.6,
 }
 
-const formGridStyle: CSSProperties = {
+const inputStyle: CSSProperties = {
+  width: '100%',
+  height: 46,
+  borderRadius: 14,
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+  background: 'rgba(15, 23, 42, 0.92)',
+  color: '#f8fafc',
+  padding: '0 14px',
+  outline: 'none',
+}
+
+const textareaStyle: CSSProperties = {
+  width: '100%',
+  borderRadius: 16,
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+  background: 'rgba(15, 23, 42, 0.92)',
+  color: '#f8fafc',
+  padding: '14px',
+  outline: 'none',
+  resize: 'vertical',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  color: '#cbd5e1',
+  fontSize: 13,
+  fontWeight: 700,
+  marginBottom: 8,
+}
+
+const filtersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '14px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 14,
 }
 
-const toggleGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-  marginTop: '18px',
-}
-
-const toggleCardStyle: CSSProperties = {
+const toggleRowStyle: CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '14px',
-  padding: '14px 16px',
-  borderRadius: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#e7eefb',
-}
-
-const toggleTitleStyle: CSSProperties = {
-  fontWeight: 800,
-  color: '#f8fbff',
-  marginBottom: 4,
-}
-
-const toggleTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  lineHeight: 1.5,
-  fontSize: '.94rem',
-}
-
-const actionRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
   flexWrap: 'wrap',
-  marginTop: '18px',
+  gap: 18,
+  marginTop: 16,
 }
 
-const miniActionRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
+const checkLabelStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  color: '#cbd5e1',
+  fontSize: 14,
 }
 
 const primaryButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  textDecoration: 'none',
+  height: 46,
+  padding: '0 18px',
+  borderRadius: 14,
+  border: '1px solid rgba(59, 130, 246, 0.38)',
+  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+  color: '#eff6ff',
   fontWeight: 800,
-  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
-  color: '#071622',
-  border: '1px solid rgba(133, 171, 255, 0.18)',
-  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
+  textDecoration: 'none',
   cursor: 'pointer',
 }
 
@@ -1748,255 +2370,180 @@ const ghostButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  textDecoration: 'none',
+  height: 46,
+  padding: '0 18px',
+  borderRadius: 14,
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+  background: 'rgba(15, 23, 42, 0.9)',
+  color: '#e2e8f0',
   fontWeight: 800,
-  background: 'rgba(14, 27, 49, 0.9)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
+  textDecoration: 'none',
   cursor: 'pointer',
 }
 
-const ghostButtonSmall: CSSProperties = {
-  ...ghostButton,
-  minHeight: '42px',
-  padding: '0 14px',
+const ghostButtonSmallButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 36,
+  padding: '0 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+  background: 'rgba(15, 23, 42, 0.9)',
+  color: '#e2e8f0',
+  fontWeight: 700,
+  cursor: 'pointer',
 }
 
-const secondaryLinkButton: CSSProperties = {
-  ...ghostButton,
-}
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  height: '48px',
-  borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
-  padding: '0 14px',
-  fontSize: '14px',
-  outline: 'none',
-}
-
-const textareaStyle: CSSProperties = {
-  width: '100%',
-  minHeight: '118px',
-  borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
-  padding: '12px 14px',
-  fontSize: '14px',
-  outline: 'none',
-}
-
-const labelStyle: CSSProperties = {
-  display: 'block',
-  marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
-  fontSize: '13px',
-  fontWeight: 800,
-  letterSpacing: '0.05em',
-  textTransform: 'uppercase',
-}
-
-const smallLabelStyle: CSSProperties = {
-  ...labelStyle,
-  marginBottom: '6px',
-}
-
-const infoTextStyle: CSSProperties = {
-  color: '#8fb7ff',
-  marginTop: '14px',
-  marginBottom: 0,
-  fontWeight: 600,
-}
-
-const successTextStyle: CSSProperties = {
-  color: '#86efac',
-  marginTop: '14px',
-  marginBottom: 0,
-  fontWeight: 600,
-}
-
-const errorTextStyle: CSSProperties = {
-  color: '#fca5a5',
-  marginTop: '14px',
-  marginBottom: 0,
-  fontWeight: 600,
-}
-
-const slotListStyle: CSSProperties = {
+const actionRowStyle: CSSProperties = {
   display: 'flex',
-  flexDirection: 'column',
-  gap: '14px',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const actionRowStyleWrap: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 14,
+}
+
+const stackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+}
+
+const stackStyleCompact: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+}
+
+const listCardStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+  background: 'rgba(2, 6, 23, 0.7)',
+  padding: 16,
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 14,
+  alignItems: 'center',
+}
+
+const listCardStyleCompact: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'rgba(2, 6, 23, 0.56)',
+  padding: 14,
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 14,
+  alignItems: 'center',
+}
+
+const listTitleStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontWeight: 800,
+  fontSize: 15,
+}
+
+const listMetaStyle: CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 13,
+  lineHeight: 1.5,
+  marginTop: 4,
+}
+
+const listMetaStyleStrong: CSSProperties = {
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.6,
+  marginTop: 4,
+}
+
+const tinyNoteStyle: CSSProperties = {
+  color: '#bfdbfe',
+  fontSize: 12,
+  lineHeight: 1.5,
+  marginTop: 6,
 }
 
 const slotCardStyle: CSSProperties = {
-  borderRadius: '18px',
-  padding: '16px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 18,
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+  background: 'rgba(2, 6, 23, 0.66)',
+  padding: 16,
 }
 
 const slotHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  gap: '12px',
-  flexWrap: 'wrap',
-  marginBottom: '12px',
+  gap: 12,
+  marginBottom: 12,
 }
 
 const slotHeaderLeftStyle: CSSProperties = {
   display: 'flex',
+  gap: 10,
   alignItems: 'center',
-  gap: '10px',
   flexWrap: 'wrap',
 }
 
 const slotLabelInputStyle: CSSProperties = {
-  ...inputStyle,
-  minWidth: '180px',
-  maxWidth: '220px',
-  height: '42px',
-  fontWeight: 700,
+  borderRadius: 12,
+  border: '1px solid rgba(148, 163, 184, 0.2)',
+  background: 'rgba(15, 23, 42, 0.88)',
+  color: '#f8fafc',
+  padding: '8px 12px',
+  minWidth: 140,
+  outline: 'none',
 }
 
 const slotPlayersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
-  gap: '12px',
+  gap: 12,
 }
 
-const heroBadgeRowStyleCompact: CSSProperties = {
-  display: 'flex',
-  gap: '8px',
-  flexWrap: 'wrap',
-  marginTop: '14px',
-}
-
-const badgeBase: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '36px',
-  padding: '0 14px',
-  borderRadius: '999px',
-  fontSize: '0.82rem',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: '0.02em',
-  border: '1px solid transparent',
-}
-
-const badgeBlue: CSSProperties = {
-  ...badgeBase,
-  background: 'rgba(37, 91, 227, 0.16)',
-  color: '#c7dbff',
-  borderColor: 'rgba(98, 154, 255, 0.18)',
-}
-
-const badgeSlate: CSSProperties = {
-  ...badgeBase,
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#e8eef9',
-  borderColor: 'rgba(255, 255, 255, 0.1)',
-}
-
-
-const metricGrid: CSSProperties = {
+const slotPlayerRowStyle: CSSProperties = {
   display: 'grid',
-  gap: '14px',
-  marginBottom: '18px',
+  gap: 8,
 }
 
-const metricCard: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(12,25,45,0.94), rgba(9,18,34,0.96))',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
-  minWidth: 0,
-}
-
-const metricCardAccent: CSSProperties = {
-  borderColor: 'rgba(111,236,168,0.34)',
-}
-
-const metricLabel: CSSProperties = {
-  color: 'rgba(224, 234, 247, 0.7)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
-}
-
-const metricValue: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
-  lineHeight: 1.15,
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
-
-const stackStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '12px',
-  marginTop: '14px',
-}
-
-const mutedTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  margin: 0,
-  lineHeight: 1.6,
-}
-
-const poolCardStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '18px',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.04)',
-}
-
-const poolCardTopStyle: CSSProperties = {
+const tableHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '10px',
+  gap: 12,
+  alignItems: 'center',
+  marginBottom: 12,
 }
 
-const playerNameStyle: CSSProperties = {
-  color: '#f8fbff',
+const projectionHeroStyle: CSSProperties = {
+  borderRadius: 22,
+  padding: 20,
+  background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(59, 130, 246, 0.08))',
+  border: '1px solid rgba(59, 130, 246, 0.24)',
+  marginTop: 14,
+  marginBottom: 14,
+}
+
+const projectionValueStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 44,
+  lineHeight: 1,
+  fontWeight: 900,
+}
+
+const projectionTierStyle: CSSProperties = {
+  color: '#bfdbfe',
   fontWeight: 800,
-  fontSize: '1rem',
-}
-
-const playerMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  fontSize: '0.92rem',
-  lineHeight: 1.55,
-  marginTop: '4px',
-}
-
-const statusBadgeStyle: CSSProperties = {
-  display: 'inline-flex',
-  padding: '6px 10px',
-  borderRadius: '999px',
-  fontWeight: 700,
-  fontSize: '0.8rem',
-  whiteSpace: 'nowrap',
+  marginTop: 8,
+  fontSize: 15,
 }
 
 const pillRowStyle: CSSProperties = {
   display: 'flex',
-  gap: '8px',
   flexWrap: 'wrap',
-  marginTop: '14px',
+  gap: 8,
 }
 
 const miniPillStyle: CSSProperties = {
@@ -2011,176 +2558,80 @@ const miniPillStyle: CSSProperties = {
   fontWeight: 800,
 }
 
+const miniPillSlateStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(255,255,255,0.08)',
+  color: '#e2e8f0',
+}
+
 const miniPillBlueStyle: CSSProperties = {
   ...miniPillStyle,
   background: 'rgba(37, 91, 227, 0.16)',
   color: '#c7dbff',
-}
-
-const assignedPillStyle: CSSProperties = {
-  ...miniPillStyle,
-  background: 'rgba(96, 221, 116, 0.14)',
-  color: '#dffad5',
-}
-
-const cardNoteTextStyle: CSSProperties = {
-  margin: '10px 0 0 0',
-  color: '#e7eefb',
-  lineHeight: 1.58,
-}
-
-const subtleNoteTextStyle: CSSProperties = {
-  margin: '8px 0 0 0',
-  color: 'rgba(224,234,247,0.72)',
-  lineHeight: 1.58,
-  fontSize: '0.92rem',
-}
-
-const compareGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '10px',
-}
-
-const compareCardStyle: CSSProperties = {
-  borderRadius: '16px',
-  padding: '12px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-}
-
-const compareLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  fontSize: '12px',
-  fontWeight: 700,
-  marginBottom: '6px',
-}
-
-const compareValueStyle: CSSProperties = {
-  color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '18px',
-}
-
-const goodBadgeStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
-  borderRadius: '999px',
-  background: 'rgba(96, 221, 116, 0.14)',
-  color: '#dffad5',
-  fontSize: '12px',
-  fontWeight: 800,
-}
-
-const warnBadgeStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
-  borderRadius: '999px',
-  background: 'rgba(255, 93, 93, 0.10)',
-  color: '#fecaca',
-  fontSize: '12px',
-  fontWeight: 800,
-}
-
-const savedScenarioCardStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '18px',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.04)',
-}
-
-const savedScenarioCardActiveStyle: CSSProperties = {
   border: '1px solid rgba(37, 91, 227, 0.22)',
-  boxShadow: '0 0 0 3px rgba(37, 91, 227, 0.08)',
 }
 
-const savedScenarioTopStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
+const miniPillGreenStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(96, 221, 116, 0.16)',
+  color: '#bbf7d0',
+  border: '1px solid rgba(96, 221, 116, 0.22)',
 }
 
-const savedScenarioTitleStyle: CSSProperties = {
-  color: '#f8fbff',
-  fontWeight: 800,
-  fontSize: '1rem',
-}
+const badgeGreen: CSSProperties = { ...miniPillGreenStyle }
+const badgeBlue: CSSProperties = { ...miniPillBlueStyle }
+const badgeSlate: CSSProperties = { ...miniPillSlateStyle }
 
-const savedScenarioMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  fontSize: '0.92rem',
-  lineHeight: 1.55,
-  marginTop: '4px',
-}
-
-const savedScenarioActionsStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-  alignItems: 'stretch',
-}
-
-const dangerButtonStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '10px 12px',
-  borderRadius: '12px',
-  background: 'rgba(255, 93, 93, 0.08)',
-  color: '#fca5a5',
-  border: '1px solid rgba(255, 93, 93, 0.18)',
-  fontWeight: 700,
-  cursor: 'pointer',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '28px 0 0',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
+const heroBadgeRowStyleCompact: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: '10px 14px',
+  gap: 8,
+  marginTop: 16,
 }
 
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
+const bannerBlueStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: '14px 16px',
+  background: 'rgba(37, 99, 235, 0.16)',
+  border: '1px solid rgba(37, 99, 235, 0.26)',
+  color: '#dbeafe',
 }
 
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+const bannerGreenStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: '14px 16px',
+  background: 'rgba(34, 197, 94, 0.14)',
+  border: '1px solid rgba(34, 197, 94, 0.24)',
+  color: '#dcfce7',
+}
+
+const warningCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: '14px 16px',
+  background: 'rgba(239, 68, 68, 0.14)',
+  border: '1px solid rgba(239, 68, 68, 0.24)',
+  color: '#fee2e2',
+}
+
+const mutedTextStyle: CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 14,
+  lineHeight: 1.6,
+}
+
+const rightPillStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  justifyItems: 'end',
+}
+
+const pillButton: CSSProperties = {
+  ...miniPillSlateStyle,
+  cursor: 'pointer',
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+}
+
+const pillButtonActive: CSSProperties = {
+  ...miniPillGreenStyle,
+  cursor: 'pointer',
 }

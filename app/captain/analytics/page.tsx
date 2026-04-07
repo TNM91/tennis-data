@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -10,31 +11,39 @@ import SiteShell from '@/app/components/site-shell'
 type PlayerRow = {
   id: string
   name: string
-  singles_dynamic_rating: number | null
-  doubles_dynamic_rating: number | null
-  overall_dynamic_rating: number | null
+  location: string | null
   flight: string | null
   preferred_role: string | null
+  lineup_notes: string | null
+  singles_rating: number | null
+  singles_dynamic_rating: number | null
+  doubles_rating: number | null
+  doubles_dynamic_rating: number | null
+  overall_rating: number | null
+  overall_dynamic_rating: number | null
 }
 
-type MatchRow = {
+type AvailabilityRow = {
   id: string
   match_date: string | null
-  match_type: string | null
-  score: string | null
-  winner_side: string | null
-  flight: string | null
+  team_name: string | null
   league_name: string | null
-  home_team: string | null
-  away_team: string | null
+  flight: string | null
+  player_id: string
+  status: string | null
+  notes: string | null
 }
 
-type MatchPlayerRow = {
+type SlotPlayer = {
+  playerId: string
+  playerName: string
+}
+
+type LineupSlot = {
   id: string
-  match_id: string
-  player_id: string
-  side: string | null
-  seat: number | null
+  label: string
+  slotType: 'singles' | 'doubles'
+  players: SlotPlayer[]
 }
 
 type ScenarioRow = {
@@ -50,283 +59,255 @@ type ScenarioRow = {
   notes: string | null
 }
 
-type AvailabilityEntry = {
-  id: string
-  playerName: string
-  playerId: string | null
-  phone: string | null
-  leagueName: string | null
-  flight: string | null
-  teamName: string | null
-  seasonLabel: string | null
-  sessionLabel: string | null
-  weekKey: string
-  response: AvailabilityStatus
-  updatedAt: string | null
+type PoolPlayer = PlayerRow & {
+  availabilityStatus: string | null
+  availabilityNotes: string | null
 }
 
-type AvailabilityStatus = 'yes' | 'no' | 'maybe' | 'no-response'
+const NAV_LINKS = [
+  { href: '/', label: 'Home' },
+  { href: '/players', label: 'Players' },
+  { href: '/rankings', label: 'Rankings' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/leagues', label: 'Leagues' },
+  { href: '/teams', label: 'Teams' },
+  { href: '/captain', label: "Captain's Corner" },
+]
 
-type PairingStat = {
-  key: string
-  names: string[]
-  avgRating: number
-  matches: number
-}
+const DEFAULT_TEAM_SLOTS: LineupSlot[] = [
+  createSinglesSlot('s1', 'Singles 1'),
+  createSinglesSlot('s2', 'Singles 2'),
+  createSinglesSlot('s3', 'Singles 3'),
+  createDoublesSlot('d1', 'Doubles 1'),
+  createDoublesSlot('d2', 'Doubles 2'),
+]
 
-type Recommendation = {
-  title: string
-  body: string
-  tone: 'good' | 'warn' | 'info'
-}
+const DEFAULT_OPPONENT_SLOTS: LineupSlot[] = [
+  createSinglesSlot('os1', 'Singles 1'),
+  createSinglesSlot('os2', 'Singles 2'),
+  createSinglesSlot('os3', 'Singles 3'),
+  createDoublesSlot('od1', 'Doubles 1'),
+  createDoublesSlot('od2', 'Doubles 2'),
+]
 
-type WeeklyReadiness = {
-  weekKey: string
-  total: number
-  yes: number
-  no: number
-  maybe: number
-  noResponse: number
-  yesRate: number
-  responseRate: number
-}
-
-const AVAILABILITY_TABLES = [
-  'captain_availability',
-  'lineup_availability',
-  'weekly_availability',
-  'player_availability',
-  'availability_responses',
-  'captain_lineup_availability',
-] as const
-
-function normalizeNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
+function createSinglesSlot(id: string, label: string): LineupSlot {
+  return {
+    id,
+    label,
+    slotType: 'singles',
+    players: [{ playerId: '', playerName: '' }],
   }
-  return null
 }
 
-function cleanText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
+function createDoublesSlot(id: string, label: string): LineupSlot {
+  return {
+    id,
+    label,
+    slotType: 'doubles',
+    players: [
+      { playerId: '', playerName: '' },
+      { playerId: '', playerName: '' },
+    ],
+  }
 }
 
-function safeArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : []
-}
-
-function titleCase(value: string) {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ')
+function cloneSlots(slots: LineupSlot[]) {
+  return slots.map((slot) => ({
+    ...slot,
+    players: slot.players.map((player) => ({ ...player })),
+  }))
 }
 
 function formatDate(value: string | null) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return date.toLocaleDateString()
 }
 
-function formatPct(value: number | null, digits = 0) {
-  if (value == null || Number.isNaN(value)) return '—'
-  return `${(value * 100).toFixed(digits)}%`
-}
-
-function formatRating(value: number | null, digits = 2) {
-  if (value == null || Number.isNaN(value)) return '—'
-  return value.toFixed(digits)
-}
-
-function weekKeyFromDate(value: string | null) {
-  const date = value ? new Date(value) : new Date()
-  if (Number.isNaN(date.getTime())) return 'Current week'
-  const normalized = new Date(date)
-  normalized.setHours(0, 0, 0, 0)
-  const day = normalized.getDay()
-  const diffToMonday = (day + 6) % 7
-  normalized.setDate(normalized.getDate() - diffToMonday)
-  return normalized.toISOString().slice(0, 10)
-}
-
-function parseAvailabilityStatus(value: unknown): AvailabilityStatus {
-  const text = cleanText(value).toLowerCase()
-  if (['yes', 'available', 'in', 'confirmed', 'accept', 'accepted'].includes(text)) return 'yes'
-  if (['no', 'out', 'unavailable', 'declined', 'decline'].includes(text)) return 'no'
-  if (['maybe', 'tentative', 'unsure'].includes(text)) return 'maybe'
-  return 'no-response'
+function cleanText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((v) => (v ?? '').trim()).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b),
-  )
+  return Array.from(
+    new Set(values.map((value) => (value ?? '').trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b))
 }
 
-function extractPlayers(value: unknown): Array<{ id: string; name: string }> {
-  if (!value) return []
+function availabilityRank(status: string | null | undefined) {
+  const normalized = (status ?? '').trim().toLowerCase()
 
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    return trimmed ? [{ id: '', name: trimmed }] : []
-  }
+  if (normalized === 'available' || normalized === 'yes' || normalized === 'in') return 0
+  if (normalized === 'maybe') return 1
+  if (normalized === 'unknown' || normalized === '') return 2
+  if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') return 3
 
-  if (Array.isArray(value)) {
-    return value.flatMap((item) => extractPlayers(item))
-  }
-
-  if (typeof value === 'object' && value !== null) {
-    const obj = value as Record<string, unknown>
-
-    const directName =
-      cleanText(obj.playerName) ||
-      cleanText(obj.name) ||
-      cleanText(obj.player) ||
-      cleanText(obj.player_name)
-    const directId = cleanText(obj.playerId) || cleanText(obj.id)
-
-    if (directName) return [{ id: directId, name: directName }]
-
-    return [
-      ...(obj.players ? extractPlayers(obj.players) : []),
-      ...(obj.names ? extractPlayers(obj.names) : []),
-      ...(obj.roster ? extractPlayers(obj.roster) : []),
-      ...(obj.player_1 ? extractPlayers(obj.player_1) : []),
-      ...(obj.player_2 ? extractPlayers(obj.player_2) : []),
-    ]
-  }
-
-  return []
+  return 2
 }
 
-function normalizeScenarioSlots(raw: unknown) {
-  const rows: unknown[] = Array.isArray(raw)
-    ? raw
-    : typeof raw === 'object' && raw !== null
-      ? safeArray(
-          (raw as Record<string, unknown>).slots ??
-            (raw as Record<string, unknown>).lines ??
-            (raw as Record<string, unknown>).courts,
-        )
-      : []
+function statusTone(status: string | null | undefined) {
+  const normalized = (status ?? '').trim().toLowerCase()
 
-  return rows.map((item, index) => {
-    if (typeof item === 'string') {
-      return {
-        key: `slot-${index}`,
-        label: `Slot ${index + 1}`,
-        players: item.trim() ? [item.trim()] : [],
-        playerIds: [],
-      }
-    }
-
-    if (typeof item === 'object' && item !== null) {
-      const obj = item as Record<string, unknown>
-      const extracted = extractPlayers(
-        obj.players ??
-          obj.player_names ??
-          obj.names ??
-          obj.roster ??
-          [obj.player_1, obj.player_2].filter(Boolean),
-      )
-
-      return {
-        key: cleanText(obj.id) || `slot-${index}`,
-        label:
-          cleanText(obj.label) ||
-          cleanText(obj.line_name) ||
-          cleanText(obj.position) ||
-          cleanText(obj.court) ||
-          cleanText(obj.line) ||
-          `Slot ${index + 1}`,
-        players: extracted.map((p) => p.name).filter(Boolean),
-        playerIds: extracted.map((p) => p.id).filter(Boolean),
-      }
-    }
-
+  if (normalized === 'available' || normalized === 'yes' || normalized === 'in') {
     return {
-      key: `slot-${index}`,
-      label: `Slot ${index + 1}`,
-      players: [],
-      playerIds: [],
+      background: 'rgba(112, 255, 165, 0.12)',
+      color: '#0f8f52',
+      border: '1px solid rgba(112, 255, 165, 0.28)',
     }
-  })
-}
+  }
 
-async function tryLoadAvailability() {
-  for (const table of AVAILABILITY_TABLES) {
-    const result = await supabase.from(table).select('*').limit(400)
-    if (!result.error && Array.isArray(result.data)) {
-      return {
-        table,
-        rows: result.data as Record<string, unknown>[],
-      }
+  if (normalized === 'maybe') {
+    return {
+      background: 'rgba(255, 214, 102, 0.14)',
+      color: '#9a6700',
+      border: '1px solid rgba(255, 214, 102, 0.34)',
+    }
+  }
+
+  if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') {
+    return {
+      background: 'rgba(255, 93, 93, 0.10)',
+      color: '#c43f3f',
+      border: '1px solid rgba(255, 93, 93, 0.24)',
     }
   }
 
   return {
-    table: null,
-    rows: [] as Record<string, unknown>[],
+    background: 'rgba(37, 91, 227, 0.08)',
+    color: '#4c67a7',
+    border: '1px solid rgba(37, 91, 227, 0.14)',
   }
 }
 
-function mapAvailabilityRows(rows: Record<string, unknown>[]): AvailabilityEntry[] {
-  return rows.map((row, index) => {
-    const playerName =
-      cleanText(row.player_name) ||
-      cleanText(row.name) ||
-      cleanText(row.player) ||
-      cleanText(row.contact_name) ||
-      cleanText(row.member_name) ||
-      `Player ${index + 1}`
+function normalizeSavedSlots(raw: unknown): LineupSlot[] {
+  if (!raw || !Array.isArray(raw)) return []
 
-    const weekKey =
-      cleanText(row.week_key) ||
-      cleanText(row.week_start) ||
-      weekKeyFromDate(cleanText(row.match_date) || cleanText(row.event_date) || cleanText(row.created_at) || null)
+  return raw.map((item, index) => {
+    const obj =
+      typeof item === 'object' && item !== null
+        ? (item as Record<string, unknown>)
+        : {}
+
+    const slotType = obj.slotType === 'doubles' ? 'doubles' : 'singles'
+    const label = cleanText(obj.label) || `Slot ${index + 1}`
+
+    const rawPlayers = Array.isArray(obj.players) ? obj.players : []
+    const normalizedPlayers = rawPlayers.map((player) => {
+      const p =
+        typeof player === 'object' && player !== null
+          ? (player as Record<string, unknown>)
+          : {}
+
+      return {
+        playerId: cleanText(p.playerId),
+        playerName: cleanText(p.playerName),
+      }
+    })
 
     return {
-      id: cleanText(row.id) || `${playerName}-${weekKey}-${index}`,
-      playerName,
-      playerId: cleanText(row.player_id) || cleanText(row.contact_id) || null,
-      phone: cleanText(row.phone) || cleanText(row.mobile) || cleanText(row.cell_phone) || null,
-      leagueName: cleanText(row.league_name) || cleanText(row.league) || null,
-      flight: cleanText(row.flight) || null,
-      teamName: cleanText(row.team_name) || cleanText(row.team) || null,
-      seasonLabel: cleanText(row.season_label) || cleanText(row.season) || null,
-      sessionLabel: cleanText(row.session_label) || cleanText(row.session) || null,
-      weekKey,
-      response: parseAvailabilityStatus(
-        row.response_status ?? row.status ?? row.response ?? row.availability ?? row.reply,
-      ),
-      updatedAt: cleanText(row.updated_at) || cleanText(row.created_at) || null,
+      id: cleanText(obj.id) || `slot-${index + 1}`,
+      label,
+      slotType,
+      players:
+        slotType === 'doubles'
+          ? [
+              normalizedPlayers[0] ?? { playerId: '', playerName: '' },
+              normalizedPlayers[1] ?? { playerId: '', playerName: '' },
+            ]
+          : [normalizedPlayers[0] ?? { playerId: '', playerName: '' }],
     }
   })
 }
 
-export default function CaptainAnalyticsPage() {
-  const [screenWidth, setScreenWidth] = useState(1280)
-  const [players, setPlayers] = useState<PlayerRow[]>([])
-  const [matches, setMatches] = useState<MatchRow[]>([])
-  const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
-  const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
-  const [availability, setAvailability] = useState<AvailabilityEntry[]>([])
-  const [availabilityTableName, setAvailabilityTableName] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
+  const selected = slot.players
+    .map((slotPlayer) => players.find((p) => p.id === slotPlayer.playerId))
+    .filter(Boolean) as PlayerRow[]
 
-  const [leagueFilter, setLeagueFilter] = useState('')
-  const [flightFilter, setFlightFilter] = useState('')
-  const [teamFilter, setTeamFilter] = useState('')
-  const [weekFilter, setWeekFilter] = useState('')
+  if (!selected.length) return null
+
+  if (slot.slotType === 'singles') {
+    return selected[0].singles_dynamic_rating ?? selected[0].singles_rating ?? selected[0].overall_dynamic_rating ?? selected[0].overall_rating
+  }
+
+  const values = selected
+    .map((p) => p.doubles_dynamic_rating ?? p.doubles_rating ?? p.overall_dynamic_rating ?? p.overall_rating)
+    .filter((v): v is number => typeof v === 'number')
+
+  if (!values.length) return null
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function formatStrength(value: number | null) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+}
+
+function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlot[], players: PlayerRow[]) {
+  const lines = teamSlots.map((slot, index) => {
+    const opponentSlot = opponentSlots[index]
+    const yourStrength = selectedLineStrength(slot, players)
+    const opponentStrength = opponentSlot ? selectedLineStrength(opponentSlot, players) : null
+    const diff =
+      typeof yourStrength === 'number' && typeof opponentStrength === 'number'
+        ? yourStrength - opponentStrength
+        : null
+
+    return {
+      label: slot.label,
+      slotType: slot.slotType,
+      yourStrength,
+      opponentStrength,
+      diff,
+    }
+  })
+
+  const diffs = lines
+    .map((line) => line.diff)
+    .filter((value): value is number => typeof value === 'number')
+
+  const avgDiff = diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0
+  const projection = 1 / (1 + Math.exp(-avgDiff * 3.2))
+
+  return {
+    lines,
+    avgDiff,
+    projection,
+  }
+}
+
+export default function LineupBuilderPage() {
+  const [players, setPlayers] = useState<PlayerRow[]>([])
+  const [availability, setAvailability] = useState<AvailabilityRow[]>([])
+  const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
+
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [deletingScenarioId, setDeletingScenarioId] = useState('')
+  const [loadingScenarioId, setLoadingScenarioId] = useState('')
+  const [currentScenarioId, setCurrentScenarioId] = useState('')
+
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const [leagueName, setLeagueName] = useState('')
+  const [flight, setFlight] = useState('')
+  const [teamName, setTeamName] = useState('')
+  const [opponentTeam, setOpponentTeam] = useState('')
+  const [matchDate, setMatchDate] = useState('')
+  const [scenarioName, setScenarioName] = useState('')
+  const [notes, setNotes] = useState('')
+
+  const [availabilityOnly, setAvailabilityOnly] = useState(true)
+  const [hideUnavailable, setHideUnavailable] = useState(true)
+  const [screenWidth, setScreenWidth] = useState(1280)
+
+  const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_TEAM_SLOTS))
+  const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+
+  const isTablet = screenWidth < 1080
+  const isMobile = screenWidth < 820
+  const isSmallMobile = screenWidth < 560
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
@@ -338,993 +319,971 @@ export default function CaptainAnalyticsPage() {
   useEffect(() => {
     let mounted = true
 
-    async function load() {
+    async function loadData() {
       setLoading(true)
-      setError(null)
+      setError('')
+      setMessage('')
 
-      const [
-        playersResult,
-        matchesResult,
-        matchPlayersResult,
-        scenariosResult,
-        availabilityResult,
-      ] = await Promise.all([
+      const [playersResult, availabilityResult, scenariosResult] = await Promise.all([
         supabase
           .from('players')
-          .select(
-            'id, name, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating, flight, preferred_role',
-          )
+          .select(`
+            id,
+            name,
+            location,
+            flight,
+            preferred_role,
+            lineup_notes,
+            singles_rating,
+            singles_dynamic_rating,
+            doubles_rating,
+            doubles_dynamic_rating,
+            overall_rating,
+            overall_dynamic_rating
+          `)
           .order('name', { ascending: true }),
         supabase
-          .from('matches')
-          .select(
-            'id, match_date, match_type, score, winner_side, flight, league_name, home_team, away_team',
-          )
-          .order('match_date', { ascending: false })
-          .limit(400),
-        supabase
-          .from('match_players')
-          .select('id, match_id, player_id, side, seat')
-          .limit(2000),
+          .from('lineup_availability')
+          .select(`
+            id,
+            match_date,
+            team_name,
+            league_name,
+            flight,
+            player_id,
+            status,
+            notes
+          `)
+          .order('match_date', { ascending: false }),
         supabase
           .from('lineup_scenarios')
-          .select(
-            'id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes',
-          )
+          .select(`
+            id,
+            scenario_name,
+            league_name,
+            flight,
+            match_date,
+            team_name,
+            opponent_team,
+            slots_json,
+            opponent_slots_json,
+            notes
+          `)
           .order('match_date', { ascending: false })
-          .limit(250),
-        tryLoadAvailability(),
+          .order('scenario_name', { ascending: true }),
       ])
 
       if (!mounted) return
 
       if (playersResult.error) {
         setError(playersResult.error.message)
-      } else if (matchesResult.error) {
-        setError(matchesResult.error.message)
-      } else if (matchPlayersResult.error) {
-        setError(matchPlayersResult.error.message)
+      } else if (availabilityResult.error) {
+        setError(availabilityResult.error.message)
       } else if (scenariosResult.error) {
         setError(scenariosResult.error.message)
       } else {
         setPlayers((playersResult.data ?? []) as PlayerRow[])
-        setMatches((matchesResult.data ?? []) as MatchRow[])
-        setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerRow[])
-        setScenarios((scenariosResult.data ?? []) as ScenarioRow[])
-        setAvailability(mapAvailabilityRows(availabilityResult.rows))
-        setAvailabilityTableName(availabilityResult.table)
+        setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
+        setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
       }
 
       setLoading(false)
     }
 
-    load()
+    loadData()
 
     return () => {
       mounted = false
     }
   }, [])
 
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
   const leagueOptions = useMemo(
     () =>
       uniqueSorted([
-        ...matches.map((item) => item.league_name),
-        ...availability.map((item) => item.leagueName),
-        ...scenarios.map((item) => item.league_name),
+        ...availability.map((row) => row.league_name),
+        ...savedScenarios.map((row) => row.league_name),
       ]),
-    [matches, availability, scenarios],
+    [availability, savedScenarios]
   )
 
   const flightOptions = useMemo(
     () =>
       uniqueSorted([
-        ...matches.map((item) => item.flight),
-        ...availability.map((item) => item.flight),
-        ...players.map((item) => item.flight),
-        ...scenarios.map((item) => item.flight),
+        ...availability.map((row) => row.flight),
+        ...players.map((row) => row.flight),
+        ...savedScenarios.map((row) => row.flight),
       ]),
-    [matches, availability, players, scenarios],
+    [availability, players, savedScenarios]
   )
 
   const teamOptions = useMemo(
     () =>
       uniqueSorted([
-        ...matches.flatMap((item) => [item.home_team, item.away_team]),
-        ...availability.map((item) => item.teamName),
-        ...scenarios.map((item) => item.team_name),
+        ...availability.map((row) => row.team_name),
+        ...savedScenarios.map((row) => row.team_name),
       ]),
-    [matches, availability, scenarios],
+    [availability, savedScenarios]
   )
 
-  const weekOptions = useMemo(
-    () => uniqueSorted(availability.map((item) => item.weekKey)).sort((a, b) => b.localeCompare(a)),
-    [availability],
-  )
-
-  useEffect(() => {
-    if (!weekFilter && weekOptions.length) {
-      setWeekFilter(weekOptions[0])
-    }
-  }, [weekFilter, weekOptions])
-
-  const filteredPlayers = useMemo(() => {
-    return players.filter((player) => {
-      const flightMatch = !flightFilter || player.flight === flightFilter
-      return flightMatch
-    })
-  }, [players, flightFilter])
-
-  const filteredMatches = useMemo(() => {
-    return matches.filter((match) => {
-      const leagueMatch = !leagueFilter || match.league_name === leagueFilter
-      const flightMatch = !flightFilter || match.flight === flightFilter
-      const teamMatch =
-        !teamFilter || match.home_team === teamFilter || match.away_team === teamFilter
+  const scenarioOptions = useMemo(() => {
+    return savedScenarios.filter((scenario) => {
+      const leagueMatch = !leagueName || scenario.league_name === leagueName
+      const flightMatch = !flight || scenario.flight === flight
+      const teamMatch = !teamName || scenario.team_name === teamName
       return leagueMatch && flightMatch && teamMatch
     })
-  }, [matches, leagueFilter, flightFilter, teamFilter])
+  }, [savedScenarios, leagueName, flight, teamName])
 
-  const filteredAvailability = useMemo(() => {
-    return availability.filter((entry) => {
-      const leagueMatch = !leagueFilter || entry.leagueName === leagueFilter
-      const flightMatch = !flightFilter || entry.flight === flightFilter
-      const teamMatch = !teamFilter || entry.teamName === teamFilter
-      const weekMatch = !weekFilter || entry.weekKey === weekFilter
-      return leagueMatch && flightMatch && teamMatch && weekMatch
+  const availabilityForSelection = useMemo(() => {
+    return availability.filter((row) => {
+      const dateMatch = !matchDate || row.match_date === matchDate
+      const teamMatch = !teamName || row.team_name === teamName
+      const leagueMatch = !leagueName || row.league_name === leagueName
+      const flightMatch = !flight || row.flight === flight
+      return dateMatch && teamMatch && leagueMatch && flightMatch
     })
-  }, [availability, leagueFilter, flightFilter, teamFilter, weekFilter])
+  }, [availability, matchDate, teamName, leagueName, flight])
 
-  const filteredScenarios = useMemo(() => {
-    return scenarios.filter((scenario) => {
-      const leagueMatch = !leagueFilter || scenario.league_name === leagueFilter
-      const flightMatch = !flightFilter || scenario.flight === flightFilter
-      const teamMatch = !teamFilter || scenario.team_name === teamFilter
-      return leagueMatch && flightMatch && teamMatch
-    })
-  }, [scenarios, leagueFilter, flightFilter, teamFilter])
-
-  const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
-
-  const lineupStrength = useMemo(() => {
-    const recent = filteredScenarios.slice(0, 8)
-    const rows = recent.map((scenario) => {
-      const slots = normalizeScenarioSlots(scenario.slots_json)
-      const playerIds = slots.flatMap((slot) => slot.playerIds)
-      const ratings = playerIds
-        .map((id) => playerMap.get(id))
-        .map((player) => player?.overall_dynamic_rating ?? player?.doubles_dynamic_rating ?? player?.singles_dynamic_rating ?? null)
-        .filter((value): value is number => typeof value === 'number')
-
-      const avg = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : null
-
-      return {
-        id: scenario.id,
-        name: scenario.scenario_name,
-        teamName: scenario.team_name || '—',
-        opponentTeam: scenario.opponent_team || '—',
-        matchDate: scenario.match_date,
-        avgRating: avg,
-        slots: slots.length,
-      }
-    })
-
-    return rows.sort((a, b) => (b.avgRating ?? -999) - (a.avgRating ?? -999))
-  }, [filteredScenarios, playerMap])
-
-  const pairingStats = useMemo(() => {
-    const pairCounts = new Map<string, PairingStat>()
-
-    for (const match of filteredMatches) {
-      if ((match.match_type ?? '').toLowerCase() !== 'doubles') continue
-      const participants = matchPlayers.filter((mp) => mp.match_id === match.id)
-
-      const bySide = new Map<string, MatchPlayerRow[]>()
-      for (const row of participants) {
-        const side = cleanText(row.side) || 'unknown'
-        const current = bySide.get(side) ?? []
-        current.push(row)
-        bySide.set(side, current)
-      }
-
-      for (const rows of bySide.values()) {
-        if (rows.length < 2) continue
-        const ids = rows
-          .map((row) => row.player_id)
-          .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b))
-
-        if (ids.length < 2) continue
-        const key = ids.join('|')
-        const names = ids
-          .map((id) => playerMap.get(id)?.name ?? 'Unknown')
-          .sort((a, b) => a.localeCompare(b))
-        const ratings = ids
-          .map((id) => playerMap.get(id)?.doubles_dynamic_rating ?? playerMap.get(id)?.overall_dynamic_rating ?? null)
-          .filter((value): value is number => typeof value === 'number')
-        const avgRating = ratings.length ? ratings.reduce((sum, value) => sum + value, 0) / ratings.length : 0
-        const current = pairCounts.get(key)
-
-        if (current) {
-          current.matches += 1
-        } else {
-          pairCounts.set(key, {
-            key,
-            names,
-            avgRating,
-            matches: 1,
-          })
-        }
-      }
+  const availabilityMap = useMemo(() => {
+    const map = new Map<string, { status: string | null; notes: string | null }>()
+    for (const row of availabilityForSelection) {
+      map.set(row.player_id, { status: row.status, notes: row.notes })
     }
+    return map
+  }, [availabilityForSelection])
 
-    return Array.from(pairCounts.values()).sort((a, b) => {
-      if (b.matches !== a.matches) return b.matches - a.matches
-      return b.avgRating - a.avgRating
-    })
-  }, [filteredMatches, matchPlayers, playerMap])
-
-  const singlesLeaders = useMemo(() => {
-    return [...filteredPlayers]
-      .sort(
-        (a, b) =>
-          (b.singles_dynamic_rating ?? b.overall_dynamic_rating ?? -999) -
-          (a.singles_dynamic_rating ?? a.overall_dynamic_rating ?? -999),
-      )
-      .slice(0, 6)
-  }, [filteredPlayers])
-
-  const doublesLeaders = useMemo(() => {
-    return [...filteredPlayers]
-      .sort(
-        (a, b) =>
-          (b.doubles_dynamic_rating ?? b.overall_dynamic_rating ?? -999) -
-          (a.doubles_dynamic_rating ?? a.overall_dynamic_rating ?? -999),
-      )
-      .slice(0, 6)
-  }, [filteredPlayers])
-
-  const weeklyReadiness = useMemo<WeeklyReadiness | null>(() => {
-    if (!filteredAvailability.length) return null
-    const total = filteredAvailability.length
-    const yes = filteredAvailability.filter((item) => item.response === 'yes').length
-    const no = filteredAvailability.filter((item) => item.response === 'no').length
-    const maybe = filteredAvailability.filter((item) => item.response === 'maybe').length
-    const noResponse = filteredAvailability.filter((item) => item.response === 'no-response').length
-
-    return {
-      weekKey: weekFilter || filteredAvailability[0]?.weekKey || weekKeyFromDate(null),
-      total,
-      yes,
-      no,
-      maybe,
-      noResponse,
-      yesRate: total ? yes / total : 0,
-      responseRate: total ? (yes + no + maybe) / total : 0,
-    }
-  }, [filteredAvailability, weekFilter])
-
-  const weeklyAvailabilityTrend = useMemo(() => {
-    const grouped = new Map<string, AvailabilityEntry[]>()
-    for (const row of availability) {
-      const leagueMatch = !leagueFilter || row.leagueName === leagueFilter
-      const flightMatch = !flightFilter || row.flight === flightFilter
-      const teamMatch = !teamFilter || row.teamName === teamFilter
-      if (!(leagueMatch && flightMatch && teamMatch)) continue
-
-      const current = grouped.get(row.weekKey) ?? []
-      current.push(row)
-      grouped.set(row.weekKey, current)
-    }
-
-    return Array.from(grouped.entries())
-      .map(([weekKey, rows]) => {
-        const total = rows.length
-        const yes = rows.filter((row) => row.response === 'yes').length
-        const maybe = rows.filter((row) => row.response === 'maybe').length
-        const noResponse = rows.filter((row) => row.response === 'no-response').length
+  const availablePlayerPool = useMemo<PoolPlayer[]>(() => {
+    return players
+      .map((player) => {
+        const availabilityEntry = availabilityMap.get(player.id)
         return {
-          weekKey,
-          total,
-          yes,
-          maybe,
-          noResponse,
-          yesRate: total ? yes / total : 0,
-          responseRate: total ? (total - noResponse) / total : 0,
+          ...player,
+          availabilityStatus: availabilityEntry?.status ?? null,
+          availabilityNotes: availabilityEntry?.notes ?? null,
         }
       })
-      .sort((a, b) => a.weekKey.localeCompare(b.weekKey))
-      .slice(-8)
-  }, [availability, leagueFilter, flightFilter, teamFilter])
-
-  const responseLeaders = useMemo(() => {
-    const grouped = new Map<string, { name: string; total: number; replied: number; yes: number }>()
-
-    for (const entry of availability) {
-      const leagueMatch = !leagueFilter || entry.leagueName === leagueFilter
-      const flightMatch = !flightFilter || entry.flight === flightFilter
-      const teamMatch = !teamFilter || entry.teamName === teamFilter
-      if (!(leagueMatch && flightMatch && teamMatch)) continue
-
-      const key = entry.playerId || entry.playerName
-      const current = grouped.get(key) ?? { name: entry.playerName, total: 0, replied: 0, yes: 0 }
-      current.total += 1
-      if (entry.response !== 'no-response') current.replied += 1
-      if (entry.response === 'yes') current.yes += 1
-      grouped.set(key, current)
-    }
-
-    return Array.from(grouped.values())
-      .map((item) => ({
-        ...item,
-        replyRate: item.total ? item.replied / item.total : 0,
-        availabilityRate: item.total ? item.yes / item.total : 0,
-      }))
+      .filter((player) => {
+        if (flight && player.flight && player.flight !== flight) return false
+        if (availabilityOnly && availabilityForSelection.length > 0) return availabilityMap.has(player.id)
+        return true
+      })
+      .filter((player) => {
+        if (!hideUnavailable) return true
+        const normalized = (player.availabilityStatus ?? '').trim().toLowerCase()
+        if (!availabilityOnly && !normalized) return true
+        return normalized !== 'unavailable' && normalized !== 'no' && normalized !== 'out'
+      })
       .sort((a, b) => {
-        if (b.replyRate !== a.replyRate) return b.replyRate - a.replyRate
-        return b.availabilityRate - a.availabilityRate
+        const statusCompare = availabilityRank(a.availabilityStatus) - availabilityRank(b.availabilityStatus)
+        if (statusCompare !== 0) return statusCompare
+
+        const ratingA = a.overall_dynamic_rating ?? a.overall_rating ?? -999
+        const ratingB = b.overall_dynamic_rating ?? b.overall_rating ?? -999
+        if (ratingB !== ratingA) return ratingB - ratingA
+        return a.name.localeCompare(b.name)
       })
-      .slice(0, 8)
-  }, [availability, leagueFilter, flightFilter, teamFilter])
+  }, [players, availabilityMap, flight, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
-  const slowResponders = useMemo(() => {
-    return responseLeaders
-      .filter((item) => item.total >= 2)
-      .sort((a, b) => a.replyRate - b.replyRate)
-      .slice(0, 6)
-  }, [responseLeaders])
-
-  const noResponseList = useMemo(() => {
-    return filteredAvailability.filter((item) => item.response === 'no-response').slice(0, 10)
-  }, [filteredAvailability])
-
-  const readinessScore = useMemo(() => {
-    if (!weeklyReadiness) return null
-    const score = weeklyReadiness.yesRate * 0.58 + weeklyReadiness.responseRate * 0.42
-    return Math.max(0, Math.min(1, score))
-  }, [weeklyReadiness])
-
-  const recommendations = useMemo<Recommendation[]>(() => {
-    const items: Recommendation[] = []
-
-    if (weeklyReadiness) {
-      if (weeklyReadiness.noResponse >= 3) {
-        items.push({
-          title: 'Follow up with non-responders',
-          body: `${weeklyReadiness.noResponse} players still have not replied for the week of ${weeklyReadiness.weekKey}. Send a targeted reminder from Messaging before locking the lineup.`,
-          tone: 'warn',
-        })
-      }
-
-      if (weeklyReadiness.yes >= 6) {
-        items.push({
-          title: 'You have a workable lineup pool',
-          body: `${weeklyReadiness.yes} players are marked available this week. This is enough to build a stronger singles + doubles mix and compare multiple saved scenarios.`,
-          tone: 'good',
-        })
-      }
-
-      if (weeklyReadiness.responseRate < 0.7) {
-        items.push({
-          title: 'Response rate is lagging',
-          body: `Only ${formatPct(weeklyReadiness.responseRate)} of the filtered group has replied. Consider sending a short “need availability by tonight” message with match details attached.`,
-          tone: 'warn',
-        })
+  const assignedPlayerIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const slot of [...teamSlots, ...opponentSlots]) {
+      for (const player of slot.players) {
+        if (player.playerId) ids.add(player.playerId)
       }
     }
+    return ids
+  }, [teamSlots, opponentSlots])
 
-    if (lineupStrength[0]?.avgRating != null) {
-      items.push({
-        title: 'Top saved lineup is worth revisiting',
-        body: `“${lineupStrength[0].name}” is your strongest recent saved scenario by average projected rating at ${formatRating(lineupStrength[0].avgRating)}. Use it as the baseline in the lineup builder.`,
-        tone: 'info',
-      })
-    }
+  function playerLabel(player: PoolPlayer) {
+    const overall = player.overall_dynamic_rating ?? player.overall_rating
+    const singles = player.singles_dynamic_rating
+    const doubles = player.doubles_dynamic_rating
+    const status = player.availabilityStatus ? ` • ${player.availabilityStatus}` : ''
 
-    if (pairingStats[0]) {
-      items.push({
-        title: 'Most proven doubles pairing',
-        body: `${pairingStats[0].names.join(' / ')} has the strongest combination of repeat usage and projected doubles strength in the filtered sample.`,
-        tone: 'good',
-      })
-    }
-
-    if (slowResponders[0] && slowResponders[0].replyRate < 0.6) {
-      items.push({
-        title: 'Build your reminder list around response behavior',
-        body: `${slowResponders[0].name} and similar players are replying below your normal standard. The captain console should target them first when you send lineup and match-day reminders.`,
-        tone: 'info',
-      })
-    }
-
-    return items.slice(0, 4)
-  }, [weeklyReadiness, lineupStrength, pairingStats, slowResponders])
-
-  type MetricTone = 'good' | 'warn' | 'info'
-
-  type StatCard = {
-    id: string
-    label: string
-    value: string
-    helper: string
-    tone: MetricTone
+    return `${player.name}${
+      overall !== null ? ` • OVR ${overall.toFixed(2)}` : ''
+    }${singles !== null ? ` • S ${singles.toFixed(2)}` : ''}${
+      doubles !== null ? ` • D ${doubles.toFixed(2)}` : ''
+    }${status}`
   }
 
-  const statCards = useMemo<StatCard[]>(
-    () => [
-      {
-        id: 'weekly-readiness',
-        label: 'Weekly readiness',
-        value: readinessScore == null ? '—' : `${Math.round(readinessScore * 100)}%`,
-        helper: weeklyReadiness
-          ? `${weeklyReadiness.yes} yes • ${weeklyReadiness.noResponse} no reply`
-          : 'No availability data found',
-        tone:
-          readinessScore != null && readinessScore >= 0.75
-            ? 'good'
-            : readinessScore != null && readinessScore < 0.55
-              ? 'warn'
-              : 'info',
-      },
-      {
-        id: 'players-in-scope',
-        label: 'Players in scope',
-        value: String(filteredPlayers.length),
-        helper: flightFilter || 'All flights',
-        tone: 'info',
-      },
-      {
-        id: 'saved-lineup-scenarios',
-        label: 'Saved lineup scenarios',
-        value: String(filteredScenarios.length),
-        helper: lineupStrength[0]?.name ? `Top: ${lineupStrength[0].name}` : 'No saved scenarios',
-        tone: 'info',
-      },
-      {
-        id: 'recent-matches',
-        label: 'Recent matches',
-        value: String(filteredMatches.length),
-        helper: teamFilter || 'All teams',
-        tone: 'info',
-      },
-    ],
-    [readinessScore, weeklyReadiness, filteredPlayers.length, flightFilter, filteredScenarios.length, lineupStrength, filteredMatches.length, teamFilter],
+  function getPlayerById(playerId: string) {
+    return players.find((player) => player.id === playerId) ?? null
+  }
+
+  function setSlotPlayer(
+    side: 'team' | 'opponent',
+    slotId: string,
+    playerIndex: number,
+    playerId: string
+  ) {
+    const update = (slots: LineupSlot[]) =>
+      slots.map((slot) => {
+        if (slot.id !== slotId) return slot
+        const nextPlayers = slot.players.map((player, index) => {
+          if (index !== playerIndex) return player
+          const matchedPlayer = getPlayerById(playerId)
+          return {
+            playerId,
+            playerName: matchedPlayer?.name ?? '',
+          }
+        })
+        return { ...slot, players: nextPlayers }
+      })
+
+    if (side === 'team') setTeamSlots((current) => update(current))
+    else setOpponentSlots((current) => update(current))
+  }
+
+  function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
+    const update = (slots: LineupSlot[]) =>
+      slots.map((slot) => (slot.id === slotId ? { ...slot, label } : slot))
+
+    if (side === 'team') setTeamSlots((current) => update(current))
+    else setOpponentSlots((current) => update(current))
+  }
+
+  function addSlot(side: 'team' | 'opponent', slotType: 'singles' | 'doubles') {
+    const id = `${side}-${slotType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const labelBase = slotType === 'singles' ? 'Singles' : 'Doubles'
+    const source = side === 'team' ? teamSlots : opponentSlots
+    const nextCount = source.filter((slot) => slot.slotType === slotType).length + 1
+
+    const newSlot =
+      slotType === 'singles'
+        ? createSinglesSlot(id, `${labelBase} ${nextCount}`)
+        : createDoublesSlot(id, `${labelBase} ${nextCount}`)
+
+    if (side === 'team') setTeamSlots((current) => [...current, newSlot])
+    else setOpponentSlots((current) => [...current, newSlot])
+  }
+
+  function removeSlot(side: 'team' | 'opponent', slotId: string) {
+    if (side === 'team') setTeamSlots((current) => current.filter((slot) => slot.id !== slotId))
+    else setOpponentSlots((current) => current.filter((slot) => slot.id !== slotId))
+  }
+
+  function resetBuilder() {
+    setCurrentScenarioId('')
+    setScenarioName('')
+    setLeagueName('')
+    setFlight('')
+    setTeamName('')
+    setOpponentTeam('')
+    setMatchDate('')
+    setNotes('')
+    setLoadingScenarioId('')
+    setTeamSlots(cloneSlots(DEFAULT_TEAM_SLOTS))
+    setOpponentSlots(cloneSlots(DEFAULT_OPPONENT_SLOTS))
+    setMessage('Builder reset.')
+    setError('')
+  }
+
+  async function refreshSavedScenarios() {
+    const { data, error } = await supabase
+      .from('lineup_scenarios')
+      .select(`
+        id,
+        scenario_name,
+        league_name,
+        flight,
+        match_date,
+        team_name,
+        opponent_team,
+        slots_json,
+        opponent_slots_json,
+        notes
+      `)
+      .order('match_date', { ascending: false })
+      .order('scenario_name', { ascending: true })
+
+    if (error) {
+      setError(error.message)
+      return []
+    }
+
+    const rows = (data ?? []) as ScenarioRow[]
+    setSavedScenarios(rows)
+    return rows
+  }
+
+  function buildScenarioPayload() {
+    return {
+      scenario_name: scenarioName.trim(),
+      league_name: leagueName || null,
+      flight: flight || null,
+      match_date: matchDate || null,
+      team_name: teamName || null,
+      opponent_team: opponentTeam || null,
+      slots_json: teamSlots,
+      opponent_slots_json: opponentSlots,
+      notes: notes.trim() || null,
+    }
+  }
+
+  async function saveScenario(asNew = false) {
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    if (!scenarioName.trim()) {
+      setSaving(false)
+      setError('Please enter a scenario name.')
+      return
+    }
+
+    const normalizedName = scenarioName.trim().toLowerCase()
+    const duplicate = savedScenarios.find((s) => {
+      const sameName = (s.scenario_name ?? '').trim().toLowerCase() === normalizedName
+      const sameTeam = (s.team_name ?? '') === (teamName || '')
+      const sameDate = (s.match_date ?? '') === (matchDate || '')
+      return sameName && sameTeam && sameDate
+    })
+
+    if (duplicate && (asNew || duplicate.id !== currentScenarioId)) {
+      setSaving(false)
+      setError('A scenario with this name already exists for this team and match date.')
+      return
+    }
+
+    const payload = buildScenarioPayload()
+
+    if (currentScenarioId && !asNew) {
+      const { error } = await supabase
+        .from('lineup_scenarios')
+        .update(payload)
+        .eq('id', currentScenarioId)
+
+      setSaving(false)
+      if (error) {
+        setError(error.message)
+        return
+      }
+
+      await refreshSavedScenarios()
+      setMessage('Scenario updated successfully.')
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('lineup_scenarios')
+      .insert(payload)
+      .select('id')
+      .single()
+
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    if (data?.id) setCurrentScenarioId(data.id)
+    await refreshSavedScenarios()
+    setMessage(asNew ? 'Scenario saved as new successfully.' : 'Scenario saved successfully.')
+  }
+
+  async function deleteScenario(scenarioId: string) {
+    const scenario = savedScenarios.find((row) => row.id === scenarioId)
+    const confirmed = window.confirm(`Delete scenario "${scenario?.scenario_name ?? 'this scenario'}"?`)
+    if (!confirmed) return
+
+    setDeletingScenarioId(scenarioId)
+    setError('')
+    setMessage('')
+
+    const { error } = await supabase.from('lineup_scenarios').delete().eq('id', scenarioId)
+    setDeletingScenarioId('')
+
+    if (error) {
+      setError(error.message)
+      return
+    }
+
+    const deletedCurrent = scenarioId === currentScenarioId
+    await refreshSavedScenarios()
+
+    if (deletedCurrent) {
+      setCurrentScenarioId('')
+      setMessage('Scenario deleted. Builder is now in new scenario mode.')
+    } else {
+      setMessage('Scenario deleted successfully.')
+    }
+  }
+
+  async function loadScenario(scenarioId: string) {
+    setLoadingScenarioId(scenarioId)
+    setError('')
+    setMessage('')
+
+    const scenario = savedScenarios.find((row) => row.id === scenarioId)
+    if (!scenario) {
+      setLoadingScenarioId('')
+      setError('Scenario not found.')
+      return
+    }
+
+    setCurrentScenarioId(scenario.id)
+    setScenarioName(scenario.scenario_name ?? '')
+    setLeagueName(scenario.league_name ?? '')
+    setFlight(scenario.flight ?? '')
+    setMatchDate(scenario.match_date ?? '')
+    setTeamName(scenario.team_name ?? '')
+    setOpponentTeam(scenario.opponent_team ?? '')
+    setNotes(scenario.notes ?? '')
+
+    const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json)
+    const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
+
+    setTeamSlots(loadedTeamSlots.length ? loadedTeamSlots : cloneSlots(DEFAULT_TEAM_SLOTS))
+    setOpponentSlots(loadedOpponentSlots.length ? loadedOpponentSlots : cloneSlots(DEFAULT_OPPONENT_SLOTS))
+
+    setLoadingScenarioId('')
+    setMessage('Scenario loaded into the builder.')
+  }
+
+  const currentScenario = useMemo(
+    () => savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null,
+    [savedScenarios, currentScenarioId]
   )
+
+  const compareHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (leagueName) params.set('league', leagueName)
+    if (flight) params.set('flight', flight)
+    if (teamName) params.set('team', teamName)
+    if (matchDate) params.set('date', matchDate)
+    if (currentScenarioId) params.set('left', currentScenarioId)
+    const query = params.toString()
+    return query ? `/captain/scenario-comparison?${query}` : '/captain/scenario-comparison'
+  }, [leagueName, flight, teamName, matchDate, currentScenarioId])
+
+  const analysis = useMemo(() => {
+    return compareLineupStrength(teamSlots, opponentSlots, players)
+  }, [teamSlots, opponentSlots, players])
+
+  const bestLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.diff === 'number')
+      .sort((a, b) => (b.diff ?? 0) - (a.diff ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
+
+  const weakestLine = useMemo(() => {
+    const scored = analysis.lines
+      .filter((line) => typeof line.diff === 'number')
+      .sort((a, b) => (a.diff ?? 0) - (b.diff ?? 0))
+    return scored[0] ?? null
+  }, [analysis.lines])
 
   return (
     <SiteShell active="/captain">
-      <section style={pageContentStyle}>
+      <div style={pageWrap}>
         <section style={heroShellResponsive(isTablet, isMobile)}>
-          <div>
-            <div style={eyebrow}>Captain IQ</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Captain Analytics</h1>
-            <p style={heroTextStyle}>
-              Turn weekly availability, saved lineups, player ratings, and recent match history into
-              real captain decisions: who to follow up with, who to trust, and which lineup gives
-              you the strongest chance to win.
-            </p>
+        <div>
+          <div style={eyebrow}>Captain tools</div>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
+          <p style={heroTextStyle}>
+            Build match-day lineups, work from availability-aware player pools, save multiple scenarios,
+            compare versions, and pressure-test your expected edge line by line.
+          </p>
 
-            <div style={heroButtonRowStyle}>
-              <Link href="/captain/messaging" style={primaryButton}>
-                Open Weekly Messaging
-              </Link>
-              <Link href="/captains-corner/lineup-builder" style={ghostButton}>
-                Open Lineup Builder
-              </Link>
-              <Link href="/captain" style={ghostButton}>
-                Back to Captain
-              </Link>
-            </div>
-
-            <div style={heroMetricGridStyle(isSmallMobile)}>
-              {statCards.map((card) => (
-                <MetricCard key={card.id} label={card.label} value={card.value} helper={card.helper} tone={card.tone} />
-              ))}
-            </div>
+          <div style={heroButtonRowStyle}>
+            <Link href={compareHref} style={primaryButton}>
+              Compare Saved Scenarios
+            </Link>
+            <button type="button" onClick={resetBuilder} style={ghostButton}>
+              Reset Builder
+            </button>
           </div>
 
-          <div style={quickStartCard}>
-            <p style={sectionKicker}>What this page is solving</p>
-            <h2 style={quickStartTitle}>Weekly captain decisions, not vanity charts</h2>
-            <div style={workflowListStyle}>
-              {[
-                ['1', 'See readiness', 'Know whether your team is actually ready for the week based on who replied and who is available.'],
-                ['2', 'Compare your best options', 'Find your strongest recent singles, doubles, and saved lineup combinations in one place.'],
-                ['3', 'Take action fast', 'Jump straight into messaging or the lineup builder with a clear list of follow-ups and lineup ideas.'],
-              ].map(([step, title, text]) => (
-                <div key={step} style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>{step}</div>
-                  <div>
-                    <div style={workflowTitleStyle}>{title}</div>
-                    <div style={workflowTextStyle}>{text}</div>
-                  </div>
+          <div style={heroMetricGridStyle(isSmallMobile)}>
+            <MetricStat label="Scenario Mode" value={currentScenarioId ? 'Editing saved scenario' : 'New scenario'} />
+            <MetricStat label="Player Pool" value={`${availablePlayerPool.length} available`} />
+            <MetricStat label="Saved Versions" value={`${scenarioOptions.length} scenarios`} />
+          </div>
+        </div>
+
+        <div style={quickStartCard}>
+          <p style={sectionKicker}>Builder workflow</p>
+          <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
+          <div style={workflowListStyle}>
+            {[
+              ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
+              ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
+              ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
+            ].map(([step, title, text]) => (
+              <div key={step} style={workflowRowStyle}>
+                <div style={workflowNumberStyle}>{step}</div>
+                <div>
+                  <div style={workflowTitleStyle}>{title}</div>
+                  <div style={workflowTextStyle}>{text}</div>
                 </div>
-              ))}
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <span style={miniPillSlate}>
-                Availability source: {availabilityTableName ?? 'No live availability table found'}
-              </span>
-            </div>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
+      </section>
 
         <section style={contentWrap}>
-          <section style={surfaceCardStrong}>
-            <div style={sectionHeaderStyle}>
-              <div>
-                <p style={sectionKicker}>Filters</p>
-                <h2 style={sectionTitle}>Scope the captain view</h2>
-                <p style={sectionBodyTextStyle}>
-                  Narrow the analytics by league, flight, team, and week so the dashboard reflects
-                  the exact roster and session you are managing.
-                </p>
+        <div style={builderLayoutResponsive(isTablet)}>
+          <div style={columnStyle}>
+            <section style={surfaceCardStrong}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Scenario setup</p>
+                  <h2 style={sectionTitle}>Match and scenario details</h2>
+                  <p style={sectionBodyTextStyle}>Save a new version or update the scenario currently loaded into the builder.</p>
+                </div>
               </div>
 
-              <button
-                type="button"
-                style={ghostButtonSmallButton}
-                onClick={() => {
-                  setLeagueFilter('')
-                  setFlightFilter('')
-                  setTeamFilter('')
-                  setWeekFilter(weekOptions[0] ?? '')
-                }}
-              >
-                Reset Filters
-              </button>
-            </div>
+              {currentScenario ? (
+                <div style={bannerBlueStyle}>
+                  <div style={bannerTitleStyle}>Editing saved scenario: {currentScenario.scenario_name}</div>
+                  <div style={bannerMetaStyle}>
+                    {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
+                    {currentScenario.match_date ? ` • ${formatDate(currentScenario.match_date)}` : ''}
+                  </div>
+                </div>
+              ) : (
+                <div style={bannerSlateStyle}>Creating a new scenario</div>
+              )}
 
-            <div style={filtersGridStyle}>
-              <div>
-                <label style={labelStyle}>League</label>
-                <select value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All leagues</option>
-                  {leagueOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+              <div style={formGridStyle}>
+                <div>
+                  <label style={labelStyle}>Scenario Name</label>
+                  <input value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} placeholder="Example: Safer Doubles Version" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Match Date</label>
+                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>League</label>
+                  <input list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} placeholder="League name" style={inputStyle} />
+                  <datalist id="league-options">
+                    {leagueOptions.map((option) => <option key={option} value={option} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={labelStyle}>Flight</label>
+                  <input list="flight-options" value={flight} onChange={(e) => setFlight(e.target.value)} placeholder="Flight" style={inputStyle} />
+                  <datalist id="flight-options">
+                    {flightOptions.map((option) => <option key={option} value={option} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={labelStyle}>Team Name</label>
+                  <input list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Your team" style={inputStyle} />
+                  <datalist id="team-options">
+                    {teamOptions.map((option) => <option key={option} value={option} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={labelStyle}>Opponent Team</label>
+                  <input value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} placeholder="Opponent team" style={inputStyle} />
+                </div>
               </div>
 
-              <div>
-                <label style={labelStyle}>Flight</label>
-                <select value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All flights</option>
-                  {flightOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+              <div style={{ marginTop: 18 }}>
+                <label style={labelStyle}>Captain Notes</label>
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Matchups, player preferences, injury notes, weather backups, etc." style={textareaStyle} />
               </div>
 
-              <div>
-                <label style={labelStyle}>Team</label>
-                <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All teams</option>
-                  {teamOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Week</label>
-                <select value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All weeks</option>
-                  {weekOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </section>
-
-          {loading ? (
-            <section style={surfaceCard}>
-              <p style={mutedTextStyle}>Loading captain analytics...</p>
-            </section>
-          ) : error ? (
-            <section style={surfaceCard}>
-              <p style={errorTextStyle}>Unable to load analytics: {error}</p>
-            </section>
-          ) : (
-            <>
-              <section style={projectionGridResponsive(isSmallMobile, isTablet)}>
-                <ReadinessCard weeklyReadiness={weeklyReadiness} readinessScore={readinessScore} />
-                <ResponseHealthCard noResponseList={noResponseList} slowResponders={slowResponders} />
-                <RecommendationsCard recommendations={recommendations} />
-              </section>
-
-              <section style={dualGridResponsive(isTablet)}>
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      <p style={sectionKicker}>Singles strength</p>
-                      <h3 style={sectionTitleSmall}>Top singles options</h3>
-                    </div>
-                    <span style={miniPillBlue}>{singlesLeaders.length} players</span>
-                  </div>
-                  <div style={stackListStyle}>
-                    {singlesLeaders.length ? (
-                      singlesLeaders.map((player, index) => (
-                        <RankRow
-                          key={player.id}
-                          rank={index + 1}
-                          name={player.name}
-                          sublabel={player.flight || player.preferred_role || 'Player'}
-                          value={formatRating(player.singles_dynamic_rating ?? player.overall_dynamic_rating)}
-                        />
-                      ))
-                    ) : (
-                      <p style={mutedTextStyle}>No singles rating data found in the current scope.</p>
-                    )}
-                  </div>
-                </section>
-
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      <p style={sectionKicker}>Doubles strength</p>
-                      <h3 style={sectionTitleSmall}>Top doubles options</h3>
-                    </div>
-                    <span style={miniPillGreen}>{doublesLeaders.length} players</span>
-                  </div>
-                  <div style={stackListStyle}>
-                    {doublesLeaders.length ? (
-                      doublesLeaders.map((player, index) => (
-                        <RankRow
-                          key={player.id}
-                          rank={index + 1}
-                          name={player.name}
-                          sublabel={player.flight || player.preferred_role || 'Player'}
-                          value={formatRating(player.doubles_dynamic_rating ?? player.overall_dynamic_rating)}
-                        />
-                      ))
-                    ) : (
-                      <p style={mutedTextStyle}>No doubles rating data found in the current scope.</p>
-                    )}
-                  </div>
-                </section>
-              </section>
-
-              <section style={dualGridResponsive(isTablet)}>
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      <p style={sectionKicker}>Pairing intelligence</p>
-                      <h3 style={sectionTitleSmall}>Most used doubles pairings</h3>
-                    </div>
-                    <span style={miniPillSlate}>{pairingStats.length} tracked</span>
-                  </div>
-
-                  {pairingStats.length ? (
-                    <div style={tableWrapStyle}>
-                      <table style={tableStyle}>
-                        <thead>
-                          <tr>
-                            <th style={thStyle}>Pairing</th>
-                            <th style={thStyle}>Matches</th>
-                            <th style={thStyle}>Avg rating</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pairingStats.slice(0, 8).map((row) => (
-                            <tr key={row.key}>
-                              <td style={tdLabelStyle}>{row.names.join(' / ')}</td>
-                              <td style={tdStyle}>{row.matches}</td>
-                              <td style={tdStyle}>{formatRating(row.avgRating)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p style={mutedTextStyle}>No doubles pairing history found in the filtered match sample.</p>
-                  )}
-                </section>
-
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      <p style={sectionKicker}>Saved lineup strength</p>
-                      <h3 style={sectionTitleSmall}>Best recent scenarios</h3>
-                    </div>
-                    <span style={miniPillBlue}>{lineupStrength.length} scenarios</span>
-                  </div>
-
-                  {lineupStrength.length ? (
-                    <div style={stackListStyle}>
-                      {lineupStrength.slice(0, 6).map((row, index) => (
-                        <div key={row.id} style={listCardStyle}>
-                          <div style={listCardTopStyle}>
-                            <div>
-                              <div style={listTitleStyle}>
-                                {index + 1}. {row.name}
-                              </div>
-                              <div style={listMetaStyle}>
-                                {row.teamName} vs {row.opponentTeam} • {formatDate(row.matchDate)}
-                              </div>
-                            </div>
-                            <span style={miniPillGreen}>{formatRating(row.avgRating)}</span>
-                          </div>
-                          <div style={pillRowStyle}>
-                            <span style={miniPillSlate}>{row.slots} slots</span>
-                            <Link href="/captains-corner/lineup-builder" style={inlineLinkPill}>
-                              Open builder
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p style={mutedTextStyle}>No saved lineup scenarios found in the current scope.</p>
-                  )}
-                </section>
-              </section>
-
-              <section style={surfaceCard}>
-                <div style={tableHeaderStyle}>
+              <div style={toggleGridResponsive(isSmallMobile)}>
+                <label style={toggleCardStyle}>
                   <div>
-                    <p style={sectionKicker}>Availability trends</p>
-                    <h3 style={sectionTitleSmall}>Last several weeks</h3>
+                    <div style={toggleTitleStyle}>Availability-filtered pool</div>
+                    <div style={toggleTextStyle}>Use lineup availability records when they exist for the selected match context.</div>
                   </div>
-                  <span style={miniPillSlate}>{weeklyAvailabilityTrend.length} weeks</span>
+                  <input type="checkbox" checked={availabilityOnly} onChange={(e) => setAvailabilityOnly(e.target.checked)} />
+                </label>
+
+                <label style={toggleCardStyle}>
+                  <div>
+                    <div style={toggleTitleStyle}>Hide unavailable players</div>
+                    <div style={toggleTextStyle}>Remove players marked out or unavailable from your selection list.</div>
+                  </div>
+                  <input type="checkbox" checked={hideUnavailable} onChange={(e) => setHideUnavailable(e.target.checked)} />
+                </label>
+              </div>
+
+              <div style={actionRowStyle}>
+                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                  {saving ? 'Saving...' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
+                </button>
+                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
+                  Save as New
+                </button>
+                <Link href={compareHref} style={secondaryLinkButton}>Open Comparison</Link>
+              </div>
+
+              {currentScenarioId ? <p style={infoTextStyle}>Loaded scenario is ready for update and comparison.</p> : null}
+              {message ? <p style={successTextStyle}>{message}</p> : null}
+              {error ? <p style={errorTextStyle}>{error}</p> : null}
+            </section>
+
+            <section style={surfaceCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Your lineup</p>
+                  <h2 style={sectionTitle}>Build your side</h2>
+                  <p style={sectionBodyTextStyle}>Create singles and doubles slots for your expected match-day lineup.</p>
                 </div>
 
-                {weeklyAvailabilityTrend.length ? (
-                  <div style={tableWrapStyle}>
-                    <table style={tableStyle}>
-                      <thead>
-                        <tr>
-                          <th style={thStyle}>Week</th>
-                          <th style={thStyle}>Yes rate</th>
-                          <th style={thStyle}>Response rate</th>
-                          <th style={thStyle}>Maybe</th>
-                          <th style={thStyle}>No response</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {weeklyAvailabilityTrend.map((row) => (
-                          <tr key={row.weekKey}>
-                            <td style={tdLabelStyle}>{row.weekKey}</td>
-                            <td style={tdStyle}>{formatPct(row.yesRate)}</td>
-                            <td style={tdStyle}>{formatPct(row.responseRate)}</td>
-                            <td style={tdStyle}>{row.maybe}</td>
-                            <td style={tdStyle}>{row.noResponse}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p style={mutedTextStyle}>No multi-week availability history is available yet.</p>
-                )}
-              </section>
+                <div style={miniActionRowStyle}>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'singles')}>+ Singles Slot</button>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'doubles')}>+ Doubles Slot</button>
+                </div>
+              </div>
 
-              <section style={dualGridResponsive(isTablet)}>
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      <p style={sectionKicker}>Reply behavior</p>
-                      <h3 style={sectionTitleSmall}>Most reliable responders</h3>
+              <div style={slotListStyle}>
+                {teamSlots.map((slot) => (
+                  <SlotEditor
+                    key={slot.id}
+                    slot={slot}
+                    side="team"
+                    playerPool={availablePlayerPool}
+                    assignedPlayerIds={assignedPlayerIds}
+                    setSlotLabel={setSlotLabel}
+                    setSlotPlayer={setSlotPlayer}
+                    removeSlot={removeSlot}
+                    playerLabel={playerLabel}
+                  />
+                ))}
+              </div>
+            </section>
+
+            <section style={surfaceCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Opponent projection</p>
+                  <h2 style={sectionTitle}>Model the other side</h2>
+                  <p style={sectionBodyTextStyle}>Capture your expected opponent lineup or your best working guess.</p>
+                </div>
+
+                <div style={miniActionRowStyle}>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'singles')}>+ Singles Slot</button>
+                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'doubles')}>+ Doubles Slot</button>
+                </div>
+              </div>
+
+              <div style={slotListStyle}>
+                {opponentSlots.map((slot) => (
+                  <SlotEditor
+                    key={slot.id}
+                    slot={slot}
+                    side="opponent"
+                    playerPool={availablePlayerPool}
+                    assignedPlayerIds={assignedPlayerIds}
+                    setSlotLabel={setSlotLabel}
+                    setSlotPlayer={setSlotPlayer}
+                    removeSlot={removeSlot}
+                    playerLabel={playerLabel}
+                  />
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <div style={columnStyle}>
+            <section style={surfaceCard}>
+              <p style={sectionKicker}>Live projection</p>
+              <h2 style={sectionTitle}>Strength by line</h2>
+              <p style={sectionBodyTextStyle}>A quick heuristic based on selected dynamic ratings for each slot.</p>
+
+              <div style={heroBadgeRowStyleCompact}>
+                <span style={badgeBlue}>Projected win chance {formatStrength(analysis.projection * 100)}%</span>
+                <span style={badgeSlate}>Avg edge {formatStrength(analysis.avgDiff)}</span>
+              </div>
+
+              <div style={stackStyle}>
+                {analysis.lines.map((line) => (
+                  <div key={line.label} style={poolCardStyle}>
+                    <div style={poolCardTopStyle}>
+                      <div>
+                        <div style={playerNameStyle}>{line.label}</div>
+                        <div style={playerMetaStyle}>{line.slotType === 'singles' ? 'Singles line' : 'Doubles line'}</div>
+                      </div>
+                      <span style={typeof line.diff === 'number' && line.diff >= 0 ? goodBadgeStyle : warnBadgeStyle}>
+                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                      </span>
                     </div>
-                    <span style={miniPillGreen}>{responseLeaders.length} tracked</span>
+
+                    <div style={compareGridStyle}>
+                      <div style={compareCardStyle}>
+                        <div style={compareLabelStyle}>Your side</div>
+                        <div style={compareValueStyle}>{formatStrength(line.yourStrength)}</div>
+                      </div>
+                      <div style={compareCardStyle}>
+                        <div style={compareLabelStyle}>Opponent</div>
+                        <div style={compareValueStyle}>{formatStrength(line.opponentStrength)}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div style={stackListStyle}>
-                    {responseLeaders.length ? (
-                      responseLeaders.map((row) => (
-                        <div key={row.name} style={listCardStyleCompact}>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                <div style={sectionKicker}>Readout</div>
+                <p style={sectionBodyTextStyle}>
+                  Best line: <strong>{bestLine?.label ?? '—'}</strong>. Weakest line: <strong>{weakestLine?.label ?? '—'}</strong>.
+                </p>
+              </div>
+            </section>
+
+            <section style={surfaceCard}>
+              <p style={sectionKicker}>Player pool</p>
+              <h2 style={sectionTitle}>Availability-aware options</h2>
+              <p style={sectionBodyTextStyle}>Sorted by availability first, then overall strength.</p>
+
+              <div style={heroBadgeRowStyleCompact}>
+                <span style={badgeSlate}>{availablePlayerPool.length} players</span>
+                <span style={badgeBlue}>{availabilityForSelection.length} availability rows</span>
+              </div>
+
+              <div style={stackStyle}>
+                {loading ? (
+                  <p style={mutedTextStyle}>Loading players...</p>
+                ) : availablePlayerPool.length === 0 ? (
+                  <p style={mutedTextStyle}>No players match the current filters.</p>
+                ) : (
+                  availablePlayerPool.map((player) => {
+                    const tone = statusTone(player.availabilityStatus)
+                    const assigned = assignedPlayerIds.has(player.id)
+
+                    return (
+                      <article key={player.id} style={poolCardStyle}>
+                        <div style={poolCardTopStyle}>
                           <div>
-                            <div style={listTitleStyle}>{row.name}</div>
-                            <div style={listMetaStyle}>
-                              Reply {formatPct(row.replyRate)} • Available {formatPct(row.availabilityRate)}
+                            <div style={playerNameStyle}>{player.name}</div>
+                            <div style={playerMetaStyle}>
+                              {player.preferred_role || 'No role set'}
+                              {player.location ? ` • ${player.location}` : ''}
+                              {player.flight ? ` • ${player.flight}` : ''}
                             </div>
                           </div>
-                          <span style={miniPillBlue}>{row.total} weeks</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p style={mutedTextStyle}>No response history found yet.</p>
-                    )}
-                  </div>
-                </section>
 
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      <p style={sectionKicker}>Captain actions</p>
-                      <h3 style={sectionTitleSmall}>Fast links</h3>
-                    </div>
-                    <span style={miniPillSlate}>Workflow</span>
-                  </div>
-                  <div style={stackListStyle}>
-                    {[
-                      {
-                        title: 'Weekly messaging console',
-                        body: 'Message only non-responders, available players, or lineup locks for the current week.',
-                        href: '/captain/messaging',
-                      },
-                      {
-                        title: 'Lineup builder',
-                        body: 'Use analytics to compare saved scenarios and then finalize the strongest version.',
-                        href: '/captains-corner/lineup-builder',
-                      },
-                      {
-                        title: 'Scenario comparison',
-                        body: 'Compare two lineup versions side by side and see where your strongest edges live.',
-                        href: '/captains-corner/scenario-comparison',
-                      },
-                      {
-                        title: 'Availability page',
-                        body: 'Collect weekly player responses and keep this dashboard current.',
-                        href: '/captain/availability',
-                      },
-                    ].map((item) => (
-                      <Link key={item.href} href={item.href} style={actionCardLinkStyle}>
-                        <div style={listTitleStyle}>{item.title}</div>
-                        <div style={listMetaStyle}>{item.body}</div>
-                      </Link>
-                    ))}
-                  </div>
-                </section>
-              </section>
-            </>
-          )}
-        </section>
+                          <span style={{ ...statusBadgeStyle, ...tone }}>
+                            {player.availabilityStatus || 'Unknown'}
+                          </span>
+                        </div>
+
+                        <div style={pillRowStyle}>
+                          <span style={miniPillStyle}>OVR {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}</span>
+                          {assigned ? <span style={assignedPillStyle}>Assigned</span> : null}
+                        </div>
+
+                        {player.lineup_notes ? <p style={cardNoteTextStyle}>{player.lineup_notes}</p> : null}
+                        {player.availabilityNotes ? <p style={subtleNoteTextStyle}>Availability note: {player.availabilityNotes}</p> : null}
+                      </article>
+                    )
+                  })
+                )}
+              </div>
+            </section>
+
+            <section style={surfaceCard}>
+              <p style={sectionKicker}>Saved scenarios</p>
+              <h2 style={sectionTitle}>Reload or clean up prior versions</h2>
+              <p style={sectionBodyTextStyle}>Load a saved scenario into the builder, then tweak, compare, resave, or delete it.</p>
+
+              <div style={stackStyle}>
+                {scenarioOptions.length === 0 ? (
+                  <p style={mutedTextStyle}>No saved scenarios for the current filters.</p>
+                ) : (
+                  scenarioOptions.map((scenario) => {
+                    const isCurrent = scenario.id === currentScenarioId
+                    const isDeleting = deletingScenarioId === scenario.id
+                    const isLoading = loadingScenarioId === scenario.id
+
+                    return (
+                      <article key={scenario.id} style={{ ...savedScenarioCardStyle, ...(isCurrent ? savedScenarioCardActiveStyle : {}) }}>
+                        <div style={savedScenarioTopStyle}>
+                          <div>
+                            <div style={savedScenarioTitleStyle}>{scenario.scenario_name}</div>
+                            <div style={savedScenarioMetaStyle}>
+                              {scenario.team_name || '—'} vs {scenario.opponent_team || '—'}
+                            </div>
+                            <div style={savedScenarioMetaStyle}>
+                              {scenario.league_name || '—'}
+                              {scenario.flight ? ` • ${scenario.flight}` : ''}
+                              {scenario.match_date ? ` • ${formatDate(scenario.match_date)}` : ''}
+                            </div>
+                            {isCurrent ? (
+                              <div style={{ marginTop: 8 }}>
+                                <span style={miniPillBlueStyle}>Currently loaded</span>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div style={savedScenarioActionsStyle}>
+                            <button type="button" style={ghostButtonSmall} onClick={() => loadScenario(scenario.id)} disabled={isLoading || isDeleting}>
+                              {isLoading ? 'Loading...' : 'Load'}
+                            </button>
+
+                            <button type="button" onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading} style={dangerButtonStyle}>
+                              {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {scenario.notes ? <p style={cardNoteTextStyle}>{scenario.notes}</p> : null}
+                      </article>
+                    )
+                  })
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
       </section>
+
+      </div>
     </SiteShell>
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  helper,
-  tone,
+function SlotEditor({
+  slot,
+  side,
+  playerPool,
+  assignedPlayerIds,
+  setSlotLabel,
+  setSlotPlayer,
+  removeSlot,
+  playerLabel,
 }: {
-  label: string
-  value: string
-  helper: string
-  tone: 'good' | 'warn' | 'info'
+  slot: LineupSlot
+  side: 'team' | 'opponent'
+  playerPool: PoolPlayer[]
+  assignedPlayerIds: Set<string>
+  setSlotLabel: (side: 'team' | 'opponent', slotId: string, label: string) => void
+  setSlotPlayer: (
+    side: 'team' | 'opponent',
+    slotId: string,
+    playerIndex: number,
+    playerId: string
+  ) => void
+  removeSlot: (side: 'team' | 'opponent', slotId: string) => void
+  playerLabel: (player: PoolPlayer) => string
 }) {
+  return (
+    <div style={slotCardStyle}>
+      <div style={slotHeaderStyle}>
+        <div style={slotHeaderLeftStyle}>
+          <input
+            value={slot.label}
+            onChange={(e) => setSlotLabel(side, slot.id, e.target.value)}
+            style={slotLabelInputStyle}
+          />
+          <span style={slot.slotType === 'singles' ? miniPillBlueStyle : assignedPillStyle}>
+            {slot.slotType === 'singles' ? 'Singles' : 'Doubles'}
+          </span>
+        </div>
+
+        <button type="button" onClick={() => removeSlot(side, slot.id)} style={dangerButtonStyle}>
+          Remove
+        </button>
+      </div>
+
+      <div style={slotPlayersGridStyle}>
+        {slot.players.map((selectedPlayer, index) => (
+          <div key={`${slot.id}-${index}`}>
+            <label style={smallLabelStyle}>
+              {slot.slotType === 'doubles' ? `Player ${index + 1}` : 'Player'}
+            </label>
+
+            <select
+              value={selectedPlayer.playerId}
+              onChange={(e) => setSlotPlayer(side, slot.id, index, e.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Select player</option>
+              {playerPool.map((player) => {
+                const isTakenElsewhere =
+                  player.id !== selectedPlayer.playerId && assignedPlayerIds.has(player.id)
+
+                return (
+                  <option key={player.id} value={player.id} disabled={isTakenElsewhere}>
+                    {playerLabel(player)}
+                    {isTakenElsewhere ? ' • already assigned' : ''}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function MetricStat({ label, value }: { label: string; value: string }) {
   return (
     <div style={heroMetricCardStyle}>
       <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyleHero}>{value}</div>
-      <div style={tone === 'good' ? helperGoodStyle : tone === 'warn' ? helperWarnStyle : helperInfoStyle}>
-        {helper}
+      <div style={metricValueStyle}>{value}</div>
+    </div>
+  )
+}
+
+function BrandWordmark({
+  compact = false,
+  footer = false,
+  top = false,
+}: {
+  compact?: boolean
+  footer?: boolean
+  top?: boolean
+}) {
+  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
+  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+      <Image
+        src="/logo-icon.png"
+        alt="TenAceIQ"
+        width={iconSize}
+        height={iconSize}
+        priority
+        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
+      />
+      <div
+        style={{
+          fontWeight: 900,
+          letterSpacing: '-0.045em',
+          fontSize: `${fontSize}px`,
+          lineHeight: 1,
+          display: 'flex',
+          alignItems: 'baseline',
+        }}
+      >
+        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
+        <span style={brandIQ}>IQ</span>
       </div>
     </div>
   )
 }
 
-function ReadinessCard({
-  weeklyReadiness,
-  readinessScore,
-}: {
-  weeklyReadiness: WeeklyReadiness | null
-  readinessScore: number | null
-}) {
-  return (
-    <section style={surfaceCard}>
-      <p style={sectionKicker}>Weekly readiness</p>
-      <div style={projectionValueStyle}>{readinessScore == null ? '—' : `${Math.round(readinessScore * 100)}%`}</div>
-      <p style={sectionBodyTextStyle}>
-        {weeklyReadiness
-          ? `For ${weeklyReadiness.weekKey}, ${weeklyReadiness.yes} players are in, ${weeklyReadiness.maybe} are tentative, and ${weeklyReadiness.noResponse} still need a reply.`
-          : 'Add or connect weekly availability data to unlock the team readiness score.'}
-      </p>
-      {weeklyReadiness ? (
-        <div style={pillRowStyle}>
-          <span style={miniPillGreen}>{weeklyReadiness.yes} yes</span>
-          <span style={miniPillSlate}>{weeklyReadiness.maybe} maybe</span>
-          <span style={warnPill}>{weeklyReadiness.noResponse} no reply</span>
-        </div>
-      ) : null}
-    </section>
-  )
+function headerInnerResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...headerInner,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '14px' : '18px',
+  }
 }
 
-function ResponseHealthCard({
-  noResponseList,
-  slowResponders,
-}: {
-  noResponseList: AvailabilityEntry[]
-  slowResponders: Array<{ name: string; total: number; replied: number; yes: number; replyRate: number; availabilityRate: number }>
-}) {
-  return (
-    <section style={surfaceCard}>
-      <p style={sectionKicker}>Response health</p>
-      <div style={projectionValueStyle}>{noResponseList.length}</div>
-      <p style={sectionBodyTextStyle}>
-        Players currently needing follow-up in the active weekly scope.
-      </p>
-      <div style={stackListStyleCompact}>
-        {noResponseList.length ? (
-          noResponseList.slice(0, 4).map((item) => (
-            <div key={item.id} style={listCardStyleCompact}>
-              <div>
-                <div style={listTitleStyle}>{item.playerName}</div>
-                <div style={listMetaStyle}>{item.teamName || item.leagueName || 'Roster contact'}</div>
-              </div>
-              <span style={warnPill}>No reply</span>
-            </div>
-          ))
-        ) : slowResponders.length ? (
-          slowResponders.slice(0, 3).map((item) => (
-            <div key={item.name} style={listCardStyleCompact}>
-              <div>
-                <div style={listTitleStyle}>{item.name}</div>
-                <div style={listMetaStyle}>Reply rate {formatPct(item.replyRate)}</div>
-              </div>
-              <span style={miniPillSlate}>{item.total} weeks</span>
-            </div>
-          ))
-        ) : (
-          <p style={mutedTextStyle}>No current reply risk detected.</p>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function RecommendationsCard({ recommendations }: { recommendations: Recommendation[] }) {
-  return (
-    <section style={surfaceCardStrong}>
-      <p style={sectionKicker}>Recommended actions</p>
-      <div style={stackListStyleCompact}>
-        {recommendations.length ? (
-          recommendations.map((item) => (
-            <div key={item.title} style={recommendationCardStyle}>
-              <div style={recommendationTopStyle}>
-                <div style={listTitleStyle}>{item.title}</div>
-                <span style={item.tone === 'good' ? miniPillGreen : item.tone === 'warn' ? warnPill : miniPillBlue}>
-                  {item.tone === 'good' ? 'Priority' : item.tone === 'warn' ? 'Watch' : 'Insight'}
-                </span>
-              </div>
-              <div style={listMetaStyle}>{item.body}</div>
-            </div>
-          ))
-        ) : (
-          <p style={mutedTextStyle}>No recommendations yet. Add more lineup and availability history.</p>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function RankRow({
-  rank,
-  name,
-  sublabel,
-  value,
-}: {
-  rank: number
-  name: string
-  sublabel: string
-  value: string
-}) {
-  return (
-    <div style={rankRowStyle}>
-      <div style={rankBubbleStyle}>{rank}</div>
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={listTitleStyle}>{name}</div>
-        <div style={listMetaStyle}>{titleCase(sublabel)}</div>
-      </div>
-      <span style={miniPillBlue}>{value}</span>
-    </div>
-  )
+function navStyleResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...navStyle,
+    width: isTablet ? '100%' : 'auto',
+    justifyContent: isTablet ? 'flex-start' : 'flex-end',
+    flexWrap: 'wrap',
+  }
 }
 
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
@@ -1346,43 +1305,145 @@ function heroTitleResponsive(isSmallMobile: boolean, isMobile: boolean): CSSProp
 function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   return {
     ...heroMetricGridBaseStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 }
 
-function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+function builderLayoutResponsive(isTablet: boolean): CSSProperties {
   return {
-    ...projectionGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
+    ...builderLayoutStyle,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
   }
 }
 
-function dualGridResponsive(isTablet: boolean): CSSProperties {
+function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
   return {
-    ...dualGridStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    ...toggleGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
   }
 }
 
-const pageContentStyle: CSSProperties = {
+function footerInnerResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...footerInner,
+    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  }
+}
+
+function footerRowResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerRow,
+    flexDirection: isTablet ? 'column' : 'row',
+    alignItems: isTablet ? 'flex-start' : 'center',
+    gap: isTablet ? '12px' : '18px',
+  }
+}
+
+function footerLinksResponsive(isTablet: boolean): CSSProperties {
+  return {
+    ...footerLinks,
+    justifyContent: isTablet ? 'flex-start' : 'center',
+  }
+}
+
+const pageWrap: CSSProperties = {
+  width: 'min(1280px, calc(100% - 48px))',
+  margin: '0 auto',
+  display: 'grid',
+  gap: '18px',
+  padding: '14px 0 28px',
   position: 'relative',
   zIndex: 2,
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  padding: '18px 24px 0',
 }
 
-const heroShell: CSSProperties = {
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
   position: 'relative',
-  display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid rgba(116,190,255,0.18)',
+  overflow: 'hidden',
   background:
-    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 52%, rgba(8,27,56,0.92) 100%)',
-  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.30)',
-  backdropFilter: 'blur(18px)',
-  WebkitBackdropFilter: 'blur(18px)',
+    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
+  padding: '24px 18px 56px',
+}
+
+const orbOne: CSSProperties = {
+  position: 'absolute',
+  top: '-100px',
+  right: '-60px',
+  width: '360px',
+  height: '360px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
+  filter: 'blur(10px)',
+  pointerEvents: 'none',
+}
+
+const orbTwo: CSSProperties = {
+  position: 'absolute',
+  top: '60px',
+  left: '-100px',
+  width: '320px',
+  height: '320px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
+  filter: 'blur(12px)',
+  pointerEvents: 'none',
+}
+
+const gridGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+  backgroundSize: '64px 64px',
+  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
+  pointerEvents: 'none',
+}
+
+const headerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+}
+
+const headerInner: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+}
+
+const brandWrap: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  backgroundClip: 'text',
+}
+
+const navStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+}
+
+const navLink: CSSProperties = {
+  padding: '13px 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(12, 28, 52, 0.78)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '15px',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const activeNavLink: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
+  border: '1px solid rgba(130, 244, 118, 0.22)',
 }
 
 const eyebrow: CSSProperties = {
@@ -1392,14 +1453,36 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
+  border: '1px solid rgba(130, 244, 118, 0.28)',
+  background: 'rgba(89, 145, 73, 0.14)',
   color: '#d9e7ef',
   fontWeight: 800,
   fontSize: '14px',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: '4px',
+}
+
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+  display: 'grid',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+}
+
+const heroTextStyle: CSSProperties = {
+  marginTop: 16,
+  marginBottom: 0,
+  maxWidth: 820,
+  color: 'rgba(255,255,255,0.78)',
+  fontSize: '1.02rem',
+  lineHeight: 1.72,
 }
 
 const heroTitleStyle: CSSProperties = {
@@ -1411,14 +1494,6 @@ const heroTitleStyle: CSSProperties = {
   maxWidth: '760px',
 }
 
-const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 820,
-  color: 'rgba(231,239,251,0.78)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
-}
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'flex',
@@ -1436,47 +1511,29 @@ const heroMetricGridBaseStyle: CSSProperties = {
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: '22px',
   padding: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.16) 0%, rgba(20,43,86,0.34) 100%)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.06)',
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(225,236,250,0.72)',
+  color: 'rgba(255,255,255,0.72)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
 }
 
-const metricValueStyleHero: CSSProperties = {
+const metricValueStyle: CSSProperties = {
   color: '#f8fbff',
-  fontSize: '1.2rem',
-  fontWeight: 900,
-  lineHeight: 1.3,
-}
-
-const helperInfoStyle: CSSProperties = {
-  marginTop: 8,
-  color: 'rgba(231,239,251,0.72)',
-  fontSize: '.92rem',
-  lineHeight: 1.45,
-}
-
-const helperGoodStyle: CSSProperties = {
-  ...helperInfoStyle,
-  color: '#d9ffd8',
-}
-
-const helperWarnStyle: CSSProperties = {
-  ...helperInfoStyle,
-  color: '#fecaca',
+  fontSize: '1.05rem',
+  fontWeight: 800,
+  lineHeight: 1.4,
 }
 
 const quickStartCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(29,56,105,0.62), rgba(14,30,59,0.78))',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
   padding: '20px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const quickStartTitle: CSSProperties = {
@@ -1508,7 +1565,7 @@ const workflowNumberStyle: CSSProperties = {
   fontWeight: 800,
   fontSize: '.92rem',
   color: '#0f1632',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  background: 'linear-gradient(135deg, #c7ff5e 0%, #7dffb3 100%)',
   flexShrink: 0,
 }
 
@@ -1519,37 +1576,45 @@ const workflowTitleStyle: CSSProperties = {
 }
 
 const workflowTextStyle: CSSProperties = {
-  color: 'rgba(231,239,251,0.72)',
+  color: 'rgba(255,255,255,0.72)',
   lineHeight: 1.55,
   fontSize: '.95rem',
 }
 
 const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto',
+}
+
+const builderLayoutStyle: CSSProperties = {
+  display: 'grid',
+  gap: '20px',
+  alignItems: 'start',
+}
+
+const columnStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '18px',
-  marginTop: '18px',
+  gap: '20px',
 }
 
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
+  border: '1px solid rgba(133, 168, 229, 0.16)',
   background:
-    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
-  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.24)',
-  backdropFilter: 'blur(16px)',
-  WebkitBackdropFilter: 'blur(16px)',
+    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
 }
 
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
-  backdropFilter: 'blur(14px)',
-  WebkitBackdropFilter: 'blur(14px)',
+  border: '1px solid rgba(140,184,255,0.18)',
+  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -1579,140 +1644,129 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1.1,
 }
 
-const sectionTitleSmall: CSSProperties = {
-  margin: '8px 0 0 0',
-  color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '22px',
-  letterSpacing: '-0.03em',
-  lineHeight: 1.15,
-}
-
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
   color: 'rgba(224,234,247,0.76)',
   lineHeight: 1.65,
-  maxWidth: 780,
 }
 
-const filtersGridStyle: CSSProperties = {
+const bannerBlueStyle: CSSProperties = {
+  marginBottom: '16px',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(37, 91, 227, 0.12)',
+  border: '1px solid rgba(37, 91, 227, 0.20)',
+}
+
+const bannerSlateStyle: CSSProperties = {
+  marginBottom: '16px',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: '#dbeafe',
+  fontWeight: 700,
+}
+
+const bannerTitleStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  marginBottom: '4px',
+}
+
+const bannerMetaStyle: CSSProperties = {
+  color: '#cbd5e1',
+  lineHeight: 1.5,
+}
+
+const formGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   gap: '14px',
 }
 
-const dualGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: '20px',
-}
-
-const projectionGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: '18px',
-}
-
-const stackListStyle: CSSProperties = {
+const toggleGridStyle: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  marginTop: '18px',
 }
 
-const stackListStyleCompact: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-}
-
-const listCardStyle: CSSProperties = {
-  borderRadius: '18px',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-}
-
-const listCardStyleCompact: CSSProperties = {
-  borderRadius: '16px',
-  padding: '12px 14px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '12px',
-}
-
-const listCardTopStyle: CSSProperties = {
+const toggleCardStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '12px',
-}
-
-const listTitleStyle: CSSProperties = {
-  color: '#f8fbff',
-  fontWeight: 800,
-  lineHeight: 1.35,
-}
-
-const listMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  fontSize: '.93rem',
-  lineHeight: 1.55,
-  marginTop: '4px',
-}
-
-const actionCardLinkStyle: CSSProperties = {
-  ...listCardStyle,
-  textDecoration: 'none',
-  display: 'block',
-}
-
-const recommendationCardStyle: CSSProperties = {
-  borderRadius: '18px',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-}
-
-const recommendationTopStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '12px',
-  marginBottom: '8px',
-  flexWrap: 'wrap',
-}
-
-const rankRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  padding: '12px 14px',
+  gap: '14px',
+  padding: '14px 16px',
   borderRadius: '16px',
   background: 'rgba(255,255,255,0.05)',
   border: '1px solid rgba(255,255,255,0.08)',
+  color: '#e7eefb',
 }
 
-const rankBubbleStyle: CSSProperties = {
-  width: 34,
-  height: 34,
-  borderRadius: 999,
+const toggleTitleStyle: CSSProperties = {
+  fontWeight: 800,
+  color: '#f8fbff',
+  marginBottom: 4,
+}
+
+const toggleTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  lineHeight: 1.5,
+  fontSize: '.94rem',
+}
+
+const actionRowStyle: CSSProperties = {
   display: 'flex',
+  gap: '12px',
+  flexWrap: 'wrap',
+  marginTop: '18px',
+}
+
+const miniActionRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
+const primaryButton: CSSProperties = {
+  display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
   fontWeight: 800,
-  color: '#0f1632',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  flexShrink: 0,
+  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
+  color: '#071622',
+  border: '1px solid rgba(133, 171, 255, 0.18)',
+  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
+  cursor: 'pointer',
 }
 
-const labelStyle: CSSProperties = {
-  display: 'block',
-  marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
-  fontSize: '13px',
+const ghostButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  textDecoration: 'none',
   fontWeight: 800,
-  letterSpacing: '0.05em',
-  textTransform: 'uppercase',
+  background: 'rgba(14, 27, 49, 0.9)',
+  color: '#ebf1fd',
+  border: '1px solid rgba(255, 255, 255, 0.12)',
+  cursor: 'pointer',
+}
+
+const ghostButtonSmall: CSSProperties = {
+  ...ghostButton,
+  minHeight: '42px',
+  padding: '0 14px',
+}
+
+const secondaryLinkButton: CSSProperties = {
+  ...ghostButton,
 }
 
 const inputStyle: CSSProperties = {
@@ -1727,152 +1781,406 @@ const inputStyle: CSSProperties = {
   outline: 'none',
 }
 
-const primaryButton: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  fontWeight: 800,
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  color: '#071622',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)',
-}
-
-const ghostButton: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  fontWeight: 800,
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(116,190,255,0.18)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const ghostButtonSmallButton: CSSProperties = {
-  ...ghostButton,
-  minHeight: '42px',
-  cursor: 'pointer',
-  appearance: 'none',
-}
-
-const inlineLinkPill: CSSProperties = {
-  ...ghostButton,
-  minHeight: '30px',
-  padding: '0 12px',
-  fontSize: '12px',
-}
-
-const projectionValueStyle: CSSProperties = {
+const textareaStyle: CSSProperties = {
+  width: '100%',
+  minHeight: '118px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
   color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '36px',
+  padding: '12px 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const smallLabelStyle: CSSProperties = {
+  ...labelStyle,
+  marginBottom: '6px',
+}
+
+const infoTextStyle: CSSProperties = {
+  color: '#8fb7ff',
+  marginTop: '14px',
+  marginBottom: 0,
+  fontWeight: 600,
+}
+
+const successTextStyle: CSSProperties = {
+  color: '#86efac',
+  marginTop: '14px',
+  marginBottom: 0,
+  fontWeight: 600,
+}
+
+const errorTextStyle: CSSProperties = {
+  color: '#fca5a5',
+  marginTop: '14px',
+  marginBottom: 0,
+  fontWeight: 600,
+}
+
+const slotListStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '14px',
+}
+
+const slotCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const slotHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '12px',
+  flexWrap: 'wrap',
+  marginBottom: '12px',
+}
+
+const slotHeaderLeftStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
+const slotLabelInputStyle: CSSProperties = {
+  ...inputStyle,
+  minWidth: '180px',
+  maxWidth: '220px',
+  height: '42px',
+  fontWeight: 700,
+}
+
+const slotPlayersGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gap: '12px',
+}
+
+const heroBadgeRowStyleCompact: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '14px',
+}
+
+const badgeBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  fontSize: '0.82rem',
   lineHeight: 1,
-  letterSpacing: '-0.04em',
-  marginTop: '8px',
+  fontWeight: 900,
+  letterSpacing: '0.02em',
+  border: '1px solid transparent',
+}
+
+const badgeBlue: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(37, 91, 227, 0.16)',
+  color: '#c7dbff',
+  borderColor: 'rgba(98, 154, 255, 0.18)',
+}
+
+const badgeSlate: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(255, 255, 255, 0.08)',
+  color: '#e8eef9',
+  borderColor: 'rgba(255, 255, 255, 0.1)',
+}
+
+
+const metricGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '18px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '22px',
+  padding: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'linear-gradient(180deg, rgba(12,25,45,0.94), rgba(9,18,34,0.96))',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  minWidth: 0,
+}
+
+const metricCardAccent: CSSProperties = {
+  borderColor: 'rgba(111,236,168,0.34)',
+}
+
+const metricLabel: CSSProperties = {
+  color: 'rgba(224, 234, 247, 0.7)',
+  fontSize: '0.82rem',
+  marginBottom: '0.42rem',
+  fontWeight: 700,
+}
+
+const metricValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const stackStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+  marginTop: '14px',
+}
+
+const mutedTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  margin: 0,
+  lineHeight: 1.6,
+}
+
+const poolCardStyle: CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '18px',
+  padding: '14px',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const poolCardTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '12px',
   marginBottom: '10px',
+}
+
+const playerNameStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 800,
+  fontSize: '1rem',
+}
+
+const playerMetaStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '0.92rem',
+  lineHeight: 1.55,
+  marginTop: '4px',
+}
+
+const statusBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  padding: '6px 10px',
+  borderRadius: '999px',
+  fontWeight: 700,
+  fontSize: '0.8rem',
+  whiteSpace: 'nowrap',
 }
 
 const pillRowStyle: CSSProperties = {
   display: 'flex',
   gap: '8px',
   flexWrap: 'wrap',
-  marginTop: '12px',
+  marginTop: '14px',
 }
 
-const badgeBase: CSSProperties = {
+const miniPillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
+  background: 'rgba(255,255,255,0.08)',
+  color: '#dfe8f8',
   fontSize: '12px',
   fontWeight: 800,
 }
 
-const miniPillSlate: CSSProperties = {
-  ...badgeBase,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
-}
-
-const miniPillBlue: CSSProperties = {
-  ...badgeBase,
+const miniPillBlueStyle: CSSProperties = {
+  ...miniPillStyle,
   background: 'rgba(37, 91, 227, 0.16)',
   color: '#c7dbff',
 }
 
-const miniPillGreen: CSSProperties = {
-  ...badgeBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+const assignedPillStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(96, 221, 116, 0.14)',
+  color: '#dffad5',
 }
 
-const warnPill: CSSProperties = {
-  ...badgeBase,
+const cardNoteTextStyle: CSSProperties = {
+  margin: '10px 0 0 0',
+  color: '#e7eefb',
+  lineHeight: 1.58,
+}
+
+const subtleNoteTextStyle: CSSProperties = {
+  margin: '8px 0 0 0',
+  color: 'rgba(224,234,247,0.72)',
+  lineHeight: 1.58,
+  fontSize: '0.92rem',
+}
+
+const compareGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '10px',
+}
+
+const compareCardStyle: CSSProperties = {
+  borderRadius: '16px',
+  padding: '12px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const compareLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 700,
+  marginBottom: '6px',
+}
+
+const compareValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '18px',
+}
+
+const goodBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(96, 221, 116, 0.14)',
+  color: '#dffad5',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const warnBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
   background: 'rgba(255, 93, 93, 0.10)',
   color: '#fecaca',
+  fontSize: '12px',
+  fontWeight: 800,
 }
 
-const tableHeaderStyle: CSSProperties = {
+const savedScenarioCardStyle: CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '18px',
+  padding: '14px',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const savedScenarioCardActiveStyle: CSSProperties = {
+  border: '1px solid rgba(37, 91, 227, 0.22)',
+  boxShadow: '0 0 0 3px rgba(37, 91, 227, 0.08)',
+}
+
+const savedScenarioTopStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'flex-start',
   gap: '12px',
-  flexWrap: 'wrap',
-  marginBottom: '14px',
 }
 
-const tableWrapStyle: CSSProperties = {
-  width: '100%',
-  overflowX: 'auto',
-  borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
-}
-
-const tableStyle: CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-}
-
-const thStyle: CSSProperties = {
-  textAlign: 'left',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#c7dbff',
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  letterSpacing: '.06em',
-}
-
-const tdStyle: CSSProperties = {
-  padding: '14px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
+const savedScenarioTitleStyle: CSSProperties = {
   color: '#f8fbff',
-  verticalAlign: 'top',
-}
-
-const tdLabelStyle: CSSProperties = {
-  ...tdStyle,
   fontWeight: 800,
+  fontSize: '1rem',
 }
 
-const mutedTextStyle: CSSProperties = {
+const savedScenarioMetaStyle: CSSProperties = {
   color: 'rgba(224,234,247,0.72)',
-  margin: 0,
-  lineHeight: 1.65,
+  fontSize: '0.92rem',
+  lineHeight: 1.55,
+  marginTop: '4px',
 }
 
-const errorTextStyle: CSSProperties = {
+const savedScenarioActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  alignItems: 'stretch',
+}
+
+const dangerButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '10px 12px',
+  borderRadius: '12px',
+  background: 'rgba(255, 93, 93, 0.08)',
   color: '#fca5a5',
-  margin: 0,
-  lineHeight: 1.65,
+  border: '1px solid rgba(255, 93, 93, 0.18)',
+  fontWeight: 700,
+  cursor: 'pointer',
+}
+
+const footerStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  padding: '28px 0 0',
+}
+
+const footerInner: CSSProperties = {
+  width: '100%',
+  maxWidth: '1240px',
+  margin: '0 auto',
+  borderRadius: '22px',
+  background: 'rgba(17,31,58,0.72)',
+  border: '1px solid rgba(128,174,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const footerRow: CSSProperties = {
+  display: 'flex',
+  width: '100%',
+}
+
+const footerBrandLink: CSSProperties = {
+  display: 'inline-flex',
+  textDecoration: 'none',
+  flexShrink: 0,
+}
+
+const footerLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px 14px',
+}
+
+const footerUtilityLink: CSSProperties = {
+  color: 'rgba(231,243,255,0.86)',
+  textDecoration: 'none',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const footerBottom: CSSProperties = {
+  color: 'rgba(190,205,224,0.74)',
+  fontSize: '13px',
+  fontWeight: 600,
+  whiteSpace: 'nowrap',
 }

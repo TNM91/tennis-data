@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
+import SiteShell from '@/app/components/site-shell'
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
@@ -197,72 +198,7 @@ export default function ExplorePage() {
   }
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
-
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {PRIMARY_LINKS.map((link) => {
-              const isActive = link.href === '/explore'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(link.href === '/explore' ? activeNavLink : {}),
-                    ...(isActive && link.href !== '/explore' ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-
-            <Link href="/leagues" style={navLink}>
-              Leagues
-            </Link>
-
-            {authLoading ? (
-              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
-            ) : role === 'public' ? (
-              <>
-                <Link href="/login" style={navLink}>
-                  Login
-                </Link>
-                <Link href="/join" style={ctaNavLink}>
-                  Join
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/dashboard" style={ctaNavLink}>
-                  My Lab
-                </Link>
-
-                {role === 'admin' ? (
-                  <Link href="/admin" style={navLink}>
-                    Admin
-                  </Link>
-                ) : null}
-
-                <button type="button" onClick={handleLogout} style={navButtonReset}>
-                  Logout
-                </button>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
-
+    <SiteShell active="explore">
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
@@ -324,40 +260,7 @@ export default function ExplorePage() {
           </div>
         </div>
       </section>
-
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/explore" style={footerUtilityLink}>
-                Explore
-              </Link>
-              <Link href="/players" style={footerUtilityLink}>
-                Players
-              </Link>
-              <Link href="/rankings" style={footerUtilityLink}>
-                Rankings
-              </Link>
-              <Link href="/matchup" style={footerUtilityLink}>
-                Matchups
-              </Link>
-              <Link href="/leagues" style={footerUtilityLink}>
-                Leagues
-              </Link>
-              <Link href="/captain" style={footerUtilityLink}>
-                Captain
-              </Link>
-            </div>
-
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
-          </div>
-        </div>
-      </footer>
-    </main>
+    </SiteShell>
   )
 }
 

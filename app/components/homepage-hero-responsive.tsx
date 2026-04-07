@@ -2,38 +2,36 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
-import DataBallHero from '@/app/components/data-ball-hero'
 
 const statCardStyle = {
   borderRadius: '22px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(18,35,66,0.82) 0%, rgba(10,20,38,0.92) 100%)',
-  boxShadow: '0 18px 44px rgba(5,12,25,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
-  padding: '16px 18px',
-  backdropFilter: 'blur(12px)',
-  WebkitBackdropFilter: 'blur(12px)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(19,38,70,0.54) 0%, rgba(9,19,37,0.82) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  padding: '16px 16px 15px',
 } as const
 
 const featureCardStyle = {
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(17,34,63,0.74) 0%, rgba(9,18,34,0.92) 100%)',
-  boxShadow: '0 20px 50px rgba(5,12,25,0.2), inset 0 1px 0 rgba(255,255,255,0.04)',
-  padding: '20px',
+  background: 'linear-gradient(180deg, rgba(17,34,64,0.66) 0%, rgba(8,17,32,0.86) 100%)',
+  boxShadow: '0 18px 40px rgba(5,12,26,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  padding: '18px 18px 16px',
 } as const
 
 const actionLinkBase = {
+  minHeight: '52px',
+  padding: '0 18px',
+  borderRadius: '16px',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '50px',
-  borderRadius: '999px',
-  padding: '0 18px',
   textDecoration: 'none',
-  fontWeight: 800,
   fontSize: '15px',
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
   transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
 } as const
 
@@ -51,12 +49,25 @@ export default function HomePageHeroResponsive() {
   const isMobile = screenWidth < 820
 
   const shellPadding = isMobile ? '16px' : '24px'
-  const heroPadding = isMobile ? '18px' : isTablet ? '22px' : '28px'
-  const headlineSize = isMobile ? '42px' : isTablet ? '56px' : '74px'
+  const heroPadding = isMobile ? '18px' : isTablet ? '22px' : '30px'
+  const headlineSize = isMobile ? '42px' : isTablet ? '58px' : '76px'
   const bodySize = isMobile ? '16px' : '18px'
-  const heroGrid = isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(320px, 520px)'
+  const heroGrid = isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(380px, 540px)'
   const statGrid = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
   const featureGrid = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
+
+  const rightStageStyle = useMemo(
+    () => ({
+      position: 'relative' as const,
+      minHeight: isMobile ? '360px' : isTablet ? '420px' : '620px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      order: isTablet ? 1 : 2,
+      zIndex: 2,
+    }),
+    [isMobile, isTablet],
+  )
 
   return (
     <section
@@ -75,33 +86,49 @@ export default function HomePageHeroResponsive() {
           overflow: 'hidden',
           borderRadius: isMobile ? '28px' : '34px',
           border: '1px solid rgba(116,190,255,0.14)',
-          background: 'linear-gradient(180deg, rgba(14,28,52,0.88) 0%, rgba(8,17,32,0.96) 100%)',
-          boxShadow: '0 28px 80px rgba(5,12,26,0.34), inset 0 1px 0 rgba(255,255,255,0.05)',
+          background: 'linear-gradient(180deg, rgba(11,23,44,0.9) 0%, rgba(7,15,29,0.98) 100%)',
+          boxShadow: '0 30px 84px rgba(5,12,26,0.34), inset 0 1px 0 rgba(255,255,255,0.05)',
           padding: heroPadding,
         }}
       >
         <div
           style={{
             position: 'absolute',
-            top: '-120px',
-            right: '-80px',
-            width: isMobile ? '240px' : '360px',
-            height: isMobile ? '240px' : '360px',
+            top: '-140px',
+            left: '-140px',
+            width: isMobile ? '260px' : '380px',
+            height: isMobile ? '260px' : '380px',
             borderRadius: '999px',
-            background: 'radial-gradient(circle, rgba(74,163,255,0.16) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(74,163,255,0.18) 0%, transparent 72%)',
             filter: 'blur(8px)',
+            pointerEvents: 'none',
           }}
         />
         <div
           style={{
             position: 'absolute',
-            bottom: '-140px',
-            left: '-100px',
-            width: isMobile ? '220px' : '340px',
-            height: isMobile ? '220px' : '340px',
+            top: '-80px',
+            right: '-60px',
+            width: isMobile ? '220px' : '320px',
+            height: isMobile ? '220px' : '320px',
             borderRadius: '999px',
-            background: 'radial-gradient(circle, rgba(155,225,29,0.12) 0%, transparent 72%)',
-            filter: 'blur(10px)',
+            background: 'radial-gradient(circle, rgba(155,225,29,0.13) 0%, transparent 72%)',
+            filter: 'blur(8px)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            inset: '0',
+            backgroundImage:
+              'linear-gradient(rgba(116,190,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(116,190,255,0.035) 1px, transparent 1px)',
+            backgroundSize: isMobile ? '24px 24px' : '30px 30px',
+            opacity: 0.28,
+            maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.25) 100%)',
+            WebkitMaskImage:
+              'linear-gradient(180deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.25) 100%)',
+            pointerEvents: 'none',
           }}
         />
 
@@ -109,7 +136,7 @@ export default function HomePageHeroResponsive() {
           style={{
             display: 'grid',
             gridTemplateColumns: heroGrid,
-            gap: isTablet ? '10px' : '24px',
+            gap: isTablet ? '16px' : '28px',
             alignItems: 'center',
           }}
         >
@@ -137,7 +164,7 @@ export default function HomePageHeroResponsive() {
                 boxShadow: '0 14px 30px rgba(6,14,28,0.24)',
               }}
             >
-              Tennis Intelligence Engine
+              Data-powered tennis intelligence
             </div>
 
             <div style={{ marginTop: '18px' }}>
@@ -146,29 +173,18 @@ export default function HomePageHeroResponsive() {
 
             <h1
               style={{
-                margin: '16px 0 0',
+                margin: '18px 0 0',
                 fontSize: headlineSize,
                 lineHeight: 0.95,
-                letterSpacing: '-0.055em',
+                letterSpacing: '-0.06em',
                 fontWeight: 900,
                 color: '#f8fbff',
-                maxWidth: '760px',
+                maxWidth: '780px',
               }}
             >
-              Know more.
+              The smarter way
               <br />
-              Plan better.
-              <br />
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                Compete smarter.
-              </span>
+              to read the court.
             </h1>
 
             <p
@@ -177,12 +193,12 @@ export default function HomePageHeroResponsive() {
                 maxWidth: '620px',
                 color: 'rgba(216,229,245,0.82)',
                 fontSize: bodySize,
-                lineHeight: 1.7,
+                lineHeight: 1.72,
                 fontWeight: 500,
               }}
             >
-              Advanced tennis ratings, matchup intelligence, lineup planning, and league context
-              built for players, captains, and teams.
+              TenAceIQ blends ratings, matchup intelligence, lineup planning, and league context
+              into one premium command center for players, captains, and teams.
             </p>
 
             <div
@@ -211,7 +227,8 @@ export default function HomePageHeroResponsive() {
                 style={{
                   ...actionLinkBase,
                   color: '#e9f2ff',
-                  background: 'linear-gradient(180deg, rgba(41,78,140,0.48) 0%, rgba(17,36,69,0.72) 100%)',
+                  background:
+                    'linear-gradient(180deg, rgba(41,78,140,0.48) 0%, rgba(17,36,69,0.72) 100%)',
                   border: '1px solid rgba(116,190,255,0.22)',
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
                 }}
@@ -224,7 +241,8 @@ export default function HomePageHeroResponsive() {
                 style={{
                   ...actionLinkBase,
                   color: '#dbe9ff',
-                  background: 'linear-gradient(180deg, rgba(20,40,76,0.56) 0%, rgba(11,22,42,0.86) 100%)',
+                  background:
+                    'linear-gradient(180deg, rgba(20,40,76,0.56) 0%, rgba(11,22,42,0.86) 100%)',
                   border: '1px solid rgba(116,190,255,0.14)',
                 }}
               >
@@ -238,7 +256,7 @@ export default function HomePageHeroResponsive() {
                 display: 'grid',
                 gridTemplateColumns: statGrid,
                 gap: '12px',
-                maxWidth: isTablet ? '100%' : '760px',
+                maxWidth: isTablet ? '100%' : '780px',
               }}
             >
               <div style={statCardStyle}>
@@ -262,7 +280,7 @@ export default function HomePageHeroResponsive() {
                     letterSpacing: '-0.03em',
                   }}
                 >
-                  Track progress
+                  See trajectory
                 </div>
                 <div
                   style={{
@@ -272,7 +290,7 @@ export default function HomePageHeroResponsive() {
                     lineHeight: 1.55,
                   }}
                 >
-                  Singles, doubles, and overall intelligence in one system.
+                  Track singles, doubles, and overall form in one clean system.
                 </div>
               </div>
 
@@ -297,7 +315,7 @@ export default function HomePageHeroResponsive() {
                     letterSpacing: '-0.03em',
                   }}
                 >
-                  Compare faster
+                  Read edges faster
                 </div>
                 <div
                   style={{
@@ -307,7 +325,7 @@ export default function HomePageHeroResponsive() {
                     lineHeight: 1.55,
                   }}
                 >
-                  Instantly evaluate likely outcomes before lineups lock.
+                  Compare players and teams before decisions lock in.
                 </div>
               </div>
 
@@ -332,7 +350,7 @@ export default function HomePageHeroResponsive() {
                     letterSpacing: '-0.03em',
                   }}
                 >
-                  Plan smarter
+                  Build smarter lineups
                 </div>
                 <div
                   style={{
@@ -342,297 +360,194 @@ export default function HomePageHeroResponsive() {
                     lineHeight: 1.55,
                   }}
                 >
-                  Availability, lineup building, and team decision support.
+                  Turn availability, pairings, and opponent context into better choices.
                 </div>
               </div>
             </div>
           </div>
 
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              minHeight: isMobile ? '320px' : '420px',
-              order: isTablet ? 1 : 2,
-            }}
-          >
-            <DataBallHero />
-          </div>
-        </div>
-      </div>
-
-      <section
-        style={{
-          width: '100%',
-          marginTop: '18px',
-          display: 'grid',
-          gridTemplateColumns: featureGrid,
-          gap: '14px',
-        }}
-      >
-        <Link href="/players" style={{ ...featureCardStyle, textDecoration: 'none' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '16px',
-              display: 'grid',
-              placeItems: 'center',
-              background: 'linear-gradient(135deg, rgba(74,163,255,0.2) 0%, rgba(37,91,227,0.26) 100%)',
-              border: '1px solid rgba(116,190,255,0.18)',
-            }}
-          >
-            <span style={{ color: '#dff0ff', fontSize: '22px' }}>👤</span>
-          </div>
-          <div
-            style={{
-              marginTop: '14px',
-              color: '#f8fbff',
-              fontSize: '22px',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
-            }}
-          >
-            Player intelligence
-          </div>
-          <div
-            style={{
-              marginTop: '8px',
-              color: 'rgba(210,225,244,0.76)',
-              fontSize: '14px',
-              lineHeight: 1.6,
-            }}
-          >
-            Search player profiles, rating movement, historical results, and recent momentum.
-          </div>
-        </Link>
-
-        <Link href="/leagues" style={{ ...featureCardStyle, textDecoration: 'none' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '16px',
-              display: 'grid',
-              placeItems: 'center',
-              background: 'linear-gradient(135deg, rgba(155,225,29,0.18) 0%, rgba(74,163,255,0.16) 100%)',
-              border: '1px solid rgba(155,225,29,0.18)',
-            }}
-          >
-            <span style={{ color: '#efffc9', fontSize: '22px' }}>🏆</span>
-          </div>
-          <div
-            style={{
-              marginTop: '14px',
-              color: '#f8fbff',
-              fontSize: '22px',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
-            }}
-          >
-            League context
-          </div>
-          <div
-            style={{
-              marginTop: '8px',
-              color: 'rgba(210,225,244,0.76)',
-              fontSize: '14px',
-              lineHeight: 1.6,
-            }}
-          >
-            Move from individual analysis to team and league-level context without losing clarity.
-          </div>
-        </Link>
-
-        <Link href="/captain" style={{ ...featureCardStyle, textDecoration: 'none' }}>
-          <div
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '16px',
-              display: 'grid',
-              placeItems: 'center',
-              background: 'linear-gradient(135deg, rgba(37,91,227,0.2) 0%, rgba(155,225,29,0.18) 100%)',
-              border: '1px solid rgba(116,190,255,0.18)',
-            }}
-          >
-            <span style={{ color: '#dff0ff', fontSize: '22px' }}>🧠</span>
-          </div>
-          <div
-            style={{
-              marginTop: '14px',
-              color: '#f8fbff',
-              fontSize: '22px',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
-            }}
-          >
-            Captain tools
-          </div>
-          <div
-            style={{
-              marginTop: '8px',
-              color: 'rgba(210,225,244,0.76)',
-              fontSize: '14px',
-              lineHeight: 1.6,
-            }}
-          >
-            Use availability, lineup planning, and matchup logic to make better decisions faster.
-          </div>
-        </Link>
-      </section>
-
-      <section
-        style={{
-          width: '100%',
-          marginTop: '14px',
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.3fr) minmax(280px, 0.9fr)',
-          gap: '14px',
-        }}
-      >
-        <div
-          style={{
-            ...featureCardStyle,
-            position: 'relative',
-            overflow: 'hidden',
-            minHeight: '220px',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: '-60px',
-              right: '-80px',
-              width: '220px',
-              height: '220px',
-              borderRadius: '999px',
-              background: 'radial-gradient(circle, rgba(74,163,255,0.16) 0%, transparent 70%)',
-            }}
-          />
-          <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={rightStageStyle}>
             <div
               style={{
-                color: '#8fb8ff',
-                fontSize: '12px',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
+                position: 'absolute',
+                width: isMobile ? '250px' : isTablet ? '360px' : '520px',
+                height: isMobile ? '250px' : isTablet ? '360px' : '520px',
+                borderRadius: '999px',
+                background:
+                  'radial-gradient(circle, rgba(74,163,255,0.22) 0%, rgba(74,163,255,0.08) 26%, rgba(155,225,29,0.08) 44%, transparent 72%)',
+                filter: 'blur(18px)',
+                opacity: 0.95,
               }}
-            >
-              Built for real teams
-            </div>
-            <div
-              style={{
-                marginTop: '10px',
-                color: '#f8fbff',
-                fontSize: isMobile ? '26px' : '32px',
-                fontWeight: 900,
-                lineHeight: 1.04,
-                letterSpacing: '-0.04em',
-                maxWidth: '560px',
-              }}
-            >
-              Turn tennis data into better lineup decisions.
-            </div>
-            <div
-              style={{
-                marginTop: '10px',
-                color: 'rgba(210,225,244,0.76)',
-                fontSize: '15px',
-                lineHeight: 1.7,
-                maxWidth: '620px',
-              }}
-            >
-              TenAceIQ is designed to bridge the gap between ratings, real match context, and the
-              decisions captains and players actually need to make each week.
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            ...featureCardStyle,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '16px',
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: '#8fb8ff',
-                fontSize: '12px',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-              }}
-            >
-              Current brand
-            </div>
+            />
 
             <div
               style={{
-                marginTop: '14px',
+                position: 'absolute',
+                width: isMobile ? '270px' : isTablet ? '390px' : '560px',
+                height: isMobile ? '270px' : isTablet ? '390px' : '560px',
+                borderRadius: '999px',
+                border: '1px solid rgba(116,190,255,0.12)',
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset, 0 0 60px rgba(37,91,227,0.10)',
+              }}
+            />
+
+            <div
+              style={{
+                position: 'absolute',
+                width: isMobile ? '230px' : isTablet ? '340px' : '500px',
+                height: isMobile ? '230px' : isTablet ? '340px' : '500px',
+                borderRadius: '999px',
+                border: '1px dashed rgba(155,225,29,0.18)',
+                transform: 'rotate(14deg)',
+                opacity: 0.76,
+              }}
+            />
+
+            <div
+              style={{
+                position: 'relative',
+                width: isMobile ? '240px' : isTablet ? '340px' : '470px',
+                aspectRatio: '1 / 1',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '14px',
-                flexWrap: 'wrap',
+                justifyContent: 'center',
+                filter:
+                  'drop-shadow(0 36px 80px rgba(8,17,32,0.48)) drop-shadow(0 0 34px rgba(74,163,255,0.14)) drop-shadow(0 0 44px rgba(155,225,29,0.12))',
               }}
             >
-              <div
+              <Image
+                src="/logo-icon.png"
+                alt="TenAceIQ Data Ball"
+                fill
+                priority
+                sizes="(max-width: 820px) 240px, (max-width: 1100px) 340px, 470px"
                 style={{
-                  width: '72px',
-                  height: '72px',
-                  borderRadius: '20px',
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'linear-gradient(180deg, rgba(28,51,93,0.8) 0%, rgba(12,22,41,0.92) 100%)',
-                  border: '1px solid rgba(116,190,255,0.16)',
-                  boxShadow: '0 16px 36px rgba(5,12,25,0.24)',
-                  flexShrink: 0,
+                  objectFit: 'contain',
                 }}
-              >
-                <Image
-                  src="/logo-icon.png"
-                  alt="TenAceIQ"
-                  width={48}
-                  height={48}
-                  style={{ width: '48px', height: '48px', objectFit: 'contain' }}
-                />
-              </div>
+              />
+            </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  minHeight: '72px',
-                }}
-              >
-                <BrandWordmark top />
-              </div>
+            <div
+              style={{
+                position: 'absolute',
+                bottom: isMobile ? '0px' : isTablet ? '8px' : '32px',
+                left: isMobile ? '10px' : isTablet ? '14px' : '18px',
+                right: isMobile ? '10px' : isTablet ? '14px' : '18px',
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                gap: '10px',
+              }}
+            >
+              {[
+                ['Dynamic edge', 'Ratings and matchup reads layered together'],
+                ['Captain command', 'Availability, lineups, and projections connected'],
+                ['League context', 'Players, teams, and flights in one workflow'],
+              ].map(([title, copy]) => (
+                <div
+                  key={title}
+                  style={{
+                    borderRadius: '18px',
+                    border: '1px solid rgba(116,190,255,0.12)',
+                    background: 'linear-gradient(180deg, rgba(17,34,64,0.42) 0%, rgba(8,17,32,0.72) 100%)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                    padding: '12px 12px 10px',
+                  }}
+                >
+                  <div
+                    style={{
+                      color: '#f7fbff',
+                      fontSize: '13px',
+                      fontWeight: 900,
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
+                    {title}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: '5px',
+                      color: 'rgba(206,221,241,0.72)',
+                      fontSize: '12px',
+                      lineHeight: 1.45,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {copy}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-
-          <Link
-            href="/explore"
-            style={{
-              ...actionLinkBase,
-              width: '100%',
-              color: '#08111d',
-              background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-              border: '1px solid rgba(155,225,29,0.34)',
-              boxShadow: '0 16px 34px rgba(155,225,29,0.18)',
-            }}
-          >
-            Start exploring TenAceIQ
-          </Link>
         </div>
-      </section>
+
+        <div
+          style={{
+            marginTop: isTablet ? '18px' : '8px',
+            display: 'grid',
+            gridTemplateColumns: featureGrid,
+            gap: '12px',
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
+          {[
+            {
+              label: 'For players',
+              title: 'Understand your game faster',
+              copy: 'See where you are trending, compare yourself to the field, and make better training decisions.',
+            },
+            {
+              label: 'For captains',
+              title: 'Plan with more clarity',
+              copy: 'Build lineups with context, spot swing matches, and prepare smarter before match day.',
+            },
+            {
+              label: 'For teams',
+              title: 'Connect the whole picture',
+              copy: 'Bring ratings, pairings, opponents, and league movement into one premium workflow.',
+            },
+          ].map((feature) => (
+            <div key={feature.title} style={featureCardStyle}>
+              <div
+                style={{
+                  color: '#8fb8ff',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {feature.label}
+              </div>
+              <div
+                style={{
+                  marginTop: '9px',
+                  color: '#f8fbff',
+                  fontSize: '22px',
+                  lineHeight: 1.12,
+                  fontWeight: 900,
+                  letterSpacing: '-0.04em',
+                }}
+              >
+                {feature.title}
+              </div>
+              <div
+                style={{
+                  marginTop: '8px',
+                  color: 'rgba(206,221,241,0.76)',
+                  fontSize: '14px',
+                  lineHeight: 1.62,
+                  fontWeight: 600,
+                }}
+              >
+                {feature.copy}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
   )
 }

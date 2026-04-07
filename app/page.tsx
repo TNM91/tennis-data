@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -12,9 +13,9 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
-import DataBallHero from '@/app/components/data-ball-hero'
-import { supabase } from '../lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
+import SiteShell from '@/app/components/site-shell'
 
 type PlayerSearchRow = {
   id: string
@@ -30,13 +31,6 @@ const QUICK_ACTION_STORAGE_KEY = 'tenaceiq_recent_players'
 const FALLBACK_QUICK_ACTIONS: QuickAction[] = [
   { type: 'route', label: 'Explore rankings', href: '/rankings' },
   { type: 'route', label: 'Browse leagues', href: '/leagues' },
-]
-
-const PRIMARY_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
 ]
 
 export default function HomePage() {
@@ -56,7 +50,9 @@ export default function HomePage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [recentPlayerActions, setRecentPlayerActions] = useState<QuickAction[]>([])
   const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
+  const [hoveredQuickAction, setHoveredQuickAction] = useState<string | null>(null)
+  const [searchButtonHovered, setSearchButtonHovered] = useState(false)
+  const [previewCtaHovered, setPreviewCtaHovered] = useState(false)
 
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
   const shouldShowSuggestions = showSuggestions && trimmedSearch.length >= 2
@@ -114,7 +110,6 @@ export default function HomePage() {
         const { data } = await supabase.auth.getUser()
         setRole(getUserRole(data.user?.id ?? null))
       } finally {
-        setAuthLoading(false)
       }
     }
 
@@ -124,7 +119,6 @@ export default function HomePage() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setRole(getUserRole(session?.user?.id ?? null))
-      setAuthLoading(false)
     })
 
     return () => subscription.unsubscribe()
@@ -290,12 +284,6 @@ export default function HomePage() {
     router.push(`/players/${action.playerId}`)
   }
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
-
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (!shouldShowSuggestions || suggestions.length === 0) return
 
@@ -325,72 +313,44 @@ export default function HomePage() {
     }
   }
 
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
+  const myLabHref = role === 'public' ? '/join' : '/dashboard'
+  const myLabLabel = role === 'public' ? 'Unlock My Lab' : 'Open My Lab'
 
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
-  const dynamicHeroWrap: CSSProperties = {
-    ...heroWrap,
-    padding: isMobile ? '18px 16px 26px' : '14px 22px 28px',
-  }
-
-  const dynamicHeroShell: CSSProperties = {
-    ...heroShell,
-    padding: isMobile ? '28px 18px 24px' : '38px 30px 28px',
-  }
-
-  const dynamicHeroContent: CSSProperties = {
-    ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.14fr) minmax(360px, 0.92fr)',
-    gap: isMobile ? '20px' : '26px',
+  const dynamicHeroGrid: CSSProperties = {
+    ...heroGrid,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(420px, 0.94fr)',
+    gap: isMobile ? '18px' : '24px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '36px' : isMobile ? '50px' : '66px',
-    lineHeight: isMobile ? 1.04 : 0.97,
-    maxWidth: '760px',
+    fontSize: isSmallMobile ? '38px' : isMobile ? '50px' : '70px',
+    lineHeight: isMobile ? 1.02 : 0.95,
   }
 
   const dynamicHeroText: CSSProperties = {
     ...heroText,
     fontSize: isMobile ? '16px' : '18px',
-    maxWidth: '650px',
   }
 
-  const dynamicSearchShell: CSSProperties = {
-    ...searchShell,
-    padding: isMobile ? '18px' : '20px',
-    marginBottom: 0,
+  const dynamicSearchFrame: CSSProperties = {
+    ...searchFrame,
+    padding: isSmallMobile ? '16px' : isMobile ? '18px' : '20px',
     boxShadow: inputFocused
-      ? '0 20px 44px rgba(7,24,53,0.18), 0 0 0 2px rgba(74,163,255,0.18)'
-      : (searchShell.boxShadow as string),
+      ? '0 28px 64px rgba(6,16,36,0.24), 0 0 0 2px rgba(74,163,255,0.2)'
+      : (searchFrame.boxShadow as string),
   }
 
   const dynamicSearchRow: CSSProperties = {
     ...searchRow,
     flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'center',
   }
 
   const dynamicSearchInputWrap: CSSProperties = {
     ...searchInputWrap,
+    minWidth: isSmallMobile ? '100%' : '280px',
     width: isSmallMobile ? '100%' : undefined,
-    minWidth: isSmallMobile ? '100%' : '260px',
-  }
-
-  const dynamicSearchInput: CSSProperties = {
-    ...searchInput,
-    boxShadow: inputFocused ? '0 0 0 2px rgba(74,163,255,0.18)' : 'none',
   }
 
   const dynamicSearchButton: CSSProperties = {
@@ -398,141 +358,50 @@ export default function HomePage() {
     width: isSmallMobile ? '100%' : 'auto',
   }
 
-  const dynamicLogoPanel: CSSProperties = {
-    ...logoPanel,
-    minHeight: isMobile ? '248px' : '292px',
+  const dynamicQuickActionGrid: CSSProperties = {
+    ...quickActionGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicActionGrid: CSSProperties = {
-    ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(4, minmax(220px, 1fr))',
-    gap: isMobile ? '14px' : '16px',
+  const dynamicPreviewMetrics: CSSProperties = {
+    ...previewMetrics,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
+  const dynamicAudienceGrid: CSSProperties = {
+    ...audienceGrid,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
+  const dynamicActionStrip: CSSProperties = {
+    ...actionStrip,
+    gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
   }
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
+    <SiteShell active="/">
+      <section style={pageWrap}>
+        <div style={heroShell}>
+          <div style={heroGlowTop} />
+          <div style={heroGlowRight} />
 
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {PRIMARY_LINKS.map((link) => {
-              const isActive = link.href === '/'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(isActive ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-
-            <Link href="/leagues" style={navLink}>
-              Leagues
-            </Link>
-
-            {authLoading ? (
-              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
-            ) : role === 'public' ? (
-              <>
-                <Link href="/login" style={navLink}>
-                  Login
-                </Link>
-                <Link href="/join" style={ctaNavLink}>
-                  Join
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/dashboard" style={ctaNavLink}>
-                  My Lab
-                </Link>
-
-                {role === 'admin' ? (
-                  <Link href="/admin" style={navLink}>
-                    Admin
-                  </Link>
-                ) : null}
-
-                <button type="button" onClick={handleLogout} style={navButtonReset}>
-                  Logout
-                </button>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
-
-      <section style={dynamicHeroWrap}>
-        <div style={dynamicHeroShell}>
-          <div style={heroNoise} />
-
-          <div style={dynamicHeroContent}>
+          <div style={dynamicHeroGrid}>
             <div style={heroLeft}>
               <div style={eyebrow}>Know more. Plan better. Compete smarter.</div>
 
-              <h1 style={dynamicHeroTitle}>
-                The fastest way to check player stats, compare matchups, and run your tennis season.
-              </h1>
+              <div style={headlineBlock}>
+                <h1 style={dynamicHeroTitle}>Search first. Prepare faster. Win smarter.</h1>
+                <p style={dynamicHeroText}>
+                  Find players in seconds, compare matchups with more context, and move from
+                  scouting to lineups without bouncing across tools.
+                </p>
 
-              <p style={dynamicHeroText}>
-                Search players first, then move straight into public exploration, matchup prep,
-                league context, and member tools like My Lab and Captain workflows.
-              </p>
-
-              <div style={quickActionLabel}>Recent / featured</div>
-              <div style={quickActionWrap}>
-                {quickActions.map((action) => (
-                  <button
-                    key={action.label}
-                    type="button"
-                    onClick={() => handleQuickAction(action)}
-                    style={quickActionButton}
-                  >
-                    {action.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={heroRight}>
-              <form onSubmit={handlePlayerSearch} style={dynamicSearchShell}>
+              <form onSubmit={handlePlayerSearch} style={dynamicSearchFrame}>
                 <div style={searchTopRow}>
-                  <div style={searchLabel}>Search a player</div>
+                  <div>
+                    <div style={searchLabel}>Search a player</div>
+                    <div style={searchSubLabel}>Start with the name. Jump straight into the data.</div>
+                  </div>
                   {!isSmallMobile ? <div style={searchShortcutHint}>Use ↑ ↓ Enter</div> : null}
                 </div>
 
@@ -561,11 +430,20 @@ export default function HomePage() {
                         placeholder="Search player name..."
                         autoComplete="off"
                         aria-label="Search player name"
-                        style={dynamicSearchInput}
+                        style={searchInput}
                       />
                     </div>
 
-                    <button type="submit" disabled={searchLoading} style={dynamicSearchButton}>
+                    <button
+                      type="submit"
+                      disabled={searchLoading}
+                      onMouseEnter={() => setSearchButtonHovered(true)}
+                      onMouseLeave={() => setSearchButtonHovered(false)}
+                      style={{
+                        ...dynamicSearchButton,
+                        ...(searchButtonHovered ? searchButtonHover : {}),
+                      }}
+                    >
                       {searchLoading ? 'Searching...' : 'Search'}
                     </button>
                   </div>
@@ -590,7 +468,7 @@ export default function HomePage() {
                               onClick={() => handleSuggestionPick(player)}
                             >
                               <span style={suggestionPrimary}>{player.name}</span>
-                              <span style={suggestionSecondary}>View player</span>
+                              <span style={suggestionSecondary}>Open player</span>
                             </button>
                           )
                         })
@@ -608,238 +486,371 @@ export default function HomePage() {
                 {searchError ? <div style={searchErrorStyle}>{searchError}</div> : null}
               </form>
 
-              <div style={{ ...dynamicLogoPanel, padding: 0 }}>
-                <div
-                  style={{
-                    position: 'relative',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: isMobile ? '260px' : '320px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
+              </div>
+
+              <div style={sectionLabel}>Recent / featured</div>
+              <div style={dynamicQuickActionGrid}>
+                {quickActions.map((action) => {
+                  const hovered = hoveredQuickAction === action.label
+                  return (
+                    <button
+                      key={action.label}
+                      type="button"
+                      onClick={() => handleQuickAction(action)}
+                      onMouseEnter={() => setHoveredQuickAction(action.label)}
+                      onMouseLeave={() => setHoveredQuickAction(null)}
+                      style={{
+                        ...quickActionButton,
+                        ...(hovered ? quickActionButtonHover : {}),
+                      }}
+                    >
+                      <span style={quickActionTitle}>{action.label}</span>
+                      <span
+                        style={{
+                          ...quickActionArrow,
+                          ...(hovered ? quickActionArrowHover : {}),
+                        }}
+                      >
+                        →
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div style={heroRight}>
+              <div style={previewShell}>
+                <div style={previewHeader}>
+                  <div style={previewHeaderLeft}>
+                    <div style={previewBrandRow}>
+                      <div style={previewLogoWrap}>
+                        <Image
+                          src="/logo-icon.png"
+                          alt="TenAceIQ"
+                          width={42}
+                          height={42}
+                          style={{ width: 42, height: 42, objectFit: 'contain' }}
+                        />
+                      </div>
+                      <div>
+                        <div style={previewEyebrow}>TenAceIQ</div>
+                        <div style={previewTitle}>Match-day intelligence</div>
+                      </div>
+                    </div>
+                    <div style={previewText}>
+                      Better reads on players, lineups, and league context before the first ball.
+                    </div>
+                  </div>
+
+                  <Link
+                    href={myLabHref}
+                    onMouseEnter={() => setPreviewCtaHovered(true)}
+                    onMouseLeave={() => setPreviewCtaHovered(false)}
                     style={{
-                      position: 'absolute',
-                      inset: isMobile ? '18px' : '22px',
-                      borderRadius: '24px',
-                      border: '1px solid rgba(116,190,255,0.10)',
+                      ...previewCta,
+                      ...(previewCtaHovered ? previewCtaHover : {}),
                     }}
-                  />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      width: isMobile ? '200px' : '260px',
-                      height: isMobile ? '200px' : '260px',
-                      borderRadius: '999px',
-                      background:
-                        'radial-gradient(circle, rgba(116,190,255,0.16) 0%, rgba(155,225,29,0.06) 40%, rgba(116,190,255,0) 72%)',
-                      filter: 'blur(12px)',
-                    }}
-                  />
-                  <DataBallHero />
+                  >
+                    {myLabLabel}
+                  </Link>
+                </div>
+
+                <div style={dynamicPreviewMetrics}>
+                  <MetricCard label="Player search" value="Instant" text="Jump directly into profiles and ratings." />
+                  <MetricCard label="Matchup prep" value="Faster" text="Compare edges before match day." />
+                  <MetricCard label="Captain flow" value="Connected" text="Go from search to lineup decisions." />
+                </div>
+
+                <div style={workspaceCard}>
+                  <div style={workspaceTopRow}>
+                    <div>
+                      <div style={workspaceEyebrow}>Platform preview</div>
+                      <div style={workspaceTitle}>Everything you need, without the noise.</div>
+                    </div>
+                    <div style={workspaceBadge}>Live workflow</div>
+                  </div>
+
+                  <div style={workspaceFlow}>
+                    <PreviewStep
+                      href="/players"
+                      icon={<SearchIcon />}
+                      title="Search players"
+                      text="Find profiles, ratings, and recent performance fast."
+                    />
+                    <PreviewStep
+                      href="/matchup"
+                      icon={<MatchupIcon />}
+                      title="Compare matchups"
+                      text="Spot strengths, weaknesses, and likely edges."
+                    />
+                    <PreviewStep
+                      href="/captain"
+                      icon={<CaptainIcon />}
+                      title="Build smarter lineups"
+                      text="Turn player context into better captain decisions."
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div style={dynamicActionGrid}>
-            <ActionCard
-              href="/explore"
-              eyebrow="Discover"
-              title="Explore"
-              text="Players, rankings, leagues, teams, and public activity."
-              icon={<ExploreIcon />}
-              hovered={hoveredCard === '/explore'}
-              onEnter={() => setHoveredCard('/explore')}
-              onLeave={() => setHoveredCard(null)}
+          <div style={dynamicActionStrip}>
+            <ActionTile
+              href="/players"
+              title="Players"
+              text="Profiles, ratings, and recent form."
+              icon={<SearchIcon />}
               accent="blue"
+              hovered={hoveredCard === '/players'}
+              onEnter={() => setHoveredCard('/players')}
+              onLeave={() => setHoveredCard(null)}
             />
-
-            <ActionCard
+            <ActionTile
               href="/matchup"
-              eyebrow="Prepare"
               title="Matchups"
-              text="Compare players before match day and see projected edges."
+              text="Side-by-side comparison before match day."
               icon={<MatchupIcon />}
+              accent="green"
               hovered={hoveredCard === '/matchup'}
               onEnter={() => setHoveredCard('/matchup')}
               onLeave={() => setHoveredCard(null)}
-              accent="green"
             />
-
-            <ActionCard
-              href={role === 'public' ? '/join' : '/dashboard'}
-              eyebrow="Members"
-              title="My Lab"
-              text="Follow players, teams, and leagues with a personalized feed."
-              icon={<LabIcon />}
-              hovered={hoveredCard === 'my-lab'}
-              onEnter={() => setHoveredCard('my-lab')}
-              onLeave={() => setHoveredCard(null)}
+            <ActionTile
+              href="/leagues"
+              title="Leagues"
+              text="Standings, structure, and team context."
+              icon={<LeagueIcon />}
               accent="blue"
+              hovered={hoveredCard === '/leagues'}
+              onEnter={() => setHoveredCard('/leagues')}
+              onLeave={() => setHoveredCard(null)}
             />
-
-            <ActionCard
+            <ActionTile
               href="/captain"
-              eyebrow="Captain tools"
               title="Captain"
-              text="Availability, messaging, lineups, scenarios, and season context."
+              text="Availability, planning, and season prep."
               icon={<CaptainIcon />}
+              accent="green"
               hovered={hoveredCard === '/captain'}
               onEnter={() => setHoveredCard('/captain')}
               onLeave={() => setHoveredCard(null)}
-              accent="green"
             />
           </div>
         </div>
-      </section>
 
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/explore" style={footerUtilityLink}>
-                Explore
-              </Link>
-              <Link href="/players" style={footerUtilityLink}>
-                Players
-              </Link>
-              <Link href="/rankings" style={footerUtilityLink}>
-                Rankings
-              </Link>
-              <Link href="/matchup" style={footerUtilityLink}>
-                Matchups
-              </Link>
-              <Link href="/leagues" style={footerUtilityLink}>
-                Leagues
-              </Link>
-              <Link href="/captain" style={footerUtilityLink}>
-                Captain
-              </Link>
-            </div>
-
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
+        <section style={contentSection}>
+          <div style={sectionHeader}>
+            <div style={sectionEyebrow}>Built for how tennis actually works</div>
+            <h2 style={sectionTitle}>One front door. Three smart paths.</h2>
+            <p style={sectionText}>
+              Whether you are scouting the field, preparing for a specific matchup, or running a
+              team, TenAceIQ gets you into the right workflow fast.
+            </p>
           </div>
-        </div>
-      </footer>
-    </main>
+
+          <div style={dynamicAudienceGrid}>
+            <AudienceCard
+              href="/players"
+              eyebrow="For players"
+              title="Know the field"
+              text="Search ratings, form, and recent performance to understand who you are walking into."
+              bullets={['Player profiles', 'Ratings context', 'Recent performance']}
+              accent="blue"
+            />
+            <AudienceCard
+              href="/matchup"
+              eyebrow="For match prep"
+              title="See the edge"
+              text="Compare two players quickly so you can prep smarter and make stronger decisions before match day."
+              bullets={['Head-to-head prep', 'Stronger scouting', 'Cleaner comparisons']}
+              accent="green"
+            />
+            <AudienceCard
+              href="/captain"
+              eyebrow="For captains"
+              title="Run the season"
+              text="Move from lineup questions to real decisions with captain tools built around the way teams operate."
+              bullets={['Availability', 'Messaging', 'Lineup planning']}
+              accent="blue"
+            />
+          </div>
+        </section>
+
+      </section>
+    </SiteShell>
   )
 }
 
-function ActionCard({
+function MetricCard({
+  label,
+  value,
+  text,
+}: {
+  label: string
+  value: string
+  text: string
+}) {
+  return (
+    <div style={metricCard}>
+      <div style={metricLabel}>{label}</div>
+      <div style={metricValue}>{value}</div>
+      <div style={metricText}>{text}</div>
+    </div>
+  )
+}
+
+function PreviewStep({
   href,
-  eyebrow,
+  icon,
   title,
   text,
-  icon,
-  hovered,
-  onEnter,
-  onLeave,
-  accent = 'blue',
 }: {
   href: string
-  eyebrow?: string
+  icon: ReactNode
   title: string
   text: string
-  icon: ReactNode
-  hovered: boolean
-  onEnter: () => void
-  onLeave: () => void
-  accent?: 'blue' | 'green'
 }) {
-  const iconStyle = accent === 'green' ? actionCardIconGreen : actionCardIconBlue
-  const ctaStyle = accent === 'green' ? actionFooterCtaGreen : actionFooterCtaBlue
+  const [hovered, setHovered] = useState(false)
 
   return (
     <Link
       href={href}
       style={{
-        ...actionCard,
-        ...(hovered ? actionCardHover : {}),
+        ...previewStep,
+        ...(hovered ? previewStepHover : {}),
       }}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <div style={actionCardTop}>
-        <div
-          style={{
-            ...actionCardIcon,
-            ...iconStyle,
-            ...(hovered ? actionCardIconHover : {}),
-          }}
-        >
-          {icon}
-        </div>
+      <div
+        style={{
+          ...previewStepIcon,
+          ...(hovered ? previewStepIconHover : {}),
+        }}
+      >
+        {icon}
       </div>
-
-      <div style={actionBody}>
-        {eyebrow ? <div style={actionEyebrow}>{eyebrow}</div> : null}
-        <div style={actionTitle}>{title}</div>
-        <div style={actionText}>{text}</div>
+      <div style={previewStepBody}>
+        <div style={previewStepTitle}>{title}</div>
+        <div style={previewStepText}>{text}</div>
       </div>
-
-      <div style={actionFooterRow}>
-        <span style={ctaStyle}>Open</span>
-        <span style={actionFooterArrow}>→</span>
+      <div
+        style={{
+          ...previewStepArrow,
+          ...(hovered ? previewStepArrowHover : {}),
+        }}
+      >
+        →
       </div>
     </Link>
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
+function ActionTile({
+  href,
+  title,
+  text,
+  icon,
+  accent,
+  hovered,
+  onEnter,
+  onLeave,
 }: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
+  href: string
+  title: string
+  text: string
+  icon: ReactNode
+  accent: 'blue' | 'green'
+  hovered: boolean
+  onEnter: () => void
+  onLeave: () => void
 }) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
+  const accentStyles = accent === 'green' ? tileAccentGreen : tileAccentBlue
+  const iconAccent = accent === 'green' ? tileIconGreen : tileIconBlue
+  const iconHoverAccent = accent === 'green' ? tileIconGreenHover : tileIconBlueHover
 
   return (
-    <div
+    <Link
+      href={href}
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '10px' : '12px',
-        lineHeight: 1,
+        ...actionTile,
+        ...accentStyles,
+        ...(hovered ? actionTileHover : {}),
       }}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
     >
-      <img
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
       <div
         style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
+          ...actionTileIcon,
+          ...iconAccent,
+          ...(hovered ? iconHoverAccent : {}),
         }}
       >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={heroIQ}>IQ</span>
+        {icon}
       </div>
-    </div>
+      <div style={actionTileTitle}>{title}</div>
+      <div style={actionTileText}>{text}</div>
+      <div style={actionTileFooter}>Open →</div>
+    </Link>
+  )
+}
+
+function AudienceCard({
+  href,
+  eyebrow,
+  title,
+  text,
+  bullets,
+  accent,
+}: {
+  href: string
+  eyebrow: string
+  title: string
+  text: string
+  bullets: string[]
+  accent: 'blue' | 'green'
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...audienceCard,
+        ...(accent === 'green' ? audienceCardGreen : audienceCardBlue),
+        ...(hovered ? audienceCardHover : {}),
+      }}
+    >
+      <div style={audienceEyebrow}>{eyebrow}</div>
+      <div style={audienceTitle}>{title}</div>
+      <div style={audienceText}>{text}</div>
+      <div style={audienceBulletList}>
+        {bullets.map((item) => (
+          <div key={item} style={audienceBulletItem}>
+            <span
+              style={{
+                ...audienceBulletDot,
+                ...(hovered ? audienceBulletDotHover : {}),
+              }}
+            />
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          ...audienceFooter,
+          ...(hovered ? audienceFooterHover : {}),
+        }}
+      >
+        Explore →
+      </div>
+    </Link>
   )
 }
 
@@ -861,20 +872,6 @@ function SearchIcon() {
         stroke="currentColor"
         strokeWidth="1.9"
         strokeLinecap="round"
-      />
-    </IconBase>
-  )
-}
-
-function ExploreIcon() {
-  return (
-    <IconBase>
-      <path
-        d="M12 3l2.6 5.4L20 11l-5.4 2.6L12 19l-2.6-5.4L4 11l5.4-2.6z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
       />
     </IconBase>
   )
@@ -908,24 +905,19 @@ function MatchupIcon() {
   )
 }
 
-function LabIcon() {
+function LeagueIcon() {
   return (
     <IconBase>
       <path
-        d="M9 4v4.2l-3.6 6.3A2 2 0 0 0 7.1 18h9.8a2 2 0 0 0 1.7-3.5L15 8.2V4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8.2 13h7.6"
+        d="M6 6.5h12M6 12h12M6 17.5h12"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
       />
+      <circle cx="8" cy="6.5" r="1.2" fill="currentColor" />
+      <circle cx="16" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="11" cy="17.5" r="1.2" fill="currentColor" />
     </IconBase>
   )
 }
@@ -958,179 +950,68 @@ function CaptainIcon() {
   )
 }
 
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(238,247,255,0.94)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: 800,
-  letterSpacing: '0.01em',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-  transition: 'all 180ms ease',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-}
-
-const navButtonReset: CSSProperties = {
-  ...navLink,
-  cursor: 'pointer',
-  appearance: 'none',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-}
-
-const heroWrap: CSSProperties = {
+const pageWrap: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
   position: 'relative',
   zIndex: 1,
+  paddingTop: '12px',
 }
 
 const heroShell: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
-  borderRadius: '30px',
-  background: `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
-  border: '1px solid rgba(116,190,255,0.22)',
+  padding: '42px 24px 24px',
+  borderRadius: '32px',
+  background:
+    'linear-gradient(180deg, rgba(22,47,90,0.68) 0%, rgba(13,28,55,0.84) 26%, rgba(8,18,35,0.92) 100%)',
+  border: '1px solid rgba(116,190,255,0.18)',
   boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+    '0 30px 90px rgba(4,12,28,0.24), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 80px rgba(88,170,255,0.05)',
   overflow: 'hidden',
   position: 'relative',
 }
 
-const heroNoise: CSSProperties = {
+const heroGlowTop: CSSProperties = {
   position: 'absolute',
-  inset: 0,
-  background: `
-    radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%),
-    radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%),
-    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%),
-    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
-  `,
+  width: '560px',
+  height: '560px',
+  left: '-160px',
+  top: '-240px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(74,163,255,0.22) 0%, transparent 66%)',
   pointerEvents: 'none',
 }
 
-const heroContent: CSSProperties = {
+const heroGlowRight: CSSProperties = {
+  position: 'absolute',
+  width: '520px',
+  height: '520px',
+  right: '-190px',
+  top: '-40px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(155,225,29,0.12) 0%, transparent 68%)',
+  pointerEvents: 'none',
+}
+
+const heroGrid: CSSProperties = {
   display: 'grid',
   alignItems: 'stretch',
-  marginBottom: '20px',
   position: 'relative',
   zIndex: 1,
+  marginBottom: '18px',
 }
 
 const heroLeft: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'center',
+  display: 'grid',
+  alignContent: 'start',
   gap: '18px',
 }
 
 const heroRight: CSSProperties = {
   display: 'grid',
-  gap: '16px',
-  alignContent: 'start',
+  alignContent: 'stretch',
 }
 
 const eyebrow: CSSProperties = {
@@ -1139,7 +1020,7 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '8px 14px',
   borderRadius: '999px',
-  color: '#d6e9ff',
+  color: '#d9ebff',
   background: 'rgba(37,91,227,0.18)',
   border: '1px solid rgba(116,190,255,0.22)',
   fontSize: '12px',
@@ -1148,64 +1029,34 @@ const eyebrow: CSSProperties = {
   textTransform: 'uppercase',
 }
 
+const headlineBlock: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  maxWidth: '760px',
+}
+
 const heroTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: '-0.055em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
+  maxWidth: '650px',
   color: 'rgba(224,236,249,0.86)',
-  lineHeight: 1.7,
+  lineHeight: 1.72,
   fontWeight: 500,
 }
 
-const heroIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const quickActionLabel: CSSProperties = {
-  color: 'rgba(202,220,241,0.78)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.11em',
-  textTransform: 'uppercase',
-}
-
-const quickActionWrap: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px',
-  marginTop: '2px',
-}
-
-const quickActionButton: CSSProperties = {
-  border: '1px solid rgba(116,190,255,0.22)',
-  background:
-    'linear-gradient(180deg, rgba(54,108,198,0.22) 0%, rgba(29,63,121,0.18) 100%)',
-  color: '#eaf4ff',
-  borderRadius: '999px',
-  padding: '11px 16px',
-  fontSize: '13px',
-  fontWeight: 700,
-  cursor: 'pointer',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const searchShell: CSSProperties = {
+const searchFrame: CSSProperties = {
   borderRadius: '24px',
-  background: `
-    linear-gradient(180deg, rgba(68, 132, 229, 0.20) 0%, rgba(40, 83, 158, 0.18) 28%, rgba(16, 36, 70, 0.72) 100%)
-  `,
+  background:
+    'linear-gradient(180deg, rgba(57,112,197,0.24) 0%, rgba(30,61,118,0.24) 28%, rgba(11,22,42,0.84) 100%)',
   border: '1px solid rgba(116,190,255,0.24)',
   boxShadow:
-    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 40px rgba(116,190,255,0.05)',
+    '0 22px 48px rgba(9,25,54,0.18), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 40px rgba(116,190,255,0.05)',
 }
 
 const searchTopRow: CSSProperties = {
@@ -1223,6 +1074,13 @@ const searchLabel: CSSProperties = {
   letterSpacing: '-0.02em',
 }
 
+const searchSubLabel: CSSProperties = {
+  marginTop: '4px',
+  color: 'rgba(204,220,241,0.72)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+}
+
 const searchShortcutHint: CSSProperties = {
   color: 'rgba(204,220,241,0.76)',
   fontSize: '13px',
@@ -1236,13 +1094,11 @@ const searchAutocompleteWrap: CSSProperties = {
 const searchRow: CSSProperties = {
   display: 'flex',
   gap: '12px',
-  alignItems: 'center',
 }
 
 const searchInputWrap: CSSProperties = {
   position: 'relative',
   flex: 1,
-  minWidth: '260px',
 }
 
 const searchIconWrap: CSSProperties = {
@@ -1258,7 +1114,7 @@ const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
   border: '1px solid rgba(74,163,255,0.18)',
-  background: 'rgba(10,20,40,0.6)',
+  background: 'rgba(8,18,35,0.72)',
   color: '#f7fbff',
   padding: '17px 16px 17px 46px',
   fontSize: '15px',
@@ -1275,6 +1131,13 @@ const searchButton: CSSProperties = {
   fontWeight: 800,
   cursor: 'pointer',
   minWidth: '128px',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, filter 180ms ease',
+}
+
+const searchButtonHover: CSSProperties = {
+  transform: 'translateY(-2px)',
+  boxShadow: '0 16px 30px rgba(155,225,29,0.20)',
+  filter: 'brightness(1.03)',
 }
 
 const searchHelperText: CSSProperties = {
@@ -1343,179 +1206,531 @@ const suggestionSecondary: CSSProperties = {
   color: 'rgba(192,212,240,0.72)',
 }
 
-const logoPanel: CSSProperties = {
-  position: 'relative',
-  borderRadius: '26px',
-  overflow: 'hidden',
-  background: `
-    linear-gradient(180deg, rgba(24, 49, 93, 0.68) 0%, rgba(16, 33, 64, 0.84) 30%, rgba(13, 26, 50, 0.96) 100%)
-  `,
-  border: '1px solid rgba(116,190,255,0.20)',
-  boxShadow:
-    '0 20px 48px rgba(7,18,40,0.24), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 56px rgba(116,190,255,0.05)',
-}
-
-const actionGrid: CSSProperties = {
-  display: 'grid',
-  position: 'relative',
-  zIndex: 1,
-}
-
-const actionCard: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  gap: '18px',
-  minHeight: '220px',
-  borderRadius: '24px',
-  padding: '22px',
-  textDecoration: 'none',
-  color: '#eff6ff',
-  background:
-    'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
-  border: '1px solid rgba(116,190,255,0.16)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
-  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
-}
-
-const actionCardHover: CSSProperties = {
-  transform: 'translateY(-4px)',
-  border: '1px solid rgba(116,190,255,0.30)',
-  boxShadow: '0 22px 52px rgba(7,18,40,0.26), inset 0 0 32px rgba(116,190,255,0.05)',
-}
-
-const actionCardTop: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-start',
-}
-
-const actionCardIcon: CSSProperties = {
-  width: '58px',
-  height: '58px',
-  borderRadius: '18px',
-  display: 'grid',
-  placeItems: 'center',
-  transition: 'transform 180ms ease',
-}
-
-const actionCardIconBlue: CSSProperties = {
-  background: 'rgba(37,91,227,0.16)',
-  color: '#cfe4ff',
-}
-
-const actionCardIconGreen: CSSProperties = {
-  background: 'rgba(155,225,29,0.14)',
-  color: '#efffd5',
-}
-
-const actionCardIconHover: CSSProperties = {
-  transform: 'scale(1.04)',
-}
-
-const actionBody: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-}
-
-const actionEyebrow: CSSProperties = {
-  color: 'rgba(188,208,232,0.8)',
+const sectionLabel: CSSProperties = {
+  color: 'rgba(202,220,241,0.78)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
   textTransform: 'uppercase',
 }
 
-const actionTitle: CSSProperties = {
-  fontSize: '27px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
-  color: '#f8fbff',
+const quickActionGrid: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
 }
 
-const actionText: CSSProperties = {
-  fontSize: '14px',
-  lineHeight: 1.7,
-  color: 'rgba(215,229,247,0.78)',
-}
-
-const actionFooterRow: CSSProperties = {
+const quickActionButton: CSSProperties = {
+  border: '1px solid rgba(116,190,255,0.16)',
+  background:
+    'linear-gradient(180deg, rgba(34,69,129,0.34) 0%, rgba(15,31,61,0.9) 100%)',
+  color: '#eaf4ff',
+  borderRadius: '18px',
+  padding: '14px 16px',
+  fontSize: '13px',
+  fontWeight: 700,
+  cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  marginTop: 'auto',
+  gap: '12px',
+  textAlign: 'left',
+  transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease',
 }
 
-const actionFooterCtaBlue: CSSProperties = {
-  color: '#d5e8ff',
-  fontSize: '13px',
+const quickActionTitle: CSSProperties = {
+  fontSize: '14px',
   fontWeight: 800,
 }
 
-const actionFooterCtaGreen: CSSProperties = {
-  color: '#e7ffd0',
+const quickActionArrow: CSSProperties = {
+  color: 'rgba(215,229,247,0.76)',
+  fontSize: '16px',
+  fontWeight: 800,
+  transition: 'transform 180ms ease, color 180ms ease',
+}
+
+const quickActionButtonHover: CSSProperties = {
+  transform: 'translateY(-3px)',
+  border: '1px solid rgba(116,190,255,0.28)',
+  background: 'linear-gradient(180deg, rgba(43,83,154,0.42) 0%, rgba(16,34,68,0.96) 100%)',
+  boxShadow: '0 16px 30px rgba(5,12,28,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const quickActionArrowHover: CSSProperties = {
+  color: '#eef8ff',
+  transform: 'translateX(2px)',
+}
+
+const previewShell: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  height: '100%',
+  padding: '18px',
+  borderRadius: '28px',
+  background:
+    'linear-gradient(180deg, rgba(18,37,71,0.84) 0%, rgba(11,23,44,0.92) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  boxShadow: '0 20px 52px rgba(5,12,28,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const previewHeader: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '14px',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+}
+
+const previewHeaderLeft: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  flex: 1,
+  minWidth: '220px',
+}
+
+const previewBrandRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+}
+
+const previewLogoWrap: CSSProperties = {
+  width: '52px',
+  height: '52px',
+  borderRadius: '16px',
+  display: 'grid',
+  placeItems: 'center',
+  background: 'linear-gradient(180deg, rgba(37,91,227,0.16) 0%, rgba(15,33,66,0.66) 100%)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const previewEyebrow: CSSProperties = {
+  color: '#b9d5f6',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const previewTitle: CSSProperties = {
+  color: '#f7fbff',
+  fontSize: '26px',
+  lineHeight: 1.04,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const previewText: CSSProperties = {
+  color: 'rgba(216,229,245,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.7,
+  maxWidth: '520px',
+}
+
+const previewCta: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '12px 16px',
+  borderRadius: '16px',
+  textDecoration: 'none',
+  color: '#08111d',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
+  border: '1px solid rgba(155,225,29,0.34)',
+  fontWeight: 800,
+  fontSize: '14px',
+  boxShadow: '0 12px 28px rgba(155,225,29,0.14)',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, filter 180ms ease',
+}
+
+const previewCtaHover: CSSProperties = {
+  transform: 'translateY(-2px)',
+  boxShadow: '0 16px 34px rgba(155,225,29,0.22)',
+  filter: 'brightness(1.03)',
+}
+
+const previewMetrics: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '20px',
+  padding: '16px',
+  background:
+    'linear-gradient(180deg, rgba(24,47,87,0.72) 0%, rgba(12,24,46,0.92) 100%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  display: 'grid',
+  gap: '7px',
+}
+
+const metricLabel: CSSProperties = {
+  color: 'rgba(188,208,232,0.76)',
+  fontSize: '11px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const metricValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const metricText: CSSProperties = {
+  color: 'rgba(212,226,244,0.72)',
   fontSize: '13px',
+  lineHeight: 1.58,
+}
+
+const workspaceCard: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  background:
+    'linear-gradient(180deg, rgba(16,31,60,0.9) 0%, rgba(8,18,35,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(5,12,28,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+  display: 'grid',
+  gap: '16px',
+}
+
+const workspaceTopRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '12px',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+}
+
+const workspaceEyebrow: CSSProperties = {
+  color: 'rgba(188,208,232,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const workspaceTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+  marginTop: '6px',
+}
+
+const workspaceBadge: CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: '999px',
+  background: 'rgba(155,225,29,0.14)',
+  border: '1px solid rgba(155,225,29,0.22)',
+  color: '#eaffcf',
+  fontSize: '12px',
   fontWeight: 800,
 }
 
-const actionFooterArrow: CSSProperties = {
-  color: 'rgba(216,230,246,0.78)',
+const workspaceFlow: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const previewStep: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '48px minmax(0, 1fr) auto',
+  gap: '12px',
+  alignItems: 'center',
+  padding: '14px',
+  borderRadius: '18px',
+  background: 'rgba(255,255,255,0.02)',
+  border: '1px solid rgba(116,190,255,0.10)',
+  textDecoration: 'none',
+  transition: 'transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease',
+}
+
+const previewStepIcon: CSSProperties = {
+  width: '48px',
+  height: '48px',
+  borderRadius: '16px',
+  display: 'grid',
+  placeItems: 'center',
+  background: 'rgba(37,91,227,0.16)',
+  color: '#dbe9ff',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease, color 180ms ease',
+}
+
+const previewStepBody: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+}
+
+const previewStepTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '15px',
+  fontWeight: 800,
+}
+
+const previewStepText: CSSProperties = {
+  color: 'rgba(212,226,244,0.72)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+}
+
+const previewStepArrow: CSSProperties = {
+  color: 'rgba(216,230,246,0.72)',
   fontSize: '18px',
   fontWeight: 800,
 }
+
+const previewStepHover: CSSProperties = {
+  transform: 'translateY(-4px)',
+  border: '1px solid rgba(116,190,255,0.24)',
+  background: 'linear-gradient(180deg, rgba(25,49,90,0.28) 0%, rgba(255,255,255,0.03) 100%)',
+  boxShadow: '0 16px 32px rgba(5,12,28,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const previewStepIconHover: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(37,91,227,0.30) 0%, rgba(155,225,29,0.16) 100%)',
+  color: '#f2fbff',
+  boxShadow: '0 0 0 1px rgba(116,190,255,0.10), 0 10px 24px rgba(37,91,227,0.18)',
+  transform: 'scale(1.05)',
+}
+
+const previewStepArrowHover: CSSProperties = {
+  color: '#dff8ff',
+}
+
+const actionStrip: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  position: 'relative',
+  zIndex: 1,
+}
+
+const actionTile: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  padding: '18px',
+  borderRadius: '22px',
+  textDecoration: 'none',
+  minHeight: '154px',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+}
+
+const tileAccentBlue: CSSProperties = {
+  background:
+    'linear-gradient(180deg, rgba(23,47,88,0.76) 0%, rgba(11,24,45,0.94) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const tileAccentGreen: CSSProperties = {
+  background:
+    'linear-gradient(180deg, rgba(32,54,40,0.76) 0%, rgba(14,24,19,0.94) 100%)',
+  border: '1px solid rgba(155,225,29,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const actionTileHover: CSSProperties = {
+  transform: 'translateY(-4px)',
+}
+
+const actionTileIcon: CSSProperties = {
+  width: '48px',
+  height: '48px',
+  borderRadius: '15px',
+  display: 'grid',
+  placeItems: 'center',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, background 180ms ease, color 180ms ease',
+}
+
+const tileIconBlue: CSSProperties = {
+  background: 'rgba(37,91,227,0.16)',
+  color: '#dbe9ff',
+}
+
+const tileIconGreen: CSSProperties = {
+  background: 'rgba(155,225,29,0.14)',
+  color: '#efffd5',
+}
+
+const tileIconBlueHover: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(37,91,227,0.28) 0%, rgba(74,163,255,0.18) 100%)',
+  color: '#f3f9ff',
+  transform: 'scale(1.05)',
+  boxShadow: '0 10px 24px rgba(37,91,227,0.18)',
+}
+
+const tileIconGreenHover: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.24) 0%, rgba(74,163,255,0.12) 100%)',
+  color: '#f7ffea',
+  transform: 'scale(1.05)',
+  boxShadow: '0 10px 24px rgba(155,225,29,0.14)',
+}
+
+const actionTileTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const actionTileText: CSSProperties = {
+  color: 'rgba(215,229,247,0.78)',
+  fontSize: '13px',
+  lineHeight: 1.65,
+}
+
+const actionTileFooter: CSSProperties = {
+  marginTop: 'auto',
+  color: 'rgba(216,230,246,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
+const contentSection: CSSProperties = {
+  width: '100%',
+  maxWidth: '1280px',
+  margin: '0 auto',
+  display: 'grid',
+  gap: '18px',
+}
+
+
+const sectionHeader: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  maxWidth: '760px',
+}
+
+const sectionEyebrow: CSSProperties = {
+  color: '#b9d5f6',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const sectionTitle: CSSProperties = {
+  margin: 0,
+  color: '#f8fbff',
+  fontSize: '40px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.05em',
+}
+
+const sectionText: CSSProperties = {
+  margin: 0,
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '16px',
+  lineHeight: 1.72,
+}
+
+const audienceGrid: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+}
+
+const audienceCard: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  padding: '22px',
+  borderRadius: '26px',
+  textDecoration: 'none',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+  transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+}
+
+const audienceCardBlue: CSSProperties = {
+  background:
+    'linear-gradient(180deg, rgba(23,47,88,0.78) 0%, rgba(10,21,40,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+}
+
+const audienceCardGreen: CSSProperties = {
+  background:
+    'linear-gradient(180deg, rgba(29,51,34,0.78) 0%, rgba(11,21,16,0.96) 100%)',
+  border: '1px solid rgba(155,225,29,0.14)',
+}
+
+const audienceEyebrow: CSSProperties = {
+  color: 'rgba(188,208,232,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const audienceTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '30px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const audienceText: CSSProperties = {
+  color: 'rgba(215,229,247,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.72,
+}
+
+const audienceBulletList: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const audienceBulletItem: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  color: '#ebf4ff',
+  fontSize: '13px',
+  fontWeight: 700,
+}
+
+const audienceBulletDot: CSSProperties = {
+  width: '8px',
+  height: '8px',
+  borderRadius: '999px',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
+  flexShrink: 0,
+}
+
+const audienceFooter: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(216,230,246,0.84)',
+  fontSize: '13px',
+  fontWeight: 800,
+  transition: 'transform 180ms ease, color 180ms ease',
+}
+
+const audienceCardHover: CSSProperties = {
+  transform: 'translateY(-4px)',
+  boxShadow: '0 22px 50px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const audienceBulletDotHover: CSSProperties = {
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.08), 0 0 14px rgba(155,225,29,0.22)',
+}
+
+const audienceFooterHover: CSSProperties = {
+  color: '#f3fbff',
+  transform: 'translateX(2px)',
+}
+
+
+
+
+
 
 const iconSvgStyle: CSSProperties = {
   width: '24px',
   height: '24px',
   display: 'block',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  marginTop: '26px',
-  padding: '0 18px 24px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '24px',
-  background:
-    'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '18px',
-}
-
-const footerBrandLink: CSSProperties = {
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '13px',
-  fontWeight: 700,
 }

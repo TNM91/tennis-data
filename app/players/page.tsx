@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import FollowButton from '@/app/components/follow-button'
+import SiteShell from '@/app/components/site-shell'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated'
@@ -276,42 +277,12 @@ export default function PlayersPage() {
   }
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
+    <SiteShell active="players">
+      
+      
+      
 
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/explore'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(isActive ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-            <Link href="/login" style={navLink}>
-              Login
-            </Link>
-            <Link href="/join" style={activeNavLink}>
-              Join
-            </Link>
-          </nav>
-        </div>
-      </header>
+      
 
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
@@ -489,28 +460,7 @@ export default function PlayersPage() {
         )}
       </section>
 
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
-            </div>
-
-            <div style={dynamicFooterBottom}>
-              © {new Date().getFullYear()} TenAceIQ
-            </div>
-          </div>
-        </div>
-      </footer>
-    </main>
+    </SiteShell>
   )
 }
 

@@ -26,35 +26,160 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   return false
 }
 
-const navLink = {
-  padding: '11px 17px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(40,82,150,0.26) 0%, rgba(18,40,78,0.24) 100%)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '14px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+const basePill = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minHeight: '46px',
+  padding: '0 16px',
+  borderRadius: '16px',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '14px',
+  lineHeight: 1,
+  transition:
+    'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, filter 160ms ease',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
-  transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
 } as const
 
-const ctaNavLink = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+const navLink = {
+  ...basePill,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'linear-gradient(180deg, rgba(26,54,104,0.22) 0%, rgba(12,28,57,0.22) 100%)',
+  color: '#e7eefb',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+} as const
+
+const navLinkHover = {
+  transform: 'translateY(-2px)',
+  border: '1px solid rgba(116,190,255,0.24)',
+  background: 'linear-gradient(180deg, rgba(34,69,129,0.30) 0%, rgba(14,32,63,0.28) 100%)',
+  boxShadow: '0 12px 24px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
 } as const
 
 const activeNavLink = {
-  ...ctaNavLink,
+  ...basePill,
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.12) 0%, rgba(37,91,227,0.18) 100%)',
+  color: '#f6fbff',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 22px rgba(37,91,227,0.10), 0 0 0 1px rgba(155,225,29,0.06)',
 } as const
+
+const activeNavLinkHover = {
+  transform: 'translateY(-2px)',
+  boxShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 26px rgba(37,91,227,0.14), 0 0 0 1px rgba(155,225,29,0.08)',
+  filter: 'brightness(1.03)',
+} as const
+
+const quietActionLink = {
+  ...basePill,
+  minHeight: '46px',
+  padding: '0 18px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(24,50,96,0.18) 0%, rgba(12,27,54,0.18) 100%)',
+  color: '#e7eefb',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+} as const
+
+const quietActionLinkHover = {
+  transform: 'translateY(-2px)',
+  border: '1px solid rgba(116,190,255,0.24)',
+  background: 'linear-gradient(180deg, rgba(29,60,112,0.28) 0%, rgba(14,30,58,0.22) 100%)',
+  boxShadow: '0 12px 24px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+} as const
+
+const ctaNavLink = {
+  ...basePill,
+  minHeight: '46px',
+  padding: '0 20px',
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
+  color: '#08111d',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+} as const
+
+const ctaNavLinkHover = {
+  transform: 'translateY(-2px)',
+  boxShadow: '0 14px 34px rgba(155,225,29,0.24)',
+  filter: 'brightness(1.03)',
+} as const
+
+function HeaderLink({
+  href,
+  label,
+  variant = 'nav',
+  active = false,
+  onClick,
+}: {
+  href: string
+  label: string
+  variant?: 'nav' | 'quiet' | 'cta'
+  active?: boolean
+  onClick?: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  const base =
+    variant === 'cta' ? ctaNavLink : variant === 'quiet' ? quietActionLink : active ? activeNavLink : navLink
+  const hover =
+    variant === 'cta'
+      ? ctaNavLinkHover
+      : variant === 'quiet'
+        ? quietActionLinkHover
+        : active
+          ? activeNavLinkHover
+          : navLinkHover
+
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...base,
+        ...(hovered ? hover : {}),
+      }}
+    >
+      {label}
+    </Link>
+  )
+}
+
+function HeaderButton({
+  label,
+  variant = 'quiet',
+  onClick,
+}: {
+  label: string
+  variant?: 'quiet' | 'cta'
+  onClick: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  const base = variant === 'cta' ? ctaNavLink : quietActionLink
+  const hover = variant === 'cta' ? ctaNavLinkHover : quietActionLinkHover
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        appearance: 'none',
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        ...base,
+        ...(hovered ? hover : {}),
+      }}
+    >
+      {label}
+    </button>
+  )
+}
 
 export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
@@ -113,60 +238,79 @@ export default function SiteHeader({ active }: { active?: string }) {
     router.refresh()
   }
 
-  const headerPadding = isMobile ? '18px 16px 0' : '18px 24px 0'
+  const headerPadding = isMobile ? '10px 12px 0' : '12px 16px 0'
 
   const headerInner = useMemo(
     () => ({
       width: '100%',
       maxWidth: '1280px',
       margin: '0 auto',
-      borderRadius: '24px',
-      border: '1px solid rgba(116,190,255,0.14)',
-      background: 'linear-gradient(180deg, rgba(18,36,68,0.88) 0%, rgba(10,20,38,0.94) 100%)',
-      boxShadow: '0 20px 50px rgba(5,12,25,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+      borderRadius: isMobile ? '22px' : '26px',
+      border: '1px solid rgba(116,190,255,0.12)',
+      background: 'linear-gradient(180deg, rgba(13,31,62,0.94) 0%, rgba(8,19,37,0.98) 100%)',
+      boxShadow:
+        '0 16px 40px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 80px rgba(37,91,227,0.04)',
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)',
       overflow: 'hidden',
-    }),
-    [],
-  )
-
-  const topRow = useMemo(
-    () => ({
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '16px',
-      padding: isMobile ? '14px 14px' : '16px 18px',
-      minHeight: isMobile ? '78px' : '88px',
+      position: 'relative' as const,
     }),
     [isMobile],
   )
 
-  const navStyle = useMemo(
+  const topRow = useMemo(
+    () => ({
+      display: 'grid',
+      gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
+      alignItems: 'center',
+      gap: isMobile ? '10px' : '18px',
+      padding: isMobile ? '10px 12px' : '12px 16px',
+      minHeight: isMobile ? '68px' : '82px',
+      position: 'relative' as const,
+      zIndex: 1,
+    }),
+    [isMobile, isTablet],
+  )
+
+  const navShell = useMemo(
     () => ({
       display: isTablet ? 'none' : 'flex',
-      gap: '10px',
-      justifyContent: 'flex-end' as const,
-      flexWrap: 'wrap' as const,
-      alignItems: 'center',
+      justifyContent: 'center' as const,
+      minWidth: 0,
     }),
     [isTablet],
   )
 
-  const navButtonReset = {
-    ...navLink,
-    cursor: 'pointer',
-    appearance: 'none' as const,
-    fontFamily: 'inherit',
+  const navCluster = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '5px',
+    borderRadius: '20px',
+    border: '1px solid rgba(116,190,255,0.10)',
+    background: 'linear-gradient(180deg, rgba(15,34,67,0.82) 0%, rgba(9,21,42,0.90) 100%)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+    flexWrap: 'wrap' as const,
+    justifyContent: 'center' as const,
   }
 
+  const actionCluster = useMemo(
+    () => ({
+      display: isTablet ? 'none' : 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'flex-end' as const,
+      gap: '10px',
+      minWidth: '182px',
+    }),
+    [isTablet],
+  )
+
   const mobileToggleStyle = {
-    width: '48px',
-    height: '48px',
+    width: '42px',
+    height: '42px',
     borderRadius: '14px',
-    border: '1px solid rgba(116,190,255,0.18)',
-    background: 'linear-gradient(180deg, rgba(40,82,150,0.26) 0%, rgba(18,40,78,0.24) 100%)',
+    border: '1px solid rgba(116,190,255,0.16)',
+    background: 'linear-gradient(180deg, rgba(26,54,104,0.20) 0%, rgba(12,28,57,0.20) 100%)',
     color: '#F1F7FF',
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
     display: isTablet ? 'inline-flex' : 'none',
@@ -174,30 +318,43 @@ export default function SiteHeader({ active }: { active?: string }) {
     justifyContent: 'center',
     cursor: 'pointer',
     flexShrink: 0,
+    fontSize: '18px',
   } as const
 
   const mobilePanelStyle = {
     display: isTablet ? 'block' : 'none',
-    maxHeight: menuOpen ? '720px' : '0px',
+    maxHeight: menuOpen ? '760px' : '0px',
     opacity: menuOpen ? 1 : 0,
     overflow: 'hidden',
     transition: 'max-height 220ms ease, opacity 160ms ease',
     borderTop: menuOpen ? '1px solid rgba(116,190,255,0.10)' : '1px solid transparent',
-    padding: menuOpen ? '12px 14px 14px' : '0 14px',
+    padding: menuOpen ? '0 12px 12px' : '0 12px',
+    position: 'relative' as const,
+    zIndex: 1,
   } as const
 
   const mobileLinkStyle = {
     ...navLink,
     width: '100%',
     justifyContent: 'space-between',
-    minHeight: '52px',
-    padding: '0 16px',
+    minHeight: '50px',
+    padding: '0 14px',
     borderRadius: '16px',
   } as const
 
   return (
-    <header style={{ position: 'relative', zIndex: 2, padding: headerPadding }}>
+    <header style={{ position: 'relative', zIndex: 3, padding: headerPadding }}>
       <div style={headerInner}>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'radial-gradient(circle at 0% 0%, rgba(74,163,255,0.10) 0%, transparent 30%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.08) 0%, transparent 24%)',
+            pointerEvents: 'none',
+          }}
+        />
+
         <div style={topRow}>
           <Link
             href="/"
@@ -206,57 +363,46 @@ export default function SiteHeader({ active }: { active?: string }) {
               alignItems: 'center',
               textDecoration: 'none',
               minWidth: 0,
-              flexShrink: 1,
+              flexShrink: 0,
+              width: 'fit-content',
             }}
             aria-label="TenAceIQ home"
           >
             <BrandWordmark top />
           </Link>
 
-          <nav style={navStyle} aria-label="Primary">
-            {PRIMARY_LINKS.map((link) => {
-              const activeNow = isActiveLink(active, pathname, link.href)
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(activeNow ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
+          <div style={navShell}>
+            <nav style={navCluster} aria-label="Primary">
+              {PRIMARY_LINKS.map((link) => {
+                const activeNow = isActiveLink(active, pathname, link.href)
+                return (
+                  <HeaderLink
+                    key={link.href}
+                    href={link.href}
+                    label={link.label}
+                    active={activeNow}
+                  />
+                )
+              })}
+            </nav>
+          </div>
 
+          <div style={actionCluster}>
             {authLoading ? (
-              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
+              <span style={{ ...quietActionLink, opacity: 0.72 }}>Loading...</span>
             ) : role === 'public' ? (
               <>
-                <Link href="/login" style={navLink}>
-                  Login
-                </Link>
-                <Link href="/join" style={ctaNavLink}>
-                  Join
-                </Link>
+                <HeaderLink href="/login" label="Login" variant="quiet" />
+                <HeaderLink href="/join" label="Join" variant="cta" />
               </>
             ) : (
               <>
-                <Link href="/dashboard" style={ctaNavLink}>
-                  My Lab
-                </Link>
-                {role === 'admin' ? (
-                  <Link href="/admin" style={navLink}>
-                    Admin
-                  </Link>
-                ) : null}
-                <button type="button" onClick={handleLogout} style={navButtonReset}>
-                  Logout
-                </button>
+                <HeaderLink href="/dashboard" label="My Lab" variant="cta" />
+                {role === 'admin' ? <HeaderLink href="/admin" label="Admin" variant="quiet" /> : null}
+                <HeaderButton label="Logout" onClick={handleLogout} />
               </>
             )}
-          </nav>
+          </div>
 
           <button
             type="button"
@@ -270,7 +416,7 @@ export default function SiteHeader({ active }: { active?: string }) {
         </div>
 
         <div style={mobilePanelStyle}>
-          <nav style={{ display: 'grid', gap: '10px' }} aria-label="Mobile primary">
+          <nav style={{ display: 'grid', gap: '8px' }} aria-label="Mobile primary">
             {PRIMARY_LINKS.map((link) => {
               const activeNow = isActiveLink(active, pathname, link.href)
               return (
@@ -279,8 +425,12 @@ export default function SiteHeader({ active }: { active?: string }) {
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
                   style={{
-                    ...mobileLinkStyle,
-                    ...(activeNow ? activeNavLink : {}),
+                    ...(activeNow ? activeNavLink : mobileLinkStyle),
+                    width: '100%',
+                    justifyContent: 'space-between',
+                    minHeight: '50px',
+                    padding: '0 14px',
+                    borderRadius: '16px',
                   }}
                 >
                   <span>{link.label}</span>
@@ -334,8 +484,10 @@ export default function SiteHeader({ active }: { active?: string }) {
                   type="button"
                   onClick={handleLogout}
                   style={{
+                    appearance: 'none',
+                    fontFamily: 'inherit',
+                    cursor: 'pointer',
                     ...mobileLinkStyle,
-                    ...navButtonReset,
                     borderRadius: '16px',
                   }}
                 >

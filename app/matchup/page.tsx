@@ -2,12 +2,10 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import SiteShell from '@/app/components/site-shell'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -113,23 +111,13 @@ type AccuracyState = {
 const DEFAULT_RATING = 3.0
 const RATING_DIVISOR = 0.35
 
-const PRIMARY_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-]
-
 export default function MatchupPage() {
-  const router = useRouter()
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
   const [accuracyLoading, setAccuracyLoading] = useState(false)
   const [screenWidth, setScreenWidth] = useState(1280)
-  const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
 
   const [matchType, setMatchType] = useState<MatchType>('singles')
 
@@ -161,29 +149,6 @@ export default function MatchupPage() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const { data } = await supabase.auth.getUser()
-        setRole(getUserRole(data.user?.id ?? null))
-      } finally {
-        setAuthLoading(false)
-      }
-    }
-
-    loadUser()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setRole(getUserRole(session?.user?.id ?? null))
-      setAuthLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
 
   useEffect(() => {
     void loadPlayers()
@@ -875,20 +840,6 @@ export default function MatchupPage() {
     }
   }, [comparison])
 
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
     padding: isMobile ? '14px 16px 22px' : '10px 18px 24px',
@@ -963,100 +914,8 @@ export default function MatchupPage() {
         : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
-
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
-
-      <header style={headerStyle}>
-        <div style={dynamicHeaderInner}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={dynamicNavStyle}>
-            {PRIMARY_LINKS.map((link) => {
-              const isActive = link.href === '/matchup'
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  style={{
-                    ...navLink,
-                    ...(isActive && link.href === '/matchup' ? activeNavLink : {}),
-                  }}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-
-            <Link href="/leagues" style={navLink}>
-              Leagues
-            </Link>
-
-            {authLoading ? (
-              <span style={{ ...navLink, opacity: 0.72 }}>Loading...</span>
-            ) : role === 'public' ? (
-              <>
-                <Link href="/login" style={navLink}>
-                  Login
-                </Link>
-                <Link href="/join" style={ctaNavLink}>
-                  Join
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/dashboard" style={ctaNavLink}>
-                  My Lab
-                </Link>
-
-                {role === 'admin' ? (
-                  <Link href="/admin" style={navLink}>
-                    Admin
-                  </Link>
-                ) : null}
-
-                <button type="button" onClick={handleLogout} style={navButtonReset}>
-                  Logout
-                </button>
-              </>
-            )}
-          </nav>
-        </div>
-      </header>
-
+    <SiteShell active="/matchup">
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
@@ -1088,7 +947,6 @@ export default function MatchupPage() {
           </div>
         </div>
       </section>
-
       <section style={contentWrap}>
         <article style={controlsCard}>
           <div style={dynamicToolbarTop}>
@@ -1351,28 +1209,7 @@ export default function MatchupPage() {
           )}
         </article>
       </section>
-
-      <footer style={footerStyle}>
-        <div style={dynamicFooterInner}>
-          <div style={dynamicFooterRow}>
-            <Link href="/" style={footerBrandLink}>
-              <BrandWordmark compact={false} footer />
-            </Link>
-
-            <div style={dynamicFooterLinks}>
-              <Link href="/explore" style={footerUtilityLink}>Explore</Link>
-              <Link href="/players" style={footerUtilityLink}>Players</Link>
-              <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchups</Link>
-              <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
-              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
-            </div>
-
-            <div style={dynamicFooterBottom}>© {new Date().getFullYear()} TenAceIQ</div>
-          </div>
-        </div>
-      </footer>
-    </main>
+    </SiteShell>
   )
 }
 
@@ -1506,58 +1343,6 @@ function SelectField({
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '10px' : '12px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={heroIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
 function areUniqueIds(ids: string[]) {
   const filtered = ids.filter(Boolean)
   return new Set(filtered).size === filtered.length
@@ -1657,136 +1442,6 @@ function formatDate(value: string) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const heroIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(238,247,255,0.94)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: 800,
-  letterSpacing: '0.01em',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
-  transition: 'all 180ms ease',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-}
-
-const navButtonReset: CSSProperties = {
-  ...navLink,
-  cursor: 'pointer',
-  appearance: 'none',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -2341,49 +1996,3 @@ const metaNote: CSSProperties = {
   fontWeight: 700,
 }
 
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '12px 18px 20px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-}

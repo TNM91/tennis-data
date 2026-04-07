@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { CSSProperties, FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import SiteShell from '@/app/components/site-shell'
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -130,38 +131,18 @@ export default function ResetPasswordPage() {
 
   if (checking) {
     return (
-      <main style={pageStyle}>
-        <BackgroundDecor />
-        <section style={loadingShell}>
+      <SiteShell active="reset-password">
+                <section style={loadingShell}>
           <div style={loadingCard}>Preparing reset session...</div>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   return (
-    <main style={pageStyle}>
-      <BackgroundDecor />
-
-      <header style={headerStyle}>
-        <div style={headerInnerResponsive}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={navStyleResponsive}>
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} style={navLink}>
-                {link.label}
-              </Link>
-            ))}
-            <Link href="/login" style={ctaNavLink}>
-              Login
-            </Link>
-          </nav>
-        </div>
-      </header>
-
+    <SiteShell active="reset-password">
+      
+      
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>New password</div>
@@ -294,7 +275,7 @@ export default function ResetPasswordPage() {
           </div>
         </div>
       </section>
-    </main>
+    </SiteShell>
   )
 }
 

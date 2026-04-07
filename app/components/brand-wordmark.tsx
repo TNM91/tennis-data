@@ -16,21 +16,20 @@ export default function BrandWordmark({
   const isHeader = top
   const isFooter = footer
 
-  const iconSize = isHeader ? (compact ? 88 : 106) : isFooter ? 82 : compact ? 66 : 72
-  const fontSize = isHeader ? (compact ? 33 : 41) : isFooter ? 33 : compact ? 27 : 30
-
-  const imagePull = isHeader ? -21 : isFooter ? -21 : -16
-  const textPull = isHeader ? -1 : isFooter ? -1 : 0
+  const iconSize = isHeader ? (compact ? 52 : 58) : isFooter ? 48 : compact ? 42 : 46
+  const fontSize = isHeader ? (compact ? 28 : 32) : isFooter ? 27 : compact ? 22 : 24
+  const gap = isHeader ? (compact ? 6 : 7) : isFooter ? 6 : 5
 
   return (
     <div
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 0,
+        gap: `${gap}px`,
         lineHeight: 1,
         minWidth: 0,
         overflow: 'visible',
+        whiteSpace: 'nowrap',
       }}
     >
       <span
@@ -41,8 +40,7 @@ export default function BrandWordmark({
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          marginRight: `${imagePull}px`,
-          transform: 'translateY(1px)',
+          transform: isHeader ? 'translateY(0.5px)' : 'translateY(0.25px)',
           overflow: 'visible',
         }}
       >
@@ -60,10 +58,10 @@ export default function BrandWordmark({
             display: 'block',
             flexShrink: 0,
             filter: isHeader
-              ? 'drop-shadow(0 14px 30px rgba(37,91,227,0.22))'
+              ? 'drop-shadow(0 10px 22px rgba(37,91,227,0.16))'
               : isFooter
-                ? 'drop-shadow(0 10px 22px rgba(8,17,29,0.22))'
-                : 'drop-shadow(0 8px 18px rgba(37,91,227,0.16))',
+                ? 'drop-shadow(0 8px 16px rgba(8,17,29,0.14))'
+                : 'drop-shadow(0 8px 16px rgba(37,91,227,0.10))',
           }}
         />
       </span>
@@ -75,20 +73,17 @@ export default function BrandWordmark({
           minWidth: 0,
           fontWeight: 900,
           fontSize: `${fontSize}px`,
-          letterSpacing: '-0.045em',
+          letterSpacing: isHeader ? '-0.055em' : '-0.05em',
           lineHeight: 0.92,
           whiteSpace: 'nowrap',
-          transform: `translateX(${textPull}px)`,
-          paddingRight: '4px',
-          overflow: 'visible',
+          paddingRight: '2px',
           textRendering: 'geometricPrecision',
         }}
       >
         <span style={{ color: isFooter ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
         <span
           style={{
-            marginLeft: 0,
-            paddingRight: '2px',
+            marginLeft: isHeader ? '1.5px' : '1px',
             background: 'linear-gradient(135deg, #9BE11D 0%, #7ED321 45%, #C7F36B 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',

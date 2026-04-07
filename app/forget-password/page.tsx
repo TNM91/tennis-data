@@ -2,18 +2,11 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { CSSProperties, FormEvent, useEffect, useState } from 'react'
+import { CSSProperties, FormEvent, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
-]
+import SiteShell from '@/app/components/site-shell'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -46,7 +39,7 @@ export default function ForgotPasswordPage() {
       }
     }
 
-    loadAuth()
+    void loadAuth()
 
     const {
       data: { subscription },
@@ -78,11 +71,11 @@ export default function ForgotPasswordPage() {
           ? `${window.location.origin}/reset-password`
           : undefined
 
-      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
         redirectTo,
       })
 
-      if (error) throw new Error(error.message)
+      if (resetError) throw new Error(resetError.message)
 
       setMessage('Password reset email sent. Check your inbox for the reset link.')
     } catch (err) {
@@ -92,19 +85,10 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  const headerInnerResponsive: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
-
-  const navStyleResponsive: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
+  const roleLabel = useMemo(() => {
+    if (role === 'member') return 'Member access enabled'
+    return 'Public access'
+  }, [role])
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
@@ -118,155 +102,138 @@ export default function ForgotPasswordPage() {
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   }
 
+  const logoImageStyle: CSSProperties = {
+    width: isMobile ? '108px' : '124px',
+    height: isMobile ? '108px' : '124px',
+    display: 'block',
+    objectFit: 'contain',
+  }
+
+  const formPanelInnerResponsive: CSSProperties = {
+    ...formPanelInner,
+    padding: isMobile ? '20px' : '26px',
+  }
+
+  const helperRowResponsive: CSSProperties = {
+    ...helperRow,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'flex-start' : 'center',
+  }
+
   if (authLoading) {
     return (
-      <main style={pageStyle}>
-        <BackgroundDecor />
+      <SiteShell active="forgot-password">
         <section style={loadingShell}>
           <div style={loadingCard}>Checking account status...</div>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   return (
-    <main style={pageStyle}>
-      <BackgroundDecor />
+    <SiteShell active="forgot-password">
+      <section style={pageWrap}>
+        <div style={pageGlowOne} />
+        <div style={pageGlowTwo} />
 
-      <header style={headerStyle}>
-        <div style={headerInnerResponsive}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
+        <section style={heroShellResponsive}>
+          <div style={heroLeftColumn}>
+            <div style={eyebrow}>Reset access</div>
+            <h1 style={heroTitle}>Forgot your password?</h1>
+            <p style={heroText}>
+              Enter your email and we’ll send you a secure reset link so you can create a new
+              password and get back into your member dashboard.
+            </p>
 
-          <nav style={navStyleResponsive}>
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} style={navLink}>
-                {link.label}
-              </Link>
-            ))}
-            {role === 'public' ? (
-              <Link href="/login" style={ctaNavLink}>
-                Login
-              </Link>
-            ) : (
-              <Link href="/dashboard" style={ctaNavLink}>
-                My Lab
-              </Link>
-            )}
-          </nav>
-        </div>
-      </header>
+            <div style={pillRow}>
+              <span style={pillBlue}>Fast reset</span>
+              <span style={pillBlue}>Secure access</span>
+              <span style={pillGreen}>My Lab</span>
+              <span style={pillGreen}>Members</span>
+            </div>
 
-      <section style={heroShellResponsive}>
-        <div>
-          <div style={eyebrow}>Reset access</div>
-          <h1 style={heroTitle}>Forgot your password?</h1>
-          <p style={heroText}>
-            Enter your email and we’ll send you a secure reset link so you can create a new
-            password and get back into your member dashboard.
-          </p>
+            <div style={panelCard}>
+              <div style={panelHeader}>
+                <div style={panelLabel}>What happens next</div>
+                <div style={statusPill}>{roleLabel}</div>
+              </div>
 
-          <div style={pillRow}>
-            <span style={pillBlue}>Fast reset</span>
-            <span style={pillBlue}>Secure access</span>
-            <span style={pillGreen}>My Lab</span>
-            <span style={pillGreen}>Captain</span>
-          </div>
-
-          <div style={panelCard}>
-            <div style={panelLabel}>What happens next</div>
-            <div style={infoGridResponsive}>
-              <InfoCard title="Step 1" text="Enter the email tied to your account." />
-              <InfoCard title="Step 2" text="Open the reset email and click the secure link." />
-              <InfoCard title="Step 3" text="Create a new password on the reset page." />
-              <InfoCard title="Step 4" text="Sign back in and continue using TenAceIQ." />
+              <div style={infoGridResponsive}>
+                <InfoCard title="Step 1" text="Enter the email tied to your account." />
+                <InfoCard title="Step 2" text="Open the reset email and click the secure link." />
+                <InfoCard title="Step 3" text="Create a new password on the reset page." />
+                <InfoCard title="Step 4" text="Sign back in and continue using TenAceIQ." />
+              </div>
             </div>
           </div>
-        </div>
 
-        <div style={formPanel}>
-          <div style={formPanelGlow} />
-          <div style={formPanelInner}>
-            <div style={loginBrandWrap}>
-              <div style={logoOrbWrap}>
-                <div style={logoOrbOuter} />
-                <div style={logoOrbMiddle} />
-                <div style={logoOrbInner}>
-                  <Image
-                    src="/logo-icon.png"
-                    alt="TenAceIQ"
-                    width={124}
-                    height={124}
-                    priority
-                    style={{
-                      width: isMobile ? '108px' : '124px',
-                      height: isMobile ? '108px' : '124px',
-                      display: 'block',
-                      objectFit: 'contain',
-                    }}
-                  />
+          <div style={formPanel}>
+            <div style={formPanelGlow} />
+            <div style={formPanelInnerResponsive}>
+              <div style={loginBrandWrap}>
+                <div style={logoOrbWrap}>
+                  <div style={logoOrbOuter} />
+                  <div style={logoOrbMiddle} />
+                  <div style={logoOrbInner}>
+                    <Image
+                      src="/logo-icon.png"
+                      alt="TenAceIQ"
+                      width={124}
+                      height={124}
+                      priority
+                      style={logoImageStyle}
+                    />
+                  </div>
+                </div>
+
+                <div style={loginBrandText}>
+                  <span style={{ color: '#F8FBFF' }}>TenAce</span>
+                  <span style={brandIQ}>IQ</span>
                 </div>
               </div>
 
-              <div style={loginBrandText}>
-                <span style={{ color: '#F8FBFF' }}>TenAce</span>
-                <span style={brandIQ}>IQ</span>
-              </div>
+              <form onSubmit={handleSubmit} style={formCard}>
+                <div style={formLabel}>Password recovery</div>
+                <h2 style={formTitle}>Send reset email</h2>
+
+                <label htmlFor="email" style={inputLabel}>
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setError('')
+                    setMessage('')
+                  }}
+                  placeholder="you@example.com"
+                  style={inputStyle}
+                />
+
+                <button type="submit" disabled={submitting} style={submitButton}>
+                  {submitting ? 'Sending...' : 'Send reset link'}
+                </button>
+
+                {message ? <div style={successBanner}>{message}</div> : null}
+                {error ? <div style={errorBanner}>{error}</div> : null}
+
+                <div style={helperRowResponsive}>
+                  <Link href="/login" style={inlineLink}>
+                    Back to login
+                  </Link>
+                  <Link href="/join" style={inlineLinkMuted}>
+                    Create account
+                  </Link>
+                </div>
+              </form>
             </div>
-
-            <form onSubmit={handleSubmit} style={formCard}>
-              <div style={formLabel}>Password recovery</div>
-              <h2 style={formTitle}>Send reset email</h2>
-
-              <label htmlFor="email" style={inputLabel}>
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  setError('')
-                  setMessage('')
-                }}
-                placeholder="you@example.com"
-                style={inputStyle}
-              />
-
-              <button type="submit" disabled={submitting} style={submitButton}>
-                {submitting ? 'Sending...' : 'Send reset link'}
-              </button>
-
-              {message ? <div style={successBanner}>{message}</div> : null}
-              {error ? <div style={errorBanner}>{error}</div> : null}
-
-              <div style={helperRow}>
-                <Link href="/login" style={inlineLink}>
-                  Back to login
-                </Link>
-                <Link href="/join" style={inlineLinkMuted}>
-                  Create account
-                </Link>
-              </div>
-            </form>
           </div>
-        </div>
+        </section>
       </section>
-    </main>
-  )
-}
-
-function BackgroundDecor() {
-  return (
-    <>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
-    </>
+    </SiteShell>
   )
 }
 
@@ -279,98 +246,379 @@ function InfoCard({ title, text }: { title: string; text: string }) {
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  top = false,
-}: {
-  compact?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : 38
-  const fontSize = compact ? 27 : top ? 34 : 29
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '10px' : '12px', lineHeight: 1 }}>
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-      />
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
+const pageWrap: CSSProperties = {
   position: 'relative',
+  width: '100%',
+  minHeight: 'calc(100vh - 120px)',
+  padding: '12px 0 44px',
   overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
 }
-const orbOne: CSSProperties = { position: 'absolute', top: '-120px', left: '-140px', width: '420px', height: '420px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)', filter: 'blur(8px)', pointerEvents: 'none' }
-const orbTwo: CSSProperties = { position: 'absolute', right: '-140px', top: '140px', width: '420px', height: '420px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)', filter: 'blur(8px)', pointerEvents: 'none' }
-const gridGlow: CSSProperties = { position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)', backgroundRepeat: 'repeat, repeat', backgroundSize: '34px 34px, 34px 34px', maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)', pointerEvents: 'none' }
-const topBlueWash: CSSProperties = { position: 'absolute', top: 0, left: 0, right: 0, height: '420px', background: 'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)', pointerEvents: 'none' }
-const headerStyle: CSSProperties = { position: 'relative', zIndex: 2, padding: '18px 24px 0' }
-const headerInner: CSSProperties = { width: '100%', maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between' }
-const brandWrap: CSSProperties = { display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }
-const brandIQ: CSSProperties = { background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginLeft: '2px' }
-const navStyle: CSSProperties = { display: 'flex', gap: '12px' }
-const navLink: CSSProperties = { padding: '12px 18px', borderRadius: '999px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)', color: '#e7eefb', textDecoration: 'none', fontWeight: 800, fontSize: '15px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }
-const ctaNavLink: CSSProperties = { ...navLink, color: '#08111d', background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', border: '1px solid rgba(155,225,29,0.34)', boxShadow: '0 10px 28px rgba(155,225,29,0.18)' }
-const heroShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '14px auto 24px', display: 'grid', borderRadius: '34px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)', boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)' }
-const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(130,244,118,0.28)', background: 'rgba(89,145,73,0.14)', color: '#d9e7ef', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
-const heroTitle: CSSProperties = { margin: '0 0 12px', color: '#f7fbff', fontWeight: 900, lineHeight: 0.98, letterSpacing: '-0.055em', maxWidth: '760px', fontSize: '58px' }
-const heroText: CSSProperties = { margin: '0 0 20px', color: 'rgba(224,234,247,0.84)', fontSize: '18px', lineHeight: 1.6, maxWidth: '760px' }
-const pillRow: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }
-const pillBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '36px', padding: '0 14px', borderRadius: '999px', fontSize: '13px', lineHeight: 1, fontWeight: 900, border: '1px solid transparent' }
-const pillBlue: CSSProperties = { ...pillBase, background: 'rgba(37,91,227,0.16)', color: '#c7dbff', borderColor: 'rgba(98,154,255,0.18)' }
-const pillGreen: CSSProperties = { ...pillBase, background: 'rgba(96,221,116,0.14)', color: '#dffad5', borderColor: 'rgba(130,244,118,0.2)' }
-const panelCard: CSSProperties = { marginTop: '24px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,20,37,0.56)', padding: '18px', maxWidth: '900px' }
-const panelLabel: CSSProperties = { color: '#e7ffd0', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }
-const infoGrid: CSSProperties = { display: 'grid', gap: '12px' }
-const infoCard: CSSProperties = { borderRadius: '18px', padding: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }
-const infoTitle: CSSProperties = { color: '#f8fbff', fontSize: '16px', fontWeight: 800, lineHeight: 1.35 }
-const infoText: CSSProperties = { marginTop: '6px', color: 'rgba(224,236,249,0.76)', fontSize: '14px', lineHeight: 1.6 }
-const formPanel: CSSProperties = { position: 'relative', borderRadius: '30px', overflow: 'hidden', border: '1px solid rgba(116,190,255,0.18)', background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)', boxShadow: '0 22px 52px rgba(7,18,40,0.24)' }
-const formPanelGlow: CSSProperties = { position: 'absolute', inset: 'auto auto 8px 50%', width: '250px', height: '250px', transform: 'translateX(-50%)', borderRadius: '999px', background: 'radial-gradient(circle, rgba(116,190,255,0.18) 0%, rgba(155,225,29,0.08) 34%, rgba(116,190,255,0) 72%)', pointerEvents: 'none' }
-const formPanelInner: CSSProperties = { position: 'relative', zIndex: 1, height: '100%', padding: '22px', display: 'flex', flexDirection: 'column' }
-const loginBrandWrap: CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '18px' }
-const logoOrbWrap: CSSProperties = { position: 'relative', width: '188px', height: '188px', display: 'grid', placeItems: 'center', margin: '8px auto 12px' }
-const logoOrbOuter: CSSProperties = { position: 'absolute', inset: 0, borderRadius: '999px', background: 'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)', filter: 'blur(1px)' }
-const logoOrbMiddle: CSSProperties = { position: 'absolute', inset: '14px', borderRadius: '999px', border: '1px solid rgba(116,190,255,0.28)', boxShadow: '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)' }
-const logoOrbInner: CSSProperties = { position: 'relative', zIndex: 2, width: '142px', height: '142px', borderRadius: '999px', display: 'grid', placeItems: 'center', background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)' }
-const loginBrandText: CSSProperties = { display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px', fontWeight: 900, letterSpacing: '-0.05em', fontSize: '36px', lineHeight: 1 }
-const formCard: CSSProperties = { display: 'grid', gap: '12px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9,18,35,0.56)', padding: '18px' }
-const formLabel: CSSProperties = { color: '#e7ffd0', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
-const formTitle: CSSProperties = { margin: 0, color: '#f8fbff', fontSize: '28px', lineHeight: 1.04, fontWeight: 900, letterSpacing: '-0.045em' }
-const inputLabel: CSSProperties = { color: '#dfe8f7', fontSize: '13px', fontWeight: 700, marginTop: '2px' }
-const inputStyle: CSSProperties = { width: '100%', minHeight: '52px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#f5f8ff', padding: '0 16px', fontSize: '15px', outline: 'none' }
-const submitButton: CSSProperties = { minHeight: '52px', borderRadius: '16px', border: '1px solid rgba(155,225,29,0.34)', background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', color: '#08111d', fontWeight: 900, fontSize: '15px', cursor: 'pointer', boxShadow: '0 10px 28px rgba(155,225,29,0.18)' }
-const successBanner: CSSProperties = { borderRadius: '16px', padding: '12px 14px', background: 'rgba(96,221,116,0.12)', border: '1px solid rgba(130,244,118,0.18)', color: '#e7ffd0', fontWeight: 700, fontSize: '14px' }
-const errorBanner: CSSProperties = { borderRadius: '16px', padding: '12px 14px', background: 'rgba(142, 32, 32, 0.18)', border: '1px solid rgba(255, 122, 122, 0.26)', color: '#ffd7d7', fontWeight: 700, fontSize: '14px' }
-const helperRow: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }
-const inlineLink: CSSProperties = { color: '#c7dbff', textDecoration: 'none', fontWeight: 800 }
-const inlineLinkMuted: CSSProperties = { color: 'rgba(224,236,249,0.74)', textDecoration: 'none', fontWeight: 700 }
-const loadingShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '40px auto', padding: '0 24px' }
-const loadingCard: CSSProperties = { borderRadius: '22px', padding: '18px 20px', color: '#eaf4ff', background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)', border: '1px solid rgba(116,190,255,0.18)', fontSize: '15px', fontWeight: 700 }
+
+const pageGlowOne: CSSProperties = {
+  position: 'absolute',
+  top: '-120px',
+  left: '-120px',
+  width: '320px',
+  height: '320px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(74,163,255,0.18) 0%, transparent 70%)',
+  pointerEvents: 'none',
+}
+
+const pageGlowTwo: CSSProperties = {
+  position: 'absolute',
+  right: '-120px',
+  top: '80px',
+  width: '360px',
+  height: '360px',
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 72%)',
+  pointerEvents: 'none',
+}
+
+const heroShell: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+  display: 'grid',
+  borderRadius: '34px',
+  border: '1px solid rgba(107, 162, 255, 0.18)',
+  background:
+    'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+}
+
+const heroLeftColumn: CSSProperties = {
+  minWidth: 0,
+}
+
+const infoGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const loadingShell: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '60vh',
+}
+
+const loadingCard: CSSProperties = {
+  padding: '20px 24px',
+  borderRadius: '16px',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#fff',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155, 225, 29, 0.24)',
+  background: 'rgba(155, 225, 29, 0.10)',
+  color: '#d8f7a4',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const heroTitle: CSSProperties = {
+  margin: '16px 0 0',
+  color: '#ffffff',
+  fontSize: 'clamp(34px, 5vw, 56px)',
+  lineHeight: 0.96,
+  fontWeight: 900,
+  letterSpacing: '-0.05em',
+}
+
+const heroText: CSSProperties = {
+  marginTop: '16px',
+  maxWidth: '640px',
+  color: 'rgba(229, 238, 251, 0.84)',
+  fontSize: '16px',
+  lineHeight: 1.75,
+}
+
+const pillRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '18px',
+}
+
+const pillBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+}
+
+const pillBlue: CSSProperties = {
+  ...pillBase,
+  color: '#dbeafe',
+  border: '1px solid rgba(96, 165, 250, 0.18)',
+  background: 'rgba(10, 28, 52, 0.92)',
+}
+
+const pillGreen: CSSProperties = {
+  ...pillBase,
+  color: '#dcfce7',
+  border: '1px solid rgba(74, 222, 128, 0.20)',
+  background: 'rgba(17, 39, 27, 0.92)',
+}
+
+const panelCard: CSSProperties = {
+  marginTop: '22px',
+  borderRadius: '24px',
+  border: '1px solid rgba(116, 190, 255, 0.14)',
+  background: 'linear-gradient(180deg, rgba(17,34,63,0.74) 0%, rgba(9,18,34,0.92) 100%)',
+  boxShadow: '0 18px 42px rgba(5,12,25,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  padding: '18px',
+}
+
+const panelHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  marginBottom: '12px',
+  flexWrap: 'wrap',
+}
+
+const panelLabel: CSSProperties = {
+  color: '#c5d5ea',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const statusPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '7px 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'rgba(229, 238, 251, 0.84)',
+  fontSize: '12px',
+  fontWeight: 700,
+}
+
+const infoCard: CSSProperties = {
+  borderRadius: '18px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: '14px 14px',
+}
+
+const infoTitle: CSSProperties = {
+  color: '#ffffff',
+  fontSize: '14px',
+  fontWeight: 800,
+  marginBottom: '6px',
+}
+
+const infoText: CSSProperties = {
+  color: 'rgba(197, 213, 234, 0.80)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+}
+
+const formPanel: CSSProperties = {
+  position: 'relative',
+  minHeight: '100%',
+  borderRadius: '28px',
+  border: '1px solid rgba(116, 190, 255, 0.16)',
+  background: 'linear-gradient(180deg, rgba(11,25,48,0.86) 0%, rgba(7,17,31,0.96) 100%)',
+  overflow: 'hidden',
+  boxShadow: '0 26px 80px rgba(7,18,42,0.24)',
+}
+
+const formPanelGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  pointerEvents: 'none',
+  background:
+    'radial-gradient(circle at 50% 0%, rgba(74,163,255,0.16), transparent 36%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 34%)',
+}
+
+const formPanelInner: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  padding: '26px',
+}
+
+const loginBrandWrap: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '14px',
+  marginBottom: '22px',
+}
+
+const logoOrbWrap: CSSProperties = {
+  position: 'relative',
+  width: '148px',
+  height: '148px',
+  display: 'grid',
+  placeItems: 'center',
+}
+
+const logoOrbOuter: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  borderRadius: '999px',
+  background: 'radial-gradient(circle, rgba(74,163,255,0.20) 0%, transparent 70%)',
+}
+
+const logoOrbMiddle: CSSProperties = {
+  position: 'absolute',
+  inset: '10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(255,255,255,0.03)',
+  backdropFilter: 'blur(8px)',
+}
+
+const logoOrbInner: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  width: '132px',
+  height: '132px',
+  borderRadius: '999px',
+  display: 'grid',
+  placeItems: 'center',
+  background: 'linear-gradient(180deg, rgba(20,42,78,0.62) 0%, rgba(11,25,48,0.82) 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const loginBrandText: CSSProperties = {
+  fontSize: '32px',
+  fontWeight: 900,
+  letterSpacing: '-0.05em',
+  lineHeight: 1,
+}
+
+const brandIQ: CSSProperties = {
+  background: 'linear-gradient(180deg, #ecfccb 0%, #bef264 12%, #a3e635 35%, #84cc16 62%, #65a30d 100%)',
+  WebkitBackgroundClip: 'text',
+  backgroundClip: 'text',
+  color: 'transparent',
+}
+
+const formCard: CSSProperties = {
+  borderRadius: '22px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: '20px',
+}
+
+const formLabel: CSSProperties = {
+  color: '#c5d5ea',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const formTitle: CSSProperties = {
+  margin: '10px 0 18px',
+  color: '#ffffff',
+  fontSize: '28px',
+  lineHeight: 1.05,
+  fontWeight: 850,
+  letterSpacing: '-0.04em',
+}
+
+const inputLabel: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  marginBottom: '10px',
+  color: '#c5d5ea',
+  fontSize: '14px',
+  fontWeight: 700,
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(116, 190, 255, 0.16)',
+  background: 'linear-gradient(180deg, rgba(14,30,58,0.96) 0%, rgba(8,19,38,0.99) 100%)',
+  color: '#e5eefb',
+  padding: '14px 16px',
+  outline: 'none',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(3,10,23,0.12)',
+  marginBottom: '16px',
+}
+
+const submitButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '10px',
+  minHeight: '48px',
+  width: '100%',
+  padding: '0 18px',
+  borderRadius: '16px',
+  fontWeight: 800,
+  letterSpacing: '-0.01em',
+  cursor: 'pointer',
+  border: '1px solid rgba(155, 225, 29, 0.35)',
+  background: 'linear-gradient(135deg, #9be11d, #c7f36b)',
+  color: '#08111d',
+  boxShadow: '0 10px 30px rgba(74, 222, 128, 0.25), 0 0 0 1px rgba(155, 225, 29, 0.18)',
+}
+
+const successBanner: CSSProperties = {
+  marginTop: '14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(74, 222, 128, 0.20)',
+  background: 'rgba(17, 39, 27, 0.92)',
+  color: '#dcfce7',
+  padding: '12px 14px',
+  fontSize: '14px',
+  fontWeight: 700,
+  lineHeight: 1.5,
+}
+
+const errorBanner: CSSProperties = {
+  marginTop: '14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(248, 113, 113, 0.22)',
+  background: 'rgba(69, 10, 10, 0.84)',
+  color: '#fecaca',
+  padding: '12px 14px',
+  fontSize: '14px',
+  fontWeight: 700,
+  lineHeight: 1.5,
+}
+
+const helperRow: CSSProperties = {
+  marginTop: '16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+}
+
+const inlineLink: CSSProperties = {
+  color: '#dcebff',
+  fontWeight: 700,
+  textDecoration: 'none',
+}
+
+const inlineLinkMuted: CSSProperties = {
+  color: 'rgba(197, 213, 234, 0.78)',
+  fontWeight: 700,
+  textDecoration: 'none',
+}

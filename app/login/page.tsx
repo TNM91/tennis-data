@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
+import SiteShell from '@/app/components/site-shell'
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -156,46 +157,20 @@ export default function LoginPage() {
 
   if (authLoading) {
     return (
-      <main style={pageStyle}>
-        <div style={orbOne} />
-        <div style={orbTwo} />
-        <div style={gridGlow} />
-        <div style={topBlueWash} />
-        <section style={loadingShell}>
+      <SiteShell active="login">
+                                        <section style={loadingShell}>
           <div style={loadingCard}>Checking sign-in status...</div>
         </section>
-      </main>
+      </SiteShell>
     )
   }
 
   if (role !== 'public') return null
 
   return (
-    <main style={pageStyle}>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
-
-      <header style={headerStyle}>
-        <div style={headerInnerResponsive}>
-          <Link href="/" style={brandWrap} aria-label="TenAceIQ home">
-            <BrandWordmark compact={isMobile} top />
-          </Link>
-
-          <nav style={navStyleResponsive}>
-            {NAV_LINKS.map((link) => (
-              <Link key={link.href} href={link.href} style={navLink}>
-                {link.label}
-              </Link>
-            ))}
-            <Link href="/join" style={ctaNavLink}>
-              Join
-            </Link>
-          </nav>
-        </div>
-      </header>
-
+    <SiteShell active="login">
+                        
+      
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>Member access</div>
@@ -334,7 +309,7 @@ export default function LoginPage() {
           </div>
         </div>
       </section>
-    </main>
+    </SiteShell>
   )
 }
 
