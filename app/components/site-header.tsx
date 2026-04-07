@@ -397,7 +397,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               </>
             ) : (
               <>
-                <HeaderLink href="/dashboard" label="My Lab" variant="cta" />
+                <HeaderLink href="/mylab" label="My Lab" variant="cta" />
                 {role === 'admin' ? <HeaderLink href="/admin" label="Admin" variant="quiet" /> : null}
                 <HeaderButton label="Logout" onClick={handleLogout} />
               </>
@@ -463,7 +463,7 @@ export default function SiteHeader({ active }: { active?: string }) {
             ) : (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/mylab"
                   onClick={() => setMenuOpen(false)}
                   style={{
                     ...mobileLinkStyle,

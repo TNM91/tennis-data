@@ -2,25 +2,11 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import {
-  CSSProperties,
-  FormEvent,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
+import { CSSProperties, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 import SiteShell from '@/app/components/site-shell'
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
-]
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 
@@ -38,6 +24,7 @@ export default function LoginPage() {
 
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
+  const [redirecting, setRedirecting] = useState(false)
   const [screenWidth, setScreenWidth] = useState(1280)
 
   const [email, setEmail] = useState('')
@@ -45,6 +32,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  const hasRedirectedRef = useRef(false)
 
   const postLoginRoute = useMemo(() => {
     if (typeof window === 'undefined') return DEFAULT_POST_LOGIN_ROUTE
@@ -63,17 +52,46 @@ export default function LoginPage() {
   }, [])
 
   useEffect(() => {
+    router.prefetch(postLoginRoute)
+  }, [postLoginRoute, router])
+
+  useEffect(() => {
+    let mounted = true
+
+    const redirectAuthenticatedUser = (nextRole: UserRole) => {
+      if (nextRole === 'public' || hasRedirectedRef.current) return
+      hasRedirectedRef.current = true
+      if (mounted) {
+        setRedirecting(true)
+        setRole(nextRole)
+        setAuthLoading(false)
+      }
+      router.replace(postLoginRoute)
+    }
+
     async function loadAuth() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const nextRole = getUserRole(data.user?.id ?? null)
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!mounted) return
+
+        const nextRole = getUserRole(session?.user?.id ?? null)
         setRole(nextRole)
 
         if (nextRole !== 'public') {
-          router.replace(postLoginRoute)
+          redirectAuthenticatedUser(nextRole)
+          return
+        }
+      } catch (err) {
+        if (mounted) {
+          console.error('Unable to restore auth session on /login:', err)
         }
       } finally {
-        setAuthLoading(false)
+        if (mounted && !hasRedirectedRef.current) {
+          setAuthLoading(false)
+        }
       }
     }
 
@@ -82,16 +100,24 @@ export default function LoginPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return
+
       const nextRole = getUserRole(session?.user?.id ?? null)
       setRole(nextRole)
-      setAuthLoading(false)
 
       if (nextRole !== 'public') {
-        router.replace(postLoginRoute)
+        redirectAuthenticatedUser(nextRole)
+        return
       }
+
+      setRedirecting(false)
+      setAuthLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [postLoginRoute, router])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -110,19 +136,20 @@ export default function LoginPage() {
     }
 
     setSubmitting(true)
+    setRedirecting(false)
     setError('')
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
       })
 
-      if (error) throw new Error(error.message)
+      if (signInError) throw new Error(signInError.message)
 
-      router.push(postLoginRoute)
-      router.refresh()
+      setRedirecting(true)
     } catch (err) {
+      setRedirecting(false)
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
     } finally {
       setSubmitting(false)
@@ -136,20 +163,6 @@ export default function LoginPage() {
     gap: isMobile ? '18px' : '24px',
   }
 
-  const headerInnerResponsive: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
-
-  const navStyleResponsive: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
   const formGridResponsive: CSSProperties = {
     ...benefitGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
@@ -158,24 +171,32 @@ export default function LoginPage() {
   if (authLoading) {
     return (
       <SiteShell active="login">
-                                        <section style={loadingShell}>
+        <section style={loadingShell}>
           <div style={loadingCard}>Checking sign-in status...</div>
         </section>
       </SiteShell>
     )
   }
 
-  if (role !== 'public') return null
+  if (role !== 'public' || redirecting) {
+    return (
+      <SiteShell active="login">
+        <section style={loadingShell}>
+          <div style={loadingCard}>{submitting ? 'Signing you in...' : 'Redirecting to your workspace...'}</div>
+        </section>
+      </SiteShell>
+    )
+  }
 
   return (
     <SiteShell active="login">
-                        
-      
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>Member access</div>
-          <h1 style={heroTitle}>Sign in with your email and password.</h1>
-          <p style={heroText}>
+          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '38px' : isMobile ? '46px' : '58px' }}>
+            Sign in with your email and password.
+          </h1>
+          <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
             Access My Lab, Captain tools, followed players and teams, and your private member dashboard.
           </p>
 
@@ -213,10 +234,16 @@ export default function LoginPage() {
           <div style={loginPanelGlow} />
           <div style={loginPanelInner}>
             <div style={loginBrandWrap}>
-              <div style={logoOrbWrap}>
+              <div style={{ ...logoOrbWrap, width: isSmallMobile ? '156px' : '188px', height: isSmallMobile ? '156px' : '188px' }}>
                 <div style={logoOrbOuter} />
-                <div style={logoOrbMiddle} />
-                <div style={logoOrbInner}>
+                <div style={{ ...logoOrbMiddle, inset: isSmallMobile ? '12px' : '14px' }} />
+                <div
+                  style={{
+                    ...logoOrbInner,
+                    width: isSmallMobile ? '120px' : '142px',
+                    height: isSmallMobile ? '120px' : '142px',
+                  }}
+                >
                   <Image
                     src="/logo-icon.png"
                     alt="TenAceIQ"
@@ -224,8 +251,8 @@ export default function LoginPage() {
                     height={124}
                     priority
                     style={{
-                      width: isMobile ? '108px' : '124px',
-                      height: isMobile ? '108px' : '124px',
+                      width: isSmallMobile ? '92px' : isMobile ? '108px' : '124px',
+                      height: isSmallMobile ? '92px' : isMobile ? '108px' : '124px',
                       display: 'block',
                       objectFit: 'contain',
                     }}
@@ -233,7 +260,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div style={loginBrandText}>
+              <div style={{ ...loginBrandText, fontSize: isSmallMobile ? '30px' : '36px' }}>
                 <span style={{ color: '#F8FBFF' }}>TenAce</span>
                 <span style={brandIQ}>IQ</span>
               </div>
@@ -262,7 +289,7 @@ export default function LoginPage() {
               <label htmlFor="password" style={inputLabel}>
                 Password
               </label>
-              <div style={passwordWrap}>
+              <div style={passwordWrapResponsive(isSmallMobile)}>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -284,7 +311,7 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              <button type="submit" disabled={submitting} style={submitButton}>
+              <button type="submit" disabled={submitting} style={submitting ? submitButtonDisabled : submitButton}>
                 {submitting ? 'Signing in...' : 'Sign in'}
               </button>
 
@@ -322,126 +349,11 @@ function FeatureCard({ title, text }: { title: string; text: string }) {
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  top = false,
-}: {
-  compact?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : 38
-  const fontSize = compact ? 27 : top ? 34 : 29
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '10px' : '12px', lineHeight: 1 }}>
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
+function passwordWrapResponsive(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...passwordWrap,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'minmax(0, 1fr) auto',
+  }
 }
 
 const brandIQ: CSSProperties = {
@@ -450,31 +362,6 @@ const brandIQ: CSSProperties = {
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
   marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroShell: CSSProperties = {
@@ -771,6 +658,12 @@ const submitButton: CSSProperties = {
   fontSize: '15px',
   cursor: 'pointer',
   boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+}
+
+const submitButtonDisabled: CSSProperties = {
+  ...submitButton,
+  opacity: 0.72,
+  cursor: 'wait',
 }
 
 const errorBanner: CSSProperties = {
