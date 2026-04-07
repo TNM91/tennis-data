@@ -1,250 +1,142 @@
-
 'use client'
 
-import { ChangeEvent, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import {
-  buildImportPreview,
-  commitImportPreview,
-  normalizeDate,
-  type CommitImportWithFailuresResult,
-  type ImportPreview,
-  type PreparedImportRow,
-} from '@/lib/importEngine'
-import { parseScorecardHtml, ParsedScorecard } from '@/lib/parseScorecardHtml'
 
-function normalizeName(name: string) {
-  return name.replace(/\s+/g, ' ').trim()
+type Accent = 'blue' | 'green' | 'slate'
+
+type AdminTool = {
+  title: string
+  href: string
+  description: string
+  badge: string
+  accent: Accent
+  highlights: string[]
+  statLabel: string
+  statValue: string
 }
 
-function formatDateForDb(value: string | null) {
-  if (!value) return null
+const adminTools: AdminTool[] = [
+  {
+    title: 'Upload Scorecard',
+    href: '/admin/upload-scorecard',
+    description:
+      'Upload USTA scorecard exports, preview parsed singles and doubles lines, and import them with duplicate protection.',
+    badge: 'Import',
+    accent: 'blue',
+    highlights: ['Scorecard parser', 'Preview before commit', 'Duplicate protection'],
+    statLabel: 'Best for',
+    statValue: 'Scorecard imports',
+  },
+  {
+    title: 'CSV Import',
+    href: '/admin/csv-import',
+    description:
+      'Bulk import structured match rows from CSV files so you can backfill larger datasets quickly and cleanly.',
+    badge: 'Bulk',
+    accent: 'green',
+    highlights: ['Bulk ingest', 'Validation flow', 'Large backfills'],
+    statLabel: 'Best for',
+    statValue: 'Large batches',
+  },
+  {
+    title: 'Paste Results',
+    href: '/admin/paste-results',
+    description:
+      'Paste raw results text and convert it into import-ready records for fast entry when files are not available.',
+    badge: 'Fast Entry',
+    accent: 'slate',
+    highlights: ['Quick parsing', 'Manual cleanup', 'Rapid entry'],
+    statLabel: 'Best for',
+    statValue: 'Quick updates',
+  },
+  {
+    title: 'Add Match',
+    href: '/admin/add-match',
+    description:
+      'Create a single match manually when you need a precise entry, correction, or one-off administrative adjustment.',
+    badge: 'Manual',
+    accent: 'blue',
+    highlights: ['Single entry', 'Controlled workflow', 'Precise edits'],
+    statLabel: 'Best for',
+    statValue: 'One-off records',
+  },
+  {
+    title: 'Manage Matches',
+    href: '/admin/manage-matches',
+    description:
+      'Review, edit, and clean up match records from one operational surface built for ongoing data quality control.',
+    badge: 'Control',
+    accent: 'green',
+    highlights: ['Edit records', 'Cleanup flows', 'Match oversight'],
+    statLabel: 'Best for',
+    statValue: 'Match hygiene',
+  },
+  {
+    title: 'Manage Players',
+    href: '/admin/manage-players',
+    description:
+      'Update player records, ratings, metadata, and notes so your player graph stays trustworthy and usable.',
+    badge: 'Roster',
+    accent: 'slate',
+    highlights: ['Player editing', 'Ratings upkeep', 'Metadata control'],
+    statLabel: 'Best for',
+    statValue: 'Player upkeep',
+  },
+]
 
-  const trimmed = value.trim()
+const importTools = adminTools.filter((tool) =>
+  ['/admin/upload-scorecard', '/admin/csv-import', '/admin/paste-results'].includes(tool.href)
+)
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return trimmed
+const managementTools = adminTools.filter((tool) =>
+  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players'].includes(tool.href)
+)
+
+function accentStyles(accent: Accent) {
+  if (accent === 'green') {
+    return {
+      glow: 'radial-gradient(circle, rgba(155,225,29,0.18) 0%, transparent 72%)',
+      border: 'rgba(155,225,29,0.18)',
+      softBorder: 'rgba(155,225,29,0.12)',
+      badgeClass: 'badge badge-green',
+      chipBg: 'rgba(155,225,29,0.10)',
+      chipBorder: 'rgba(155,225,29,0.15)',
+      chipText: '#C8F56B',
+      icon: '▲',
+      shadow: '0 28px 60px rgba(31, 58, 18, 0.20)',
+    }
   }
 
-  const parts = trimmed.split('/')
-  if (parts.length === 3) {
-    const [month, day, year] = parts
-    const yyyy = year.length === 2 ? `20${year}` : year
-    const mm = month.padStart(2, '0')
-    const dd = day.padStart(2, '0')
-    return `${yyyy}-${mm}-${dd}`
+  if (accent === 'slate') {
+    return {
+      glow: 'radial-gradient(circle, rgba(148,163,184,0.18) 0%, transparent 72%)',
+      border: 'rgba(148,163,184,0.18)',
+      softBorder: 'rgba(148,163,184,0.12)',
+      badgeClass: 'badge badge-slate',
+      chipBg: 'rgba(148,163,184,0.10)',
+      chipBorder: 'rgba(148,163,184,0.16)',
+      chipText: '#D7E2F2',
+      icon: '◼',
+      shadow: '0 28px 60px rgba(15, 23, 42, 0.24)',
+    }
   }
 
-  const parsed = new Date(trimmed)
-  if (Number.isNaN(parsed.getTime())) return null
-
-  const yyyy = parsed.getFullYear()
-  const mm = String(parsed.getMonth() + 1).padStart(2, '0')
-  const dd = String(parsed.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+  return {
+    glow: 'radial-gradient(circle, rgba(74,163,255,0.20) 0%, transparent 72%)',
+    border: 'rgba(116,190,255,0.18)',
+    softBorder: 'rgba(116,190,255,0.12)',
+    badgeClass: 'badge badge-blue',
+    chipBg: 'rgba(74,163,255,0.10)',
+    chipBorder: 'rgba(74,163,255,0.16)',
+    chipText: '#BFE1FF',
+    icon: '●',
+    shadow: '0 28px 60px rgba(17, 53, 88, 0.22)',
+  }
 }
 
-function displayDate(value: string | null) {
-  if (!value) return 'Unknown'
-
-  const dbDate = formatDateForDb(value)
-  if (!dbDate) return value
-
-  const parsed = new Date(`${dbDate}T00:00:00`)
-  if (Number.isNaN(parsed.getTime())) return value
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-export default function UploadScorecardPage() {
-  const [fileName, setFileName] = useState('')
-  const [parsed, setParsed] = useState<ParsedScorecard | null>(null)
-  const [manualMatchDate, setManualMatchDate] = useState('')
-  const [manualHomeTeam, setManualHomeTeam] = useState('')
-  const [manualAwayTeam, setManualAwayTeam] = useState('')
-  const [error, setError] = useState('')
-  const [status, setStatus] = useState('')
-  const [loadingFile, setLoadingFile] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [previewLoading, setPreviewLoading] = useState(false)
-  const [preview, setPreview] = useState<ImportPreview | null>(null)
-  const [result, setResult] = useState<CommitImportWithFailuresResult | null>(null)
-
-  const previewCount = useMemo(() => parsed?.lines.length ?? 0, [parsed])
-
-  const resolvedMatchDate = useMemo(() => {
-    if (manualMatchDate) return manualMatchDate
-    return formatDateForDb(parsed?.matchDate || null) || ''
-  }, [manualMatchDate, parsed])
-
-  const resolvedHomeTeam = useMemo(() => {
-    if (manualHomeTeam.trim()) return manualHomeTeam.trim()
-    return parsed?.homeTeam?.trim() || ''
-  }, [manualHomeTeam, parsed])
-
-  const resolvedAwayTeam = useMemo(() => {
-    if (manualAwayTeam.trim()) return manualAwayTeam.trim()
-    return parsed?.awayTeam?.trim() || ''
-  }, [manualAwayTeam, parsed])
-
-  async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] || null
-
-    setError('')
-    setStatus('')
-    setParsed(null)
-    setPreview(null)
-    setResult(null)
-    setFileName(file?.name || '')
-    setManualMatchDate('')
-    setManualHomeTeam('')
-    setManualAwayTeam('')
-
-    if (!file) return
-
-    setLoadingFile(true)
-
-    try {
-      const text = await file.text()
-      const parsedResult = parseScorecardHtml(text)
-
-      if (!parsedResult.lines.length) {
-        throw new Error('No valid match lines were found in this scorecard.')
-      }
-
-      setParsed(parsedResult)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to parse scorecard.')
-    } finally {
-      setLoadingFile(false)
-    }
-  }
-
-  function buildPreparedRows(): PreparedImportRow[] {
-    if (!parsed) return []
-
-    const matchDate = resolvedMatchDate
-    if (!matchDate) {
-      throw new Error('Could not determine a valid match date. Enter one manually before previewing.')
-    }
-
-    return parsed.lines.map((line, index) => {
-      const sourceParts = [
-        'scorecard-upload',
-        parsed.leagueName || null,
-        parsed.matchNumber ? `match-${parsed.matchNumber}` : null,
-        resolvedHomeTeam || null,
-        resolvedAwayTeam || null,
-      ].filter(Boolean)
-
-      return {
-        sourceIndex: index + 1,
-        sideA: line.teamAPlayers.map(normalizeName),
-        sideB: line.teamBPlayers.map(normalizeName),
-        rawResult: `${line.lineNumber} | ${line.teamAPlayers.join(' / ')} | ${line.teamBPlayers.join(' / ')} | ${line.score}`,
-        score: line.score,
-        winnerSide: line.winnerSide,
-        date: normalizeDate(matchDate),
-        matchType: line.matchType,
-        source: sourceParts.join(' | '),
-        lineNumber: line.lineNumber != null ? String(line.lineNumber) : null,
-        externalMatchId: parsed.matchNumber || null,
-        createPlayerDefaults: {
-          flight: parsed.flight || null,
-          singles_rating: 3.5,
-          singles_dynamic_rating: 3.5,
-          doubles_rating: 3.5,
-          doubles_dynamic_rating: 3.5,
-          overall_rating: 3.5,
-          overall_dynamic_rating: 3.5,
-        },
-        matchInsertOverrides: {
-          flight: parsed.flight || null,
-          usta_section: parsed.ustaSection || null,
-          district_area: parsed.districtArea || null,
-          league_name: parsed.league || parsed.leagueName || null,
-          home_team: resolvedHomeTeam || null,
-          away_team: resolvedAwayTeam || null,
-        },
-      }
-    })
-  }
-
-  async function handlePreviewImport() {
-    if (!parsed) {
-      setError('No parsed scorecard available.')
-      return
-    }
-
-    setPreviewLoading(true)
-
-    setError('')
-    setStatus('')
-    setResult(null)
-    setPreview(null)
-
-    try {
-      const preparedRows = buildPreparedRows()
-      const builtPreview = await buildImportPreview(preparedRows, [])
-      setPreview(builtPreview)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Preview failed.')
-    } finally {
-      setPreviewLoading(false)
-    }
-  }
-
-  async function importScorecard() {
-    if (!preview) {
-      setError('Preview the scorecard before importing.')
-      return
-    }
-
-    setImporting(true)
-    setError('')
-    setStatus('')
-    setResult(null)
-
-    try {
-      const importResult = await commitImportPreview(preview, {
-        createMissingPlayers: true,
-        recalculateRatings: true,
-        failFast: true,
-      })
-
-      setResult(importResult)
-
-      const messageParts = [
-        `Inserted ${importResult.insertedMatchCount}.`,
-        `Skipped ${importResult.skippedDuplicateMatchCount}.`,
-        `Created ${importResult.createdPlayerCount} new players.`,
-      ]
-
-      if (importResult.insertedMatchCount > 0) {
-        messageParts.push(
-          importResult.ratingsRecalculated
-            ? 'Ratings recalculated.'
-            : 'Import completed, but ratings were not recalculated.'
-        )
-      }
-
-      if (importResult.rowFailures.length > 0) {
-        messageParts.push(`${importResult.rowFailures.length} row failures occurred.`)
-      }
-
-      setStatus(messageParts.join(' '))
-    } catch (err) {
-      console.error(err)
-      setError(err instanceof Error ? err.message : 'Import failed.')
-    } finally {
-      setImporting(false)
-    }
-  }
-
+export default function AdminDashboardPage() {
   return (
     <SiteShell active="/admin">
       <section
@@ -255,377 +147,257 @@ export default function UploadScorecardPage() {
           padding: '18px 24px 0',
         }}
       >
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <div className="section-kicker">Admin Tool</div>
-            <h1 className="page-title">Upload Scorecard</h1>
-            <p className="page-subtitle">
-              Upload a USTA scorecard export, preview parsed singles and doubles lines,
-              then import them into matches and match_players with duplicate protection.
-            </p>
-          </div>
-        </section>
+        <HeroSection />
 
         <section
           className="surface-card panel-pad section"
           style={{
             position: 'relative',
             overflow: 'hidden',
+            marginTop: 18,
+          }}
+        >
+          <GlowOrb
+            top="-90px"
+            right="-72px"
+            size={250}
+            background="radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)"
+          />
+          <GlowOrb
+            bottom="-100px"
+            left="-58px"
+            size={230}
+            background="radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)"
+          />
+
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div className="metric-grid">
+              <MetricCard label="Admin Tools" value="6" helper="Core routes restored" />
+              <MetricCard label="Import Paths" value="3" helper="Scorecard, CSV, pasted text" />
+              <MetricCard label="Data Control" value="3" helper="Players, matches, manual entry" />
+              <MetricCard label="Recommended Flow" value="Preview" helper="Validate before commit" />
+            </div>
+
+            <div className="card-grid three" style={{ marginTop: 18 }}>
+              <MiniPanel
+                title="Import Center"
+                text="Use the import tools first when you are bringing in new match data from outside sources."
+                tone="blue"
+              />
+              <MiniPanel
+                title="Data Stewardship"
+                text="Use the management tools when you need to correct records, clean metadata, or refine ratings inputs."
+                tone="green"
+              />
+              <MiniPanel
+                title="Clean Structure"
+                text="Keep /admin as the hub and each operational tool in its own nested route so the dashboard never gets overwritten again."
+                tone="slate"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section id="imports" style={{ marginTop: 26 }}>
+          <SectionHeader
+            kicker="Imports"
+            title="Bring data into the system"
+            subtitle="These routes are optimized for getting external match information into your database with more speed and less cleanup."
+          />
+          <div className="card-grid three" style={{ marginTop: 14 }}>
+            {importTools.map((tool) => (
+              <AdminToolCard key={tool.href} tool={tool} />
+            ))}
+          </div>
+        </section>
+
+        <section id="management" style={{ marginTop: 30 }}>
+          <SectionHeader
+            kicker="Management"
+            title="Control records and maintain quality"
+            subtitle="These routes are better when you need precision, cleanup, edits, and ongoing maintenance across players and matches."
+          />
+          <div className="card-grid three" style={{ marginTop: 14 }}>
+            {managementTools.map((tool) => (
+              <AdminToolCard key={tool.href} tool={tool} />
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="surface-card section"
+          style={{
+            marginTop: 30,
+            padding: 18,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <GlowOrb
+            top="-70px"
+            right="-50px"
+            size={180}
+            background="radial-gradient(circle, rgba(74,163,255,0.12) 0%, transparent 72%)"
+          />
+
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 18,
+                alignItems: 'flex-start',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ maxWidth: 760 }}>
+                <div className="section-kicker">System map</div>
+                <h2 className="section-title" style={{ marginTop: 6 }}>
+                  Recommended admin route structure
+                </h2>
+                <p className="subtle-text" style={{ marginTop: 8, maxWidth: 700 }}>
+                  Keep this page as the central control surface. Every actual tool should live in its
+                  own dedicated folder route to prevent accidental replacements of the dashboard.
+                </p>
+              </div>
+
+              <div className="badge badge-green" style={{ minHeight: 42 }}>
+                Hub page active
+              </div>
+            </div>
+
+            <div className="table-wrap" style={{ marginTop: 16 }}>
+              <table className="data-table" style={{ minWidth: 880 }}>
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Purpose</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>/admin</td>
+                    <td>Dashboard / hub only</td>
+                    <td>Should render this page only</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/upload-scorecard</td>
+                    <td>Scorecard upload and preview</td>
+                    <td>Best for USTA scorecard files</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/csv-import</td>
+                    <td>Bulk CSV ingest</td>
+                    <td>Best for structured imports</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/paste-results</td>
+                    <td>Paste-to-import workflow</td>
+                    <td>Best for quick manual batches</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/add-match</td>
+                    <td>Manual match entry</td>
+                    <td>Best for one-off records</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/manage-matches</td>
+                    <td>Match review and editing</td>
+                    <td>Best for cleanup and oversight</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/manage-players</td>
+                    <td>Player editing and maintenance</td>
+                    <td>Best for ratings and metadata</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section
+          className="surface-card section"
+          style={{
+            marginTop: 30,
+            padding: 18,
+            background:
+              'linear-gradient(180deg, rgba(17,34,63,0.70) 0%, rgba(9,18,34,0.94) 100%)',
+            border: '1px solid rgba(116,190,255,0.12)',
           }}
         >
           <div
             style={{
-              position: 'absolute',
-              top: '-90px',
-              right: '-70px',
-              width: '240px',
-              height: '240px',
-              borderRadius: '999px',
-              background:
-                'radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)',
-              pointerEvents: 'none',
+              display: 'grid',
+              gridTemplateColumns: '1.3fr 1fr',
+              gap: 18,
             }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-120px',
-              left: '-60px',
-              width: '220px',
-              height: '220px',
-              borderRadius: '999px',
-              background:
-                'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div style={{ position: 'relative', zIndex: 1 }}>
+          >
             <div>
-              <label className="label">Scorecard file</label>
-
-              <input
-                id="scorecard-upload"
-                type="file"
-                accept=".xls,.html"
-                onChange={onFileChange}
-                style={{ display: 'none' }}
-              />
-
-              <label
-                htmlFor="scorecard-upload"
-                className="button-secondary"
+              <div className="section-kicker">Suggested workflow</div>
+              <h2 className="section-title" style={{ marginTop: 6 }}>
+                A cleaner admin operating rhythm
+              </h2>
+              <div
                 style={{
-                  display: 'inline-flex',
-                  width: 'fit-content',
-                  cursor: 'pointer',
-                  marginTop: 8,
+                  display: 'grid',
+                  gap: 12,
+                  marginTop: 14,
                 }}
               >
-                Choose Scorecard File
-              </label>
-
-              <div className="subtle-text" style={{ marginTop: 10 }}>
-                Supports HTML-based <code>.xls</code> scorecards and <code>.html</code> files.
+                <WorkflowStep
+                  number="01"
+                  title="Import or enter data"
+                  text="Choose Upload Scorecard, CSV Import, Paste Results, or Add Match depending on the source."
+                />
+                <WorkflowStep
+                  number="02"
+                  title="Validate and review"
+                  text="Preview where possible, confirm rows look right, and watch for duplicate or formatting issues."
+                />
+                <WorkflowStep
+                  number="03"
+                  title="Clean up records"
+                  text="Use Manage Matches and Manage Players to tighten the data after import or manual entry."
+                />
               </div>
             </div>
 
-            {fileName ? (
+            <div
+              className="surface-card"
+              style={{
+                padding: 18,
+                background:
+                  'linear-gradient(180deg, rgba(13,23,42,0.72) 0%, rgba(8,14,28,0.96) 100%)',
+                border: '1px solid rgba(155,225,29,0.12)',
+              }}
+            >
               <div
-                className="badge badge-blue"
                 style={{
-                  marginTop: 16,
-                  minHeight: 42,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
+                  color: '#F8FBFF',
+                  fontWeight: 800,
+                  fontSize: '1rem',
                 }}
               >
-                Loaded file: {fileName}
+                Quick actions
               </div>
-            ) : null}
 
-            {loadingFile ? (
-              <p className="subtle-text" style={{ marginTop: 16 }}>
-                Parsing scorecard...
-              </p>
-            ) : null}
-
-            {error ? (
               <div
-                className="badge"
                 style={{
-                  marginTop: 16,
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.12)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(220,38,38,0.18)',
+                  display: 'grid',
+                  gap: 10,
+                  marginTop: 14,
                 }}
               >
-                {error}
+                <QuickAction href="/admin/upload-scorecard" label="Open Upload Scorecard" />
+                <QuickAction href="/admin/csv-import" label="Open CSV Import" />
+                <QuickAction href="/admin/paste-results" label="Open Paste Results" />
+                <QuickAction href="/admin/add-match" label="Open Add Match" />
+                <QuickAction href="/admin/manage-matches" label="Open Manage Matches" />
+                <QuickAction href="/admin/manage-players" label="Open Manage Players" />
               </div>
-            ) : null}
-
-            {status ? (
-              <div
-                className="badge badge-green"
-                style={{
-                  marginTop: 16,
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                }}
-              >
-                {status}
-              </div>
-            ) : null}
-
-            {parsed ? (
-              <>
-                <div className="metric-grid" style={{ marginTop: 22 }}>
-                  <MetricCard label="Parsed Match Date" value={displayDate(parsed.matchDate)} />
-                  <MetricCard label="Flight" value={parsed.flight || 'Unknown'} />
-                  <MetricCard label="USTA Section" value={parsed.ustaSection || 'Unknown'} />
-                  <MetricCard label="District / Area" value={parsed.districtArea || 'Unknown'} />
-                  <MetricCard label="League" value={parsed.league || parsed.leagueName || 'Unknown'} />
-                  <MetricCard label="Match #" value={parsed.matchNumber || 'Unknown'} />
-                  <MetricCard label="Lines Found" value={String(previewCount)} />
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                    marginTop: 18,
-                  }}
-                >
-                  <div className="badge badge-blue" style={{ minHeight: 40 }}>
-                    Home: {resolvedHomeTeam || 'Unknown'}
-                  </div>
-
-                  <div className="badge badge-slate" style={{ minHeight: 40 }}>
-                    Away: {resolvedAwayTeam || 'Unknown'}
-                  </div>
-                </div>
-
-                <section
-                  className="surface-card"
-                  style={{
-                    marginTop: 18,
-                    padding: 18,
-                    borderStyle: 'dashed',
-                    background:
-                      'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.86) 100%)',
-                    borderColor: 'rgba(155,225,29,0.18)',
-                  }}
-                >
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: '1.05rem',
-                      fontWeight: 800,
-                      color: '#F8FBFF',
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
-                    Import Overrides
-                  </h2>
-
-                  <div className="card-grid three" style={{ marginTop: 16 }}>
-                    <Field label="Match date override">
-                      <input
-                        type="date"
-                        value={manualMatchDate}
-                        onChange={(e) => setManualMatchDate(e.target.value)}
-                        className="input"
-                      />
-                    </Field>
-
-                    <Field label="Home team override">
-                      <input
-                        type="text"
-                        value={manualHomeTeam}
-                        onChange={(e) => setManualHomeTeam(e.target.value)}
-                        placeholder="Enter home team if parser missed it"
-                        className="input"
-                      />
-                    </Field>
-
-                    <Field label="Away team override">
-                      <input
-                        type="text"
-                        value={manualAwayTeam}
-                        onChange={(e) => setManualAwayTeam(e.target.value)}
-                        placeholder="Enter away team if parser missed it"
-                        className="input"
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="subtle-text" style={{ marginTop: 12 }}>
-                    Leave overrides blank to use parsed values. Import will use:{' '}
-                    <strong>{resolvedMatchDate || 'No valid date yet'}</strong>
-                  </div>
-                </section>
-
-                <div
-                  style={{
-                    marginTop: 22,
-                    display: 'flex',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <button
-                    onClick={handlePreviewImport}
-                    disabled={previewLoading || importing || !resolvedMatchDate}
-                    className="button-secondary"
-                    style={{
-                      opacity: previewLoading || importing || !resolvedMatchDate ? 0.7 : 1,
-                      cursor:
-                        previewLoading || importing || !resolvedMatchDate
-                          ? 'not-allowed'
-                          : 'pointer',
-                    }}
-                  >
-                    {previewLoading ? 'Preparing Preview...' : 'Preview Import'}
-                  </button>
-
-                  <button
-                    onClick={importScorecard}
-                    disabled={importing || !preview}
-                    className="button-primary"
-                    style={{
-                      opacity: importing || !preview ? 0.7 : 1,
-                      cursor: importing || !preview ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {importing ? 'Importing + Recalculating...' : 'Confirm Import'}
-                  </button>
-                </div>
-
-                {preview ? (
-                  <section className="surface-card section" style={{ marginTop: 22, padding: 18 }}>
-                    <h2 className="section-title">Import Preview</h2>
-
-                    <div className="metric-grid" style={{ marginTop: 18 }}>
-                      <MetricCard label="Valid Matches" value={String(preview.parsedCount)} />
-                      <MetricCard label="Unique Matches" value={String(preview.uniqueMatchCount)} />
-                      <MetricCard label="Ready To Import" value={String(preview.readyRows.length)} />
-                      <MetricCard label="Duplicates In File" value={String(preview.duplicateInFileCount)} />
-                      <MetricCard label="Duplicates In DB" value={String(preview.duplicateInDbCount)} />
-                      <MetricCard label="Players To Create" value={String(preview.missingNames.length)} />
-                    </div>
-
-                    {preview.missingNames.length > 0 ? (
-                      <div
-                        className="badge badge-blue"
-                        style={{
-                          marginTop: 16,
-                          minHeight: 44,
-                          width: '100%',
-                          justifyContent: 'flex-start',
-                          padding: '10px 14px',
-                        }}
-                      >
-                        Players that will be created: {preview.missingNames.join(', ')}
-                      </div>
-                    ) : null}
-                  </section>
-                ) : null}
-
-                <div style={{ marginTop: 22 }}>
-                  <h2 className="section-title">Preview</h2>
-
-                  <div className="card-grid two" style={{ marginTop: 14 }}>
-                    {parsed.lines.map((line, index) => (
-                      <div
-                        key={`${line.lineNumber}-${index}`}
-                        className="surface-card"
-                        style={{
-                          padding: 18,
-                          background:
-                            'linear-gradient(180deg, rgba(17,34,63,0.74) 0%, rgba(9,18,34,0.92) 100%)',
-                          border: '1px solid rgba(116,190,255,0.14)',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: 10,
-                            alignItems: 'center',
-                            marginBottom: 12,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: '#F8FBFF',
-                              fontWeight: 800,
-                              fontSize: '1rem',
-                            }}
-                          >
-                            {line.lineNumber} • {capitalize(line.matchType)}
-                          </div>
-
-                          <span
-                            className={line.winnerSide === 'A' ? 'badge badge-blue' : 'badge badge-green'}
-                          >
-                            Winner: Side {line.winnerSide}
-                          </span>
-                        </div>
-
-                        <div className="subtle-text" style={{ marginBottom: 8 }}>
-                          <strong style={{ color: '#F8FBFF' }}>Side A:</strong>{' '}
-                          {line.teamAPlayers.join(' / ')}
-                        </div>
-
-                        <div className="subtle-text" style={{ marginBottom: 8 }}>
-                          <strong style={{ color: '#F8FBFF' }}>Side B:</strong>{' '}
-                          {line.teamBPlayers.join(' / ')}
-                        </div>
-
-                        <div className="subtle-text">
-                          <strong style={{ color: '#F8FBFF' }}>Score:</strong> {line.score}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {result && result.rowFailures.length > 0 ? (
-                  <section className="surface-card section" style={{ marginTop: 22, padding: 18 }}>
-                    <h2 className="section-title">Row Failures</h2>
-                    <div className="table-wrap" style={{ marginTop: 14 }}>
-                      <table className="data-table" style={{ minWidth: 820 }}>
-                        <thead>
-                          <tr>
-                            <th>Row</th>
-                            <th>Raw</th>
-                            <th>Reason</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {result.rowFailures.map((row) => (
-                            <tr key={`failure-${row.sourceIndex}-${row.raw}`}>
-                              <td>{row.sourceIndex}</td>
-                              <td>{row.raw}</td>
-                              <td>{row.reason}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                ) : null}
-              </>
-            ) : null}
+            </div>
           </div>
         </section>
       </section>
@@ -633,32 +405,434 @@ export default function UploadScorecardPage() {
   )
 }
 
-function Field({
-  label,
-  children,
+function HeroSection() {
+  return (
+    <section
+      className="hero-panel"
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <GlowOrb
+        top="-110px"
+        left="-70px"
+        size={270}
+        background="radial-gradient(circle, rgba(74,163,255,0.16) 0%, transparent 72%)"
+      />
+      <GlowOrb
+        bottom="-120px"
+        right="-90px"
+        size={260}
+        background="radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)"
+      />
+
+      <div className="hero-inner" style={{ position: 'relative', zIndex: 1 }}>
+        <div className="section-kicker">Admin Command</div>
+        <h1 className="page-title">Elite Admin Dashboard</h1>
+        <p className="page-subtitle" style={{ maxWidth: 860 }}>
+          Centralize imports, manual entry, match cleanup, and player maintenance in one premium
+          control surface that matches the rest of the TenAceIQ experience.
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 12,
+            marginTop: 18,
+          }}
+        >
+          <a href="#imports" className="button-primary" style={{ textDecoration: 'none' }}>
+            Start with Imports
+          </a>
+          <a href="#management" className="button-secondary" style={{ textDecoration: 'none' }}>
+            Open Management Tools
+          </a>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 18,
+          }}
+        >
+          <span className="badge badge-blue">Premium shell aligned</span>
+          <span className="badge badge-green">Dashboard restored</span>
+          <span className="badge badge-slate">Tool routes separated</span>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function AdminToolCard({ tool }: { tool: AdminTool }) {
+  const [hovered, setHovered] = useState(false)
+  const accent = accentStyles(tool.accent)
+
+  return (
+    <Link
+      href={tool.href}
+      className="surface-card"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        display: 'block',
+        overflow: 'hidden',
+        minHeight: 290,
+        padding: 18,
+        textDecoration: 'none',
+        background:
+          hovered
+            ? 'linear-gradient(180deg, rgba(20,39,70,0.88) 0%, rgba(10,19,35,0.98) 100%)'
+            : 'linear-gradient(180deg, rgba(17,34,63,0.76) 0%, rgba(9,18,34,0.94) 100%)',
+        border: `1px solid ${hovered ? accent.border : accent.softBorder}`,
+        transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
+        transition:
+          'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease',
+        boxShadow: hovered ? accent.shadow : '0 18px 44px rgba(2, 6, 23, 0.20)',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: '-58px',
+          right: '-44px',
+          width: 170,
+          height: 170,
+          borderRadius: '999px',
+          background: accent.glow,
+          pointerEvents: 'none',
+          opacity: hovered ? 1 : 0.82,
+          transition: 'opacity 180ms ease',
+        }}
+      />
+
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 10,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span className={accent.badgeClass}>{tool.badge}</span>
+          <span
+            style={{
+              color: '#DCEBFF',
+              fontWeight: 800,
+              fontSize: '1rem',
+              opacity: hovered ? 1 : 0.72,
+              transition: 'opacity 180ms ease',
+            }}
+          >
+            {accent.icon}
+          </span>
+        </div>
+
+        <div
+          style={{
+            marginTop: 16,
+            color: '#F8FBFF',
+            fontWeight: 800,
+            fontSize: '1.08rem',
+            lineHeight: 1.2,
+            letterSpacing: '-0.02em',
+          }}
+        >
+          {tool.title}
+        </div>
+
+        <p
+          className="subtle-text"
+          style={{
+            marginTop: 10,
+            minHeight: 78,
+          }}
+        >
+          {tool.description}
+        </p>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: `1px solid ${accent.softBorder}`,
+          }}
+        >
+          <div className="subtle-text" style={{ fontSize: '0.78rem' }}>
+            {tool.statLabel}
+          </div>
+          <div
+            style={{
+              color: '#F8FBFF',
+              fontWeight: 800,
+              fontSize: '0.88rem',
+            }}
+          >
+            {tool.statValue}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 14,
+          }}
+        >
+          {tool.highlights.map((item) => (
+            <span
+              key={item}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                minHeight: 30,
+                padding: '6px 10px',
+                borderRadius: 999,
+                background: accent.chipBg,
+                border: `1px solid ${accent.chipBorder}`,
+                color: accent.chipText,
+                fontSize: '0.76rem',
+                fontWeight: 700,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {item}
+            </span>
+          ))}
+        </div>
+
+        <div
+          style={{
+            marginTop: 18,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            color: '#9BE11D',
+            fontWeight: 800,
+            fontSize: '0.92rem',
+          }}
+        >
+          Open tool <span aria-hidden="true">{hovered ? '↗' : '→'}</span>
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+function SectionHeader({
+  kicker,
+  title,
+  subtitle,
 }: {
-  label: string
-  children: React.ReactNode
+  kicker: string
+  title: string
+  subtitle: string
 }) {
   return (
     <div>
-      <label className="label">{label}</label>
-      {children}
+      <div className="section-kicker">{kicker}</div>
+      <h2 className="section-title" style={{ marginTop: 6 }}>
+        {title}
+      </h2>
+      <p className="subtle-text" style={{ marginTop: 8, maxWidth: 760 }}>
+        {subtitle}
+      </p>
     </div>
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MiniPanel({
+  title,
+  text,
+  tone,
+}: {
+  title: string
+  text: string
+  tone: Accent
+}) {
+  const toneStyles =
+    tone === 'green'
+      ? {
+          border: '1px solid rgba(155,225,29,0.14)',
+          background:
+            'linear-gradient(180deg, rgba(18,38,33,0.62) 0%, rgba(9,18,34,0.92) 100%)',
+        }
+      : tone === 'slate'
+        ? {
+            border: '1px solid rgba(148,163,184,0.14)',
+            background:
+              'linear-gradient(180deg, rgba(19,28,45,0.70) 0%, rgba(9,18,34,0.92) 100%)',
+          }
+        : {
+            border: '1px solid rgba(116,190,255,0.14)',
+            background:
+              'linear-gradient(180deg, rgba(17,34,63,0.72) 0%, rgba(9,18,34,0.92) 100%)',
+          }
+
   return (
-    <div className="metric-card">
-      <div className="metric-label">{label}</div>
-      <div className="metric-value" style={{ fontSize: '1.15rem', lineHeight: 1.2 }}>
-        {value}
+    <div
+      className="surface-card"
+      style={{
+        padding: 18,
+        ...toneStyles,
+      }}
+    >
+      <div
+        style={{
+          color: '#F8FBFF',
+          fontWeight: 800,
+          fontSize: '1rem',
+          marginBottom: 8,
+        }}
+      >
+        {title}
+      </div>
+      <div className="subtle-text">{text}</div>
+    </div>
+  )
+}
+
+function WorkflowStep({
+  number,
+  title,
+  text,
+}: {
+  number: string
+  title: string
+  text: string
+}) {
+  return (
+    <div
+      className="surface-card"
+      style={{
+        padding: 16,
+        background: 'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.90) 100%)',
+        border: '1px solid rgba(116,190,255,0.10)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: 14,
+          alignItems: 'flex-start',
+        }}
+      >
+        <div
+          style={{
+            minWidth: 46,
+            height: 46,
+            borderRadius: 14,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'rgba(155,225,29,0.10)',
+            border: '1px solid rgba(155,225,29,0.16)',
+            color: '#C8F56B',
+            fontWeight: 900,
+            fontSize: '0.9rem',
+          }}
+        >
+          {number}
+        </div>
+
+        <div>
+          <div
+            style={{
+              color: '#F8FBFF',
+              fontWeight: 800,
+              fontSize: '0.98rem',
+            }}
+          >
+            {title}
+          </div>
+          <div className="subtle-text" style={{ marginTop: 6 }}>
+            {text}
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1)
+function QuickAction({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="button-secondary"
+      style={{
+        textDecoration: 'none',
+        justifyContent: 'space-between',
+        width: '100%',
+      }}
+    >
+      <span>{label}</span>
+      <span aria-hidden="true">→</span>
+    </Link>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  helper,
+}: {
+  label: string
+  value: string
+  helper: string
+}) {
+  return (
+    <div className="metric-card">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value" style={{ fontSize: '1.22rem', lineHeight: 1.15 }}>
+        {value}
+      </div>
+      <div className="subtle-text" style={{ marginTop: 8, fontSize: '0.82rem' }}>
+        {helper}
+      </div>
+    </div>
+  )
+}
+
+function GlowOrb({
+  top,
+  right,
+  bottom,
+  left,
+  size,
+  background,
+}: {
+  top?: string
+  right?: string
+  bottom?: string
+  left?: string
+  size: number
+  background: string
+}) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top,
+        right,
+        bottom,
+        left,
+        width: size,
+        height: size,
+        borderRadius: '999px',
+        background,
+        pointerEvents: 'none',
+      }}
+    />
+  )
 }

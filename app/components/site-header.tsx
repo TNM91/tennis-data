@@ -6,6 +6,13 @@ import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
+import {
+  transitionBase,
+  hoverLift,
+  hoverGlowBlue,
+  hoverGlowGreen,
+  hoverBrighten,
+} from '@/lib/interaction-styles'
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
@@ -37,10 +44,9 @@ const basePill = {
   fontWeight: 800,
   fontSize: '14px',
   lineHeight: 1,
-  transition:
-    'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, filter 160ms ease',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
+  ...transitionBase,
 } as const
 
 const navLink = {
@@ -51,13 +57,6 @@ const navLink = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
 } as const
 
-const navLinkHover = {
-  transform: 'translateY(-2px)',
-  border: '1px solid rgba(116,190,255,0.24)',
-  background: 'linear-gradient(180deg, rgba(34,69,129,0.30) 0%, rgba(14,32,63,0.28) 100%)',
-  boxShadow: '0 12px 24px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
-} as const
-
 const activeNavLink = {
   ...basePill,
   border: '1px solid rgba(155,225,29,0.26)',
@@ -65,13 +64,6 @@ const activeNavLink = {
   color: '#f6fbff',
   boxShadow:
     'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 22px rgba(37,91,227,0.10), 0 0 0 1px rgba(155,225,29,0.06)',
-} as const
-
-const activeNavLinkHover = {
-  transform: 'translateY(-2px)',
-  boxShadow:
-    'inset 0 1px 0 rgba(255,255,255,0.06), 0 12px 26px rgba(37,91,227,0.14), 0 0 0 1px rgba(155,225,29,0.08)',
-  filter: 'brightness(1.03)',
 } as const
 
 const quietActionLink = {
@@ -84,13 +76,6 @@ const quietActionLink = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
 } as const
 
-const quietActionLinkHover = {
-  transform: 'translateY(-2px)',
-  border: '1px solid rgba(116,190,255,0.24)',
-  background: 'linear-gradient(180deg, rgba(29,60,112,0.28) 0%, rgba(14,30,58,0.22) 100%)',
-  boxShadow: '0 12px 24px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
-} as const
-
 const ctaNavLink = {
   ...basePill,
   minHeight: '46px',
@@ -99,12 +84,6 @@ const ctaNavLink = {
   background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
   color: '#08111d',
   boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-} as const
-
-const ctaNavLinkHover = {
-  transform: 'translateY(-2px)',
-  boxShadow: '0 14px 34px rgba(155,225,29,0.24)',
-  filter: 'brightness(1.03)',
 } as const
 
 function HeaderLink({
@@ -123,15 +102,18 @@ function HeaderLink({
   const [hovered, setHovered] = useState(false)
 
   const base =
-    variant === 'cta' ? ctaNavLink : variant === 'quiet' ? quietActionLink : active ? activeNavLink : navLink
+    variant === 'cta'
+      ? ctaNavLink
+      : variant === 'quiet'
+        ? quietActionLink
+        : active
+          ? activeNavLink
+          : navLink
+
   const hover =
     variant === 'cta'
-      ? ctaNavLinkHover
-      : variant === 'quiet'
-        ? quietActionLinkHover
-        : active
-          ? activeNavLinkHover
-          : navLinkHover
+      ? { ...hoverLift, ...hoverGlowGreen, ...hoverBrighten }
+      : { ...hoverLift, ...hoverGlowBlue, ...hoverBrighten }
 
   return (
     <Link
@@ -151,16 +133,12 @@ function HeaderLink({
 
 function HeaderButton({
   label,
-  variant = 'quiet',
   onClick,
 }: {
   label: string
-  variant?: 'quiet' | 'cta'
   onClick: () => void
 }) {
   const [hovered, setHovered] = useState(false)
-  const base = variant === 'cta' ? ctaNavLink : quietActionLink
-  const hover = variant === 'cta' ? ctaNavLinkHover : quietActionLinkHover
 
   return (
     <button
@@ -172,8 +150,8 @@ function HeaderButton({
         appearance: 'none',
         fontFamily: 'inherit',
         cursor: 'pointer',
-        ...base,
-        ...(hovered ? hover : {}),
+        ...quietActionLink,
+        ...(hovered ? { ...hoverLift, ...hoverGlowBlue, ...hoverBrighten } : {}),
       }}
     >
       {label}
@@ -319,6 +297,7 @@ export default function SiteHeader({ active }: { active?: string }) {
     cursor: 'pointer',
     flexShrink: 0,
     fontSize: '18px',
+    ...transitionBase,
   } as const
 
   const mobilePanelStyle = {

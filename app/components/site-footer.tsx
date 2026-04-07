@@ -3,6 +3,13 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import {
+  hoverLift,
+  hoverGlowBlue,
+  hoverGlowGreen,
+  hoverBrighten,
+  transitionBase,
+} from '@/lib/interaction-styles'
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
@@ -30,17 +37,18 @@ function FooterLink({
 }) {
   const [hovered, setHovered] = useState(false)
 
-  const base = cta ? ctaPillLink : pillLink
-  const hover = cta ? ctaPillLinkHover : pillLinkHover
-
   return (
     <Link
       href={href}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        ...base,
-        ...(hovered ? hover : {}),
+        ...(cta ? ctaPillLink : pillLink),
+        ...(hovered
+          ? cta
+            ? { ...hoverLift, ...hoverGlowGreen, ...hoverBrighten }
+            : { ...hoverLift, ...hoverGlowBlue, ...hoverBrighten }
+          : {}),
       }}
     >
       {label}
@@ -278,15 +286,7 @@ const pillLink = {
   fontSize: '14px',
   lineHeight: 1,
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-  transition:
-    'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease, filter 180ms ease',
-}
-
-const pillLinkHover = {
-  transform: 'translateY(-2px)',
-  border: '1px solid rgba(116,190,255,0.26)',
-  background: 'linear-gradient(180deg, rgba(48,92,165,0.26) 0%, rgba(20,44,84,0.22) 100%)',
-  boxShadow: '0 12px 24px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  ...transitionBase,
 }
 
 const ctaPillLink = {
@@ -295,10 +295,4 @@ const ctaPillLink = {
   background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
   border: '1px solid rgba(155,225,29,0.34)',
   boxShadow: '0 10px 24px rgba(155,225,29,0.14)',
-}
-
-const ctaPillLinkHover = {
-  transform: 'translateY(-2px)',
-  boxShadow: '0 14px 30px rgba(155,225,29,0.22)',
-  filter: 'brightness(1.03)',
 }
