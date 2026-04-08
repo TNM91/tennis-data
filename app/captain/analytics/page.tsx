@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
 
 type PlayerRow = {
   id: string
@@ -283,6 +284,8 @@ export default function LineupBuilderPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [role, setRole] = useState<UserRole>('public')
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
   const [currentScenarioId, setCurrentScenarioId] = useState('')
@@ -308,6 +311,51 @@ export default function LineupBuilderPage() {
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
+  const isCaptainAccess = isCaptain(role)
+  const isMemberPreview = !authLoading && role === 'member'
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadRole() {
+      const { data, error: authError } = await supabase.auth.getUser()
+      const user = data.user
+
+      if (authError || !user) {
+        if (!mounted) return
+        setRole('public')
+        setAuthLoading(false)
+        if (typeof window !== 'undefined') {
+          const next = encodeURIComponent('/captain/analytics')
+          window.location.href = `/login?next=${next}`
+        }
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!mounted) return
+      setRole(normalizeUserRole(profile?.role))
+      setAuthLoading(false)
+    }
+
+    void loadRole()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadRole()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
@@ -622,6 +670,12 @@ export default function LineupBuilderPage() {
   }
 
   async function saveScenario(asNew = false) {
+    if (!isCaptainAccess) {
+      setError('Captain tier required to save scenarios.')
+      setMessage('')
+      return
+    }
+
     setSaving(true)
     setError('')
     setMessage('')
@@ -683,6 +737,12 @@ export default function LineupBuilderPage() {
   }
 
   async function deleteScenario(scenarioId: string) {
+    if (!isCaptainAccess) {
+      setError('Captain tier required to delete scenarios.')
+      setMessage('')
+      return
+    }
+
     const scenario = savedScenarios.find((row) => row.id === scenarioId)
     const confirmed = window.confirm(`Delete scenario "${scenario?.scenario_name ?? 'this scenario'}"?`)
     if (!confirmed) return
@@ -778,6 +838,22 @@ export default function LineupBuilderPage() {
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
+        {authLoading ? (
+          <section style={surfaceCardStrong}>
+            <p style={mutedTextStyle}>Loading captain access...</p>
+          </section>
+        ) : null}
+
+        {isMemberPreview ? (
+          <section style={surfaceCard}>
+            <p style={sectionKicker}>Member preview</p>
+            <h2 style={sectionTitle}>Captain analytics preview mode</h2>
+            <p style={sectionBodyTextStyle}>
+              You can review the builder and scenario analysis here, but saving and deleting scenarios require Captain access.
+            </p>
+          </section>
+        ) : null}
+
         <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
@@ -908,10 +984,10 @@ export default function LineupBuilderPage() {
               </div>
 
               <div style={actionRowStyle}>
-                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving || !isCaptainAccess}>
                   {saving ? 'Saving...' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
                 </button>
-                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
+                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving || !isCaptainAccess}>
                   Save as New
                 </button>
                 <Link href={compareHref} style={secondaryLinkButton}>Open Comparison</Link>
@@ -1123,7 +1199,7 @@ export default function LineupBuilderPage() {
                               {isLoading ? 'Loading...' : 'Load'}
                             </button>
 
-                            <button type="button" onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading} style={dangerButtonStyle}>
+                            <button type="button" onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading || !isCaptainAccess} style={dangerButtonStyle}>
                               {isDeleting ? 'Deleting...' : 'Delete'}
                             </button>
                           </div>

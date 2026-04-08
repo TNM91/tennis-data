@@ -4,7 +4,9 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
 import SiteShell from '@/app/components/site-shell'
 
 type ScenarioRow = {
@@ -240,6 +242,11 @@ function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[],
 }
 
 export default function ScenarioComparisonPage() {
+  const router = useRouter()
+
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
+
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -265,6 +272,52 @@ export default function ScenarioComparisonPage() {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+
+    async function loadRole() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const user = data.user
+
+        if (!user) {
+          if (mounted) {
+            setRole('public')
+            setAuthLoading(false)
+          }
+          router.replace('/login?next=/captain/scenario-builder')
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        const normalized = normalizeUserRole(profile?.role)
+
+        if (!mounted) return
+        setRole(normalized)
+      } finally {
+        if (mounted) setAuthLoading(false)
+      }
+    }
+
+    void loadRole()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadRole()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [router])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
 
     const params = new URLSearchParams(window.location.search)
@@ -277,6 +330,8 @@ export default function ScenarioComparisonPage() {
   }, [])
 
   useEffect(() => {
+    if (authLoading || role === 'public') return
+
     let mounted = true
 
     async function load() {
@@ -326,12 +381,12 @@ export default function ScenarioComparisonPage() {
       setLoading(false)
     }
 
-    load()
+    void load()
 
     return () => {
       mounted = false
     }
-  }, [])
+  }, [authLoading, role])
 
   const leagueOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.league_name)), [scenarios])
   const flightOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.flight)), [scenarios])
@@ -393,8 +448,24 @@ export default function ScenarioComparisonPage() {
     return 1 / (1 + Math.exp(-combinedDiff * 3.2))
   }, [yourComparison.avgDiff, opponentComparison.avgDiff])
 
+  const premiumEnabled = isCaptain(role)
+
   const builderHref = (scenarioId: string) =>
-  `/captain/lineup-builder?scenarioId=${encodeURIComponent(scenarioId)}&source=scenario`
+    `/captain/lineup-builder?scenarioId=${encodeURIComponent(scenarioId)}&source=scenario`
+
+  if (authLoading) {
+    return (
+      <SiteShell active="/captain">
+        <section style={pageContentStyle}>
+          <section style={surfaceCard}>
+            <p style={mutedTextStyle}>Loading scenario builder...</p>
+          </section>
+        </section>
+      </SiteShell>
+    )
+  }
+
+  if (role === 'public') return null
 
   return (
     <SiteShell active="/captain">
@@ -448,6 +519,12 @@ export default function ScenarioComparisonPage() {
                 </div>
               ))}
             </div>
+
+            {!premiumEnabled ? (
+              <div style={{ marginTop: 18 }}>
+                <span style={warnPill}>Preview mode</span>
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -782,31 +859,29 @@ export default function ScenarioComparisonPage() {
                     <OverallCard projection={overallProjection} />
                   </section>
 
-                  
                   <section style={surfaceCardStrong}>
                     <p style={sectionKicker}>Final decision</p>
                     <h2 style={sectionTitle}>Which scenario should you play?</h2>
 
-                    <div style={{marginTop:12, display:'grid', gap:10}}>
+                    <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
                       <div style={miniPillBlue}>
-                        Scenario A win chance: {Math.round(overallProjection*100)}%
+                        Scenario A win chance: {Math.round(overallProjection * 100)}%
                       </div>
                       <div style={miniPillGreen}>
-                        Scenario B win chance: {100 - Math.round(overallProjection*100)}%
+                        Scenario B win chance: {100 - Math.round(overallProjection * 100)}%
                       </div>
                     </div>
 
-                    <div style={{marginTop:14}}>
+                    <div style={{ marginTop: 14 }}>
                       <strong>
-  Recommendation: {overallProjection >= 0.5 ? 'Play Scenario A' : 'Play Scenario B'}
-</strong>
+                        Recommendation: {overallProjection >= 0.5 ? 'Play Scenario A' : 'Play Scenario B'}
+                      </strong>
 
-<div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
-  Next step: Send this lineup to your team
-</div>
+                      <div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
+                        Next step: Send this lineup to your team
+                      </div>
                     </div>
                   </section>
-
 
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
@@ -864,34 +939,39 @@ export default function ScenarioComparisonPage() {
                       >
                         Edit Winning Scenario
                       </Link>
-                    <button
-  type="button"
-  style={ghostButtonSmall}
-  onClick={() => {
-    const winningScenario =
-      overallProjection >= 0.5 ? leftScenario : rightScenario
+                      <button
+                        type="button"
+                        style={ghostButtonSmall}
+                        onClick={() => {
+                          if (!premiumEnabled) {
+                            setError('Captain tier required to send the winning scenario to messaging.')
+                            return
+                          }
 
-    if (!winningScenario) return
+                          const winningScenario =
+                            overallProjection >= 0.5 ? leftScenario : rightScenario
 
-    localStorage.setItem(
-      'tenace_selected_scenario',
-      JSON.stringify(winningScenario)
-    )
+                          if (!winningScenario) return
 
-    localStorage.setItem(
-      'tenace_flow_source',
-      'scenario_builder'
-    )
+                          localStorage.setItem(
+                            'tenace_selected_scenario',
+                            JSON.stringify(winningScenario)
+                          )
 
-    const team = winningScenario.team_name || ''
-    const league = winningScenario.league_name || ''
-    const flight = winningScenario.flight || ''
+                          localStorage.setItem(
+                            'tenace_flow_source',
+                            'scenario_builder'
+                          )
 
-    window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
-  }}
->
-  Send Winning Scenario
-</button>
+                          const team = winningScenario.team_name || ''
+                          const league = winningScenario.league_name || ''
+                          const flight = winningScenario.flight || ''
+
+                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                        }}
+                      >
+                        Send Winning Scenario
+                      </button>
                       <Link href="/captain" style={ghostButtonSmall}>
                         Back to Captain Hub
                       </Link>
@@ -1065,6 +1145,11 @@ export default function ScenarioComparisonPage() {
                         type="button"
                         style={ghostButtonSmall}
                         onClick={() => {
+                          if (!premiumEnabled) {
+                            setError('Captain tier required to open messaging from scenario builder.')
+                            return
+                          }
+
                           const winningScenario =
                             overallProjection >= 0.5 ? leftScenario : rightScenario
 
@@ -1716,11 +1801,11 @@ const ghostButton: CSSProperties = {
 const ghostButtonSmall: CSSProperties = {
   ...ghostButton,
   minHeight: '42px',
+  cursor: 'pointer',
 }
 
 const ghostButtonSmallButton: CSSProperties = {
   ...ghostButtonSmall,
-  cursor: 'pointer',
   appearance: 'none',
 }
 

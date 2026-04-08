@@ -4,8 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
+import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 
 type ContactRow = {
   id: string
@@ -393,7 +396,121 @@ function eventDefaultMessage(kind: MessageKind, params: {
   return `Following up for ${dateText}. I still need your response. Please reply ASAP so I can finalize the lineup.`
 }
 
+
+function demoEventKey() {
+  return safeKey(demoScenario.team_name || demoMatch.home_team, demoScenario.league_name || demoMatch.league_name, demoScenario.flight || demoMatch.flight, demoScenario.match_date || demoMatch.match_date)
+}
+
+function buildDemoContacts(): ContactRow[] {
+  const names = Array.from(
+    new Set([
+      ...normalizeSlots(demoScenario.slots_json).flatMap((slot) => slot.players),
+      ...demoAvailability.map((row) => normalizeText((row as { name?: string }).name)),
+      ...demoResponses.map((row) => normalizeText((row as { name?: string }).name)),
+    ].map((name) => normalizeText(name)).filter(Boolean))
+  )
+
+  return names.map((name, index) => ({
+    id: `demo-contact-${index + 1}`,
+    team_name: demoScenario.team_name || demoMatch.home_team || 'Demo Team',
+    league_name: demoScenario.league_name || demoMatch.league_name || null,
+    flight: demoScenario.flight || demoMatch.flight || null,
+    season_label: inferSeasonLabel(demoScenario.match_date || demoMatch.match_date) || null,
+    session_label: inferSessionLabel(demoScenario.match_date || demoMatch.match_date) || null,
+    full_name: name,
+    phone: `555000${String(index + 1).padStart(4, '0')}`,
+    role: index === 0 ? 'Captain' : 'Player',
+    is_captain: index === 0,
+    is_active: true,
+    opt_in_text: true,
+    notes: 'Demo contact',
+  }))
+}
+
+function buildDemoAvailabilityRows(contacts: ContactRow[]): WeeklyAvailability[] {
+  const eventKey = demoEventKey()
+  const statusByName = new Map(
+    demoAvailability.map((row) => [
+      normalizeText((row as { name?: string }).name).toLowerCase(),
+      normalizeText((row as { status?: string }).status).toLowerCase(),
+    ])
+  )
+
+  return contacts.map((contact) => {
+    const rawStatus = statusByName.get(contact.full_name.toLowerCase()) || 'no-response'
+    const normalizedStatus: WeeklyAvailability['status'] =
+      rawStatus === 'yes' || rawStatus === 'available'
+        ? 'available'
+        : rawStatus === 'no' || rawStatus === 'unavailable'
+          ? 'unavailable'
+          : rawStatus === 'maybe' || rawStatus === 'tentative'
+            ? 'tentative'
+            : 'no-response'
+
+    return {
+      id: `demo-availability-${contact.id}`,
+      event_key: eventKey,
+      contact_id: contact.id,
+      status: normalizedStatus,
+      note: 'Demo availability',
+      updated_at: new Date().toISOString(),
+    }
+  })
+}
+
+function buildDemoResponseRows(contacts: ContactRow[]): WeeklyResponse[] {
+  const eventKey = demoEventKey()
+  const statusByName = new Map(
+    demoResponses.map((row) => [
+      normalizeText((row as { name?: string }).name).toLowerCase(),
+      normalizeText((row as { response?: string }).response).toLowerCase(),
+    ])
+  )
+
+  return contacts.map((contact) => {
+    const rawStatus = statusByName.get(contact.full_name.toLowerCase()) || 'no-response'
+    const normalizedStatus: WeeklyResponse['status'] =
+      rawStatus === 'confirmed'
+        ? 'confirmed'
+        : rawStatus === 'declined' || rawStatus === 'no'
+          ? 'declined'
+          : rawStatus === 'tentative'
+            ? 'viewed'
+            : rawStatus === 'running-late'
+              ? 'running-late'
+              : rawStatus === 'need-sub'
+                ? 'need-sub'
+                : rawStatus === 'viewed'
+                  ? 'viewed'
+                  : 'no-response'
+
+    return {
+      id: `demo-response-${contact.id}`,
+      event_key: eventKey,
+      contact_id: contact.id,
+      status: normalizedStatus,
+      note: 'Demo response',
+      updated_at: new Date().toISOString(),
+    }
+  })
+}
+
+function buildDemoLineupRows(): LineupAssignment[] {
+  const eventKey = demoEventKey()
+  return normalizeSlots(demoScenario.slots_json).map((slot, index) => ({
+    id: `demo-lineup-${index + 1}`,
+    event_key: eventKey,
+    court_label: slot.label,
+    slot_type: slot.slotType,
+    players: slot.players,
+  }))
+}
+
+
 export default function CaptainMessagingPage() {
+  const router = useRouter()
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
   const [screenWidth, setScreenWidth] = useState(1280)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -449,6 +566,64 @@ export default function CaptainMessagingPage() {
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
+  const captainAccess = isCaptain(role)
+
+  function requireCaptainAccess(message = 'Captain tier required to use Messaging.') {
+    if (captainAccess) return true
+    setError(message)
+    return false
+  }
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadAuth() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const user = data.user
+
+        if (!user) {
+          if (mounted) {
+            setRole('public')
+            setAuthLoading(false)
+          }
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (!mounted) return
+
+        setRole(normalizeUserRole(profile?.role))
+      } finally {
+        if (mounted) setAuthLoading(false)
+      }
+    }
+
+    void loadAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadAuth()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (role === 'public') {
+      router.replace('/login')
+    }
+  }, [authLoading, role, router])
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
@@ -506,22 +681,43 @@ export default function CaptainMessagingPage() {
 
         if (!mounted) return
 
+        const demoContacts = buildDemoContacts()
+        const demoAvailabilityRows = buildDemoAvailabilityRows(demoContacts)
+        const demoResponseRows = buildDemoResponseRows(demoContacts)
+        const demoLineupRows = buildDemoLineupRows()
+
         const contactsOk = !contactsResult.error
         const templatesOk = !templatesResult.error
+        const matchesData = (matchesResult.data ?? []) as MatchRow[]
+        const scenariosData = (scenariosResult.data ?? []) as ScenarioRow[]
+        const localContacts = readLocal<ContactRow>(CONTACTS_STORAGE_KEY)
+        const localTemplates = readLocal<TemplateRow>(TEMPLATES_STORAGE_KEY)
+        const localAvailability = readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY)
+        const localResponses = readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY)
+        const localLineups = readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY)
 
         if (matchesResult.error) throw matchesResult.error
+
+        const shouldUseDemo = matchesData.length === 0 && scenariosData.length === 0 && localContacts.length === 0
+
         if (!contactsOk || !templatesOk) {
           setStorageMode('local')
-          setContacts(readLocal<ContactRow>(CONTACTS_STORAGE_KEY))
-          setTemplates(readLocal<TemplateRow>(TEMPLATES_STORAGE_KEY))
+          setContacts(localContacts.length ? localContacts : shouldUseDemo ? demoContacts : [])
+          setTemplates(localTemplates)
         } else {
           setStorageMode('supabase')
-          setContacts((contactsResult.data ?? []) as ContactRow[])
+          setContacts(
+            (contactsResult.data ?? []).length
+              ? ((contactsResult.data ?? []) as ContactRow[])
+              : shouldUseDemo
+                ? demoContacts
+                : []
+          )
           setTemplates((templatesResult.data ?? []) as TemplateRow[])
         }
 
-        setMatches((matchesResult.data ?? []) as MatchRow[])
-        setScenarios(((scenariosResult.data ?? []) as ScenarioRow[]) || [])
+        setMatches(matchesData.length ? matchesData : shouldUseDemo ? [demoMatch as MatchRow] : [])
+        setScenarios(scenariosData.length ? scenariosData : shouldUseDemo ? [demoScenario as ScenarioRow] : [])
 
         let syncedAvailability: ExternalAvailabilityRow[] = []
         let syncedSource: string | null = null
@@ -539,17 +735,28 @@ export default function CaptainMessagingPage() {
         setExternalAvailabilityRows(syncedAvailability)
         setAvailabilitySyncSource(syncedSource)
 
-        setAvailability(readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY))
-        setResponses(readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY))
-        setLineups(readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY))
+        setAvailability(localAvailability.length ? localAvailability : shouldUseDemo ? demoAvailabilityRows : [])
+        setResponses(localResponses.length ? localResponses : shouldUseDemo ? demoResponseRows : [])
+        setLineups(localLineups.length ? localLineups : shouldUseDemo ? demoLineupRows : [])
+
+        if (shouldUseDemo) {
+          setLeagueFilter((current) => current || (demoScenario.league_name || ''))
+          setFlightFilter((current) => current || (demoScenario.flight || ''))
+          setTeamFilter((current) => current || (demoScenario.team_name || demoMatch.home_team || ''))
+          setEventMatchId((current) => current || demoMatch.id)
+          setSelectedScenarioId((current) => current || demoScenario.id)
+          if (!eventArrivalTime) setEventArrivalTime('7:15 PM')
+          if (!eventLocation) setEventLocation('Demo Tennis Club')
+          if (!eventNotes) setEventNotes('Demo mode active — seeded workflow for testing.')
+        }
 
         type EventDetail = {
-  key: string
-  location: string
-  directions: string
-  arrivalTime: string
-  notes: string
-}
+          key: string
+          location: string
+          directions: string
+          arrivalTime: string
+          notes: string
+        }
 
         const eventDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY)
         const detail = eventDetails[0]
@@ -561,15 +768,26 @@ export default function CaptainMessagingPage() {
         }
       } catch (err) {
         if (!mounted) return
+        const demoContacts = buildDemoContacts()
         setStorageMode('local')
-        setContacts(readLocal<ContactRow>(CONTACTS_STORAGE_KEY))
+        setContacts(readLocal<ContactRow>(CONTACTS_STORAGE_KEY).length ? readLocal<ContactRow>(CONTACTS_STORAGE_KEY) : demoContacts)
         setTemplates(readLocal<TemplateRow>(TEMPLATES_STORAGE_KEY))
         setExternalAvailabilityRows([])
         setAvailabilitySyncSource(null)
-        setAvailability(readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY))
-        setResponses(readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY))
-        setLineups(readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY))
-        setError(err instanceof Error ? err.message : 'Unable to load captain messaging data.')
+        setAvailability(readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY).length ? readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY) : buildDemoAvailabilityRows(demoContacts))
+        setResponses(readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY).length ? readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY) : buildDemoResponseRows(demoContacts))
+        setLineups(readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY).length ? readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY) : buildDemoLineupRows())
+        setMatches([demoMatch as MatchRow])
+        setScenarios([demoScenario as ScenarioRow])
+        setLeagueFilter((current) => current || (demoScenario.league_name || ''))
+        setFlightFilter((current) => current || (demoScenario.flight || ''))
+        setTeamFilter((current) => current || (demoScenario.team_name || demoMatch.home_team || ''))
+        setEventMatchId((current) => current || demoMatch.id)
+        setSelectedScenarioId((current) => current || demoScenario.id)
+        if (!eventArrivalTime) setEventArrivalTime('7:15 PM')
+        if (!eventLocation) setEventLocation('Demo Tennis Club')
+        if (!eventNotes) setEventNotes('Demo mode active — seeded workflow for testing.')
+        setError(err instanceof Error ? `${err.message} — demo mode loaded.` : 'Unable to load captain messaging data. Demo mode loaded.')
       } finally {
         if (mounted) setLoading(false)
       }
@@ -1218,7 +1436,87 @@ export default function CaptainMessagingPage() {
     })
   }, [scopedContacts, availabilityMap, responseMap])
 
+  const needSubContacts = useMemo(() => {
+    return scopedContacts.filter((contact) => {
+      const responseStatus = responseMap.get(contact.id)?.status ?? 'no-response'
+      return responseStatus === 'need-sub'
+    })
+  }, [scopedContacts, responseMap])
+
+  const runningLateContacts = useMemo(() => {
+    return scopedContacts.filter((contact) => {
+      const responseStatus = responseMap.get(contact.id)?.status ?? 'no-response'
+      return responseStatus === 'running-late'
+    })
+  }, [scopedContacts, responseMap])
+
+  const tentativeContacts = useMemo(() => {
+    return scopedContacts.filter((contact) => {
+      const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
+      return availabilityStatus === 'tentative'
+    })
+  }, [scopedContacts, availabilityMap])
+
+  const noResponseContacts = useMemo(() => {
+    return scopedContacts.filter((contact) => {
+      const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
+      const responseStatus = responseMap.get(contact.id)?.status ?? 'no-response'
+      return availabilityStatus === 'no-response' || responseStatus === 'no-response' || responseStatus === 'viewed'
+    })
+  }, [scopedContacts, availabilityMap, responseMap])
+
+  const followUpEngine = useMemo(() => {
+    if (needSubContacts.length > 0) {
+      return {
+        label: 'Need sub now',
+        tone: 'warn' as const,
+        audience: 'captains' as RecipientMode,
+        kind: 'follow-up' as MessageKind,
+        detail: `${needSubContacts.length} player${needSubContacts.length === 1 ? '' : 's'} need${needSubContacts.length === 1 ? 's' : ''} a replacement.`,
+      }
+    }
+
+    if (runningLateContacts.length > 0) {
+      return {
+        label: 'Check arrival risk',
+        tone: 'warn' as const,
+        audience: 'captains' as RecipientMode,
+        kind: 'follow-up' as MessageKind,
+        detail: `${runningLateContacts.length} player${runningLateContacts.length === 1 ? '' : 's'} reported running late.`,
+      }
+    }
+
+    if (tentativeContacts.length > 0) {
+      return {
+        label: 'Resolve tentative players',
+        tone: 'info' as const,
+        audience: 'custom' as RecipientMode,
+        kind: 'follow-up' as MessageKind,
+        detail: `${tentativeContacts.length} tentative availability response${tentativeContacts.length === 1 ? '' : 's'} still need clarity.`,
+      }
+    }
+
+    if (noResponseContacts.length > 0) {
+      return {
+        label: 'Nudge non-responders',
+        tone: 'info' as const,
+        audience: 'non-responders' as RecipientMode,
+        kind: 'follow-up' as MessageKind,
+        detail: `${noResponseContacts.length} player${noResponseContacts.length === 1 ? '' : 's'} still have not replied.`,
+      }
+    }
+
+    return {
+      label: 'No follow-up pressure',
+      tone: 'good' as const,
+      audience: 'lineup-only' as RecipientMode,
+      kind: 'lineup' as MessageKind,
+      detail: 'No urgent follow-up issues are showing right now.',
+    }
+  }, [needSubContacts, runningLateContacts, tentativeContacts, noResponseContacts])
+
   async function saveContacts(nextContacts: ContactRow[]) {
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
     setContacts(nextContacts)
     if (storageMode === 'local') {
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
@@ -1235,6 +1533,7 @@ export default function CaptainMessagingPage() {
   }
 
   async function saveTemplates(nextTemplates: TemplateRow[]) {
+    if (!requireCaptainAccess('Captain tier required to manage templates.')) return
     setTemplates(nextTemplates)
     if (storageMode === 'local') {
       writeLocal(TEMPLATES_STORAGE_KEY, nextTemplates)
@@ -1251,16 +1550,19 @@ export default function CaptainMessagingPage() {
   }
 
   function saveAvailability(nextRows: WeeklyAvailability[]) {
+    if (!requireCaptainAccess('Captain tier required to update weekly availability.')) return
     setAvailability(nextRows)
     writeLocal(AVAILABILITY_STORAGE_KEY, nextRows)
   }
 
   function saveResponses(nextRows: WeeklyResponse[]) {
+    if (!requireCaptainAccess('Captain tier required to update weekly responses.')) return
     setResponses(nextRows)
     writeLocal(RESPONSES_STORAGE_KEY, nextRows)
   }
 
   function saveLineups(nextRows: LineupAssignment[]) {
+    if (!requireCaptainAccess('Captain tier required to update the weekly lineup.')) return
     setLineups(nextRows)
     writeLocal(LINEUPS_STORAGE_KEY, nextRows)
   }
@@ -1515,6 +1817,69 @@ function importScenarioToLineup() {
     )
   }
 
+
+  function loadNeedSubMessage() {
+    const names = needSubContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
+    const nameText = names.length ? `${names.join(', ')} — ` : ''
+
+    setRecipientMode('captains')
+    setMessageKind('follow-up')
+    setMessageTitle('Sub Needed')
+    setMessageBody(
+      `${nameText}just checking in — we need a substitution update for ${formatDate(selectedMatch?.match_date)}. Please confirm replacement options as soon as you can so I can finalize the lineup.`
+    )
+  }
+
+  function loadRunningLateMessage() {
+    const names = runningLateContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
+    const nameText = names.length ? `${names.join(', ')} — ` : ''
+
+    setRecipientMode('captains')
+    setMessageKind('follow-up')
+    setMessageTitle('Arrival Check')
+    setMessageBody(
+      `${nameText}just checking in on arrival timing for ${formatDate(selectedMatch?.match_date)}. Please send the latest ETA so captain planning stays clean.`
+    )
+  }
+
+  function loadTentativeMessage() {
+    const names = tentativeContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
+    const nameText = names.length ? `${names.join(', ')} — ` : ''
+
+    setRecipientMode('custom')
+    setSelectedRecipientIds(tentativeContacts.map((contact) => contact.id))
+    setMessageKind('follow-up')
+    setMessageTitle('Tentative Status Check')
+    setMessageBody(
+      `${nameText}just checking in — I still need a final yes or no for ${formatDate(selectedMatch?.match_date)} so I can lock the lineup. Please reply when you can.`
+    )
+  }
+
+  function applyFollowUpEngine() {
+    if (followUpEngine.label === 'Need sub now') {
+      loadNeedSubMessage()
+      return
+    }
+
+    if (followUpEngine.label === 'Check arrival risk') {
+      loadRunningLateMessage()
+      return
+    }
+
+    if (followUpEngine.label === 'Resolve tentative players') {
+      loadTentativeMessage()
+      return
+    }
+
+    if (followUpEngine.label === 'Nudge non-responders') {
+      loadAutoFollowUpMessage()
+      return
+    }
+
+    setRecipientMode('lineup-only')
+    applyWinningLineupToComposer()
+  }
+
   function loadRecipientMode(mode: RecipientMode, kind?: MessageKind) {
     setRecipientMode(mode)
     if (kind) setMessageKind(kind)
@@ -1565,6 +1930,20 @@ function importScenarioToLineup() {
 
   const scopedTemplates = useMemo(() => templates.filter((template) => !teamFilter || template.team_name === teamFilter), [templates, teamFilter])
 
+  if (authLoading) {
+    return (
+      <SiteShell active="/captain">
+        <section style={pageContentStyle}>
+          <section style={surfaceCard}>
+            <p style={mutedTextStyle}>Loading captain messaging...</p>
+          </section>
+        </section>
+      </SiteShell>
+    )
+  }
+
+  if (role === 'public') return null
+
   return (
     <SiteShell active="/captain">
       <section style={pageContentStyle}>
@@ -1607,6 +1986,22 @@ function importScenarioToLineup() {
               ))}
             </div>
           </div>
+        </section>
+
+        <section style={surfaceCard}>
+          <div style={tableHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Captain tier</p>
+              <h3 style={sectionTitleSmall}>{captainAccess ? 'Premium messaging unlocked' : 'Preview mode active'}</h3>
+            </div>
+            <span style={captainAccess ? miniPillGreen : warnPill}>
+              {captainAccess ? 'Captain access' : 'Member preview'}
+            </span>
+          </div>
+          <p style={mutedTextStyle}>
+            Members can review workflow, lineup intelligence, and message planning. Captain and admin roles unlock editing,
+            lineup sync, contact management, template saves, and live send execution.
+          </p>
         </section>
 
         <section style={contentWrap}>
@@ -1812,7 +2207,7 @@ function importScenarioToLineup() {
                       </select>
                     </Field>
                     <Field label="Import to weekly lineup">
-                      <button type="button" style={primaryButtonBlock} onClick={importScenarioToLineup} disabled={!selectedScenario}>Import scenario</button>
+                      <button type="button" style={primaryButtonBlock} onClick={importScenarioToLineup} disabled={!selectedScenario || !captainAccess}>Import scenario</button>
                     </Field>
                   </div>
 
@@ -1841,961 +2236,1026 @@ function importScenarioToLineup() {
                   </div>
                 </section>
 
-                <section style={surfaceCard}>
-                  <div style={tableHeaderStyle}>
-                    <div>
-                      
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Winning lineup</p>
-      <h3 style={sectionTitleSmall}>Send your finalized scenario</h3>
-    </div>
-    <span style={miniPillGreen}>
-      {selectedScenario ? 'Scenario selected' : 'No scenario'}
-    </span>
-  </div>
-
-  {selectedScenario ? (
-    <>
-      <div style={{ marginBottom: 12 }}>
-        <div style={miniPillBlue}>{selectedScenario.scenario_name}</div>
-      </div>
-
-      <div style={{ marginBottom: 16, color: '#dfe8f8' }}>
-        This will generate a clean lineup message using your selected scenario and push it directly into the composer.
-      </div>
-
-      <div style={actionRowStyle}>
-        <button
-          type="button"
-          style={primaryButton}
-          onClick={applyWinningLineupToComposer}
-        >
-          Load Winning Lineup Message
-        </button>
-
-        <button
-          type="button"
-          style={ghostButtonSmallButton}
-          onClick={importScenarioToLineup}
-        >
-          Sync to lineup editor
-        </button>
-      </div>
-    </>
-  ) : (
-    <p style={mutedTextStyle}>
-      Select a scenario above to enable one-click lineup messaging.
-    </p>
-  )}
-</section>
-
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Finalization intelligence</p>
-      <h3 style={sectionTitleSmall}>What is blocking lineup finalization</h3>
-    </div>
-    <span style={finalizationReadiness.ready ? miniPillGreen : warnPill}>
-      {finalizationReadiness.label}
-    </span>
-  </div>
-
-  <div style={intelligenceGridStyle}>
-    <div style={intelligenceCardStyle}>
-      <div style={intelligenceLabelStyle}>Lineup status</div>
-      <div style={intelligenceValueStyle}>
-        {finalizationReadiness.lineupComplete ? 'Complete' : 'Open spots'}
-      </div>
-      <div style={intelligenceTextStyle}>
-        {finalizationReadiness.lineupComplete
-          ? 'Every lineup slot currently has player names filled in.'
-          : 'One or more lineup slots still need a player before you send the final plan.'}
-      </div>
-    </div>
-
-    <div style={intelligenceCardStyle}>
-      <div style={intelligenceLabelStyle}>Availability clarity</div>
-      <div style={intelligenceValueStyle}>
-        {finalizationReadiness.clearAvailability ? 'Clear' : 'Still unresolved'}
-      </div>
-      <div style={intelligenceTextStyle}>
-        {finalizationReadiness.clearAvailability
-          ? 'No tentative or no-response availability statuses are blocking the week.'
-          : 'You still have tentative or missing availability responses to resolve.'}
-      </div>
-    </div>
-
-    <div style={intelligenceCardStyle}>
-      <div style={intelligenceLabelStyle}>Response stability</div>
-      <div style={intelligenceValueStyle}>
-        {finalizationReadiness.responseStable ? 'Stable' : 'Needs follow-up'}
-      </div>
-      <div style={intelligenceTextStyle}>
-        {finalizationReadiness.responseStable
-          ? 'Current replies are stable enough to move toward sending the final plan.'
-          : 'Late replies, no-responses, or sub requests still need captain attention.'}
-      </div>
-    </div>
-  </div>
-
-  <div style={pillRowStyle}>
-    <span style={miniPillSlate}>{blockingContacts.length} blocking contact{blockingContacts.length === 1 ? '' : 's'}</span>
-    <span style={miniPillBlue}>{followUpTargets.length} follow-up target{followUpTargets.length === 1 ? '' : 's'}</span>
-    <span style={finalizationReadiness.ready ? miniPillGreen : warnPill}>
-      {finalizationReadiness.ready ? 'Message can go out' : 'Refine before sending'}
-    </span>
-  </div>
-
-  {blockingContacts.length ? (
-    <div style={blockingListStyle}>
-      {blockingContacts.slice(0, 8).map((contact) => {
-        const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
-        const responseStatus = responseMap.get(contact.id)?.status ?? 'no-response'
-        return (
-          <div key={contact.id} style={blockingCardStyle}>
-            <div>
-              <div style={blockingNameStyle}>{contact.full_name}</div>
-              <div style={blockingMetaStyle}>
-                Availability: {availabilityStatus.replace('-', ' ')} • Response: {responseStatus.replace('-', ' ')}
-              </div>
-            </div>
-            <span style={
-              responseStatus === 'declined' || responseStatus === 'need-sub'
-                ? warnPill
-                : availabilityStatus === 'available'
-                  ? miniPillBlue
-                  : miniPillSlate
-            }>
-              {lineupPlayerSet.has(contact.full_name.toLowerCase()) ? 'In lineup' : 'Watch list'}
-            </span>
-          </div>
-        )
-      })}
-    </div>
-  ) : (
-    <p style={mutedTextStyle}>No obvious blockers right now. Your captain workflow is clean enough to move toward communication.</p>
-  )}
-</section>
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Smart follow-ups</p>
-      <h3 style={sectionTitleSmall}>Load the next best captain message</h3>
-    </div>
-    <span style={miniPillSlate}>{followUpTargets.length} target{followUpTargets.length === 1 ? '' : 's'}</span>
-  </div>
-
-  <div style={intelligenceGridStyle}>
-    <div style={intelligenceCardStyle}>
-      <div style={intelligenceLabelStyle}>Best next move</div>
-      <div style={intelligenceValueStyle}>
-        {followUpTargets.length ? 'Follow up now' : 'Lineup message next'}
-      </div>
-      <div style={intelligenceTextStyle}>
-        {followUpTargets.length
-          ? 'There are still people blocking final confirmation. Load a follow-up message and target non-responders.'
-          : 'The roster is responding. You are in a good place to send the winning lineup message.'}
-      </div>
-    </div>
-
-    <div style={intelligenceCardStyle}>
-      <div style={intelligenceLabelStyle}>Captain prompt</div>
-      <div style={intelligenceValueStyle}>
-        {finalizationReadiness.ready ? 'Send the plan' : 'Clear blockers first'}
-      </div>
-      <div style={intelligenceTextStyle}>
-        {finalizationReadiness.ready
-          ? 'The workflow is stable enough to move from planning into communication.'
-          : 'Use the follow-up tools and blocker list to remove uncertainty before messaging the full team.'}
-      </div>
-    </div>
-  </div>
-
-  <div style={actionRowStyle}>
-    <button type="button" style={primaryButton} onClick={loadAutoFollowUpMessage}>
-      Load Auto Follow-Up
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={() => setRecipientMode('non-responders')}>
-      Target Non-Responders
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={() => setMessageKind('lineup')}>
-      Switch to Lineup Message
-    </button>
-  </div>
-</section>
-
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Recipient intelligence</p>
-      <h3 style={sectionTitleSmall}>Who this message should really go to</h3>
-    </div>
-    <span style={miniPillSlate}>{selectedRecipients.length} currently selected</span>
-  </div>
-
-  <div style={recipientIntelligenceGridStyle}>
-    <div style={recipientIntelligenceCardStyle}>
-      <div style={recipientIntelligenceLabelStyle}>All opted-in</div>
-      <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.totalOptedIn}</div>
-      <div style={recipientIntelligenceTextStyle}>Everyone eligible to receive texts in the current roster scope.</div>
-    </div>
-
-    <div style={recipientIntelligenceCardStyle}>
-      <div style={recipientIntelligenceLabelStyle}>Lineup only</div>
-      <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.lineupOnly}</div>
-      <div style={recipientIntelligenceTextStyle}>Players currently placed in the weekly lineup.</div>
-    </div>
-
-    <div style={recipientIntelligenceCardStyle}>
-      <div style={recipientIntelligenceLabelStyle}>Captains</div>
-      <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.captainsOnly}</div>
-      <div style={recipientIntelligenceTextStyle}>Captain-only audience for quick coordination or escalation.</div>
-    </div>
-
-    <div style={recipientIntelligenceCardStyle}>
-      <div style={recipientIntelligenceLabelStyle}>Need reply</div>
-      <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.nonRespondersOnly}</div>
-      <div style={recipientIntelligenceTextStyle}>Best target group when you need to clear blockers fast.</div>
-    </div>
-  </div>
-
-  <div style={actionRowStyle}>
-    <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('lineup-only', 'lineup')}>
-      Target lineup only
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('available-only', 'reminder')}>
-      Target available only
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('captains', 'follow-up')}>
-      Target captains
-    </button>
-    <button type="button" style={primaryButton} onClick={() => loadRecipientMode('non-responders', 'follow-up')}>
-      Target blockers
-    </button>
-  </div>
-</section>
-
-
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Captain action queue</p>
-      <h3 style={sectionTitleSmall}>The next best moves for this week</h3>
-    </div>
-    <span style={captainActionQueue.length <= 1 ? miniPillGreen : warnPill}>
-      {captainActionQueue.length} priority action{captainActionQueue.length === 1 ? '' : 's'}
-    </span>
-  </div>
-
-  <div style={actionQueueGridStyle}>
-    {captainActionQueue.length ? captainActionQueue.map((item, index) => (
-      <div
-        key={`${item.title}-${index}`}
-        style={
-          item.tone === 'good'
-            ? actionQueueCardGoodStyle
-            : item.tone === 'warn'
-              ? actionQueueCardWarnStyle
-              : actionQueueCardInfoStyle
-        }
-      >
-        <div style={actionQueueLabelStyle}>Priority {index + 1}</div>
-        <div style={actionQueueValueStyle}>{item.title}</div>
-        <div style={actionQueueTextStyle}>{item.detail}</div>
-      </div>
-    )) : (
-      <div style={actionQueueCardGoodStyle}>
-        <div style={actionQueueLabelStyle}>Priority</div>
-        <div style={actionQueueValueStyle}>Nothing urgent</div>
-        <div style={actionQueueTextStyle}>This weekly communication flow looks clean and ready to execute.</div>
-      </div>
-    )}
-  </div>
-</section>
-
-<p style={sectionKicker}>Weekly command snapshot</p>
-      <h3 style={sectionTitleSmall}>Where this captain workflow stands right now</h3>
-    </div>
-    <span style={
-      weeklyCommandSnapshot.readinessLabel === 'Ready to execute'
-        ? miniPillGreen
-        : weeklyCommandSnapshot.readinessLabel === 'Close to ready'
-          ? miniPillBlue
-          : warnPill
-    }>
-      {weeklyCommandSnapshot.readinessLabel}
-    </span>
-  </div>
-
-  <div style={weeklyCommandGridStyle}>
-    <div style={weeklyCommandCardStyle}>
-      <div style={weeklyCommandLabelStyle}>Scenario</div>
-      <div style={weeklyCommandValueStyle}>
-        {weeklyCommandSnapshot.scenarioLoaded ? 'Loaded' : 'Not loaded'}
-      </div>
-      <div style={weeklyCommandTextStyle}>
-        {weeklyCommandSnapshot.scenarioLoaded
-          ? 'A saved scenario is connected, so lineup messaging can stay tied to a real build.'
-          : 'Load or select a scenario if you want messaging to stay anchored to the winning version.'}
-      </div>
-    </div>
-
-    <div style={weeklyCommandCardStyle}>
-      <div style={weeklyCommandLabelStyle}>Lineup completeness</div>
-      <div style={weeklyCommandValueStyle}>
-        {weeklyCommandSnapshot.lineupTotalSlots
-          ? `${weeklyCommandSnapshot.lineupFilledSlots}/${weeklyCommandSnapshot.lineupTotalSlots}`
-          : 'No lineup'}
-      </div>
-      <div style={weeklyCommandTextStyle}>
-        This measures how many weekly lineup slots are fully filled with player names.
-      </div>
-    </div>
-
-    <div style={weeklyCommandCardStyle}>
-      <div style={weeklyCommandLabelStyle}>Message readiness</div>
-      <div style={weeklyCommandValueStyle}>
-        {weeklyCommandSnapshot.messageReady ? 'Ready' : 'Not ready'}
-      </div>
-      <div style={weeklyCommandTextStyle}>
-        A message body and recipient audience are both required before you can cleanly send the next captain text.
-      </div>
-    </div>
-
-    <div style={weeklyCommandCardStyle}>
-      <div style={weeklyCommandLabelStyle}>Unresolved blockers</div>
-      <div style={weeklyCommandValueStyle}>{weeklyCommandSnapshot.unresolvedCount}</div>
-      <div style={weeklyCommandTextStyle}>
-        These are the contacts or situations still preventing a clean lineup finalization.
-      </div>
-    </div>
-  </div>
-</section>
-
-<p style={sectionKicker}>Send strategy board</p>
-      <h3 style={sectionTitleSmall}>What message should go out next</h3>
-    </div>
-    <span style={sendStrategy.shouldFollowUp ? warnPill : miniPillGreen}>
-      {sendStrategy.label}
-    </span>
-  </div>
-
-  <div style={sendStrategyGridStyle}>
-    <div style={sendStrategyCardStyle}>
-      <div style={sendStrategyLabelStyle}>Best audience</div>
-      <div style={sendStrategyValueStyle}>
-        {sendStrategy.bestMode === 'non-responders'
-          ? 'Blockers / non-responders'
-          : sendStrategy.bestMode === 'lineup-only'
-            ? 'Lineup only'
-            : 'Available players'}
-      </div>
-      <div style={sendStrategyTextStyle}>
-        This is the cleanest audience for the next captain message based on current readiness and response state.
-      </div>
-    </div>
-
-    <div style={sendStrategyCardStyle}>
-      <div style={sendStrategyLabelStyle}>Best message</div>
-      <div style={sendStrategyValueStyle}>
-        {sendStrategy.bestKind === 'follow-up'
-          ? 'Follow-up'
-          : sendStrategy.bestKind === 'lineup'
-            ? 'Lineup announcement'
-            : 'Availability check'}
-      </div>
-      <div style={sendStrategyTextStyle}>
-        The console is reading your current week state and recommending the most useful next message type.
-      </div>
-    </div>
-
-    <div style={sendStrategyCardStyle}>
-      <div style={sendStrategyLabelStyle}>Send readiness</div>
-      <div style={sendStrategyValueStyle}>
-        {sendStrategy.hasRecipients ? 'Audience ready' : 'No audience'}
-      </div>
-      <div style={sendStrategyTextStyle}>
-        {sendStrategy.hasRecipients
-          ? 'You currently have recipients in scope for the recommended action.'
-          : 'Adjust team scope, recipient mode, or contact records before sending.'}
-      </div>
-    </div>
-  </div>
-
-  <div style={actionRowStyle}>
-    <button type="button" style={primaryButton} onClick={applyRecommendedSendStrategy}>
-      Apply Recommended Send Strategy
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={() => applyWinningLineupToComposer()}>
-      Load Lineup Message
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
-      Load Follow-Up
-    </button>
-  </div>
-</section>
-
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Execution checklist</p>
-      <h3 style={sectionTitleSmall}>What still needs to happen before you send</h3>
-    </div>
-    <span style={executionChecklist.every((item) => item.done) ? miniPillGreen : warnPill}>
-      {executionChecklist.filter((item) => item.done).length}/{executionChecklist.length} complete
-    </span>
-  </div>
-
-  <div style={executionChecklistGridStyle}>
-    {executionChecklist.map((item) => (
-      <div key={item.label} style={executionChecklistCardStyle}>
-        <div style={executionChecklistTopStyle}>
-          <div style={executionChecklistLabelStyle}>{item.label}</div>
-          <span style={item.done ? miniPillGreen : miniPillSlate}>
-            {item.done ? 'Done' : 'Open'}
-          </span>
-        </div>
-        <div style={executionChecklistDetailStyle}>{item.detail}</div>
-      </div>
-    ))}
-  </div>
-</section>
-
-
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Message outcome planner</p>
-      <h3 style={sectionTitleSmall}>What this send is likely to accomplish</h3>
-    </div>
-    <span style={miniPillBlue}>{messageOutcomePlanner.recommendation}</span>
-  </div>
-
-  <div style={outcomePlannerGridStyle}>
-    <div style={outcomePlannerCardStyle}>
-      <div style={outcomePlannerLabelStyle}>Audience size</div>
-      <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.audienceCount}</div>
-      <div style={outcomePlannerTextStyle}>
-        Total recipients currently targeted by the active message settings.
-      </div>
-    </div>
-
-    <div style={outcomePlannerCardStyle}>
-      <div style={outcomePlannerLabelStyle}>Lineup players reached</div>
-      <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.lineupAudience}</div>
-      <div style={outcomePlannerTextStyle}>
-        Helpful for seeing whether the current send is actually reaching the players in the weekly lineup.
-      </div>
-    </div>
-
-    <div style={outcomePlannerCardStyle}>
-      <div style={outcomePlannerLabelStyle}>Captain reach</div>
-      <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.captainAudience}</div>
-      <div style={outcomePlannerTextStyle}>
-        Useful when the message is meant for coordination rather than the full team.
-      </div>
-    </div>
-
-    <div style={outcomePlannerCardStyle}>
-      <div style={outcomePlannerLabelStyle}>Likely follow-up replies</div>
-      <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.likelyReplyCount}</div>
-      <div style={outcomePlannerTextStyle}>
-        Estimated number of currently targeted recipients who still need to respond or be nudged.
-      </div>
-    </div>
-  </div>
-
-  <div style={pillRowStyle}>
-    <span style={miniPillSlate}>{messageTitle || 'Untitled message'}</span>
-    <span style={messageOutcomePlanner.audienceCount ? miniPillGreen : warnPill}>
-      {messageOutcomePlanner.audienceCount ? 'Audience in scope' : 'No audience selected'}
-    </span>
-    <span style={messageBody.trim() ? miniPillBlue : miniPillSlate}>
-      {messageBody.trim() ? `${messageBody.trim().length} chars` : 'No message body'}
-    </span>
-  </div>
-</section>
-
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Communication sequence planner</p>
-      <h3 style={sectionTitleSmall}>The smartest order of operations this week</h3>
-    </div>
-    <span style={finalizationReadiness.ready ? miniPillGreen : miniPillSlate}>
-      {finalizationReadiness.ready ? 'Execution flow ready' : 'Work the sequence'}
-    </span>
-  </div>
-
-  <div style={sequencePlannerGridStyle}>
-    {messageSequencePlanner.map((step, index) => (
-      <div
-        key={`${step.title}-${index}`}
-        style={
-          step.tone === 'good'
-            ? sequencePlannerCardGoodStyle
-            : step.tone === 'warn'
-              ? sequencePlannerCardWarnStyle
-              : sequencePlannerCardInfoStyle
-        }
-      >
-        <div style={sequencePlannerLabelStyle}>Step {index + 1}</div>
-        <div style={sequencePlannerValueStyle}>{step.title}</div>
-        <div style={sequencePlannerTextStyle}>{step.detail}</div>
-      </div>
-    ))}
-  </div>
-</section>
-
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Message launch snapshot</p>
-      <h3 style={sectionTitleSmall}>What is about to go out</h3>
-    </div>
-    <span style={selectedRecipients.length && messageBody.trim() ? miniPillGreen : miniPillSlate}>
-      {selectedRecipients.length && messageBody.trim() ? 'Ready for review' : 'Still drafting'}
-    </span>
-  </div>
-
-  <div style={launchSnapshotGridStyle}>
-    <div style={launchSnapshotCardStyle}>
-      <div style={launchSnapshotLabelStyle}>Message type</div>
-      <div style={launchSnapshotValueStyle}>{messageKind.replace('-', ' ')}</div>
-      <div style={launchSnapshotTextStyle}>
-        Current communication mode selected for this send.
-      </div>
-    </div>
-
-    <div style={launchSnapshotCardStyle}>
-      <div style={launchSnapshotLabelStyle}>Audience</div>
-      <div style={launchSnapshotValueStyle}>{selectedRecipients.length}</div>
-      <div style={launchSnapshotTextStyle}>
-        Recipient count in the active send audience.
-      </div>
-    </div>
-
-    <div style={launchSnapshotCardStyle}>
-      <div style={launchSnapshotLabelStyle}>Scenario anchor</div>
-      <div style={launchSnapshotValueStyle}>
-        {selectedScenario?.scenario_name || 'None selected'}
-      </div>
-      <div style={launchSnapshotTextStyle}>
-        Saved scenario currently tied to the weekly lineup workflow.
-      </div>
-    </div>
-
-    <div style={launchSnapshotCardStyle}>
-      <div style={launchSnapshotLabelStyle}>Event</div>
-      <div style={launchSnapshotValueStyle}>
-        {selectedMatch ? formatDate(selectedMatch.match_date) : 'No match'}
-      </div>
-      <div style={launchSnapshotTextStyle}>
-        {selectedMatch
-          ? `${selectedMatch.home_team || 'TBD'} vs ${selectedMatch.away_team || 'TBD'}`
-          : 'Select a match to tighten the weekly communication context.'}
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Send confidence panel</p>
-      <h3 style={sectionTitleSmall}>How safe this send looks right now</h3>
-    </div>
-    <span style={
-      finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-        ? miniPillGreen
-        : Math.abs(selectedRecipients.length) > 0 && messageBody.trim()
-          ? miniPillBlue
-          : warnPill
-    }>
-      {
-        finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-          ? 'High confidence'
-          : selectedRecipients.length > 0 && messageBody.trim()
-            ? 'Usable but review'
-            : 'Not ready yet'
-      }
-    </span>
-  </div>
-
-  <div style={sendConfidenceGridStyle}>
-    <div style={sendConfidenceCardStyle}>
-      <div style={sendConfidenceLabelStyle}>Workflow state</div>
-      <div style={sendConfidenceValueStyle}>{sendStrategy.label}</div>
-      <div style={sendConfidenceTextStyle}>
-        This is the current recommended communication move based on lineup state and reply pressure.
-      </div>
-    </div>
-
-    <div style={sendConfidenceCardStyle}>
-      <div style={sendConfidenceLabelStyle}>Composer status</div>
-      <div style={sendConfidenceValueStyle}>
-        {messageBody.trim() ? 'Loaded' : 'Empty'}
-      </div>
-      <div style={sendConfidenceTextStyle}>
-        {messageBody.trim()
-          ? 'A message body is already loaded into the composer.'
-          : 'Load a lineup, follow-up, or availability message before sending.'}
-      </div>
-    </div>
-
-    <div style={sendConfidenceCardStyle}>
-      <div style={sendConfidenceLabelStyle}>Audience fit</div>
-      <div style={sendConfidenceValueStyle}>
-        {selectedRecipients.length ? `${selectedRecipients.length} selected` : 'No audience'}
-      </div>
-      <div style={sendConfidenceTextStyle}>
-        {selectedRecipients.length
-          ? 'There is an active recipient audience in scope for the next send.'
-          : 'Choose the right recipient mode or custom list before sending.'}
-      </div>
-    </div>
-
-    <div style={sendConfidenceCardStyle}>
-      <div style={sendConfidenceLabelStyle}>Final check</div>
-      <div style={sendConfidenceValueStyle}>
-        {finalizationReadiness.ready ? 'Clear to launch' : 'Review blockers'}
-      </div>
-      <div style={sendConfidenceTextStyle}>
-        {finalizationReadiness.ready
-          ? 'Lineup, availability, and responses are stable enough for a cleaner team send.'
-          : 'There are still blockers, open lineup issues, or unresolved replies worth checking first.'}
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Weekly send gate</p>
-      <h3 style={sectionTitleSmall}>Should you send now or hold one more step?</h3>
-    </div>
-    <span style={
-      finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-        ? miniPillGreen
-        : warnPill
-    }>
-      {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-        ? 'Send now'
-        : 'Hold and review'}
-    </span>
-  </div>
-
-  <div style={sendGateGridStyle}>
-    <div style={sendGateCardStyle}>
-      <div style={sendGateLabelStyle}>Recommendation</div>
-      <div style={sendGateValueStyle}>
-        {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-          ? 'Launch the message'
-          : followUpTargets.length > 0
-            ? 'Follow up first'
-            : lineupRows.length === 0
-              ? 'Build lineup first'
-              : 'Review audience and message'}
-      </div>
-      <div style={sendGateTextStyle}>
-        {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-          ? 'The weekly workflow is stable enough that the current send should move the week forward.'
-          : 'There is still at least one missing ingredient preventing the cleanest possible captain send.'}
-      </div>
-    </div>
-
-    <div style={sendGateCardStyle}>
-      <div style={sendGateLabelStyle}>Primary blocker</div>
-      <div style={sendGateValueStyle}>
-        {followUpTargets.length > 0
-          ? 'Outstanding replies'
-          : lineupRows.length === 0
-            ? 'No lineup loaded'
-            : !messageBody.trim()
-              ? 'Composer empty'
-              : !selectedRecipients.length
-                ? 'No recipients'
-                : 'Minor review only'}
-      </div>
-      <div style={sendGateTextStyle}>
-        {followUpTargets.length > 0
-          ? `${followUpTargets.length} player${followUpTargets.length === 1 ? '' : 's'} still need a follow-up or response.`
-          : lineupRows.length === 0
-            ? 'Import or build the weekly lineup before trying to announce it.'
-            : !messageBody.trim()
-              ? 'Load the right message into the composer before sending.'
-              : !selectedRecipients.length
-                ? 'Choose the audience that should receive this message.'
-                : 'No major blocker stands out right now.'}
-      </div>
-    </div>
-
-    <div style={sendGateCardStyle}>
-      <div style={sendGateLabelStyle}>Fastest next action</div>
-      <div style={sendGateValueStyle}>
-        {followUpTargets.length > 0
-          ? 'Load auto follow-up'
-          : lineupRows.length === 0
-            ? 'Import winning scenario'
-            : !messageBody.trim()
-              ? 'Apply send strategy'
-              : !selectedRecipients.length
-                ? 'Set recipient mode'
-                : 'Open texts'}
-      </div>
-      <div style={sendGateTextStyle}>
-        {followUpTargets.length > 0
-          ? 'Use the smart follow-up tools to clear blockers before the final send.'
-          : lineupRows.length === 0
-            ? 'Pull the winning scenario into the weekly lineup so communication stays anchored to the actual plan.'
-            : !messageBody.trim()
-              ? 'Let the console load the next best message automatically.'
-              : !selectedRecipients.length
-                ? 'Use recipient intelligence to target the correct group.'
-                : 'Your send path is ready — launch from the composer when comfortable.'}
-      </div>
-    </div>
-  </div>
-
-  <div style={actionRowStyle}>
-    <button type="button" style={primaryButton} onClick={applyRecommendedSendStrategy}>
-      Apply Best Next Action
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
-      Load Follow-Up
-    </button>
-    <button type="button" style={ghostButtonSmallButton} onClick={importScenarioToLineup}>
-      Sync Scenario to Lineup
-    </button>
-  </div>
-</section>
-
-
-<section style={surfaceCard}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Recipient risk radar</p>
-      <h3 style={sectionTitleSmall}>Who in this audience could still create problems</h3>
-    </div>
-    <span style={
-      recipientRiskRadar.atRiskLineupPlayers > 0
-        ? warnPill
-        : recipientRiskRadar.passiveRecipients > 0
-          ? miniPillBlue
-          : miniPillGreen
-    }>
-      {recipientRiskRadar.label}
-    </span>
-  </div>
-
-  <div style={riskRadarGridStyle}>
-    <div style={riskRadarCardStyle}>
-      <div style={riskRadarLabelStyle}>Lineup audience</div>
-      <div style={riskRadarValueStyle}>{recipientRiskRadar.lineupRecipients}</div>
-      <div style={riskRadarTextStyle}>
-        Recipients who are currently in the weekly lineup.
-      </div>
-    </div>
-
-    <div style={riskRadarCardStyle}>
-      <div style={riskRadarLabelStyle}>At-risk lineup players</div>
-      <div style={riskRadarValueStyle}>{recipientRiskRadar.atRiskLineupPlayers}</div>
-      <div style={riskRadarTextStyle}>
-        Lineup players in this audience who still show risk through availability or response state.
-      </div>
-    </div>
-
-    <div style={riskRadarCardStyle}>
-      <div style={riskRadarLabelStyle}>Passive recipients</div>
-      <div style={riskRadarValueStyle}>{recipientRiskRadar.passiveRecipients}</div>
-      <div style={riskRadarTextStyle}>
-        Recipients who have viewed or not responded and may still need a nudge.
-      </div>
-    </div>
-
-    <div style={riskRadarCardStyle}>
-      <div style={riskRadarLabelStyle}>Captain coverage</div>
-      <div style={riskRadarValueStyle}>{recipientRiskRadar.optedInCaptains}</div>
-      <div style={riskRadarTextStyle}>
-        Captains included in the current audience for backup coordination.
-      </div>
-    </div>
-  </div>
-</section>
-
-
-<section style={surfaceCardStrong}>
-  <div style={tableHeaderStyle}>
-    <div>
-      <p style={sectionKicker}>Delivery readiness</p>
-      <h3 style={sectionTitleSmall}>How prepared this send is for the real world</h3>
-    </div>
-    <span style={
-      deliveryReadiness.score >= 5
-        ? miniPillGreen
-        : deliveryReadiness.score >= 3
-          ? miniPillBlue
-          : warnPill
-    }>
-      {deliveryReadiness.label}
-    </span>
-  </div>
-
-  <div style={deliveryReadinessGridStyle}>
-    <div style={deliveryReadinessCardStyle}>
-      <div style={deliveryReadinessLabelStyle}>Message body</div>
-      <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasBody ? 'Ready' : 'Missing'}</div>
-      <div style={deliveryReadinessTextStyle}>
-        {deliveryReadiness.hasBody
-          ? 'The composer already has a message loaded.'
-          : 'Load a lineup, follow-up, reminder, or availability message first.'}
-      </div>
-    </div>
-
-    <div style={deliveryReadinessCardStyle}>
-      <div style={deliveryReadinessLabelStyle}>Audience</div>
-      <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasAudience ? 'Selected' : 'Missing'}</div>
-      <div style={deliveryReadinessTextStyle}>
-        {deliveryReadiness.hasAudience
-          ? `${selectedRecipients.length} recipients are currently targeted.`
-          : 'Choose a recipient mode or custom list before sending.'}
-      </div>
-    </div>
-
-    <div style={deliveryReadinessCardStyle}>
-      <div style={deliveryReadinessLabelStyle}>Match context</div>
-      <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasEvent ? 'Loaded' : 'Missing'}</div>
-      <div style={deliveryReadinessTextStyle}>
-        {deliveryReadiness.hasEvent
-          ? 'The send is tied to a selected weekly event.'
-          : 'Select the upcoming match so messages stay grounded in the right week.'}
-      </div>
-    </div>
-
-    <div style={deliveryReadinessCardStyle}>
-      <div style={deliveryReadinessLabelStyle}>Lineup context</div>
-      <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasLineupContext ? 'Anchored' : 'Light'}</div>
-      <div style={deliveryReadinessTextStyle}>
-        {deliveryReadiness.hasLineupContext
-          ? 'A lineup or scenario is connected to this workflow.'
-          : 'Load a scenario or weekly lineup to strengthen captain communication.'}
-      </div>
-    </div>
-
-    <div style={deliveryReadinessCardStyle}>
-      <div style={deliveryReadinessLabelStyle}>Audience cleanliness</div>
-      <div style={deliveryReadinessValueStyle}>{deliveryReadiness.cleanAudience ? 'Clean' : 'Risk present'}</div>
-      <div style={deliveryReadinessTextStyle}>
-        {deliveryReadiness.cleanAudience
-          ? 'No major audience risks are showing in the current send.'
-          : 'There are at-risk or passive recipients worth reviewing before launch.'}
-      </div>
-    </div>
-  </div>
-</section>
-
-<p style={sectionKicker}>Composer</p>
-                      <h3 style={sectionTitleSmall}>Availability, lineup, directions, reminders</h3>
+                <div style={{ display: 'grid', gap: 18 }}>
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Winning lineup</p>
+                        <h3 style={sectionTitleSmall}>Send your finalized scenario</h3>
+                      </div>
+                      <span style={miniPillGreen}>
+                        {selectedScenario ? 'Scenario selected' : 'No scenario'}
+                      </span>
                     </div>
-                    <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
-                  </div>
 
-                  <div style={filtersGridStyle}>
-                    <Field label="Message type">
-                      <select value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
-                        <option value="availability">Availability check</option>
-                        <option value="lineup">Lineup announcement</option>
-                        <option value="directions">Directions + details</option>
-                        <option value="reminder">Match reminder</option>
-                        <option value="follow-up">Follow-up</option>
-                      </select>
-                    </Field>
-                    <Field label="Recipient mode">
-                      <select value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
-                        <option value="all-opted-in">All opted-in</option>
-                        <option value="captains">Captains only</option>
-                        <option value="active-only">Active only</option>
-                        <option value="available-only">Available only</option>
-                        <option value="lineup-only">Lineup only</option>
-                        <option value="non-responders">Non-responders only</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </Field>
-                    <Field label="Saved template">
-                      <select
-                        value={selectedTemplateId}
-                        onChange={(e) => {
-                          const value = e.target.value
-                          setSelectedTemplateId(value)
-                          const template = scopedTemplates.find((item) => item.id === value)
-                          if (template) {
-                            setMessageTitle(template.template_name)
-                            setMessageBody(template.message_body)
-                          }
-                        }}
-                        style={inputStyle}
+                    {selectedScenario ? (
+                      <>
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={miniPillBlue}>{selectedScenario.scenario_name}</div>
+                        </div>
+
+                        <div style={{ marginBottom: 16, color: '#dfe8f8' }}>
+                          This will generate a clean lineup message using your selected scenario and push it directly into the composer.
+                        </div>
+
+                        <div style={actionRowStyle}>
+                          <button
+                            type="button"
+                            style={primaryButton}
+                            onClick={applyWinningLineupToComposer}
+                          >
+                            Load Winning Lineup Message
+                          </button>
+
+                          <button
+                            type="button"
+                            style={ghostButtonSmallButton}
+                            onClick={importScenarioToLineup}
+                            disabled={!captainAccess}
+                          >
+                            Sync to lineup editor
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <p style={mutedTextStyle}>
+                        Select a scenario above to enable one-click lineup messaging.
+                      </p>
+                    )}
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Finalization intelligence</p>
+                        <h3 style={sectionTitleSmall}>What is blocking lineup finalization</h3>
+                      </div>
+                      <span style={finalizationReadiness.ready ? miniPillGreen : warnPill}>
+                        {finalizationReadiness.label}
+                      </span>
+                    </div>
+
+                    <div style={intelligenceGridStyle}>
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Lineup status</div>
+                        <div style={intelligenceValueStyle}>
+                          {finalizationReadiness.lineupComplete ? 'Complete' : 'Open spots'}
+                        </div>
+                        <div style={intelligenceTextStyle}>
+                          {finalizationReadiness.lineupComplete
+                            ? 'Every lineup slot currently has player names filled in.'
+                            : 'One or more lineup slots still need a player before you send the final plan.'}
+                        </div>
+                      </div>
+
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Availability clarity</div>
+                        <div style={intelligenceValueStyle}>
+                          {finalizationReadiness.clearAvailability ? 'Clear' : 'Still unresolved'}
+                        </div>
+                        <div style={intelligenceTextStyle}>
+                          {finalizationReadiness.clearAvailability
+                            ? 'No tentative or no-response availability statuses are blocking the week.'
+                            : 'You still have tentative or missing availability responses to resolve.'}
+                        </div>
+                      </div>
+
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Response stability</div>
+                        <div style={intelligenceValueStyle}>
+                          {finalizationReadiness.responseStable ? 'Stable' : 'Needs follow-up'}
+                        </div>
+                        <div style={intelligenceTextStyle}>
+                          {finalizationReadiness.responseStable
+                            ? 'Current replies are stable enough to move toward sending the final plan.'
+                            : 'Late replies, no-responses, or sub requests still need captain attention.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={pillRowStyle}>
+                      <span style={miniPillSlate}>{blockingContacts.length} blocking contact{blockingContacts.length === 1 ? '' : 's'}</span>
+                      <span style={miniPillBlue}>{followUpTargets.length} follow-up target{followUpTargets.length === 1 ? '' : 's'}</span>
+                      <span style={finalizationReadiness.ready ? miniPillGreen : warnPill}>
+                        {finalizationReadiness.ready ? 'Message can go out' : 'Refine before sending'}
+                      </span>
+                    </div>
+
+                    {blockingContacts.length ? (
+                      <div style={blockingListStyle}>
+                        {blockingContacts.slice(0, 8).map((contact) => {
+                          const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
+                          const responseStatus = responseMap.get(contact.id)?.status ?? 'no-response'
+                          return (
+                            <div key={contact.id} style={blockingCardStyle}>
+                              <div>
+                                <div style={blockingNameStyle}>{contact.full_name}</div>
+                                <div style={blockingMetaStyle}>
+                                  Availability: {availabilityStatus.replace('-', ' ')} • Response: {responseStatus.replace('-', ' ')}
+                                </div>
+                              </div>
+                              <span
+                                style={
+                                  responseStatus === 'declined' || responseStatus === 'need-sub'
+                                    ? warnPill
+                                    : availabilityStatus === 'available'
+                                      ? miniPillBlue
+                                      : miniPillSlate
+                                }
+                              >
+                                {lineupPlayerSet.has(contact.full_name.toLowerCase()) ? 'In lineup' : 'Watch list'}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <p style={mutedTextStyle}>No obvious blockers right now. Your captain workflow is clean enough to move toward communication.</p>
+                    )}
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Follow-up engine</p>
+                        <h3 style={sectionTitleSmall}>What needs captain attention first</h3>
+                      </div>
+                      <span
+                        style={
+                          followUpEngine.tone === 'good'
+                            ? miniPillGreen
+                            : followUpEngine.tone === 'warn'
+                              ? warnPill
+                              : miniPillBlue
+                        }
                       >
-                        <option value="">None</option>
-                        {scopedTemplates.map((template) => <option key={template.id} value={template.id}>{template.template_name}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Message title">
-                      <input value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
-                    </Field>
-                  </div>
+                        {followUpEngine.label}
+                      </span>
+                    </div>
 
-                  {recipientMode === 'custom' ? (
-                    <div style={recipientChooserStyle}>
-                      {scopedContacts.filter((c) => c.phone && c.opt_in_text).map((contact) => (
-                        <label key={contact.id} style={checkboxRowStyle}>
-                          <input
-                            type="checkbox"
-                            checked={selectedRecipientIds.includes(contact.id)}
-                            onChange={(e) => {
-                              setSelectedRecipientIds((current) =>
-                                e.target.checked ? [...current, contact.id] : current.filter((id) => id !== contact.id)
-                              )
-                            }}
-                          />
-                          <span>{contact.full_name}</span>
-                        </label>
+                    <div style={intelligenceGridStyle}>
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Need sub</div>
+                        <div style={intelligenceValueStyle}>{needSubContacts.length}</div>
+                        <div style={intelligenceTextStyle}>Highest urgency because lineup replacement may be required.</div>
+                      </div>
+
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Running late</div>
+                        <div style={intelligenceValueStyle}>{runningLateContacts.length}</div>
+                        <div style={intelligenceTextStyle}>Useful for match-day arrival and captain coordination.</div>
+                      </div>
+
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Tentative</div>
+                        <div style={intelligenceValueStyle}>{tentativeContacts.length}</div>
+                        <div style={intelligenceTextStyle}>Still unclear for lineup lock confidence.</div>
+                      </div>
+
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>No response</div>
+                        <div style={intelligenceValueStyle}>{noResponseContacts.length}</div>
+                        <div style={intelligenceTextStyle}>Best target group when you need to clear blockers fast.</div>
+                      </div>
+                    </div>
+
+                    <div style={pillRowStyle}>
+                      <span style={miniPillSlate}>{followUpEngine.detail}</span>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <button type="button" style={primaryButton} onClick={applyFollowUpEngine}>
+                        Apply Best Follow-Up Action
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
+                        Message Non-Responders
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={loadTentativeMessage}>
+                        Message Tentative Players
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={loadNeedSubMessage}>
+                        Escalate Need Sub
+                      </button>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Smart follow-ups</p>
+                        <h3 style={sectionTitleSmall}>Load the next best captain message</h3>
+                      </div>
+                      <span style={miniPillSlate}>{followUpTargets.length} target{followUpTargets.length === 1 ? '' : 's'}</span>
+                    </div>
+
+                    <div style={intelligenceGridStyle}>
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Best next move</div>
+                        <div style={intelligenceValueStyle}>
+                          {followUpTargets.length ? 'Follow up now' : 'Lineup message next'}
+                        </div>
+                        <div style={intelligenceTextStyle}>
+                          {followUpTargets.length
+                            ? 'There are still people blocking final confirmation. Load a follow-up message and target non-responders.'
+                            : 'The roster is responding. You are in a good place to send the winning lineup message.'}
+                        </div>
+                      </div>
+
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Captain prompt</div>
+                        <div style={intelligenceValueStyle}>
+                          {finalizationReadiness.ready ? 'Send the plan' : 'Clear blockers first'}
+                        </div>
+                        <div style={intelligenceTextStyle}>
+                          {finalizationReadiness.ready
+                            ? 'The workflow is stable enough to move from planning into communication.'
+                            : 'Use the follow-up tools and blocker list to remove uncertainty before messaging the full team.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <button type="button" style={primaryButton} onClick={loadAutoFollowUpMessage}>
+                        Load Auto Follow-Up
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => setRecipientMode('non-responders')}>
+                        Target Non-Responders
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => setMessageKind('lineup')}>
+                        Switch to Lineup Message
+                      </button>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Recipient intelligence</p>
+                        <h3 style={sectionTitleSmall}>Who this message should really go to</h3>
+                      </div>
+                      <span style={miniPillSlate}>{selectedRecipients.length} currently selected</span>
+                    </div>
+
+                    <div style={recipientIntelligenceGridStyle}>
+                      <div style={recipientIntelligenceCardStyle}>
+                        <div style={recipientIntelligenceLabelStyle}>All opted-in</div>
+                        <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.totalOptedIn}</div>
+                        <div style={recipientIntelligenceTextStyle}>Everyone eligible to receive texts in the current roster scope.</div>
+                      </div>
+
+                      <div style={recipientIntelligenceCardStyle}>
+                        <div style={recipientIntelligenceLabelStyle}>Lineup only</div>
+                        <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.lineupOnly}</div>
+                        <div style={recipientIntelligenceTextStyle}>Players currently placed in the weekly lineup.</div>
+                      </div>
+
+                      <div style={recipientIntelligenceCardStyle}>
+                        <div style={recipientIntelligenceLabelStyle}>Captains</div>
+                        <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.captainsOnly}</div>
+                        <div style={recipientIntelligenceTextStyle}>Captain-only audience for quick coordination or escalation.</div>
+                      </div>
+
+                      <div style={recipientIntelligenceCardStyle}>
+                        <div style={recipientIntelligenceLabelStyle}>Need reply</div>
+                        <div style={recipientIntelligenceValueStyle}>{recipientIntelligence.nonRespondersOnly}</div>
+                        <div style={recipientIntelligenceTextStyle}>Best target group when you need to clear blockers fast.</div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('lineup-only', 'lineup')}>
+                        Target lineup only
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('available-only', 'reminder')}>
+                        Target available only
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('captains', 'follow-up')}>
+                        Target captains
+                      </button>
+                      <button type="button" style={primaryButton} onClick={() => loadRecipientMode('non-responders', 'follow-up')}>
+                        Target blockers
+                      </button>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Captain action queue</p>
+                        <h3 style={sectionTitleSmall}>The next best moves for this week</h3>
+                      </div>
+                      <span style={captainActionQueue.length <= 1 ? miniPillGreen : warnPill}>
+                        {captainActionQueue.length} priority action{captainActionQueue.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    <div style={actionQueueGridStyle}>
+                      {captainActionQueue.length ? captainActionQueue.map((item, index) => (
+                        <div
+                          key={`${item.title}-${index}`}
+                          style={
+                            item.tone === 'good'
+                              ? actionQueueCardGoodStyle
+                              : item.tone === 'warn'
+                                ? actionQueueCardWarnStyle
+                                : actionQueueCardInfoStyle
+                          }
+                        >
+                          <div style={actionQueueLabelStyle}>Priority {index + 1}</div>
+                          <div style={actionQueueValueStyle}>{item.title}</div>
+                          <div style={actionQueueTextStyle}>{item.detail}</div>
+                        </div>
+                      )) : (
+                        <div style={actionQueueCardGoodStyle}>
+                          <div style={actionQueueLabelStyle}>Priority</div>
+                          <div style={actionQueueValueStyle}>Nothing urgent</div>
+                          <div style={actionQueueTextStyle}>This weekly communication flow looks clean and ready to execute.</div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Weekly command snapshot</p>
+                        <h3 style={sectionTitleSmall}>Where this captain workflow stands right now</h3>
+                      </div>
+                      <span
+                        style={
+                          weeklyCommandSnapshot.readinessLabel === 'Ready to execute'
+                            ? miniPillGreen
+                            : weeklyCommandSnapshot.readinessLabel === 'Close to ready'
+                              ? miniPillBlue
+                              : warnPill
+                        }
+                      >
+                        {weeklyCommandSnapshot.readinessLabel}
+                      </span>
+                    </div>
+
+                    <div style={weeklyCommandGridStyle}>
+                      <div style={weeklyCommandCardStyle}>
+                        <div style={weeklyCommandLabelStyle}>Scenario</div>
+                        <div style={weeklyCommandValueStyle}>
+                          {weeklyCommandSnapshot.scenarioLoaded ? 'Loaded' : 'Not loaded'}
+                        </div>
+                        <div style={weeklyCommandTextStyle}>
+                          {weeklyCommandSnapshot.scenarioLoaded
+                            ? 'A saved scenario is connected, so lineup messaging can stay tied to a real build.'
+                            : 'Load or select a scenario if you want messaging to stay anchored to the winning version.'}
+                        </div>
+                      </div>
+
+                      <div style={weeklyCommandCardStyle}>
+                        <div style={weeklyCommandLabelStyle}>Lineup completeness</div>
+                        <div style={weeklyCommandValueStyle}>
+                          {weeklyCommandSnapshot.lineupTotalSlots
+                            ? `${weeklyCommandSnapshot.lineupFilledSlots}/${weeklyCommandSnapshot.lineupTotalSlots}`
+                            : 'No lineup'}
+                        </div>
+                        <div style={weeklyCommandTextStyle}>
+                          This measures how many weekly lineup slots are fully filled with player names.
+                        </div>
+                      </div>
+
+                      <div style={weeklyCommandCardStyle}>
+                        <div style={weeklyCommandLabelStyle}>Message readiness</div>
+                        <div style={weeklyCommandValueStyle}>
+                          {weeklyCommandSnapshot.messageReady ? 'Ready' : 'Not ready'}
+                        </div>
+                        <div style={weeklyCommandTextStyle}>
+                          A message body and recipient audience are both required before you can cleanly send the next captain text.
+                        </div>
+                      </div>
+
+                      <div style={weeklyCommandCardStyle}>
+                        <div style={weeklyCommandLabelStyle}>Unresolved blockers</div>
+                        <div style={weeklyCommandValueStyle}>{weeklyCommandSnapshot.unresolvedCount}</div>
+                        <div style={weeklyCommandTextStyle}>
+                          These are the contacts or situations still preventing a clean lineup finalization.
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Send strategy board</p>
+                        <h3 style={sectionTitleSmall}>What message should go out next</h3>
+                      </div>
+                      <span style={sendStrategy.shouldFollowUp ? warnPill : miniPillGreen}>
+                        {sendStrategy.label}
+                      </span>
+                    </div>
+
+                    <div style={sendStrategyGridStyle}>
+                      <div style={sendStrategyCardStyle}>
+                        <div style={sendStrategyLabelStyle}>Best audience</div>
+                        <div style={sendStrategyValueStyle}>
+                          {sendStrategy.bestMode === 'non-responders'
+                            ? 'Blockers / non-responders'
+                            : sendStrategy.bestMode === 'lineup-only'
+                              ? 'Lineup only'
+                              : 'Available players'}
+                        </div>
+                        <div style={sendStrategyTextStyle}>
+                          This is the cleanest audience for the next captain message based on current readiness and response state.
+                        </div>
+                      </div>
+
+                      <div style={sendStrategyCardStyle}>
+                        <div style={sendStrategyLabelStyle}>Best message</div>
+                        <div style={sendStrategyValueStyle}>
+                          {sendStrategy.bestKind === 'follow-up'
+                            ? 'Follow-up'
+                            : sendStrategy.bestKind === 'lineup'
+                              ? 'Lineup announcement'
+                              : 'Availability check'}
+                        </div>
+                        <div style={sendStrategyTextStyle}>
+                          The console is reading your current week state and recommending the most useful next message type.
+                        </div>
+                      </div>
+
+                      <div style={sendStrategyCardStyle}>
+                        <div style={sendStrategyLabelStyle}>Send readiness</div>
+                        <div style={sendStrategyValueStyle}>
+                          {sendStrategy.hasRecipients ? 'Audience ready' : 'No audience'}
+                        </div>
+                        <div style={sendStrategyTextStyle}>
+                          {sendStrategy.hasRecipients
+                            ? 'You currently have recipients in scope for the recommended action.'
+                            : 'Adjust team scope, recipient mode, or contact records before sending.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <button type="button" style={primaryButton} onClick={applyRecommendedSendStrategy}>
+                        Apply Recommended Send Strategy
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => applyWinningLineupToComposer()}>
+                        Load Lineup Message
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
+                        Load Follow-Up
+                      </button>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Execution checklist</p>
+                        <h3 style={sectionTitleSmall}>What still needs to happen before you send</h3>
+                      </div>
+                      <span style={executionChecklist.every((item) => item.done) ? miniPillGreen : warnPill}>
+                        {executionChecklist.filter((item) => item.done).length}/{executionChecklist.length} complete
+                      </span>
+                    </div>
+
+                    <div style={executionChecklistGridStyle}>
+                      {executionChecklist.map((item) => (
+                        <div key={item.label} style={executionChecklistCardStyle}>
+                          <div style={executionChecklistTopStyle}>
+                            <div style={executionChecklistLabelStyle}>{item.label}</div>
+                            <span style={item.done ? miniPillGreen : miniPillSlate}>
+                              {item.done ? 'Done' : 'Open'}
+                            </span>
+                          </div>
+                          <div style={executionChecklistDetailStyle}>{item.detail}</div>
+                        </div>
                       ))}
                     </div>
-                  ) : null}
+                  </section>
 
-                  <Field label="Message body">
-                    <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
-                  </Field>
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Message outcome planner</p>
+                        <h3 style={sectionTitleSmall}>What this send is likely to accomplish</h3>
+                      </div>
+                      <span style={miniPillBlue}>{messageOutcomePlanner.recommendation}</span>
+                    </div>
 
-                  <div style={pillRowStyle}>
-                    <span style={miniPillSlate}>{selectedRecipients.map((r) => r.full_name).join(', ') || 'No recipients selected'}</span>
-                  </div>
+                    <div style={outcomePlannerGridStyle}>
+                      <div style={outcomePlannerCardStyle}>
+                        <div style={outcomePlannerLabelStyle}>Audience size</div>
+                        <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.audienceCount}</div>
+                        <div style={outcomePlannerTextStyle}>
+                          Total recipients currently targeted by the active message settings.
+                        </div>
+                      </div>
 
-                  <div style={actionRowStyle}>
-                    <a href={smsHref} style={primaryButton}>Open texts</a>
-                    <button type="button" style={ghostButtonSmallButton} onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</button>
-                    <button type="button" style={ghostButtonSmallButton} onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</button>
-                    <button type="button" style={ghostButtonSmallButton} onClick={() => void handleSaveTemplate()}>Save template</button>
-                  </div>
-                </section>
+                      <div style={outcomePlannerCardStyle}>
+                        <div style={outcomePlannerLabelStyle}>Lineup players reached</div>
+                        <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.lineupAudience}</div>
+                        <div style={outcomePlannerTextStyle}>
+                          Helpful for seeing whether the current send is actually reaching the players in the weekly lineup.
+                        </div>
+                      </div>
+
+                      <div style={outcomePlannerCardStyle}>
+                        <div style={outcomePlannerLabelStyle}>Captain reach</div>
+                        <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.captainAudience}</div>
+                        <div style={outcomePlannerTextStyle}>
+                          Useful when the message is meant for coordination rather than the full team.
+                        </div>
+                      </div>
+
+                      <div style={outcomePlannerCardStyle}>
+                        <div style={outcomePlannerLabelStyle}>Likely follow-up replies</div>
+                        <div style={outcomePlannerValueStyle}>{messageOutcomePlanner.likelyReplyCount}</div>
+                        <div style={outcomePlannerTextStyle}>
+                          Estimated number of currently targeted recipients who still need to respond or be nudged.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={pillRowStyle}>
+                      <span style={miniPillSlate}>{messageTitle || 'Untitled message'}</span>
+                      <span style={messageOutcomePlanner.audienceCount ? miniPillGreen : warnPill}>
+                        {messageOutcomePlanner.audienceCount ? 'Audience in scope' : 'No audience selected'}
+                      </span>
+                      <span style={messageBody.trim() ? miniPillBlue : miniPillSlate}>
+                        {messageBody.trim() ? `${messageBody.trim().length} chars` : 'No message body'}
+                      </span>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Communication sequence planner</p>
+                        <h3 style={sectionTitleSmall}>The smartest order of operations this week</h3>
+                      </div>
+                      <span style={finalizationReadiness.ready ? miniPillGreen : miniPillSlate}>
+                        {finalizationReadiness.ready ? 'Execution flow ready' : 'Work the sequence'}
+                      </span>
+                    </div>
+
+                    <div style={sequencePlannerGridStyle}>
+                      {messageSequencePlanner.map((step, index) => (
+                        <div
+                          key={`${step.title}-${index}`}
+                          style={
+                            step.tone === 'good'
+                              ? sequencePlannerCardGoodStyle
+                              : step.tone === 'warn'
+                                ? sequencePlannerCardWarnStyle
+                                : sequencePlannerCardInfoStyle
+                          }
+                        >
+                          <div style={sequencePlannerLabelStyle}>Step {index + 1}</div>
+                          <div style={sequencePlannerValueStyle}>{step.title}</div>
+                          <div style={sequencePlannerTextStyle}>{step.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Message launch snapshot</p>
+                        <h3 style={sectionTitleSmall}>What is about to go out</h3>
+                      </div>
+                      <span style={selectedRecipients.length && messageBody.trim() ? miniPillGreen : miniPillSlate}>
+                        {selectedRecipients.length && messageBody.trim() ? 'Ready for review' : 'Still drafting'}
+                      </span>
+                    </div>
+
+                    <div style={launchSnapshotGridStyle}>
+                      <div style={launchSnapshotCardStyle}>
+                        <div style={launchSnapshotLabelStyle}>Message type</div>
+                        <div style={launchSnapshotValueStyle}>{messageKind.replace('-', ' ')}</div>
+                        <div style={launchSnapshotTextStyle}>
+                          Current communication mode selected for this send.
+                        </div>
+                      </div>
+
+                      <div style={launchSnapshotCardStyle}>
+                        <div style={launchSnapshotLabelStyle}>Audience</div>
+                        <div style={launchSnapshotValueStyle}>{selectedRecipients.length}</div>
+                        <div style={launchSnapshotTextStyle}>
+                          Recipient count in the active send audience.
+                        </div>
+                      </div>
+
+                      <div style={launchSnapshotCardStyle}>
+                        <div style={launchSnapshotLabelStyle}>Scenario anchor</div>
+                        <div style={launchSnapshotValueStyle}>
+                          {selectedScenario?.scenario_name || 'None selected'}
+                        </div>
+                        <div style={launchSnapshotTextStyle}>
+                          Saved scenario currently tied to the weekly lineup workflow.
+                        </div>
+                      </div>
+
+                      <div style={launchSnapshotCardStyle}>
+                        <div style={launchSnapshotLabelStyle}>Event</div>
+                        <div style={launchSnapshotValueStyle}>
+                          {selectedMatch ? formatDate(selectedMatch.match_date) : 'No match'}
+                        </div>
+                        <div style={launchSnapshotTextStyle}>
+                          {selectedMatch
+                            ? `${selectedMatch.home_team || 'TBD'} vs ${selectedMatch.away_team || 'TBD'}`
+                            : 'Select a match to tighten the weekly communication context.'}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Send confidence panel</p>
+                        <h3 style={sectionTitleSmall}>How safe this send looks right now</h3>
+                      </div>
+                      <span
+                        style={
+                          finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
+                            ? miniPillGreen
+                            : Math.abs(selectedRecipients.length) > 0 && messageBody.trim()
+                              ? miniPillBlue
+                              : warnPill
+                        }
+                      >
+                        {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
+                          ? 'High confidence'
+                          : selectedRecipients.length > 0 && messageBody.trim()
+                            ? 'Usable but review'
+                            : 'Not ready yet'}
+                      </span>
+                    </div>
+
+                    <div style={sendConfidenceGridStyle}>
+                      <div style={sendConfidenceCardStyle}>
+                        <div style={sendConfidenceLabelStyle}>Workflow state</div>
+                        <div style={sendConfidenceValueStyle}>{sendStrategy.label}</div>
+                        <div style={sendConfidenceTextStyle}>
+                          This is the current recommended communication move based on lineup state and reply pressure.
+                        </div>
+                      </div>
+
+                      <div style={sendConfidenceCardStyle}>
+                        <div style={sendConfidenceLabelStyle}>Composer status</div>
+                        <div style={sendConfidenceValueStyle}>
+                          {messageBody.trim() ? 'Loaded' : 'Empty'}
+                        </div>
+                        <div style={sendConfidenceTextStyle}>
+                          {messageBody.trim()
+                            ? 'A message body is already loaded into the composer.'
+                            : 'Load a lineup, follow-up, or availability message before sending.'}
+                        </div>
+                      </div>
+
+                      <div style={sendConfidenceCardStyle}>
+                        <div style={sendConfidenceLabelStyle}>Audience fit</div>
+                        <div style={sendConfidenceValueStyle}>
+                          {selectedRecipients.length ? `${selectedRecipients.length} selected` : 'No audience'}
+                        </div>
+                        <div style={sendConfidenceTextStyle}>
+                          {selectedRecipients.length
+                            ? 'There is an active recipient audience in scope for the next send.'
+                            : 'Choose the right recipient mode or custom list before sending.'}
+                        </div>
+                      </div>
+
+                      <div style={sendConfidenceCardStyle}>
+                        <div style={sendConfidenceLabelStyle}>Final check</div>
+                        <div style={sendConfidenceValueStyle}>
+                          {finalizationReadiness.ready ? 'Clear to launch' : 'Review blockers'}
+                        </div>
+                        <div style={sendConfidenceTextStyle}>
+                          {finalizationReadiness.ready
+                            ? 'Lineup, availability, and responses are stable enough for a cleaner team send.'
+                            : 'There are still blockers, open lineup issues, or unresolved replies worth checking first.'}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Weekly send gate</p>
+                        <h3 style={sectionTitleSmall}>Should you send now or hold one more step?</h3>
+                      </div>
+                      <span
+                        style={
+                          finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
+                            ? miniPillGreen
+                            : warnPill
+                        }
+                      >
+                        {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
+                          ? 'Send now'
+                          : 'Hold and review'}
+                      </span>
+                    </div>
+
+                    <div style={sendGateGridStyle}>
+                      <div style={sendGateCardStyle}>
+                        <div style={sendGateLabelStyle}>Recommendation</div>
+                        <div style={sendGateValueStyle}>
+                          {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
+                            ? 'Launch the message'
+                            : followUpTargets.length > 0
+                              ? 'Follow up first'
+                              : lineupRows.length === 0
+                                ? 'Build lineup first'
+                                : 'Review audience and message'}
+                        </div>
+                        <div style={sendGateTextStyle}>
+                          {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
+                            ? 'The weekly workflow is stable enough that the current send should move the week forward.'
+                            : 'There is still at least one missing ingredient preventing the cleanest possible captain send.'}
+                        </div>
+                      </div>
+
+                      <div style={sendGateCardStyle}>
+                        <div style={sendGateLabelStyle}>Primary blocker</div>
+                        <div style={sendGateValueStyle}>
+                          {followUpTargets.length > 0
+                            ? 'Outstanding replies'
+                            : lineupRows.length === 0
+                              ? 'No lineup loaded'
+                              : !messageBody.trim()
+                                ? 'Composer empty'
+                                : !selectedRecipients.length
+                                  ? 'No recipients'
+                                  : 'Minor review only'}
+                        </div>
+                        <div style={sendGateTextStyle}>
+                          {followUpTargets.length > 0
+                            ? `${followUpTargets.length} player${followUpTargets.length === 1 ? '' : 's'} still need a follow-up or response.`
+                            : lineupRows.length === 0
+                              ? 'Import or build the weekly lineup before trying to announce it.'
+                              : !messageBody.trim()
+                                ? 'Load the right message into the composer before sending.'
+                                : !selectedRecipients.length
+                                  ? 'Choose the audience that should receive this message.'
+                                  : 'No major blocker stands out right now.'}
+                        </div>
+                      </div>
+
+                      <div style={sendGateCardStyle}>
+                        <div style={sendGateLabelStyle}>Fastest next action</div>
+                        <div style={sendGateValueStyle}>
+                          {followUpTargets.length > 0
+                            ? 'Load auto follow-up'
+                            : lineupRows.length === 0
+                              ? 'Import winning scenario'
+                              : !messageBody.trim()
+                                ? 'Apply send strategy'
+                                : !selectedRecipients.length
+                                  ? 'Set recipient mode'
+                                  : 'Open texts'}
+                        </div>
+                        <div style={sendGateTextStyle}>
+                          {followUpTargets.length > 0
+                            ? 'Use the smart follow-up tools to clear blockers before the final send.'
+                            : lineupRows.length === 0
+                              ? 'Pull the winning scenario into the weekly lineup so communication stays anchored to the actual plan.'
+                              : !messageBody.trim()
+                                ? 'Let the console load the next best message automatically.'
+                                : !selectedRecipients.length
+                                  ? 'Use recipient intelligence to target the correct group.'
+                                  : 'Your send path is ready — launch from the composer when comfortable.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <button type="button" style={primaryButton} onClick={applyRecommendedSendStrategy}>
+                        Apply Best Next Action
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
+                        Load Follow-Up
+                      </button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={importScenarioToLineup}>
+                        Sync Scenario to Lineup
+                      </button>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Recipient risk radar</p>
+                        <h3 style={sectionTitleSmall}>Who in this audience could still create problems</h3>
+                      </div>
+                      <span
+                        style={
+                          recipientRiskRadar.atRiskLineupPlayers > 0
+                            ? warnPill
+                            : recipientRiskRadar.passiveRecipients > 0
+                              ? miniPillBlue
+                              : miniPillGreen
+                        }
+                      >
+                        {recipientRiskRadar.label}
+                      </span>
+                    </div>
+
+                    <div style={riskRadarGridStyle}>
+                      <div style={riskRadarCardStyle}>
+                        <div style={riskRadarLabelStyle}>Lineup audience</div>
+                        <div style={riskRadarValueStyle}>{recipientRiskRadar.lineupRecipients}</div>
+                        <div style={riskRadarTextStyle}>
+                          Recipients who are currently in the weekly lineup.
+                        </div>
+                      </div>
+
+                      <div style={riskRadarCardStyle}>
+                        <div style={riskRadarLabelStyle}>At-risk lineup players</div>
+                        <div style={riskRadarValueStyle}>{recipientRiskRadar.atRiskLineupPlayers}</div>
+                        <div style={riskRadarTextStyle}>
+                          Lineup players in this audience who still show risk through availability or response state.
+                        </div>
+                      </div>
+
+                      <div style={riskRadarCardStyle}>
+                        <div style={riskRadarLabelStyle}>Passive recipients</div>
+                        <div style={riskRadarValueStyle}>{recipientRiskRadar.passiveRecipients}</div>
+                        <div style={riskRadarTextStyle}>
+                          Recipients who have viewed or not responded and may still need a nudge.
+                        </div>
+                      </div>
+
+                      <div style={riskRadarCardStyle}>
+                        <div style={riskRadarLabelStyle}>Captain coverage</div>
+                        <div style={riskRadarValueStyle}>{recipientRiskRadar.optedInCaptains}</div>
+                        <div style={riskRadarTextStyle}>
+                          Captains included in the current audience for backup coordination.
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Delivery readiness</p>
+                        <h3 style={sectionTitleSmall}>How prepared this send is for the real world</h3>
+                      </div>
+                      <span
+                        style={
+                          deliveryReadiness.score >= 5
+                            ? miniPillGreen
+                            : deliveryReadiness.score >= 3
+                              ? miniPillBlue
+                              : warnPill
+                        }
+                      >
+                        {deliveryReadiness.label}
+                      </span>
+                    </div>
+
+                    <div style={deliveryReadinessGridStyle}>
+                      <div style={deliveryReadinessCardStyle}>
+                        <div style={deliveryReadinessLabelStyle}>Message body</div>
+                        <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasBody ? 'Ready' : 'Missing'}</div>
+                        <div style={deliveryReadinessTextStyle}>
+                          {deliveryReadiness.hasBody
+                            ? 'The composer already has a message loaded.'
+                            : 'Load a lineup, follow-up, reminder, or availability message first.'}
+                        </div>
+                      </div>
+
+                      <div style={deliveryReadinessCardStyle}>
+                        <div style={deliveryReadinessLabelStyle}>Audience</div>
+                        <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasAudience ? 'Selected' : 'Missing'}</div>
+                        <div style={deliveryReadinessTextStyle}>
+                          {deliveryReadiness.hasAudience
+                            ? `${selectedRecipients.length} recipients are currently targeted.`
+                            : 'Choose a recipient mode or custom list before sending.'}
+                        </div>
+                      </div>
+
+                      <div style={deliveryReadinessCardStyle}>
+                        <div style={deliveryReadinessLabelStyle}>Match context</div>
+                        <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasEvent ? 'Loaded' : 'Missing'}</div>
+                        <div style={deliveryReadinessTextStyle}>
+                          {deliveryReadiness.hasEvent
+                            ? 'The send is tied to a selected weekly event.'
+                            : 'Select the upcoming match so messages stay grounded in the right week.'}
+                        </div>
+                      </div>
+
+                      <div style={deliveryReadinessCardStyle}>
+                        <div style={deliveryReadinessLabelStyle}>Lineup context</div>
+                        <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasLineupContext ? 'Anchored' : 'Light'}</div>
+                        <div style={deliveryReadinessTextStyle}>
+                          {deliveryReadiness.hasLineupContext
+                            ? 'A lineup or scenario is connected to this workflow.'
+                            : 'Load a scenario or weekly lineup to strengthen captain communication.'}
+                        </div>
+                      </div>
+
+                      <div style={deliveryReadinessCardStyle}>
+                        <div style={deliveryReadinessLabelStyle}>Audience cleanliness</div>
+                        <div style={deliveryReadinessValueStyle}>{deliveryReadiness.cleanAudience ? 'Clean' : 'Risk present'}</div>
+                        <div style={deliveryReadinessTextStyle}>
+                          {deliveryReadiness.cleanAudience
+                            ? 'No major audience risks are showing in the current send.'
+                            : 'There are at-risk or passive recipients worth reviewing before launch.'}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Composer</p>
+                        <h3 style={sectionTitleSmall}>Availability, lineup, directions, reminders</h3>
+                      </div>
+                      <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
+                    </div>
+
+                    <div style={filtersGridStyle}>
+                      <Field label="Message type">
+                        <select value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
+                          <option value="availability">Availability check</option>
+                          <option value="lineup">Lineup announcement</option>
+                          <option value="directions">Directions + details</option>
+                          <option value="reminder">Match reminder</option>
+                          <option value="follow-up">Follow-up</option>
+                        </select>
+                      </Field>
+                      <Field label="Recipient mode">
+                        <select value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
+                          <option value="all-opted-in">All opted-in</option>
+                          <option value="captains">Captains only</option>
+                          <option value="active-only">Active only</option>
+                          <option value="available-only">Available only</option>
+                          <option value="lineup-only">Lineup only</option>
+                          <option value="non-responders">Non-responders only</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </Field>
+                      <Field label="Saved template">
+                        <select
+                          value={selectedTemplateId}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setSelectedTemplateId(value)
+                            const template = scopedTemplates.find((item) => item.id === value)
+                            if (template) {
+                              setMessageTitle(template.template_name)
+                              setMessageBody(template.message_body)
+                            }
+                          }}
+                          style={inputStyle}
+                        >
+                          <option value="">None</option>
+                          {scopedTemplates.map((template) => <option key={template.id} value={template.id}>{template.template_name}</option>)}
+                        </select>
+                      </Field>
+                      <Field label="Message title">
+                        <input value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
+                      </Field>
+                    </div>
+
+                    {recipientMode === 'custom' ? (
+                      <div style={recipientChooserStyle}>
+                        {scopedContacts.filter((c) => c.phone && c.opt_in_text).map((contact) => (
+                          <label key={contact.id} style={checkboxRowStyle}>
+                            <input
+                              type="checkbox"
+                              checked={selectedRecipientIds.includes(contact.id)}
+                              onChange={(e) => {
+                                setSelectedRecipientIds((current) =>
+                                  e.target.checked ? [...current, contact.id] : current.filter((id) => id !== contact.id)
+                                )
+                              }}
+                            />
+                            <span>{contact.full_name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <Field label="Message body">
+                      <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
+                    </Field>
+
+                    <div style={pillRowStyle}>
+                      <span style={miniPillSlate}>{selectedRecipients.map((r) => r.full_name).join(', ') || 'No recipients selected'}</span>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.') } }}>Open texts</a>
+                      <button type="button" style={ghostButtonSmallButton} onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</button>
+                      <button type="button" style={ghostButtonSmallButton} onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</button>
+                    </div>
+                  </section>
+                </div>
               </section>
 
               <section style={twoColumnGridResponsive(isTablet)}>
@@ -2843,7 +3303,7 @@ function importScenarioToLineup() {
                   </div>
 
                   <div style={actionRowStyle}>
-                    <button type="button" style={primaryButton} onClick={() => void handleSaveContact()}>{editingId ? 'Update contact' : 'Save contact'}</button>
+                    <button type="button" style={{ ...primaryButton, ...(!captainAccess ? disabledButtonStyle : {}) }} onClick={() => void handleSaveContact()} disabled={!captainAccess}>{editingId ? 'Update contact' : 'Save contact'}</button>
                     {editingId ? <button type="button" style={ghostButtonSmallButton} onClick={() => {
                       setEditingId(null)
                       setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
@@ -2853,7 +3313,7 @@ function importScenarioToLineup() {
                   <Field label="Bulk import (Name, Phone, Role, captain, note)">
                     <textarea value={bulkImportText} onChange={(e) => setBulkImportText(e.target.value)} style={textareaStyle} placeholder={'Jane Smith, 314-555-1111, Player, captain, early arrival\nJohn Doe, 314-555-2222, Player, , doubles only'} />
                   </Field>
-                  <button type="button" style={ghostButtonSmallButton} onClick={handleBulkImport}>Import contacts</button>
+                  <button type="button" style={ghostButtonSmallButton} onClick={handleBulkImport} disabled={!captainAccess}>Import contacts</button>
                 </section>
               </section>
 
@@ -3192,6 +3652,7 @@ const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'cent
 const primaryButtonBlock: CSSProperties = { ...primaryButton, width: '100%', appearance: 'none', cursor: 'pointer' }
 const ghostButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)', color: '#ebf1fd', border: '1px solid rgba(116,190,255,0.18)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }
 const ghostButtonSmallButton: CSSProperties = { ...ghostButton, minHeight: 42, cursor: 'pointer', appearance: 'none' }
+const disabledButtonStyle: CSSProperties = { opacity: 0.55, cursor: 'not-allowed' }
 
 const badgeBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 12px', borderRadius: 999, fontSize: 12, fontWeight: 800 }
 const miniPillSlate: CSSProperties = { ...badgeBase, background: 'rgba(255,255,255,0.08)', color: '#dfe8f8' }

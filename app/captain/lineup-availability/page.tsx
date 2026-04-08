@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
 type MatchRow = {
   id: string
@@ -176,6 +178,11 @@ function viabilityLabel(available: number, unavailable: number, limited: number)
 }
 
 export default function LineupAvailabilityPage() {
+  const router = useRouter()
+
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
+
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -203,6 +210,58 @@ export default function LineupAvailabilityPage() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadRole() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const user = data.user
+
+        if (!user) {
+          if (mounted) {
+            setRole('public')
+            setAuthLoading(false)
+          }
+          router.replace('/login?next=/captains-corner/lineup-availability')
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        const normalized = normalizeUserRole(profile?.role)
+
+        if (mounted) {
+          setRole(normalized)
+          setAuthLoading(false)
+        }
+      } catch {
+        if (mounted) {
+          setRole('public')
+          setAuthLoading(false)
+        }
+        router.replace('/login?next=/captains-corner/lineup-availability')
+      }
+    }
+
+    void loadRole()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadRole()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [router])
 
   useEffect(() => {
     void loadMatches()
@@ -547,6 +606,23 @@ export default function LineupAvailabilityPage() {
     setAvailabilityMap(next)
     setStatus('Reset all players to Available.')
   }
+
+  if (authLoading) {
+    return (
+      <main style={pageStyle}>
+        <div style={orbOne} />
+        <div style={orbTwo} />
+        <div style={gridGlow} />
+        <section style={contentWrap}>
+          <section style={surfaceCard}>
+            <p style={mutedTextStyle}>Loading lineup availability...</p>
+          </section>
+        </section>
+      </main>
+    )
+  }
+
+  if (role === 'public') return null
 
   return (
     <main style={pageStyle}>

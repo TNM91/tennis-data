@@ -1,17 +1,23 @@
-export type UserRole = 'public' | 'member' | 'admin'
+export type UserRole = 'public' | 'member' | 'captain' | 'admin'
 
-export const ADMIN_USER_IDS = new Set([
-  'accc3471-8912-491c-b8d9-4a84dcc7c42e',
-])
+export function normalizeUserRole(value: unknown): UserRole {
+  if (value === 'admin') return 'admin'
+  if (value === 'captain') return 'captain'
+  if (value === 'member') return 'member'
+  return 'public'
+}
 
-export function getUserRole(userId?: string | null): UserRole {
-  if (!userId) return 'public'
-  if (ADMIN_USER_IDS.has(userId)) return 'admin'
-  return 'member'
+// ✅ CRITICAL BACKWARD COMPATIBILITY FIX
+export function getUserRole(value: unknown): UserRole {
+  return normalizeUserRole(value)
 }
 
 export function isMember(role: UserRole) {
-  return role === 'member' || role === 'admin'
+  return role === 'member' || role === 'captain' || role === 'admin'
+}
+
+export function isCaptain(role: UserRole) {
+  return role === 'captain' || role === 'admin'
 }
 
 export function isAdmin(role: UserRole) {

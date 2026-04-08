@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
 type TeamOption = {
   team: string
@@ -79,29 +79,49 @@ export default function CaptainAvailabilityPage() {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+
     async function loadAuth() {
       try {
         const { data } = await supabase.auth.getUser()
-        const nextRole = getUserRole(data.user?.id ?? null)
+        const user = data.user
+
+        if (!user) {
+          if (mounted) {
+            setRole('public')
+            setAuthLoading(false)
+          }
+          router.replace('/login?next=/captain/availability')
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        const nextRole = normalizeUserRole(profile?.role)
+
+        if (!mounted) return
         setRole(nextRole)
-        if (nextRole === 'public') router.replace('/login')
       } finally {
-        setAuthLoading(false)
+        if (mounted) setAuthLoading(false)
       }
     }
 
-    loadAuth()
+    void loadAuth()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextRole = getUserRole(session?.user?.id ?? null)
-      setRole(nextRole)
-      setAuthLoading(false)
-      if (nextRole === 'public') router.replace('/login')
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadAuth()
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [router])
 
   useEffect(() => {

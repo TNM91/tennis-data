@@ -5,7 +5,9 @@ export const dynamic = 'force-dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
 type MatchRow = {
   id: string
@@ -179,6 +181,11 @@ function average(values: number[]) {
 }
 
 export default function LineupProjectionPage() {
+  const router = useRouter()
+
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
+
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -203,8 +210,55 @@ export default function LineupProjectionPage() {
   }, [])
 
   useEffect(() => {
+    let mounted = true
+
+    async function loadRole() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const user = data.user
+
+        if (!user) {
+          if (mounted) {
+            setRole('public')
+            setAuthLoading(false)
+          }
+          router.replace('/login?next=/captains-corner/lineup-projection')
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        const normalized = normalizeUserRole(profile?.role)
+
+        if (!mounted) return
+        setRole(normalized)
+      } finally {
+        if (mounted) setAuthLoading(false)
+      }
+    }
+
+    void loadRole()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadRole()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [router])
+
+  useEffect(() => {
+    if (authLoading || role === 'public') return
     void loadLeaguesAndTeams()
-  }, [])
+  }, [authLoading, role])
 
   useEffect(() => {
     if (!selectedLeagueKey || !selectedTeam) {
@@ -212,8 +266,9 @@ export default function LineupProjectionPage() {
       return
     }
 
+    if (authLoading || role === 'public') return
     void loadTeamRoster()
-  }, [selectedLeagueKey, selectedTeam, selectedDate])
+  }, [selectedLeagueKey, selectedTeam, selectedDate, authLoading, role])
 
   async function loadLeaguesAndTeams() {
     setLoading(true)
@@ -585,6 +640,21 @@ export default function LineupProjectionPage() {
     const query = params.toString()
     return query ? `/captains-corner/lineup-builder?${query}` : '/captains-corner/lineup-builder'
   }, [selectedLeagueLabel, selectedLeagueKey, selectedTeam, selectedDate])
+
+  if (authLoading) {
+    return (
+      <main style={pageStyle}>
+        <div style={orbOne} />
+        <div style={orbTwo} />
+        <div style={gridGlow} />
+        <section style={{ maxWidth: '1240px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <div style={stateBox}>Loading lineup projection...</div>
+        </section>
+      </main>
+    )
+  }
+
+  if (role === 'public') return null
 
   return (
     <main style={pageStyle}>

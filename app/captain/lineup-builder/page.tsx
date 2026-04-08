@@ -10,8 +10,10 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
 
 type PlayerRow = {
   id: string
@@ -751,6 +753,11 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
 }
 
 export default function LineupBuilderPage() {
+  const router = useRouter()
+
+  const [role, setRole] = useState<UserRole>('public')
+  const [authLoading, setAuthLoading] = useState(true)
+
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
@@ -790,6 +797,52 @@ export default function LineupBuilderPage() {
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
+  const isCaptainAccess = isCaptain(role)
+  const isPreviewMode = role === 'member'
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadRole() {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const user = data.user
+
+        if (!mounted) return
+
+        if (!user) {
+          setRole('public')
+          setAuthLoading(false)
+          return
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (!mounted) return
+
+        setRole(normalizeUserRole(profile?.role))
+      } finally {
+        if (mounted) setAuthLoading(false)
+      }
+    }
+
+    void loadRole()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadRole()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     const handleResize = () => setScreenWidth(window.innerWidth)
@@ -821,6 +874,8 @@ export default function LineupBuilderPage() {
   }, [])
 
   useEffect(() => {
+    if (authLoading || role === 'public') return
+
     let mounted = true
 
     async function loadData() {
@@ -899,7 +954,7 @@ export default function LineupBuilderPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [authLoading, role])
 
   const leagueOptions = useMemo(
     () =>
@@ -1319,6 +1374,11 @@ export default function LineupBuilderPage() {
   }
 
   async function trackPredictionSnapshot(source: string, scenarioIdOverride?: string | null, silent = false) {
+    if (!isCaptainAccess) {
+      if (!silent) setError('Captain tier required to track predictions.')
+      return false
+    }
+
     setTrackingSnapshot(true)
     const payload = buildPredictionTrackingPayload(source, scenarioIdOverride)
     const { error: insertError } = await supabase.from('lineup_prediction_snapshots').insert(payload)
@@ -1340,6 +1400,12 @@ export default function LineupBuilderPage() {
     setSaving(true)
     setError('')
     setMessage('')
+
+    if (!isCaptainAccess) {
+      setSaving(false)
+      setError('Upgrade to Captain tier to save scenarios.')
+      return
+    }
 
     if (!scenarioName.trim()) {
       setSaving(false)
@@ -1401,6 +1467,11 @@ export default function LineupBuilderPage() {
   }
 
   async function deleteScenario(scenarioId: string) {
+    if (!isCaptainAccess) {
+      setError('Captain tier required to delete scenarios.')
+      return
+    }
+
     const confirmed = window.confirm('Delete this saved scenario?')
     if (!confirmed) return
 
@@ -1582,6 +1653,21 @@ export default function LineupBuilderPage() {
 
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
 
+  if (authLoading) {
+    return (
+      <SiteShell active="/captain">
+        <div style={pageWrap}>
+          <div style={surfaceCard}>Loading lineup builder...</div>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  if (role === 'public') {
+    router.replace('/login')
+    return null
+  }
+
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
@@ -1635,6 +1721,11 @@ export default function LineupBuilderPage() {
 
         {!!message && <div style={bannerGreenStyle}>{message}</div>}
         {!!error && <div style={warningCardStyle}>{error}</div>}
+        {isPreviewMode ? (
+          <div style={bannerBlueStyle}>
+            Preview mode: members can explore the lineup builder, but saving scenarios, deleting scenarios, and tracking prediction snapshots require Captain tier.
+          </div>
+        ) : null}
 
         <section style={surfaceCard}>
           <div style={tableHeaderStyle}>

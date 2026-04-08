@@ -7,7 +7,7 @@ import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { getUserRole, isCaptain, isMember, type UserRole } from '@/lib/roles'
 
 type TeamMatch = {
   id: string
@@ -53,6 +53,22 @@ type TeamOption = {
   matches: number
 }
 
+
+type CaptainWorkspaceState = {
+  lineupReady: boolean
+  scenarioReady: boolean
+  messagingReady: boolean
+  currentEventKey: string
+  lineupCount: number
+  scenarioCount: number
+  lastUpdatedLabel: string
+}
+
+const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
+const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
+const CAPTAIN_RESUME_STORAGE_KEY = 'tenaceiq_captain_resume'
+
+
 type TeamPlayerSummary = {
   id: string
   name: string
@@ -76,6 +92,40 @@ function safeText(value: string | null | undefined, fallback = 'Unknown') {
   const text = (value || '').trim()
   return text || fallback
 }
+
+
+function safeKey(...parts: Array<string | null | undefined>) {
+  return parts.map((part) => (part || '').trim().toLowerCase() || '—').join('|')
+}
+
+function readLocalObject<T>(key: string): T | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+function readLocalArray<T>(key: string): T[] {
+  const value = readLocalObject<T[]>(key)
+  return Array.isArray(value) ? value : []
+}
+
+function formatDateTimeShort(value: string | null) {
+  if (!value) return 'Not updated yet'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
@@ -131,6 +181,30 @@ export default function CaptainHubPage() {
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [error, setError] = useState('')
 
+  const [scenarioCount, setScenarioCount] = useState(0)
+  const [latestScenarioName, setLatestScenarioName] = useState('')
+  const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
+    lineupReady: false,
+    scenarioReady: false,
+    messagingReady: false,
+    currentEventKey: '',
+    lineupCount: 0,
+    scenarioCount: 0,
+    lastUpdatedLabel: 'Not updated yet',
+  })
+
+  async function loadRole(userId: string | null | undefined) {
+    const nextRole = await getUserRole(userId ?? null)
+    setRole(nextRole)
+    setAuthLoading(false)
+
+    if (!isMember(nextRole)) {
+      router.replace('/login')
+    }
+
+    return nextRole
+  }
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setSelectedTeam(params.get('team') || '')
@@ -139,35 +213,27 @@ export default function CaptainHubPage() {
   }, [])
 
   useEffect(() => {
-    async function loadAuth() {
-      try {
-        const { data } = await supabase.auth.getUser()
-        const nextRole = getUserRole(data.user?.id ?? null)
-        setRole(nextRole)
+    let active = true
 
-        if (nextRole === 'public') {
-          router.replace('/login')
-        }
-      } finally {
-        setAuthLoading(false)
-      }
+    async function loadAuth() {
+      const { data } = await supabase.auth.getUser()
+      if (!active) return
+      await loadRole(data.user?.id ?? null)
     }
 
-    loadAuth()
+    void loadAuth()
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextRole = getUserRole(session?.user?.id ?? null)
-      setRole(nextRole)
-      setAuthLoading(false)
-
-      if (nextRole === 'public') {
-        router.replace('/login')
-      }
+      if (!active) return
+      void loadRole(session?.user?.id ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [router])
 
   useEffect(() => {
@@ -267,6 +333,8 @@ export default function CaptainHubPage() {
 
       if (!matchIds.length) {
         setParticipants([])
+        setScenarioCount(0)
+        setLatestScenarioName('')
         return
       }
 
@@ -290,6 +358,23 @@ export default function CaptainHubPage() {
       if (participantError) throw new Error(participantError.message)
 
       setParticipants((participantData || []) as MatchPlayer[])
+
+      let scenarioQuery = supabase
+        .from('lineup_scenarios')
+        .select('id, scenario_name, match_date')
+        .order('match_date', { ascending: false })
+        .order('scenario_name', { ascending: true })
+
+      if (selectedTeam) scenarioQuery = scenarioQuery.eq('team_name', selectedTeam)
+      if (selectedLeague) scenarioQuery = scenarioQuery.eq('league_name', selectedLeague)
+      if (selectedFlight) scenarioQuery = scenarioQuery.eq('flight', selectedFlight)
+
+      const { data: scenarioData, error: scenarioError } = await scenarioQuery
+      if (scenarioError) throw new Error(scenarioError.message)
+
+      const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
+      setScenarioCount(typedScenarios.length)
+      setLatestScenarioName(typedScenarios[0]?.scenario_name || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load captain hub')
     } finally {
@@ -300,6 +385,42 @@ export default function CaptainHubPage() {
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
   }, [teamOptions])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const currentMatch = matches[0] ?? null
+    const currentEventKey = safeKey(
+      selectedTeam,
+      selectedLeague,
+      selectedFlight,
+      currentMatch?.match_date || null,
+    )
+
+    const lineupRows = readLocalArray<{ event_key?: string }>(WEEKLY_LINEUPS_STORAGE_KEY)
+    const eventDetails = readLocalArray<{ key?: string; location?: string; arrivalTime?: string; notes?: string }>(
+      WEEKLY_EVENT_DETAILS_STORAGE_KEY,
+    )
+    const selectedScenario = readLocalObject<{ id?: string; scenario_name?: string }>('tenace_selected_scenario')
+    const resumeState = readLocalObject<{ updatedAt?: string }>(CAPTAIN_RESUME_STORAGE_KEY)
+
+    const lineupCount = lineupRows.filter((row) => (row.event_key || '') === currentEventKey).length
+    const eventDetail = eventDetails.find((row) => (row.key || '') === currentEventKey) || null
+
+    const lineupReady = lineupCount > 0
+    const scenarioReady = !!selectedScenario?.id || scenarioCount > 0
+    const messagingReady = !!(eventDetail && (eventDetail.location || eventDetail.arrivalTime || eventDetail.notes) && lineupReady)
+
+    setWorkspaceState({
+      lineupReady,
+      scenarioReady,
+      messagingReady,
+      currentEventKey,
+      lineupCount,
+      scenarioCount,
+      lastUpdatedLabel: formatDateTimeShort(resumeState?.updatedAt || null),
+    })
+  }, [matches, selectedTeam, selectedLeague, selectedFlight, scenarioCount])
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
@@ -462,6 +583,90 @@ export default function CaptainHubPage() {
     ? `/captain/analytics?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
     : '/captain/analytics'
 
+  const premiumEnabled = isCaptain(role)
+
+  const nextAction = useMemo(() => {
+    if (!selectedTeam) {
+      return {
+        title: 'Choose your team scope',
+        detail: 'Start by loading the correct team, league, and flight so the captain workflow stays tied to the right match week.',
+        href: '/captain',
+        cta: 'Select Team',
+        tone: 'info' as const,
+      }
+    }
+
+    if (!matches.length) {
+      return {
+        title: 'Open your team page',
+        detail: 'This team needs more match context before the captain workflow can be fully useful.',
+        href: currentTeamHref,
+        cta: 'Open Team Page',
+        tone: 'warn' as const,
+      }
+    }
+
+    if (!workspaceState.lineupReady) {
+      return {
+        title: 'Build the weekly lineup',
+        detail: 'No lineup is currently loaded for the active match context, so that is the highest-value next move.',
+        href: lineupBuilderHref,
+        cta: 'Open Lineup Builder',
+        tone: 'info' as const,
+      }
+    }
+
+    if (!workspaceState.scenarioReady) {
+      return {
+        title: 'Compare and lock scenarios',
+        detail: 'A lineup exists, but it has not been anchored to a saved scenario yet.',
+        href: scenarioHref,
+        cta: 'Open Scenario Builder',
+        tone: 'info' as const,
+      }
+    }
+
+    if (!workspaceState.messagingReady) {
+      return {
+        title: 'Send the weekly plan',
+        detail: 'Your lineup and scenario are in place. The next move is communicating the plan to the team.',
+        href: messagingHref,
+        cta: 'Open Messaging',
+        tone: 'good' as const,
+      }
+    }
+
+    return {
+      title: 'Review captain intelligence',
+      detail: 'Your week is in motion. Review the final signals and keep an eye on execution risk.',
+      href: analyticsHref,
+      cta: 'Open Captain IQ',
+      tone: 'good' as const,
+    }
+  }, [selectedTeam, matches.length, workspaceState, currentTeamHref, lineupBuilderHref, scenarioHref, messagingHref, analyticsHref])
+
+  function rememberCaptainResume(stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team') {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(
+      CAPTAIN_RESUME_STORAGE_KEY,
+      JSON.stringify({
+        team: selectedTeam,
+        league: selectedLeague,
+        flight: selectedFlight,
+        stage,
+        updatedAt: new Date().toISOString(),
+      }),
+    )
+  }
+
+  function handleCaptainNav(
+    href: string,
+    stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team',
+  ) {
+    rememberCaptainResume(stage)
+    router.push(href)
+  }
+
   if (authLoading) {
     return (
       <SiteShell active="/captain">
@@ -514,9 +719,13 @@ export default function CaptainHubPage() {
                 )}
               </select>
 
-              <Link href={lineupBuilderHref} style={primaryButton}>
+              <button
+                type="button"
+                style={primaryButtonButton}
+                onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}
+              >
                 Open Lineup Builder
-              </Link>
+              </button>
             </div>
 
             <div style={heroBadgeRow}>
@@ -554,6 +763,101 @@ export default function CaptainHubPage() {
 
         {error ? <section style={errorCard}>{error}</section> : null}
 
+        <section style={premiumStrip}>
+          <div>
+            <div style={sectionKicker}>Captain tier</div>
+            <h2 style={premiumTitle}>
+              {premiumEnabled ? 'Premium workflow unlocked' : 'Premium workflow preview'}
+            </h2>
+            <div style={premiumText}>
+              Lineup Builder, Scenario Builder, Messaging, and Captain IQ are the premium captain loop.
+            </div>
+          </div>
+          <div style={pillGroupWrap}>
+            <span style={premiumEnabled ? badgeGreen : badgeSlate}>
+              {premiumEnabled ? 'Captain tier active' : role === 'member' ? 'Member preview only' : 'Upgrade to unlock'}
+            </span>
+            <span style={badgeBlue}>{role === 'admin' ? 'Admin access' : role === 'captain' ? 'Captain access' : role === 'member' ? 'Member preview' : 'Login required'}</span>
+          </div>
+        </section>
+
+        <section style={statusStrip}>
+          <StatusStripCard
+            label="Lineup"
+            value={workspaceState.lineupReady ? 'Built' : 'Not built'}
+            detail={workspaceState.lineupReady ? `${workspaceState.lineupCount} lineup slot${workspaceState.lineupCount === 1 ? '' : 's'} loaded` : 'No weekly lineup stored yet'}
+            tone={workspaceState.lineupReady ? 'good' : 'info'}
+          />
+          <StatusStripCard
+            label="Scenario"
+            value={workspaceState.scenarioReady ? 'Chosen' : 'Not chosen'}
+            detail={workspaceState.scenarioReady ? `${workspaceState.scenarioCount} saved scenario${workspaceState.scenarioCount === 1 ? '' : 's'} available${latestScenarioName ? ` · latest: ${latestScenarioName}` : ''}` : 'No saved scenarios tied to this team yet'}
+            tone={workspaceState.scenarioReady ? 'good' : 'info'}
+          />
+          <StatusStripCard
+            label="Messaging"
+            value={workspaceState.messagingReady ? 'Ready' : 'Not ready'}
+            detail={workspaceState.messagingReady ? 'Weekly communication details are in place.' : 'Messaging prep still needs lineup or event details.'}
+            tone={workspaceState.messagingReady ? 'good' : 'warn'}
+          />
+          <StatusStripCard
+            label="Resume"
+            value={workspaceState.lastUpdatedLabel}
+            detail="Last captain workflow touchpoint"
+            tone="neutral"
+          />
+        </section>
+
+        <section style={nextActionShell}>
+          <div style={nextActionIntro}>
+            <div style={sectionKicker}>Next best action</div>
+            <h2 style={sectionTitle}>What should you do right now?</h2>
+            <div style={sectionSub}>
+              The hub reads lineup state, saved scenarios, and messaging readiness to suggest the highest-leverage next move.
+            </div>
+          </div>
+
+          <div style={nextActionCard}>
+            <div style={nextActionHeader}>
+              <span style={nextAction.tone === 'good' ? badgeGreen : nextAction.tone === 'warn' ? warnBadge : badgeBlue}>
+                {nextAction.tone === 'good' ? 'Ready to move' : nextAction.tone === 'warn' ? 'Needs attention' : 'Recommended'}
+              </span>
+              <span style={badgeSlate}>Resume from hub</span>
+            </div>
+
+            <div style={nextActionTitle}>{nextAction.title}</div>
+            <div style={nextActionText}>{nextAction.detail}</div>
+
+            <div style={nextActionButtonRow}>
+              <button
+                type="button"
+                style={primaryButtonButton}
+                onClick={() => handleCaptainNav(
+                  nextAction.href,
+                  nextAction.href === lineupBuilderHref
+                    ? 'lineup'
+                    : nextAction.href === scenarioHref
+                      ? 'scenario'
+                      : nextAction.href === messagingHref
+                        ? 'messaging'
+                        : nextAction.href === analyticsHref
+                          ? 'analytics'
+                          : 'team',
+                )}
+              >
+                {nextAction.cta}
+              </button>
+              <button
+                type="button"
+                style={secondaryButtonSmallButton}
+                onClick={() => handleCaptainNav(messagingHref, 'messaging')}
+              >
+                Continue Messaging
+              </button>
+            </div>
+          </div>
+        </section>
+
         <section style={metricGrid}>
           <MetricCard label="Visible team" value={selectedTeam || '—'} />
           <MetricCard label="League" value={selectedLeague || '—'} />
@@ -579,6 +883,7 @@ export default function CaptainHubPage() {
               description="Track who is in, out, tentative, or still needs follow-up before building anything."
               href={availabilityHref}
               cta="Open Availability"
+              onAction={() => handleCaptainNav(availabilityHref, 'availability')}
             />
             <ActionCard
               badge="Strategy"
@@ -587,6 +892,9 @@ export default function CaptainHubPage() {
               href={lineupBuilderHref}
               cta="Open Lineup Builder"
               accent
+              premium
+              premiumEnabled={premiumEnabled}
+              onAction={() => handleCaptainNav(lineupBuilderHref, 'lineup')}
             />
             <ActionCard
               badge="Comparison"
@@ -594,13 +902,19 @@ export default function CaptainHubPage() {
               description="Review and compare likely opponent and saved lineup scenarios."
               href={scenarioHref}
               cta="Open Scenario Builder"
+              premium
+              premiumEnabled={premiumEnabled}
+              onAction={() => handleCaptainNav(scenarioHref, 'scenario')}
             />
             <ActionCard
               badge="Messaging"
-              title="Weekly Messaging"
+              title="Send Weekly Plan"
               description="Text availability checks, lineup announcements, directions, reminders, and follow-ups by team and session."
               href={messagingHref}
-              cta="Open Messaging"
+              cta="Send to Team"
+              premium
+              premiumEnabled={premiumEnabled}
+              onAction={() => handleCaptainNav(messagingHref, 'messaging')}
             />
             <ActionCard
               badge="Captain IQ"
@@ -608,6 +922,9 @@ export default function CaptainHubPage() {
               description="Review dependability, pairings, roster usage, and lineup signals before finalizing decisions."
               href={analyticsHref}
               cta="Open Analytics"
+              premium
+              premiumEnabled={premiumEnabled}
+              onAction={() => handleCaptainNav(analyticsHref, 'analytics')}
             />
             <ActionCard
               badge="Team Context"
@@ -615,6 +932,7 @@ export default function CaptainHubPage() {
               description="Go deeper into roster usage, match history, and full team detail."
               href={currentTeamHref}
               cta="Open Team Page"
+              onAction={() => handleCaptainNav(currentTeamHref, 'team')}
             />
           </div>
         </section>
@@ -637,7 +955,7 @@ export default function CaptainHubPage() {
               <div style={commandText}>
                 Check availability first so every later decision is based on the players who can actually play.
               </div>
-              <Link href={availabilityHref} style={secondaryButtonSmall}>Go to Availability</Link>
+              <button type="button" style={secondaryButtonSmallButton} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>Go to Availability</button>
             </div>
             <div style={commandCard}>
               <div style={commandStep}>Step 2</div>
@@ -646,8 +964,8 @@ export default function CaptainHubPage() {
                 Use lineup builder and scenario tools together to create the best version before you communicate it.
               </div>
               <div style={commandButtonRow}>
-                <Link href={lineupBuilderHref} style={primaryButtonSmall}>Lineup Builder</Link>
-                <Link href={scenarioHref} style={secondaryButtonSmall}>Compare Scenarios</Link>
+                <button type="button" style={primaryButtonSmallButton} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>Lineup Builder</button>
+                <button type="button" style={secondaryButtonSmallButton} onClick={() => handleCaptainNav(scenarioHref, 'scenario')}>Compare Scenarios</button>
               </div>
             </div>
             <div style={commandCardAccent}>
@@ -657,8 +975,8 @@ export default function CaptainHubPage() {
                 Open messaging to send lineups, arrival time, directions, and reminders to the right group.
               </div>
               <div style={commandButtonRow}>
-                <Link href={messagingHref} style={primaryButtonSmall}>Open Messaging</Link>
-                <Link href={analyticsHref} style={secondaryButtonSmall}>Open Captain IQ</Link>
+                <button type="button" style={primaryButtonSmallButton} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>Open Messaging</button>
+                <button type="button" style={secondaryButtonSmallButton} onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>Open Captain IQ</button>
               </div>
             </div>
           </div>
@@ -795,6 +1113,9 @@ function ActionCard({
   href,
   cta,
   accent = false,
+  premium = false,
+  premiumEnabled = true,
+  onAction,
 }: {
   badge: string
   title: string
@@ -802,17 +1123,62 @@ function ActionCard({
   href: string
   cta: string
   accent?: boolean
+  premium?: boolean
+  premiumEnabled?: boolean
+  onAction?: () => void
 }) {
+  const locked = premium && !premiumEnabled
+
   return (
-    <article style={{ ...actionCard, ...(accent ? actionCardAccent : null) }}>
+    <article style={{ ...actionCard, ...(accent ? actionCardAccent : null), ...(locked ? actionCardLocked : null) }}>
       <div style={actionGlow} />
-      <span style={badgePill}>{badge}</span>
+      <div style={actionCardTopRow}>
+        <span style={badgePill}>{badge}</span>
+        {premium ? (
+          <span style={premiumEnabled ? badgeGreen : badgeSlate}>
+            {premiumEnabled ? 'Captain tier' : 'Premium'}
+          </span>
+        ) : null}
+      </div>
       <h3 style={actionTitle}>{title}</h3>
       <p style={actionText}>{description}</p>
-      <Link href={href} style={accent ? primaryButtonSmall : secondaryButtonSmall}>
-        {cta}
-      </Link>
+      {locked ? (
+        <div style={lockedText}>Upgrade to Captain Tier to unlock this workflow.</div>
+      ) : onAction ? (
+        <button type="button" style={accent ? primaryButtonSmallButton : secondaryButtonSmallButton} onClick={onAction}>
+          {cta}
+        </button>
+      ) : (
+        <Link href={href} style={accent ? primaryButtonSmall : secondaryButtonSmall}>
+          {cta}
+        </Link>
+      )}
     </article>
+  )
+}
+
+function StatusStripCard({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string
+  value: string
+  detail: string
+  tone: 'good' | 'warn' | 'info' | 'neutral'
+}) {
+  const toneStyle =
+    tone === 'good' ? badgeGreen : tone === 'warn' ? warnBadge : tone === 'info' ? badgeBlue : badgeSlate
+
+  return (
+    <div style={statusCard}>
+      <div style={statusTopRow}>
+        <div style={metricLabel}>{label}</div>
+        <span style={toneStyle}>{value}</span>
+      </div>
+      <div style={statusDetail}>{detail}</div>
+    </div>
   )
 }
 
@@ -974,6 +1340,24 @@ const secondaryButtonSmall: CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
 }
 
+const primaryButtonButton: CSSProperties = {
+  ...primaryButton,
+  border: 'none',
+  cursor: 'pointer',
+}
+
+const primaryButtonSmallButton: CSSProperties = {
+  ...primaryButtonSmall,
+  border: 'none',
+  cursor: 'pointer',
+}
+
+const secondaryButtonSmallButton: CSSProperties = {
+  ...secondaryButtonSmall,
+  border: '1px solid rgba(116,190,255,0.18)',
+  cursor: 'pointer',
+}
+
 const heroBadgeRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -1070,6 +1454,130 @@ const errorCard: CSSProperties = {
   background: 'rgba(60,16,24,0.76)',
   color: '#fecaca',
   fontWeight: 700,
+}
+
+const premiumStrip: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 16,
+  flexWrap: 'wrap',
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,36,66,0.68) 0%, rgba(17,34,61,0.54) 100%)',
+}
+
+const premiumTitle: CSSProperties = {
+  margin: '6px 0 0',
+  color: '#f8fbff',
+  fontSize: 22,
+  lineHeight: 1.08,
+  letterSpacing: '-0.03em',
+}
+
+const premiumText: CSSProperties = {
+  marginTop: 8,
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: 14,
+  lineHeight: 1.65,
+}
+
+const pillGroupWrap: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center',
+}
+
+const statusStrip: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 14,
+}
+
+const statusCard: CSSProperties = {
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.05)',
+  display: 'grid',
+  gap: 10,
+}
+
+const statusTopRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+const statusDetail: CSSProperties = {
+  color: 'rgba(229,238,251,0.76)',
+  fontSize: 13,
+  lineHeight: 1.6,
+}
+
+const nextActionShell: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(320px, 1.1fr)',
+  gap: 18,
+  padding: 22,
+  borderRadius: 28,
+  border: '1px solid rgba(74,222,128,0.16)',
+  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+}
+
+const nextActionIntro: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+}
+
+const nextActionCard: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(74,222,128,0.16)',
+  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+}
+
+const nextActionHeader: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const nextActionTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 24,
+  fontWeight: 900,
+  lineHeight: 1.08,
+  letterSpacing: '-0.03em',
+}
+
+const nextActionText: CSSProperties = {
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: 14,
+  lineHeight: 1.7,
+}
+
+const nextActionButtonRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const warnBadge: CSSProperties = {
+  ...badgeBase,
+  color: '#fecaca',
+  border: '1px solid rgba(248,113,113,0.22)',
+  background: 'rgba(60,16,24,0.76)',
 }
 
 const stateCard: CSSProperties = {
@@ -1194,6 +1702,28 @@ const actionGlow: CSSProperties = {
   borderRadius: 999,
   background: 'radial-gradient(circle, rgba(74,163,255,0.14), transparent 70%)',
   pointerEvents: 'none',
+}
+
+const actionCardLocked: CSSProperties = {
+  opacity: 0.82,
+}
+
+const actionCardTopRow: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const lockedText: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: 13,
+  lineHeight: 1.6,
 }
 
 const badgePill: CSSProperties = {
