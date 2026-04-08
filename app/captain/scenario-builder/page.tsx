@@ -394,7 +394,7 @@ export default function ScenarioComparisonPage() {
   }, [yourComparison.avgDiff, opponentComparison.avgDiff])
 
   const builderHref = (scenarioId: string) =>
-    `/captains-corner/lineup-builder?left=${encodeURIComponent(scenarioId)}`
+    `/captain/lineup-builder?left=${encodeURIComponent(scenarioId)}`
 
   return (
     <SiteShell active="/captain">
@@ -409,7 +409,7 @@ export default function ScenarioComparisonPage() {
             </p>
 
             <div style={heroButtonRowStyle}>
-              <Link href="/captains-corner/lineup-builder" style={primaryButton}>
+              <Link href="/captain/lineup-builder" style={primaryButton}>
                 Open Lineup Builder
               </Link>
               <Link href="/captains-corner" style={ghostButton}>
@@ -558,7 +558,7 @@ export default function ScenarioComparisonPage() {
                   onChange={setLeftId}
                   scenarios={filteredScenarios}
                   scenario={leftScenario}
-                  builderHref={leftScenario ? builderHref(leftScenario.id) : '/captains-corner/lineup-builder'}
+                  builderHref={leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder'}
                 />
 
                 <ScenarioPanel
@@ -568,12 +568,202 @@ export default function ScenarioComparisonPage() {
                   onChange={setRightId}
                   scenarios={filteredScenarios}
                   scenario={rightScenario}
-                  builderHref={rightScenario ? builderHref(rightScenario.id) : '/captains-corner/lineup-builder'}
+                  builderHref={rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder'}
                 />
               </section>
 
               {leftScenario && rightScenario ? (
                 <>
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Scenario change digest</p>
+                        <h3 style={sectionTitleSmall}>What actually changed between versions</h3>
+                      </div>
+                      <span style={miniPillSlate}>
+                        {yourComparison.changedCount + opponentComparison.changedCount} total deltas
+                      </span>
+                    </div>
+
+                    <div style={changeDigestGridStyle}>
+                      <div style={changeDigestCardStyle}>
+                        <div style={changeDigestLabelStyle}>Your lineup</div>
+                        <div style={changeDigestValueStyle}>
+                          {yourComparison.changedCount === 0
+                            ? 'No changes'
+                            : `${yourComparison.changedCount} changed slot${yourComparison.changedCount === 1 ? '' : 's'}`}
+                        </div>
+                        <div style={changeDigestTextStyle}>
+                          {yourComparison.changedCount === 0
+                            ? 'Both saved versions use the same lineup on your side.'
+                            : 'These are the internal lineup shifts driving the difference between your compared versions.'}
+                        </div>
+                      </div>
+
+                      <div style={changeDigestCardStyle}>
+                        <div style={changeDigestLabelStyle}>Opponent assumptions</div>
+                        <div style={changeDigestValueStyle}>
+                          {opponentComparison.changedCount === 0
+                            ? 'No changes'
+                            : `${opponentComparison.changedCount} changed slot${opponentComparison.changedCount === 1 ? '' : 's'}`}
+                        </div>
+                        <div style={changeDigestTextStyle}>
+                          {opponentComparison.changedCount === 0
+                            ? 'Your opponent projection is stable across both versions.'
+                            : 'These opponent-side changes are affecting the matchup readout the most.'}
+                        </div>
+                      </div>
+
+                      <div style={changeDigestCardStyle}>
+                        <div style={changeDigestLabelStyle}>Fastest explanation</div>
+                        <div style={changeDigestValueStyle}>
+                          {yourComparison.biggestSwing?.label || opponentComparison.biggestSwing?.label || 'No major swing slot'}
+                        </div>
+                        <div style={changeDigestTextStyle}>
+                          Start with the largest swing slot first when you need to explain why one version is leading.
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Decision scoreboard</p>
+                        <h3 style={sectionTitleSmall}>A faster read on which version is ahead</h3>
+                      </div>
+                      <span style={overallProjection >= 0.5 ? miniPillBlue : miniPillGreen}>
+                        {overallProjection >= 0.5 ? 'Scenario A ahead' : 'Scenario B ahead'}
+                      </span>
+                    </div>
+
+                    <div style={scoreboardGridStyle}>
+                      <div style={scoreboardCardStyle}>
+                        <div style={scoreboardLabelStyle}>Scenario A</div>
+                        <div style={scoreboardValueStyle}>{Math.round(overallProjection * 100)}%</div>
+                        <div style={scoreboardTextStyle}>
+                          Combined comparison readout for the left-side scenario.
+                        </div>
+                      </div>
+
+                      <div style={scoreboardCardStyle}>
+                        <div style={scoreboardLabelStyle}>Scenario B</div>
+                        <div style={scoreboardValueStyle}>{100 - Math.round(overallProjection * 100)}%</div>
+                        <div style={scoreboardTextStyle}>
+                          Combined comparison readout for the right-side scenario.
+                        </div>
+                      </div>
+
+                      <div style={scoreboardCardStyle}>
+                        <div style={scoreboardLabelStyle}>Largest swing court</div>
+                        <div style={scoreboardValueStyle}>
+                          {yourComparison.biggestSwing?.label || opponentComparison.biggestSwing?.label || 'No major swing'}
+                        </div>
+                        <div style={scoreboardTextStyle}>
+                          Start here if you want the fastest explanation for why one version is separating.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={scoreboardInsightStyle}>
+                      {overallProjection >= 0.58
+                        ? 'Scenario A has started to separate enough that it should be treated as the lead plan unless new information shows up.'
+                        : overallProjection <= 0.42
+                          ? 'Scenario B has started to separate enough that it should be treated as the lead plan unless new information shows up.'
+                          : 'Neither version is fully separating yet, so this still benefits from one more builder pass or a captain judgment call.'}
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Scenario delta summary</p>
+                        <h3 style={sectionTitleSmall}>Why one version is pulling ahead</h3>
+                      </div>
+                      <span style={miniPillSlate}>
+                        {Math.abs(yourComparison.avgDiff - opponentComparison.avgDiff).toFixed(2)} net gap
+                      </span>
+                    </div>
+
+                    <div style={deltaSummaryGridStyle}>
+                      <div style={deltaSummaryCardStyle}>
+                        <div style={deltaSummaryLabelStyle}>Your lineup change load</div>
+                        <div style={deltaSummaryValueStyle}>{yourComparison.changedCount}</div>
+                        <div style={deltaSummaryTextStyle}>
+                          Different courts across your compared lineup versions.
+                        </div>
+                      </div>
+
+                      <div style={deltaSummaryCardStyle}>
+                        <div style={deltaSummaryLabelStyle}>Opponent assumption load</div>
+                        <div style={deltaSummaryValueStyle}>{opponentComparison.changedCount}</div>
+                        <div style={deltaSummaryTextStyle}>
+                          Different opponent courts affecting the matchup picture.
+                        </div>
+                      </div>
+
+                      <div style={deltaSummaryCardStyle}>
+                        <div style={deltaSummaryLabelStyle}>Net comparison edge</div>
+                        <div style={deltaSummaryValueStyle}>
+                          {(yourComparison.avgDiff - opponentComparison.avgDiff) >= 0 ? 'A leaning' : 'B leaning'}
+                        </div>
+                        <div style={deltaSummaryTextStyle}>
+                          A quick read of which version carries the cleaner combined scenario profile.
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Captain takeaway</p>
+                        <h3 style={sectionTitleSmall}>What matters most in this decision</h3>
+                      </div>
+                      <span style={overallProjection >= 0.5 ? miniPillBlue : miniPillGreen}>
+                        {overallProjection >= 0.5 ? 'Scenario A leaning ahead' : 'Scenario B leaning ahead'}
+                      </span>
+                    </div>
+
+                    <div style={takeawayGridStyle}>
+                      <div style={takeawayCardStyle}>
+                        <div style={takeawayLabelStyle}>Winning version</div>
+                        <div style={takeawayValueStyle}>
+                          {overallProjection >= 0.5
+                            ? (leftScenario?.scenario_name || 'Scenario A')
+                            : (rightScenario?.scenario_name || 'Scenario B')}
+                        </div>
+                        <div style={takeawayTextStyle}>
+                          This is the version with the stronger combined readout from the current scenario comparison model.
+                        </div>
+                      </div>
+
+                      <div style={takeawayCardStyle}>
+                        <div style={takeawayLabelStyle}>Biggest internal change</div>
+                        <div style={takeawayValueStyle}>
+                          {yourComparison.biggestSwing?.label || 'No major lineup swing'}
+                        </div>
+                        <div style={takeawayTextStyle}>
+                          {yourComparison.biggestSwing
+                            ? 'This lineup slot creates the largest internal difference between your compared versions.'
+                            : 'The compared lineups are currently very similar across your own side.'}
+                        </div>
+                      </div>
+
+                      <div style={takeawayCardStyle}>
+                        <div style={takeawayLabelStyle}>Biggest opponent change</div>
+                        <div style={takeawayValueStyle}>
+                          {opponentComparison.biggestSwing?.label || 'No major opponent swing'}
+                        </div>
+                        <div style={takeawayTextStyle}>
+                          {opponentComparison.biggestSwing
+                            ? 'This opponent slot changes the matchup picture the most between the saved versions.'
+                            : 'Opponent assumptions are currently fairly stable across both scenarios.'}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
                   <section style={projectionGridResponsive(isSmallMobile, isTablet)}>
                     <ProjectionCard
                       title="Your lineup edge"
@@ -592,8 +782,261 @@ export default function ScenarioComparisonPage() {
                     <OverallCard projection={overallProjection} />
                   </section>
 
+                  
+                  <section style={surfaceCardStrong}>
+                    <p style={sectionKicker}>Final decision</p>
+                    <h2 style={sectionTitle}>Which scenario should you play?</h2>
+
+                    <div style={{marginTop:12, display:'grid', gap:10}}>
+                      <div style={miniPillBlue}>
+                        Scenario A win chance: {Math.round(overallProjection*100)}%
+                      </div>
+                      <div style={miniPillGreen}>
+                        Scenario B win chance: {100 - Math.round(overallProjection*100)}%
+                      </div>
+                    </div>
+
+                    <div style={{marginTop:14}}>
+                      <strong>
+                        Recommendation: {overallProjection >= 0.5 ? 'Play Scenario A' : 'Play Scenario B'}
+                      </strong>
+                    </div>
+                  </section>
+
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Finalize workflow</p>
+                        <h3 style={sectionTitleSmall}>Move from comparison to action</h3>
+                      </div>
+                      <span style={miniPillSlate}>
+                        {overallProjection >= 0.5 ? 'Scenario A leads' : 'Scenario B leads'}
+                      </span>
+                    </div>
+
+                    <div style={finalizeGridStyle}>
+                      <div style={finalizeCardStyle}>
+                        <div style={finalizeLabelStyle}>Recommended winner</div>
+                        <div style={finalizeValueStyle}>
+                          {overallProjection >= 0.5
+                            ? leftScenario?.scenario_name || 'Scenario A'
+                            : rightScenario?.scenario_name || 'Scenario B'}
+                        </div>
+                        <div style={finalizeTextStyle}>
+                          {overallProjection >= 0.5
+                            ? 'Scenario A currently carries the stronger combined readout across the compared versions.'
+                            : 'Scenario B currently carries the stronger combined readout across the compared versions.'}
+                        </div>
+                      </div>
+
+                      <div style={finalizeCardStyle}>
+                        <div style={finalizeLabelStyle}>Next best action</div>
+                        <div style={finalizeValueStyle}>
+                          {yourComparison.changedCount > 0 || opponentComparison.changedCount > 0
+                            ? 'Send the winner back to builder'
+                            : 'Lock the cleaner version'}
+                        </div>
+                        <div style={finalizeTextStyle}>
+                          Jump back into the lineup builder for the winning version if you still need to adjust players, otherwise move into team communication.
+                        </div>
+                      </div>
+
+                      <div style={finalizeCardStyle}>
+                        <div style={finalizeLabelStyle}>Captain follow-through</div>
+                        <div style={finalizeValueStyle}>Communicate the plan</div>
+                        <div style={finalizeTextStyle}>
+                          Once you trust the winning scenario, carry it into your weekly messaging workflow so the team gets one clear version.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <Link
+                        href={overallProjection >= 0.5
+                          ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
+                          : (rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder')}
+                        style={primaryButtonSmall}
+                      >
+                        Edit Winning Scenario
+                      </Link>
+                      <Link href="/captain/messaging" style={ghostButtonSmall}>
+                        Open Messaging
+                      </Link>
+                      <Link href="/captain" style={ghostButtonSmall}>
+                        Back to Captain Hub
+                      </Link>
+                    </div>
+                  </section>
+
                   <ComparisonTable title="Your lineup comparison" comparison={yourComparison} />
                   <ComparisonTable title="Opponent lineup comparison" comparison={opponentComparison} />
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Scenario confidence ladder</p>
+                        <h3 style={sectionTitleSmall}>How strong this recommendation really is</h3>
+                      </div>
+                      <span style={miniPillSlate}>
+                        {Math.abs(overallProjection - 0.5) >= 0.15 ? 'High separation' : Math.abs(overallProjection - 0.5) >= 0.08 ? 'Moderate separation' : 'Tight decision'}
+                      </span>
+                    </div>
+
+                    <div style={confidenceLadderGridStyle}>
+                      <div style={confidenceLadderCardStyle}>
+                        <div style={confidenceLadderLabelStyle}>Projection spread</div>
+                        <div style={confidenceLadderValueStyle}>
+                          {Math.abs((Math.round(overallProjection * 100)) - (100 - Math.round(overallProjection * 100)))} pts
+                        </div>
+                        <div style={confidenceLadderTextStyle}>
+                          Bigger spreads usually mean the winning version is separating more clearly.
+                        </div>
+                      </div>
+
+                      <div style={confidenceLadderCardStyle}>
+                        <div style={confidenceLadderLabelStyle}>Your-side volatility</div>
+                        <div style={confidenceLadderValueStyle}>
+                          {yourComparison.changedCount <= 1 ? 'Low' : yourComparison.changedCount <= 3 ? 'Medium' : 'High'}
+                        </div>
+                        <div style={confidenceLadderTextStyle}>
+                          This reflects how much your own lineup changes between the compared versions.
+                        </div>
+                      </div>
+
+                      <div style={confidenceLadderCardStyle}>
+                        <div style={confidenceLadderLabelStyle}>Opponent volatility</div>
+                        <div style={confidenceLadderValueStyle}>
+                          {opponentComparison.changedCount <= 1 ? 'Low' : opponentComparison.changedCount <= 3 ? 'Medium' : 'High'}
+                        </div>
+                        <div style={confidenceLadderTextStyle}>
+                          This reflects how much your opponent assumptions are moving between versions.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={confidenceLadderInsightStyle}>
+                      {Math.abs(overallProjection - 0.5) >= 0.15
+                        ? 'Confidence is strong enough to treat the winning scenario as your lead version unless new availability or scouting changes show up.'
+                        : Math.abs(overallProjection - 0.5) >= 0.08
+                          ? 'You have a usable lean, but this still benefits from one more captain review before it becomes the communicated plan.'
+                          : 'This comparison is still tight. Use builder edits, lock decisions, or fresher opponent assumptions before treating one version as final.'}
+                    </div>
+                  </section>
+
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Communication readiness</p>
+                        <h3 style={sectionTitleSmall}>How close this is to a sendable plan</h3>
+                      </div>
+                      <span style={
+                        overallProjection >= 0.6 || overallProjection <= 0.4
+                          ? miniPillGreen
+                          : miniPillSlate
+                      }>
+                        {overallProjection >= 0.6 || overallProjection <= 0.4 ? 'Clearer winner' : 'Needs captain judgment'}
+                      </span>
+                    </div>
+
+                    <div style={readinessGridStyle}>
+                      <div style={readinessCardStyle}>
+                        <div style={readinessLabelStyle}>Decision clarity</div>
+                        <div style={readinessValueStyle}>
+                          {Math.abs(overallProjection - 0.5) >= 0.1 ? 'Strong' : 'Moderate'}
+                        </div>
+                        <div style={readinessTextStyle}>
+                          {Math.abs(overallProjection - 0.5) >= 0.1
+                            ? 'One version is separating enough that you can communicate with more confidence.'
+                            : 'The compared versions are still fairly close, so final captain judgment still matters.'}
+                        </div>
+                      </div>
+
+                      <div style={readinessCardStyle}>
+                        <div style={readinessLabelStyle}>Scenario stability</div>
+                        <div style={readinessValueStyle}>
+                          {yourComparison.changedCount <= 2 ? 'Stable' : 'Still moving'}
+                        </div>
+                        <div style={readinessTextStyle}>
+                          {yourComparison.changedCount <= 2
+                            ? 'Your lineup versions are relatively close, which makes the winner easier to trust.'
+                            : 'Your own lineup is changing a lot across versions, so keep refining before treating this as final.'}
+                        </div>
+                      </div>
+
+                      <div style={readinessCardStyle}>
+                        <div style={readinessLabelStyle}>Send readiness</div>
+                        <div style={readinessValueStyle}>
+                          {Math.abs(overallProjection - 0.5) >= 0.1 && yourComparison.changedCount <= 2 && opponentComparison.changedCount <= 2 ? 'Ready to message' : 'Refine first'}
+                        </div>
+                        <div style={readinessTextStyle}>
+                          {Math.abs(overallProjection - 0.5) >= 0.1 && yourComparison.changedCount <= 2 && opponentComparison.changedCount <= 2
+                            ? 'This comparison is clean enough to move the winning version into weekly team messaging.'
+                            : 'Keep tuning the winning version in builder before pushing it out to the team.'}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Scenario command deck</p>
+                        <h3 style={sectionTitleSmall}>What to do with the winning version now</h3>
+                      </div>
+                      <span style={miniPillSlate}>
+                        {yourComparison.changedCount + opponentComparison.changedCount} total comparison changes
+                      </span>
+                    </div>
+
+                    <div style={scenarioCommandGridStyle}>
+                      <div style={scenarioCommandCardStyle}>
+                        <div style={scenarioCommandLabelStyle}>Winning scenario</div>
+                        <div style={scenarioCommandValueStyle}>
+                          {overallProjection >= 0.5
+                            ? (leftScenario?.scenario_name || 'Scenario A')
+                            : (rightScenario?.scenario_name || 'Scenario B')}
+                        </div>
+                        <div style={scenarioCommandTextStyle}>
+                          Use this as your working favorite unless late availability or opponent intel changes the picture.
+                        </div>
+                      </div>
+
+                      <div style={scenarioCommandCardStyle}>
+                        <div style={scenarioCommandLabelStyle}>Best next move</div>
+                        <div style={scenarioCommandValueStyle}>
+                          {yourComparison.changedCount > 0 ? 'Edit the winner in builder' : 'Carry it forward'}
+                        </div>
+                        <div style={scenarioCommandTextStyle}>
+                          {yourComparison.changedCount > 0
+                            ? 'Jump back into lineup builder with the winning scenario if you still want to tune player placement.'
+                            : 'This comparison is stable enough to move toward communication and final confirmation.'}
+                        </div>
+                      </div>
+
+                      <div style={scenarioCommandCardStyle}>
+                        <div style={scenarioCommandLabelStyle}>Captain workflow</div>
+                        <div style={scenarioCommandValueStyle}>Compare → refine → send</div>
+                        <div style={scenarioCommandTextStyle}>
+                          Keep scenario work focused on decision clarity, then move the final version into weekly team messaging.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <Link
+                        href={overallProjection >= 0.5
+                          ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
+                          : (rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder')}
+                        style={primaryButtonSmall}
+                      >
+                        Open Winning Scenario in Builder
+                      </Link>
+                      <Link href="/captain/messaging" style={ghostButtonSmall}>
+                        Open Messaging
+                      </Link>
+                    </div>
+                  </section>
 
                   <section style={notesGridResponsive(isTablet)}>
                     <NotesCard label="Scenario A" scenario={leftScenario} />
@@ -1343,4 +1786,321 @@ const notesTextStyle: CSSProperties = {
   color: '#e7eefb',
   lineHeight: 1.7,
   whiteSpace: 'pre-wrap',
+}
+
+const finalizeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const finalizeCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const finalizeLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const finalizeValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const finalizeTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const takeawayGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+}
+
+const takeawayCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const takeawayLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const takeawayValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const takeawayTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const scenarioCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const scenarioCommandCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const scenarioCommandLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const scenarioCommandValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const scenarioCommandTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const deltaSummaryGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const deltaSummaryCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const deltaSummaryLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const deltaSummaryValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const deltaSummaryTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const readinessGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const readinessCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const readinessLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const readinessValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const readinessTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const confidenceLadderGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const confidenceLadderCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const confidenceLadderLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const confidenceLadderValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const confidenceLadderTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const confidenceLadderInsightStyle: CSSProperties = {
+  marginTop: '14px',
+  color: '#e7eefb',
+  lineHeight: 1.7,
+  fontSize: '14px',
+}
+
+const scoreboardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const scoreboardCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const scoreboardLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const scoreboardValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const scoreboardTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
+}
+
+const scoreboardInsightStyle: CSSProperties = {
+  marginTop: '14px',
+  color: '#e7eefb',
+  lineHeight: 1.7,
+  fontSize: '14px',
+}
+
+const changeDigestGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '14px',
+  marginTop: '4px',
+}
+
+const changeDigestCardStyle: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const changeDigestLabelStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.72)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '.06em',
+}
+
+const changeDigestValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+}
+
+const changeDigestTextStyle: CSSProperties = {
+  color: 'rgba(224,234,247,0.76)',
+  lineHeight: 1.65,
+  fontSize: '14px',
 }

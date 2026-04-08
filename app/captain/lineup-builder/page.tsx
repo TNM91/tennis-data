@@ -1636,6 +1636,49 @@ export default function LineupBuilderPage() {
         {!!message && <div style={bannerGreenStyle}>{message}</div>}
         {!!error && <div style={warningCardStyle}>{error}</div>}
 
+        <section style={surfaceCard}>
+          <div style={tableHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Match context summary</p>
+              <h3 style={sectionTitleSmall}>Everything driving this build</h3>
+            </div>
+            <span style={miniPillBlueStyle}>{currentScenarioId ? 'saved scenario' : 'draft scenario'}</span>
+          </div>
+
+          <div style={contextSummaryGridStyle}>
+            <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>League</div>
+              <div style={contextSummaryValueStyle}>{leagueName || 'Not set'}</div>
+            </div>
+            <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>Flight</div>
+              <div style={contextSummaryValueStyle}>{flight || 'Not set'}</div>
+            </div>
+            <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>Team</div>
+              <div style={contextSummaryValueStyle}>{teamName || 'Not set'}</div>
+            </div>
+            <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>Opponent</div>
+              <div style={contextSummaryValueStyle}>{opponentTeam || 'Not set'}</div>
+            </div>
+            <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>Match date</div>
+              <div style={contextSummaryValueStyle}>{formatDate(matchDate || null)}</div>
+            </div>
+            <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>Scenario</div>
+              <div style={contextSummaryValueStyle}>{scenarioName.trim() || 'Untitled scenario'}</div>
+            </div>
+          </div>
+
+          <div style={contextSummaryInsightStyle}>
+            {!teamName || !opponentTeam || !matchDate
+              ? 'Set the missing match context fields so saved scenarios and comparisons stay easier to trust later.'
+              : 'Your scenario has enough context to save, compare, and track prediction snapshots with more confidence.'}
+          </div>
+        </section>
+
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
             <section style={surfaceCardStrong}>
@@ -1828,6 +1871,80 @@ export default function LineupBuilderPage() {
                 <span style={badgeSlate}>{eliteRecommendation.bench.length} bench options</span>
               </div>
 
+              <div style={lockPanelStyle}>
+                <div style={tableHeaderStyle}>
+                  <div>
+                    <p style={sectionKicker}>Lock + rebuild intelligence</p>
+                    <h3 style={sectionTitleSmall}>What is fixed and what can still move</h3>
+                  </div>
+                  <span style={miniPillSlateStyle}>
+                    {lockedSlotIds.length + lockedPlayerIds.length} lock{lockedSlotIds.length + lockedPlayerIds.length === 1 ? '' : 's'}
+                  </span>
+                </div>
+
+                <div style={lockGridStyle}>
+                  <div style={lockSummaryCardStyle}>
+                    <div style={lockSummaryLabelStyle}>Locked lines</div>
+                    <div style={lockSummaryValueStyle}>{lockedSlotIds.length}</div>
+                    <div style={lockSummaryTextStyle}>
+                      Preserve whole courts exactly as currently built during rebuilds.
+                    </div>
+                  </div>
+
+                  <div style={lockSummaryCardStyle}>
+                    <div style={lockSummaryLabelStyle}>Locked players</div>
+                    <div style={lockSummaryValueStyle}>{lockedPlayerIds.length}</div>
+                    <div style={lockSummaryTextStyle}>
+                      Keep specific players in the lineup while the rest of the build adjusts around them.
+                    </div>
+                  </div>
+                </div>
+
+                {(lockedSlotIds.length || lockedPlayerIds.length) ? (
+                  <div style={stackStyleCompact}>
+                    {lockedSlotIds.length ? (
+                      <div style={listCardStyleCompact}>
+                        <div>
+                          <div style={listTitleStyle}>Locked lines</div>
+                          <div style={listMetaStyle}>
+                            {teamSlots
+                              .filter((slot) => lockedSlotIdSet.has(slot.id))
+                              .map((slot) => slot.label)
+                              .join(' • ')}
+                          </div>
+                        </div>
+                        <span style={miniPillBlueStyle}>line locks</span>
+                      </div>
+                    ) : null}
+
+                    {lockedPlayerIds.length ? (
+                      <div style={listCardStyleCompact}>
+                        <div>
+                          <div style={listTitleStyle}>Locked players</div>
+                          <div style={listMetaStyle}>
+                            {players
+                              .filter((player) => lockedPlayerIdSet.has(player.id))
+                              .map((player) => player.name)
+                              .join(' • ')}
+                          </div>
+                        </div>
+                        <span style={miniPillGreenStyle}>player locks</span>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div style={bannerBlueStyle}>
+                    No locks are active. Use line lock to preserve a whole court, or player lock to anchor specific players before rebuilding.
+                  </div>
+                )}
+
+                <div style={lockInsightStyle}>
+                  {lockedSlotIds.length || lockedPlayerIds.length
+                    ? 'Rebuilds will preserve your locked structure first, then fill the rest of the lineup from the current player pool.'
+                    : 'Nothing is pinned yet, so optimizer actions can freely rebalance your entire lineup.'}
+                </div>
+              </div>
+
               {lineupWarnings.length ? (
                 <div style={stackStyle}>
                   {lineupWarnings.map((warning) => <div key={warning} style={warningCardStyle}>{warning}</div>)}
@@ -1855,6 +1972,49 @@ export default function LineupBuilderPage() {
                     <p style={mutedTextStyle}>No bench players are left after the recommendation engine fills the lineup.</p>
                   )}
                 </div>
+              </div>
+            </section>
+
+            <section style={surfaceCardStrong}>
+              <p style={sectionKicker}>Optimizer command center</p>
+              <h2 style={sectionTitle}>How to win this match</h2>
+
+              <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
+                <div style={bannerBlueStyle}>
+                  <strong>Match outlook:</strong> {projectionTier(analysis.projection)} — {formatPercent(analysis.projection)} win probability
+                </div>
+
+                {bestLine ? (
+                  <div style={bannerGreenStyle}>
+                    <strong>Best edge:</strong> {bestLine.label} ({typeof bestLine.diff === 'number' ? `${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}` : '—'})
+                  </div>
+                ) : null}
+
+                {weakestLine ? (
+                  <div style={warningCardStyle}>
+                    <strong>Biggest risk:</strong> {weakestLine.label} ({typeof weakestLine.diff === 'number' ? `${weakestLine.diff >= 0 ? '+' : ''}${weakestLine.diff.toFixed(2)}` : '—'})
+                  </div>
+                ) : null}
+
+                {swingLine ? (
+                  <div style={bannerBlueStyle}>
+                    <strong>Swing match:</strong> {swingLine.label} — this likely decides the match
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => applyOptimizedPlan('best')} style={primaryButton}>
+                  Apply Best Strategy
+                </button>
+
+                <button type="button" onClick={() => applyOptimizedPlan('safe')} style={ghostButton}>
+                  Play It Safe
+                </button>
+
+                <button type="button" onClick={() => applyOptimizedPlan('upside')} style={ghostButton}>
+                  Max Upside
+                </button>
               </div>
             </section>
 
@@ -1889,6 +2049,45 @@ export default function LineupBuilderPage() {
           </div>
 
           <div style={columnStyle}>
+            <section style={surfaceCardStrong}>
+              <p style={sectionKicker}>Captain decision snapshot</p>
+              <h2 style={sectionTitle}>What this lineup says right now</h2>
+
+              <div style={decisionSnapshotGridStyle}>
+                <div style={decisionCardGoodStyle}>
+                  <div style={decisionCardLabelStyle}>Best strategy</div>
+                  <div style={decisionCardValueStyle}>
+                    {bestOptimizedPlan?.title ?? 'No optimizer result'}
+                  </div>
+                  <div style={decisionCardTextStyle}>
+                    {bestOptimizedPlan?.subtitle ?? 'Run the optimizer to compare build directions.'}
+                  </div>
+                </div>
+
+                <div style={decisionCardBlueStyle}>
+                  <div style={decisionCardLabelStyle}>Expected result</div>
+                  <div style={decisionCardValueStyle}>{expectedScoreline.label}</div>
+                  <div style={decisionCardTextStyle}>
+                    {favoredLines} favored line(s), {underdogLines} underdog line(s), with {confidenceScore.tier.toLowerCase()}.
+                  </div>
+                </div>
+
+                <div style={decisionCardSlateStyle}>
+                  <div style={decisionCardLabelStyle}>Captain takeaway</div>
+                  <div style={decisionCardValueStyle}>
+                    {swingLine ? swingLine.label : bestLine ? bestLine.label : 'Keep building'}
+                  </div>
+                  <div style={decisionCardTextStyle}>
+                    {swingLine
+                      ? 'This is the most likely court to decide the match.'
+                      : bestLine
+                        ? 'This is your clearest current edge.'
+                        : 'Complete both sides to unlock clearer match guidance.'}
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section style={surfaceCardStrong}>
               <p style={sectionKicker}>Projection</p>
               <h2 style={sectionTitle}>Match-level outlook</h2>
@@ -1935,6 +2134,60 @@ export default function LineupBuilderPage() {
               </p>
             </section>
 
+            <section style={surfaceCardStrong}>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Captain action plan</p>
+                  <h3 style={sectionTitleSmall}>What to do before you lock this lineup</h3>
+                </div>
+                <span style={miniPillGreenStyle}>{confidenceScore.tier}</span>
+              </div>
+
+              <div style={actionPlanGridStyle}>
+                <div style={actionPlanCardStyle}>
+                  <div style={actionPlanLabelStyle}>Primary move</div>
+                  <div style={actionPlanValueStyle}>
+                    {bestOptimizedPlan?.title ?? 'Run optimizer'}
+                  </div>
+                  <div style={actionPlanTextStyle}>
+                    {bestOptimizedPlan?.subtitle ?? 'Use the optimizer plans to surface your strongest starting point.'}
+                  </div>
+                </div>
+
+                <div style={actionPlanCardStyle}>
+                  <div style={actionPlanLabelStyle}>Court to watch</div>
+                  <div style={actionPlanValueStyle}>
+                    {swingLine?.label ?? weakestLine?.label ?? 'Complete lineup'}
+                  </div>
+                  <div style={actionPlanTextStyle}>
+                    {swingLine
+                      ? 'This is the court most likely to flip the final result.'
+                      : weakestLine
+                        ? 'This is your biggest current pressure point.'
+                        : 'Add more players on both sides to unlock court-level guidance.'}
+                  </div>
+                </div>
+
+                <div style={actionPlanCardStyle}>
+                  <div style={actionPlanLabelStyle}>Bench lever</div>
+                  <div style={actionPlanValueStyle}>
+                    {eliteRecommendation.bench[0]?.name ?? 'No bench option'}
+                  </div>
+                  <div style={actionPlanTextStyle}>
+                    {eliteRecommendation.bench[0]
+                      ? 'Top alternate from the current recommendation if you need to adjust late.'
+                      : 'The recommended lineup currently uses the available player pool tightly.'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={actionPlanInsightStyle}>
+                {favoredLines > underdogLines
+                  ? 'You currently have more favored lines than underdog lines. Preserve your strongest edge and focus your last decisions around the swing court.'
+                  : 'This build is still fragile. Use the optimizer plans and lock system to reduce risk before you save or track a snapshot.'}
+              </div>
+            </section>
+
             <section style={surfaceCard}>
               <div style={tableHeaderStyle}>
                 <div>
@@ -1951,6 +2204,59 @@ export default function LineupBuilderPage() {
                     <div style={listMetaStyleStrong}>{card.body}</div>
                   </div>
                 ))}
+              </div>
+            </section>
+
+            <section style={surfaceCardStrong}>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Scenario command deck</p>
+                  <h3 style={sectionTitleSmall}>Save, compare, and track with less friction</h3>
+                </div>
+                <span style={miniPillBlueStyle}>{currentScenarioId ? 'active scenario' : 'draft mode'}</span>
+              </div>
+
+              <div style={scenarioDeckGridStyle}>
+                <div style={scenarioDeckCardStyle}>
+                  <div style={scenarioDeckLabelStyle}>Current scenario</div>
+                  <div style={scenarioDeckValueStyle}>{scenarioName.trim() || 'Untitled scenario'}</div>
+                  <div style={scenarioDeckTextStyle}>
+                    {currentScenario
+                      ? `Loaded from saved scenario on ${formatDate(currentScenario.match_date)}.`
+                      : 'This build is still in draft mode until you save it.'}
+                  </div>
+                </div>
+
+                <div style={scenarioDeckCardStyle}>
+                  <div style={scenarioDeckLabelStyle}>Comparison ready</div>
+                  <div style={scenarioDeckValueStyle}>{scenarioOptions.length} scenario{scenarioOptions.length === 1 ? '' : 's'}</div>
+                  <div style={scenarioDeckTextStyle}>
+                    Use scenario comparison to pressure-test different builds for the same match context.
+                  </div>
+                </div>
+
+                <div style={scenarioDeckCardStyle}>
+                  <div style={scenarioDeckLabelStyle}>Prediction tracking</div>
+                  <div style={scenarioDeckValueStyle}>{confidenceScore.label}</div>
+                  <div style={scenarioDeckTextStyle}>
+                    Track snapshots whenever the build materially changes so your prediction history stays useful.
+                  </div>
+                </div>
+              </div>
+
+              <div style={scenarioDeckButtonRowStyle}>
+                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                  {saving ? 'Saving…' : currentScenarioId ? 'Update Current Scenario' : 'Save Current Scenario'}
+                </button>
+                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
+                  Save as New Version
+                </button>
+                <button type="button" onClick={() => void trackPredictionSnapshot('command-deck-track')} style={ghostButton} disabled={trackingSnapshot}>
+                  {trackingSnapshot ? 'Tracking…' : 'Track Prediction Snapshot'}
+                </button>
+                <Link href={compareHref} style={ghostButton}>
+                  Open Scenario Comparison
+                </Link>
               </div>
             </section>
 
@@ -2336,6 +2642,44 @@ const filtersGridStyle: CSSProperties = {
   gap: 14,
 }
 
+const contextSummaryGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+}
+
+const contextSummaryCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  background: 'rgba(2, 6, 23, 0.56)',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  display: 'grid',
+  gap: 6,
+}
+
+const contextSummaryLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const contextSummaryValueStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 800,
+  letterSpacing: '-0.02em',
+}
+
+const contextSummaryInsightStyle: CSSProperties = {
+  marginTop: 14,
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.65,
+}
+
 const toggleRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -2517,6 +2861,150 @@ const tableHeaderStyle: CSSProperties = {
   marginBottom: 12,
 }
 
+const decisionSnapshotGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: 12,
+  marginTop: 10,
+}
+
+const decisionCardBaseStyle: CSSProperties = {
+  borderRadius: 20,
+  padding: 18,
+  display: 'grid',
+  gap: 8,
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+}
+
+const decisionCardGoodStyle: CSSProperties = {
+  ...decisionCardBaseStyle,
+  background: 'linear-gradient(180deg, rgba(34, 197, 94, 0.12), rgba(2, 6, 23, 0.72))',
+  border: '1px solid rgba(34, 197, 94, 0.22)',
+}
+
+const decisionCardBlueStyle: CSSProperties = {
+  ...decisionCardBaseStyle,
+  background: 'linear-gradient(180deg, rgba(37, 99, 235, 0.14), rgba(2, 6, 23, 0.72))',
+  border: '1px solid rgba(37, 99, 235, 0.22)',
+}
+
+const decisionCardSlateStyle: CSSProperties = {
+  ...decisionCardBaseStyle,
+  background: 'linear-gradient(180deg, rgba(148, 163, 184, 0.10), rgba(2, 6, 23, 0.72))',
+}
+
+const decisionCardLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const decisionCardValueStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 24,
+  lineHeight: 1.05,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const decisionCardTextStyle: CSSProperties = {
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.62,
+}
+
+const actionPlanGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: 12,
+  marginTop: 4,
+}
+
+const actionPlanCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  background: 'rgba(2, 6, 23, 0.58)',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  display: 'grid',
+  gap: 6,
+}
+
+const actionPlanLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const actionPlanValueStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 22,
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const actionPlanTextStyle: CSSProperties = {
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.62,
+}
+
+const actionPlanInsightStyle: CSSProperties = {
+  marginTop: 14,
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.7,
+}
+
+const scenarioDeckGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: 12,
+  marginTop: 4,
+}
+
+const scenarioDeckCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  background: 'rgba(2, 6, 23, 0.58)',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  display: 'grid',
+  gap: 6,
+}
+
+const scenarioDeckLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const scenarioDeckValueStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 22,
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const scenarioDeckTextStyle: CSSProperties = {
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.62,
+}
+
+const scenarioDeckButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  marginTop: 14,
+}
+
 const projectionHeroStyle: CSSProperties = {
   borderRadius: 22,
   padding: 20,
@@ -2587,6 +3075,58 @@ const heroBadgeRowStyleCompact: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   marginTop: 16,
+}
+
+const lockPanelStyle: CSSProperties = {
+  marginTop: 18,
+  padding: 18,
+  borderRadius: 20,
+  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.82))',
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+  display: 'grid',
+  gap: 14,
+}
+
+const lockGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 12,
+}
+
+const lockSummaryCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  background: 'rgba(2, 6, 23, 0.56)',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+  display: 'grid',
+  gap: 6,
+}
+
+const lockSummaryLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const lockSummaryValueStyle: CSSProperties = {
+  color: '#f8fafc',
+  fontSize: 28,
+  fontWeight: 900,
+  lineHeight: 1,
+}
+
+const lockSummaryTextStyle: CSSProperties = {
+  color: '#cbd5e1',
+  fontSize: 13,
+  lineHeight: 1.55,
+}
+
+const lockInsightStyle: CSSProperties = {
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.65,
 }
 
 const bannerBlueStyle: CSSProperties = {

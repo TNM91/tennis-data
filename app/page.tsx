@@ -313,7 +313,7 @@ export default function HomePage() {
     }
   }
 
-  const myLabHref = role === 'public' ? '/join' : '/dashboard'
+  const myLabHref = role === 'public' ? '/join' : '/mylab'
   const myLabLabel = role === 'public' ? 'Unlock My Lab' : 'Open My Lab'
 
   const dynamicHeroGrid: CSSProperties = {
@@ -390,10 +390,9 @@ export default function HomePage() {
               <div style={eyebrow}>Know more. Plan better. Compete smarter.</div>
 
               <div style={headlineBlock}>
-                <h1 style={dynamicHeroTitle}>Search first. Prepare faster. Win smarter.</h1>
+                <h1 style={dynamicHeroTitle}>Your Tennis. Your Team. Your Edge.</h1>
                 <p style={dynamicHeroText}>
-                  Find players in seconds, compare matchups with more context, and move from
-                  scouting to lineups without bouncing across tools.
+                  Track your game, analyze matchups, and build winning lineups with the context you need to prepare faster and compete smarter.
                 </p>
 
               <form onSubmit={handlePlayerSearch} style={dynamicSearchFrame}>
@@ -535,11 +534,11 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div style={previewEyebrow}>TenAceIQ</div>
-                        <div style={previewTitle}>Match-day intelligence</div>
+                        <div style={previewTitle}>Your tennis hub</div>
                       </div>
                     </div>
                     <div style={previewText}>
-                      Better reads on players, lineups, and league context before the first ball.
+                      Your data, your team, and your progress together in one place so all you have to do is play and keep leveling up.
                     </div>
                   </div>
 
@@ -557,16 +556,16 @@ export default function HomePage() {
                 </div>
 
                 <div style={dynamicPreviewMetrics}>
-                  <MetricCard label="Player search" value="Instant" text="Jump directly into profiles and ratings." />
-                  <MetricCard label="Matchup prep" value="Faster" text="Compare edges before match day." />
-                  <MetricCard label="Captain flow" value="Connected" text="Go from search to lineup decisions." />
+                  <MetricCard label="Your game" value="Tracked" text="Track ratings, results, and progress over time." />
+                  <MetricCard label="Your matches" value="Smarter" text="Prepare with matchup context before match day." />
+                  <MetricCard label="Your team" value="Ready" text="Move from scouting to lineup decisions without friction." />
                 </div>
 
                 <div style={workspaceCard}>
                   <div style={workspaceTopRow}>
                     <div>
                       <div style={workspaceEyebrow}>Platform preview</div>
-                      <div style={workspaceTitle}>Everything you need, without the noise.</div>
+                      <div style={workspaceTitle}>Everything you need to prepare and progress.</div>
                     </div>
                     <div style={workspaceBadge}>Live workflow</div>
                   </div>
@@ -575,20 +574,20 @@ export default function HomePage() {
                     <PreviewStep
                       href="/players"
                       icon={<SearchIcon />}
-                      title="Search players"
-                      text="Find profiles, ratings, and recent performance fast."
+                      title="Search & scout"
+                      text="Jump into player profiles, ratings, and recent form fast."
                     />
                     <PreviewStep
                       href="/matchup"
                       icon={<MatchupIcon />}
                       title="Compare matchups"
-                      text="Spot strengths, weaknesses, and likely edges."
+                      text="See likely edges, confidence, and scouting context before match day."
                     />
                     <PreviewStep
                       href="/captain"
                       icon={<CaptainIcon />}
-                      title="Build smarter lineups"
-                      text="Turn player context into better captain decisions."
+                      title="Captain workflow"
+                      text="Turn player context into better lineup and team decisions."
                     />
                   </div>
                 </div>
@@ -642,39 +641,99 @@ export default function HomePage() {
 
         <section style={contentSection}>
           <div style={sectionHeader}>
-            <div style={sectionEyebrow}>Built for how tennis actually works</div>
-            <h2 style={sectionTitle}>One front door. Three smart paths.</h2>
+            <div style={sectionEyebrow}>Built for your tennis life</div>
+            <h2 style={sectionTitle}>One platform. Three advantages.</h2>
             <p style={sectionText}>
-              Whether you are scouting the field, preparing for a specific matchup, or running a
-              team, TenAceIQ gets you into the right workflow fast.
+              TenAceIQ brings your game, your matches, and your team together so you can improve faster, make better decisions, and show up ready.
             </p>
           </div>
 
           <div style={dynamicAudienceGrid}>
             <AudienceCard
               href="/players"
-              eyebrow="For players"
-              title="Know the field"
-              text="Search ratings, form, and recent performance to understand who you are walking into."
-              bullets={['Player profiles', 'Ratings context', 'Recent performance']}
+              eyebrow="Your game"
+              title="Track your progress"
+              text="Follow ratings, form, and performance trends so you can see where your game is moving."
+              bullets={['Ratings trends', 'Recent performance', 'Player profiles']}
               accent="blue"
             />
             <AudienceCard
               href="/matchup"
-              eyebrow="For match prep"
-              title="See the edge"
-              text="Compare two players quickly so you can prep smarter and make stronger decisions before match day."
-              bullets={['Head-to-head prep', 'Stronger scouting', 'Cleaner comparisons']}
+              eyebrow="Your matches"
+              title="Prepare with confidence"
+              text="Compare players quickly, understand likely edges, and step on court with better prep."
+              bullets={['Matchup analysis', 'Scouting context', 'Better prep']}
               accent="green"
             />
             <AudienceCard
               href="/captain"
-              eyebrow="For captains"
-              title="Run the season"
-              text="Move from lineup questions to real decisions with captain tools built around the way teams operate."
-              bullets={['Availability', 'Messaging', 'Lineup planning']}
+              eyebrow="Your team"
+              title="Lead your lineup"
+              text="Build smarter lineups, manage availability, and run your team with less guesswork."
+              bullets={['Lineup planning', 'Availability', 'Captain workflow']}
               accent="blue"
             />
+          </div>
+        </section>
+
+        <section style={contentSection}>
+          <div style={premiumSectionCard}>
+            <div style={sectionHeader}>
+              <div style={sectionEyebrow}>Captain tier</div>
+              <h2 style={sectionTitle}>Win your league before match day.</h2>
+              <p style={sectionText}>
+                Captain tools should feel like a competitive edge, not extra admin work. Build smarter lineups, prepare with more confidence, and keep your team aligned in one workflow.
+              </p>
+            </div>
+
+            <div style={premiumFeatureGrid}>
+              <div style={premiumFeatureCard}>
+                <div style={premiumFeatureTitle}>Lineup optimizer</div>
+                <div style={premiumFeatureText}>Turn player context into better lineup decisions faster.</div>
+              </div>
+              <div style={premiumFeatureCard}>
+                <div style={premiumFeatureTitle}>Match predictions</div>
+                <div style={premiumFeatureText}>See likely edges before the first ball is hit.</div>
+              </div>
+              <div style={premiumFeatureCard}>
+                <div style={premiumFeatureTitle}>Availability tracking</div>
+                <div style={premiumFeatureText}>Know who is ready so lineup choices are easier.</div>
+              </div>
+              <div style={premiumFeatureCard}>
+                <div style={premiumFeatureTitle}>Team workflow</div>
+                <div style={premiumFeatureText}>Keep captain planning and match prep connected.</div>
+              </div>
+            </div>
+
+            <div style={premiumCtaRow}>
+              <Link href={myLabHref} style={previewCta}>{myLabLabel}</Link>
+              <Link href="/captain" style={secondaryInlineLink}>Explore captain tools →</Link>
+            </div>
+          </div>
+        </section>
+
+        <section style={contentSection}>
+          <div style={sectionHeader}>
+            <div style={sectionEyebrow}>Come back every week</div>
+            <h2 style={sectionTitle}>A smarter pulse on your tennis community.</h2>
+            <p style={sectionText}>
+              The best version of TenAceIQ is alive every time you open it — from player movement to fresh results to what matters next in your league.
+            </p>
+          </div>
+
+          <div style={weeklyGrid}>
+            <div style={weeklyCard}>
+              <div style={weeklyCardTitle}>Trending players</div>
+              <div style={weeklyCardText}>Spot who is rising and who is becoming more dangerous.</div>
+            </div>
+            <div style={weeklyCard}>
+              <div style={weeklyCardTitle}>Biggest movers</div>
+              <div style={weeklyCardText}>See rating momentum and recent performance shifts faster.</div>
+            </div>
+            <div style={weeklyCard}>
+              <div style={weeklyCardTitle}>Recent results</div>
+              <div style={weeklyCardText}>Keep up with what just happened across your league and community.</div>
+            </div>
           </div>
         </section>
 
@@ -1734,3 +1793,87 @@ const iconSvgStyle: CSSProperties = {
   height: '24px',
   display: 'block',
 }
+
+const premiumSectionCard: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
+  padding: '24px',
+  borderRadius: '28px',
+  background: 'linear-gradient(180deg, rgba(24,46,34,0.74) 0%, rgba(10,20,16,0.96) 100%)',
+  border: '1px solid rgba(155,225,29,0.16)',
+  boxShadow: '0 22px 50px rgba(7,18,40,0.2), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const premiumFeatureGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+}
+
+const premiumFeatureCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '18px',
+  borderRadius: '20px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
+  border: '1px solid rgba(155,225,29,0.12)',
+}
+
+const premiumFeatureTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '18px',
+  lineHeight: 1.1,
+  fontWeight: 800,
+  letterSpacing: '-0.03em',
+}
+
+const premiumFeatureText: CSSProperties = {
+  color: 'rgba(220,233,248,0.76)',
+  fontSize: '14px',
+  lineHeight: 1.68,
+}
+
+const premiumCtaRow: CSSProperties = {
+  display: 'flex',
+  gap: '14px',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+}
+
+const secondaryInlineLink: CSSProperties = {
+  color: '#dff3ff',
+  fontSize: '14px',
+  fontWeight: 800,
+  textDecoration: 'none',
+}
+
+const weeklyGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+}
+
+const weeklyCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '20px',
+  borderRadius: '22px',
+  background: 'linear-gradient(180deg, rgba(23,47,88,0.72) 0%, rgba(10,21,40,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const weeklyCardTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '20px',
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const weeklyCardText: CSSProperties = {
+  color: 'rgba(215,229,247,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.7,
+}
+
