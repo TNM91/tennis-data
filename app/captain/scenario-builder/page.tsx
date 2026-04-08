@@ -394,7 +394,7 @@ export default function ScenarioComparisonPage() {
   }, [yourComparison.avgDiff, opponentComparison.avgDiff])
 
   const builderHref = (scenarioId: string) =>
-    `/captain/lineup-builder?left=${encodeURIComponent(scenarioId)}`
+  `/captain/lineup-builder?scenarioId=${encodeURIComponent(scenarioId)}&source=scenario`
 
   return (
     <SiteShell active="/captain">
@@ -798,8 +798,12 @@ export default function ScenarioComparisonPage() {
 
                     <div style={{marginTop:14}}>
                       <strong>
-                        Recommendation: {overallProjection >= 0.5 ? 'Play Scenario A' : 'Play Scenario B'}
-                      </strong>
+  Recommendation: {overallProjection >= 0.5 ? 'Play Scenario A' : 'Play Scenario B'}
+</strong>
+
+<div style={{ marginTop: 10, fontSize: 14, opacity: 0.8 }}>
+  Next step: Send this lineup to your team
+</div>
                     </div>
                   </section>
 
@@ -860,9 +864,34 @@ export default function ScenarioComparisonPage() {
                       >
                         Edit Winning Scenario
                       </Link>
-                      <Link href="/captain/messaging" style={ghostButtonSmall}>
-                        Open Messaging
-                      </Link>
+                    <button
+  type="button"
+  style={ghostButtonSmall}
+  onClick={() => {
+    const winningScenario =
+      overallProjection >= 0.5 ? leftScenario : rightScenario
+
+    if (!winningScenario) return
+
+    localStorage.setItem(
+      'tenace_selected_scenario',
+      JSON.stringify(winningScenario)
+    )
+
+    localStorage.setItem(
+      'tenace_flow_source',
+      'scenario_builder'
+    )
+
+    const team = winningScenario.team_name || ''
+    const league = winningScenario.league_name || ''
+    const flight = winningScenario.flight || ''
+
+    window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+  }}
+>
+  Send Winning Scenario
+</button>
                       <Link href="/captain" style={ghostButtonSmall}>
                         Back to Captain Hub
                       </Link>
@@ -1032,9 +1061,34 @@ export default function ScenarioComparisonPage() {
                       >
                         Open Winning Scenario in Builder
                       </Link>
-                      <Link href="/captain/messaging" style={ghostButtonSmall}>
+                      <button
+                        type="button"
+                        style={ghostButtonSmall}
+                        onClick={() => {
+                          const winningScenario =
+                            overallProjection >= 0.5 ? leftScenario : rightScenario
+
+                          if (!winningScenario) return
+
+                          localStorage.setItem(
+                            'tenace_selected_scenario',
+                            JSON.stringify(winningScenario)
+                          )
+
+                          localStorage.setItem(
+                            'tenace_flow_source',
+                            'scenario_builder'
+                          )
+
+                          const team = winningScenario.team_name || ''
+                          const league = winningScenario.league_name || ''
+                          const flight = winningScenario.flight || ''
+
+                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                        }}
+                      >
                         Open Messaging
-                      </Link>
+                      </button>
                     </div>
                   </section>
 

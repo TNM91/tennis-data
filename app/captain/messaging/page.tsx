@@ -422,6 +422,10 @@ export default function CaptainMessagingPage() {
   const [eventNotes, setEventNotes] = useState('')
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
 
+  const [prefillScenarioRaw, setPrefillScenarioRaw] = useState<ScenarioRow | null>(null)
+  const [prefillFlowSource, setPrefillFlowSource] = useState('')
+  const [prefillApplied, setPrefillApplied] = useState(false)
+
   const [draftContact, setDraftContact] = useState<DraftContact>({
     full_name: '',
     phone: '',
@@ -451,6 +455,36 @@ export default function CaptainMessagingPage() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    try {
+      const rawScenario = window.localStorage.getItem('tenace_selected_scenario')
+      const rawFlowSource = window.localStorage.getItem('tenace_flow_source') || ''
+
+      if (rawScenario) {
+        const parsed = JSON.parse(rawScenario) as ScenarioRow
+        setPrefillScenarioRaw(parsed)
+      }
+
+      const params = new URLSearchParams(window.location.search)
+      const sourceFromUrl = params.get('source') || ''
+      if (sourceFromUrl || rawFlowSource) {
+        setPrefillFlowSource(sourceFromUrl || rawFlowSource)
+      }
+
+      const teamFromUrl = params.get('team') || ''
+      const leagueFromUrl = params.get('league') || ''
+      const flightFromUrl = params.get('flight') || ''
+
+      if (teamFromUrl) setTeamFilter(teamFromUrl)
+      if (leagueFromUrl) setLeagueFilter(leagueFromUrl)
+      if (flightFromUrl) setFlightFilter(flightFromUrl)
+    } catch {
+      // ignore malformed local storage payloads
+    }
   }, [])
 
   useEffect(() => {
@@ -545,6 +579,63 @@ export default function CaptainMessagingPage() {
       mounted = false
     }
   }, [])
+
+  useEffect(() => {
+    if (loading) return
+    if (prefillApplied) return
+    if (!prefillScenarioRaw) return
+
+    const scenarioId = prefillScenarioRaw.id || ''
+    const scenarioName = prefillScenarioRaw.scenario_name || ''
+    const nextTeam = prefillScenarioRaw.team_name || ''
+    const nextLeague = prefillScenarioRaw.league_name || ''
+    const nextFlight = prefillScenarioRaw.flight || ''
+    const nextMatchDate = prefillScenarioRaw.match_date || ''
+    const nextNotes = prefillScenarioRaw.notes || ''
+
+    if (nextTeam) setTeamFilter(nextTeam)
+    if (nextLeague) setLeagueFilter(nextLeague)
+    if (nextFlight) setFlightFilter(nextFlight)
+
+    const matchedScenario =
+      scenarios.find((scenario) => scenario.id === scenarioId) ??
+      scenarios.find((scenario) => {
+        return (
+          scenario.scenario_name === scenarioName &&
+          (scenario.team_name || '') === nextTeam &&
+          (scenario.match_date || '') === nextMatchDate
+        )
+      }) ??
+      null
+
+    if (matchedScenario) {
+      setSelectedScenarioId(matchedScenario.id)
+    }
+
+    const matchedEvent =
+      matches.find((match) => {
+        const home = (match.home_team || '').trim()
+        const away = (match.away_team || '').trim()
+        const teamMatch = !nextTeam || home === nextTeam || away === nextTeam
+        const leagueMatch = !nextLeague || (match.league_name || '') === nextLeague
+        const flightMatch = !nextFlight || (match.flight || '') === nextFlight
+        const dateMatch = !nextMatchDate || (match.match_date || '').slice(0, 10) === nextMatchDate.slice(0, 10)
+        return teamMatch && leagueMatch && flightMatch && dateMatch
+      }) ?? null
+
+    if (matchedEvent) {
+      setEventMatchId(matchedEvent.id)
+    }
+
+    if (nextNotes && !eventNotes.trim()) {
+      setEventNotes(nextNotes)
+    }
+
+    setRecipientMode('lineup-only')
+    setMessageKind('lineup')
+    setMessageTitle('Lineup Announcement')
+    setPrefillApplied(true)
+  }, [loading, prefillApplied, prefillScenarioRaw, scenarios, matches, eventNotes])
 
   const leagueOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.league_name), ...matches.map((m) => m.league_name), ...scenarios.map((s) => s.league_name)]), [contacts, matches, scenarios])
   const flightOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.flight), ...matches.map((m) => m.flight), ...scenarios.map((s) => s.flight)]), [contacts, matches, scenarios])
@@ -1325,13 +1416,19 @@ function buildWinningLineupMessage() {
   const slots = normalizeSlots(selectedScenario.slots_json)
 
   const lineupText = slots.length
-    ? slots.map((slot) => {
-        const players = slot.players.join(' / ') || 'TBD'
-        return `${slot.label}: ${players}`
-      }).join('\n')
+    ? slots
+        .map((slot) => {
+          const players = slot.players.join(' / ') || 'TBD'
+          return `${slot.label}: ${players}`
+        })
+        .join('\n')
     : 'Lineup coming soon.'
 
-  return `Lineup is set for ${formatDate(selectedMatch?.match_date)} vs ${inferredOpponent || 'our opponent'}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`
+  const scenarioDateText = formatDate(selectedScenario.match_date)
+  const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
+  const opponentText = inferredOpponent || selectedScenario.opponent_team || 'our opponent'
+
+  return `Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`
 }
 
 function applyWinningLineupToComposer() {
@@ -1342,6 +1439,27 @@ function applyWinningLineupToComposer() {
   setMessageTitle('Lineup Announcement')
   setMessageBody(message)
 }
+
+useEffect(() => {
+  if (!prefillApplied) return
+  if (!selectedScenario) return
+  if (prefillFlowSource !== 'scenario_builder' && prefillFlowSource !== 'captain_hub') return
+
+  if (!lineupRows.length) {
+    importScenarioToLineup()
+    return
+  }
+
+  setRecipientMode('lineup-only')
+  setMessageKind('lineup')
+  setMessageTitle('Lineup Announcement')
+  applyWinningLineupToComposer()
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem('tenace_selected_scenario')
+    window.localStorage.removeItem('tenace_flow_source')
+  }
+}, [prefillApplied, prefillFlowSource, selectedScenario, lineupRows.length])
 
 function importScenarioToLineup() {
     if (!selectedScenario) return
