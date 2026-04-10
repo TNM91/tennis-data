@@ -60,12 +60,15 @@ export default function LoginPage() {
 
     const redirectAuthenticatedUser = (nextRole: UserRole) => {
       if (nextRole === 'public' || hasRedirectedRef.current) return
+
       hasRedirectedRef.current = true
+
       if (mounted) {
         setRedirecting(true)
         setRole(nextRole)
         setAuthLoading(false)
       }
+
       router.replace(postLoginRoute)
     }
 
@@ -147,8 +150,13 @@ export default function LoginPage() {
 
       if (signInError) throw new Error(signInError.message)
 
+      hasRedirectedRef.current = true
       setRedirecting(true)
+      setRole('member')
+      setAuthLoading(false)
+      router.replace(postLoginRoute)
     } catch (err) {
+      hasRedirectedRef.current = false
       setRedirecting(false)
       setError(err instanceof Error ? err.message : 'Unable to sign in.')
     } finally {
@@ -234,7 +242,13 @@ export default function LoginPage() {
           <div style={loginPanelGlow} />
           <div style={loginPanelInner}>
             <div style={loginBrandWrap}>
-              <div style={{ ...logoOrbWrap, width: isSmallMobile ? '156px' : '188px', height: isSmallMobile ? '156px' : '188px' }}>
+              <div
+                style={{
+                  ...logoOrbWrap,
+                  width: isSmallMobile ? '156px' : '188px',
+                  height: isSmallMobile ? '156px' : '188px',
+                }}
+              >
                 <div style={logoOrbOuter} />
                 <div style={{ ...logoOrbMiddle, inset: isSmallMobile ? '12px' : '14px' }} />
                 <div
