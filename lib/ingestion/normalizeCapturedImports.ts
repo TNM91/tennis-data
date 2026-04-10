@@ -28,8 +28,9 @@ function isRecord(value: unknown): value is UnknownRecord {
 }
 
 function cleanString(value: unknown): string {
-  if (typeof value !== 'string') return ''
-  return value.replace(/\s+/g, ' ').trim()
+  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return ''
 }
 
 function nullableString(value: unknown): string | null {
@@ -58,10 +59,11 @@ function normalizeDate(value: unknown): string {
   const parsed = new Date(cleaned)
   if (Number.isNaN(parsed.getTime())) return ''
 
-  const year = parsed.getFullYear()
-  const month = `${parsed.getMonth() + 1}`.padStart(2, '0')
-  const day = `${parsed.getDate()}`.padStart(2, '0')
-  return `${year}-${month}-${day}`
+  const y = parsed.getFullYear()
+  const m = `${parsed.getMonth() + 1}`.padStart(2, '0')
+  const d = `${parsed.getDate()}`.padStart(2, '0')
+
+  return `${y}-${m}-${d}`
 }
 
 function normalizeMatchType(value: unknown): MatchType | null {
@@ -80,9 +82,7 @@ function normalizeWinnerSide(value: unknown): MatchSide | null {
 
 function splitPlayerList(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value
-      .map((entry) => cleanString(entry))
-      .filter(Boolean)
+    return value.map((entry) => cleanString(entry)).filter(Boolean)
   }
 
   const cleaned = cleanString(value)
@@ -94,8 +94,66 @@ function splitPlayerList(value: unknown): string[] {
     .filter(Boolean)
 }
 
+function unwrapRootRows(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload
+  if (!isRecord(payload)) return []
+
+  if (isRecord(payload.seasonSchedule) && Array.isArray(payload.seasonSchedule.matches)) {
+    return payload.seasonSchedule.matches
+  }
+
+  if (isRecord(payload.scorecard) && Array.isArray(payload.scorecard.lines)) {
+    return [payload.scorecard]
+  }
+
+  const directCandidates = [
+    payload.rows,
+    payload.matches,
+    payload.schedule,
+    payload.scorecards,
+    payload.data,
+    payload.items,
+    payload.records,
+    payload.results,
+    payload.scheduleRows,
+    payload.scorecardRows,
+    payload.scheduleData,
+  ]
+
+  for (const candidate of directCandidates) {
+    if (Array.isArray(candidate)) return candidate
+  }
+
+  const nestedCandidates = [
+    payload.payload,
+    payload.result,
+    payload.response,
+    payload.export,
+    payload.seasonSchedule,
+    payload.scorecard,
+  ]
+
+  for (const nested of nestedCandidates) {
+    if (!isRecord(nested)) continue
+
+    if (Array.isArray(nested.matches)) return nested.matches
+    if (Array.isArray(nested.rows)) return nested.rows
+    if (Array.isArray(nested.schedule)) return nested.schedule
+    if (Array.isArray(nested.scorecards)) return nested.scorecards
+    if (Array.isArray(nested.data)) return nested.data
+    if (Array.isArray(nested.items)) return nested.items
+    if (Array.isArray(nested.records)) return nested.records
+    if (Array.isArray(nested.results)) return nested.results
+    if (Array.isArray(nested.scheduleRows)) return nested.scheduleRows
+    if (Array.isArray(nested.scorecardRows)) return nested.scorecardRows
+    if (Array.isArray(nested.scheduleData)) return nested.scheduleData
+  }
+
+  return [payload]
+}
+
 function normalizeExternalMatchId(record: UnknownRecord): string {
-  return cleanString(
+  const direct = cleanString(
     pickFirst(record, [
       'externalMatchId',
       'external_match_id',
@@ -106,12 +164,29 @@ function normalizeExternalMatchId(record: UnknownRecord): string {
       'id',
     ]),
   )
+
+  if (direct) return direct
+
+  const nestedMatch = isRecord(record.match) ? record.match : null
+  const nestedMeta = isRecord(record.meta) ? record.meta : null
+
+  const nested = cleanString(
+    pickFirst((nestedMatch ?? nestedMeta ?? {}) as UnknownRecord, [
+      'externalMatchId',
+      'external_match_id',
+      'matchId',
+      'match_id',
+      'scorecardKey',
+      'scorecard_key',
+      'id',
+    ]),
+  )
+
+  return nested
 }
 
 function normalizeLeagueName(record: UnknownRecord): string | null {
-  return nullableString(
-    pickFirst(record, ['leagueName', 'league_name', 'league']),
-  )
+  return nullableString(pickFirst(record, ['leagueName', 'league_name', 'league']))
 }
 
 function normalizeFlight(record: UnknownRecord): string | null {
@@ -119,9 +194,7 @@ function normalizeFlight(record: UnknownRecord): string | null {
 }
 
 function normalizeSection(record: UnknownRecord): string | null {
-  return nullableString(
-    pickFirst(record, ['ustaSection', 'usta_section', 'section']),
-  )
+  return nullableString(pickFirst(record, ['ustaSection', 'usta_section', 'section']))
 }
 
 function normalizeDistrict(record: UnknownRecord): string | null {
@@ -131,14 +204,12 @@ function normalizeDistrict(record: UnknownRecord): string | null {
 }
 
 function normalizeFacility(record: UnknownRecord): string | null {
-  return nullableString(
-    pickFirst(record, ['facility', 'site', 'location', 'club']),
-  )
+  return nullableString(pickFirst(record, ['facility', 'site', 'location', 'club']))
 }
 
 function normalizeTime(record: UnknownRecord): string | null {
   return nullableString(
-    pickFirst(record, ['matchTime', 'match_time', 'scheduleTime', 'time']),
+    pickFirst(record, ['matchTime', 'match_time', 'scheduleTime', 'schedule_time', 'time']),
   )
 }
 
@@ -149,7 +220,7 @@ function normalizeScheduleRow(
 ): ScheduleImportRow | null {
   const externalMatchId = normalizeExternalMatchId(record)
   const matchDate = normalizeDate(
-    pickFirst(record, ['matchDate', 'match_date', 'scheduleDate', 'date']),
+    pickFirst(record, ['matchDate', 'match_date', 'scheduleDate', 'schedule_date', 'date']),
   )
   const homeTeam = cleanString(
     pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']),
@@ -350,27 +421,6 @@ function normalizeScorecardRow(
     matchTime: normalizeTime(record),
     source: 'tennislink_scorecard',
   }
-}
-
-function unwrapRootRows(payload: unknown): unknown[] {
-  if (Array.isArray(payload)) return payload
-
-  if (!isRecord(payload)) return []
-
-  const candidates = [
-    payload.rows,
-    payload.matches,
-    payload.schedule,
-    payload.scorecards,
-    payload.data,
-    payload.items,
-  ]
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate
-  }
-
-  return [payload]
 }
 
 export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeScheduleResult {

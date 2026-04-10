@@ -26,6 +26,15 @@ const SECONDARY_LINKS = [
   { href: '/join', label: 'Join', cta: true },
 ]
 
+const LEGAL_LINKS = [
+  { href: '/legal/privacy', label: 'Privacy' },
+  { href: '/legal/terms', label: 'Terms' },
+  { href: '/legal/disclaimer', label: 'Disclaimer' },
+  { href: '/legal/data-policy', label: 'Data Policy' },
+  { href: '/legal/cookies', label: 'Cookies' },
+  { href: '/legal/copyright', label: 'Copyright' },
+]
+
 function FooterLink({
   href,
   label,
@@ -104,7 +113,7 @@ export default function SiteFooter() {
   const navColumns = useMemo(
     () => ({
       display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
       gap: '12px',
       minWidth: 0,
     }),
@@ -196,6 +205,15 @@ export default function SiteFooter() {
                     label={link.label}
                     cta={Boolean(link.cta)}
                   />
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <div style={sectionLabel}>Legal</div>
+              <div style={linkGroup}>
+                {LEGAL_LINKS.map((link) => (
+                  <FooterLink key={link.href} href={link.href} label={link.label} />
                 ))}
               </div>
             </div>

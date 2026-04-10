@@ -13,14 +13,6 @@ import { supabase } from '@/lib/supabase'
 import { getUserRole, type UserRole } from '@/lib/roles'
 import SiteShell from '@/app/components/site-shell'
 
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
-]
-
 export default function JoinPage() {
   const router = useRouter()
 
@@ -31,6 +23,7 @@ export default function JoinPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -55,7 +48,7 @@ export default function JoinPage() {
         setRole(nextRole)
 
         if (nextRole !== 'public') {
-          router.replace('/dashboard')
+          router.replace('/mylab')
         }
       } finally {
         setAuthLoading(false)
@@ -72,7 +65,7 @@ export default function JoinPage() {
       setAuthLoading(false)
 
       if (nextRole !== 'public') {
-        router.replace('/dashboard')
+        router.replace('/mylab')
       }
     })
 
@@ -101,6 +94,11 @@ export default function JoinPage() {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match.')
+      return
+    }
+
+    if (!acceptedTerms) {
+      setError('You must accept the Terms and Privacy Policy to create an account.')
       return
     }
 
@@ -134,20 +132,6 @@ export default function JoinPage() {
     gap: isMobile ? '18px' : '24px',
   }
 
-  const headerInnerResponsive: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
-
-  const navStyleResponsive: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
   const formGridResponsive: CSSProperties = {
     ...benefitGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
@@ -155,11 +139,7 @@ export default function JoinPage() {
 
   if (authLoading) {
     return (
-      <SiteShell active="join">
-        
-        
-        
-        
+      <SiteShell active="/join">
         <section style={loadingShell}>
           <div style={loadingCard}>Checking account status...</div>
         </section>
@@ -170,14 +150,7 @@ export default function JoinPage() {
   if (role !== 'public') return null
 
   return (
-    <SiteShell active="join">
-      
-      
-      
-      
-
-      
-
+    <SiteShell active="/join">
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>Create member account</div>
@@ -302,6 +275,29 @@ export default function JoinPage() {
                 style={inputStyle}
               />
 
+              <label style={termsRow}>
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked)
+                    setError('')
+                  }}
+                  style={checkboxStyle}
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link href="/legal/terms" style={inlineLegalLink}>
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/legal/privacy" style={inlineLegalLink}>
+                    Privacy Policy
+                  </Link>
+                  .
+                </span>
+              </label>
+
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
@@ -340,159 +336,12 @@ function FeatureCard({ title, text }: { title: string; text: string }) {
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  top = false,
-}: {
-  compact?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : 38
-  const fontSize = compact ? 27 : top ? 34 : 29
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '10px' : '12px', lineHeight: 1 }}>
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
 const brandIQ: CSSProperties = {
   background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
   WebkitTextFillColor: 'transparent',
   backgroundClip: 'text',
   marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroShell: CSSProperties = {
@@ -754,6 +603,31 @@ const inputStyle: CSSProperties = {
   padding: '0 16px',
   fontSize: '15px',
   outline: 'none',
+}
+
+const termsRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '10px',
+  marginTop: '4px',
+  color: 'rgba(224,236,249,0.82)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const checkboxStyle: CSSProperties = {
+  width: '18px',
+  height: '18px',
+  marginTop: '2px',
+  flexShrink: 0,
+  accentColor: '#9be11d',
+}
+
+const inlineLegalLink: CSSProperties = {
+  color: '#d7f7a2',
+  textDecoration: 'none',
+  fontWeight: 800,
 }
 
 const togglePasswordButton: CSSProperties = {
