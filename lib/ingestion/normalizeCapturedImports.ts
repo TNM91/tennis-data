@@ -351,7 +351,15 @@ function normalizeScorecardRow(
 ): ScorecardImportRow | null {
   const externalMatchId = normalizeExternalMatchId(record)
   const matchDate = normalizeDate(
-    pickFirst(record, ['playedDate', 'played_date', 'matchDate', 'match_date', 'date']),
+    pickFirst(record, [
+      'dateMatchPlayed',
+      'date_match_played',
+      'playedDate',
+      'played_date',
+      'matchDate',
+      'match_date',
+      'date',
+    ]),
   )
   const homeTeam = cleanString(
     pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']),
