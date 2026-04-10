@@ -186,6 +186,9 @@ export default function MyLabPage() {
       const local = readLocalFollows()
       if (mounted) setFollows(local)
 
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      const userId = userData.user?.id ?? null
+
       const [playersRes, matchesRes, matchPlayersRes, scenariosRes, followsRes] = await Promise.all([
         supabase
           .from('players')
@@ -204,15 +207,24 @@ export default function MyLabPage() {
           .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
           .order('match_date', { ascending: false })
           .limit(40),
-        supabase
-          .from('user_follows')
-          .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
-          .order('created_at', { ascending: false }),
+        userId
+          ? supabase
+              .from('user_follows')
+              .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
+              .eq('user_id', userId)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [], error: userError ?? null }),
       ])
 
       if (!mounted) return
 
-      const firstHardError = [playersRes.error, matchesRes.error, matchPlayersRes.error, scenariosRes.error].find(Boolean)
+      const firstHardError = [
+        playersRes.error,
+        matchesRes.error,
+        matchPlayersRes.error,
+        scenariosRes.error,
+      ].find(Boolean)
+
       if (firstHardError) {
         setError(firstHardError.message)
       }
@@ -226,6 +238,8 @@ export default function MyLabPage() {
         setFollows(followsRes.data as FollowItem[])
         setSavedToCloud(true)
         writeLocalFollows(followsRes.data as FollowItem[])
+      } else if (!userId) {
+        setSavedToCloud(false)
       }
 
       setLoading(false)
@@ -386,7 +400,11 @@ export default function MyLabPage() {
         title: `${match.home_team || 'Team A'} vs ${match.away_team || 'Team B'}`,
         body: `${match.league_name || 'League match'}${match.flight ? ` • ${match.flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
-        entityId: containsFollowedLeague ? (followLeagues.find((f) => f.entity_name === match.league_name)?.entity_id ?? null) : containsFollowedTeam ? (followTeams.find((f) => f.entity_name === match.home_team || f.entity_name === match.away_team)?.entity_id ?? null) : playersInMatch[0]?.player_id ?? null,
+        entityId: containsFollowedLeague
+          ? (followLeagues.find((f) => f.entity_name === match.league_name)?.entity_id ?? null)
+          : containsFollowedTeam
+            ? (followTeams.find((f) => f.entity_name === match.home_team || f.entity_name === match.away_team)?.entity_id ?? null)
+            : playersInMatch[0]?.player_id ?? null,
         entityName: match.league_name || match.home_team || 'Watched match',
         createdAt: match.match_date || new Date().toISOString(),
         score: 94,
@@ -463,18 +481,43 @@ export default function MyLabPage() {
     writeLocalFollows(next)
 
     try {
-      const { error: deleteError } = await supabase.from('user_follows').delete().neq('id', '')
-      if (deleteError && !/relation .* does not exist/i.test(deleteError.message)) throw deleteError
+      const { data: userData } = await supabase.auth.getUser()
+      const userId = userData.user?.id
+
+      if (!userId) {
+        setSavedToCloud(false)
+        return
+      }
+
+      const { error: deleteError } = await supabase
+        .from('user_follows')
+        .delete()
+        .eq('user_id', userId)
+
+      if (deleteError && !/relation .* does not exist/i.test(deleteError.message)) {
+        throw deleteError
+      }
+
       if (next.length) {
         const payload = next.map((item) => ({
+          user_id: userId,
           entity_type: item.entity_type,
           entity_id: item.entity_id,
           entity_name: item.entity_name,
           subtitle: item.subtitle,
         }))
-        const { error: insertError } = await supabase.from('user_follows').insert(payload)
-        if (insertError && !/relation .* does not exist/i.test(insertError.message)) throw insertError
+
+        const { error: insertError } = await supabase
+          .from('user_follows')
+          .insert(payload)
+
+        if (insertError && !/relation .* does not exist/i.test(insertError.message)) {
+          throw insertError
+        }
+
         if (!insertError) setSavedToCloud(true)
+      } else {
+        setSavedToCloud(true)
       }
     } catch {
       setSavedToCloud(false)
@@ -515,7 +558,7 @@ export default function MyLabPage() {
   ]
 
   return (
-    <SiteShell active="/my-lab">
+    <SiteShell active="/mylab">
       <section style={pageStyle}>
         <section style={heroStyle(isTablet, isMobile)}>
           <div>
