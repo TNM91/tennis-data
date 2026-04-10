@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useMemo, useState, type CSSProperties, type ChangeEvent } from 'react'
+import { useMemo, useState, type CSSProperties, type ChangeEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import {
@@ -210,6 +210,12 @@ function buildPreviewMatches(payload: unknown): PreviewMatch[] {
   }))
 }
 
+function getWinnerLabel(match: PreviewMatch, winnerSide: 'A' | 'B' | null): string {
+  if (winnerSide === 'A') return match.homeTeam || 'Home'
+  if (winnerSide === 'B') return match.awayTeam || 'Away'
+  return '—'
+}
+
 function SummaryMetric({
   label,
   value,
@@ -242,7 +248,7 @@ function StatusPanel({
 }: {
   title: string
   tone: 'blue' | 'green' | 'slate'
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const border =
     tone === 'green'
@@ -320,8 +326,6 @@ export default function UploadScorecardPage() {
       return
     }
 
-  
-
     if (mode === 'preview') setIsRunningPreview(true)
     if (mode === 'commit') setIsRunningCommit(true)
 
@@ -365,10 +369,11 @@ export default function UploadScorecardPage() {
   }
 
   function handleLoadSample() {
-    const sample = [
-      {
+    const sample = {
+      pageType: 'scorecard',
+      scorecard: {
         matchId: 'sample-2026-04-09-001',
-        playedDate: '2026-04-09',
+        dateMatchPlayed: '2026-04-09',
         homeTeam: 'TenAce Home',
         awayTeam: 'Rival Squad',
         facility: 'Sample Club',
@@ -382,20 +387,26 @@ export default function UploadScorecardPage() {
             matchType: 'doubles',
             homePlayers: ['Nathan Meinert', 'Partner One'],
             awayPlayers: ['Opponent One', 'Opponent Two'],
-            winnerSide: 'A',
-            score: '6-4 6-3',
+            winnerSide: 'home',
+            sets: [
+              { homeGames: 6, awayGames: 4 },
+              { homeGames: 6, awayGames: 3 },
+            ],
           },
           {
             lineNumber: 2,
             matchType: 'singles',
             homePlayers: ['Home Singles'],
             awayPlayers: ['Away Singles'],
-            winnerSide: 'B',
-            score: '3-6 4-6',
+            winnerSide: 'away',
+            sets: [
+              { homeGames: 3, awayGames: 6 },
+              { homeGames: 4, awayGames: 6 },
+            ],
           },
         ],
       },
-    ]
+    }
 
     setSelectedFileName('sample-scorecard.json')
     setJsonInput(prettyJson(sample))
@@ -729,11 +740,9 @@ export default function UploadScorecardPage() {
                             Line {line.lineNumber} • {line.matchType}
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {line.winnerSide ? (
-                              <span style={pillGreenStyle}>Winner: {line.winnerSide}</span>
-                            ) : (
-                              <span style={pillBlueStyle}>Winner: pending</span>
-                            )}
+                            <span style={pillGreenStyle}>
+                              Winner: {getWinnerLabel(match, line.winnerSide)}
+                            </span>
                             <span style={pillBlueStyle}>Score: {cleanString(line.score) || '—'}</span>
                           </div>
                         </div>
@@ -754,7 +763,7 @@ export default function UploadScorecardPage() {
                               padding: '12px',
                             }}
                           >
-                            <div style={{ ...labelStyle, fontSize: '0.7rem' }}>Side A</div>
+                            <div style={{ ...labelStyle, fontSize: '0.7rem' }}>Home side</div>
                             <div style={{ ...subtleTextStyle, marginTop: 8 }}>
                               {line.sideAPlayers.join(' / ') || '—'}
                             </div>
@@ -768,7 +777,7 @@ export default function UploadScorecardPage() {
                               padding: '12px',
                             }}
                           >
-                            <div style={{ ...labelStyle, fontSize: '0.7rem' }}>Side B</div>
+                            <div style={{ ...labelStyle, fontSize: '0.7rem' }}>Away side</div>
                             <div style={{ ...subtleTextStyle, marginTop: 8 }}>
                               {line.sideBPlayers.join(' / ') || '—'}
                             </div>

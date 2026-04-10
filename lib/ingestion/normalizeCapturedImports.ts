@@ -213,6 +213,23 @@ function normalizeTime(record: UnknownRecord): string | null {
   )
 }
 
+function buildScoreFromSets(value: unknown): string | null {
+  const sets = toArray(value)
+  if (sets.length === 0) return null
+
+  const formatted = sets
+    .map((entry) => {
+      if (!isRecord(entry)) return ''
+      const homeGames = cleanString(pickFirst(entry, ['homeGames', 'home_games', 'sideAGames', 'aGames']))
+      const awayGames = cleanString(pickFirst(entry, ['awayGames', 'away_games', 'sideBGames', 'bGames']))
+      if (!homeGames || !awayGames) return ''
+      return `${homeGames}-${awayGames}`
+    })
+    .filter(Boolean)
+
+  return formatted.length > 0 ? formatted.join(' ') : null
+}
+
 function normalizeScheduleRow(
   record: UnknownRecord,
   rowIndex: number,
@@ -294,9 +311,9 @@ function normalizeScorecardLine(
     pickFirst(line, ['winnerSide', 'winner_side', 'winner']),
   )
 
-  const score = nullableString(
-    pickFirst(line, ['score', 'setScores', 'set_scores', 'result']),
-  )
+  const score =
+    nullableString(pickFirst(line, ['score', 'setScores', 'set_scores', 'result'])) ??
+    buildScoreFromSets(pickFirst(line, ['sets', 'setResults', 'set_results']))
 
   if (!Number.isFinite(numericLineNumber)) {
     warnings.push({
