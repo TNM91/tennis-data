@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import {
   transitionBase,
   hoverLift,
@@ -159,6 +159,26 @@ function HeaderButton({
   )
 }
 
+async function loadProfileRole(userId: string | null | undefined): Promise<UserRole> {
+  if (!userId) return 'public'
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) {
+      return 'member'
+    }
+
+    return normalizeUserRole(data?.role ?? 'member')
+  } catch {
+    return 'member'
+  }
+}
+
 export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -183,9 +203,19 @@ export default function SiteHeader({ active }: { active?: string }) {
 
     async function loadUser() {
       try {
-        const { data } = await supabase.auth.getUser()
+        const { data, error } = await supabase.auth.getUser()
+
         if (!mounted) return
-        setRole(getUserRole(data.user?.id ?? null))
+
+        if (error || !data.user) {
+          setRole('public')
+          return
+        }
+
+        const resolvedRole = await loadProfileRole(data.user.id)
+        if (!mounted) return
+
+        setRole(resolvedRole)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -195,8 +225,15 @@ export default function SiteHeader({ active }: { active?: string }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setRole(getUserRole(session?.user?.id ?? null))
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) {
+        setRole('public')
+        setAuthLoading(false)
+        return
+      }
+
+      const resolvedRole = await loadProfileRole(session.user.id)
+      setRole(resolvedRole)
       setAuthLoading(false)
     })
 
@@ -212,6 +249,7 @@ export default function SiteHeader({ active }: { active?: string }) {
 
   async function handleLogout() {
     await supabase.auth.signOut()
+    setRole('public')
     router.push('/')
     router.refresh()
   }
