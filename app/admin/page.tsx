@@ -19,6 +19,17 @@ type AdminTool = {
 
 const adminTools: AdminTool[] = [
   {
+  title: 'Captured Import',
+  href: '/admin/import-captured',
+  description:
+    'Paste captured schedule or scorecard JSON directly from your scraper and run preview or full ingestion into TenAceIQ.',
+  badge: 'New',
+  accent: 'green',
+  highlights: ['Schedule ingest', 'Scorecard ingest', 'Preview + commit'],
+  statLabel: 'Best for',
+  statValue: 'Real pipeline',
+},
+  {
     title: 'Upload Scorecard',
     href: '/admin/upload-scorecard',
     description:
@@ -87,7 +98,12 @@ const adminTools: AdminTool[] = [
 ]
 
 const importTools = adminTools.filter((tool) =>
-  ['/admin/upload-scorecard', '/admin/csv-import', '/admin/paste-results'].includes(tool.href)
+  [
+    '/admin/import-captured',
+    '/admin/upload-scorecard',
+    '/admin/csv-import',
+    '/admin/paste-results',
+  ].includes(tool.href)
 )
 
 const managementTools = adminTools.filter((tool) =>
