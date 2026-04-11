@@ -106,54 +106,26 @@ function unwrapRootRows(payload: unknown): unknown[] {
     return [payload.scorecard]
   }
 
-  const directCandidates = [
-    payload.rows,
-    payload.matches,
-    payload.schedule,
-    payload.scorecards,
-    payload.data,
-    payload.items,
-    payload.records,
-    payload.results,
-    payload.scheduleRows,
-    payload.scorecardRows,
-    payload.scheduleData,
-  ]
+  return []
+}
 
-  for (const candidate of directCandidates) {
-    if (Array.isArray(candidate)) return candidate
+function getRootMeta(payload: unknown): UnknownRecord | null {
+  if (!isRecord(payload)) return null
+  if (isRecord(payload.seasonSchedule)) return payload.seasonSchedule
+  if (isRecord(payload.scorecard)) return payload.scorecard
+  return null
+}
+
+function mergeWithRoot(record: UnknownRecord, root: UnknownRecord | null): UnknownRecord {
+  if (!root) return record
+  return {
+    ...root,
+    ...record,
   }
-
-  const nestedCandidates = [
-    payload.payload,
-    payload.result,
-    payload.response,
-    payload.export,
-    payload.seasonSchedule,
-    payload.scorecard,
-  ]
-
-  for (const nested of nestedCandidates) {
-    if (!isRecord(nested)) continue
-
-    if (Array.isArray(nested.matches)) return nested.matches
-    if (Array.isArray(nested.rows)) return nested.rows
-    if (Array.isArray(nested.schedule)) return nested.schedule
-    if (Array.isArray(nested.scorecards)) return nested.scorecards
-    if (Array.isArray(nested.data)) return nested.data
-    if (Array.isArray(nested.items)) return nested.items
-    if (Array.isArray(nested.records)) return nested.records
-    if (Array.isArray(nested.results)) return nested.results
-    if (Array.isArray(nested.scheduleRows)) return nested.scheduleRows
-    if (Array.isArray(nested.scorecardRows)) return nested.scorecardRows
-    if (Array.isArray(nested.scheduleData)) return nested.scheduleData
-  }
-
-  return [payload]
 }
 
 function normalizeExternalMatchId(record: UnknownRecord): string {
-  const direct = cleanString(
+  return cleanString(
     pickFirst(record, [
       'externalMatchId',
       'external_match_id',
@@ -164,25 +136,6 @@ function normalizeExternalMatchId(record: UnknownRecord): string {
       'id',
     ]),
   )
-
-  if (direct) return direct
-
-  const nestedMatch = isRecord(record.match) ? record.match : null
-  const nestedMeta = isRecord(record.meta) ? record.meta : null
-
-  const nested = cleanString(
-    pickFirst((nestedMatch ?? nestedMeta ?? {}) as UnknownRecord, [
-      'externalMatchId',
-      'external_match_id',
-      'matchId',
-      'match_id',
-      'scorecardKey',
-      'scorecard_key',
-      'id',
-    ]),
-  )
-
-  return nested
 }
 
 function normalizeLeagueName(record: UnknownRecord): string | null {
@@ -220,8 +173,8 @@ function buildScoreFromSets(value: unknown): string | null {
   const formatted = sets
     .map((entry) => {
       if (!isRecord(entry)) return ''
-      const homeGames = cleanString(pickFirst(entry, ['homeGames', 'home_games', 'sideAGames', 'aGames']))
-      const awayGames = cleanString(pickFirst(entry, ['awayGames', 'away_games', 'sideBGames', 'bGames']))
+      const homeGames = cleanString(pickFirst(entry, ['homeGames', 'home_games']))
+      const awayGames = cleanString(pickFirst(entry, ['awayGames', 'away_games']))
       if (!homeGames || !awayGames) return ''
       return `${homeGames}-${awayGames}`
     })
@@ -239,12 +192,8 @@ function normalizeScheduleRow(
   const matchDate = normalizeDate(
     pickFirst(record, ['matchDate', 'match_date', 'scheduleDate', 'schedule_date', 'date']),
   )
-  const homeTeam = cleanString(
-    pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']),
-  )
-  const awayTeam = cleanString(
-    pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']),
-  )
+  const homeTeam = cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']))
+  const awayTeam = cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']))
 
   if (!externalMatchId) {
     warnings.push({ rowIndex, message: 'Skipped schedule row: missing external match id' })
@@ -295,21 +244,17 @@ function normalizeScorecardLine(
       ? rawLineNumber
       : Number.parseInt(cleanString(rawLineNumber), 10)
 
-  const matchType = normalizeMatchType(
-    pickFirst(line, ['matchType', 'match_type', 'type']),
-  )
+  const matchType = normalizeMatchType(pickFirst(line, ['matchType', 'match_type', 'type']))
 
   const sideAPlayers = splitPlayerList(
-    pickFirst(line, ['homePlayers', 'sideAPlayers', 'side_a_players', 'playersA', 'teamAPlayers']),
+    pickFirst(line, ['homePlayers', 'sideAPlayers', 'side_a_players', 'playersA']),
   )
 
   const sideBPlayers = splitPlayerList(
-    pickFirst(line, ['awayPlayers', 'sideBPlayers', 'side_b_players', 'playersB', 'teamBPlayers']),
+    pickFirst(line, ['awayPlayers', 'sideBPlayers', 'side_b_players', 'playersB']),
   )
 
-  const winnerSide = normalizeWinnerSide(
-    pickFirst(line, ['winnerSide', 'winner_side', 'winner']),
-  )
+  const winnerSide = normalizeWinnerSide(pickFirst(line, ['winnerSide', 'winner_side', 'winner']))
 
   const score =
     nullableString(pickFirst(line, ['score', 'setScores', 'set_scores', 'result'])) ??
@@ -329,26 +274,6 @@ function normalizeScorecardLine(
       message: `Skipped scorecard line ${numericLineNumber} for ${externalMatchId}: invalid match type`,
     })
     return null
-  }
-
-  if (matchType === 'singles') {
-    if (sideAPlayers.length === 0 || sideBPlayers.length === 0) {
-      warnings.push({
-        rowIndex,
-        message: `Skipped singles line ${numericLineNumber} for ${externalMatchId}: missing player names`,
-      })
-      return null
-    }
-  }
-
-  if (matchType === 'doubles') {
-    if (sideAPlayers.length < 2 || sideBPlayers.length < 2) {
-      warnings.push({
-        rowIndex,
-        message: `Skipped doubles line ${numericLineNumber} for ${externalMatchId}: missing player names`,
-      })
-      return null
-    }
   }
 
   return {
@@ -378,12 +303,8 @@ function normalizeScorecardRow(
       'date',
     ]),
   )
-  const homeTeam = cleanString(
-    pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']),
-  )
-  const awayTeam = cleanString(
-    pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']),
-  )
+  const homeTeam = cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']))
+  const awayTeam = cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']))
 
   if (!externalMatchId) {
     warnings.push({ rowIndex, message: 'Skipped scorecard row: missing external match id' })
@@ -406,9 +327,7 @@ function normalizeScorecardRow(
     return null
   }
 
-  const candidateLines = toArray(
-    pickFirst(record, ['lines', 'scorecardLines', 'scorecard_lines', 'matches']),
-  )
+  const candidateLines = toArray(pickFirst(record, ['lines', 'scorecardLines', 'scorecard_lines']))
 
   const lines = candidateLines
     .map((entry, lineIndex) => {
@@ -451,6 +370,7 @@ function normalizeScorecardRow(
 export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeScheduleResult {
   const warnings: NormalizationWarning[] = []
   const sourceRows = unwrapRootRows(payload)
+  const rootMeta = getRootMeta(payload)
 
   const rows = sourceRows
     .map((entry, rowIndex) => {
@@ -462,7 +382,8 @@ export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeSch
         return null
       }
 
-      return normalizeScheduleRow(entry, rowIndex, warnings)
+      const merged = mergeWithRoot(entry, rootMeta)
+      return normalizeScheduleRow(merged, rowIndex, warnings)
     })
     .filter((row): row is ScheduleImportRow => Boolean(row))
 
@@ -472,6 +393,7 @@ export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeSch
 export function normalizeCapturedScorecardPayload(payload: unknown): NormalizeScorecardResult {
   const warnings: NormalizationWarning[] = []
   const sourceRows = unwrapRootRows(payload)
+  const rootMeta = getRootMeta(payload)
 
   const rows = sourceRows
     .map((entry, rowIndex) => {
@@ -483,7 +405,8 @@ export function normalizeCapturedScorecardPayload(payload: unknown): NormalizeSc
         return null
       }
 
-      return normalizeScorecardRow(entry, rowIndex, warnings)
+      const merged = mergeWithRoot(entry, rootMeta)
+      return normalizeScorecardRow(merged, rowIndex, warnings)
     })
     .filter((row): row is ScorecardImportRow => Boolean(row))
 
