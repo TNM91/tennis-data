@@ -2,18 +2,46 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useMemo, useState, type CSSProperties, type ChangeEvent, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import {
-  runScorecardImport,
+  runImport,
   summarizeImportResponse,
   collectImportMessages,
   type RunImportResponse,
 } from '@/lib/ingestion/runImport'
-import { normalizeCapturedScorecardPayload } from '@/lib/ingestion/normalizeCapturedImports'
+import {
+  normalizeCapturedSchedulePayload,
+  normalizeCapturedScorecardPayload,
+  type NormalizationWarning,
+} from '@/lib/ingestion/normalizeCapturedImports'
 
-type PreviewLine = {
+type ImportKind = 'schedule' | 'scorecard'
+type ImportMode = 'preview' | 'commit'
+
+type PreviewScheduleMatch = {
+  externalMatchId: string
+  matchDate: string
+  matchTime: string | null | undefined
+  homeTeam: string
+  awayTeam: string
+  facility: string | null | undefined
+  leagueName: string | null | undefined
+  flight: string | null | undefined
+  ustaSection: string | null | undefined
+  districtArea: string | null | undefined
+  source: string | null | undefined
+}
+
+type PreviewScorecardLine = {
   lineNumber: number
   matchType: 'singles' | 'doubles'
   sideAPlayers: string[]
@@ -22,16 +50,20 @@ type PreviewLine = {
   score: string | null | undefined
 }
 
-type PreviewMatch = {
+type PreviewScorecardMatch = {
   externalMatchId: string
   matchDate: string
+  matchTime: string | null | undefined
   homeTeam: string
   awayTeam: string
   facility: string | null | undefined
   leagueName: string | null | undefined
   flight: string | null | undefined
+  ustaSection: string | null | undefined
+  districtArea: string | null | undefined
+  source: string | null | undefined
   lineCount: number
-  lines: PreviewLine[]
+  lines: PreviewScorecardLine[]
 }
 
 const pageWrapStyle: CSSProperties = {
@@ -78,12 +110,17 @@ const inputStyle: CSSProperties = {
 
 const textareaStyle: CSSProperties = {
   ...inputStyle,
-  minHeight: 280,
+  minHeight: 300,
   resize: 'vertical',
   fontFamily:
     'ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, Liberation Mono, monospace',
   fontSize: '0.82rem',
   lineHeight: 1.5,
+}
+
+const selectStyle: CSSProperties = {
+  ...inputStyle,
+  minHeight: 48,
 }
 
 const primaryButtonStyle: CSSProperties = {
@@ -151,6 +188,19 @@ const pillGreenStyle: CSSProperties = {
   fontSize: '0.77rem',
 }
 
+const pillSlateStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 32,
+  padding: '6px 12px',
+  borderRadius: 999,
+  border: '1px solid rgba(148,163,184,0.18)',
+  background: 'rgba(148,163,184,0.10)',
+  color: '#D6E1EF',
+  fontWeight: 800,
+  fontSize: '0.77rem',
+}
+
 const subtleTextStyle: CSSProperties = {
   color: '#AFC3DB',
   lineHeight: 1.6,
@@ -187,30 +237,67 @@ function parseJsonInput(raw: string): { value: unknown | null; error: string | n
   }
 }
 
-function buildPreviewMatches(payload: unknown): PreviewMatch[] {
-  const normalized = normalizeCapturedScorecardPayload(payload)
+function buildSchedulePreview(payload: unknown): {
+  rows: PreviewScheduleMatch[]
+  warnings: NormalizationWarning[]
+} {
+  const normalized = normalizeCapturedSchedulePayload(payload)
 
-  return normalized.rows.map((row) => ({
-    externalMatchId: row.externalMatchId,
-    matchDate: row.matchDate,
-    homeTeam: row.homeTeam,
-    awayTeam: row.awayTeam,
-    facility: row.facility,
-    leagueName: row.leagueName,
-    flight: row.flight,
-    lineCount: row.lines.length,
-    lines: row.lines.map((line) => ({
-      lineNumber: line.lineNumber,
-      matchType: line.matchType,
-      sideAPlayers: line.sideAPlayers,
-      sideBPlayers: line.sideBPlayers,
-      winnerSide: line.winnerSide,
-      score: line.score,
+  return {
+    warnings: normalized.warnings,
+    rows: normalized.rows.map((row) => ({
+      externalMatchId: row.externalMatchId,
+      matchDate: row.matchDate,
+      matchTime: row.matchTime,
+      homeTeam: row.homeTeam,
+      awayTeam: row.awayTeam,
+      facility: row.facility,
+      leagueName: row.leagueName,
+      flight: row.flight,
+      ustaSection: row.ustaSection,
+      districtArea: row.districtArea,
+      source: row.source,
     })),
-  }))
+  }
 }
 
-function getWinnerLabel(match: PreviewMatch, winnerSide: 'A' | 'B' | null): string {
+function buildScorecardPreview(payload: unknown): {
+  rows: PreviewScorecardMatch[]
+  warnings: NormalizationWarning[]
+} {
+  const normalized = normalizeCapturedScorecardPayload(payload)
+
+  return {
+    warnings: normalized.warnings,
+    rows: normalized.rows.map((row) => ({
+      externalMatchId: row.externalMatchId,
+      matchDate: row.matchDate,
+      matchTime: row.matchTime,
+      homeTeam: row.homeTeam,
+      awayTeam: row.awayTeam,
+      facility: row.facility,
+      leagueName: row.leagueName,
+      flight: row.flight,
+      ustaSection: row.ustaSection,
+      districtArea: row.districtArea,
+      source: row.source,
+      lineCount: row.lines.length,
+      lines: row.lines.map((line) => ({
+        lineNumber: line.lineNumber,
+        matchType: line.matchType,
+        sideAPlayers: line.sideAPlayers,
+        sideBPlayers: line.sideBPlayers,
+        winnerSide: line.winnerSide,
+        score: line.score,
+      })),
+    })),
+  }
+}
+
+function getScorecardWinnerLabel(
+  match: PreviewScorecardMatch,
+  winnerSide: 'A' | 'B' | null,
+): string {
   if (winnerSide === 'A') return match.homeTeam || 'Home'
   if (winnerSide === 'B') return match.awayTeam || 'Away'
   return '—'
@@ -279,33 +366,83 @@ function StatusPanel({
   )
 }
 
-export default function UploadScorecardPage() {
+function TypeCard({
+  active,
+  title,
+  subtitle,
+  onClick,
+}: {
+  active: boolean
+  title: string
+  subtitle: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        borderRadius: 20,
+        padding: '16px',
+        border: active
+          ? '1px solid rgba(155,225,29,0.28)'
+          : '1px solid rgba(116,190,255,0.10)',
+        background: active
+          ? 'linear-gradient(180deg, rgba(18,38,33,0.72) 0%, rgba(9,18,34,0.94) 100%)'
+          : 'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.92) 100%)',
+        color: '#F8FBFF',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ fontWeight: 900, fontSize: '1rem' }}>{title}</div>
+      <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.88rem' }}>{subtitle}</div>
+    </button>
+  )
+}
+
+export default function AdminImportPage() {
   const [jsonInput, setJsonInput] = useState('')
+  const [importType, setImportType] = useState<ImportKind>('schedule')
+  const [selectedFileName, setSelectedFileName] = useState('')
   const [isRunningPreview, setIsRunningPreview] = useState(false)
   const [isRunningCommit, setIsRunningCommit] = useState(false)
   const [importResponse, setImportResponse] = useState<RunImportResponse | null>(null)
   const [topLevelError, setTopLevelError] = useState('')
-  const [selectedFileName, setSelectedFileName] = useState('')
+  const [lastRunMode, setLastRunMode] = useState<ImportMode | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const parsed = useMemo(() => parseJsonInput(jsonInput), [jsonInput])
 
-  const previewMatches = useMemo(() => {
-    if (!parsed.value) return []
-    try {
-      return buildPreviewMatches(parsed.value)
-    } catch {
-      return []
+  const schedulePreview = useMemo(() => {
+    if (!parsed.value || importType !== 'schedule') {
+      return { rows: [] as PreviewScheduleMatch[], warnings: [] as NormalizationWarning[] }
     }
-  }, [parsed.value])
 
-  const normalizationWarnings = useMemo(() => {
-    if (!parsed.value) return []
     try {
-      return normalizeCapturedScorecardPayload(parsed.value).warnings
+      return buildSchedulePreview(parsed.value)
     } catch {
-      return []
+      return { rows: [] as PreviewScheduleMatch[], warnings: [] as NormalizationWarning[] }
     }
-  }, [parsed.value])
+  }, [parsed.value, importType])
+
+  const scorecardPreview = useMemo(() => {
+    if (!parsed.value || importType !== 'scorecard') {
+      return { rows: [] as PreviewScorecardMatch[], warnings: [] as NormalizationWarning[] }
+    }
+
+    try {
+      return buildScorecardPreview(parsed.value)
+    } catch {
+      return { rows: [] as PreviewScorecardMatch[], warnings: [] as NormalizationWarning[] }
+    }
+  }, [parsed.value, importType])
+
+  const previewWarnings =
+    importType === 'schedule' ? schedulePreview.warnings : scorecardPreview.warnings
+
+  const normalizedRowCount =
+    importType === 'schedule' ? schedulePreview.rows.length : scorecardPreview.rows.length
 
   const importSummary = useMemo(() => {
     if (!importResponse) return null
@@ -317,9 +454,33 @@ export default function UploadScorecardPage() {
     return collectImportMessages(importResponse)
   }, [importResponse])
 
-  async function handleRun(mode: 'preview' | 'commit') {
+  const showCommitSuccess =
+    lastRunMode === 'commit' &&
+    importResponse?.ok === true &&
+    importSummary?.failedCount === 0
+
+  const showCommitPartialWarning =
+    lastRunMode === 'commit' &&
+    importResponse?.ok === true &&
+    (importSummary?.failedCount ?? 0) > 0
+
+  const showPreviewSuccess =
+    lastRunMode === 'preview' &&
+    importResponse?.ok === true &&
+    importSummary != null
+
+  useEffect(() => {
+    setImportResponse(null)
+    setTopLevelError('')
+    setLastRunMode(null)
+    setCopied(false)
+  }, [jsonInput, importType])
+
+  async function handleRun(mode: ImportMode) {
     setTopLevelError('')
     setImportResponse(null)
+    setLastRunMode(mode)
+    setCopied(false)
 
     if (!parsed.value) {
       setTopLevelError(parsed.error ?? 'Invalid JSON.')
@@ -330,10 +491,15 @@ export default function UploadScorecardPage() {
     if (mode === 'commit') setIsRunningCommit(true)
 
     try {
-      const response = await runScorecardImport(supabase, parsed.value, mode, {
-        hasNormalizedPlayerNameColumn: true,
-        matchPlayersDeleteBeforeInsert: true,
-        scorecardLinesTable: null,
+      const response = await runImport(supabase, {
+        kind: importType,
+        payload: parsed.value,
+        mode,
+        engineOptions: {
+          hasNormalizedPlayerNameColumn: true,
+          matchPlayersDeleteBeforeInsert: true,
+          scorecardLinesTable: null,
+        },
       })
 
       setImportResponse(response)
@@ -356,6 +522,13 @@ export default function UploadScorecardPage() {
     setSelectedFileName(file.name)
     setTopLevelError('')
     setImportResponse(null)
+    setLastRunMode(null)
+    setCopied(false)
+
+    const inferredType = inferImportTypeFromFileName(file.name)
+    if (inferredType) {
+      setImportType(inferredType)
+    }
 
     const reader = new FileReader()
     reader.onload = () => {
@@ -369,39 +542,73 @@ export default function UploadScorecardPage() {
   }
 
   function handleLoadSample() {
+    if (importType === 'schedule') {
+      const sample = {
+        pageType: 'season_schedule',
+        seasonSchedule: {
+          leagueName: '2026 Adult 18 & Over Spring',
+          flight: 'Men 4.5',
+          ustaSection: 'USTA/MISSOURI VALLEY',
+          districtArea: 'ST. LOUIS - St. Louis Local Leagues',
+          matches: [
+            {
+              externalMatchId: '1011650707',
+              matchDate: '2026-04-19',
+              matchTime: '6:30 PM',
+              homeTeam: 'Schnellaveria',
+              awayTeam: 'Meinert/The Other Guys',
+              facility: 'Sample Club',
+            },
+            {
+              externalMatchId: '1011650703',
+              matchDate: '2026-04-26',
+              matchTime: '6:30 PM',
+              homeTeam: "Gontarz/Wild William's Wily Wolverines",
+              awayTeam: 'Schnellaveria',
+              facility: 'Sample Club',
+            },
+          ],
+        },
+      }
+
+      setSelectedFileName('sample-schedule.json')
+      setJsonInput(prettyJson(sample))
+      return
+    }
+
     const sample = {
       pageType: 'scorecard',
       scorecard: {
-        matchId: 'sample-2026-04-09-001',
-        dateMatchPlayed: '2026-04-09',
-        homeTeam: 'TenAce Home',
-        awayTeam: 'Rival Squad',
+        matchId: '1011650666',
+        dateMatchPlayed: '2026-01-18',
+        homeTeam: 'Schnellaveria',
+        awayTeam: "Gontarz/Wild William's Wily Wolverines",
         facility: 'Sample Club',
         leagueName: '2026 Adult 18 & Over Spring',
         flight: 'Men 4.5',
         ustaSection: 'USTA/MISSOURI VALLEY',
-        districtArea: 'ST. LOUIS – St. Louis Local Leagues',
+        districtArea: 'ST. LOUIS - St. Louis Local Leagues',
         lines: [
           {
             lineNumber: 1,
-            matchType: 'doubles',
-            homePlayers: ['Nathan Meinert', 'Partner One'],
-            awayPlayers: ['Opponent One', 'Opponent Two'],
+            matchType: 'singles',
+            homePlayers: ['Stephen Hipkiss'],
+            awayPlayers: ['Nathan Meinert'],
             winnerSide: 'home',
             sets: [
-              { homeGames: 6, awayGames: 4 },
-              { homeGames: 6, awayGames: 3 },
+              { homeGames: 6, awayGames: 2 },
+              { homeGames: 6, awayGames: 1 },
             ],
           },
           {
             lineNumber: 2,
-            matchType: 'singles',
-            homePlayers: ['Home Singles'],
-            awayPlayers: ['Away Singles'],
-            winnerSide: 'away',
+            matchType: 'doubles',
+            homePlayers: ['Ian Keillor', 'Philip Kammann'],
+            awayPlayers: ['Andy Horton', 'RJ Tevonian'],
+            winnerSide: 'home',
             sets: [
-              { homeGames: 3, awayGames: 6 },
-              { homeGames: 4, awayGames: 6 },
+              { homeGames: 6, awayGames: 2 },
+              { homeGames: 6, awayGames: 0 },
             ],
           },
         ],
@@ -410,8 +617,6 @@ export default function UploadScorecardPage() {
 
     setSelectedFileName('sample-scorecard.json')
     setJsonInput(prettyJson(sample))
-    setTopLevelError('')
-    setImportResponse(null)
   }
 
   function handleClearAll() {
@@ -419,6 +624,27 @@ export default function UploadScorecardPage() {
     setJsonInput('')
     setTopLevelError('')
     setImportResponse(null)
+    setLastRunMode(null)
+    setCopied(false)
+  }
+
+  function handleAutoDetectType() {
+    if (!parsed.value) return
+    const inferred = inferImportTypeFromPayload(parsed.value)
+    if (inferred) {
+      setImportType(inferred)
+    }
+  }
+
+  async function handleCopyMessages() {
+    if (!importMessages.length) return
+    try {
+      await navigator.clipboard.writeText(importMessages.join('\n'))
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setCopied(false)
+    }
   }
 
   return (
@@ -456,13 +682,13 @@ export default function UploadScorecardPage() {
           />
 
           <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={pillBlueStyle}>Scorecard ingest</div>
+            <div style={pillBlueStyle}>Unified ingest</div>
             <h1 className="page-title" style={{ marginTop: 10 }}>
-              Upload Scorecard
+              Admin Import Center
             </h1>
-            <p className="page-subtitle" style={{ maxWidth: 880 }}>
-              This route is now wired to the ingestion engine. Drop in captured scorecard JSON,
-              preview the normalized matches and lines, then commit directly into Supabase.
+            <p className="page-subtitle" style={{ maxWidth: 920 }}>
+              One place for both schedule and scorecard imports. Upload a JSON file or paste captured
+              JSON, preview the normalized rows, review warnings, and commit through the same ingestion engine.
             </p>
 
             <div
@@ -474,24 +700,24 @@ export default function UploadScorecardPage() {
               }}
             >
               <SummaryMetric
-                label="Primary input"
-                value="Scorecard JSON"
-                helper="Best for completed matches with line-level player detail."
+                label="Import types"
+                value="2"
+                helper="Schedule and scorecard now live in one route."
               />
               <SummaryMetric
-                label="Preview mode"
-                value="Safe"
-                helper="Validate mapping, warnings, and row counts before database writes."
+                label="Input modes"
+                value="File + Paste"
+                helper="Upload JSON directly or paste from your capture tool."
               />
               <SummaryMetric
-                label="Commit mode"
-                value="Live"
-                helper="Updates matches, creates missing players, and re-links match players."
-              />
-              <SummaryMetric
-                label="Idempotency"
+                label="Preview"
                 value="Enabled"
-                helper="Uses external match id as the core relinking key."
+                helper="Validate row shapes and warnings before writing."
+              />
+              <SummaryMetric
+                label="Commit"
+                value="Unified"
+                helper="Both import kinds flow through the same runImport path."
               />
             </div>
           </div>
@@ -507,7 +733,14 @@ export default function UploadScorecardPage() {
           }}
         >
           <div style={panelStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 14,
+                flexWrap: 'wrap',
+              }}
+            >
               <div>
                 <div style={labelStyle}>Input</div>
                 <div
@@ -518,7 +751,7 @@ export default function UploadScorecardPage() {
                     marginTop: 8,
                   }}
                 >
-                  Paste or upload captured scorecard JSON
+                  Upload or paste captured import JSON
                 </div>
               </div>
 
@@ -541,9 +774,83 @@ export default function UploadScorecardPage() {
               </div>
             </div>
 
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 12,
+                marginTop: 16,
+              }}
+            >
+              <TypeCard
+                active={importType === 'schedule'}
+                title="Schedule import"
+                subtitle="Use for season schedules and upcoming team match records."
+                onClick={() => setImportType('schedule')}
+              />
+              <TypeCard
+                active={importType === 'scorecard'}
+                title="Scorecard import"
+                subtitle="Use for completed line-by-line results with player detail."
+                onClick={() => setImportType('scorecard')}
+              />
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 14,
+                marginTop: 16,
+              }}
+            >
+              <div>
+                <label style={labelStyle}>Import type</label>
+                <select
+                  value={importType}
+                  onChange={(event) => setImportType(event.target.value as ImportKind)}
+                  style={selectStyle}
+                >
+                  <option value="schedule">Schedule</option>
+                  <option value="scorecard">Scorecard</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Loaded file</label>
+                <div
+                  style={{
+                    ...inputStyle,
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: selectedFileName ? '#F8FBFF' : '#AFC3DB',
+                  }}
+                >
+                  {selectedFileName || 'No file selected'}
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 10,
+                flexWrap: 'wrap',
+                marginTop: 12,
+              }}
+            >
+              <span style={pillSlateStyle}>Detected rows: {normalizedRowCount}</span>
+              <span style={pillSlateStyle}>Warnings: {previewWarnings.length}</span>
+              {parsed.value ? (
+                <button type="button" style={mutedButtonStyle} onClick={handleAutoDetectType}>
+                  Auto-detect type
+                </button>
+              ) : null}
+            </div>
+
             <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.88rem' }}>
-              Accepted forms: single object, array of scorecards, or wrapped payloads that contain a
-              scorecard rows array.
+              Schedule accepts wrapped schedule payloads or arrays of rows. Scorecard accepts single
+              scorecard objects, wrapped payloads, or arrays.
             </div>
 
             {selectedFileName ? (
@@ -556,7 +863,7 @@ export default function UploadScorecardPage() {
               <textarea
                 value={jsonInput}
                 onChange={(event) => setJsonInput(event.target.value)}
-                placeholder="Paste captured scorecard JSON here..."
+                placeholder="Paste captured JSON here..."
                 style={textareaStyle}
                 spellCheck={false}
               />
@@ -603,13 +910,86 @@ export default function UploadScorecardPage() {
                   marginTop: 14,
                   borderRadius: 18,
                   border: '1px solid rgba(255,99,132,0.18)',
-                  background: 'linear-gradient(180deg, rgba(59,20,31,0.72) 0%, rgba(24,10,16,0.92) 100%)',
+                  background:
+                    'linear-gradient(180deg, rgba(59,20,31,0.72) 0%, rgba(24,10,16,0.92) 100%)',
                   color: '#FFD5DF',
                   padding: '14px 16px',
                   fontWeight: 700,
                 }}
               >
                 {topLevelError}
+              </div>
+            ) : null}
+
+            {showCommitSuccess && importSummary ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  borderRadius: 18,
+                  border: '1px solid rgba(155,225,29,0.22)',
+                  background:
+                    'linear-gradient(180deg, rgba(18,38,33,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                  color: '#DFFFC2',
+                  padding: '14px 16px',
+                  fontWeight: 800,
+                  boxShadow: '0 12px 28px rgba(155,225,29,0.08)',
+                }}
+              >
+                ✅ Commit completed successfully.
+                <div style={{ marginTop: 8, color: '#CFE8D0', fontWeight: 600, lineHeight: 1.6 }}>
+                  {importSummary.successCount} imported
+                  {importSummary.updatedCount > 0 ? ` • ${importSummary.updatedCount} updated` : ''}
+                  {importSummary.createdPlayersCount > 0
+                    ? ` • ${importSummary.createdPlayersCount} players created`
+                    : ''}
+                  {importSummary.linkedPlayersCount > 0
+                    ? ` • ${importSummary.linkedPlayersCount} players linked`
+                    : ''}
+                </div>
+              </div>
+            ) : null}
+
+            {showCommitPartialWarning && importSummary ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  borderRadius: 18,
+                  border: '1px solid rgba(250,204,21,0.22)',
+                  background:
+                    'linear-gradient(180deg, rgba(58,44,12,0.82) 0%, rgba(24,18,10,0.96) 100%)',
+                  color: '#FDE68A',
+                  padding: '14px 16px',
+                  fontWeight: 800,
+                  boxShadow: '0 12px 28px rgba(250,204,21,0.06)',
+                }}
+              >
+                ⚠️ Commit finished with some failures.
+                <div style={{ marginTop: 8, color: '#FDE68A', fontWeight: 600, lineHeight: 1.6 }}>
+                  {importSummary.successCount} imported
+                  {importSummary.updatedCount > 0 ? ` • ${importSummary.updatedCount} updated` : ''}
+                  {importSummary.failedCount} failed
+                </div>
+              </div>
+            ) : null}
+
+            {showPreviewSuccess && importSummary ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  borderRadius: 18,
+                  border: '1px solid rgba(116,190,255,0.18)',
+                  background:
+                    'linear-gradient(180deg, rgba(17,34,63,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                  color: '#DCEBFF',
+                  padding: '14px 16px',
+                  fontWeight: 800,
+                }}
+              >
+                👀 Preview completed successfully.
+                <div style={{ marginTop: 8, color: '#BFD8F7', fontWeight: 600, lineHeight: 1.6 }}>
+                  {importSummary.normalizedRowCount} normalized rows ready for commit
+                  {importSummary.failedCount > 0 ? ` • ${importSummary.failedCount} preview failures` : ''}
+                </div>
               </div>
             ) : null}
           </div>
@@ -628,28 +1008,26 @@ export default function UploadScorecardPage() {
             </div>
 
             <div style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-              <StatusPanel title="Detected rows" tone="blue">
-                <div style={summaryValueStyle}>{previewMatches.length}</div>
+              <StatusPanel title="Import type" tone="blue">
+                <div style={summaryValueStyle}>
+                  {importType === 'schedule' ? 'Schedule' : 'Scorecard'}
+                </div>
                 <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  Scorecard records ready for preview or commit.
+                  The current preview and commit path uses the selected import kind.
                 </div>
               </StatusPanel>
 
-              <StatusPanel title="Normalization warnings" tone="slate">
-                <div style={summaryValueStyle}>{normalizationWarnings.length}</div>
+              <StatusPanel title="Detected rows" tone="green">
+                <div style={summaryValueStyle}>{normalizedRowCount}</div>
                 <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  Non-fatal issues found while shaping captured JSON into the import contract.
+                  Normalized rows currently ready for preview or commit.
                 </div>
               </StatusPanel>
 
-              <StatusPanel title="Pipeline target" tone="green">
-                <div style={{ ...subtleTextStyle }}>
-                  Commit mode will attempt to:
-                  <div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
-                    <span style={pillGreenStyle}>Upsert completed matches</span>
-                    <span style={pillGreenStyle}>Create missing players</span>
-                    <span style={pillGreenStyle}>Delete and rebuild match_players</span>
-                  </div>
+              <StatusPanel title="Warnings" tone="slate">
+                <div style={summaryValueStyle}>{previewWarnings.length}</div>
+                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                  Non-fatal shaping issues found while normalizing the captured JSON.
                 </div>
               </StatusPanel>
             </div>
@@ -666,16 +1044,77 @@ export default function UploadScorecardPage() {
               marginTop: 8,
             }}
           >
-            Normalized scorecard matches
+            {importType === 'schedule'
+              ? 'Normalized schedule matches'
+              : 'Normalized scorecard matches'}
           </div>
 
-          {previewMatches.length === 0 ? (
+          {importType === 'schedule' ? (
+            schedulePreview.rows.length === 0 ? (
+              <div style={{ ...subtleTextStyle, marginTop: 14 }}>
+                Paste or upload schedule JSON to preview normalized schedule rows.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
+                {schedulePreview.rows.map((match) => (
+                  <div
+                    key={`${match.externalMatchId}-${match.matchDate}`}
+                    style={{
+                      borderRadius: 22,
+                      border: '1px solid rgba(116,190,255,0.10)',
+                      background:
+                        'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.92) 100%)',
+                      padding: '16px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 14,
+                        alignItems: 'flex-start',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div>
+                        <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1rem' }}>
+                          {match.homeTeam} vs {match.awayTeam}
+                        </div>
+                        <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                          {match.matchDate}
+                          {match.matchTime ? ` • ${match.matchTime}` : ''}
+                          {match.facility ? ` • ${match.facility}` : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={pillBlueStyle}>Match ID: {match.externalMatchId}</span>
+                        <span style={pillGreenStyle}>{match.flight || 'No flight'}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                      {match.leagueName ? <span style={pillSlateStyle}>{match.leagueName}</span> : null}
+                      {match.ustaSection ? <span style={pillSlateStyle}>{match.ustaSection}</span> : null}
+                      {match.districtArea ? <span style={pillSlateStyle}>{match.districtArea}</span> : null}
+                    </div>
+
+                    {match.source ? (
+                      <div style={{ ...subtleTextStyle, marginTop: 12, fontSize: '0.86rem' }}>
+                        Source: {match.source}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )
+          ) : scorecardPreview.rows.length === 0 ? (
             <div style={{ ...subtleTextStyle, marginTop: 14 }}>
-              Paste or load scorecard JSON to see normalized matches and lines here.
+              Paste or upload scorecard JSON to preview normalized scorecard rows.
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
-              {previewMatches.map((match) => (
+              {scorecardPreview.rows.map((match) => (
                 <div
                   key={`${match.externalMatchId}-${match.matchDate}`}
                   style={{
@@ -701,6 +1140,7 @@ export default function UploadScorecardPage() {
                       </div>
                       <div style={{ ...subtleTextStyle, marginTop: 6 }}>
                         {match.matchDate}
+                        {match.matchTime ? ` • ${match.matchTime}` : ''}
                         {match.facility ? ` • ${match.facility}` : ''}
                         {match.flight ? ` • ${match.flight}` : ''}
                       </div>
@@ -712,9 +1152,11 @@ export default function UploadScorecardPage() {
                     </div>
                   </div>
 
-                  {match.leagueName ? (
-                    <div style={{ ...subtleTextStyle, marginTop: 10 }}>{match.leagueName}</div>
-                  ) : null}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                    {match.leagueName ? <span style={pillSlateStyle}>{match.leagueName}</span> : null}
+                    {match.ustaSection ? <span style={pillSlateStyle}>{match.ustaSection}</span> : null}
+                    {match.districtArea ? <span style={pillSlateStyle}>{match.districtArea}</span> : null}
+                  </div>
 
                   <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
                     {match.lines.map((line) => (
@@ -741,7 +1183,7 @@ export default function UploadScorecardPage() {
                           </div>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <span style={pillGreenStyle}>
-                              Winner: {getWinnerLabel(match, line.winnerSide)}
+                              Winner: {getScorecardWinnerLabel(match, line.winnerSide)}
                             </span>
                             <span style={pillBlueStyle}>Score: {cleanString(line.score) || '—'}</span>
                           </div>
@@ -786,6 +1228,12 @@ export default function UploadScorecardPage() {
                       </div>
                     ))}
                   </div>
+
+                  {match.source ? (
+                    <div style={{ ...subtleTextStyle, marginTop: 12, fontSize: '0.86rem' }}>
+                      Source: {match.source}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -814,13 +1262,13 @@ export default function UploadScorecardPage() {
               Normalization warnings
             </div>
 
-            {normalizationWarnings.length === 0 ? (
+            {previewWarnings.length === 0 ? (
               <div style={{ ...subtleTextStyle, marginTop: 14 }}>
                 No normalization warnings yet.
               </div>
             ) : (
               <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                {normalizationWarnings.map((warning, index) => (
+                {previewWarnings.map((warning, index) => (
                   <div
                     key={`${warning.rowIndex}-${index}`}
                     style={{
@@ -840,16 +1288,34 @@ export default function UploadScorecardPage() {
           </div>
 
           <div style={panelStyle}>
-            <div style={labelStyle}>Import result</div>
             <div
               style={{
-                color: '#F8FBFF',
-                fontWeight: 800,
-                fontSize: '1.06rem',
-                marginTop: 8,
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                alignItems: 'center',
+                flexWrap: 'wrap',
               }}
             >
-              Engine response
+              <div>
+                <div style={labelStyle}>Import result</div>
+                <div
+                  style={{
+                    color: '#F8FBFF',
+                    fontWeight: 800,
+                    fontSize: '1.06rem',
+                    marginTop: 8,
+                  }}
+                >
+                  Engine response
+                </div>
+              </div>
+
+              {importMessages.length > 0 ? (
+                <button type="button" style={mutedButtonStyle} onClick={handleCopyMessages}>
+                  {copied ? 'Copied' : 'Copy messages'}
+                </button>
+              ) : null}
             </div>
 
             {!importResponse || !importSummary ? (
@@ -929,4 +1395,27 @@ export default function UploadScorecardPage() {
       </section>
     </SiteShell>
   )
+}
+
+function inferImportTypeFromFileName(fileName: string): ImportKind | null {
+  const normalized = fileName.toLowerCase()
+
+  if (normalized.includes('scorecard')) return 'scorecard'
+  if (normalized.includes('schedule')) return 'schedule'
+  return null
+}
+
+function inferImportTypeFromPayload(payload: unknown): ImportKind | null {
+  if (!payload || typeof payload !== 'object') return null
+
+  const record = payload as Record<string, unknown>
+  const pageType = cleanString(record.pageType).toLowerCase()
+
+  if (pageType.includes('scorecard')) return 'scorecard'
+  if (pageType.includes('schedule')) return 'schedule'
+
+  if ('scorecard' in record) return 'scorecard'
+  if ('seasonSchedule' in record) return 'schedule'
+
+  return null
 }

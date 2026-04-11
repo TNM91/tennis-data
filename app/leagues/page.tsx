@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -31,23 +30,16 @@ type LeagueCard = {
   latestMatchDate: string | null
 }
 
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
-]
-
 function safeText(value: string | null | undefined) {
-  const text = (value || '').trim()
-  return text || ''
+  return (value || '').trim()
+}
+
+function hasVisibleText(value: string | null | undefined) {
+  return safeText(value).length > 0
 }
 
 function formatDate(value: string | null) {
-  if (!value) return 'Unknown'
+  if (!value) return '—'
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
 
@@ -58,24 +50,38 @@ function formatDate(value: string | null) {
   })
 }
 
+function normalizeKeyPart(value: string | null | undefined) {
+  return safeText(value).toLowerCase()
+}
+
 function buildLeagueKey(row: MatchLeagueRow) {
-  return [
-    row.league_name || '',
-    row.flight || '',
-    row.usta_section || '',
-    row.district_area || '',
-  ].join('___')
+  return normalizeKeyPart(row.league_name)
 }
 
 function buildLeagueHref(league: LeagueCard) {
-  const params = new URLSearchParams({
-    league: league.leagueName,
-    flight: league.flight,
-    section: league.ustaSection,
-    district: league.districtArea,
-  })
+  const slugBase = safeText(league.leagueName) || 'league'
+  const params = new URLSearchParams()
 
-  return `/leagues/${encodeURIComponent(league.leagueName)}?${params.toString()}`
+  if (safeText(league.leagueName)) params.set('league', league.leagueName)
+  if (safeText(league.flight)) params.set('flight', league.flight)
+  if (safeText(league.ustaSection)) params.set('section', league.ustaSection)
+  if (safeText(league.districtArea)) params.set('district', league.districtArea)
+
+  const query = params.toString()
+  return `/leagues/${encodeURIComponent(slugBase)}${query ? `?${query}` : ''}`
+}
+
+function buildLeagueSubtitle(league: LeagueCard) {
+  return [league.flight, league.ustaSection, league.districtArea]
+    .map((value) => safeText(value))
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function chooseBetterText(current: string, incoming: string) {
+  if (!current && incoming) return incoming
+  if (incoming.length > current.length) return incoming
+  return current
 }
 
 export default function LeaguesPage() {
@@ -130,19 +136,29 @@ export default function LeaguesPage() {
     }
   }
 
+  const leagueRows = useMemo(() => {
+    return rows.filter((row) => hasVisibleText(row.league_name))
+  }, [rows])
+
   const leagues = useMemo<LeagueCard[]>(() => {
     const map = new Map<string, LeagueCard & { teamSet: Set<string> }>()
 
-    for (const row of rows) {
+    for (const row of leagueRows) {
       const key = buildLeagueKey(row)
+      if (!key) continue
+
+      const leagueName = safeText(row.league_name)
+      const flight = safeText(row.flight)
+      const ustaSection = safeText(row.usta_section)
+      const districtArea = safeText(row.district_area)
 
       if (!map.has(key)) {
         map.set(key, {
           key,
-          leagueName: safeText(row.league_name),
-          flight: safeText(row.flight),
-          ustaSection: safeText(row.usta_section),
-          districtArea: safeText(row.district_area),
+          leagueName,
+          flight,
+          ustaSection,
+          districtArea,
           matchCount: 0,
           teamCount: 0,
           latestMatchDate: row.match_date || null,
@@ -153,8 +169,16 @@ export default function LeaguesPage() {
       const current = map.get(key)!
       current.matchCount += 1
 
-      if (row.home_team) current.teamSet.add(row.home_team.trim())
-      if (row.away_team) current.teamSet.add(row.away_team.trim())
+      current.leagueName = chooseBetterText(current.leagueName, leagueName)
+      current.flight = chooseBetterText(current.flight, flight)
+      current.ustaSection = chooseBetterText(current.ustaSection, ustaSection)
+      current.districtArea = chooseBetterText(current.districtArea, districtArea)
+
+      const homeTeam = safeText(row.home_team)
+      const awayTeam = safeText(row.away_team)
+
+      if (homeTeam) current.teamSet.add(homeTeam)
+      if (awayTeam) current.teamSet.add(awayTeam)
 
       if (
         row.match_date &&
@@ -181,7 +205,7 @@ export default function LeaguesPage() {
         const bDate = b.latestMatchDate ? new Date(b.latestMatchDate).getTime() : 0
         return bDate - aDate
       })
-  }, [rows])
+  }, [leagueRows])
 
   const flights = useMemo(() => {
     const unique = [...new Set(leagues.map((league) => league.flight).filter(Boolean))]
@@ -207,7 +231,7 @@ export default function LeaguesPage() {
   const summary = useMemo(() => {
     return {
       totalLeagues: filteredLeagues.length,
-      totalMatches: rows.length,
+      totalMatches: leagueRows.length,
       totalFlights: flights.length,
       latestMatch:
         leagues.length > 0
@@ -217,21 +241,7 @@ export default function LeaguesPage() {
               .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0] || null
           : null,
     }
-  }, [filteredLeagues.length, rows.length, flights.length, leagues])
-
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
+  }, [filteredLeagues.length, leagueRows.length, flights.length, leagues])
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -284,9 +294,7 @@ export default function LeaguesPage() {
 
   const dynamicCardGrid: CSSProperties = {
     ...cardGrid,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))',
   }
 
   const dynamicLeagueDetailGrid: CSSProperties = {
@@ -298,28 +306,6 @@ export default function LeaguesPage() {
     ...leagueTop,
     flexDirection: isMobile ? 'column' : 'row',
     alignItems: isMobile ? 'stretch' : 'flex-start',
-  }
-
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
   }
 
   return (
@@ -340,7 +326,7 @@ export default function LeaguesPage() {
 
               <div style={heroHintRow}>
                 <span style={heroHintPill}>{summary.totalLeagues} leagues</span>
-                <span style={heroHintPill}>{summary.totalMatches} imported matches</span>
+                <span style={heroHintPill}>{summary.totalMatches} imported league matches</span>
                 <span style={heroHintPill}>Latest: {formatDate(summary.latestMatch)}</span>
               </div>
             </div>
@@ -349,7 +335,7 @@ export default function LeaguesPage() {
               <div style={coverageLabel}>Coverage snapshot</div>
               <div style={coverageValue}>{summary.totalFlights}</div>
               <div style={coverageText}>
-                Unique flights currently represented in imported match history.
+                Unique flights currently represented across matches with a real league name.
               </div>
             </div>
           </div>
@@ -359,7 +345,7 @@ export default function LeaguesPage() {
       <section style={contentWrap}>
         <div style={dynamicSummaryGrid}>
           <MetricCard label="Visible leagues" value={String(summary.totalLeagues)} />
-          <MetricCard label="Imported matches" value={String(summary.totalMatches)} />
+          <MetricCard label="League matches" value={String(summary.totalMatches)} />
           <MetricCard label="Flights" value={String(summary.totalFlights)} />
           <MetricCard label="Latest match" value={formatDate(summary.latestMatch)} accent />
         </div>
@@ -412,62 +398,64 @@ export default function LeaguesPage() {
           ) : error ? (
             <div style={errorBox}>{error}</div>
           ) : filteredLeagues.length === 0 ? (
-            <div style={stateBox}>No league records found yet.</div>
+            <div style={stateBox}>No named league records found yet.</div>
           ) : (
             <>
               <div style={summaryBadgeRow}>
                 <span style={heroHintPill}>{filteredLeagues.length} visible leagues</span>
-                <span style={heroHintPill}>{rows.length} total imported matches</span>
+                <span style={heroHintPill}>{leagueRows.length} total league matches</span>
               </div>
 
               <div style={dynamicCardGrid}>
-                {filteredLeagues.map((league) => (
-                  <div key={league.key} style={leagueCard}>
-                    <div style={cardGlow} />
+                {filteredLeagues.map((league) => {
+                  const subtitle = buildLeagueSubtitle(league)
 
-                    <div style={dynamicLeagueTop}>
-                      <div style={leagueHeading}>
-                        <div style={leagueTitle}>{league.leagueName}</div>
-                        <div style={leagueFlight}>{league.flight}</div>
-                      </div>
+                  return (
+                    <div key={league.key} style={leagueCard}>
+                      <div style={cardGlow} />
 
-                      <div style={leagueActionStack}>
-                        <div onClick={(e) => e.stopPropagation()} style={followWrap}>
-                          <FollowButton
-                            entityType="league"
-                            entityId={league.key}
-                            entityName={league.leagueName}
-                            subtitle={[league.flight, league.ustaSection, league.districtArea]
-                              .filter(Boolean)
-                              .join(' · ')}
-                          />
+                      <div style={dynamicLeagueTop}>
+                        <div style={leagueHeading}>
+                          <div style={leagueTitle}>{league.leagueName}</div>
+                          {subtitle ? <div style={leagueFlight}>{subtitle}</div> : null}
                         </div>
-                        <Link href={buildLeagueHref(league)} style={primaryButton}>
-                          View Season
-                        </Link>
+
+                        <div style={leagueActionStack}>
+                          <div onClick={(e) => e.stopPropagation()} style={followWrap}>
+                            <FollowButton
+                              entityType="league"
+                              entityId={league.key}
+                              entityName={league.leagueName}
+                              subtitle={subtitle}
+                            />
+                          </div>
+
+                          <Link href={buildLeagueHref(league)} style={primaryButton}>
+                            View Season
+                          </Link>
+                        </div>
+                      </div>
+
+                      <div style={dynamicLeagueDetailGrid}>
+                        <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
+                        <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
+                        <DetailCard label="Matches" value={String(league.matchCount)} />
+                        <DetailCard label="Teams Seen" value={String(league.teamCount)} />
+                      </div>
+
+                      <div style={leagueBottom}>
+                        <span style={leagueBottomMeta}>
+                          Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
+                        </span>
                       </div>
                     </div>
-
-                    <div style={dynamicLeagueDetailGrid}>
-                      <DetailCard label="USTA Section" value={league.ustaSection || '—'} />
-                      <DetailCard label="District / Area" value={league.districtArea} />
-                      <DetailCard label="Matches" value={String(league.matchCount)} />
-                      <DetailCard label="Teams Seen" value={String(league.teamCount)} />
-                    </div>
-
-                    <div style={leagueBottom}>
-                      <span style={leagueBottomMeta}>
-                        Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </>
           )}
         </article>
       </section>
-
     </SiteShell>
   )
 }
@@ -497,14 +485,22 @@ function MetricCard({
 function DetailCard({
   label,
   value,
+  hideWhenEmpty = false,
 }: {
   label: string
   value: string
+  hideWhenEmpty?: boolean
 }) {
+  const text = safeText(value)
+
+  if (hideWhenEmpty && !text) {
+    return null
+  }
+
   return (
     <div style={detailCard}>
       <div style={detailLabel}>{label}</div>
-      <div style={detailValue}>{value}</div>
+      <div style={detailValue}>{text || '—'}</div>
     </div>
   )
 }
@@ -516,174 +512,6 @@ function SearchIcon() {
       <path d="M16 16l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
     </svg>
   )
-}
-
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '8px' : '10px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(238,247,255,0.94)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: 800,
-  letterSpacing: '0.01em',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-  transition: 'all 180ms ease',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -1117,52 +945,4 @@ const leagueBottomMeta: CSSProperties = {
 const iconSvgStyle: CSSProperties = {
   width: '22px',
   height: '22px',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '12px 24px 20px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(116,190,255,0.16)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-  letterSpacing: '0.01em',
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
 }

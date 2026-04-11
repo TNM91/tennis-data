@@ -49,6 +49,25 @@ function pickFirst(record: UnknownRecord, keys: string[]): unknown {
   return undefined
 }
 
+function pickNested(record: UnknownRecord, pathGroups: string[][]): unknown {
+  for (const path of pathGroups) {
+    let current: unknown = record
+    let valid = true
+
+    for (const key of path) {
+      if (!isRecord(current) || !(key in current)) {
+        valid = false
+        break
+      }
+      current = current[key]
+    }
+
+    if (valid) return current
+  }
+
+  return undefined
+}
+
 function normalizeDate(value: unknown): string {
   const cleaned = cleanString(value)
   if (!cleaned) return ''
@@ -106,6 +125,14 @@ function unwrapRootRows(payload: unknown): unknown[] {
     return [payload.scorecard]
   }
 
+  if (Array.isArray(payload.matches)) {
+    return payload.matches
+  }
+
+  if (Array.isArray(payload.rows)) {
+    return payload.rows
+  }
+
   return []
 }
 
@@ -113,7 +140,7 @@ function getRootMeta(payload: unknown): UnknownRecord | null {
   if (!isRecord(payload)) return null
   if (isRecord(payload.seasonSchedule)) return payload.seasonSchedule
   if (isRecord(payload.scorecard)) return payload.scorecard
-  return null
+  return payload
 }
 
 function mergeWithRoot(record: UnknownRecord, root: UnknownRecord | null): UnknownRecord {
@@ -139,30 +166,147 @@ function normalizeExternalMatchId(record: UnknownRecord): string {
 }
 
 function normalizeLeagueName(record: UnknownRecord): string | null {
-  return nullableString(pickFirst(record, ['leagueName', 'league_name', 'league']))
+  const direct = nullableString(
+    pickFirst(record, ['leagueName', 'league_name', 'league']),
+  )
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['league', 'name'],
+      ['league', 'leagueName'],
+      ['league', 'league_name'],
+      ['metadata', 'leagueName'],
+      ['metadata', 'league_name'],
+      ['metadata', 'league'],
+      ['context', 'leagueName'],
+      ['context', 'league_name'],
+      ['context', 'league'],
+    ]),
+  )
+  if (nested) return nested
+
+  return null
 }
 
 function normalizeFlight(record: UnknownRecord): string | null {
-  return nullableString(pickFirst(record, ['flight']))
+  const direct = nullableString(pickFirst(record, ['flight']))
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['league', 'flight'],
+      ['metadata', 'flight'],
+      ['context', 'flight'],
+    ]),
+  )
+  if (nested) return nested
+
+  return null
 }
 
 function normalizeSection(record: UnknownRecord): string | null {
-  return nullableString(pickFirst(record, ['ustaSection', 'usta_section', 'section']))
+  const direct = nullableString(
+    pickFirst(record, ['ustaSection', 'usta_section', 'section']),
+  )
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['league', 'section'],
+      ['league', 'ustaSection'],
+      ['league', 'usta_section'],
+      ['metadata', 'section'],
+      ['metadata', 'ustaSection'],
+      ['metadata', 'usta_section'],
+      ['context', 'section'],
+      ['context', 'ustaSection'],
+      ['context', 'usta_section'],
+    ]),
+  )
+  if (nested) return nested
+
+  return null
 }
 
 function normalizeDistrict(record: UnknownRecord): string | null {
-  return nullableString(
+  const direct = nullableString(
     pickFirst(record, ['districtArea', 'district_area', 'district', 'area']),
   )
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['league', 'district'],
+      ['league', 'area'],
+      ['league', 'districtArea'],
+      ['league', 'district_area'],
+      ['metadata', 'district'],
+      ['metadata', 'area'],
+      ['metadata', 'districtArea'],
+      ['metadata', 'district_area'],
+      ['context', 'district'],
+      ['context', 'area'],
+      ['context', 'districtArea'],
+      ['context', 'district_area'],
+    ]),
+  )
+  if (nested) return nested
+
+  return null
 }
 
 function normalizeFacility(record: UnknownRecord): string | null {
-  return nullableString(pickFirst(record, ['facility', 'site', 'location', 'club']))
+  const direct = nullableString(pickFirst(record, ['facility', 'site', 'location', 'club']))
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['venue', 'name'],
+      ['venue', 'facility'],
+      ['facilityInfo', 'name'],
+      ['metadata', 'facility'],
+      ['metadata', 'site'],
+      ['context', 'facility'],
+      ['context', 'site'],
+    ]),
+  )
+  if (nested) return nested
+
+  return null
 }
 
 function normalizeTime(record: UnknownRecord): string | null {
-  return nullableString(
+  const direct = nullableString(
     pickFirst(record, ['matchTime', 'match_time', 'scheduleTime', 'schedule_time', 'time']),
+  )
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['metadata', 'matchTime'],
+      ['metadata', 'match_time'],
+      ['metadata', 'scheduleTime'],
+      ['metadata', 'schedule_time'],
+      ['context', 'matchTime'],
+      ['context', 'match_time'],
+      ['context', 'time'],
+    ]),
+  )
+  if (nested) return nested
+
+  return null
+}
+
+function normalizeHomeTeam(record: UnknownRecord): string {
+  return cleanString(
+    pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']),
+  )
+}
+
+function normalizeAwayTeam(record: UnknownRecord): string {
+  return cleanString(
+    pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']),
   )
 }
 
@@ -183,6 +327,30 @@ function buildScoreFromSets(value: unknown): string | null {
   return formatted.length > 0 ? formatted.join(' ') : null
 }
 
+function buildUnifiedSource(
+  type: 'schedule' | 'scorecard',
+  record: UnknownRecord,
+): string {
+  const directSource = nullableString(pickFirst(record, ['source']))
+  if (directSource) return directSource
+
+  const leagueName = normalizeLeagueName(record)
+  const externalMatchId = normalizeExternalMatchId(record)
+
+  if (type === 'schedule') {
+    if (leagueName && externalMatchId) {
+      return `tennislink_schedule | ${leagueName} | match-${externalMatchId}`
+    }
+    return 'tennislink_schedule'
+  }
+
+  if (leagueName && externalMatchId) {
+    return `tennislink_scorecard | ${leagueName} | match-${externalMatchId}`
+  }
+
+  return 'tennislink_scorecard'
+}
+
 function normalizeScheduleRow(
   record: UnknownRecord,
   rowIndex: number,
@@ -192,8 +360,8 @@ function normalizeScheduleRow(
   const matchDate = normalizeDate(
     pickFirst(record, ['matchDate', 'match_date', 'scheduleDate', 'schedule_date', 'date']),
   )
-  const homeTeam = cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']))
-  const awayTeam = cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']))
+  const homeTeam = normalizeHomeTeam(record)
+  const awayTeam = normalizeAwayTeam(record)
 
   if (!externalMatchId) {
     warnings.push({ rowIndex, message: 'Skipped schedule row: missing external match id' })
@@ -227,7 +395,7 @@ function normalizeScheduleRow(
     flight: normalizeFlight(record),
     ustaSection: normalizeSection(record),
     districtArea: normalizeDistrict(record),
-    source: 'tennislink_schedule',
+    source: buildUnifiedSource('schedule', record),
   }
 }
 
@@ -303,8 +471,8 @@ function normalizeScorecardRow(
       'date',
     ]),
   )
-  const homeTeam = cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']))
-  const awayTeam = cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']))
+  const homeTeam = normalizeHomeTeam(record)
+  const awayTeam = normalizeAwayTeam(record)
 
   if (!externalMatchId) {
     warnings.push({ rowIndex, message: 'Skipped scorecard row: missing external match id' })
@@ -363,7 +531,7 @@ function normalizeScorecardRow(
     districtArea: normalizeDistrict(record),
     facility: normalizeFacility(record),
     matchTime: normalizeTime(record),
-    source: 'tennislink_scorecard',
+    source: buildUnifiedSource('scorecard', record),
   }
 }
 
