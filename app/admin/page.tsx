@@ -19,35 +19,24 @@ type AdminTool = {
 
 const adminTools: AdminTool[] = [
   {
-  title: 'Captured Import',
-  href: '/admin/import-captured',
-  description:
-    'Paste captured schedule or scorecard JSON directly from your scraper and run preview or full ingestion into TenAceIQ.',
-  badge: 'New',
-  accent: 'green',
-  highlights: ['Schedule ingest', 'Scorecard ingest', 'Preview + commit'],
-  statLabel: 'Best for',
-  statValue: 'Real pipeline',
-},
-  {
-    title: 'Upload Scorecard',
-    href: '/admin/upload-scorecard',
+    title: 'Unified Import Center',
+    href: '/admin/import',
     description:
-      'Upload USTA scorecard exports, preview parsed singles and doubles lines, and import them with duplicate protection.',
-    badge: 'Import',
-    accent: 'blue',
-    highlights: ['Scorecard parser', 'Preview before commit', 'Duplicate protection'],
+      'Upload or paste schedule and scorecard JSON in one place, preview normalized rows, review warnings, and commit through the shared TenAceIQ ingestion pipeline.',
+    badge: 'Primary',
+    accent: 'green',
+    highlights: ['Schedule ingest', 'Scorecard ingest', 'File upload + paste', 'Preview + commit'],
     statLabel: 'Best for',
-    statValue: 'Scorecard imports',
+    statValue: 'All imports',
   },
   {
     title: 'CSV Import',
     href: '/admin/csv-import',
     description:
-      'Bulk import structured match rows from CSV files so you can backfill larger datasets quickly and cleanly.',
+      'Bulk import structured match rows from CSV files when you need to backfill larger datasets or process preformatted records.',
     badge: 'Bulk',
-    accent: 'green',
-    highlights: ['Bulk ingest', 'Validation flow', 'Large backfills'],
+    accent: 'blue',
+    highlights: ['Bulk ingest', 'Structured import', 'Backfill workflow'],
     statLabel: 'Best for',
     statValue: 'Large batches',
   },
@@ -55,7 +44,7 @@ const adminTools: AdminTool[] = [
     title: 'Paste Results',
     href: '/admin/paste-results',
     description:
-      'Paste raw results text and convert it into import-ready records for fast entry when files are not available.',
+      'Paste raw results text and convert it into import-ready records for fast entry when a file is not available.',
     badge: 'Fast Entry',
     accent: 'slate',
     highlights: ['Quick parsing', 'Manual cleanup', 'Rapid entry'],
@@ -77,10 +66,10 @@ const adminTools: AdminTool[] = [
     title: 'Manage Matches',
     href: '/admin/manage-matches',
     description:
-      'Review, edit, and clean up match records from one operational surface built for ongoing data quality control.',
+      'Review, inspect, and clean up match records from one operational surface built for ongoing data quality control.',
     badge: 'Control',
     accent: 'green',
-    highlights: ['Edit records', 'Cleanup flows', 'Match oversight'],
+    highlights: ['Match cleanup', 'Record review', 'Operational oversight'],
     statLabel: 'Best for',
     statValue: 'Match hygiene',
   },
@@ -98,12 +87,7 @@ const adminTools: AdminTool[] = [
 ]
 
 const importTools = adminTools.filter((tool) =>
-  [
-    '/admin/import-captured',
-    '/admin/upload-scorecard',
-    '/admin/csv-import',
-    '/admin/paste-results',
-  ].includes(tool.href)
+  ['/admin/import', '/admin/csv-import', '/admin/paste-results'].includes(tool.href)
 )
 
 const managementTools = adminTools.filter((tool) =>
@@ -188,26 +172,26 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="6" helper="Core routes restored" />
-              <MetricCard label="Import Paths" value="3" helper="Scorecard, CSV, pasted text" />
+              <MetricCard label="Admin Tools" value="6" helper="Unified and cleaned up" />
+              <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
               <MetricCard label="Data Control" value="3" helper="Players, matches, manual entry" />
-              <MetricCard label="Recommended Flow" value="Preview" helper="Validate before commit" />
+              <MetricCard label="Recommended Flow" value="Preview → Commit" helper="Validate before writing" />
             </div>
 
             <div className="card-grid three" style={{ marginTop: 18 }}>
               <MiniPanel
-                title="Import Center"
-                text="Use the import tools first when you are bringing in new match data from outside sources."
-                tone="blue"
-              />
-              <MiniPanel
-                title="Data Stewardship"
-                text="Use the management tools when you need to correct records, clean metadata, or refine ratings inputs."
+                title="Unified Import"
+                text="Use the new import center first so schedule and scorecard data always flow through the same ingestion path."
                 tone="green"
               />
               <MiniPanel
-                title="Clean Structure"
-                text="Keep /admin as the hub and each operational tool in its own nested route so the dashboard never gets overwritten again."
+                title="Data Stewardship"
+                text="Use the management tools when you need to clean records, fix metadata, or refine ratings inputs."
+                tone="blue"
+              />
+              <MiniPanel
+                title="Cleaner Structure"
+                text="This dashboard now points toward one main import route instead of overlapping legacy import screens."
                 tone="slate"
               />
             </div>
@@ -218,7 +202,7 @@ export default function AdminDashboardPage() {
           <SectionHeader
             kicker="Imports"
             title="Bring data into the system"
-            subtitle="These routes are optimized for getting external match information into your database with more speed and less cleanup."
+            subtitle="Start with the unified import center. Use the other import surfaces only when the data source truly requires them."
           />
           <div className="card-grid three" style={{ marginTop: 14 }}>
             {importTools.map((tool) => (
@@ -231,7 +215,7 @@ export default function AdminDashboardPage() {
           <SectionHeader
             kicker="Management"
             title="Control records and maintain quality"
-            subtitle="These routes are better when you need precision, cleanup, edits, and ongoing maintenance across players and matches."
+            subtitle="These routes are for precise edits, cleanup, one-off corrections, and ongoing stewardship of your data."
           />
           <div className="card-grid three" style={{ marginTop: 14 }}>
             {managementTools.map((tool) => (
@@ -272,13 +256,13 @@ export default function AdminDashboardPage() {
                   Recommended admin route structure
                 </h2>
                 <p className="subtle-text" style={{ marginTop: 8, maxWidth: 700 }}>
-                  Keep this page as the central control surface. Every actual tool should live in its
-                  own dedicated folder route to prevent accidental replacements of the dashboard.
+                  Keep this page as the hub. Route all future schedule and scorecard imports through
+                  the unified import center so you avoid the legacy split pipeline problem.
                 </p>
               </div>
 
               <div className="badge badge-green" style={{ minHeight: 42 }}>
-                Hub page active
+                Unified import live
               </div>
             </div>
 
@@ -298,14 +282,14 @@ export default function AdminDashboardPage() {
                     <td>Should render this page only</td>
                   </tr>
                   <tr>
-                    <td>/admin/upload-scorecard</td>
-                    <td>Scorecard upload and preview</td>
-                    <td>Best for USTA scorecard files</td>
+                    <td>/admin/import</td>
+                    <td>Unified schedule + scorecard ingest</td>
+                    <td>Main import route going forward</td>
                   </tr>
                   <tr>
                     <td>/admin/csv-import</td>
                     <td>Bulk CSV ingest</td>
-                    <td>Best for structured imports</td>
+                    <td>Use only for structured CSV workflows</td>
                   </tr>
                   <tr>
                     <td>/admin/paste-results</td>
@@ -364,18 +348,18 @@ export default function AdminDashboardPage() {
               >
                 <WorkflowStep
                   number="01"
-                  title="Import or enter data"
-                  text="Choose Upload Scorecard, CSV Import, Paste Results, or Add Match depending on the source."
+                  title="Import through one pipeline"
+                  text="Start with the unified import center so both schedule and scorecard data go through the same preview and commit workflow."
                 />
                 <WorkflowStep
                   number="02"
                   title="Validate and review"
-                  text="Preview where possible, confirm rows look right, and watch for duplicate or formatting issues."
+                  text="Preview normalized rows, check warnings, then commit only when the shape and metadata look right."
                 />
                 <WorkflowStep
                   number="03"
                   title="Clean up records"
-                  text="Use Manage Matches and Manage Players to tighten the data after import or manual entry."
+                  text="Use Manage Matches and Manage Players to tighten data quality after imports or manual entry."
                 />
               </div>
             </div>
@@ -406,7 +390,7 @@ export default function AdminDashboardPage() {
                   marginTop: 14,
                 }}
               >
-                <QuickAction href="/admin/upload-scorecard" label="Open Upload Scorecard" />
+                <QuickAction href="/admin/import" label="Open Unified Import Center" />
                 <QuickAction href="/admin/csv-import" label="Open CSV Import" />
                 <QuickAction href="/admin/paste-results" label="Open Paste Results" />
                 <QuickAction href="/admin/add-match" label="Open Add Match" />
@@ -476,8 +460,8 @@ function HeroSection() {
           }}
         >
           <span className="badge badge-blue">Premium shell aligned</span>
-          <span className="badge badge-green">Dashboard restored</span>
-          <span className="badge badge-slate">Tool routes separated</span>
+          <span className="badge badge-green">Unified import centered</span>
+          <span className="badge badge-slate">Legacy overlap reduced</span>
         </div>
       </div>
     </section>

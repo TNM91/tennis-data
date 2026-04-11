@@ -1,9 +1,10 @@
+
 'use client'
 
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
@@ -58,6 +59,17 @@ type PairingCard = {
   losses: number
 }
 
+type MatchCard = TeamMatch & {
+  won: boolean | null
+  opponent: string | null
+  venueLabel: string
+}
+
+function cleanText(value: string | null | undefined): string | null {
+  const text = (value || '').trim()
+  return text.length > 0 ? text : null
+}
+
 function normalizePlayer(player: PlayerRelation): Player | null {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -66,7 +78,7 @@ function normalizePlayer(player: PlayerRelation): Player | null {
 function formatDate(value: string | null | undefined) {
   if (!value) return '—'
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return value
 
   return date.toLocaleDateString('en-US', {
     month: 'short',
@@ -81,26 +93,41 @@ function formatRating(value: number | null | undefined) {
 }
 
 function teamSideForMatch(match: TeamMatch, teamName: string): 'A' | 'B' | null {
-  if (match.home_team === teamName) return 'A'
-  if (match.away_team === teamName) return 'B'
+  const home = cleanText(match.home_team)
+  const away = cleanText(match.away_team)
+  if (home === teamName) return 'A'
+  if (away === teamName) return 'B'
   return null
 }
 
-function didTeamWin(match: TeamMatch, teamName: string) {
+function didTeamWin(match: TeamMatch, teamName: string): boolean | null {
   const side = teamSideForMatch(match, teamName)
-  if (!side || !match.winner_side) return false
+  if (!side || !match.winner_side) return null
   return side === match.winner_side
 }
 
-function getOpponent(match: TeamMatch, teamName: string) {
-  if (match.home_team === teamName) return match.away_team || 'Unknown opponent'
-  if (match.away_team === teamName) return match.home_team || 'Unknown opponent'
-  return 'Unknown opponent'
+function getOpponent(match: TeamMatch, teamName: string): string | null {
+  const home = cleanText(match.home_team)
+  const away = cleanText(match.away_team)
+  if (home === teamName) return away
+  if (away === teamName) return home
+  return null
+}
+
+function safeOverallRating(player: Player) {
+  return (
+    player.overall_dynamic_rating ??
+    Math.max(player.singles_dynamic_rating ?? 0, player.doubles_dynamic_rating ?? 0)
+  )
 }
 
 export default function TeamPage() {
   const params = useParams()
-  const team = decodeURIComponent(String(params.team || ''))
+  const searchParams = useSearchParams()
+  const team = decodeURIComponent(String(params.team || '')).trim()
+
+  const leagueFilter = searchParams.get('league') || ''
+  const flightFilter = searchParams.get('flight') || ''
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
@@ -121,28 +148,48 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (!team) return
-    loadTeamPage()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team])
+    void loadTeamPage()
+  }, [team, leagueFilter, flightFilter])
 
   async function loadTeamPage() {
     setLoading(true)
     setError(null)
 
     try {
-      const { data: matchData, error: matchError } = await supabase
+      let query = supabase
         .from('matches')
-        .select('*')
+        .select(`
+          id,
+          home_team,
+          away_team,
+          match_date,
+          match_type,
+          winner_side,
+          score,
+          flight,
+          league_name,
+          usta_section,
+          district_area
+        `)
         .or(`home_team.eq.${team},away_team.eq.${team}`)
         .order('match_date', { ascending: false })
 
+      if (leagueFilter) query = query.eq('league_name', leagueFilter)
+      if (flightFilter) query = query.eq('flight', flightFilter)
+
+      const { data: matchData, error: matchError } = await query
       if (matchError) throw matchError
 
       const safeMatches = (matchData || []) as TeamMatch[]
-      setMatches(safeMatches)
+      const realMatches = safeMatches.filter((match) => {
+        const home = cleanText(match.home_team)
+        const away = cleanText(match.away_team)
+        return Boolean(home && away)
+      })
 
-      const ids = safeMatches.map((match) => match.id)
+      setMatches(realMatches)
 
+      const ids = realMatches.map((match) => match.id)
       if (!ids.length) {
         setPlayers([])
         setLoading(false)
@@ -171,14 +218,17 @@ export default function TeamPage() {
   }
 
   const teamMeta = useMemo(() => {
-    const firstWithLeague = matches.find((match) => match.league_name || match.flight || match.usta_section)
+    const firstWithLeague = matches.find(
+      (match) => cleanText(match.league_name) || cleanText(match.flight) || cleanText(match.usta_section),
+    )
+
     return {
-      league: firstWithLeague?.league_name || null,
-      flight: firstWithLeague?.flight || null,
-      section: firstWithLeague?.usta_section || null,
-      district: firstWithLeague?.district_area || null,
+      league: cleanText(firstWithLeague?.league_name) || cleanText(leagueFilter),
+      flight: cleanText(firstWithLeague?.flight) || cleanText(flightFilter),
+      section: cleanText(firstWithLeague?.usta_section),
+      district: cleanText(firstWithLeague?.district_area),
     }
-  }, [matches])
+  }, [matches, leagueFilter, flightFilter])
 
   const recentMatch = matches[0] || null
 
@@ -187,8 +237,9 @@ export default function TeamPage() {
     let losses = 0
 
     matches.forEach((match) => {
-      if (didTeamWin(match, team)) wins += 1
-      else losses += 1
+      const result = didTeamWin(match, team)
+      if (result === true) wins += 1
+      if (result === false) losses += 1
     })
 
     return { wins, losses }
@@ -225,14 +276,16 @@ export default function TeamPage() {
       if (match.match_type === 'singles') current.singlesAppearances += 1
       if (match.match_type === 'doubles') current.doublesAppearances += 1
 
-      if (didTeamWin(match, team)) current.wins += 1
-      else current.losses += 1
+      const result = didTeamWin(match, team)
+      if (result === true) current.wins += 1
+      if (result === false) current.losses += 1
     })
 
     return Array.from(map.values()).sort((a, b) => {
-      const aOverall = a.overall_dynamic_rating ?? Math.max(a.singles_dynamic_rating ?? 0, a.doubles_dynamic_rating ?? 0)
-      const bOverall = b.overall_dynamic_rating ?? Math.max(b.singles_dynamic_rating ?? 0, b.doubles_dynamic_rating ?? 0)
-      return bOverall - aOverall
+      const aOverall = safeOverallRating(a)
+      const bOverall = safeOverallRating(b)
+      if (bOverall !== aOverall) return bOverall - aOverall
+      return a.name.localeCompare(b.name)
     })
   }, [matches, players, team])
 
@@ -279,7 +332,8 @@ export default function TeamPage() {
       const sortedPlayers = [...normalized].sort((a, b) => a.name.localeCompare(b.name))
       const key = sortedPlayers.map((player) => player.id).join('-')
       const avgRating =
-        sortedPlayers.reduce((sum, player) => sum + (player.doubles_dynamic_rating || 0), 0) / sortedPlayers.length
+        sortedPlayers.reduce((sum, player) => sum + (player.doubles_dynamic_rating || 0), 0) /
+        sortedPlayers.length
 
       if (!pairMap.has(key)) {
         pairMap.set(key, {
@@ -296,21 +350,23 @@ export default function TeamPage() {
       pair.appearances += 1
       pair.avgRating = avgRating
 
-      if (didTeamWin(match, team)) pair.wins += 1
-      else pair.losses += 1
+      const result = didTeamWin(match, team)
+      if (result === true) pair.wins += 1
+      if (result === false) pair.losses += 1
     })
 
     return Array.from(pairMap.values()).sort((a, b) => {
       if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating
-      return b.appearances - a.appearances
+      if (b.appearances !== a.appearances) return b.appearances - a.appearances
+      return a.names.join(' / ').localeCompare(b.names.join(' / '))
     })
   }, [matches, players, team])
 
-  const matchCards = useMemo(() => {
+  const matchCards = useMemo<MatchCard[]>(() => {
     return matches.map((match) => {
       const won = didTeamWin(match, team)
       const opponent = getOpponent(match, team)
-      const isHome = match.home_team === team
+      const isHome = cleanText(match.home_team) === team
 
       return {
         ...match,
@@ -365,6 +421,8 @@ export default function TeamPage() {
     gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   }
 
+  const heroMetaParts = [teamMeta.league, teamMeta.flight, teamMeta.section].filter(Boolean)
+
   if (loading) {
     return (
       <SiteShell active="/teams">
@@ -389,8 +447,7 @@ export default function TeamPage() {
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              Full roster, recent form, top singles strength, doubles chemistry, and captain workflow tools in one
-              place.
+              Full roster, recent form, top singles strength, doubles chemistry, and captain workflow tools in one place.
             </p>
 
             <div style={heroBadgeRow}>
@@ -412,7 +469,7 @@ export default function TeamPage() {
                   entityType="team"
                   entityId={team}
                   entityName={team}
-                  subtitle={teamMeta.league ?? teamMeta.flight ?? undefined}
+                  subtitle={heroMetaParts.join(' · ') || undefined}
                 />
               </div>
               <Link style={buttonGhost} href="/teams">
@@ -431,7 +488,7 @@ export default function TeamPage() {
               <MetricCard
                 label="Latest match"
                 value={formatDate(recentMatch?.match_date)}
-                subtle={recentMatch ? `vs ${getOpponent(recentMatch, team)}` : 'No recent match yet'}
+                subtle={recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '—'}` : 'No recent match yet'}
               />
             </div>
 
@@ -469,7 +526,7 @@ export default function TeamPage() {
             <span style={metricLabel}>Latest Match</span>
             <strong style={metricValue}>{formatDate(recentMatch?.match_date)}</strong>
             <span style={metricSubtle}>
-              {recentMatch ? `vs ${getOpponent(recentMatch, team)}` : 'No recent match yet'}
+              {recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '—'}` : 'No recent match yet'}
             </span>
           </article>
         </section>
@@ -606,13 +663,15 @@ export default function TeamPage() {
                   {matchCards.map((match) => (
                     <tr key={match.id}>
                       <td style={tableCell}>{formatDate(match.match_date)}</td>
-                      <td style={tableCell}>{match.opponent}</td>
+                      <td style={tableCell}>{match.opponent ?? '—'}</td>
                       <td style={tableCell}>{match.venueLabel}</td>
-                      <td style={tableCell}>{match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '—'}</td>
-                      <td style={tableCell}>{match.score || '—'}</td>
                       <td style={tableCell}>
-                        <span style={match.won ? badgeGreen : badgeBlue}>
-                          {match.won ? 'Win' : 'Loss'}
+                        {match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '—'}
+                      </td>
+                      <td style={tableCell}>{match.score ?? '—'}</td>
+                      <td style={tableCell}>
+                        <span style={match.won === true ? badgeGreen : match.won === false ? badgeBlue : badgeSlate}>
+                          {match.won === true ? 'Win' : match.won === false ? 'Loss' : '—'}
                         </span>
                       </td>
                     </tr>

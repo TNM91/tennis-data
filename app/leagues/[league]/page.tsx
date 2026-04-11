@@ -18,9 +18,9 @@ type LeagueMatchRow = {
   home_team: string | null
   away_team: string | null
   match_date: string
-  match_type: 'singles' | 'doubles'
+  match_type: 'singles' | 'doubles' | null
   score: string | null
-  winner_side: 'A' | 'B'
+  winner_side: 'A' | 'B' | null
 }
 
 type TeamSummary = {
@@ -31,15 +31,16 @@ type TeamSummary = {
   wins: number
   losses: number
   latestMatchDate: string | null
+  winPct: number
 }
 
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
+function cleanText(value: string | null | undefined): string | null {
   const text = (value || '').trim()
-  return text || fallback
+  return text.length > 0 ? text : null
 }
 
 function formatDate(value: string | null) {
-  if (!value) return 'Unknown'
+  if (!value) return '—'
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
 
@@ -51,12 +52,13 @@ function formatDate(value: string | null) {
 }
 
 function buildTeamHref(teamName: string, leagueName: string, flight: string) {
-  const params = new URLSearchParams({
-    league: leagueName,
-    flight,
-  })
+  const params = new URLSearchParams()
 
-  return `/teams/${encodeURIComponent(teamName)}?${params.toString()}`
+  if (leagueName) params.set('league', leagueName)
+  if (flight) params.set('flight', flight)
+
+  const query = params.toString()
+  return `/teams/${encodeURIComponent(teamName)}${query ? `?${query}` : ''}`
 }
 
 export default function LeagueDetailPage() {
@@ -128,31 +130,41 @@ export default function LeagueDetailPage() {
     }
   }
 
+  const validRows = useMemo(() => {
+    return rows.filter((row) => {
+      const home = cleanText(row.home_team)
+      const away = cleanText(row.away_team)
+      return Boolean(home && away)
+    })
+  }, [rows])
+
   const leagueInfo = useMemo(() => {
-    if (!rows.length) {
+    if (!validRows.length) {
       return {
-        leagueName: leagueFromRoute || 'Unknown League',
-        flight: flight || 'Unknown',
-        section: section || 'Unknown',
-        district: district || 'Unknown',
+        leagueName: leagueFromRoute || '',
+        flight: flight || '',
+        section: section || '',
+        district: district || '',
       }
     }
 
-    const first = rows[0]
+    const first = validRows[0]
+
     return {
-      leagueName: safeText(first.league_name, leagueFromRoute || 'Unknown League'),
-      flight: safeText(first.flight, flight || 'Unknown'),
-      section: safeText(first.usta_section, section || 'Unknown'),
-      district: safeText(first.district_area, district || 'Unknown'),
+      leagueName: cleanText(first.league_name) || leagueFromRoute || '',
+      flight: cleanText(first.flight) || flight || '',
+      section: cleanText(first.usta_section) || section || '',
+      district: cleanText(first.district_area) || district || '',
     }
-  }, [rows, leagueFromRoute, flight, section, district])
+  }, [validRows, leagueFromRoute, flight, section, district])
 
   const teamSummaries = useMemo<TeamSummary[]>(() => {
-    const map = new Map<string, TeamSummary>()
+    const map = new Map<string, Omit<TeamSummary, 'winPct'>>()
 
-    for (const row of rows) {
-      const homeTeam = safeText(row.home_team)
-      const awayTeam = safeText(row.away_team)
+    for (const row of validRows) {
+      const homeTeam = cleanText(row.home_team)
+      const awayTeam = cleanText(row.away_team)
+      if (!homeTeam || !awayTeam) continue
 
       if (!map.has(homeTeam)) {
         map.set(homeTeam, {
@@ -186,11 +198,13 @@ export default function LeagueDetailPage() {
       away.matches += 1
       away.awayMatches += 1
 
-      const winningTeam = row.winner_side === 'A' ? homeTeam : awayTeam
-      const losingTeam = row.winner_side === 'A' ? awayTeam : homeTeam
-
-      map.get(winningTeam)!.wins += 1
-      map.get(losingTeam)!.losses += 1
+      if (row.winner_side === 'A') {
+        home.wins += 1
+        away.losses += 1
+      } else if (row.winner_side === 'B') {
+        away.wins += 1
+        home.losses += 1
+      }
 
       for (const team of [home, away]) {
         if (
@@ -203,35 +217,43 @@ export default function LeagueDetailPage() {
       }
     }
 
-    return [...map.values()].sort((a, b) => {
-      if (b.wins !== a.wins) return b.wins - a.wins
-      if (a.losses !== b.losses) return a.losses - b.losses
-      return a.name.localeCompare(b.name)
-    })
-  }, [rows])
+    return [...map.values()]
+      .map((team) => ({
+        ...team,
+        winPct: team.matches > 0 ? team.wins / team.matches : 0,
+      }))
+      .sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins
+        if (b.winPct !== a.winPct) return b.winPct - a.winPct
+        if (a.losses !== b.losses) return a.losses - b.losses
+        return a.name.localeCompare(b.name)
+      })
+  }, [validRows])
 
   const filteredMatches = useMemo(() => {
-    if (teamFilter === 'all') return rows
-    return rows.filter(
-      (row) =>
-        safeText(row.home_team) === teamFilter || safeText(row.away_team) === teamFilter,
-    )
-  }, [rows, teamFilter])
+    if (teamFilter === 'all') return validRows
+
+    return validRows.filter((row) => {
+      const home = cleanText(row.home_team)
+      const away = cleanText(row.away_team)
+      return home === teamFilter || away === teamFilter
+    })
+  }, [validRows, teamFilter])
 
   const stats = useMemo(() => {
-    const singles = rows.filter((row) => row.match_type === 'singles').length
-    const doubles = rows.filter((row) => row.match_type === 'doubles').length
+    const singles = validRows.filter((row) => row.match_type === 'singles').length
+    const doubles = validRows.filter((row) => row.match_type === 'doubles').length
     const teams = teamSummaries.length
-    const latest = rows[0]?.match_date || null
+    const latest = validRows[0]?.match_date || null
 
     return {
-      matchCount: rows.length,
+      matchCount: validRows.length,
       singles,
       doubles,
       teams,
       latest,
     }
-  }, [rows, teamSummaries])
+  }, [validRows, teamSummaries])
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -301,16 +323,18 @@ export default function LeagueDetailPage() {
     alignItems: isMobile ? 'flex-start' : 'center',
   }
 
+  const subtitleParts = [leagueInfo.flight, leagueInfo.section, leagueInfo.district].filter(Boolean)
+
   return (
     <SiteShell active="/leagues">
       <section style={pageContent}>
         <section style={dynamicHeroShell}>
           <div>
             <div style={eyebrow}>League Season</div>
-            <h1 style={dynamicHeroTitle}>{leagueInfo.leagueName}</h1>
-            <p style={dynamicHeroText}>
-              {leagueInfo.flight} · {leagueInfo.section} · {leagueInfo.district}
-            </p>
+            <h1 style={dynamicHeroTitle}>{leagueInfo.leagueName || 'League Season'}</h1>
+            {subtitleParts.length > 0 ? (
+              <p style={dynamicHeroText}>{subtitleParts.join(' · ')}</p>
+            ) : null}
 
             <div style={heroHintRow}>
               <span style={heroHintPill}>{stats.matchCount} matches</span>
@@ -321,11 +345,9 @@ export default function LeagueDetailPage() {
             <div style={heroActions}>
               <FollowButton
                 entityType="league"
-                entityId={leagueInfo.leagueName}
-                entityName={leagueInfo.leagueName}
-                subtitle={[leagueInfo.flight, leagueInfo.section, leagueInfo.district]
-                  .filter(Boolean)
-                  .join(' · ')}
+                entityId={leagueInfo.leagueName || leagueFromRoute}
+                entityName={leagueInfo.leagueName || leagueFromRoute || 'League'}
+                subtitle={subtitleParts.join(' · ')}
               />
               <Link href="/leagues" style={ghostButton}>
                 Back to Leagues
@@ -335,14 +357,14 @@ export default function LeagueDetailPage() {
 
           <div style={dynamicSeasonToolsCard}>
             <div style={seasonToolsLabel}>Season tools</div>
-            <div style={seasonToolsValue}>{leagueInfo.flight}</div>
+            <div style={seasonToolsValue}>{leagueInfo.flight || 'League'}</div>
             <div style={seasonToolsText}>
               Review team performance, standings-style summaries, and match history for this league segment.
             </div>
 
             <div style={seasonToolsActions}>
-              <span style={miniPillSlate}>{leagueInfo.section}</span>
-              <span style={miniPillGreen}>{leagueInfo.district}</span>
+              {leagueInfo.section ? <span style={miniPillSlate}>{leagueInfo.section}</span> : null}
+              {leagueInfo.district ? <span style={miniPillGreen}>{leagueInfo.district}</span> : null}
             </div>
           </div>
         </section>
@@ -360,8 +382,8 @@ export default function LeagueDetailPage() {
             <div style={stateBox}>Loading season data...</div>
           ) : error ? (
             <div style={errorBox}>{error}</div>
-          ) : rows.length === 0 ? (
-            <div style={stateBox}>No matches found for this league.</div>
+          ) : validRows.length === 0 ? (
+            <div style={stateBox}>No valid matches found for this league.</div>
           ) : (
             <>
               <section>
@@ -384,7 +406,10 @@ export default function LeagueDetailPage() {
                         <div>
                           <div style={teamRank}>#{index + 1}</div>
                           <div style={teamName}>{team.name}</div>
-                          <div style={teamRecord}>{team.wins}-{team.losses} record</div>
+                          <div style={teamRecord}>
+                            {team.wins}-{team.losses} record
+                            {team.matches > 0 ? ` · ${(team.winPct * 100).toFixed(0)}% win` : ''}
+                          </div>
                         </div>
 
                         <Link
@@ -438,9 +463,16 @@ export default function LeagueDetailPage() {
 
                 <div style={matchList}>
                   {filteredMatches.map((row) => {
-                    const home = safeText(row.home_team)
-                    const away = safeText(row.away_team)
-                    const winner = row.winner_side === 'A' ? home : away
+                    const home = cleanText(row.home_team)
+                    const away = cleanText(row.away_team)
+                    if (!home || !away) return null
+
+                    const winner =
+                      row.winner_side === 'A'
+                        ? home
+                        : row.winner_side === 'B'
+                          ? away
+                          : '—'
 
                     return (
                       <div key={row.id} style={matchCard}>
@@ -450,7 +482,8 @@ export default function LeagueDetailPage() {
                               {home} vs {away}
                             </div>
                             <div style={matchMeta}>
-                              {formatDate(row.match_date)} · {row.match_type}
+                              {formatDate(row.match_date)}
+                              {row.match_type ? ` · ${row.match_type}` : ''}
                             </div>
                           </div>
 
@@ -458,8 +491,10 @@ export default function LeagueDetailPage() {
                         </div>
 
                         <div style={dynamicMatchBottom}>
-                          <div style={scoreText}>{row.score || 'No score entered'}</div>
-                          <div style={subMeta}>{leagueInfo.flight} · {leagueInfo.district}</div>
+                          <div style={scoreText}>{row.score ?? '—'}</div>
+                          <div style={subMeta}>
+                            {[leagueInfo.flight, leagueInfo.district].filter(Boolean).join(' · ')}
+                          </div>
                         </div>
                       </div>
                     )
