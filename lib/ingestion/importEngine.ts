@@ -356,6 +356,7 @@ export class ImportEngine {
         }
 
         const payload = toScheduleMatchUpsert(row)
+        console.log('SCHEDULE_IMPORT_PAYLOAD', payload)
 
         if (mode === 'preview') {
           result.successCount += 1
