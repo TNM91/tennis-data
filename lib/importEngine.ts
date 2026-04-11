@@ -1,4 +1,3 @@
-
 import { supabase } from '@/lib/supabase'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 
@@ -281,31 +280,25 @@ export async function commitImportPreview(
         ...(row.matchInsertOverrides || {}),
       }
 
-      // 🔥 UPSERT using external_match_id (FINAL FIX)
-const { data: insertedMatch, error: matchError } = await supabase
-  .from('matches')
-  .upsert(insertPayload, {
-    onConflict: 'external_match_id'
-  })
-  .select('id')
-  .single()
-
-if (matchError) {
-  throw new Error(matchError.message)
-}
+      const { data: insertedMatch, error: matchError } = await supabase
+        .from('matches')
+        .upsert(insertPayload, {
+          onConflict: 'external_match_id',
+        })
+        .select('id')
+        .single()
 
       if (matchError) {
-        const alreadyExists =
-          matchError.code === '23505' ||
-          matchError.message.toLowerCase().includes('duplicate') ||
-          matchError.message.toLowerCase().includes('unique')
-
-        if (alreadyExists) {
-          duplicateSkipIds.add(row.sourceIndex)
-          continue
-        }
-
         throw new Error(matchError.message)
+      }
+
+      const { error: deleteParticipantsError } = await supabase
+        .from('match_players')
+        .delete()
+        .eq('match_id', insertedMatch.id)
+
+      if (deleteParticipantsError) {
+        throw new Error(deleteParticipantsError.message)
       }
 
       const participantRows = [
@@ -328,7 +321,6 @@ if (matchError) {
         .insert(participantRows)
 
       if (participantsError) {
-        await supabase.from('matches').delete().eq('id', insertedMatch.id)
         throw new Error(participantsError.message)
       }
 
