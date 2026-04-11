@@ -10,6 +10,14 @@ import FollowButton from '@/app/components/follow-button'
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
+type TrendDirection = 'up' | 'down' | 'flat'
+type ConfidenceLevel = 'Low' | 'Medium' | 'High'
+type RatingStatus =
+  | 'Bump Up Pace'
+  | 'Trending Up'
+  | 'Holding'
+  | 'At Risk'
+  | 'Drop Watch'
 
 type Player = {
   id: string
@@ -300,6 +308,12 @@ export default function PlayerProfilePage() {
     [player],
   )
 
+  const baseRating = useMemo(() => {
+    if (ratingView === 'singles') return staticSingles
+    if (ratingView === 'doubles') return staticDoubles
+    return staticOverall
+  }, [ratingView, staticSingles, staticDoubles, staticOverall])
+
   const nextThreshold = useMemo(
     () => getNextThreshold(selectedDynamicRating),
     [selectedDynamicRating],
@@ -307,6 +321,36 @@ export default function PlayerProfilePage() {
   const progressInfo = useMemo(
     () => getProgressToNextLevel(selectedDynamicRating, nextThreshold),
     [selectedDynamicRating, nextThreshold],
+  )
+
+  const ratingStatus = useMemo(
+    () => getRatingStatus(baseRating, selectedDynamicRating),
+    [baseRating, selectedDynamicRating],
+  )
+
+  const trendDirection = useMemo<TrendDirection>(
+    () => getTrendDirection(chartPoints),
+    [chartPoints],
+  )
+
+  const confidence = useMemo<ConfidenceLevel>(
+    () => getConfidence(totalMatches),
+    [totalMatches],
+  )
+
+  const ratingDiff = useMemo(
+    () => roundToTwo(selectedDynamicRating - baseRating),
+    [selectedDynamicRating, baseRating],
+  )
+
+  const recentTrendDelta = useMemo(
+    () => getRecentTrendDelta(chartPoints),
+    [chartPoints],
+  )
+
+  const meterTheme = useMemo(
+    () => getMeterTheme(ratingStatus),
+    [ratingStatus],
   )
 
   const dynamicHeroWrap: CSSProperties = {
@@ -370,6 +414,27 @@ export default function PlayerProfilePage() {
     gridTemplateColumns: '1fr',
   }
 
+  const dynamicMeterFill: CSSProperties = {
+    ...meterFill,
+    background: meterTheme.fill,
+    boxShadow: meterTheme.shadow,
+    width: `${progressInfo.percent}%`,
+  }
+
+  const dynamicStatusPill: CSSProperties = {
+    ...statusPill,
+    background: meterTheme.pillBackground,
+    color: meterTheme.pillColor,
+    border: `1px solid ${meterTheme.pillBorder}`,
+  }
+
+  const dynamicTrendPill: CSSProperties = {
+    ...trendPill,
+    background: meterTheme.trendBackground,
+    color: meterTheme.trendColor,
+    border: `1px solid ${meterTheme.trendBorder}`,
+  }
+
   if (loading) {
     return (
       <SiteShell active="/players">
@@ -431,26 +496,41 @@ export default function PlayerProfilePage() {
 
               <div style={meterCard}>
                 <div style={meterHeader}>
-                  <div>
+                  <div style={meterLeftGroup}>
                     <div style={meterLabel}>Level-up meter</div>
+
+                    <div style={meterStatusRow}>
+                      <span style={dynamicStatusPill}>{ratingStatus}</span>
+                      <span style={confidencePill}>{confidence} confidence</span>
+                    </div>
+
                     <div style={meterSubtext}>
-                      Current {ratingView} dynamic rating vs. next threshold
+                      Base {baseRating.toFixed(2)} • Current {ratingView} dynamic rating{' '}
+                      {selectedDynamicRating.toFixed(2)}
+                    </div>
+
+                    <div style={dynamicTrendPill}>
+                      <span>{getTrendIcon(trendDirection)}</span>
+                      <span>{getTrendLabel(trendDirection)}</span>
+                      <span style={trendDeltaText}>
+                        {recentTrendDelta >= 0 ? '+' : ''}
+                        {recentTrendDelta.toFixed(2)} recent
+                      </span>
                     </div>
                   </div>
 
                   <div style={meterValueGroup}>
                     <div style={meterCurrent}>{selectedDynamicRating.toFixed(2)}</div>
                     <div style={meterTarget}>Next: {nextThreshold.toFixed(1)}</div>
+                    <div style={meterDelta}>
+                      vs base {ratingDiff >= 0 ? '+' : ''}
+                      {ratingDiff.toFixed(2)}
+                    </div>
                   </div>
                 </div>
 
                 <div style={meterTrack}>
-                  <div
-                    style={{
-                      ...meterFill,
-                      width: `${progressInfo.percent}%`,
-                    }}
-                  />
+                  <div style={dynamicMeterFill} />
                 </div>
 
                 <div style={meterFooter}>
@@ -511,18 +591,9 @@ export default function PlayerProfilePage() {
 
                 <div style={dynamicFocusMetrics}>
                   <StatChip label="Dynamic" value={selectedDynamicRating.toFixed(2)} accent />
-                  <StatChip
-                    label="Static"
-                    value={
-                      ratingView === 'overall'
-                        ? staticOverall.toFixed(2)
-                        : ratingView === 'singles'
-                          ? staticSingles.toFixed(2)
-                          : staticDoubles.toFixed(2)
-                    }
-                  />
-                  <StatChip label="Wins" value={String(wins)} />
-                  <StatChip label="Losses" value={String(losses)} />
+                  <StatChip label="Static" value={baseRating.toFixed(2)} />
+                  <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
+                  <StatChip label="Confidence" value={confidence} />
                 </div>
               </div>
 
@@ -570,6 +641,21 @@ export default function PlayerProfilePage() {
           </article>
 
           <article style={statCard}>
+            <div style={statLabel}>Base {capitalize(ratingView)}</div>
+            <div style={statValue}>{baseRating.toFixed(2)}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Status</div>
+            <div style={statValueSmall}>{ratingStatus}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Trend</div>
+            <div style={statValueSmall}>{getTrendLabel(trendDirection)}</div>
+          </article>
+
+          <article style={statCard}>
             <div style={statLabel}>Overall</div>
             <div style={statValue}>
               {formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))}
@@ -601,6 +687,11 @@ export default function PlayerProfilePage() {
           </article>
 
           <article style={statCard}>
+            <div style={statLabel}>Tracked matches</div>
+            <div style={statValue}>{totalMatches}</div>
+          </article>
+
+          <article style={statCard}>
             <div style={statLabel}>Wins</div>
             <div style={statValue}>{wins}</div>
           </article>
@@ -616,8 +707,11 @@ export default function PlayerProfilePage() {
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>Tracked matches</div>
-            <div style={statValue}>{totalMatches}</div>
+            <div style={statLabel}>Vs base</div>
+            <div style={statValue}>
+              {ratingDiff >= 0 ? '+' : ''}
+              {ratingDiff.toFixed(2)}
+            </div>
           </article>
         </div>
 
@@ -858,6 +952,124 @@ function getProgressToNextLevel(rating: number, next: number) {
   return { previous, percent, remaining }
 }
 
+function getRatingStatus(base: number, dynamic: number): RatingStatus {
+  const diff = dynamic - base
+
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getTrendDirection(points: Array<{ rating: number }>): TrendDirection {
+  if (points.length < 2) return 'flat'
+
+  const recent = points.slice(-5)
+  const first = recent[0]?.rating ?? 0
+  const last = recent[recent.length - 1]?.rating ?? 0
+
+  if (last > first + 0.02) return 'up'
+  if (last < first - 0.02) return 'down'
+  return 'flat'
+}
+
+function getConfidence(matches: number): ConfidenceLevel {
+  if (matches < 5) return 'Low'
+  if (matches < 10) return 'Medium'
+  return 'High'
+}
+
+function getRecentTrendDelta(points: Array<{ rating: number }>) {
+  if (points.length < 2) return 0
+  const recent = points.slice(-5)
+  const first = recent[0]?.rating ?? 0
+  const last = recent[recent.length - 1]?.rating ?? 0
+  return roundToTwo(last - first)
+}
+
+function roundToTwo(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function getTrendLabel(direction: TrendDirection) {
+  if (direction === 'up') return 'Trending up'
+  if (direction === 'down') return 'Trending down'
+  return 'Holding steady'
+}
+
+function getTrendShortLabel(direction: TrendDirection) {
+  if (direction === 'up') return 'Up'
+  if (direction === 'down') return 'Down'
+  return 'Flat'
+}
+
+function getTrendIcon(direction: TrendDirection) {
+  if (direction === 'up') return '▲'
+  if (direction === 'down') return '▼'
+  return '→'
+}
+
+function getMeterTheme(status: RatingStatus) {
+  switch (status) {
+    case 'Bump Up Pace':
+      return {
+        fill: 'linear-gradient(135deg, #9be11d 0%, #4ade80 60%, #22c55e 100%)',
+        shadow: '0 10px 24px rgba(155,225,29,0.25)',
+        pillBackground: 'rgba(155,225,29,0.16)',
+        pillColor: '#d9f84a',
+        pillBorder: 'rgba(155,225,29,0.28)',
+        trendBackground: 'rgba(46, 204, 113, 0.12)',
+        trendColor: '#bef264',
+        trendBorder: 'rgba(132, 204, 22, 0.24)',
+      }
+    case 'Trending Up':
+      return {
+        fill: 'linear-gradient(135deg, #60a5fa 0%, #34d399 65%, #9be11d 100%)',
+        shadow: '0 10px 24px rgba(52,211,153,0.22)',
+        pillBackground: 'rgba(52,211,153,0.14)',
+        pillColor: '#a7f3d0',
+        pillBorder: 'rgba(52,211,153,0.24)',
+        trendBackground: 'rgba(52,211,153,0.10)',
+        trendColor: '#a7f3d0',
+        trendBorder: 'rgba(52,211,153,0.22)',
+      }
+    case 'Holding':
+      return {
+        fill: 'linear-gradient(135deg, #60a5fa 0%, #3fa7ff 50%, #93c5fd 100%)',
+        shadow: '0 10px 24px rgba(63,167,255,0.22)',
+        pillBackground: 'rgba(63,167,255,0.12)',
+        pillColor: '#bfdbfe',
+        pillBorder: 'rgba(63,167,255,0.22)',
+        trendBackground: 'rgba(96,165,250,0.10)',
+        trendColor: '#dbeafe',
+        trendBorder: 'rgba(96,165,250,0.20)',
+      }
+    case 'At Risk':
+      return {
+        fill: 'linear-gradient(135deg, #facc15 0%, #fb923c 65%, #f59e0b 100%)',
+        shadow: '0 10px 24px rgba(251,146,60,0.22)',
+        pillBackground: 'rgba(251,146,60,0.14)',
+        pillColor: '#fed7aa',
+        pillBorder: 'rgba(251,146,60,0.24)',
+        trendBackground: 'rgba(245,158,11,0.10)',
+        trendColor: '#fde68a',
+        trendBorder: 'rgba(245,158,11,0.22)',
+      }
+    case 'Drop Watch':
+      return {
+        fill: 'linear-gradient(135deg, #f87171 0%, #ef4444 55%, #dc2626 100%)',
+        shadow: '0 10px 24px rgba(239,68,68,0.22)',
+        pillBackground: 'rgba(239,68,68,0.14)',
+        pillColor: '#fecaca',
+        pillBorder: 'rgba(239,68,68,0.24)',
+        trendBackground: 'rgba(239,68,68,0.10)',
+        trendColor: '#fecaca',
+        trendBorder: 'rgba(239,68,68,0.22)',
+      }
+  }
+}
+
 const heroWrap: CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -978,6 +1190,13 @@ const meterHeader: CSSProperties = {
   marginBottom: '14px',
 }
 
+const meterLeftGroup: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '8px',
+  minWidth: 0,
+}
+
 const meterLabel: CSSProperties = {
   color: '#f8fbff',
   fontWeight: 900,
@@ -985,12 +1204,62 @@ const meterLabel: CSSProperties = {
   letterSpacing: '-0.03em',
 }
 
+const meterStatusRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  alignItems: 'center',
+}
+
+const statusPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+}
+
+const confidencePill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#e2efff',
+  border: '1px solid rgba(255,255,255,0.10)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+}
+
 const meterSubtext: CSSProperties = {
-  marginTop: '4px',
   color: 'rgba(220,231,244,0.78)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
+}
+
+const trendPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '8px',
+  width: 'fit-content',
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
+const trendDeltaText: CSSProperties = {
+  opacity: 0.82,
 }
 
 const meterValueGroup: CSSProperties = {
@@ -1014,6 +1283,13 @@ const meterTarget: CSSProperties = {
   textTransform: 'uppercase',
 }
 
+const meterDelta: CSSProperties = {
+  marginTop: '8px',
+  color: 'rgba(224,236,249,0.78)',
+  fontWeight: 800,
+  fontSize: '13px',
+}
+
 const meterTrack: CSSProperties = {
   width: '100%',
   height: '14px',
@@ -1026,8 +1302,6 @@ const meterTrack: CSSProperties = {
 const meterFill: CSSProperties = {
   height: '100%',
   borderRadius: '999px',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 60%, #22c55e 100%)',
-  boxShadow: '0 10px 24px rgba(155,225,29,0.25)',
 }
 
 const meterFooter: CSSProperties = {
@@ -1205,6 +1479,15 @@ const statValue: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: '-0.04em',
+}
+
+const statValueSmall: CSSProperties = {
+  marginTop: '8px',
+  color: '#ffffff',
+  fontSize: '24px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
 }
 
 const contentWrap: CSSProperties = {

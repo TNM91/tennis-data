@@ -1011,7 +1011,7 @@ function CaptainIcon() {
 
 const pageWrap: CSSProperties = {
   display: 'grid',
-  gap: '18px',
+  gap: '36px',
   position: 'relative',
   zIndex: 1,
   paddingTop: '12px',
@@ -1656,14 +1656,15 @@ const contentSection: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   display: 'grid',
-  gap: '18px',
+  gap: '26px',
 }
 
 
 const sectionHeader: CSSProperties = {
   display: 'grid',
-  gap: '10px',
+  gap: '12px',
   maxWidth: '760px',
+  paddingTop: '6px',
 }
 
 const sectionEyebrow: CSSProperties = {
@@ -1677,17 +1678,18 @@ const sectionEyebrow: CSSProperties = {
 const sectionTitle: CSSProperties = {
   margin: 0,
   color: '#f8fbff',
-  fontSize: '40px',
-  lineHeight: 1,
+  fontSize: '44px',
+  lineHeight: 1.06,
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: '-0.055em',
 }
 
 const sectionText: CSSProperties = {
   margin: 0,
   color: 'rgba(220,233,248,0.78)',
   fontSize: '16px',
-  lineHeight: 1.72,
+  lineHeight: 1.76,
+  maxWidth: '760px',
 }
 
 const audienceGrid: CSSProperties = {
@@ -1849,26 +1851,27 @@ const secondaryInlineLink: CSSProperties = {
 
 const weeklyGrid: CSSProperties = {
   display: 'grid',
-  gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '16px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
 }
 
 const weeklyCard: CSSProperties = {
   display: 'grid',
-  gap: '8px',
-  padding: '20px',
-  borderRadius: '22px',
-  background: 'linear-gradient(180deg, rgba(23,47,88,0.72) 0%, rgba(10,21,40,0.96) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+  gap: '10px',
+  padding: '24px',
+  minHeight: '168px',
+  borderRadius: '24px',
+  background: 'linear-gradient(180deg, rgba(20,41,77,0.78) 0%, rgba(9,19,36,0.98) 100%)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  boxShadow: '0 20px 48px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
 }
 
 const weeklyCardTitle: CSSProperties = {
   color: '#f8fbff',
-  fontSize: '20px',
+  fontSize: '22px',
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: '-0.045em',
 }
 
 const weeklyCardText: CSSProperties = {

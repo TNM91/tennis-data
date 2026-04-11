@@ -9,7 +9,6 @@ import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import {
   transitionBase,
   hoverLift,
-  hoverGlowBlue,
   hoverGlowGreen,
   hoverBrighten,
 } from '@/lib/interaction-styles'
@@ -33,57 +32,88 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   return false
 }
 
-const basePill = {
+const baseTextLink = {
+  position: 'relative' as const,
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '16px',
+  minHeight: '38px',
+  padding: '6px 4px',
   textDecoration: 'none',
-  fontWeight: 800,
+  fontWeight: 700,
   fontSize: '14px',
   lineHeight: 1,
-  backdropFilter: 'blur(14px)',
-  WebkitBackdropFilter: 'blur(14px)',
+  color: 'rgba(214,228,246,0.88)',
+  whiteSpace: 'nowrap' as const,
+  ...transitionBase,
+}
+
+const activeTextLink = {
+  ...baseTextLink,
+  color: '#f4f9ff',
+}
+
+const quietActionLink = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 2px',
+  textDecoration: 'none',
+  fontWeight: 700,
+  fontSize: '14px',
+  lineHeight: 1,
+  color: 'rgba(222,233,247,0.76)',
+  background: 'transparent',
+  border: 'none',
+  whiteSpace: 'nowrap' as const,
   ...transitionBase,
 } as const
 
-const navLink = {
-  ...basePill,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(26,54,104,0.22) 0%, rgba(12,28,57,0.22) 100%)',
-  color: '#e7eefb',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-} as const
-
-const activeNavLink = {
-  ...basePill,
-  border: '1px solid rgba(155,225,29,0.26)',
-  background: 'linear-gradient(180deg, rgba(155,225,29,0.12) 0%, rgba(37,91,227,0.18) 100%)',
-  color: '#f6fbff',
-  boxShadow:
-    'inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 22px rgba(37,91,227,0.10), 0 0 0 1px rgba(155,225,29,0.06)',
-} as const
-
-const quietActionLink = {
-  ...basePill,
-  minHeight: '46px',
-  padding: '0 18px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(24,50,96,0.18) 0%, rgba(12,27,54,0.18) 100%)',
-  color: '#e7eefb',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-} as const
-
 const ctaNavLink = {
-  ...basePill,
-  minHeight: '46px',
-  padding: '0 20px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 16px',
+  borderRadius: '999px',
   border: '1px solid rgba(155,225,29,0.30)',
   background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
   color: '#08111d',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
+  textDecoration: 'none',
+  fontWeight: 900,
+  fontSize: '14px',
+  lineHeight: 1,
+  letterSpacing: '-0.01em',
+  boxShadow: '0 6px 14px rgba(155,225,29,0.10)',
+  whiteSpace: 'nowrap' as const,
+  ...transitionBase,
+} as const
+
+const mobilePanelLink = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  width: '100%',
+  minHeight: '50px',
+  padding: '0 14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'linear-gradient(180deg, rgba(14,31,60,0.56) 0%, rgba(8,19,38,0.76) 100%)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 700,
+  fontSize: '14px',
+  lineHeight: 1,
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  ...transitionBase,
+} as const
+
+const mobilePanelLinkActive = {
+  ...mobilePanelLink,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.08) 0%, rgba(20,39,74,0.78) 100%)',
+  color: '#f4f9ff',
 } as const
 
 function HeaderLink({
@@ -101,19 +131,64 @@ function HeaderLink({
 }) {
   const [hovered, setHovered] = useState(false)
 
-  const base =
-    variant === 'cta'
-      ? ctaNavLink
-      : variant === 'quiet'
-        ? quietActionLink
-        : active
-          ? activeNavLink
-          : navLink
+  if (variant === 'cta') {
+    return (
+      <Link
+        href={href}
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          ...ctaNavLink,
+          ...(hovered ? { ...hoverLift, ...hoverGlowGreen, ...hoverBrighten } : {}),
+        }}
+      >
+        {label}
+      </Link>
+    )
+  }
 
-  const hover =
-    variant === 'cta'
-      ? { ...hoverLift, ...hoverGlowGreen, ...hoverBrighten }
-      : { ...hoverLift, ...hoverGlowBlue, ...hoverBrighten }
+  if (variant === 'quiet') {
+    return (
+      <Link
+        href={href}
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          ...quietActionLink,
+          color: hovered ? '#f4f9ff' : quietActionLink.color,
+          transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+        }}
+      >
+        <span
+          style={{
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            paddingBottom: '3px',
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              left: 0,
+              bottom: 0,
+              width: '100%',
+              height: '2px',
+              background:
+                'linear-gradient(90deg, rgba(74,163,255,0.88) 0%, rgba(155,225,29,0.88) 100%)',
+              transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
+              transformOrigin: 'left center',
+              transition: 'transform 180ms ease',
+              opacity: hovered ? 0.9 : 0,
+            }}
+          />
+          {label}
+        </span>
+      </Link>
+    )
+  }
 
   return (
     <Link
@@ -122,10 +197,26 @@ function HeaderLink({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        ...base,
-        ...(hovered ? hover : {}),
+        ...(active ? activeTextLink : baseTextLink),
+        color: hovered || active ? '#f4f9ff' : 'rgba(214,228,246,0.88)',
+        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
       }}
     >
+      <span
+        style={{
+          position: 'absolute',
+          left: 0,
+          bottom: '3px',
+          width: '100%',
+          height: '2px',
+          background:
+            'linear-gradient(90deg, rgba(74,163,255,0.9) 0%, rgba(155,225,29,0.9) 100%)',
+          transform: active || hovered ? 'scaleX(1)' : 'scaleX(0)',
+          transformOrigin: 'left center',
+          transition: 'transform 180ms ease',
+          opacity: active || hovered ? 0.9 : 0,
+        }}
+      />
       {label}
     </Link>
   )
@@ -150,11 +241,47 @@ function HeaderButton({
         appearance: 'none',
         fontFamily: 'inherit',
         cursor: 'pointer',
-        ...quietActionLink,
-        ...(hovered ? { ...hoverLift, ...hoverGlowBlue, ...hoverBrighten } : {}),
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '38px',
+        padding: '0 2px',
+        background: 'transparent',
+        border: 'none',
+        color: hovered ? '#f4f9ff' : 'rgba(222,233,247,0.76)',
+        fontWeight: 700,
+        fontSize: '14px',
+        lineHeight: 1,
+        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+        whiteSpace: 'nowrap',
+        ...transitionBase,
       }}
     >
-      {label}
+      <span
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          paddingBottom: '3px',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            left: 0,
+            bottom: 0,
+            width: '100%',
+            height: '2px',
+            background:
+              'linear-gradient(90deg, rgba(74,163,255,0.88) 0%, rgba(155,225,29,0.88) 100%)',
+            transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
+            transformOrigin: 'left center',
+            transition: 'transform 180ms ease',
+            opacity: hovered ? 0.9 : 0,
+          }}
+        />
+        {label}
+      </span>
     </button>
   )
 }
@@ -254,24 +381,21 @@ export default function SiteHeader({ active }: { active?: string }) {
     router.refresh()
   }
 
-  const headerPadding = isMobile ? '10px 12px 0' : '12px 16px 0'
+  const headerPadding = isMobile ? '0 12px' : '0 16px'
 
   const headerInner = useMemo(
     () => ({
       width: '100%',
       maxWidth: '1280px',
       margin: '0 auto',
-      borderRadius: isMobile ? '22px' : '26px',
-      border: '1px solid rgba(116,190,255,0.12)',
-      background: 'linear-gradient(180deg, rgba(13,31,62,0.94) 0%, rgba(8,19,37,0.98) 100%)',
-      boxShadow:
-        '0 16px 40px rgba(5,12,25,0.14), inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 80px rgba(37,91,227,0.04)',
-      backdropFilter: 'blur(16px)',
-      WebkitBackdropFilter: 'blur(16px)',
-      overflow: 'hidden',
+      border: 'none',
+      background: 'transparent',
+      boxShadow: 'none',
+      borderRadius: '0px',
+      overflow: 'visible',
       position: 'relative' as const,
     }),
-    [isMobile],
+    [],
   )
 
   const topRow = useMemo(
@@ -280,8 +404,8 @@ export default function SiteHeader({ active }: { active?: string }) {
       gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
       alignItems: 'center',
       gap: isMobile ? '10px' : '18px',
-      padding: isMobile ? '10px 12px' : '12px 16px',
-      minHeight: isMobile ? '68px' : '82px',
+      padding: isMobile ? '12px 6px' : '14px 4px',
+      minHeight: isMobile ? '64px' : '70px',
       position: 'relative' as const,
       zIndex: 1,
     }),
@@ -300,14 +424,10 @@ export default function SiteHeader({ active }: { active?: string }) {
   const navCluster = {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '5px',
-    borderRadius: '20px',
-    border: '1px solid rgba(116,190,255,0.10)',
-    background: 'linear-gradient(180deg, rgba(15,34,67,0.82) 0%, rgba(9,21,42,0.90) 100%)',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+    gap: '18px',
     flexWrap: 'wrap' as const,
     justifyContent: 'center' as const,
+    minWidth: 0,
   }
 
   const actionCluster = useMemo(
@@ -315,7 +435,7 @@ export default function SiteHeader({ active }: { active?: string }) {
       display: isTablet ? 'none' : 'inline-flex',
       alignItems: 'center',
       justifyContent: 'flex-end' as const,
-      gap: '10px',
+      gap: '16px',
       minWidth: '182px',
     }),
     [isTablet],
@@ -325,10 +445,10 @@ export default function SiteHeader({ active }: { active?: string }) {
     width: '42px',
     height: '42px',
     borderRadius: '14px',
-    border: '1px solid rgba(116,190,255,0.16)',
-    background: 'linear-gradient(180deg, rgba(26,54,104,0.20) 0%, rgba(12,28,57,0.20) 100%)',
+    border: '1px solid rgba(116,190,255,0.12)',
+    background: 'linear-gradient(180deg, rgba(14,31,60,0.46) 0%, rgba(8,19,38,0.72) 100%)',
     color: '#F1F7FF',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
     display: isTablet ? 'inline-flex' : 'none',
     alignItems: 'center',
     justifyContent: 'center',
@@ -344,34 +464,22 @@ export default function SiteHeader({ active }: { active?: string }) {
     opacity: menuOpen ? 1 : 0,
     overflow: 'hidden',
     transition: 'max-height 220ms ease, opacity 160ms ease',
-    borderTop: menuOpen ? '1px solid rgba(116,190,255,0.10)' : '1px solid transparent',
-    padding: menuOpen ? '0 12px 12px' : '0 12px',
+    borderTop: menuOpen ? '1px solid rgba(116,190,255,0.08)' : '1px solid transparent',
+    padding: menuOpen ? '0 0 12px' : '0',
     position: 'relative' as const,
     zIndex: 1,
   } as const
 
-  const mobileLinkStyle = {
-    ...navLink,
-    width: '100%',
-    justifyContent: 'space-between',
-    minHeight: '50px',
-    padding: '0 14px',
-    borderRadius: '16px',
-  } as const
-
   return (
-    <header style={{ position: 'relative', zIndex: 3, padding: headerPadding }}>
+    <header
+      style={{
+        position: 'relative',
+        zIndex: 3,
+        padding: headerPadding,
+        borderBottom: '1px solid rgba(116,190,255,0.04)',
+      }}
+    >
       <div style={headerInner}>
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(circle at 0% 0%, rgba(74,163,255,0.10) 0%, transparent 30%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.08) 0%, transparent 24%)',
-            pointerEvents: 'none',
-          }}
-        />
-
         <div style={topRow}>
           <Link
             href="/"
@@ -406,7 +514,15 @@ export default function SiteHeader({ active }: { active?: string }) {
 
           <div style={actionCluster}>
             {authLoading ? (
-              <span style={{ ...quietActionLink, opacity: 0.72 }}>Loading...</span>
+              <span
+                style={{
+                  color: 'rgba(214,228,246,0.58)',
+                  fontWeight: 700,
+                  fontSize: '14px',
+                }}
+              >
+                Loading...
+              </span>
             ) : role === 'public' ? (
               <>
                 <HeaderLink href="/login" label="Login" variant="quiet" />
@@ -415,7 +531,9 @@ export default function SiteHeader({ active }: { active?: string }) {
             ) : (
               <>
                 <HeaderLink href="/mylab" label="My Lab" variant="cta" />
-                {role === 'admin' ? <HeaderLink href="/admin" label="Admin" variant="quiet" /> : null}
+                {role === 'admin' ? (
+                  <HeaderLink href="/admin" label="Admin" variant="quiet" />
+                ) : null}
                 <HeaderButton label="Logout" onClick={handleLogout} />
               </>
             )}
@@ -428,7 +546,7 @@ export default function SiteHeader({ active }: { active?: string }) {
             onClick={() => setMenuOpen((prev) => !prev)}
             style={mobileToggleStyle}
           >
-            ☰
+            {menuOpen ? '×' : '☰'}
           </button>
         </div>
 
@@ -441,14 +559,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
-                  style={{
-                    ...(activeNow ? activeNavLink : mobileLinkStyle),
-                    width: '100%',
-                    justifyContent: 'space-between',
-                    minHeight: '50px',
-                    padding: '0 14px',
-                    borderRadius: '16px',
-                  }}
+                  style={activeNow ? mobilePanelLinkActive : mobilePanelLink}
                 >
                   <span>{link.label}</span>
                   <span style={{ opacity: activeNow ? 0.7 : 0.38 }}>→</span>
@@ -457,10 +568,18 @@ export default function SiteHeader({ active }: { active?: string }) {
             })}
 
             {authLoading ? (
-              <span style={{ ...mobileLinkStyle, opacity: 0.72 }}>Loading...</span>
+              <span
+                style={{
+                  ...mobilePanelLink,
+                  opacity: 0.72,
+                }}
+              >
+                <span>Loading...</span>
+                <span style={{ opacity: 0.38 }}>•</span>
+              </span>
             ) : role === 'public' ? (
               <>
-                <Link href="/login" onClick={() => setMenuOpen(false)} style={mobileLinkStyle}>
+                <Link href="/login" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
                   <span>Login</span>
                   <span style={{ opacity: 0.38 }}>→</span>
                 </Link>
@@ -468,13 +587,17 @@ export default function SiteHeader({ active }: { active?: string }) {
                   href="/join"
                   onClick={() => setMenuOpen(false)}
                   style={{
-                    ...mobileLinkStyle,
+                    ...mobilePanelLink,
                     ...ctaNavLink,
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    minHeight: '50px',
+                    padding: '0 14px',
                     borderRadius: '16px',
                   }}
                 >
                   <span>Join</span>
-                  <span style={{ opacity: 0.6 }}>→</span>
+                  <span style={{ opacity: 0.62 }}>→</span>
                 </Link>
               </>
             ) : (
@@ -483,16 +606,20 @@ export default function SiteHeader({ active }: { active?: string }) {
                   href="/mylab"
                   onClick={() => setMenuOpen(false)}
                   style={{
-                    ...mobileLinkStyle,
+                    ...mobilePanelLink,
                     ...ctaNavLink,
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    minHeight: '50px',
+                    padding: '0 14px',
                     borderRadius: '16px',
                   }}
                 >
                   <span>My Lab</span>
-                  <span style={{ opacity: 0.6 }}>→</span>
+                  <span style={{ opacity: 0.62 }}>→</span>
                 </Link>
                 {role === 'admin' ? (
-                  <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileLinkStyle}>
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
                     <span>Admin</span>
                     <span style={{ opacity: 0.38 }}>→</span>
                   </Link>
@@ -504,8 +631,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                     appearance: 'none',
                     fontFamily: 'inherit',
                     cursor: 'pointer',
-                    ...mobileLinkStyle,
-                    borderRadius: '16px',
+                    ...mobilePanelLink,
                   }}
                 >
                   <span>Logout</span>

@@ -1154,7 +1154,35 @@ export default function LineupBuilderPage() {
     setMessage('Builder reset.')
     setError('')
   }
+function sendCurrentScenarioToMessaging() {
+  if (!currentScenarioId) {
+    setError('Save or load a scenario before sending it to messaging.')
+    setMessage('')
+    return
+  }
 
+  const activeScenario =
+    savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
+
+  if (!activeScenario) {
+    setError('The active scenario could not be found. Save the scenario first, then try again.')
+    setMessage('')
+    return
+  }
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('tenace_selected_scenario', JSON.stringify(activeScenario))
+    window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
+  }
+
+  const params = new URLSearchParams()
+  if (teamName) params.set('team', teamName)
+  if (leagueName) params.set('league', leagueName)
+  if (flight) params.set('flight', flight)
+  params.set('source', 'lineup_builder')
+
+  router.push(`/captain/messaging?${params.toString()}`)
+}
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
       .from('lineup_scenarios')
@@ -2345,7 +2373,14 @@ export default function LineupBuilderPage() {
                 <button type="button" onClick={() => void trackPredictionSnapshot('command-deck-track')} style={ghostButton} disabled={trackingSnapshot}>
                   {trackingSnapshot ? 'Tracking…' : 'Track Prediction Snapshot'}
                 </button>
-                <Link href={compareHref} style={ghostButton}>
+                <button
+  type="button"
+  onClick={sendCurrentScenarioToMessaging}
+  style={primaryButton}
+>
+  Send to Messaging
+</button>
+<Link href={compareHref} style={ghostButton}>
                   Open Scenario Comparison
                 </Link>
               </div>

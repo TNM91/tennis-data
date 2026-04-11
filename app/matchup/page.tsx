@@ -605,8 +605,12 @@ export default function MatchupPage() {
 
           if (sideAPlayers.length !== 2 || sideBPlayers.length !== 2) continue
 
-          const leftRating = average(sideAPlayers.map((player) => getSelectedRating(player, engineView)))
-          const rightRating = average(sideBPlayers.map((player) => getSelectedRating(player, engineView)))
+          const leftRating = average(
+            sideAPlayers.map((player) => getSelectedRating(player, engineView)),
+          )
+          const rightRating = average(
+            sideBPlayers.map((player) => getSelectedRating(player, engineView)),
+          )
           if (leftRating === rightRating) continue
 
           const leftWinProbability = expectedScore(leftRating, rightRating)
@@ -664,12 +668,30 @@ export default function MatchupPage() {
     })
   }
 
-  const playerA = useMemo(() => players.find((player) => player.id === playerAId) || null, [players, playerAId])
-  const playerB = useMemo(() => players.find((player) => player.id === playerBId) || null, [players, playerBId])
-  const teamA1 = useMemo(() => players.find((player) => player.id === teamA1Id) || null, [players, teamA1Id])
-  const teamA2 = useMemo(() => players.find((player) => player.id === teamA2Id) || null, [players, teamA2Id])
-  const teamB1 = useMemo(() => players.find((player) => player.id === teamB1Id) || null, [players, teamB1Id])
-  const teamB2 = useMemo(() => players.find((player) => player.id === teamB2Id) || null, [players, teamB2Id])
+  const playerA = useMemo(
+    () => players.find((player) => player.id === playerAId) || null,
+    [players, playerAId],
+  )
+  const playerB = useMemo(
+    () => players.find((player) => player.id === playerBId) || null,
+    [players, playerBId],
+  )
+  const teamA1 = useMemo(
+    () => players.find((player) => player.id === teamA1Id) || null,
+    [players, teamA1Id],
+  )
+  const teamA2 = useMemo(
+    () => players.find((player) => player.id === teamA2Id) || null,
+    [players, teamA2Id],
+  )
+  const teamB1 = useMemo(
+    () => players.find((player) => player.id === teamB1Id) || null,
+    [players, teamB1Id],
+  )
+  const teamB2 = useMemo(
+    () => players.find((player) => player.id === teamB2Id) || null,
+    [players, teamB2Id],
+  )
 
   const singlesSelected = !!playerA && !!playerB && playerAId !== playerBId
   const doublesSelected =
@@ -679,24 +701,30 @@ export default function MatchupPage() {
     !!teamB2 &&
     areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
-  const availablePlayersForA = useMemo(() => players.filter((player) => player.id !== playerBId), [players, playerBId])
-  const availablePlayersForB = useMemo(() => players.filter((player) => player.id !== playerAId), [players, playerAId])
+  const availablePlayersForA = useMemo(
+    () => players.filter((player) => player.id !== playerBId),
+    [players, playerBId],
+  )
+  const availablePlayersForB = useMemo(
+    () => players.filter((player) => player.id !== playerAId),
+    [players, playerAId],
+  )
 
   const availableTeamA1 = useMemo(
     () => players.filter((player) => ![teamA2Id, teamB1Id, teamB2Id].includes(player.id)),
-    [players, teamA2Id, teamB1Id, teamB2Id]
+    [players, teamA2Id, teamB1Id, teamB2Id],
   )
   const availableTeamA2 = useMemo(
     () => players.filter((player) => ![teamA1Id, teamB1Id, teamB2Id].includes(player.id)),
-    [players, teamA1Id, teamB1Id, teamB2Id]
+    [players, teamA1Id, teamB1Id, teamB2Id],
   )
   const availableTeamB1 = useMemo(
     () => players.filter((player) => ![teamA1Id, teamA2Id, teamB2Id].includes(player.id)),
-    [players, teamA1Id, teamA2Id, teamB2Id]
+    [players, teamA1Id, teamA2Id, teamB2Id],
   )
   const availableTeamB2 = useMemo(
     () => players.filter((player) => ![teamA1Id, teamA2Id, teamB1Id].includes(player.id)),
-    [players, teamA1Id, teamA2Id, teamB1Id]
+    [players, teamA1Id, teamA2Id, teamB1Id],
   )
 
   const comparison = useMemo<ComparisonState | null>(() => {
@@ -728,7 +756,11 @@ export default function MatchupPage() {
         rightSelected: right,
         gap,
         higherRatedLabel:
-          left === right ? 'Even matchup' : left > right ? `${playerA.name} leads` : `${playerB.name} leads`,
+          left === right
+            ? 'Even matchup'
+            : left > right
+              ? `${playerA.name} leads`
+              : `${playerB.name} leads`,
         favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
         leftProfileHref: `/players/${playerA.id}`,
         rightProfileHref: `/players/${playerB.id}`,
@@ -768,7 +800,11 @@ export default function MatchupPage() {
       rightSelected: right,
       gap,
       higherRatedLabel:
-        left === right ? 'Even matchup' : left > right ? `${teamALabel} leads` : `${teamBLabel} leads`,
+        left === right
+          ? 'Even matchup'
+          : left > right
+            ? `${teamALabel} leads`
+            : `${teamBLabel} leads`,
       favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
       leftProfileHref: null,
       rightProfileHref: null,
@@ -784,11 +820,11 @@ export default function MatchupPage() {
         : ratingView === 'singles'
           ? comparison.leftRatings.singles
           : comparison.leftRatings.doubles) -
-      (ratingView === 'overall'
-        ? comparison.rightRatings.overall
-        : ratingView === 'singles'
-          ? comparison.rightRatings.singles
-          : comparison.rightRatings.doubles)
+        (ratingView === 'overall'
+          ? comparison.rightRatings.overall
+          : ratingView === 'singles'
+            ? comparison.rightRatings.singles
+            : comparison.rightRatings.doubles),
     )
   }, [comparison, ratingView])
 
@@ -839,6 +875,29 @@ export default function MatchupPage() {
       underdogLabel,
     }
   }, [comparison])
+
+  const recommendationText = useMemo(() => {
+    if (!projection || !comparison) return ''
+
+    const favoriteProbability = Math.max(
+      projection.leftWinProbability,
+      projection.rightWinProbability,
+    )
+
+    if (favoriteProbability >= 0.75) {
+      return `${projection.favoriteLabel} should be treated as a strong anchor match. If this is part of a lineup decision, this is one of your cleaner spots to trust the favorite.`
+    }
+
+    if (favoriteProbability >= 0.66) {
+      return `${projection.favoriteLabel} has a real edge here. This should lean favorite, but it is still competitive enough that placement and partner context matter.`
+    }
+
+    if (favoriteProbability >= 0.58) {
+      return `${projection.favoriteLabel} is favored, but this is still very live. Treat this as a swing match where lineup context, court assignment, and recent form can shift the outcome.`
+    }
+
+    return `This matchup is close to even. Treat it as a true swing match and avoid assuming either side is safe.`
+  }, [projection, comparison])
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -914,6 +973,18 @@ export default function MatchupPage() {
         : 'repeat(3, minmax(0, 1fr))',
   }
 
+  const dynamicDecisionBanner: CSSProperties = {
+    ...decisionBanner,
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
+  }
+
+  const dynamicDecisionRight: CSSProperties = {
+    ...decisionRight,
+    alignItems: isMobile ? 'flex-start' : 'flex-end',
+    width: isMobile ? '100%' : 'auto',
+  }
+
   return (
     <SiteShell active="/matchup">
       <section style={dynamicHeroWrap}>
@@ -925,8 +996,8 @@ export default function MatchupPage() {
               <div style={eyebrow}>Matchup comparison</div>
               <h1 style={dynamicHeroTitle}>Compare singles players or doubles teams.</h1>
               <p style={dynamicHeroText}>
-                See rating gaps, projected win probability, confidence, upset risk,
-                model accuracy, and head-to-head history before match day.
+                See rating gaps, projected win probability, confidence, upset risk, model
+                accuracy, and head-to-head history before match day.
               </p>
 
               <div style={heroHintRow}>
@@ -947,6 +1018,7 @@ export default function MatchupPage() {
           </div>
         </div>
       </section>
+
       <section style={contentWrap}>
         <article style={controlsCard}>
           <div style={dynamicToolbarTop}>
@@ -1058,9 +1130,7 @@ export default function MatchupPage() {
             </div>
           )}
 
-          {error ? (
-            <div style={errorBanner}>{error}</div>
-          ) : null}
+          {error ? <div style={errorBanner}>{error}</div> : null}
 
           {loading ? (
             <div style={emptyState}>Loading players...</div>
@@ -1072,6 +1142,31 @@ export default function MatchupPage() {
             </div>
           ) : (
             <>
+              {projection ? (
+                <div style={dynamicDecisionBanner}>
+                  <div>
+                    <div style={decisionLabel}>Matchup edge</div>
+                    <div style={decisionWinner}>{projection.likelyWinner}</div>
+                    <div style={decisionSub}>
+                      {projection.favoriteEdgeText} · {projection.confidenceLabel} confidence
+                    </div>
+                  </div>
+
+                  <div style={dynamicDecisionRight}>
+                    <div style={decisionPill}>{projection.upsetIndicator}</div>
+
+                    <div style={decisionCtaRow}>
+                      <Link href="/captain/lineup-builder" style={ctaPrimary}>
+                        Build lineup
+                      </Link>
+                      <Link href="/captain/messaging" style={ctaSecondary}>
+                        Send to team
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               <div style={dynamicCompareGrid}>
                 <CompareCard
                   title={comparison.leftLabel}
@@ -1108,25 +1203,19 @@ export default function MatchupPage() {
                 />
               </div>
 
-              <article style={summaryCard}>
-                <h2 style={sectionTitle}>Quick read</h2>
-                <p style={paragraph}>
-                  In <strong>{ratingView}</strong>,{' '}
-                  {displayHigherRatedLabel === 'Even matchup'
-                    ? `${comparison.leftLabel} and ${comparison.rightLabel} are currently even.`
-                    : `${displayHigherRatedLabel} by ${formatRating(displayGap)} points.`}{' '}
-                  Projection uses <strong>{comparison.engineRatingView}</strong> dynamic ratings because this is a{' '}
-                  <strong>{matchType}</strong> matchup.
-                </p>
-              </article>
-
               {projection ? (
                 <article style={summaryCard}>
-                  <h2 style={sectionTitle}>Projection</h2>
+                  <h2 style={projectionSectionTitle}>Match projection</h2>
 
                   <div style={dynamicMetricGrid}>
-                    <MetricCard label={`${comparison.leftLabel} win probability`} value={formatPercent(projection.leftWinProbability)} />
-                    <MetricCard label={`${comparison.rightLabel} win probability`} value={formatPercent(projection.rightWinProbability)} />
+                    <MetricCard
+                      label={`${comparison.leftLabel} win probability`}
+                      value={formatPercent(projection.leftWinProbability)}
+                    />
+                    <MetricCard
+                      label={`${comparison.rightLabel} win probability`}
+                      value={formatPercent(projection.rightWinProbability)}
+                    />
                     <MetricCard label="Projected winner" value={projection.likelyWinner} />
                     <MetricCard label="Confidence" value={projection.confidenceLabel} />
                     <MetricCard label="Projection gap" value={projection.ratingDiffText} />
@@ -1143,6 +1232,11 @@ export default function MatchupPage() {
                     </div>
 
                     <div style={upsetPill}>{projection.upsetIndicator}</div>
+                  </div>
+
+                  <div style={recommendationCard}>
+                    <div style={recommendationTitle}>Recommended move</div>
+                    <div style={recommendationTextStyle}>{recommendationText}</div>
                   </div>
                 </article>
               ) : null}
@@ -1161,14 +1255,20 @@ export default function MatchupPage() {
                   <>
                     <div style={dynamicMetricGrid}>
                       <MetricCard label="Overall" value={formatNullablePercent(accuracy.overall)} />
-                      <MetricCard label="High confidence" value={formatNullablePercent(accuracy.high)} />
-                      <MetricCard label="Medium confidence" value={formatNullablePercent(accuracy.medium)} />
+                      <MetricCard
+                        label="High confidence"
+                        value={formatNullablePercent(accuracy.high)}
+                      />
+                      <MetricCard
+                        label="Medium confidence"
+                        value={formatNullablePercent(accuracy.medium)}
+                      />
                       <MetricCard label="Low confidence" value={formatNullablePercent(accuracy.low)} />
                     </div>
 
                     <p style={{ ...paragraph, marginTop: '16px' }}>
-                      Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the current
-                      rating favorite would have been correct on recent historical matchups.
+                      Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the
+                      current rating favorite would have been correct on recent historical matchups.
                     </p>
                   </>
                 )}
@@ -1190,8 +1290,14 @@ export default function MatchupPage() {
                         value={`${headToHead.winsA} - ${headToHead.winsB}`}
                         sub={`${comparison.leftLabel} vs ${comparison.rightLabel}`}
                       />
-                      <MetricCard label="Singles record" value={`${headToHead.singlesA} - ${headToHead.singlesB}`} />
-                      <MetricCard label="Doubles record" value={`${headToHead.doublesA} - ${headToHead.doublesB}`} />
+                      <MetricCard
+                        label="Singles record"
+                        value={`${headToHead.singlesA} - ${headToHead.singlesB}`}
+                      />
+                      <MetricCard
+                        label="Doubles record"
+                        value={`${headToHead.doublesA} - ${headToHead.doublesB}`}
+                      />
                     </div>
 
                     {headToHead.lastMatch ? (
@@ -1199,7 +1305,9 @@ export default function MatchupPage() {
                         <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} ·{' '}
                         {capitalize(headToHead.lastMatch.matchType)} ·{' '}
                         {headToHead.lastMatch.score || 'No score entered'} · Winner:{' '}
-                        {headToHead.lastMatch.winner === 'A' ? comparison.leftLabel : comparison.rightLabel}
+                        {headToHead.lastMatch.winner === 'A'
+                          ? comparison.leftLabel
+                          : comparison.rightLabel}
                       </p>
                     ) : null}
                   </>
@@ -1395,7 +1503,7 @@ function getUpsetIndicator(favoriteProbability: number) {
 function getExpectedOutcomeText(
   favoriteProbability: number,
   favoriteLabel: string,
-  underdogLabel: string
+  underdogLabel: string,
 ) {
   if (favoriteProbability >= 0.75) return `${favoriteLabel} is a strong favorite over ${underdogLabel}.`
   if (favoriteProbability >= 0.66) return `${favoriteLabel} has a clear edge over ${underdogLabel}.`
@@ -1455,9 +1563,7 @@ const heroShell: CSSProperties = {
   margin: '0 auto',
   borderRadius: '30px',
   background:
-    `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
+    'linear-gradient(180deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)',
   border: '1px solid rgba(116,190,255,0.22)',
   boxShadow:
     '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
@@ -1543,7 +1649,7 @@ const engineCard: CSSProperties = {
 }
 
 const engineLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'rgba(217,231,255,0.82)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -1561,7 +1667,7 @@ const engineValue: CSSProperties = {
 
 const engineText: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(219, 234, 254, 0.88)',
+  color: 'rgba(219,234,254,0.88)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -1578,10 +1684,10 @@ const contentWrap: CSSProperties = {
 const controlsCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
+  border: '1px solid rgba(133,168,229,0.16)',
   background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+    'radial-gradient(circle at top right, rgba(184,230,26,0.12), transparent 34%), linear-gradient(135deg, rgba(8,34,75,0.98) 0%, rgba(4,18,45,0.98) 58%, rgba(7,36,46,0.98) 100%)',
+  boxShadow: '0 28px 60px rgba(2,8,23,0.28)',
   minWidth: 0,
   marginBottom: '16px',
 }
@@ -1616,7 +1722,7 @@ const toggleGroup: CSSProperties = {
   borderRadius: '20px',
   background: 'linear-gradient(180deg, rgba(18,35,68,0.92) 0%, rgba(11,24,49,0.9) 100%)',
   border: '1px solid rgba(128,174,255,0.18)',
-  boxShadow: '0 12px 26px rgba(8, 23, 48, 0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+  boxShadow: '0 12px 26px rgba(8,23,48,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
 const toggleButton: CSSProperties = {
@@ -1635,13 +1741,13 @@ const toggleButton: CSSProperties = {
 const toggleButtonGreen: CSSProperties = {
   background: 'linear-gradient(135deg, #67f19a 0%, #b8e61a 100%)',
   color: '#06172f',
-  boxShadow: '0 14px 28px rgba(184, 230, 26, 0.24), inset 0 1px 0 rgba(255,255,255,0.34)',
+  boxShadow: '0 14px 28px rgba(184,230,26,0.24), inset 0 1px 0 rgba(255,255,255,0.34)',
 }
 
 const toggleButtonBlue: CSSProperties = {
   background: 'linear-gradient(135deg, #2f6ff5 0%, #61a6ff 100%)',
   color: '#ffffff',
-  boxShadow: '0 14px 28px rgba(74, 163, 255, 0.22), inset 0 1px 0 rgba(255,255,255,0.24)',
+  boxShadow: '0 14px 28px rgba(74,163,255,0.22), inset 0 1px 0 rgba(255,255,255,0.24)',
 }
 
 const selectorGrid: CSSProperties = {
@@ -1677,8 +1783,8 @@ const errorBanner: CSSProperties = {
   marginBottom: '16px',
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'rgba(239, 68, 68, 0.08)',
-  border: '1px solid rgba(239, 68, 68, 0.18)',
+  background: 'rgba(239,68,68,0.08)',
+  border: '1px solid rgba(239,68,68,0.18)',
   color: '#fecaca',
   fontWeight: 700,
   fontSize: '14px',
@@ -1695,6 +1801,99 @@ const emptyState: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const decisionBanner: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '20px',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
+  padding: '20px',
+  borderRadius: '22px',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12) 0%, rgba(20,40,80,0.9) 100%)',
+  border: '1px solid rgba(155,225,29,0.25)',
+  boxShadow: '0 20px 50px rgba(155,225,29,0.15)',
+}
+
+const decisionLabel: CSSProperties = {
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  color: 'rgba(200,220,255,0.7)',
+  fontWeight: 800,
+  letterSpacing: '0.1em',
+}
+
+const decisionWinner: CSSProperties = {
+  marginTop: '6px',
+  fontSize: '28px',
+  fontWeight: 900,
+  color: '#fff',
+  lineHeight: 1.05,
+  letterSpacing: '-0.04em',
+}
+
+const decisionSub: CSSProperties = {
+  marginTop: '6px',
+  fontSize: '14px',
+  color: 'rgba(220,235,255,0.8)',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const decisionRight: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  alignItems: 'flex-end',
+}
+
+const decisionPill: CSSProperties = {
+  background: 'rgba(0,0,0,0.3)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  fontWeight: 800,
+  fontSize: '12px',
+  color: '#eff8ff',
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const decisionCtaRow: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
+const ctaPrimary: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  color: '#08111d',
+  fontWeight: 900,
+  textDecoration: 'none',
+  border: '1px solid rgba(155,225,29,0.30)',
+  boxShadow: '0 10px 22px rgba(155,225,29,0.14)',
+}
+
+const ctaSecondary: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.18)',
+  color: '#fff',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const compareGrid: CSSProperties = {
@@ -1766,18 +1965,19 @@ const ratingGrid: CSSProperties = {
 const ratingPill: CSSProperties = {
   borderRadius: '16px',
   padding: '14px 14px',
-  background: '#ffffff',
-  border: '1px solid rgba(148, 163, 184, 0.2)',
+  background: 'rgba(18,34,64,0.85)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
 }
 
 const ratingPillActive: CSSProperties = {
-  background: '#eff6ff',
-  borderColor: 'rgba(37, 91, 227, 0.22)',
-  boxShadow: 'inset 0 0 0 1px rgba(37, 91, 227, 0.04)',
+  background: 'linear-gradient(180deg, rgba(26,56,108,0.92) 0%, rgba(16,31,59,0.92) 100%)',
+  borderColor: 'rgba(74,163,255,0.28)',
+  boxShadow: '0 10px 24px rgba(37,91,227,0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const ratingPillLabel: CSSProperties = {
-  color: '#64748b',
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 700,
@@ -1785,7 +1985,7 @@ const ratingPillLabel: CSSProperties = {
 
 const ratingPillValue: CSSProperties = {
   marginTop: '4px',
-  color: '#0f172a',
+  color: '#f4f9ff',
   fontSize: '20px',
   lineHeight: 1,
   fontWeight: 900,
@@ -1795,12 +1995,13 @@ const ratingPillValue: CSSProperties = {
 const highlightBox: CSSProperties = {
   borderRadius: '16px',
   padding: '16px',
-  background: 'linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%)',
-  border: '1px solid rgba(37, 91, 227, 0.12)',
+  background: 'rgba(18,34,64,0.9)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
 }
 
 const highlightLabel: CSSProperties = {
-  color: '#64748b',
+  color: 'rgba(197,213,234,0.72)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 700,
@@ -1808,7 +2009,7 @@ const highlightLabel: CSSProperties = {
 
 const highlightValue: CSSProperties = {
   marginTop: '6px',
-  color: '#255be3',
+  color: '#9bd2ff',
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
@@ -1835,7 +2036,7 @@ const vsBadge: CSSProperties = {
   fontSize: '22px',
   lineHeight: 1,
   fontWeight: 900,
-  boxShadow: '0 14px 30px rgba(37, 91, 227, 0.22)',
+  boxShadow: '0 14px 30px rgba(37,91,227,0.22)',
 }
 
 const gapCard: CSSProperties = {
@@ -1849,7 +2050,7 @@ const gapCard: CSSProperties = {
 }
 
 const gapLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'rgba(217,231,255,0.82)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -1892,6 +2093,13 @@ const sectionTitle: CSSProperties = {
   letterSpacing: '-0.02em',
 }
 
+const projectionSectionTitle: CSSProperties = {
+  ...sectionTitle,
+  fontSize: '28px',
+  lineHeight: 1.08,
+  letterSpacing: '-0.03em',
+}
+
 const paragraph: CSSProperties = {
   margin: '12px 0 0',
   color: 'rgba(224,236,249,0.78)',
@@ -1914,7 +2122,7 @@ const metricCard: CSSProperties = {
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'rgba(217,231,255,0.82)',
   fontSize: '13px',
   marginBottom: '8px',
   fontWeight: 700,
@@ -1945,12 +2153,12 @@ const calloutCard: CSSProperties = {
   flexWrap: 'wrap',
   borderRadius: '16px',
   padding: '16px',
-  background: 'linear-gradient(180deg, #f7fbff 0%, #eff6ff 100%)',
-  border: '1px solid rgba(37, 91, 227, 0.14)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12) 0%, rgba(20,40,80,0.85) 100%)',
+  border: '1px solid rgba(155,225,29,0.25)',
 }
 
 const calloutTitle: CSSProperties = {
-  color: '#0f172a',
+  color: '#f4f9ff',
   fontSize: '16px',
   lineHeight: 1.45,
   fontWeight: 800,
@@ -1958,7 +2166,7 @@ const calloutTitle: CSSProperties = {
 
 const calloutSub: CSSProperties = {
   marginTop: '4px',
-  color: '#475569',
+  color: 'rgba(220,233,248,0.78)',
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
@@ -1970,15 +2178,41 @@ const upsetPill: CSSProperties = {
   justifyContent: 'center',
   borderRadius: '999px',
   padding: '10px 12px',
-  background: '#fff7ed',
-  border: '1px solid #fed7aa',
-  color: '#c2410c',
+  background: 'rgba(10,20,35,0.42)',
+  border: '1px solid rgba(255,255,255,0.14)',
+  color: '#ecf8ff',
   fontSize: '12px',
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
   whiteSpace: 'nowrap',
+}
+
+const recommendationCard: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(9,20,39,0.44)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const recommendationTitle: CSSProperties = {
+  color: '#f4f9ff',
+  fontSize: '14px',
+  lineHeight: 1.2,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const recommendationTextStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.72,
+  fontWeight: 500,
 }
 
 const summaryHead: CSSProperties = {
@@ -1995,4 +2229,3 @@ const metaNote: CSSProperties = {
   lineHeight: 1.5,
   fontWeight: 700,
 }
-

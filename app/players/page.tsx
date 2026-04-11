@@ -9,18 +9,45 @@ import SiteShell from '@/app/components/site-shell'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated'
+type RatingView = 'overall' | 'singles' | 'doubles'
+type TrendDirection = 'up' | 'down' | 'flat'
+type ConfidenceLevel = 'Low' | 'Medium' | 'High'
+type RatingStatus =
+  | 'Bump Up Pace'
+  | 'Trending Up'
+  | 'Holding'
+  | 'At Risk'
+  | 'Drop Watch'
 
 type PlayerRow = {
   id: string
   name: string
   location?: string | null
+  overall_rating?: number | null
+  singles_rating?: number | null
+  doubles_rating?: number | null
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
 }
 
+type SnapshotRow = {
+  player_id: string
+  rating_type?: RatingView | null
+  dynamic_rating: number
+  snapshot_date: string
+}
+
 type PlayerCard = PlayerRow & {
   matches: number
+  baseOverall: number
+  baseSingles: number
+  baseDoubles: number
+  overallStatus: RatingStatus
+  overallTrend: TrendDirection
+  overallTrendDelta: number
+  confidence: ConfidenceLevel
+  overallDiff: number
 }
 
 const NAV_LINKS = [
@@ -68,6 +95,9 @@ export default function PlayersPage() {
           id,
           name,
           location,
+          overall_rating,
+          singles_rating,
+          doubles_rating,
           overall_dynamic_rating,
           singles_dynamic_rating,
           doubles_dynamic_rating
@@ -79,6 +109,7 @@ export default function PlayersPage() {
       const typedPlayers = (playerRows || []) as PlayerRow[]
       const playerIds = typedPlayers.map((player) => player.id)
       const matchCounts = new Map<string, number>()
+      const snapshotsByPlayer = new Map<string, SnapshotRow[]>()
 
       if (playerIds.length > 0) {
         const { data: matchPlayerRows, error: matchPlayersError } = await supabase
@@ -92,13 +123,55 @@ export default function PlayersPage() {
           const playerId = String(row.player_id)
           matchCounts.set(playerId, (matchCounts.get(playerId) || 0) + 1)
         }
+
+        const { data: snapshotRows, error: snapshotError } = await supabase
+          .from('rating_snapshots')
+          .select(`
+            player_id,
+            rating_type,
+            dynamic_rating,
+            snapshot_date
+          `)
+          .in('player_id', playerIds)
+          .order('snapshot_date', { ascending: true })
+
+        if (snapshotError) throw new Error(snapshotError.message)
+
+        for (const row of (snapshotRows || []) as SnapshotRow[]) {
+          const key = `${row.player_id}:${row.rating_type || 'overall'}`
+          const existing = snapshotsByPlayer.get(key) ?? []
+          existing.push(row)
+          snapshotsByPlayer.set(key, existing)
+        }
       }
 
       setPlayers(
-        typedPlayers.map((player) => ({
-          ...player,
-          matches: matchCounts.get(player.id) || 0,
-        }))
+        typedPlayers.map((player) => {
+          const matches = matchCounts.get(player.id) || 0
+          const baseOverall = getBaseRating(player, 'overall')
+          const baseSingles = getBaseRating(player, 'singles')
+          const baseDoubles = getBaseRating(player, 'doubles')
+          const overallDynamic = getRating(player, 'overall')
+          const overallSnapshots = snapshotsByPlayer.get(`${player.id}:overall`) ?? []
+          const overallTrend = getTrendDirection(overallSnapshots)
+          const overallTrendDelta = getRecentTrendDelta(overallSnapshots)
+          const overallStatus = getRatingStatus(baseOverall, overallDynamic)
+          const confidence = getConfidence(matches)
+          const overallDiff = roundToTwo(overallDynamic - baseOverall)
+
+          return {
+            ...player,
+            matches,
+            baseOverall,
+            baseSingles,
+            baseDoubles,
+            overallStatus,
+            overallTrend,
+            overallTrendDelta,
+            confidence,
+            overallDiff,
+          }
+        }),
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load players')
@@ -278,12 +351,6 @@ export default function PlayersPage() {
 
   return (
     <SiteShell active="players">
-      
-      
-      
-
-      
-
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
@@ -409,6 +476,8 @@ export default function PlayersPage() {
           <div style={dynamicCardGrid}>
             {filteredPlayers.map((player) => {
               const isHovered = hoveredCard === player.id
+              const theme = getMeterTheme(player.overallStatus)
+
               return (
                 <Link
                   key={player.id}
@@ -443,10 +512,52 @@ export default function PlayersPage() {
                     />
                   </div>
 
+                  <div style={signalRow}>
+                    <span
+                      style={{
+                        ...signalStatusPill,
+                        background: theme.pillBackground,
+                        color: theme.pillColor,
+                        border: `1px solid ${theme.pillBorder}`,
+                      }}
+                    >
+                      {player.overallStatus}
+                    </span>
+
+                    <span
+                      style={{
+                        ...signalTrendPill,
+                        background: theme.trendBackground,
+                        color: theme.trendColor,
+                        border: `1px solid ${theme.trendBorder}`,
+                      }}
+                    >
+                      {getTrendIcon(player.overallTrend)} {getTrendShortLabel(player.overallTrend)}{' '}
+                      {player.overallTrendDelta >= 0 ? '+' : ''}
+                      {player.overallTrendDelta.toFixed(2)}
+                    </span>
+
+                    <span style={signalConfidencePill}>{player.confidence}</span>
+                  </div>
+
                   <div style={dynamicRatingRow}>
                     <RatingPill label="Overall" value={getRating(player, 'overall')} accent />
                     <RatingPill label="Singles" value={getRating(player, 'singles')} />
                     <RatingPill label="Doubles" value={getRating(player, 'doubles')} />
+                  </div>
+
+                  <div style={deltaRow}>
+                    <div style={deltaStat}>
+                      <span style={deltaLabel}>Base</span>
+                      <span style={deltaValue}>{player.baseOverall.toFixed(2)}</span>
+                    </div>
+                    <div style={deltaStat}>
+                      <span style={deltaLabel}>Vs base</span>
+                      <span style={deltaValue}>
+                        {player.overallDiff >= 0 ? '+' : ''}
+                        {player.overallDiff.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
 
                   <div style={playerCardFooter}>
@@ -459,7 +570,6 @@ export default function PlayersPage() {
           </div>
         )}
       </section>
-
     </SiteShell>
   )
 }
@@ -575,12 +685,118 @@ function getRating(player: PlayerRow, view: Exclude<SortKey, 'name'>) {
   return toNumber(player.overall_dynamic_rating)
 }
 
+function getBaseRating(player: PlayerRow, view: RatingView) {
+  if (view === 'singles') return toNumber(player.singles_rating ?? player.overall_rating) || 3.5
+  if (view === 'doubles') return toNumber(player.doubles_rating ?? player.overall_rating) || 3.5
+  return toNumber(player.overall_rating) || 3.5
+}
+
 function toNumber(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 function formatRating(value: number) {
   return value > 0 ? value.toFixed(2) : '—'
+}
+
+function roundToTwo(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+function getTrendDirection(points: Array<{ dynamic_rating: number }>): TrendDirection {
+  if (points.length < 2) return 'flat'
+  const recent = points.slice(-5)
+  const first = recent[0]?.dynamic_rating ?? 0
+  const last = recent[recent.length - 1]?.dynamic_rating ?? 0
+  if (last > first + 0.02) return 'up'
+  if (last < first - 0.02) return 'down'
+  return 'flat'
+}
+
+function getRecentTrendDelta(points: Array<{ dynamic_rating: number }>) {
+  if (points.length < 2) return 0
+  const recent = points.slice(-5)
+  const first = recent[0]?.dynamic_rating ?? 0
+  const last = recent[recent.length - 1]?.dynamic_rating ?? 0
+  return roundToTwo(last - first)
+}
+
+function getRatingStatus(base: number, dynamic: number): RatingStatus {
+  const diff = dynamic - base
+
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getConfidence(matches: number): ConfidenceLevel {
+  if (matches < 5) return 'Low'
+  if (matches < 10) return 'Medium'
+  return 'High'
+}
+
+function getTrendShortLabel(direction: TrendDirection) {
+  if (direction === 'up') return 'Up'
+  if (direction === 'down') return 'Down'
+  return 'Flat'
+}
+
+function getTrendIcon(direction: TrendDirection) {
+  if (direction === 'up') return '▲'
+  if (direction === 'down') return '▼'
+  return '→'
+}
+
+function getMeterTheme(status: RatingStatus) {
+  switch (status) {
+    case 'Bump Up Pace':
+      return {
+        pillBackground: 'rgba(155,225,29,0.16)',
+        pillColor: '#d9f84a',
+        pillBorder: 'rgba(155,225,29,0.28)',
+        trendBackground: 'rgba(46, 204, 113, 0.12)',
+        trendColor: '#bef264',
+        trendBorder: 'rgba(132, 204, 22, 0.24)',
+      }
+    case 'Trending Up':
+      return {
+        pillBackground: 'rgba(52,211,153,0.14)',
+        pillColor: '#a7f3d0',
+        pillBorder: 'rgba(52,211,153,0.24)',
+        trendBackground: 'rgba(52,211,153,0.10)',
+        trendColor: '#a7f3d0',
+        trendBorder: 'rgba(52,211,153,0.22)',
+      }
+    case 'Holding':
+      return {
+        pillBackground: 'rgba(63,167,255,0.12)',
+        pillColor: '#bfdbfe',
+        pillBorder: 'rgba(63,167,255,0.22)',
+        trendBackground: 'rgba(96,165,250,0.10)',
+        trendColor: '#dbeafe',
+        trendBorder: 'rgba(96,165,250,0.20)',
+      }
+    case 'At Risk':
+      return {
+        pillBackground: 'rgba(251,146,60,0.14)',
+        pillColor: '#fed7aa',
+        pillBorder: 'rgba(251,146,60,0.24)',
+        trendBackground: 'rgba(245,158,11,0.10)',
+        trendColor: '#fde68a',
+        trendBorder: 'rgba(245,158,11,0.22)',
+      }
+    case 'Drop Watch':
+      return {
+        pillBackground: 'rgba(239,68,68,0.14)',
+        pillColor: '#fecaca',
+        pillBorder: 'rgba(239,68,68,0.24)',
+        trendBackground: 'rgba(239,68,68,0.10)',
+        trendColor: '#fecaca',
+        trendBorder: 'rgba(239,68,68,0.22)',
+      }
+  }
 }
 
 const pageStyle: CSSProperties = {
@@ -1231,11 +1447,93 @@ const footerBottom: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-
 const followButtonWrap: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   marginBottom: '16px',
   display: 'flex',
   alignItems: 'center',
+}
+
+const signalRow: CSSProperties = {
+  position: 'relative',
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginBottom: '14px',
+  zIndex: 2,
+}
+
+const signalStatusPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+}
+
+const signalTrendPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  fontSize: '11px',
+  fontWeight: 800,
+  whiteSpace: 'nowrap',
+}
+
+const signalConfidencePill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.08)',
+  color: '#e2efff',
+  border: '1px solid rgba(255,255,255,0.10)',
+  fontSize: '11px',
+  fontWeight: 800,
+}
+
+const deltaRow: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '10px',
+  marginTop: '12px',
+  zIndex: 2,
+}
+
+const deltaStat: CSSProperties = {
+  borderRadius: '16px',
+  padding: '10px 12px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.05)',
+  minWidth: 0,
+}
+
+const deltaLabel: CSSProperties = {
+  display: 'block',
+  color: 'rgba(224,234,247,0.68)',
+  fontSize: '11px',
+  fontWeight: 700,
+  marginBottom: '6px',
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+}
+
+const deltaValue: CSSProperties = {
+  display: 'block',
+  color: '#f8fbff',
+  fontSize: '18px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
 }

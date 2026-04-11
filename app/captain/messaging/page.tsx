@@ -1745,7 +1745,13 @@ function applyWinningLineupToComposer() {
 useEffect(() => {
   if (!prefillApplied) return
   if (!selectedScenario) return
-  if (prefillFlowSource !== 'scenario_builder' && prefillFlowSource !== 'captain_hub') return
+  if (
+  prefillFlowSource !== 'scenario_builder' &&
+  prefillFlowSource !== 'captain_hub' &&
+  prefillFlowSource !== 'lineup_builder'
+) {
+  return
+} return
 
   if (!lineupRows.length) {
     importScenarioToLineup()
