@@ -41,9 +41,9 @@ const NAV_LINKS = [
   { href: '/captains-corner', label: "Captain's Corner" },
 ]
 
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
+function safeText(value: string | null | undefined) {
   const text = (value || '').trim()
-  return text || fallback
+  return text || ''
 }
 
 function formatDate(value: string | null) {
@@ -60,10 +60,10 @@ function formatDate(value: string | null) {
 
 function buildLeagueKey(row: MatchLeagueRow) {
   return [
-    safeText(row.league_name),
-    safeText(row.flight),
-    safeText(row.usta_section),
-    safeText(row.district_area),
+    row.league_name || '',
+    row.flight || '',
+    row.usta_section || '',
+    row.district_area || '',
   ].join('___')
 }
 
@@ -449,7 +449,7 @@ export default function LeaguesPage() {
                     </div>
 
                     <div style={dynamicLeagueDetailGrid}>
-                      <DetailCard label="USTA Section" value={league.ustaSection} />
+                      <DetailCard label="USTA Section" value={league.ustaSection || '—'} />
                       <DetailCard label="District / Area" value={league.districtArea} />
                       <DetailCard label="Matches" value={String(league.matchCount)} />
                       <DetailCard label="Teams Seen" value={String(league.teamCount)} />
