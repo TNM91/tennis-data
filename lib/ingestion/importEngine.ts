@@ -470,6 +470,12 @@ export class ImportEngine {
 
         const matchPayload = toScorecardMatchUpsert(row)
 
+        console.log('SCORECARD_IMPORT_START', {
+          rowIndex,
+          externalMatchId: matchPayload.external_match_id,
+          lineCount: row.lines.length,
+        })
+
         const linePeople = row.lines.flatMap(buildLinePlayerNames)
         const uniquePlayerNames = dedupeStrings(linePeople.map((entry) => entry.name))
 
@@ -515,38 +521,60 @@ export class ImportEngine {
         }
 
         const matchId = upsertedMatch.id
-        const resolvedPlayers = new Map<string, PlayerResolution>()
-        const createdPlayerNames: string[] = []
 
-        for (const name of uniquePlayerNames) {
-          const resolved = await this.resolvePlayerByName(name)
-          if (!resolved) {
-            result.failedCount += 1
-            result.rows.push({
-              rowIndex,
-              externalMatchId: matchPayload.external_match_id,
-              status: 'failed',
-              matchId,
-              createdPlayerNames,
-              linkedPlayerCount: 0,
-              message: `Could not resolve player "${name}"`,
-            })
-            result.errors.push({
-              rowIndex,
-              externalMatchId: matchPayload.external_match_id,
-              code: 'PLAYER_CREATE_FAILED',
-              message: `Could not resolve player "${name}"`,
-            })
-            continue
-          }
+        console.log('SCORECARD_MATCH_UPSERTED', {
+          rowIndex,
+          externalMatchId: matchPayload.external_match_id,
+          matchId,
+        })
 
-          resolvedPlayers.set(normalizeName(name), resolved)
-          if (resolved.wasCreated) {
-            createdPlayerNames.push(resolved.name)
-          }
+        let resolvedPlayers = new Map<string, PlayerResolution>()
+        let createdPlayerNames: string[] = []
+
+        try {
+          const batch = await this.resolvePlayersBatch(uniquePlayerNames)
+          resolvedPlayers = batch.map
+          createdPlayerNames = batch.created
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'Failed to resolve scorecard players'
+
+          result.failedCount += 1
+          result.rows.push({
+            rowIndex,
+            externalMatchId: matchPayload.external_match_id,
+            status: 'failed',
+            matchId,
+            createdPlayerNames: [],
+            linkedPlayerCount: 0,
+            message,
+          })
+          result.errors.push({
+            rowIndex,
+            externalMatchId: matchPayload.external_match_id,
+            code: 'PLAYER_CREATE_FAILED',
+            message,
+          })
+          continue
         }
 
         if (resolvedPlayers.size !== uniquePlayerNames.length) {
+          result.failedCount += 1
+          result.rows.push({
+            rowIndex,
+            externalMatchId: matchPayload.external_match_id,
+            status: 'failed',
+            matchId,
+            createdPlayerNames,
+            linkedPlayerCount: 0,
+            message: 'Player resolution mismatch',
+          })
+          result.errors.push({
+            rowIndex,
+            externalMatchId: matchPayload.external_match_id,
+            code: 'PLAYER_LOOKUP_FAILED',
+            message: 'Player resolution mismatch',
+          })
           continue
         }
 
@@ -586,7 +614,10 @@ export class ImportEngine {
         }
 
         if (this.options.matchPlayersDeleteBeforeInsert) {
-          const { error: deleteError } = await this.supabase.from('match_players').delete().eq('match_id', matchId)
+          const { error: deleteError } = await this.supabase
+            .from('match_players')
+            .delete()
+            .eq('match_id', matchId)
 
           if (deleteError) {
             result.failedCount += 1
@@ -609,8 +640,16 @@ export class ImportEngine {
           }
         }
 
+        console.log('SCORECARD_MATCH_PLAYERS_INSERT', {
+          rowIndex,
+          externalMatchId: matchPayload.external_match_id,
+          playerCount: matchPlayersToInsert.length,
+        })
+
         if (matchPlayersToInsert.length > 0) {
-          const { error: insertPlayersError } = await this.supabase.from('match_players').insert(matchPlayersToInsert)
+          const { error: insertPlayersError } = await this.supabase
+            .from('match_players')
+            .insert(matchPlayersToInsert)
 
           if (insertPlayersError) {
             result.failedCount += 1
@@ -647,7 +686,10 @@ export class ImportEngine {
 
           const scorecardLinesTable = this.options.scorecardLinesTable
 
-          const { error: deleteLinesError } = await this.supabase.from(scorecardLinesTable).delete().eq('match_id', matchId)
+          const { error: deleteLinesError } = await this.supabase
+            .from(scorecardLinesTable)
+            .delete()
+            .eq('match_id', matchId)
 
           if (deleteLinesError) {
             result.failedCount += 1
@@ -756,6 +798,108 @@ export class ImportEngine {
     }
 
     return (data as MatchRecord | null) ?? null
+  }
+
+  private async resolvePlayersBatch(names: string[]): Promise<{
+    map: Map<string, PlayerResolution>
+    created: string[]
+  }> {
+    const unique = dedupeStrings(names)
+    const map = new Map<string, PlayerResolution>()
+    const created: string[] = []
+
+    if (unique.length === 0) return { map, created }
+
+    if (this.options.hasNormalizedPlayerNameColumn) {
+      const normalizedNames = unique.map(normalizeName)
+
+      const { data, error } = await this.supabase
+        .from('players')
+        .select('id, name, normalized_name')
+        .in('normalized_name', normalizedNames)
+
+      if (error) {
+        this.options.log('batch normalized player lookup failed', {
+          names: unique,
+          error: error.message,
+        })
+      } else {
+        for (const row of (data ?? []) as PlayerRecord[]) {
+          const key = normalizeName(row.normalized_name || row.name)
+          map.set(key, {
+            id: row.id,
+            name: row.name,
+            wasCreated: false,
+          })
+        }
+      }
+    }
+
+    const unresolvedNames = unique.filter((name) => !map.has(normalizeName(name)))
+
+    if (unresolvedNames.length > 0) {
+      const { data, error } = await this.supabase
+        .from('players')
+        .select('id, name')
+        .in('name', unresolvedNames)
+
+      if (error) {
+        this.options.log('batch player lookup failed', {
+          names: unresolvedNames,
+          error: error.message,
+        })
+      } else {
+        for (const row of (data ?? []) as PlayerRecord[]) {
+          const key = normalizeName(row.name)
+          map.set(key, {
+            id: row.id,
+            name: row.name,
+            wasCreated: false,
+          })
+        }
+      }
+    }
+
+    const missing = unique.filter((name) => !map.has(normalizeName(name)))
+
+    if (missing.length > 0) {
+      const insertPayload: Record<string, unknown>[] = missing.map((name) => {
+        const payload: Record<string, unknown> = {
+          name: cleanString(name),
+        }
+
+        if (this.options.hasNormalizedPlayerNameColumn) {
+          payload.normalized_name = normalizeName(name)
+        }
+
+        return payload
+      })
+
+      const { data: inserted, error: insertError } = await this.supabase
+        .from('players')
+        .insert(insertPayload)
+        .select('id, name')
+
+      if (insertError) {
+        this.options.log('batch player create failed', {
+          names: missing,
+          error: insertError.message,
+        })
+        throw new Error(insertError.message)
+      }
+
+      for (const row of (inserted ?? []) as PlayerRecord[]) {
+        const key = normalizeName(row.name)
+        map.set(key, {
+          id: row.id,
+          name: row.name,
+          wasCreated: true,
+        })
+        created.push(row.name)
+      }
+    }
+
+    return { map, created }
   }
 
   private async resolvePlayerByName(name: string): Promise<PlayerResolution | null> {
