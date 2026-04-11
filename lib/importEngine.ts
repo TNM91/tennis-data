@@ -281,11 +281,18 @@ export async function commitImportPreview(
         ...(row.matchInsertOverrides || {}),
       }
 
-      const { data: insertedMatch, error: matchError } = await supabase
-        .from('matches')
-        .insert(insertPayload)
-        .select('id')
-        .single()
+      // 🔥 UPSERT using external_match_id (FINAL FIX)
+const { data: insertedMatch, error: matchError } = await supabase
+  .from('matches')
+  .upsert(insertPayload, {
+    onConflict: 'external_match_id'
+  })
+  .select('id')
+  .single()
+
+if (matchError) {
+  throw new Error(matchError.message)
+}
 
       if (matchError) {
         const alreadyExists =
