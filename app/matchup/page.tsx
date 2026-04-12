@@ -68,14 +68,14 @@ type ComparisonState = {
   leftLocation: string
   rightLocation: string
   leftRatings: {
-    overall: number
-    singles: number
-    doubles: number
+    overall: number | null
+    singles: number | null
+    doubles: number | null
   }
   rightRatings: {
-    overall: number
-    singles: number
-    doubles: number
+    overall: number | null
+    singles: number | null
+    doubles: number | null
   }
   leftSelected: number
   rightSelected: number
@@ -108,8 +108,11 @@ type AccuracyState = {
   sampleSize: number
 }
 
-const DEFAULT_RATING = 3.0
 const RATING_DIVISOR = 0.35
+
+function hasValidRating(value: number | null | undefined): value is number {
+  return typeof value === 'number' && !Number.isNaN(value)
+}
 
 export default function MatchupPage() {
   const [players, setPlayers] = useState<Player[]>([])
@@ -572,6 +575,7 @@ export default function MatchupPage() {
 
           const leftRating = getSelectedRating(leftPlayer, engineView)
           const rightRating = getSelectedRating(rightPlayer, engineView)
+          if (!hasValidRating(leftRating) || !hasValidRating(rightRating)) continue
           if (leftRating === rightRating) continue
 
           const leftWinProbability = expectedScore(leftRating, rightRating)
@@ -605,12 +609,13 @@ export default function MatchupPage() {
 
           if (sideAPlayers.length !== 2 || sideBPlayers.length !== 2) continue
 
-          const leftRating = average(
-            sideAPlayers.map((player) => getSelectedRating(player, engineView)),
-          )
-          const rightRating = average(
-            sideBPlayers.map((player) => getSelectedRating(player, engineView)),
-          )
+          const leftRatings = sideAPlayers.map((player) => getSelectedRating(player, engineView))
+          const rightRatings = sideBPlayers.map((player) => getSelectedRating(player, engineView))
+
+          if (!leftRatings.every(hasValidRating) || !rightRatings.every(hasValidRating)) continue
+
+          const leftRating = average(leftRatings)
+          const rightRating = average(rightRatings)
           if (leftRating === rightRating) continue
 
           const leftWinProbability = expectedScore(leftRating, rightRating)
@@ -701,6 +706,41 @@ export default function MatchupPage() {
     !!teamB2 &&
     areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
+  const hasSinglesSelection = !!playerA && !!playerB && playerAId !== playerBId
+  const hasDoublesSelection =
+    !!teamA1 &&
+    !!teamA2 &&
+    !!teamB1 &&
+    !!teamB2 &&
+    areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+
+  const insufficientDataMessage = useMemo(() => {
+    if (matchType === 'singles') {
+      if (!hasSinglesSelection) return ''
+      const left = playerA ? getSelectedRating(playerA, getEngineRatingView(matchType)) : null
+      const right = playerB ? getSelectedRating(playerB, getEngineRatingView(matchType)) : null
+      if (!hasValidRating(left) || !hasValidRating(right)) {
+        return 'Not enough rating data to generate a projection for this singles matchup.'
+      }
+      return ''
+    }
+
+    if (!hasDoublesSelection) return ''
+
+    const ratings = [
+      teamA1 ? getSelectedRating(teamA1, 'doubles') : null,
+      teamA2 ? getSelectedRating(teamA2, 'doubles') : null,
+      teamB1 ? getSelectedRating(teamB1, 'doubles') : null,
+      teamB2 ? getSelectedRating(teamB2, 'doubles') : null,
+    ]
+
+    if (!ratings.every(hasValidRating)) {
+      return 'Not enough doubles rating data to generate a projection for this team matchup.'
+    }
+
+    return ''
+  }, [matchType, hasSinglesSelection, hasDoublesSelection, playerA, playerB, teamA1, teamA2, teamB1, teamB2])
+
   const availablePlayersForA = useMemo(
     () => players.filter((player) => player.id !== playerBId),
     [players, playerBId],
@@ -735,6 +775,15 @@ export default function MatchupPage() {
 
       const left = getSelectedRating(playerA, engineRatingView)
       const right = getSelectedRating(playerB, engineRatingView)
+
+      if (!hasValidRating(left) || !hasValidRating(right)) return null
+
+      const leftOverall = getSelectedRating(playerA, 'overall')
+      const leftSingles = getSelectedRating(playerA, 'singles')
+      const leftDoubles = getSelectedRating(playerA, 'doubles')
+      const rightOverall = getSelectedRating(playerB, 'overall')
+      const rightSingles = getSelectedRating(playerB, 'singles')
+      const rightDoubles = getSelectedRating(playerB, 'doubles')
       const gap = Math.abs(left - right)
 
       return {
@@ -743,14 +792,14 @@ export default function MatchupPage() {
         leftLocation: playerA.location || 'No location set',
         rightLocation: playerB.location || 'No location set',
         leftRatings: {
-          overall: getSelectedRating(playerA, 'overall'),
-          singles: getSelectedRating(playerA, 'singles'),
-          doubles: getSelectedRating(playerA, 'doubles'),
+          overall: leftOverall,
+          singles: leftSingles,
+          doubles: leftDoubles,
         },
         rightRatings: {
-          overall: getSelectedRating(playerB, 'overall'),
-          singles: getSelectedRating(playerB, 'singles'),
-          doubles: getSelectedRating(playerB, 'doubles'),
+          overall: rightOverall,
+          singles: rightSingles,
+          doubles: rightDoubles,
         },
         leftSelected: left,
         rightSelected: right,
@@ -770,23 +819,41 @@ export default function MatchupPage() {
 
     if (!doublesSelected || !teamA1 || !teamA2 || !teamB1 || !teamB2) return null
 
+    const teamAOverallRatings = [getSelectedRating(teamA1, 'overall'), getSelectedRating(teamA2, 'overall')]
+    const teamASinglesRatings = [getSelectedRating(teamA1, 'singles'), getSelectedRating(teamA2, 'singles')]
+    const teamADoublesRatings = [getSelectedRating(teamA1, 'doubles'), getSelectedRating(teamA2, 'doubles')]
+
+    const teamBOverallRatings = [getSelectedRating(teamB1, 'overall'), getSelectedRating(teamB2, 'overall')]
+    const teamBSinglesRatings = [getSelectedRating(teamB1, 'singles'), getSelectedRating(teamB2, 'singles')]
+    const teamBDoublesRatings = [getSelectedRating(teamB1, 'doubles'), getSelectedRating(teamB2, 'doubles')]
+
+    const leftEngineRatings = teamADoublesRatings
+    const rightEngineRatings = teamBDoublesRatings
+
+    if (
+      !leftEngineRatings.every(hasValidRating) ||
+      !rightEngineRatings.every(hasValidRating)
+    ) {
+      return null
+    }
+
     const teamALabel = `${teamA1.name} / ${teamA2.name}`
     const teamBLabel = `${teamB1.name} / ${teamB2.name}`
 
     const teamARatings = {
-      overall: average([getSelectedRating(teamA1, 'overall'), getSelectedRating(teamA2, 'overall')]),
-      singles: average([getSelectedRating(teamA1, 'singles'), getSelectedRating(teamA2, 'singles')]),
-      doubles: average([getSelectedRating(teamA1, 'doubles'), getSelectedRating(teamA2, 'doubles')]),
+      overall: teamAOverallRatings.every(hasValidRating) ? average(teamAOverallRatings) : null,
+      singles: teamASinglesRatings.every(hasValidRating) ? average(teamASinglesRatings) : null,
+      doubles: teamADoublesRatings.every(hasValidRating) ? average(teamADoublesRatings) : null,
     }
 
     const teamBRatings = {
-      overall: average([getSelectedRating(teamB1, 'overall'), getSelectedRating(teamB2, 'overall')]),
-      singles: average([getSelectedRating(teamB1, 'singles'), getSelectedRating(teamB2, 'singles')]),
-      doubles: average([getSelectedRating(teamB1, 'doubles'), getSelectedRating(teamB2, 'doubles')]),
+      overall: teamBOverallRatings.every(hasValidRating) ? average(teamBOverallRatings) : null,
+      singles: teamBSinglesRatings.every(hasValidRating) ? average(teamBSinglesRatings) : null,
+      doubles: teamBDoublesRatings.every(hasValidRating) ? average(teamBDoublesRatings) : null,
     }
 
-    const left = teamARatings.doubles
-    const right = teamBRatings.doubles
+    const left = average(leftEngineRatings)
+    const right = average(rightEngineRatings)
     const gap = Math.abs(left - right)
 
     return {
@@ -813,19 +880,23 @@ export default function MatchupPage() {
   }, [matchType, singlesSelected, doublesSelected, playerA, playerB, teamA1, teamA2, teamB1, teamB2])
 
   const displayGap = useMemo(() => {
-    if (!comparison) return 0
-    return Math.abs(
-      (ratingView === 'overall'
+    if (!comparison) return null
+
+    const left =
+      ratingView === 'overall'
         ? comparison.leftRatings.overall
         : ratingView === 'singles'
           ? comparison.leftRatings.singles
-          : comparison.leftRatings.doubles) -
-        (ratingView === 'overall'
-          ? comparison.rightRatings.overall
-          : ratingView === 'singles'
-            ? comparison.rightRatings.singles
-            : comparison.rightRatings.doubles),
-    )
+          : comparison.leftRatings.doubles
+    const right =
+      ratingView === 'overall'
+        ? comparison.rightRatings.overall
+        : ratingView === 'singles'
+          ? comparison.rightRatings.singles
+          : comparison.rightRatings.doubles
+
+    if (!hasValidRating(left) || !hasValidRating(right)) return null
+    return Math.abs(left - right)
   }, [comparison, ratingView])
 
   const displayHigherRatedLabel = useMemo(() => {
@@ -843,6 +914,7 @@ export default function MatchupPage() {
           ? comparison.rightRatings.singles
           : comparison.rightRatings.doubles
 
+    if (!hasValidRating(left) || !hasValidRating(right)) return 'Insufficient rating data'
     if (left === right) return 'Even matchup'
     return left > right ? `${comparison.leftLabel} leads` : `${comparison.rightLabel} leads`
   }, [comparison, ratingView])
@@ -1136,9 +1208,10 @@ export default function MatchupPage() {
             <div style={emptyState}>Loading players...</div>
           ) : !comparison ? (
             <div style={emptyState}>
-              {matchType === 'singles'
-                ? 'Select two different players to compare.'
-                : 'Select four different players to compare doubles teams.'}
+              {insufficientDataMessage ||
+                (matchType === 'singles'
+                  ? 'Select two different players to compare.'
+                  : 'Select four different players to compare doubles teams.')}
             </div>
           ) : (
             <>
@@ -1334,8 +1407,8 @@ function CompareCard({
 }: {
   title: string
   subtitle: string
-  ratings: { overall: number; singles: number; doubles: number }
-  projectionRating: number
+  ratings: { overall: number | null; singles: number | null; doubles: number | null }
+  projectionRating: number | null
   ratingView: RatingView
   projectionView: RatingView
   profileHref: string | null
@@ -1384,7 +1457,7 @@ function RatingPill({
   active,
 }: {
   label: string
-  value: number
+  value: number | null
   active?: boolean
 }) {
   return (
@@ -1460,20 +1533,15 @@ function normalizeIdSet(ids: string[]) {
   return [...ids].sort().join('|')
 }
 
-function normalizeRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return DEFAULT_RATING
-  return value
-}
-
 function average(values: number[]) {
-  if (!values.length) return DEFAULT_RATING
+  if (!values.length) return 0
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-function getSelectedRating(player: Player, view: RatingView) {
-  if (view === 'singles') return normalizeRating(player.singles_dynamic_rating)
-  if (view === 'doubles') return normalizeRating(player.doubles_dynamic_rating)
-  return normalizeRating(player.overall_dynamic_rating)
+function getSelectedRating(player: Player, view: RatingView): number | null {
+  if (view === 'singles') return hasValidRating(player.singles_dynamic_rating) ? player.singles_dynamic_rating : null
+  if (view === 'doubles') return hasValidRating(player.doubles_dynamic_rating) ? player.doubles_dynamic_rating : null
+  return hasValidRating(player.overall_dynamic_rating) ? player.overall_dynamic_rating : null
 }
 
 function getEngineRatingView(matchType: MatchType): RatingView {
@@ -1537,7 +1605,8 @@ function formatNullablePercent(value: number | null) {
   return formatPercent(value)
 }
 
-function formatRating(value: number) {
+function formatRating(value: number | null) {
+  if (!hasValidRating(value)) return '—'
   return value.toFixed(2)
 }
 

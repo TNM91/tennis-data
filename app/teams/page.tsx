@@ -1,52 +1,103 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
-
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import FollowButton from '@/app/components/follow-button'
-
-type SortKey = 'name' | 'matches' | 'players' | 'winPct' | 'latest'
-type FilterKey = 'all' | 'active' | 'winning' | 'deep-roster'
+import { supabase } from '@/lib/supabase'
 
 type MatchRow = {
   id: string
+  match_date: string | null
   home_team: string | null
   away_team: string | null
   league_name: string | null
   flight: string | null
-  match_date: string | null
-  winner_side: 'A' | 'B' | null
 }
 
 type MatchPlayerRow = {
   match_id: string
-  side: 'A' | 'B'
-  player_id: string
+  side: 'A' | 'B' | null
+  player_id?: string | null
+  players?:
+    | {
+        id?: string | null
+        name?: string | null
+      }
+    | Array<{
+        id?: string | null
+        name?: string | null
+      }>
+    | null
 }
 
-type TeamCard = {
+type TeamDirectoryEntry = {
   key: string
   team: string
-  league: string
-  flight: string
-  matches: number
-  players: number
-  wins: number
-  losses: number
-  latestMatch: string | null
+  league: string | null
+  flight: string | null
+  matchCount: number
+  playerIds: Set<string>
+  mostRecentMatchDate: string | null
+}
+
+type SortKey = 'team' | 'matches' | 'players' | 'recent'
+
+function cleanText(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length ? trimmed : null
+}
+
+function buildTeamKey(team: string, league: string | null, flight: string | null) {
+  return `${team}__${league || ''}__${flight || ''}`
+}
+
+function compareNullableDatesDesc(left: string | null, right: string | null) {
+  if (!left && !right) return 0
+  if (!left) return 1
+  if (!right) return -1
+
+  const leftTime = new Date(left).getTime()
+  const rightTime = new Date(right).getTime()
+
+  if (Number.isNaN(leftTime) && Number.isNaN(rightTime)) return 0
+  if (Number.isNaN(leftTime)) return 1
+  if (Number.isNaN(rightTime)) return -1
+
+  return rightTime - leftTime
+}
+
+function formatMatchDate(value: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString()
+}
+
+function uniqueSorted(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => cleanText(value) ?? '').filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  )
+}
+
+function chunkArray<T>(rows: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size))
+  }
+  return chunks
 }
 
 export default function TeamsPage() {
-  const [teams, setTeams] = useState<TeamCard[]>([])
+  const [screenWidth, setScreenWidth] = useState(1280)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [rows, setRows] = useState<TeamDirectoryEntry[]>([])
+
   const [search, setSearch] = useState('')
+  const [leagueFilter, setLeagueFilter] = useState('')
+  const [flightFilter, setFlightFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
-  const [filterBy, setFilterBy] = useState<FilterKey>('all')
-  const [screenWidth, setScreenWidth] = useState(1280)
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -68,104 +119,167 @@ export default function TeamsPage() {
     setError('')
 
     try {
-      const { data: matchRows, error: matchesError } = await supabase
+      const { data: matchData, error: matchError } = await supabase
         .from('matches')
-        .select(`
-          id,
-          home_team,
-          away_team,
-          league_name,
-          flight,
-          match_date,
-          winner_side
-        `)
+        .select('id, match_date, home_team, away_team, league_name, flight')
         .order('match_date', { ascending: false })
 
-      if (matchesError) throw new Error(matchesError.message)
+      if (matchError) throw new Error(matchError.message)
 
-      const typedMatches = (matchRows || []) as MatchRow[]
-      const matchIds = typedMatches.map((match) => match.id)
+      const matches = ((matchData ?? []) as MatchRow[]).filter((row) => {
+        const homeTeam = cleanText(row.home_team)
+        const awayTeam = cleanText(row.away_team)
 
-      let matchPlayers: MatchPlayerRow[] = []
+        return Boolean(homeTeam && awayTeam)
+      })
 
-      if (matchIds.length > 0) {
-        const { data: matchPlayerRows, error: matchPlayersError } = await supabase
-          .from('match_players')
-          .select(`
-            match_id,
-            side,
-            player_id
-          `)
-          .in('match_id', matchIds)
-
-        if (matchPlayersError) throw new Error(matchPlayersError.message)
-        matchPlayers = (matchPlayerRows || []) as MatchPlayerRow[]
+      if (!matches.length) {
+        setRows([])
+        return
       }
 
-      const teamMap = new Map<string, TeamCard>()
-      const teamPlayerSets = new Map<string, Set<string>>()
+      const teamSideByMatchAndTeam = new Map<string, 'A' | 'B'>()
+      const directoryMap = new Map<string, TeamDirectoryEntry>()
 
-      for (const match of typedMatches) {
-        const league = safeText(match.league_name, 'Unknown League')
-        const flight = safeText(match.flight, 'Unknown Flight')
+      for (const match of matches) {
+        const homeTeam = cleanText(match.home_team)
+        const awayTeam = cleanText(match.away_team)
 
-        const teamEntries = [
-          { team: safeText(match.home_team), side: 'A' as const },
-          { team: safeText(match.away_team), side: 'B' as const },
-        ]
+        if (!homeTeam || !awayTeam) continue
 
-        for (const entry of teamEntries) {
-          if (entry.team === 'Unknown') continue
+        const league = cleanText(match.league_name)
+        const flight = cleanText(match.flight)
 
-          const key = buildTeamKey(entry.team, league, flight)
+        const homeKey = buildTeamKey(homeTeam, league, flight)
+        const awayKey = buildTeamKey(awayTeam, league, flight)
 
-          if (!teamMap.has(key)) {
-            teamMap.set(key, {
-              key,
-              team: entry.team,
-              league,
-              flight,
-              matches: 0,
-              players: 0,
-              wins: 0,
-              losses: 0,
-              latestMatch: null,
-            })
-          }
+        if (!directoryMap.has(homeKey)) {
+          directoryMap.set(homeKey, {
+            key: homeKey,
+            team: homeTeam,
+            league,
+            flight,
+            matchCount: 0,
+            playerIds: new Set<string>(),
+            mostRecentMatchDate: null,
+          })
+        }
 
-          if (!teamPlayerSets.has(key)) {
-            teamPlayerSets.set(key, new Set<string>())
-          }
+        if (!directoryMap.has(awayKey)) {
+          directoryMap.set(awayKey, {
+            key: awayKey,
+            team: awayTeam,
+            league,
+            flight,
+            matchCount: 0,
+            playerIds: new Set<string>(),
+            mostRecentMatchDate: null,
+          })
+        }
 
-          const summary = teamMap.get(key)!
-          summary.matches += 1
+        const homeEntry = directoryMap.get(homeKey)
+        const awayEntry = directoryMap.get(awayKey)
 
-          const won = match.winner_side === entry.side
-          if (won) summary.wins += 1
-          else summary.losses += 1
-
-          if (isLaterDate(match.match_date, summary.latestMatch)) {
-            summary.latestMatch = match.match_date
-          }
-
-          const participantsForSide = matchPlayers.filter(
-            (row) => row.match_id === match.id && row.side === entry.side
-          )
-
-          for (const participant of participantsForSide) {
-            if (participant.player_id) {
-              teamPlayerSets.get(key)!.add(String(participant.player_id))
-            }
+        if (homeEntry) {
+          homeEntry.matchCount += 1
+          if (
+            compareNullableDatesDesc(match.match_date, homeEntry.mostRecentMatchDate) < 0 ||
+            homeEntry.mostRecentMatchDate === null
+          ) {
+            homeEntry.mostRecentMatchDate = match.match_date
           }
         }
+
+        if (awayEntry) {
+          awayEntry.matchCount += 1
+          if (
+            compareNullableDatesDesc(match.match_date, awayEntry.mostRecentMatchDate) < 0 ||
+            awayEntry.mostRecentMatchDate === null
+          ) {
+            awayEntry.mostRecentMatchDate = match.match_date
+          }
+        }
+
+        teamSideByMatchAndTeam.set(`${match.id}__${homeKey}`, 'A')
+        teamSideByMatchAndTeam.set(`${match.id}__${awayKey}`, 'B')
       }
 
-      const nextTeams = [...teamMap.values()].map((team) => ({
-        ...team,
-        players: teamPlayerSets.get(team.key)?.size || 0,
-      }))
+      const matchIds = matches.map((match) => match.id).filter(Boolean)
+      const playerRows: MatchPlayerRow[] = []
 
-      setTeams(nextTeams)
+      for (const idChunk of chunkArray(matchIds, 500)) {
+        const { data, error: playerError } = await supabase
+          .from('match_players')
+          .select(
+            `
+            match_id,
+            side,
+            player_id,
+            players (
+              id,
+              name
+            )
+          `,
+          )
+          .in('match_id', idChunk)
+
+        if (playerError) throw new Error(playerError.message)
+
+        playerRows.push(...(((data ?? []) as MatchPlayerRow[]) || []))
+      }
+
+      const matchMetaById = new Map<
+        string,
+        {
+          league: string | null
+          flight: string | null
+          homeTeam: string
+          awayTeam: string
+        }
+      >()
+
+      for (const match of matches) {
+        const homeTeam = cleanText(match.home_team)
+        const awayTeam = cleanText(match.away_team)
+        if (!homeTeam || !awayTeam) continue
+
+        matchMetaById.set(match.id, {
+          league: cleanText(match.league_name),
+          flight: cleanText(match.flight),
+          homeTeam,
+          awayTeam,
+        })
+      }
+
+      for (const row of playerRows) {
+        if (!row.match_id || (row.side !== 'A' && row.side !== 'B')) continue
+
+        const matchMeta = matchMetaById.get(row.match_id)
+        if (!matchMeta) continue
+
+        const teamName = row.side === 'A' ? matchMeta.homeTeam : matchMeta.awayTeam
+        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight)
+        const expectedSide = teamSideByMatchAndTeam.get(`${row.match_id}__${teamKey}`)
+
+        if (!expectedSide || expectedSide !== row.side) continue
+
+        const entry = directoryMap.get(teamKey)
+        if (!entry) continue
+
+        const nestedPlayer = Array.isArray(row.players) ? row.players[0] : row.players
+        const playerId = cleanText(row.player_id) || cleanText(nestedPlayer?.id ?? null)
+
+        if (!playerId) continue
+
+        entry.playerIds.add(playerId)
+      }
+
+      setRows(
+        Array.from(directoryMap.values()).sort((left, right) => {
+          if (right.matchCount !== left.matchCount) return right.matchCount - left.matchCount
+          return left.team.localeCompare(right.team)
+        }),
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load teams')
     } finally {
@@ -173,689 +287,542 @@ export default function TeamsPage() {
     }
   }
 
-  const filteredTeams = useMemo(() => {
-    const q = search.trim().toLowerCase()
+  const leagueOptions = useMemo(() => uniqueSorted(rows.map((row) => row.league)), [rows])
+  const flightOptions = useMemo(() => {
+    const scopedRows = leagueFilter ? rows.filter((row) => row.league === leagueFilter) : rows
+    return uniqueSorted(scopedRows.map((row) => row.flight))
+  }, [leagueFilter, rows])
 
-    let next = teams.filter((team) => {
-      const matchesSearch =
-        !q ||
-        team.team.toLowerCase().includes(q) ||
-        team.league.toLowerCase().includes(q) ||
-        team.flight.toLowerCase().includes(q)
+  const filteredRows = useMemo(() => {
+    const searchText = search.trim().toLowerCase()
 
-      if (!matchesSearch) return false
+    const next = rows.filter((row) => {
+      if (leagueFilter && row.league !== leagueFilter) return false
+      if (flightFilter && row.flight !== flightFilter) return false
 
-      if (filterBy === 'active') return team.matches >= 3
-      if (filterBy === 'winning') return getWinPct(team) >= 0.5
-      if (filterBy === 'deep-roster') return team.players >= 6
-      return true
+      if (!searchText) return true
+
+      const haystack = [row.team, row.league ?? '', row.flight ?? ''].join(' ').toLowerCase()
+      return haystack.includes(searchText)
     })
 
-    next = [...next].sort((a, b) => {
-      if (sortBy === 'name') return a.team.localeCompare(b.team)
-      if (sortBy === 'players') return b.players - a.players
-      if (sortBy === 'winPct') return getWinPct(b) - getWinPct(a)
-      if (sortBy === 'latest') return compareDatesDesc(a.latestMatch, b.latestMatch)
-      return b.matches - a.matches
+    next.sort((left, right) => {
+      if (sortBy === 'team') return left.team.localeCompare(right.team)
+      if (sortBy === 'players') {
+        const diff = right.playerIds.size - left.playerIds.size
+        if (diff !== 0) return diff
+        return left.team.localeCompare(right.team)
+      }
+      if (sortBy === 'recent') {
+        const diff = compareNullableDatesDesc(left.mostRecentMatchDate, right.mostRecentMatchDate)
+        if (diff !== 0) return diff
+        return left.team.localeCompare(right.team)
+      }
+
+      const diff = right.matchCount - left.matchCount
+      if (diff !== 0) return diff
+      return left.team.localeCompare(right.team)
     })
 
     return next
-  }, [teams, search, sortBy, filterBy])
+  }, [flightFilter, leagueFilter, rows, search, sortBy])
 
-  const totalMatches = useMemo(() => teams.reduce((sum, team) => sum + team.matches, 0), [teams])
+  const totals = useMemo(() => {
+    const uniqueTeams = new Set(filteredRows.map((row) => row.key))
+    const leagues = new Set(filteredRows.map((row) => row.league).filter(Boolean))
+    const flights = new Set(filteredRows.map((row) => row.flight).filter(Boolean))
+    const players = filteredRows.reduce((sum, row) => sum + row.playerIds.size, 0)
 
-  const avgRoster = useMemo(() => {
-    if (teams.length === 0) return 0
-    return teams.reduce((sum, team) => sum + team.players, 0) / teams.length
-  }, [teams])
-
-  const topWinPct = useMemo(() => {
-    if (teams.length === 0) return 0
-    return Math.max(...teams.map((team) => getWinPct(team)))
-  }, [teams])
-
-  const winningTeams = useMemo(() => teams.filter((team) => team.wins > team.losses).length, [teams])
-
-  const dynamicHeroShell: CSSProperties = {
-    ...heroShell,
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.3fr) minmax(320px, 0.72fr)',
-    gap: isMobile ? '18px' : '22px',
-  }
-
-  const dynamicHeroTitle: CSSProperties = {
-    ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '58px',
-  }
-
-  const dynamicSearchPanel: CSSProperties = {
-    ...searchPanel,
-    flexDirection: isSmallMobile ? 'column' : 'row',
-    alignItems: isSmallMobile ? 'stretch' : 'center',
-  }
-
-  const dynamicCardGrid: CSSProperties = {
-    ...cardGrid,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isTablet
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(3, minmax(0, 1fr))',
-  }
-
-  const dynamicSectionHeader: CSSProperties = {
-    ...sectionHeader,
-    alignItems: isMobile ? 'flex-start' : 'flex-end',
-  }
+    return {
+      teams: uniqueTeams.size,
+      leagues: leagues.size,
+      flights: flights.size,
+      players,
+    }
+  }, [filteredRows])
 
   return (
-    <SiteShell active="/teams">
-      <section style={pageContent}>
-        <section style={dynamicHeroShell}>
-          <div>
-            <div style={eyebrow}>Team directory</div>
-            <h1 style={dynamicHeroTitle}>
-              Browse teams by league and flight, then jump into roster and match history fast.
-            </h1>
-            <p style={heroText}>
-              This is your team discovery page for captain and league workflows. Search by team,
-              filter by league context, compare depth, and open the full team page when you want the details.
-            </p>
+    <SiteShell active="TEAMS">
+      <main style={pageWrap}>
+        <section style={heroSection}>
+          <div style={contentWrap}>
+            <div style={heroCard}>
+              <div style={heroEyebrow}>Teams directory</div>
+              <h1 style={heroTitle}>Clean team grouping. Real league context. No ghost data.</h1>
+              <p style={heroText}>
+                This directory only includes valid team rows from real matches. Missing league or flight values stay hidden.
+                Empty teams are skipped entirely.
+              </p>
 
-            <div style={dynamicSearchPanel}>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search team, league, or flight"
-                style={searchInput}
-              />
-
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortKey)} style={selectStyle}>
-                <option value="matches">Sort: Matches</option>
-                <option value="players">Sort: Players Used</option>
-                <option value="winPct">Sort: Win %</option>
-                <option value="latest">Sort: Latest Match</option>
-                <option value="name">Sort: Name</option>
-              </select>
-
-              <select value={filterBy} onChange={(e) => setFilterBy(e.target.value as FilterKey)} style={selectStyle}>
-                <option value="all">All teams</option>
-                <option value="active">3+ matches</option>
-                <option value="winning">Winning record</option>
-                <option value="deep-roster">6+ players used</option>
-              </select>
-            </div>
-          </div>
-
-          <div style={summaryCard}>
-            <div style={summaryTitle}>Directory snapshot</div>
-
-            <div style={summaryMetricGrid}>
-              <MetricBlock label="Teams" value={String(teams.length)} />
-              <MetricBlock label="Showing" value={String(filteredTeams.length)} />
-              <MetricBlock label="Total matches" value={String(totalMatches)} />
-              <MetricBlock label="Avg roster" value={formatNumber(avgRoster)} />
-            </div>
-
-            <div style={{ ...summaryMetricGrid, marginTop: '12px' }}>
-              <MetricBlock label="Best win %" value={formatPercent(topWinPct)} accent />
-              <MetricBlock label="Winning teams" value={String(winningTeams)} />
-            </div>
-
-            <div style={summaryHint}>
-              Best flow: discover the team here, open the team page, then use Matchup or Captain&apos;s Corner for prep.
+              <div style={heroStatsGrid(isSmallMobile)}>
+                <StatPill label="Teams" value={String(totals.teams)} />
+                <StatPill label="Leagues" value={String(totals.leagues)} />
+                <StatPill label="Flights" value={String(totals.flights)} />
+                <StatPill label="Players" value={String(totals.players)} />
+              </div>
             </div>
           </div>
         </section>
 
-        {error ? (
-          <section style={errorCard}>
-            <div style={sectionKicker}>Teams</div>
-            <h2 style={sectionTitle}>Unable to load teams</h2>
-            <p style={sectionText}>{error}</p>
-          </section>
-        ) : null}
-
         <section style={contentWrap}>
-          <div style={dynamicSectionHeader}>
-            <div>
-              <div style={sectionKicker}>Browse</div>
-              <h2 style={sectionTitle}>Team cards built for league and captain workflows</h2>
+          <section style={filtersCard}>
+            <div style={sectionHeader}>
+              <div>
+                <p style={sectionKicker}>Filters</p>
+                <h2 style={sectionTitle}>Scope the team directory</h2>
+                <p style={sectionText}>
+                  Search by team name and narrow by league or flight without inventing fallback labels.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                style={resetButton}
+                onClick={() => {
+                  setSearch('')
+                  setLeagueFilter('')
+                  setFlightFilter('')
+                  setSortBy('matches')
+                }}
+              >
+                Reset
+              </button>
             </div>
-            <Link href="/leagues" style={secondaryLink}>
-              Open leagues
-            </Link>
-          </div>
+
+            <div style={filtersGrid(isMobile)}>
+              <div>
+                <label style={labelStyle}>Search</label>
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search teams"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div>
+                <label style={labelStyle}>League</label>
+                <select
+                  value={leagueFilter}
+                  onChange={(event) => {
+                    setLeagueFilter(event.target.value)
+                    setFlightFilter('')
+                  }}
+                  style={inputStyle}
+                >
+                  <option value="">All leagues</option>
+                  {leagueOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Flight</label>
+                <select value={flightFilter} onChange={(event) => setFlightFilter(event.target.value)} style={inputStyle}>
+                  <option value="">All flights</option>
+                  {flightOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={labelStyle}>Sort</label>
+                <select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortKey)} style={inputStyle}>
+                  <option value="matches">Most matches</option>
+                  <option value="players">Most players</option>
+                  <option value="recent">Most recent</option>
+                  <option value="team">Team name</option>
+                </select>
+              </div>
+            </div>
+          </section>
 
           {loading ? (
-            <div style={loadingCard}>Loading team directory...</div>
-          ) : filteredTeams.length === 0 ? (
-            <div style={loadingCard}>No teams matched that search.</div>
+            <section style={surfaceCard}>
+              <div style={emptyTitle}>Loading teams...</div>
+              <p style={emptyText}>Building the directory from valid match rows only.</p>
+            </section>
+          ) : error ? (
+            <section style={surfaceCard}>
+              <div style={errorTitle}>Unable to load teams</div>
+              <p style={emptyText}>{error}</p>
+            </section>
+          ) : filteredRows.length === 0 ? (
+            <section style={surfaceCard}>
+              <div style={emptyTitle}>No teams found</div>
+              <p style={emptyText}>Try widening your filters or import more season data.</p>
+            </section>
           ) : (
-            <div style={dynamicCardGrid}>
-              {filteredTeams.map((team) => {
-                const href = `/teams/${encodeURIComponent(team.team)}?league=${encodeURIComponent(team.league)}&flight=${encodeURIComponent(team.flight)}`
+            <section style={cardsGrid(isTablet, isMobile)}>
+              {filteredRows.map((row) => {
+                const teamHref = {
+                  pathname: `/teams/${encodeURIComponent(row.team)}`,
+                  query: {
+                    ...(row.league ? { league: row.league } : {}),
+                    ...(row.flight ? { flight: row.flight } : {}),
+                  },
+                }
 
                 return (
-                  <Link key={team.key} href={href} style={teamCard}>
-                    <div style={cardGlow} />
+                  <Link key={row.key} href={teamHref} style={teamCardLink}>
+                    <article style={teamCard}>
+                      <div style={teamCardTop}>
+                        <div>
+                          <div style={teamName}>{row.team}</div>
 
-                    <div style={teamCardTopRow}>
-                      <div style={miniKicker}>Team</div>
-                      <div style={matchCountPill}>{team.matches} matches</div>
-                    </div>
+                          {(row.league || row.flight) ? (
+                            <div style={metaRow}>
+                              {row.league ? <span style={metaPillBlue}>{row.league}</span> : null}
+                              {row.flight ? <span style={metaPillGreen}>{row.flight}</span> : null}
+                            </div>
+                          ) : null}
+                        </div>
 
-                    <div style={teamName}>{team.team}</div>
-                    <div style={teamMeta}>
-                      {team.league} · {team.flight}
-                    </div>
+                        <span style={viewPill}>View team</span>
+                      </div>
 
-                    <div style={recordRow}>
-                      <div style={recordPillWin}>{team.wins} wins</div>
-                      <div style={recordPillLoss}>{team.losses} losses</div>
-                      <div style={recordPillNeutral}>{formatPercent(getWinPct(team))} win %</div>
-                    </div>
-
-                    <div
-                      style={followRow}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                      }}
-                    >
-                      <FollowButton
-                        entityType="team"
-                        entityId={team.key}
-                        entityName={team.team}
-                        subtitle={`${team.league} · ${team.flight}`}
-                      />
-                    </div>
-
-                    <div style={teamStatGrid}>
-                      <TeamStat label="Players used" value={String(team.players)} />
-                      <TeamStat label="Latest" value={formatShortDate(team.latestMatch)} />
-                    </div>
-
-                    <div style={teamCardFooter}>
-                      <span style={profileLinkText}>Open team page</span>
-                      <span style={arrowText}>→</span>
-                    </div>
+                      <div style={metricsGrid}>
+                        <Metric label="Matches" value={String(row.matchCount)} />
+                        <Metric label="Players" value={String(row.playerIds.size)} />
+                        <Metric label="Last match" value={formatMatchDate(row.mostRecentMatchDate)} />
+                      </div>
+                    </article>
                   </Link>
                 )
               })}
-            </div>
+            </section>
           )}
         </section>
-      </section>
+      </main>
     </SiteShell>
   )
 }
 
-function MetricBlock({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string
-  value: string
-  accent?: boolean
-}) {
+function StatPill({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        ...summaryMetricCard,
-        ...(accent ? summaryMetricCardAccent : {}),
-      }}
-    >
-      <div style={summaryMetricLabel}>{label}</div>
-      <div style={summaryMetricValue}>{value}</div>
+    <div style={statPill}>
+      <div style={statValue}>{value}</div>
+      <div style={statLabel}>{label}</div>
     </div>
   )
 }
 
-function TeamStat({ label, value }: { label: string; value: string }) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div style={teamStatCard}>
-      <div style={teamStatLabel}>{label}</div>
-      <div style={teamStatValue}>{value}</div>
+    <div style={metricCard}>
+      <div style={metricValue}>{value}</div>
+      <div style={metricLabel}>{label}</div>
     </div>
   )
 }
 
-function buildTeamKey(team: string, league: string, flight: string) {
-  return `${team}__${league}__${flight}`
-}
-
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
-  const text = (value || '').trim()
-  return text || fallback
-}
-
-function getWinPct(team: TeamCard) {
-  const totalDecisions = team.wins + team.losses
-  if (totalDecisions === 0) return 0
-  return team.wins / totalDecisions
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
-}
-
-function formatNumber(value: number) {
-  if (!Number.isFinite(value)) return '—'
-  return value.toFixed(1)
-}
-
-function formatShortDate(value: string | null) {
-  if (!value) return '—'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return '—'
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function compareDatesDesc(a: string | null, b: string | null) {
-  const timeA = a ? new Date(a).getTime() : 0
-  const timeB = b ? new Date(b).getTime() : 0
-  return timeB - timeA
-}
-
-function isLaterDate(next: string | null, current: string | null) {
-  const nextTime = next ? new Date(next).getTime() : 0
-  const currentTime = current ? new Date(current).getTime() : 0
-  return nextTime > currentTime
-}
-
-const pageContent: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  padding: '18px 24px 0',
-}
-
-const heroShell: CSSProperties = {
-  position: 'relative',
-  display: 'grid',
-  borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
+const pageWrap: CSSProperties = {
+  minHeight: '100vh',
   background:
-    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 56%, rgba(12,46,62,0.84) 100%)',
-  boxShadow: '0 28px 80px rgba(3,10,24,0.30)',
-  backdropFilter: 'blur(18px)',
-  WebkitBackdropFilter: 'blur(18px)',
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
-  color: '#d9e7ef',
-  fontWeight: 800,
-  fontSize: '14px',
-  marginBottom: '18px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-}
-
-const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
-  color: '#f7fbff',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: '-0.055em',
-  maxWidth: '760px',
-}
-
-const heroText: CSSProperties = {
-  margin: '0 0 20px',
-  color: 'rgba(224, 234, 247, 0.84)',
-  fontSize: '18px',
-  lineHeight: 1.6,
-  maxWidth: '720px',
-}
-
-const searchPanel: CSSProperties = {
-  display: 'flex',
-  gap: '12px',
-  padding: '14px',
-  borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(10, 20, 37, 0.44)',
-  maxWidth: '860px',
-}
-
-const searchInput: CSSProperties = {
-  flex: 1,
-  minWidth: '220px',
-  height: '52px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.04)',
-  color: '#f5f8ff',
-  padding: '0 16px',
-  fontSize: '15px',
-  outline: 'none',
-}
-
-const selectStyle: CSSProperties = {
-  height: '52px',
-  borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f5f8ff',
-  padding: '0 14px',
-  fontSize: '15px',
-  outline: 'none',
-}
-
-const summaryCard: CSSProperties = {
-  borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.72), rgba(21,37,64,0.76))',
-  padding: '18px',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  minHeight: '100%',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const summaryTitle: CSSProperties = {
+    'radial-gradient(circle at top, rgba(37,91,227,0.18) 0%, rgba(15,22,50,0) 28%), linear-gradient(180deg, #07111f 0%, #091525 100%)',
   color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '24px',
-  letterSpacing: '-0.03em',
-  marginBottom: '14px',
-}
-
-const summaryMetricGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '12px',
-}
-
-const summaryMetricCard: CSSProperties = {
-  borderRadius: '20px',
-  padding: '14px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.08)',
-}
-
-const summaryMetricCardAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(63,121,64,0.62) 0%, rgba(47,153,94,0.58) 100%)',
-  border: '1px solid rgba(134,239,172,0.24)',
-}
-
-const summaryMetricLabel: CSSProperties = {
-  color: 'rgba(220,231,244,0.7)',
-  fontWeight: 700,
-  fontSize: '13px',
-  marginBottom: '8px',
-}
-
-const summaryMetricValue: CSSProperties = {
-  color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '34px',
-  letterSpacing: '-0.05em',
-  lineHeight: 1,
-}
-
-const summaryHint: CSSProperties = {
-  marginTop: '14px',
-  color: 'rgba(224, 234, 247, 0.76)',
-  lineHeight: 1.6,
-  fontSize: '14px',
-}
-
-const errorCard: CSSProperties = {
-  marginTop: '18px',
-  padding: '22px',
-  borderRadius: '28px',
-  border: '1px solid rgba(255,100,100,0.2)',
-  background: 'rgba(62,16,22,0.52)',
+  paddingBottom: '56px',
 }
 
 const contentWrap: CSSProperties = {
-  marginTop: '18px',
+  width: '100%',
+  maxWidth: '1280px',
+  margin: '0 auto',
+  padding: '0 20px',
+}
+
+const heroSection: CSSProperties = {
+  padding: '28px 0 18px',
+}
+
+const heroCard: CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
+  borderRadius: '28px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(9,20,38,0.96) 0%, rgba(8,18,34,0.92) 100%)',
+  boxShadow: '0 30px 70px rgba(0,0,0,0.32)',
+  padding: '28px',
+}
+
+const heroEyebrow: CSSProperties = {
+  color: '#8fb8ff',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const heroTitle: CSSProperties = {
+  margin: '10px 0 0',
+  fontSize: 'clamp(30px, 5vw, 48px)',
+  lineHeight: 1.02,
+  letterSpacing: '-0.05em',
+  fontWeight: 900,
+}
+
+const heroText: CSSProperties = {
+  margin: '14px 0 0',
+  maxWidth: '760px',
+  color: 'rgba(214,228,245,0.78)',
+  fontSize: '15px',
+  lineHeight: 1.75,
+}
+
+const heroStatsGrid = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gap: '12px',
+  marginTop: '22px',
+})
+
+const statPill: CSSProperties = {
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8, 17, 31, 0.78)',
+  padding: '16px 18px',
+}
+
+const statValue: CSSProperties = {
+  color: '#ffffff',
+  fontSize: '28px',
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const statLabel: CSSProperties = {
+  marginTop: '4px',
+  color: 'rgba(210,225,244,0.72)',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const filtersCard: CSSProperties = {
+  borderRadius: '24px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
+  boxShadow: '0 22px 60px rgba(0,0,0,0.24)',
+  padding: '22px',
 }
 
 const sectionHeader: CSSProperties = {
   display: 'flex',
+  alignItems: 'flex-start',
   justifyContent: 'space-between',
   gap: '16px',
-  marginBottom: '16px',
   flexWrap: 'wrap',
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  margin: 0,
+  color: '#8fb8ff',
+  fontSize: '12px',
   fontWeight: 800,
-  fontSize: '13px',
+  letterSpacing: '0.1em',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '8px',
 }
 
 const sectionTitle: CSSProperties = {
-  margin: 0,
+  margin: '8px 0 0',
   color: '#f8fbff',
-  fontWeight: 900,
-  fontSize: '30px',
+  fontSize: '28px',
+  lineHeight: 1.08,
   letterSpacing: '-0.04em',
+  fontWeight: 900,
 }
 
 const sectionText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(232, 239, 248, 0.84)',
-  lineHeight: 1.6,
+  maxWidth: '760px',
+  color: 'rgba(210,225,244,0.74)',
+  fontSize: '14px',
+  lineHeight: 1.7,
 }
 
-const secondaryLink: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: '999px',
+const resetButton: CSSProperties = {
+  appearance: 'none',
   border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
-  color: '#ebf1fd',
-  textDecoration: 'none',
-  fontWeight: 800,
-}
-
-const loadingCard: CSSProperties = {
-  padding: '26px',
-  borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.10) 0%, rgba(16,34,70,0.30) 100%)',
-  color: '#dfe8f8',
+  background: 'rgba(8, 17, 31, 0.82)',
+  color: '#d6e5f5',
+  padding: '10px 14px',
+  borderRadius: '14px',
+  cursor: 'pointer',
+  fontSize: '13px',
   fontWeight: 700,
 }
 
-const cardGrid: CSSProperties = {
+const filtersGrid = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gap: '14px',
+  marginTop: '18px',
+})
+
+const labelStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: '#cfe0f5',
+  fontSize: '12px',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  height: '46px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(5, 12, 24, 0.88)',
+  color: '#f8fbff',
+  padding: '0 14px',
+  fontSize: '14px',
+  outline: 'none',
+}
+
+const surfaceCard: CSSProperties = {
+  marginTop: '18px',
+  borderRadius: '24px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
+  padding: '28px',
+}
+
+const emptyTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const errorTitle: CSSProperties = {
+  color: '#ffb4b4',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const emptyText: CSSProperties = {
+  marginTop: '8px',
+  color: 'rgba(210,225,244,0.72)',
+  fontSize: '14px',
+  lineHeight: 1.7,
+}
+
+const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
   gap: '16px',
+  marginTop: '18px',
+})
+
+const teamCardLink: CSSProperties = {
+  textDecoration: 'none',
 }
 
 const teamCard: CSSProperties = {
-  position: 'relative',
-  overflow: 'hidden',
-  textDecoration: 'none',
-  borderRadius: '28px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.24) 0%, rgba(28,49,95,0.34) 100%)',
+  height: '100%',
+  borderRadius: '24px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
+  boxShadow: '0 20px 55px rgba(0,0,0,0.22)',
   padding: '20px',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
-  backdropFilter: 'blur(14px)',
-  WebkitBackdropFilter: 'blur(14px)',
+  transition: 'transform 140ms ease, border-color 140ms ease',
 }
 
-const cardGlow: CSSProperties = {
-  position: 'absolute',
-  top: '-70px',
-  right: '-50px',
-  width: '180px',
-  height: '180px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
-  pointerEvents: 'none',
-}
-
-const teamCardTopRow: CSSProperties = {
-  position: 'relative',
+const teamCardTop: CSSProperties = {
   display: 'flex',
+  alignItems: 'flex-start',
   justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: '10px',
-  marginBottom: '14px',
-}
-
-const miniKicker: CSSProperties = {
-  color: '#87aeff',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const matchCountPill: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
-  borderRadius: '999px',
-  background: 'rgba(37,91,227,0.14)',
-  color: '#b8d0ff',
-  fontSize: '12px',
-  fontWeight: 800,
+  gap: '12px',
 }
 
 const teamName: CSSProperties = {
-  position: 'relative',
   color: '#f8fbff',
-  fontSize: '28px',
-  fontWeight: 900,
+  fontSize: '23px',
+  lineHeight: 1.08,
   letterSpacing: '-0.04em',
-  lineHeight: 1.05,
-  marginBottom: '8px',
+  fontWeight: 900,
 }
 
-const teamMeta: CSSProperties = {
-  position: 'relative',
-  color: 'rgba(223,232,248,0.74)',
-  fontSize: '15px',
-  fontWeight: 700,
-  marginBottom: '16px',
-}
-
-const recordRow: CSSProperties = {
-  position: 'relative',
+const metaRow: CSSProperties = {
   display: 'flex',
-  gap: '8px',
   flexWrap: 'wrap',
-  marginBottom: '14px',
+  gap: '8px',
+  marginTop: '12px',
 }
 
-const recordPillWin: CSSProperties = {
+const metaPillBlue: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
+  padding: '7px 10px',
   borderRadius: '999px',
-  background: 'rgba(34,197,94,0.16)',
-  color: '#aff5c4',
-  fontSize: '12px',
-  fontWeight: 800,
-}
-
-const recordPillLoss: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
-  borderRadius: '999px',
-  background: 'rgba(239,68,68,0.16)',
-  color: '#ffb7b7',
-  fontSize: '12px',
-  fontWeight: 800,
-}
-
-const recordPillNeutral: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: '30px',
-  padding: '0 12px',
-  borderRadius: '999px',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
-  fontSize: '12px',
-  fontWeight: 800,
-}
-
-const teamStatGrid: CSSProperties = {
-  position: 'relative',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '10px',
-}
-
-const teamStatCard: CSSProperties = {
-  borderRadius: '18px',
-  padding: '12px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.05)',
-}
-
-const teamStatLabel: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  background: 'rgba(37,91,227,0.18)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  color: '#cde1ff',
   fontSize: '12px',
   fontWeight: 700,
-  marginBottom: '6px',
 }
 
-const teamStatValue: CSSProperties = {
-  color: '#f8fbff',
+const metaPillGreen: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '7px 10px',
+  borderRadius: '999px',
+  background: 'rgba(74, 222, 128, 0.12)',
+  border: '1px solid rgba(155,225,29,0.16)',
+  color: '#d8f6c5',
+  fontSize: '12px',
+  fontWeight: 700,
+}
+
+const viewPill: CSSProperties = {
+  whiteSpace: 'nowrap',
+  padding: '8px 10px',
+  borderRadius: '999px',
+  background: 'rgba(8,17,31,0.82)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  color: '#d6e5f5',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const metricsGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '10px',
+  marginTop: '18px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(6, 13, 25, 0.8)',
+  padding: '14px 12px',
+}
+
+const metricValue: CSSProperties = {
+  color: '#ffffff',
   fontSize: '18px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
-  lineHeight: 1.2,
 }
 
-const teamCardFooter: CSSProperties = {
-  position: 'relative',
-  marginTop: '18px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  color: '#dfe9fb',
-}
-
-const profileLinkText: CSSProperties = {
-  fontWeight: 800,
-  fontSize: '14px',
-}
-
-const arrowText: CSSProperties = {
-  fontWeight: 900,
-  fontSize: '18px',
-}
-
-
-const followRow: CSSProperties = {
-  position: 'relative',
-  marginBottom: '14px',
-  display: 'flex',
-  justifyContent: 'flex-start',
+const metricLabel: CSSProperties = {
+  marginTop: '5px',
+  color: 'rgba(210,225,244,0.7)',
+  fontSize: '11px',
+  fontWeight: 700,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
 }
