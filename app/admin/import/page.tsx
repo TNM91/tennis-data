@@ -405,6 +405,7 @@ export default function AdminImportPage() {
   const [jsonInput, setJsonInput] = useState('')
   const [importType, setImportType] = useState<ImportKind>('schedule')
   const [selectedFileName, setSelectedFileName] = useState('')
+  const [selectedFileCount, setSelectedFileCount] = useState(0)
   const [isRunningPreview, setIsRunningPreview] = useState(false)
   const [isRunningCommit, setIsRunningCommit] = useState(false)
   const [importResponse, setImportResponse] = useState<RunImportResponse | null>(null)
@@ -515,30 +516,52 @@ export default function AdminImportPage() {
     }
   }
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files
+    if (!files || files.length === 0) return
 
-    setSelectedFileName(file.name)
     setTopLevelError('')
     setImportResponse(null)
     setLastRunMode(null)
     setCopied(false)
 
-    const inferredType = inferImportTypeFromFileName(file.name)
+    const fileNames: string[] = []
+    const aggregatedPayloads: unknown[] = []
+    let inferredType: ImportKind | null = null
+
+    for (const file of Array.from(files)) {
+      fileNames.push(file.name)
+
+      if (!inferredType) {
+        inferredType = inferImportTypeFromFileName(file.name)
+      }
+
+      let parsedFile: unknown
+      try {
+        const text = await file.text()
+        parsedFile = JSON.parse(text)
+      } catch {
+        setTopLevelError(`Could not parse JSON from ${file.name}.`)
+        event.target.value = ''
+        return
+      }
+
+      if (Array.isArray(parsedFile)) {
+        aggregatedPayloads.push(...parsedFile)
+      } else {
+        aggregatedPayloads.push(parsedFile)
+      }
+    }
+
     if (inferredType) {
       setImportType(inferredType)
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const text = typeof reader.result === 'string' ? reader.result : ''
-      setJsonInput(text)
-    }
-    reader.onerror = () => {
-      setTopLevelError('Could not read the selected file.')
-    }
-    reader.readAsText(file)
+    setSelectedFileCount(fileNames.length)
+    setSelectedFileName(fileNames.join(', '))
+    setJsonInput(prettyJson(aggregatedPayloads.length === 1 ? aggregatedPayloads[0] : aggregatedPayloads))
+
+    event.target.value = ''
   }
 
   function handleLoadSample() {
@@ -572,6 +595,7 @@ export default function AdminImportPage() {
       }
 
       setSelectedFileName('sample-schedule.json')
+      setSelectedFileCount(1)
       setJsonInput(prettyJson(sample))
       return
     }
@@ -616,11 +640,13 @@ export default function AdminImportPage() {
     }
 
     setSelectedFileName('sample-scorecard.json')
+    setSelectedFileCount(1)
     setJsonInput(prettyJson(sample))
   }
 
   function handleClearAll() {
     setSelectedFileName('')
+    setSelectedFileCount(0)
     setJsonInput('')
     setTopLevelError('')
     setImportResponse(null)
@@ -760,6 +786,7 @@ export default function AdminImportPage() {
                   <input
                     type="file"
                     accept=".json,text/plain,application/json"
+                    multiple
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                   />
@@ -826,7 +853,7 @@ export default function AdminImportPage() {
                     color: selectedFileName ? '#F8FBFF' : '#AFC3DB',
                   }}
                 >
-                  {selectedFileName || 'No file selected'}
+                  {selectedFileName ? `${selectedFileName}${selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}` : 'No file selected'}
                 </div>
               </div>
             </div>
@@ -853,9 +880,13 @@ export default function AdminImportPage() {
               scorecard objects, wrapped payloads, or arrays.
             </div>
 
+            <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.88rem' }}>
+              You can also select multiple JSON files at once. Duplicate completed scorecards are skipped and should be called out in the import response below.
+            </div>
+
             {selectedFileName ? (
               <div style={{ marginTop: 12 }}>
-                <span style={pillGreenStyle}>Loaded: {selectedFileName}</span>
+                <span style={pillGreenStyle}>Loaded: {selectedFileName}{selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}</span>
               </div>
             ) : null}
 
@@ -992,6 +1023,31 @@ export default function AdminImportPage() {
                 </div>
               </div>
             ) : null}
+            {lastRunMode === 'commit' &&
+            importResponse?.ok === true &&
+            importSummary != null &&
+            importSummary.successCount === 0 &&
+            importSummary.updatedCount === 0 &&
+            importSummary.failedCount === 0 ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  borderRadius: 18,
+                  border: '1px solid rgba(148,163,184,0.20)',
+                  background:
+                    'linear-gradient(180deg, rgba(19,28,45,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                  color: '#D6E1EF',
+                  padding: '14px 16px',
+                  fontWeight: 800,
+                }}
+              >
+                ℹ️ No new rows were imported.
+                <div style={{ marginTop: 8, color: '#B8C7D9', fontWeight: 600, lineHeight: 1.6 }}>
+                  This usually means the selected scorecard was already completed and was skipped as a duplicate.
+                </div>
+              </div>
+            ) : null}
+
           </div>
 
           <div style={panelStyle}>
@@ -1385,7 +1441,11 @@ export default function AdminImportPage() {
                       wordBreak: 'break-word',
                     }}
                   >
-                    {importMessages.join('\n')}
+                    {importMessages.length > 0
+                      ? importMessages.join('\n')
+                      : importSummary.successCount === 0 && importSummary.updatedCount === 0 && importSummary.failedCount === 0
+                        ? '⚠️ No rows imported. This scorecard was already completed and was skipped as a duplicate.'
+                        : 'No row-level messages returned.'}
                   </pre>
                 </div>
               </>
