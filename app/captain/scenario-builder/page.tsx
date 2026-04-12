@@ -241,6 +241,97 @@ function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[],
   }
 }
 
+
+async function writeScenarioFeedEvents({
+  team,
+  league,
+  flight,
+  projection,
+  biggestSwing,
+  changedCount,
+}: {
+  team: string
+  league: string
+  flight: string
+  projection: number
+  biggestSwing: { label: string; diff: number | null } | null
+  changedCount: number
+}) {
+  const cleanTeam = cleanText(team)
+  if (!cleanTeam) return
+
+  const cleanLeague = cleanText(league)
+  const cleanFlight = cleanText(flight)
+  const teamId = `${cleanTeam}__${cleanLeague}__${cleanFlight}`
+
+  const events: Array<{
+    event_type: string
+    entity_type: 'team'
+    entity_id: string
+    entity_name: string
+    subtitle: string | null
+    title: string
+    body: string | null
+  }> = []
+
+  events.push({
+    event_type: 'scenario_decision',
+    entity_type: 'team',
+    entity_id: teamId,
+    entity_name: cleanTeam,
+    subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+    title: 'Scenario decision made',
+    body: `Projection: ${Math.round(projection * 100)}%`,
+  })
+
+  if (Math.abs(projection - 0.5) < 0.05) {
+    events.push({
+      event_type: 'scenario_low_confidence',
+      entity_type: 'team',
+      entity_id: teamId,
+      entity_name: cleanTeam,
+      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+      title: 'Low confidence scenario',
+      body: 'Scenarios are very close and still need captain judgment.',
+    })
+  }
+
+  if (biggestSwing?.label) {
+    events.push({
+      event_type: 'scenario_swing_match',
+      entity_type: 'team',
+      entity_id: teamId,
+      entity_name: cleanTeam,
+      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+      title: `Swing match: ${biggestSwing.label}`,
+      body:
+        typeof biggestSwing.diff === 'number'
+          ? `Projected swing impact: ${biggestSwing.diff >= 0 ? '+' : ''}${biggestSwing.diff.toFixed(2)}`
+          : 'Key deciding court identified in the comparison.',
+    })
+  }
+
+  if (changedCount > 3) {
+    events.push({
+      event_type: 'scenario_gap_alert',
+      entity_type: 'team',
+      entity_id: teamId,
+      entity_name: cleanTeam,
+      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+      title: 'High lineup volatility',
+      body: `${changedCount} comparison changes detected across the two saved scenarios.`,
+    })
+  }
+
+  if (!events.length) return
+
+  const { error } = await supabase.from('my_lab_feed').insert(events)
+  if (error) {
+    throw new Error(`Failed to write scenario feed events: ${error.message}`)
+  }
+}
+
+
 export default function ScenarioComparisonPage() {
   const router = useRouter()
 
@@ -942,7 +1033,7 @@ export default function ScenarioComparisonPage() {
                       <button
                         type="button"
                         style={ghostButtonSmall}
-                        onClick={() => {
+                        onClick={async () => {
                           if (!premiumEnabled) {
                             setError('Captain tier required to send the winning scenario to messaging.')
                             return
@@ -966,6 +1057,19 @@ export default function ScenarioComparisonPage() {
                           const team = winningScenario.team_name || ''
                           const league = winningScenario.league_name || ''
                           const flight = winningScenario.flight || ''
+
+                          try {
+                            await writeScenarioFeedEvents({
+                              team,
+                              league,
+                              flight,
+                              projection: overallProjection,
+                              biggestSwing: yourComparison.biggestSwing || opponentComparison.biggestSwing,
+                              changedCount: yourComparison.changedCount + opponentComparison.changedCount,
+                            })
+                          } catch (error) {
+                            console.error('Failed to write scenario feed events', error)
+                          }
 
                           window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
                         }}
@@ -1144,7 +1248,7 @@ export default function ScenarioComparisonPage() {
                       <button
                         type="button"
                         style={ghostButtonSmall}
-                        onClick={() => {
+                        onClick={async () => {
                           if (!premiumEnabled) {
                             setError('Captain tier required to open messaging from scenario builder.')
                             return
@@ -1168,6 +1272,19 @@ export default function ScenarioComparisonPage() {
                           const team = winningScenario.team_name || ''
                           const league = winningScenario.league_name || ''
                           const flight = winningScenario.flight || ''
+
+                          try {
+                            await writeScenarioFeedEvents({
+                              team,
+                              league,
+                              flight,
+                              projection: overallProjection,
+                              biggestSwing: yourComparison.biggestSwing || opponentComparison.biggestSwing,
+                              changedCount: yourComparison.changedCount + opponentComparison.changedCount,
+                            })
+                          } catch (error) {
+                            console.error('Failed to write scenario feed events', error)
+                          }
 
                           window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
                         }}
