@@ -1,4 +1,3 @@
-
 'use client'
 
 export const dynamic = 'force-dynamic'
@@ -54,7 +53,7 @@ type PairingCard = {
   key: string
   names: string[]
   appearances: number
-  avgRating: number
+  avgRating: number | null
   wins: number
   losses: number
 }
@@ -115,19 +114,39 @@ function getOpponent(match: TeamMatch, teamName: string): string | null {
 }
 
 function safeOverallRating(player: Player) {
-  return (
-    player.overall_dynamic_rating ??
-    Math.max(player.singles_dynamic_rating ?? 0, player.doubles_dynamic_rating ?? 0)
-  )
+  if (typeof player.overall_dynamic_rating === 'number' && !Number.isNaN(player.overall_dynamic_rating)) {
+    return player.overall_dynamic_rating
+  }
+
+  const singles = typeof player.singles_dynamic_rating === 'number' && !Number.isNaN(player.singles_dynamic_rating)
+    ? player.singles_dynamic_rating
+    : null
+  const doubles = typeof player.doubles_dynamic_rating === 'number' && !Number.isNaN(player.doubles_dynamic_rating)
+    ? player.doubles_dynamic_rating
+    : null
+
+  if (singles == null && doubles == null) return null
+  return Math.max(singles ?? Number.NEGATIVE_INFINITY, doubles ?? Number.NEGATIVE_INFINITY)
+}
+
+function buildStableTeamFollowId(team: string, league: string | null, flight: string | null) {
+  return `${team}__${league || ''}__${flight || ''}`
+}
+
+function getParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] || ''
+  return value || ''
 }
 
 export default function TeamPage() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const team = decodeURIComponent(String(params.team || '')).trim()
 
-  const leagueFilter = searchParams.get('league') || ''
-  const flightFilter = searchParams.get('flight') || ''
+  const rawTeam = getParamValue(params.team as string | string[] | undefined)
+  const team = decodeURIComponent(rawTeam).trim()
+
+  const leagueFilter = cleanText(searchParams.get('league'))
+  const flightFilter = cleanText(searchParams.get('flight'))
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
@@ -147,7 +166,6 @@ export default function TeamPage() {
   }, [])
 
   useEffect(() => {
-    if (!team) return
     void loadTeamPage()
   }, [team, leagueFilter, flightFilter])
 
@@ -156,7 +174,14 @@ export default function TeamPage() {
     setError(null)
 
     try {
-      let query = supabase
+      if (!team) {
+        setMatches([])
+        setPlayers([])
+        setError('Team not found.')
+        return
+      }
+
+      let matchQuery = supabase
         .from('matches')
         .select(`
           id,
@@ -171,30 +196,43 @@ export default function TeamPage() {
           usta_section,
           district_area
         `)
-        .or(`home_team.eq.${team},away_team.eq.${team}`)
         .order('match_date', { ascending: false })
+        .limit(250)
 
-      if (leagueFilter) query = query.eq('league_name', leagueFilter)
-      if (flightFilter) query = query.eq('flight', flightFilter)
+      if (leagueFilter) {
+        matchQuery = matchQuery.eq('league_name', leagueFilter)
+      }
 
-      const { data: matchData, error: matchError } = await query
+      if (flightFilter) {
+        matchQuery = matchQuery.eq('flight', flightFilter)
+      }
+
+      if (!leagueFilter && !flightFilter) {
+        matchQuery = matchQuery.or(`home_team.eq.${team},away_team.eq.${team}`)
+      }
+
+      const { data: matchData, error: matchError } = await matchQuery
       if (matchError) throw matchError
 
-      const safeMatches = (matchData || []) as TeamMatch[]
-      const realMatches = safeMatches.filter((match) => {
+      const scopedMatches = ((matchData || []) as TeamMatch[]).filter((match) => {
         const home = cleanText(match.home_team)
         const away = cleanText(match.away_team)
-        return Boolean(home && away)
+        if (!home || !away) return false
+
+        if (leagueFilter && cleanText(match.league_name) !== leagueFilter) return false
+        if (flightFilter && cleanText(match.flight) !== flightFilter) return false
+
+        return home === team || away === team
       })
 
-      setMatches(realMatches)
+      setMatches(scopedMatches)
 
-      const ids = realMatches.map((match) => match.id)
-      if (!ids.length) {
+      if (!scopedMatches.length) {
         setPlayers([])
-        setLoading(false)
         return
       }
+
+      const ids = scopedMatches.map((match) => match.id)
 
       const { data: playerData, error: playerError } = await supabase
         .from('match_players')
@@ -202,7 +240,14 @@ export default function TeamPage() {
           match_id,
           side,
           player_id,
-          players (*)
+          players (
+            id,
+            name,
+            singles_dynamic_rating,
+            doubles_dynamic_rating,
+            overall_dynamic_rating,
+            location
+          )
         `)
         .in('match_id', ids)
 
@@ -211,6 +256,8 @@ export default function TeamPage() {
       setPlayers((playerData || []) as MatchPlayer[])
     } catch (err) {
       console.error(err)
+      setMatches([])
+      setPlayers([])
       setError('Unable to load this team page right now.')
     } finally {
       setLoading(false)
@@ -223,8 +270,8 @@ export default function TeamPage() {
     )
 
     return {
-      league: cleanText(firstWithLeague?.league_name) || cleanText(leagueFilter),
-      flight: cleanText(firstWithLeague?.flight) || cleanText(flightFilter),
+      league: cleanText(firstWithLeague?.league_name) || leagueFilter,
+      flight: cleanText(firstWithLeague?.flight) || flightFilter,
       section: cleanText(firstWithLeague?.usta_section),
       district: cleanText(firstWithLeague?.district_area),
     }
@@ -270,7 +317,9 @@ export default function TeamPage() {
         })
       }
 
-      const current = map.get(player.id)!
+      const current = map.get(player.id)
+      if (!current) return
+
       current.appearances += 1
 
       if (match.match_type === 'singles') current.singlesAppearances += 1
@@ -284,6 +333,10 @@ export default function TeamPage() {
     return Array.from(map.values()).sort((a, b) => {
       const aOverall = safeOverallRating(a)
       const bOverall = safeOverallRating(b)
+
+      if (aOverall == null && bOverall == null) return a.name.localeCompare(b.name)
+      if (aOverall == null) return 1
+      if (bOverall == null) return -1
       if (bOverall !== aOverall) return bOverall - aOverall
       return a.name.localeCompare(b.name)
     })
@@ -291,13 +344,23 @@ export default function TeamPage() {
 
   const bestSingles = useMemo(() => {
     return [...roster]
-      .sort((a, b) => (b.singles_dynamic_rating || 0) - (a.singles_dynamic_rating || 0))
+      .sort((a, b) => {
+        const left = a.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
       .slice(0, 6)
   }, [roster])
 
   const bestDoubles = useMemo(() => {
     return [...roster]
-      .sort((a, b) => (b.doubles_dynamic_rating || 0) - (a.doubles_dynamic_rating || 0))
+      .sort((a, b) => {
+        const left = a.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
       .slice(0, 6)
   }, [roster])
 
@@ -308,7 +371,7 @@ export default function TeamPage() {
       if (!byMatch.has(entry.match_id)) {
         byMatch.set(entry.match_id, [])
       }
-      byMatch.get(entry.match_id)!.push(entry)
+      byMatch.get(entry.match_id)?.push(entry)
     })
 
     const pairMap = new Map<string, PairingCard>()
@@ -331,9 +394,12 @@ export default function TeamPage() {
 
       const sortedPlayers = [...normalized].sort((a, b) => a.name.localeCompare(b.name))
       const key = sortedPlayers.map((player) => player.id).join('-')
-      const avgRating =
-        sortedPlayers.reduce((sum, player) => sum + (player.doubles_dynamic_rating || 0), 0) /
-        sortedPlayers.length
+      const validRatings = sortedPlayers
+        .map((player) => player.doubles_dynamic_rating)
+        .filter((value): value is number => typeof value === 'number' && !Number.isNaN(value))
+      const avgRating = validRatings.length
+        ? validRatings.reduce((sum, value) => sum + value, 0) / validRatings.length
+        : null
 
       if (!pairMap.has(key)) {
         pairMap.set(key, {
@@ -346,7 +412,9 @@ export default function TeamPage() {
         })
       }
 
-      const pair = pairMap.get(key)!
+      const pair = pairMap.get(key)
+      if (!pair) return
+
       pair.appearances += 1
       pair.avgRating = avgRating
 
@@ -356,6 +424,12 @@ export default function TeamPage() {
     })
 
     return Array.from(pairMap.values()).sort((a, b) => {
+      if (a.avgRating == null && b.avgRating == null) {
+        if (b.appearances !== a.appearances) return b.appearances - a.appearances
+        return a.names.join(' / ').localeCompare(b.names.join(' / '))
+      }
+      if (a.avgRating == null) return 1
+      if (b.avgRating == null) return -1
       if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating
       if (b.appearances !== a.appearances) return b.appearances - a.appearances
       return a.names.join(' / ').localeCompare(b.names.join(' / '))
@@ -422,6 +496,7 @@ export default function TeamPage() {
   }
 
   const heroMetaParts = [teamMeta.league, teamMeta.flight, teamMeta.section].filter(Boolean)
+  const stableFollowId = buildStableTeamFollowId(team, teamMeta.league, teamMeta.flight)
 
   if (loading) {
     return (
@@ -467,7 +542,7 @@ export default function TeamPage() {
               <div style={followButtonWrap}>
                 <FollowButton
                   entityType="team"
-                  entityId={team}
+                  entityId={stableFollowId}
                   entityName={team}
                   subtitle={heroMetaParts.join(' · ') || undefined}
                 />
@@ -500,6 +575,15 @@ export default function TeamPage() {
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>Something went wrong</h2>
             <p style={bodyText}>{error}</p>
+          </section>
+        ) : null}
+
+        {!error && !matches.length ? (
+          <section style={surfaceCard}>
+            <h2 style={sectionTitle}>No team matches found</h2>
+            <p style={bodyText}>
+              We could not find any valid matches for this team with the current league and flight filters.
+            </p>
           </section>
         ) : null}
 
@@ -579,7 +663,7 @@ export default function TeamPage() {
                         {pair.appearances} matches together · {pair.wins}-{pair.losses} record
                       </div>
                     </div>
-                    <span style={badgeGreen}>{pair.avgRating.toFixed(2)}</span>
+                    <span style={badgeGreen}>{formatRating(pair.avgRating)}</span>
                   </div>
                 ))}
               </div>

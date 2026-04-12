@@ -76,6 +76,16 @@ type ScoreMetrics = {
   multiplier: number
 }
 
+type FeedInsert = {
+  event_type: string
+  entity_type: 'player'
+  entity_id: string
+  entity_name: string
+  subtitle: string | null
+  title: string
+  body: string | null
+}
+
 const DEFAULT_RATING = 3.5
 
 const MIN_RATING = 1.5
@@ -89,6 +99,11 @@ const RATING_DIVISOR = 0.45
 
 const MAX_MULTIPLIER = 2.0
 const MIN_MULTIPLIER = 0.82
+
+const MEANINGFUL_DELTA_THRESHOLD = 0.01
+const BIG_MOVE_THRESHOLD = 0.05
+const BREAKOUT_RATING_THRESHOLD = 4.0
+const BREAKOUT_RECENT_GAIN_THRESHOLD = 0.09
 
 export async function recalculateDynamicRatings() {
   const players = await fetchPlayers()
@@ -187,8 +202,11 @@ export async function recalculateDynamicRatings() {
     }
   }
 
-  await persistPlayerRatings([...playersById.values()])
+  const finalPlayers = [...playersById.values()]
+
+  await persistPlayerRatings(finalPlayers)
   await replaceRatingSnapshots(snapshotRows)
+  await writeRatingFeedEvents(finalPlayers)
 }
 
 async function fetchPlayers(): Promise<PlayerRow[]> {
@@ -354,6 +372,98 @@ function buildSnapshot(
     rating_type: ratingType,
     dynamic_rating: roundRating(dynamicRating),
   }
+}
+
+async function writeRatingFeedEvents(players: WorkingPlayer[]) {
+  const eventsByKey = new Map<string, FeedInsert>()
+
+  for (const player of players) {
+    const latestDelta = player.recentDeltas[player.recentDeltas.length - 1] ?? 0
+    const cumulativeRecentDelta = roundRating(
+      player.recentDeltas.reduce((sum, delta) => sum + delta, 0)
+    )
+
+    const sharedSubtitle = buildPlayerSubtitle(player)
+
+    if (Math.abs(latestDelta) >= MEANINGFUL_DELTA_THRESHOLD) {
+      const direction = latestDelta > 0 ? 'up' : 'down'
+      const deltaText = `${latestDelta > 0 ? '+' : ''}${latestDelta.toFixed(3)}`
+
+      eventsByKey.set(`rating_update:${player.id}`, {
+        event_type: 'rating_update',
+        entity_type: 'player',
+        entity_id: player.id,
+        entity_name: player.name,
+        subtitle: sharedSubtitle,
+        title: `${player.name} rating ${direction} ${deltaText}`,
+        body: `${player.name} now sits at overall ${player.overallDynamic.toFixed(2)} after ${player.matchesProcessed} processed match${player.matchesProcessed === 1 ? '' : 'es'}.`,
+      })
+    }
+
+    if (Math.abs(latestDelta) >= BIG_MOVE_THRESHOLD) {
+      const positiveMove = latestDelta > 0
+      const movementLabel = positiveMove ? 'big_rating_gain' : 'big_rating_drop'
+      const moveText = `${positiveMove ? '+' : ''}${latestDelta.toFixed(3)}`
+
+      eventsByKey.set(`${movementLabel}:${player.id}`, {
+        event_type: movementLabel,
+        entity_type: 'player',
+        entity_id: player.id,
+        entity_name: player.name,
+        subtitle: sharedSubtitle,
+        title: positiveMove
+          ? `${player.name} made a big rating move`
+          : `${player.name} took a rating dip`,
+        body: positiveMove
+          ? `${player.name} jumped ${moveText} in the latest recalculation and is now at overall ${player.overallDynamic.toFixed(2)}.`
+          : `${player.name} moved ${moveText} in the latest recalculation and now sits at overall ${player.overallDynamic.toFixed(2)}.`,
+      })
+    }
+
+    if (isBreakoutPlayer(player, cumulativeRecentDelta)) {
+      eventsByKey.set(`breakout_player:${player.id}`, {
+        event_type: 'breakout_player',
+        entity_type: 'player',
+        entity_id: player.id,
+        entity_name: player.name,
+        subtitle: sharedSubtitle,
+        title: `${player.name} is breaking out`,
+        body: `${player.name} has climbed from base overall ${player.overallBase.toFixed(2)} to ${player.overallDynamic.toFixed(2)} with recent momentum of ${formatSignedDelta(cumulativeRecentDelta)}.`,
+      })
+    }
+  }
+
+  const events = [...eventsByKey.values()]
+  if (events.length === 0) return
+
+  for (const chunk of chunkArray(events, 200)) {
+    const { error } = await supabase.from('my_lab_feed').insert(chunk)
+
+    if (error) {
+      throw new Error(`Failed to insert rating feed events: ${error.message}`)
+    }
+  }
+}
+
+function buildPlayerSubtitle(player: WorkingPlayer) {
+  return `Overall ${player.overallDynamic.toFixed(2)} • Singles ${player.singlesDynamic.toFixed(2)} • Doubles ${player.doublesDynamic.toFixed(2)}`
+}
+
+function isBreakoutPlayer(player: WorkingPlayer, cumulativeRecentDelta: number) {
+  const crossedThreshold =
+    player.overallBase < BREAKOUT_RATING_THRESHOLD &&
+    player.overallDynamic >= BREAKOUT_RATING_THRESHOLD
+
+  const sustainedMomentum =
+    player.recentDeltas.length >= 3 &&
+    cumulativeRecentDelta >= BREAKOUT_RECENT_GAIN_THRESHOLD &&
+    player.recentDeltas.slice(-3).every((delta) => delta > 0)
+
+  return crossedThreshold || sustainedMomentum
+}
+
+function formatSignedDelta(value: number) {
+  return `${value > 0 ? '+' : ''}${value.toFixed(3)}`
 }
 
 async function persistPlayerRatings(players: WorkingPlayer[]) {

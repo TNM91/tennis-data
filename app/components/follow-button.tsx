@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Props = {
@@ -16,51 +16,157 @@ export default function FollowButton({
   entityName,
   subtitle,
 }: Props) {
+  const normalizedEntityId = useMemo(() => entityId.trim(), [entityId])
+  const normalizedEntityName = useMemo(() => entityName.trim(), [entityName])
+  const normalizedSubtitle = useMemo(() => subtitle?.trim() || undefined, [subtitle])
+
   const [isFollowing, setIsFollowing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    checkFollow()
-  }, [entityId])
+    let cancelled = false
 
-  async function checkFollow() {
-    const { data } = await supabase
-      .from('user_follows')
-      .select('*')
-      .eq('entity_id', entityId)
-      .eq('entity_type', entityType)
-      .maybeSingle()
+    async function bootstrap() {
+      setLoading(true)
 
-    setIsFollowing(!!data)
-    setLoading(false)
-  }
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser()
+
+        if (authError) throw authError
+
+        if (cancelled) return
+
+        const nextUserId = user?.id ?? null
+        setUserId(nextUserId)
+
+        if (!normalizedEntityId || !nextUserId) {
+          setIsFollowing(false)
+          setLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from('user_follows')
+          .select('id')
+          .eq('user_id', nextUserId)
+          .eq('entity_type', entityType)
+          .eq('entity_id', normalizedEntityId)
+          .maybeSingle()
+
+        if (error) throw error
+        if (cancelled) return
+
+        setIsFollowing(Boolean(data))
+      } catch (error) {
+        console.error('Failed to check follow state', error)
+        if (!cancelled) {
+          setIsFollowing(false)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void bootstrap()
+
+    return () => {
+      cancelled = true
+    }
+  }, [entityType, normalizedEntityId])
 
   async function toggleFollow() {
-    if (isFollowing) {
-      await supabase
-        .from('user_follows')
-        .delete()
-        .eq('entity_id', entityId)
-        .eq('entity_type', entityType)
+    if (loading || saving || !normalizedEntityId) return
 
-      setIsFollowing(false)
-    } else {
-      await supabase.from('user_follows').insert({
-        entity_type: entityType,
-        entity_id: entityId,
-        entity_name: entityName,
-        subtitle,
-      })
+    setSaving(true)
+
+    try {
+      let nextUserId = userId
+
+      if (!nextUserId) {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser()
+
+        if (authError) throw authError
+        nextUserId = user?.id ?? null
+        setUserId(nextUserId)
+      }
+
+      if (!nextUserId) {
+        console.warn('User must be signed in to follow items.')
+        return
+      }
+
+      if (isFollowing) {
+        const { error } = await supabase
+          .from('user_follows')
+          .delete()
+          .eq('user_id', nextUserId)
+          .eq('entity_type', entityType)
+          .eq('entity_id', normalizedEntityId)
+
+        if (error) throw error
+
+        setIsFollowing(false)
+        return
+      }
+
+      const { error } = await supabase.from('user_follows').upsert(
+        {
+          user_id: nextUserId,
+          entity_type: entityType,
+          entity_id: normalizedEntityId,
+          entity_name: normalizedEntityName || normalizedEntityId,
+          subtitle: normalizedSubtitle ?? null,
+        },
+        {
+          onConflict: 'user_id,entity_type,entity_id',
+        },
+      )
+
+      if (error) throw error
 
       setIsFollowing(true)
+    } catch (error) {
+      console.error('Failed to toggle follow state', error)
+
+      try {
+        if (userId && normalizedEntityId) {
+          const { data, error: refreshError } = await supabase
+            .from('user_follows')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('entity_type', entityType)
+            .eq('entity_id', normalizedEntityId)
+            .maybeSingle()
+
+          if (refreshError) throw refreshError
+          setIsFollowing(Boolean(data))
+        }
+      } catch (refreshErr) {
+        console.error('Failed to refresh follow state after toggle error', refreshErr)
+      }
+    } finally {
+      setSaving(false)
     }
   }
 
-  if (loading) return null
+  if (loading || !normalizedEntityId) return null
 
   return (
     <button
+      type="button"
       onClick={toggleFollow}
+      disabled={saving}
+      aria-pressed={isFollowing}
       style={{
         padding: '10px 16px',
         borderRadius: '999px',
@@ -70,10 +176,12 @@ export default function FollowButton({
           ? 'rgba(255,255,255,0.08)'
           : 'linear-gradient(135deg,#9be11d,#4ade80)',
         color: isFollowing ? '#fff' : '#04121f',
-        cursor: 'pointer',
+        cursor: saving ? 'wait' : 'pointer',
+        opacity: saving ? 0.8 : 1,
+        transition: 'opacity 120ms ease',
       }}
     >
-      {isFollowing ? 'Following' : 'Follow'}
+      {saving ? (isFollowing ? 'Saving...' : 'Following...') : isFollowing ? 'Following' : 'Follow'}
     </button>
   )
 }

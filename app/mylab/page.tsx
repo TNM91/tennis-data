@@ -83,6 +83,8 @@ type LeagueSummary = {
   id: string
   name: string
   flight: string | null
+  section: string | null
+  district: string | null
   teamCount: number
   playerCount: number
 }
@@ -94,7 +96,24 @@ type SearchOption = {
   subtitle: string | null
 }
 
-const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v1'
+type MyLabFeedRow = {
+  id: string
+  event_type: string
+  entity_type: EntityType
+  entity_id: string
+  entity_name: string
+  subtitle: string | null
+  title: string
+  body: string | null
+  created_at: string
+}
+
+const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
+
+function cleanText(value: string | null | undefined): string | null {
+  const text = (value || '').trim()
+  return text.length ? text : null
+}
 
 function safeDate(value: string | null | undefined) {
   if (!value) return 'Recently'
@@ -117,10 +136,6 @@ function timeAgo(value: string | null | undefined) {
   const weeks = Math.floor(days / 7)
   if (weeks < 5) return `${weeks}w ago`
   return safeDate(value)
-}
-
-function slugify(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
 
 function readLocalFollows(): FollowItem[] {
@@ -150,11 +165,63 @@ function accentForType(type: FeedType): FeedItem['accent'] {
   return 'blue'
 }
 
+function buildTeamEntityId(teamName: string, leagueName?: string | null, flight?: string | null) {
+  return `${teamName.trim()}__${cleanText(leagueName) || ''}__${cleanText(flight) || ''}`
+}
+
+function buildLeagueEntityId(
+  leagueName: string,
+  flight?: string | null,
+  section?: string | null,
+  district?: string | null,
+) {
+  return `${leagueName.trim()}__${cleanText(flight) || ''}__${cleanText(section) || ''}__${cleanText(district) || ''}`
+}
+
+function parseTeamEntityId(entityId: string) {
+  const [teamName = '', leagueName = '', flight = ''] = entityId.split('__')
+  return {
+    teamName,
+    leagueName: leagueName || '',
+    flight: flight || '',
+  }
+}
+
+function parseLeagueEntityId(entityId: string) {
+  const [leagueName = '', flight = '', section = '', district = ''] = entityId.split('__')
+  return {
+    leagueName,
+    flight,
+    section,
+    district,
+  }
+}
+
+function buildTeamHrefFromEntityId(entityId: string) {
+  const { teamName, leagueName, flight } = parseTeamEntityId(entityId)
+  const params = new URLSearchParams()
+  if (leagueName) params.set('league', leagueName)
+  if (flight) params.set('flight', flight)
+  const query = params.toString()
+  return `/teams/${encodeURIComponent(teamName)}${query ? `?${query}` : ''}`
+}
+
+function buildLeagueHrefFromEntityId(entityId: string) {
+  const { leagueName, flight, section, district } = parseLeagueEntityId(entityId)
+  const params = new URLSearchParams()
+  if (flight) params.set('flight', flight)
+  if (section) params.set('section', section)
+  if (district) params.set('district', district)
+  const query = params.toString()
+  return `/leagues/${encodeURIComponent(leagueName)}${query ? `?${query}` : ''}`
+}
+
 export default function MyLabPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
+  const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -186,10 +253,14 @@ export default function MyLabPage() {
       const local = readLocalFollows()
       if (mounted) setFollows(local)
 
-      const { data: userData, error: userError } = await supabase.auth.getUser()
-      const userId = userData.user?.id ?? null
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
 
-      const [playersRes, matchesRes, matchPlayersRes, scenariosRes, followsRes] = await Promise.all([
+      const userId = user?.id ?? null
+
+      const [playersRes, matchesRes, matchPlayersRes, scenariosRes, followsRes, cloudFeedRes] = await Promise.all([
         supabase
           .from('players')
           .select('id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating')
@@ -198,10 +269,11 @@ export default function MyLabPage() {
           .from('matches')
           .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side')
           .order('match_date', { ascending: false })
-          .limit(120),
+          .limit(160),
         supabase
           .from('match_players')
-          .select('match_id,player_id,side,seat'),
+          .select('match_id,player_id,side,seat')
+          .limit(1200),
         supabase
           .from('lineup_scenarios')
           .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
@@ -213,7 +285,12 @@ export default function MyLabPage() {
               .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
               .eq('user_id', userId)
               .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: userError ?? null }),
+          : Promise.resolve({ data: [], error: authError ?? null }),
+        supabase
+          .from('my_lab_feed')
+          .select('id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at')
+          .order('created_at', { ascending: false })
+          .limit(160),
       ])
 
       if (!mounted) return
@@ -223,6 +300,7 @@ export default function MyLabPage() {
         matchesRes.error,
         matchPlayersRes.error,
         scenariosRes.error,
+        cloudFeedRes.error,
       ].find(Boolean)
 
       if (firstHardError) {
@@ -230,81 +308,120 @@ export default function MyLabPage() {
       }
 
       setPlayers((playersRes.data ?? []) as PlayerRow[])
-      setMatches((matchesRes.data ?? []) as MatchRow[])
+      setMatches(((matchesRes.data ?? []) as MatchRow[]).filter((row) => cleanText(row.home_team) && cleanText(row.away_team)))
       setMatchPlayers((matchPlayersRes.data ?? []) as MatchPlayerRow[])
       setScenarios((scenariosRes.data ?? []) as ScenarioRow[])
+      setCloudFeedRows((cloudFeedRes.data ?? []) as MyLabFeedRow[])
 
       if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
-        setFollows(followsRes.data as FollowItem[])
+        const cloudFollows = followsRes.data as FollowItem[]
+        setFollows(cloudFollows)
         setSavedToCloud(true)
-        writeLocalFollows(followsRes.data as FollowItem[])
-      } else if (!userId) {
+        writeLocalFollows(cloudFollows)
+      } else if (userId) {
+        setSavedToCloud(true)
+      } else {
         setSavedToCloud(false)
       }
 
       setLoading(false)
     }
 
-    load()
+    void load()
     return () => {
       mounted = false
     }
   }, [])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
+  const matchPlayersByMatch = useMemo(() => {
+    const map = new Map<string, MatchPlayerRow[]>()
+    for (const row of matchPlayers) {
+      const existing = map.get(row.match_id) ?? []
+      existing.push(row)
+      map.set(row.match_id, existing)
+    }
+    return map
+  }, [matchPlayers])
 
   const teamSummaries = useMemo<TeamSummary[]>(() => {
     const map = new Map<string, TeamSummary>()
-
-    for (const match of matches) {
-      const teamNames = [match.home_team, match.away_team].filter(Boolean) as string[]
-      for (const teamName of teamNames) {
-        const key = slugify(`${teamName}-${match.league_name ?? ''}-${match.flight ?? ''}`)
-        if (!map.has(key)) {
-          map.set(key, {
-            id: key,
-            name: teamName,
-            league: match.league_name ?? null,
-            flight: match.flight ?? null,
-            playerCount: 0,
-          })
-        }
-      }
-    }
-
     const rosterByTeam = new Map<string, Set<string>>()
+
     for (const match of matches) {
-      const ids = matchPlayers.filter((mp) => mp.match_id === match.id).map((mp) => mp.player_id)
-      const homeKey = match.home_team ? slugify(`${match.home_team}-${match.league_name ?? ''}-${match.flight ?? ''}`) : null
-      const awayKey = match.away_team ? slugify(`${match.away_team}-${match.league_name ?? ''}-${match.flight ?? ''}`) : null
-      if (homeKey) {
-        if (!rosterByTeam.has(homeKey)) rosterByTeam.set(homeKey, new Set())
-        ids.slice(0, Math.ceil(ids.length / 2)).forEach((id) => rosterByTeam.get(homeKey)?.add(id))
+      const home = cleanText(match.home_team)
+      const away = cleanText(match.away_team)
+      const league = cleanText(match.league_name)
+      const flight = cleanText(match.flight)
+      if (!home || !away) continue
+
+      const homeKey = buildTeamEntityId(home, league, flight)
+      const awayKey = buildTeamEntityId(away, league, flight)
+
+      if (!map.has(homeKey)) {
+        map.set(homeKey, {
+          id: homeKey,
+          name: home,
+          league,
+          flight,
+          playerCount: 0,
+        })
       }
-      if (awayKey) {
-        if (!rosterByTeam.has(awayKey)) rosterByTeam.set(awayKey, new Set())
-        ids.slice(Math.ceil(ids.length / 2)).forEach((id) => rosterByTeam.get(awayKey)?.add(id))
+
+      if (!map.has(awayKey)) {
+        map.set(awayKey, {
+          id: awayKey,
+          name: away,
+          league,
+          flight,
+          playerCount: 0,
+        })
       }
+
+      const participants = matchPlayersByMatch.get(match.id) ?? []
+      if (!rosterByTeam.has(homeKey)) rosterByTeam.set(homeKey, new Set())
+      if (!rosterByTeam.has(awayKey)) rosterByTeam.set(awayKey, new Set())
+
+      participants.forEach((participant) => {
+        if (!participant.player_id) return
+        if (participant.side === 'A') rosterByTeam.get(homeKey)?.add(participant.player_id)
+        if (participant.side === 'B') rosterByTeam.get(awayKey)?.add(participant.player_id)
+      })
     }
 
     return Array.from(map.values())
       .map((team) => ({ ...team, playerCount: rosterByTeam.get(team.id)?.size ?? 0 }))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [matches, matchPlayers])
+  }, [matches, matchPlayersByMatch])
 
   const leagueSummaries = useMemo<LeagueSummary[]>(() => {
-    const map = new Map<string, { id: string; name: string; flight: string | null; teams: Set<string>; players: Set<string> }>()
+    const map = new Map<string, { id: string; name: string; flight: string | null; section: string | null; district: string | null; teams: Set<string>; players: Set<string> }>()
+
     for (const match of matches) {
-      const name = match.league_name || 'Unknown League'
-      const id = slugify(`${name}-${match.flight ?? ''}`)
+      const leagueName = cleanText(match.league_name)
+      const flight = cleanText(match.flight)
+      if (!leagueName) continue
+
+      const id = buildLeagueEntityId(leagueName, flight, null, null)
       if (!map.has(id)) {
-        map.set(id, { id, name, flight: match.flight ?? null, teams: new Set(), players: new Set() })
+        map.set(id, {
+          id,
+          name: leagueName,
+          flight,
+          section: null,
+          district: null,
+          teams: new Set(),
+          players: new Set(),
+        })
       }
+
       const entry = map.get(id)
       if (!entry) continue
-      if (match.home_team) entry.teams.add(match.home_team)
-      if (match.away_team) entry.teams.add(match.away_team)
-      matchPlayers.filter((mp) => mp.match_id === match.id).forEach((mp) => entry.players.add(mp.player_id))
+      if (cleanText(match.home_team)) entry.teams.add(cleanText(match.home_team) as string)
+      if (cleanText(match.away_team)) entry.teams.add(cleanText(match.away_team) as string)
+      ;(matchPlayersByMatch.get(match.id) ?? []).forEach((mp) => {
+        if (mp.player_id) entry.players.add(mp.player_id)
+      })
     }
 
     return Array.from(map.values())
@@ -312,18 +429,20 @@ export default function MyLabPage() {
         id: entry.id,
         name: entry.name,
         flight: entry.flight,
+        section: entry.section,
+        district: entry.district,
         teamCount: entry.teams.size,
         playerCount: entry.players.size,
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [matches, matchPlayers])
+  }, [matches, matchPlayersByMatch])
 
   const searchOptions = useMemo<SearchOption[]>(() => {
     const playerOptions = players.slice(0, 300).map((player) => ({
       id: player.id,
       type: 'player' as const,
       name: player.name,
-      subtitle: [player.location, player.flight].filter(Boolean).join(' • ') || null,
+      subtitle: [cleanText(player.location), cleanText(player.flight)].filter(Boolean).join(' • ') || null,
     }))
 
     const teamOptions = teamSummaries.slice(0, 200).map((team) => ({
@@ -337,7 +456,7 @@ export default function MyLabPage() {
       id: league.id,
       type: 'league' as const,
       name: league.name,
-      subtitle: league.flight || null,
+      subtitle: [league.flight, league.section, league.district].filter(Boolean).join(' • ') || null,
     }))
 
     return [...playerOptions, ...teamOptions, ...leagueOptions]
@@ -358,9 +477,41 @@ export default function MyLabPage() {
 
   const feed = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
+    const followedKeySet = new Set(follows.map((f) => `${f.entity_type}:${f.entity_id}`))
     const followPlayers = follows.filter((f) => f.entity_type === 'player')
     const followTeams = follows.filter((f) => f.entity_type === 'team')
     const followLeagues = follows.filter((f) => f.entity_type === 'league')
+
+    for (const row of cloudFeedRows) {
+      const key = `${row.entity_type}:${row.entity_id}`
+      if (!followedKeySet.has(key)) continue
+
+      const mappedType: FeedType = row.event_type === 'rating'
+        ? 'rating'
+        : row.event_type === 'achievement'
+          ? 'achievement'
+          : row.event_type === 'team'
+            ? 'team'
+            : row.event_type === 'league'
+              ? 'league'
+              : row.event_type === 'community'
+                ? 'community'
+                : 'match'
+
+      items.push({
+        id: `cloud-${row.id}`,
+        type: mappedType,
+        title: row.title,
+        body: row.body || row.subtitle || 'Update available.',
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        entityName: row.entity_name,
+        createdAt: row.created_at,
+        score: 120,
+        badge: row.event_type[0].toUpperCase() + row.event_type.slice(1),
+        accent: accentForType(mappedType),
+      })
+    }
 
     for (const follow of followPlayers) {
       const player = players.find((p) => p.id === follow.entity_id)
@@ -381,11 +532,21 @@ export default function MyLabPage() {
     }
 
     for (const match of matches.slice(0, 80)) {
-      const playersInMatch = matchPlayers.filter((mp) => mp.match_id === match.id)
+      const playersInMatch = matchPlayersByMatch.get(match.id) ?? []
       const watchedPlayerIds = new Set(followPlayers.map((f) => f.entity_id))
       const containsFollowedPlayer = playersInMatch.some((mp) => watchedPlayerIds.has(mp.player_id))
-      const containsFollowedTeam = followTeams.some((f) => f.entity_name === match.home_team || f.entity_name === match.away_team)
-      const containsFollowedLeague = followLeagues.some((f) => f.entity_name === match.league_name)
+
+      const leagueName = cleanText(match.league_name)
+      const flight = cleanText(match.flight)
+      const homeTeam = cleanText(match.home_team)
+      const awayTeam = cleanText(match.away_team)
+
+      const homeTeamId = homeTeam ? buildTeamEntityId(homeTeam, leagueName, flight) : null
+      const awayTeamId = awayTeam ? buildTeamEntityId(awayTeam, leagueName, flight) : null
+      const leagueId = leagueName ? buildLeagueEntityId(leagueName, flight, null, null) : null
+
+      const containsFollowedTeam = followTeams.some((f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId)
+      const containsFollowedLeague = followLeagues.some((f) => f.entity_id === leagueId)
 
       if (!containsFollowedPlayer && !containsFollowedTeam && !containsFollowedLeague) continue
 
@@ -397,15 +558,11 @@ export default function MyLabPage() {
       items.push({
         id: `match-${match.id}`,
         type: 'match',
-        title: `${match.home_team || 'Team A'} vs ${match.away_team || 'Team B'}`,
-        body: `${match.league_name || 'League match'}${match.flight ? ` • ${match.flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
+        title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
+        body: `${leagueName || 'League match'}${flight ? ` • ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
-        entityId: containsFollowedLeague
-          ? (followLeagues.find((f) => f.entity_name === match.league_name)?.entity_id ?? null)
-          : containsFollowedTeam
-            ? (followTeams.find((f) => f.entity_name === match.home_team || f.entity_name === match.away_team)?.entity_id ?? null)
-            : playersInMatch[0]?.player_id ?? null,
-        entityName: match.league_name || match.home_team || 'Watched match',
+        entityId: containsFollowedLeague ? leagueId : containsFollowedTeam ? (followTeams.find((f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId)?.entity_id ?? null) : playersInMatch[0]?.player_id ?? null,
+        entityName: leagueName || homeTeam || 'Watched match',
         createdAt: match.match_date || new Date().toISOString(),
         score: 94,
         badge: 'Match',
@@ -414,16 +571,23 @@ export default function MyLabPage() {
     }
 
     for (const scenario of scenarios.slice(0, 24)) {
-      if (!followTeams.some((f) => f.entity_name === scenario.team_name) && !followLeagues.some((f) => f.entity_name === scenario.league_name)) {
+      const scenarioLeagueName = cleanText(scenario.league_name)
+      const scenarioFlight = cleanText(scenario.flight)
+      const scenarioTeamName = cleanText(scenario.team_name)
+      const scenarioTeamId = scenarioTeamName ? buildTeamEntityId(scenarioTeamName, scenarioLeagueName, scenarioFlight) : null
+      const scenarioLeagueId = scenarioLeagueName ? buildLeagueEntityId(scenarioLeagueName, scenarioFlight, null, null) : null
+
+      if (!followTeams.some((f) => f.entity_id === scenarioTeamId) && !followLeagues.some((f) => f.entity_id === scenarioLeagueId)) {
         continue
       }
+
       items.push({
         id: `scenario-${scenario.id}`,
         type: 'team',
         title: `${scenario.scenario_name} saved`,
         body: `${scenario.team_name || 'Team'} lineup scenario was saved for ${scenario.opponent_team || 'the upcoming opponent'}${scenario.match_date ? ` on ${safeDate(scenario.match_date)}` : ''}.`,
-        entityType: scenario.team_name ? 'team' : 'league',
-        entityId: scenario.team_name ? slugify(`${scenario.team_name}-${scenario.league_name ?? ''}-${scenario.flight ?? ''}`) : slugify(`${scenario.league_name ?? ''}-${scenario.flight ?? ''}`),
+        entityType: scenarioTeamId ? 'team' : 'league',
+        entityId: scenarioTeamId || scenarioLeagueId,
         entityName: scenario.team_name || scenario.league_name || 'Scenario',
         createdAt: scenario.match_date || new Date().toISOString(),
         score: 87,
@@ -470,19 +634,26 @@ export default function MyLabPage() {
       })
     }
 
-    return items
+    const deduped = new Map<string, FeedItem>()
+    for (const item of items) {
+      if (!deduped.has(item.id)) deduped.set(item.id, item)
+    }
+
+    return Array.from(deduped.values())
       .filter((item) => feedFilter === 'all' || item.type === feedFilter)
       .sort((a, b) => b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 30)
-  }, [follows, players, matches, matchPlayers, scenarios, playerMap, feedFilter])
+  }, [follows, players, matches, matchPlayersByMatch, scenarios, playerMap, feedFilter, cloudFeedRows])
 
   async function persistFollows(next: FollowItem[]) {
     setFollows(next)
     writeLocalFollows(next)
 
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      const userId = userData.user?.id
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const userId = user?.id
 
       if (!userId) {
         setSavedToCloud(false)
@@ -704,12 +875,12 @@ export default function MyLabPage() {
                       <p style={feedBodyStyle}>{item.body}</p>
                       <div style={feedMetaRowStyle}>
                         <span style={pillSlateStyle}>{item.entityName}</span>
-                        {item.entityType !== 'community' && item.entityType !== 'league' ? (
-                          <Link href={item.entityType === 'player' ? `/players/${item.entityId}` : item.entityType === 'team' ? `/teams/${item.entityId}` : '/leagues'} style={feedLinkStyle}>
-                            Open
-                          </Link>
-                        ) : item.entityType === 'league' ? (
-                          <Link href="/leagues" style={feedLinkStyle}>Open</Link>
+                        {item.entityType === 'player' && item.entityId ? (
+                          <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>Open</Link>
+                        ) : item.entityType === 'team' && item.entityId ? (
+                          <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>Open</Link>
+                        ) : item.entityType === 'league' && item.entityId ? (
+                          <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>Open</Link>
                         ) : null}
                       </div>
                     </article>
@@ -759,7 +930,7 @@ export default function MyLabPage() {
                   />
                   <InsightCard
                     title="Best next upgrade"
-                    text="Add a dedicated follow button to player, team, and league pages so members can build their lab naturally while browsing the site."
+                    text="Add a simple event writer into imports and rating recalculation so match results and rating moves automatically populate my_lab_feed for followed entities."
                   />
                 </div>
               ) : null}

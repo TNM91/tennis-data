@@ -1,7 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
 export type AuthState = {
   user: { id: string; email?: string | null } | null
@@ -20,12 +20,20 @@ export async function getClientAuthState(): Promise<AuthState> {
     }
   }
 
+  const userId = data.user.id
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+
   return {
     user: {
-      id: data.user.id,
+      id: userId,
       email: data.user.email ?? null,
     },
-    role: getUserRole(data.user.id),
+    role: normalizeUserRole(profile?.role),
     loading: false,
   }
 }

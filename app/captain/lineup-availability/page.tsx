@@ -93,9 +93,17 @@ const NAV_LINKS = [
   { href: '/captains-corner', label: "Captain's Corner" },
 ]
 
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
+function cleanText(value: string | null | undefined): string | null {
   const text = (value || '').trim()
-  return text || fallback
+  return text.length ? text : null
+}
+
+function safeText(value: string | null | undefined, fallback = 'Unknown') {
+  return cleanText(value) || fallback
+}
+
+function buildTeamEntityId(team: string, leagueName: string, flight: string) {
+  return `${team}__${leagueName || ''}__${flight || ''}`
 }
 
 function normalizePlayerRelation(player: PlayerRelation) {
@@ -341,8 +349,8 @@ export default function LineupAvailabilityPage() {
       const sideByMatchId = new Map<string, 'A' | 'B'>()
 
       for (const match of typedTeamMatches) {
-        if (safeText(match.home_team) === selectedTeam) sideByMatchId.set(match.id, 'A')
-        if (safeText(match.away_team) === selectedTeam) sideByMatchId.set(match.id, 'B')
+        if (cleanText(match.home_team) === selectedTeam) sideByMatchId.set(match.id, 'A')
+        if (cleanText(match.away_team) === selectedTeam) sideByMatchId.set(match.id, 'B')
       }
 
       const { data: participantData, error: participantError } = await supabase
@@ -446,6 +454,136 @@ export default function LineupAvailabilityPage() {
     }
   }
 
+  async function writeCaptainAlerts(
+    leagueName: string,
+    flight: string,
+    team: string,
+    matchDate: string,
+    rosterRows: RosterPlayer[],
+    availabilityState: Record<string, { status: AvailabilityStatus; notes: string }>,
+  ) {
+    const availablePlayers = rosterRows.filter((player) => {
+      const status = availabilityState[player.id]?.status || 'available'
+      return status === 'available' || status === 'limited' || status === 'doubles_only' || status === 'singles_only'
+    })
+
+    const unavailableCount = rosterRows.filter((player) => {
+      const status = availabilityState[player.id]?.status || 'available'
+      return status === 'unavailable'
+    }).length
+
+    const limitedCount = rosterRows.filter((player) => {
+      const status = availabilityState[player.id]?.status || 'available'
+      return status === 'limited'
+    }).length
+
+    const doublesCapableCount = rosterRows.filter((player) => {
+      const status = availabilityState[player.id]?.status || 'available'
+      return status !== 'unavailable' && status !== 'singles_only'
+    }).length
+
+    const singlesReadyCount = rosterRows.filter((player) => {
+      const status = availabilityState[player.id]?.status || 'available'
+      const canPlaySingles = status !== 'unavailable' && status !== 'doubles_only'
+      const singlesRating = typeof player.singlesDynamic === 'number' ? player.singlesDynamic : null
+      return canPlaySingles && singlesRating !== null
+    }).length
+
+    const teamEntityId = buildTeamEntityId(team, leagueName, flight)
+    const subtitle = [leagueName, flight, formatDate(matchDate)].filter(Boolean).join(' · ')
+
+    const events = []
+
+    if (availablePlayers.length < 5) {
+      events.push({
+        event_type: 'captain_alert_thin_roster',
+        entity_type: 'team',
+        entity_id: teamEntityId,
+        entity_name: team,
+        subtitle,
+        title: 'Thin roster for upcoming match',
+        body: `${availablePlayers.length} players are available or limited for ${formatDate(matchDate)}.`,
+      })
+    }
+
+    if (doublesCapableCount < 4) {
+      events.push({
+        event_type: 'captain_alert_doubles_risk',
+        entity_type: 'team',
+        entity_id: teamEntityId,
+        entity_name: team,
+        subtitle,
+        title: 'Doubles lineup risk',
+        body: `${doublesCapableCount} doubles-capable players are available for ${formatDate(matchDate)}.`,
+      })
+    }
+
+    if (unavailableCount >= Math.max(availablePlayers.length, 1)) {
+      events.push({
+        event_type: 'captain_alert_availability_risk',
+        entity_type: 'team',
+        entity_id: teamEntityId,
+        entity_name: team,
+        subtitle,
+        title: 'High availability risk',
+        body: `${unavailableCount} unavailable vs ${availablePlayers.length} available or limited for ${formatDate(matchDate)}.`,
+      })
+    }
+
+    if (singlesReadyCount < 2) {
+      events.push({
+        event_type: 'captain_alert_singles_exposure',
+        entity_type: 'team',
+        entity_id: teamEntityId,
+        entity_name: team,
+        subtitle,
+        title: 'Singles exposure risk',
+        body: `${singlesReadyCount} realistic singles options are available for ${formatDate(matchDate)}.`,
+      })
+    }
+
+    if (limitedCount >= 3) {
+      events.push({
+        event_type: 'captain_alert_limited_players',
+        entity_type: 'team',
+        entity_id: teamEntityId,
+        entity_name: team,
+        subtitle,
+        title: 'Several players are limited',
+        body: `${limitedCount} players are marked limited for ${formatDate(matchDate)}.`,
+      })
+    }
+
+    const eventTypes = [
+      'captain_alert_thin_roster',
+      'captain_alert_doubles_risk',
+      'captain_alert_availability_risk',
+      'captain_alert_singles_exposure',
+      'captain_alert_limited_players',
+    ]
+
+    const { error: deleteError } = await supabase
+      .from('my_lab_feed')
+      .delete()
+      .eq('entity_type', 'team')
+      .eq('entity_id', teamEntityId)
+      .in('event_type', eventTypes)
+
+    if (deleteError) {
+      throw new Error(deleteError.message)
+    }
+
+    if (events.length === 0) return
+
+    const { error: insertError } = await supabase
+      .from('my_lab_feed')
+      .insert(events)
+
+    if (insertError) {
+      throw new Error(insertError.message)
+    }
+  }
+
   async function saveAvailability() {
     if (!selectedLeagueKey || !selectedTeam || !selectedDate) {
       setError('Please select a league, team, and match date first.')
@@ -477,7 +615,16 @@ export default function LineupAvailabilityPage() {
 
       if (error) throw new Error(error.message)
 
-      setStatus('Availability saved.')
+      await writeCaptainAlerts(
+        leagueName,
+        flight,
+        selectedTeam,
+        selectedDate,
+        roster,
+        availabilityMap,
+      )
+
+      setStatus('Availability saved and captain alerts updated.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save availability.')
     } finally {
@@ -489,10 +636,11 @@ export default function LineupAvailabilityPage() {
     const map = new Map<string, LeagueOption>()
 
     for (const row of matches) {
-      const leagueName = safeText(row.league_name)
-      const flight = safeText(row.flight)
-      const key = buildLeagueKey(leagueName, flight)
+      const leagueName = cleanText(row.league_name)
+      const flight = cleanText(row.flight)
+      if (!leagueName || !flight) continue
 
+      const key = buildLeagueKey(leagueName, flight)
       if (!map.has(key)) map.set(key, { leagueName, flight })
     }
 
@@ -509,8 +657,8 @@ export default function LineupAvailabilityPage() {
     const teamSet = new Set<string>()
 
     for (const row of matches) {
-      if (safeText(row.league_name) !== leagueName) continue
-      if (safeText(row.flight) !== flight) continue
+      if (cleanText(row.league_name) !== leagueName) continue
+      if (cleanText(row.flight) !== flight) continue
 
       if (row.home_team) teamSet.add(row.home_team.trim())
       if (row.away_team) teamSet.add(row.away_team.trim())
@@ -526,11 +674,11 @@ export default function LineupAvailabilityPage() {
     const dateSet = new Set<string>()
 
     for (const row of matches) {
-      if (safeText(row.league_name) !== leagueName) continue
-      if (safeText(row.flight) !== flight) continue
+      if (cleanText(row.league_name) !== leagueName) continue
+      if (cleanText(row.flight) !== flight) continue
 
       const teamMatch =
-        safeText(row.home_team) === selectedTeam || safeText(row.away_team) === selectedTeam
+        cleanText(row.home_team) === selectedTeam || cleanText(row.away_team) === selectedTeam
 
       if (teamMatch && row.match_date) dateSet.add(row.match_date)
     }

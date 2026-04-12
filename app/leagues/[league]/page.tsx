@@ -113,6 +113,7 @@ export default function LeagueDetailPage() {
         `)
         .eq('league_name', leagueFromRoute)
         .order('match_date', { ascending: false })
+        .limit(200)
 
       if (flight) query = query.eq('flight', flight)
       if (section) query = query.eq('usta_section', section)
@@ -324,6 +325,9 @@ export default function LeagueDetailPage() {
   }
 
   const subtitleParts = [leagueInfo.flight, leagueInfo.section, leagueInfo.district].filter(Boolean)
+  const stableLeagueFollowId = [leagueInfo.leagueName || leagueFromRoute, leagueInfo.flight, leagueInfo.section, leagueInfo.district]
+    .map((value) => cleanText(value) || '')
+    .join('__')
 
   return (
     <SiteShell active="/leagues">
@@ -345,7 +349,7 @@ export default function LeagueDetailPage() {
             <div style={heroActions}>
               <FollowButton
                 entityType="league"
-                entityId={leagueInfo.leagueName || leagueFromRoute}
+                entityId={stableLeagueFollowId}
                 entityName={leagueInfo.leagueName || leagueFromRoute || 'League'}
                 subtitle={subtitleParts.join(' · ')}
               />
