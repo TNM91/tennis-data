@@ -846,6 +846,82 @@ export class ImportEngine {
           continue
         }
 
+        const parentMatchPlayersMap = new Map<string, MatchPlayerInsertPayload>()
+
+        for (const line of row.lines) {
+          if (!line.winnerSide) continue
+
+          for (const playerEntry of buildLinePlayerNames(line)) {
+            const resolved = resolvedPlayers.get(normalizeName(playerEntry.name))
+            if (!resolved) continue
+
+            const parentKey = `${resolved.id}:${playerEntry.side}`
+            if (!parentMatchPlayersMap.has(parentKey)) {
+              parentMatchPlayersMap.set(parentKey, {
+                match_id: parentMatchId,
+                player_id: resolved.id,
+                side: playerEntry.side,
+                seat: playerEntry.seat,
+              })
+            }
+          }
+        }
+
+        if (this.options.matchPlayersDeleteBeforeInsert) {
+          const { error: deleteParentPlayersError } = await this.supabase
+            .from('match_players')
+            .delete()
+            .eq('match_id', parentMatchId)
+
+          if (deleteParentPlayersError) {
+            result.failedCount += 1
+            result.rows.push({
+              rowIndex,
+              externalMatchId: parentPayload.external_match_id,
+              status: 'failed',
+              matchId: parentMatchId,
+              createdPlayerNames,
+              linkedPlayerCount: totalLinkedPlayerCount,
+              message: deleteParentPlayersError.message,
+            })
+            result.errors.push({
+              rowIndex,
+              externalMatchId: parentPayload.external_match_id,
+              code: 'MATCH_PLAYERS_DELETE_FAILED',
+              message: deleteParentPlayersError.message,
+            })
+            continue
+          }
+        }
+
+        const parentMatchPlayersToInsert = Array.from(parentMatchPlayersMap.values())
+
+        if (parentMatchPlayersToInsert.length > 0) {
+          const { error: insertParentPlayersError } = await this.supabase
+            .from('match_players')
+            .insert(parentMatchPlayersToInsert)
+
+          if (insertParentPlayersError) {
+            result.failedCount += 1
+            result.rows.push({
+              rowIndex,
+              externalMatchId: parentPayload.external_match_id,
+              status: 'failed',
+              matchId: parentMatchId,
+              createdPlayerNames,
+              linkedPlayerCount: totalLinkedPlayerCount,
+              message: insertParentPlayersError.message,
+            })
+            result.errors.push({
+              rowIndex,
+              externalMatchId: parentPayload.external_match_id,
+              code: 'MATCH_PLAYERS_INSERT_FAILED',
+              message: insertParentPlayersError.message,
+            })
+            continue
+          }
+        }
+
         if (this.options.scorecardLinesTable) {
           const scorecardLinesPayload: PersistedScorecardLinePayload[] = row.lines.map((line) => ({
             match_id: parentMatchId,

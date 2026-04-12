@@ -41,6 +41,21 @@ type AvailabilityRow = {
   notes: string | null
 }
 
+type MatchTeamRow = {
+  id: string
+  league_name: string | null
+  flight: string | null
+  match_date: string | null
+  home_team: string | null
+  away_team: string | null
+}
+
+type MatchPlayerLinkRow = {
+  match_id: string
+  player_id: string
+  side: 'A' | 'B' | null
+}
+
 type SlotPlayer = {
   playerId: string
   playerName: string
@@ -186,6 +201,57 @@ function uniqueSorted(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => (value ?? '').trim()).filter(Boolean))).sort((a, b) =>
     a.localeCompare(b)
   )
+}
+
+function buildRosterPlayerIdSet(
+  targetTeam: string,
+  matches: MatchTeamRow[],
+  matchPlayers: MatchPlayerLinkRow[],
+  availabilityRows: AvailabilityRow[],
+  filters: { leagueName: string; flight: string }
+) {
+  const normalizedTarget = targetTeam.trim().toLowerCase()
+  if (!normalizedTarget) return new Set<string>()
+
+  const filteredMatches = matches.filter((match) => {
+    const home = (match.home_team ?? '').trim().toLowerCase()
+    const away = (match.away_team ?? '').trim().toLowerCase()
+    if (home !== normalizedTarget && away !== normalizedTarget) return false
+    if (filters.leagueName && (match.league_name ?? '').trim() !== filters.leagueName) return false
+    if (filters.flight && (match.flight ?? '').trim() !== filters.flight) return false
+    return true
+  })
+
+  const sideByMatchId = new Map<string, 'A' | 'B'>()
+  for (const match of filteredMatches) {
+    const home = (match.home_team ?? '').trim().toLowerCase()
+    const away = (match.away_team ?? '').trim().toLowerCase()
+    if (home === normalizedTarget) sideByMatchId.set(match.id, 'A')
+    else if (away === normalizedTarget) sideByMatchId.set(match.id, 'B')
+  }
+
+  const ids = new Set<string>()
+
+  for (const row of matchPlayers) {
+    const expectedSide = sideByMatchId.get(row.match_id)
+    if (!expectedSide || row.side !== expectedSide || !row.player_id) continue
+    ids.add(row.player_id)
+  }
+
+  for (const row of availabilityRows) {
+    if (!row.player_id) continue
+    if ((row.team_name ?? '').trim().toLowerCase() !== normalizedTarget) continue
+    if (filters.leagueName && (row.league_name ?? '').trim() !== filters.leagueName) continue
+    if (filters.flight && (row.flight ?? '').trim() !== filters.flight) continue
+    ids.add(row.player_id)
+  }
+
+  return ids
+}
+
+function filterPlayerPoolByRoster(playerPool: PoolPlayer[], rosterIds: Set<string>) {
+  if (!rosterIds.size) return []
+  return playerPool.filter((player) => rosterIds.has(player.id))
 }
 
 function formatDate(value: string | null) {
@@ -759,6 +825,8 @@ export default function LineupBuilderPage() {
   const [authLoading, setAuthLoading] = useState(true)
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
+  const [matches, setMatches] = useState<MatchTeamRow[]>([])
+  const [matchPlayers, setMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
 
@@ -883,7 +951,7 @@ export default function LineupBuilderPage() {
       setError('')
       setMessage('')
 
-      const [playersResult, availabilityResult, scenariosResult] = await Promise.all([
+      const [playersResult, matchesResult, matchPlayersResult, availabilityResult, scenariosResult] = await Promise.all([
         supabase
           .from('players')
           .select(`
@@ -901,6 +969,26 @@ export default function LineupBuilderPage() {
             overall_dynamic_rating
           `)
           .order('name', { ascending: true }),
+        supabase
+          .from('matches')
+          .select(`
+            id,
+            league_name,
+            flight,
+            match_date,
+            home_team,
+            away_team
+          `)
+          .order('match_date', { ascending: false })
+          .limit(600),
+        supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            player_id,
+            side
+          `)
+          .limit(4000),
         supabase
           .from('lineup_availability')
           .select(`
@@ -936,12 +1024,18 @@ export default function LineupBuilderPage() {
 
       if (playersResult.error) {
         setError(playersResult.error.message)
+      } else if (matchesResult.error) {
+        setError(matchesResult.error.message)
+      } else if (matchPlayersResult.error) {
+        setError(matchPlayersResult.error.message)
       } else if (availabilityResult.error) {
         setError(availabilityResult.error.message)
       } else if (scenariosResult.error) {
         setError(scenariosResult.error.message)
       } else {
         setPlayers((playersResult.data ?? []) as PlayerRow[])
+        setMatches((matchesResult.data ?? []) as MatchTeamRow[])
+        setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
         setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
         setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
       }
@@ -980,8 +1074,9 @@ export default function LineupBuilderPage() {
       uniqueSorted([
         ...availability.map((row) => row.team_name),
         ...savedScenarios.map((row) => row.team_name),
+        ...matches.flatMap((row) => [row.home_team, row.away_team]),
       ]),
-    [availability, savedScenarios]
+    [availability, savedScenarios, matches]
   )
 
   const scenarioOptions = useMemo(() => {
@@ -1043,15 +1138,65 @@ export default function LineupBuilderPage() {
       })
   }, [players, availabilityMap, flight, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
-  const assignedPlayerIds = useMemo(() => {
+  const myRosterPlayerIds = useMemo(
+    () =>
+      buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, {
+        leagueName,
+        flight,
+      }),
+    [teamName, matches, matchPlayers, availability, leagueName, flight]
+  )
+
+  const opponentRosterPlayerIds = useMemo(
+    () =>
+      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, {
+        leagueName,
+        flight,
+      }),
+    [opponentTeam, matches, matchPlayers, availability, leagueName, flight]
+  )
+
+  const myPlayerPool = useMemo<PoolPlayer[]>(() => {
+    return filterPlayerPoolByRoster(availablePlayerPool, myRosterPlayerIds)
+  }, [availablePlayerPool, myRosterPlayerIds])
+
+  const opponentPlayerPool = useMemo<PoolPlayer[]>(() => {
+    return filterPlayerPoolByRoster(
+      players
+        .map((player) => ({
+          ...player,
+          availabilityStatus: null,
+          availabilityNotes: null,
+        }))
+        .sort((a, b) => {
+          const ratingA = a.overall_dynamic_rating ?? a.overall_rating ?? -999
+          const ratingB = b.overall_dynamic_rating ?? b.overall_rating ?? -999
+          if (ratingB !== ratingA) return ratingB - ratingA
+          return a.name.localeCompare(b.name)
+        }),
+      opponentRosterPlayerIds
+    )
+  }, [players, opponentRosterPlayerIds])
+
+  const teamAssignedPlayerIds = useMemo(() => {
     const ids = new Set<string>()
-    for (const slot of [...teamSlots, ...opponentSlots]) {
+    for (const slot of teamSlots) {
       for (const player of slot.players) {
         if (player.playerId) ids.add(player.playerId)
       }
     }
     return ids
-  }, [teamSlots, opponentSlots])
+  }, [teamSlots])
+
+  const opponentAssignedPlayerIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const slot of opponentSlots) {
+      for (const player of slot.players) {
+        if (player.playerId) ids.add(player.playerId)
+      }
+    }
+    return ids
+  }, [opponentSlots])
 
   const lockedSlotIdSet = useMemo(() => new Set(lockedSlotIds), [lockedSlotIds])
   const lockedPlayerIdSet = useMemo(() => new Set(lockedPlayerIds), [lockedPlayerIds])
@@ -1294,11 +1439,11 @@ function sendCurrentScenarioToMessaging() {
         }).length / analysis.lines.length
       : 0
 
-    const availabilityResolved = availablePlayerPool.length
-      ? availablePlayerPool.filter((player) => {
+    const availabilityResolved = myPlayerPool.length
+      ? myPlayerPool.filter((player) => {
           const normalized = (player.availabilityStatus ?? '').trim().toLowerCase()
           return normalized === 'available' || normalized === 'yes' || normalized === 'in' || normalized === 'maybe'
-        }).length / availablePlayerPool.length
+        }).length / myPlayerPool.length
       : 1
 
     const avgGap =
@@ -1313,7 +1458,7 @@ function sendCurrentScenarioToMessaging() {
       label: `${Math.round(score * 100)}%`,
       tier: score >= 0.75 ? 'High confidence' : score >= 0.55 ? 'Moderate confidence' : 'Low confidence',
     }
-  }, [analysis.lines, availablePlayerPool])
+  }, [analysis.lines, myPlayerPool])
 
   const explainabilityCards = useMemo<RecommendationCard[]>(() => {
     const cards: RecommendationCard[] = []
@@ -1603,21 +1748,21 @@ function sendCurrentScenarioToMessaging() {
   const lineupWarnings = useMemo(() => getLineupWarnings(teamSlots, opponentSlots), [teamSlots, opponentSlots])
 
   const eliteRecommendation = useMemo(() => {
-    const balanced = recommendLineupFromPool(teamSlots, availablePlayerPool, 'balanced')
+    const balanced = recommendLineupFromPool(teamSlots, myPlayerPool, 'balanced')
     return {
       slots: balanced.slots,
       bench: balanced.bench.slice(0, 6),
       analysis: compareLineupStrength(balanced.slots, opponentSlots, players),
     }
-  }, [teamSlots, availablePlayerPool, opponentSlots, players])
+  }, [teamSlots, myPlayerPool, opponentSlots, players])
 
   const optimizedPlans = useMemo(() => {
     return [
-      optimizeLineupFromPool(teamSlots, availablePlayerPool, opponentSlots, players, 'best'),
-      optimizeLineupFromPool(teamSlots, availablePlayerPool, opponentSlots, players, 'safe'),
-      optimizeLineupFromPool(teamSlots, availablePlayerPool, opponentSlots, players, 'upside'),
+      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, players, 'best'),
+      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, players, 'safe'),
+      optimizeLineupFromPool(teamSlots, myPlayerPool, opponentSlots, players, 'upside'),
     ]
-  }, [teamSlots, availablePlayerPool, opponentSlots, players])
+  }, [teamSlots, myPlayerPool, opponentSlots, players])
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
 
@@ -1630,7 +1775,7 @@ function sendCurrentScenarioToMessaging() {
       teamSlots,
       lockedSlotIdSet,
       lockedPlayerIdSet,
-      availablePlayerPool
+      myPlayerPool
     )
 
     setTeamSlots(nextSlots)
@@ -1639,13 +1784,13 @@ function sendCurrentScenarioToMessaging() {
   }
 
   function applyRecommendedTeamLineup() {
-    const next = recommendLineupFromPool(teamSlots, availablePlayerPool, 'balanced')
+    const next = recommendLineupFromPool(teamSlots, myPlayerPool, 'balanced')
     const rebuilt = rebuildCandidateWithLocks(
       next.slots,
       teamSlots,
       lockedSlotIdSet,
       lockedPlayerIdSet,
-      availablePlayerPool
+      myPlayerPool
     )
     setTeamSlots(rebuilt)
     setMessage(`Balanced recommendation applied${lockedSlotIds.length || lockedPlayerIds.length ? ' around your locks' : ''}.`)
@@ -1658,7 +1803,7 @@ function sendCurrentScenarioToMessaging() {
       teamSlots,
       lockedSlotIdSet,
       lockedPlayerIdSet,
-      availablePlayerPool
+      myPlayerPool
     )
     setTeamSlots(rebuilt)
     setMessage('Lineup rebuilt around your locked lines and players.')
@@ -1666,7 +1811,7 @@ function sendCurrentScenarioToMessaging() {
   }
 
   function applyRecommendedOpponentLineup() {
-    const next = recommendLineupFromPool(opponentSlots, availablePlayerPool, 'ceiling')
+    const next = recommendLineupFromPool(opponentSlots, opponentPlayerPool, 'ceiling')
     setOpponentSlots(next.slots)
     setMessage('Projected opponent lineup applied.')
     setError('')
@@ -1674,7 +1819,7 @@ function sendCurrentScenarioToMessaging() {
 
   const heroStats = [
     { label: 'Scenario mode', value: currentScenarioId ? 'Editing saved scenario' : 'New scenario' },
-    { label: 'Player pool', value: `${availablePlayerPool.length} available` },
+    { label: 'Player pool', value: `${myPlayerPool.length} team players` },
     { label: 'Saved versions', value: `${scenarioOptions.length} scenarios` },
     { label: 'Win chance', value: formatPercent(analysis.projection) },
   ]
@@ -1752,6 +1897,16 @@ function sendCurrentScenarioToMessaging() {
         {isPreviewMode ? (
           <div style={bannerBlueStyle}>
             Preview mode: members can explore the lineup builder, but saving scenarios, deleting scenarios, and tracking prediction snapshots require Captain tier.
+          </div>
+        ) : null}
+        {teamName && !myPlayerPool.length ? (
+          <div style={warningCardStyle}>
+            No linked roster was found for {teamName}. This builder now stays team-scoped, so it will not fall back to the full system player pool.
+          </div>
+        ) : null}
+        {opponentTeam && !opponentPlayerPool.length ? (
+          <div style={bannerBlueStyle}>
+            No linked opponent roster was found for {opponentTeam} yet. Opponent auto-fill will stay empty until imported matches link that team to players.
           </div>
         ) : null}
 
@@ -1921,8 +2076,8 @@ function sendCurrentScenarioToMessaging() {
                     key={slot.id}
                     side="team"
                     slot={slot}
-                    playerPool={availablePlayerPool}
-                    assignedPlayerIds={assignedPlayerIds}
+                    playerPool={myPlayerPool}
+                    assignedPlayerIds={teamAssignedPlayerIds}
                     onPlayerChange={setSlotPlayer}
                     onLabelChange={setSlotLabel}
                     onRemove={removeSlot}
@@ -1955,8 +2110,8 @@ function sendCurrentScenarioToMessaging() {
                     key={slot.id}
                     side="opponent"
                     slot={slot}
-                    playerPool={availablePlayerPool}
-                    assignedPlayerIds={assignedPlayerIds}
+                    playerPool={opponentPlayerPool}
+                    assignedPlayerIds={opponentAssignedPlayerIds}
                     onPlayerChange={setSlotPlayer}
                     onLabelChange={setSlotLabel}
                     onRemove={removeSlot}
@@ -2392,11 +2547,11 @@ function sendCurrentScenarioToMessaging() {
                   <p style={sectionKicker}>Player pool</p>
                   <h3 style={sectionTitleSmall}>Availability-aware ranking</h3>
                 </div>
-                <span style={miniPillSlateStyle}>{availablePlayerPool.length} players</span>
+                <span style={miniPillSlateStyle}>{myPlayerPool.length} team players</span>
               </div>
 
               <div style={stackStyleCompact}>
-                {availablePlayerPool.length ? availablePlayerPool.map((player) => (
+                {myPlayerPool.length ? myPlayerPool.map((player) => (
                   <div key={player.id} style={listCardStyleCompact}>
                     <div>
                       <div style={listTitleStyle}>{player.name}</div>
@@ -2410,7 +2565,7 @@ function sendCurrentScenarioToMessaging() {
                       <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
                         {player.availabilityStatus || 'unknown'}
                       </span>
-                      {assignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
+                      {teamAssignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
                     </div>
                   </div>
                 )) : (
