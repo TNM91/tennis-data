@@ -846,24 +846,26 @@ export class ImportEngine {
           continue
         }
 
-        const parentMatchPlayersMap = new Map<string, MatchPlayerInsertPayload>()
+        const parentSideCounters: Record<MatchSide, number> = { A: 0, B: 0 }
+        const parentMatchPlayers: MatchPlayerInsertPayload[] = []
 
         for (const line of row.lines) {
           if (!line.winnerSide) continue
 
-          for (const playerEntry of buildLinePlayerNames(line)) {
+          const linePlayers = buildLinePlayerNames(line)
+
+          for (const playerEntry of linePlayers) {
             const resolved = resolvedPlayers.get(normalizeName(playerEntry.name))
             if (!resolved) continue
 
-            const parentKey = `${resolved.id}:${playerEntry.side}`
-            if (!parentMatchPlayersMap.has(parentKey)) {
-              parentMatchPlayersMap.set(parentKey, {
-                match_id: parentMatchId,
-                player_id: resolved.id,
-                side: playerEntry.side,
-                seat: playerEntry.seat,
-              })
-            }
+            parentSideCounters[playerEntry.side] += 1
+
+            parentMatchPlayers.push({
+              match_id: parentMatchId,
+              player_id: resolved.id,
+              side: playerEntry.side,
+              seat: parentSideCounters[playerEntry.side],
+            })
           }
         }
 
@@ -894,12 +896,10 @@ export class ImportEngine {
           }
         }
 
-        const parentMatchPlayersToInsert = Array.from(parentMatchPlayersMap.values())
-
-        if (parentMatchPlayersToInsert.length > 0) {
+        if (parentMatchPlayers.length > 0) {
           const { error: insertParentPlayersError } = await this.supabase
             .from('match_players')
-            .insert(parentMatchPlayersToInsert)
+            .insert(parentMatchPlayers)
 
           if (insertParentPlayersError) {
             result.failedCount += 1
