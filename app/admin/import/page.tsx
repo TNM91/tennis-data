@@ -66,6 +66,8 @@ type PreviewScorecardMatch = {
   lines: PreviewScorecardLine[]
 }
 
+const IMPORT_TIMEOUT_MS = 10000
+
 const pageWrapStyle: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
@@ -401,6 +403,24 @@ function TypeCard({
   )
 }
 
+function timeoutImport<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`Import timed out after ${Math.round(timeoutMs / 1000)} seconds.`))
+    }, timeoutMs)
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      })
+      .catch((error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      })
+  })
+}
+
 export default function AdminImportPage() {
   const [jsonInput, setJsonInput] = useState('')
   const [importType, setImportType] = useState<ImportKind>('schedule')
@@ -492,16 +512,19 @@ export default function AdminImportPage() {
     if (mode === 'commit') setIsRunningCommit(true)
 
     try {
-      const response = await runImport(supabase, {
-        kind: importType,
-        payload: parsed.value,
-        mode,
-        engineOptions: {
-          hasNormalizedPlayerNameColumn: true,
-          matchPlayersDeleteBeforeInsert: true,
-          scorecardLinesTable: null,
-        },
-      })
+      const response = await timeoutImport(
+        runImport(supabase, {
+          kind: importType,
+          payload: parsed.value,
+          mode,
+          engineOptions: {
+            hasNormalizedPlayerNameColumn: true,
+            matchPlayersDeleteBeforeInsert: true,
+            scorecardLinesTable: null,
+          },
+        }),
+        IMPORT_TIMEOUT_MS,
+      )
 
       setImportResponse(response)
 
@@ -652,6 +675,8 @@ export default function AdminImportPage() {
     setImportResponse(null)
     setLastRunMode(null)
     setCopied(false)
+    setIsRunningPreview(false)
+    setIsRunningCommit(false)
   }
 
   function handleAutoDetectType() {
@@ -853,7 +878,9 @@ export default function AdminImportPage() {
                     color: selectedFileName ? '#F8FBFF' : '#AFC3DB',
                   }}
                 >
-                  {selectedFileName ? `${selectedFileName}${selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}` : 'No file selected'}
+                  {selectedFileName
+                    ? `${selectedFileName}${selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}`
+                    : 'No file selected'}
                 </div>
               </div>
             </div>
@@ -886,7 +913,9 @@ export default function AdminImportPage() {
 
             {selectedFileName ? (
               <div style={{ marginTop: 12 }}>
-                <span style={pillGreenStyle}>Loaded: {selectedFileName}{selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}</span>
+                <span style={pillGreenStyle}>
+                  Loaded: {selectedFileName}{selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}
+                </span>
               </div>
             ) : null}
 
@@ -1023,6 +1052,7 @@ export default function AdminImportPage() {
                 </div>
               </div>
             ) : null}
+
             {lastRunMode === 'commit' &&
             importResponse?.ok === true &&
             importSummary != null &&
@@ -1047,7 +1077,6 @@ export default function AdminImportPage() {
                 </div>
               </div>
             ) : null}
-
           </div>
 
           <div style={panelStyle}>
@@ -1443,7 +1472,9 @@ export default function AdminImportPage() {
                   >
                     {importMessages.length > 0
                       ? importMessages.join('\n')
-                      : importSummary.successCount === 0 && importSummary.updatedCount === 0 && importSummary.failedCount === 0
+                      : importSummary.successCount === 0 &&
+                          importSummary.updatedCount === 0 &&
+                          importSummary.failedCount === 0
                         ? '⚠️ No rows imported. This scorecard was already completed and was skipped as a duplicate.'
                         : 'No row-level messages returned.'}
                   </pre>
