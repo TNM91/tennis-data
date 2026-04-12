@@ -17,6 +17,7 @@ type MatchLeagueRow = {
   home_team: string | null
   away_team: string | null
   match_date: string
+  line_number?: string | null
 }
 
 type LeagueCard = {
@@ -55,7 +56,12 @@ function normalizeKeyPart(value: string | null | undefined) {
 }
 
 function buildLeagueKey(row: MatchLeagueRow) {
-  return normalizeKeyPart(row.league_name)
+  return [
+    normalizeKeyPart(row.league_name),
+    normalizeKeyPart(row.flight),
+    normalizeKeyPart(row.usta_section),
+    normalizeKeyPart(row.district_area),
+  ].join('__')
 }
 
 function buildLeagueHref(league: LeagueCard) {
@@ -112,19 +118,21 @@ export default function LeaguesPage() {
     setError('')
 
     try {
-      const { data, error } = await supabase
-        .from('matches')
-        .select(`
-          id,
-          league_name,
-          flight,
-          usta_section,
-          district_area,
-          home_team,
-          away_team,
-          match_date
-        `)
-        .order('match_date', { ascending: false })
+    const { data, error } = await supabase
+  .from('matches')
+  .select(`
+    id,
+    league_name,
+    flight,
+    usta_section,
+    district_area,
+    home_team,
+    away_team,
+    match_date,
+    line_number
+  `)
+  .is('line_number', null)
+  .order('match_date', { ascending: false })
 
       if (error) throw new Error(error.message)
 

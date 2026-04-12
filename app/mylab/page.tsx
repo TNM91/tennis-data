@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
 
 type EntityType = 'player' | 'team' | 'league'
@@ -217,6 +218,16 @@ function buildLeagueHrefFromEntityId(entityId: string) {
 }
 
 export default function MyLabPage() {
+  return (
+    <SiteShell active="/mylab">
+      <MyLabPageInner />
+    </SiteShell>
+  )
+}
+
+function MyLabPageInner() {
+  const { userId, authResolved } = useAuth()
+
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
@@ -244,6 +255,8 @@ export default function MyLabPage() {
   const isSmallMobile = screenWidth < 560
 
   useEffect(() => {
+    if (!authResolved) return
+
     let mounted = true
 
     async function load() {
@@ -253,45 +266,40 @@ export default function MyLabPage() {
       const local = readLocalFollows()
       if (mounted) setFollows(local)
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser()
-
-      const userId = user?.id ?? null
-
-      const [playersRes, matchesRes, matchPlayersRes, scenariosRes, followsRes, cloudFeedRes] = await Promise.all([
-        supabase
-          .from('players')
-          .select('id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating')
-          .order('name', { ascending: true }),
-        supabase
-          .from('matches')
-          .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side')
-          .order('match_date', { ascending: false })
-          .limit(160),
-        supabase
-          .from('match_players')
-          .select('match_id,player_id,side,seat')
-          .limit(1200),
-        supabase
-          .from('lineup_scenarios')
-          .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
-          .order('match_date', { ascending: false })
-          .limit(40),
-        userId
-          ? supabase
-              .from('user_follows')
-              .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
-              .eq('user_id', userId)
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: authError ?? null }),
-        supabase
-          .from('my_lab_feed')
-          .select('id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at')
-          .order('created_at', { ascending: false })
-          .limit(160),
-      ])
+      const [playersRes, matchesRes, matchPlayersRes, scenariosRes, followsRes, cloudFeedRes] =
+        await Promise.all([
+          supabase
+            .from('players')
+            .select(
+              'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating',
+            )
+            .order('name', { ascending: true }),
+          supabase
+            .from('matches')
+            .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side')
+            .order('match_date', { ascending: false })
+            .limit(160),
+          supabase.from('match_players').select('match_id,player_id,side,seat').limit(1200),
+          supabase
+            .from('lineup_scenarios')
+            .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
+            .order('match_date', { ascending: false })
+            .limit(40),
+          userId
+            ? supabase
+                .from('user_follows')
+                .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+            : Promise.resolve({ data: [], error: null }),
+          supabase
+            .from('my_lab_feed')
+            .select(
+              'id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at',
+            )
+            .order('created_at', { ascending: false })
+            .limit(160),
+        ])
 
       if (!mounted) return
 
@@ -308,7 +316,11 @@ export default function MyLabPage() {
       }
 
       setPlayers((playersRes.data ?? []) as PlayerRow[])
-      setMatches(((matchesRes.data ?? []) as MatchRow[]).filter((row) => cleanText(row.home_team) && cleanText(row.away_team)))
+      setMatches(
+        ((matchesRes.data ?? []) as MatchRow[]).filter(
+          (row) => cleanText(row.home_team) && cleanText(row.away_team),
+        ),
+      )
       setMatchPlayers((matchPlayersRes.data ?? []) as MatchPlayerRow[])
       setScenarios((scenariosRes.data ?? []) as ScenarioRow[])
       setCloudFeedRows((cloudFeedRes.data ?? []) as MyLabFeedRow[])
@@ -328,12 +340,14 @@ export default function MyLabPage() {
     }
 
     void load()
+
     return () => {
       mounted = false
     }
-  }, [])
+  }, [authResolved, userId])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
+
   const matchPlayersByMatch = useMemo(() => {
     const map = new Map<string, MatchPlayerRow[]>()
     for (const row of matchPlayers) {
@@ -395,7 +409,18 @@ export default function MyLabPage() {
   }, [matches, matchPlayersByMatch])
 
   const leagueSummaries = useMemo<LeagueSummary[]>(() => {
-    const map = new Map<string, { id: string; name: string; flight: string | null; section: string | null; district: string | null; teams: Set<string>; players: Set<string> }>()
+    const map = new Map<
+      string,
+      {
+        id: string
+        name: string
+        flight: string | null
+        section: string | null
+        district: string | null
+        teams: Set<string>
+        players: Set<string>
+      }
+    >()
 
     for (const match of matches) {
       const leagueName = cleanText(match.league_name)
@@ -442,7 +467,8 @@ export default function MyLabPage() {
       id: player.id,
       type: 'player' as const,
       name: player.name,
-      subtitle: [cleanText(player.location), cleanText(player.flight)].filter(Boolean).join(' • ') || null,
+      subtitle:
+        [cleanText(player.location), cleanText(player.flight)].filter(Boolean).join(' • ') || null,
     }))
 
     const teamOptions = teamSummaries.slice(0, 200).map((team) => ({
@@ -473,7 +499,10 @@ export default function MyLabPage() {
       .slice(0, 12)
   }, [searchOptions, search, filter])
 
-  const followedIds = useMemo(() => new Set(follows.map((item) => `${item.entity_type}:${item.entity_id}`)), [follows])
+  const followedIds = useMemo(
+    () => new Set(follows.map((item) => `${item.entity_type}:${item.entity_id}`)),
+    [follows],
+  )
 
   const feed = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
@@ -486,17 +515,18 @@ export default function MyLabPage() {
       const key = `${row.entity_type}:${row.entity_id}`
       if (!followedKeySet.has(key)) continue
 
-      const mappedType: FeedType = row.event_type === 'rating'
-        ? 'rating'
-        : row.event_type === 'achievement'
-          ? 'achievement'
-          : row.event_type === 'team'
-            ? 'team'
-            : row.event_type === 'league'
-              ? 'league'
-              : row.event_type === 'community'
-                ? 'community'
-                : 'match'
+      const mappedType: FeedType =
+        row.event_type === 'rating'
+          ? 'rating'
+          : row.event_type === 'achievement'
+            ? 'achievement'
+            : row.event_type === 'team'
+              ? 'team'
+              : row.event_type === 'league'
+                ? 'league'
+                : row.event_type === 'community'
+                  ? 'community'
+                  : 'match'
 
       items.push({
         id: `cloud-${row.id}`,
@@ -545,7 +575,9 @@ export default function MyLabPage() {
       const awayTeamId = awayTeam ? buildTeamEntityId(awayTeam, leagueName, flight) : null
       const leagueId = leagueName ? buildLeagueEntityId(leagueName, flight, null, null) : null
 
-      const containsFollowedTeam = followTeams.some((f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId)
+      const containsFollowedTeam = followTeams.some(
+        (f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId,
+      )
       const containsFollowedLeague = followLeagues.some((f) => f.entity_id === leagueId)
 
       if (!containsFollowedPlayer && !containsFollowedTeam && !containsFollowedLeague) continue
@@ -561,7 +593,12 @@ export default function MyLabPage() {
         title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
         body: `${leagueName || 'League match'}${flight ? ` • ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
-        entityId: containsFollowedLeague ? leagueId : containsFollowedTeam ? (followTeams.find((f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId)?.entity_id ?? null) : playersInMatch[0]?.player_id ?? null,
+        entityId: containsFollowedLeague
+          ? leagueId
+          : containsFollowedTeam
+            ? (followTeams.find((f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId)
+                ?.entity_id ?? null)
+            : (playersInMatch[0]?.player_id ?? null),
         entityName: leagueName || homeTeam || 'Watched match',
         createdAt: match.match_date || new Date().toISOString(),
         score: 94,
@@ -574,10 +611,17 @@ export default function MyLabPage() {
       const scenarioLeagueName = cleanText(scenario.league_name)
       const scenarioFlight = cleanText(scenario.flight)
       const scenarioTeamName = cleanText(scenario.team_name)
-      const scenarioTeamId = scenarioTeamName ? buildTeamEntityId(scenarioTeamName, scenarioLeagueName, scenarioFlight) : null
-      const scenarioLeagueId = scenarioLeagueName ? buildLeagueEntityId(scenarioLeagueName, scenarioFlight, null, null) : null
+      const scenarioTeamId = scenarioTeamName
+        ? buildTeamEntityId(scenarioTeamName, scenarioLeagueName, scenarioFlight)
+        : null
+      const scenarioLeagueId = scenarioLeagueName
+        ? buildLeagueEntityId(scenarioLeagueName, scenarioFlight, null, null)
+        : null
 
-      if (!followTeams.some((f) => f.entity_id === scenarioTeamId) && !followLeagues.some((f) => f.entity_id === scenarioLeagueId)) {
+      if (
+        !followTeams.some((f) => f.entity_id === scenarioTeamId) &&
+        !followLeagues.some((f) => f.entity_id === scenarioLeagueId)
+      ) {
         continue
       }
 
@@ -641,7 +685,10 @@ export default function MyLabPage() {
 
     return Array.from(deduped.values())
       .filter((item) => feedFilter === 'all' || item.type === feedFilter)
-      .sort((a, b) => b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort(
+        (a, b) =>
+          b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
       .slice(0, 30)
   }, [follows, players, matches, matchPlayersByMatch, scenarios, playerMap, feedFilter, cloudFeedRows])
 
@@ -650,20 +697,12 @@ export default function MyLabPage() {
     writeLocalFollows(next)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      const userId = user?.id
-
       if (!userId) {
         setSavedToCloud(false)
         return
       }
 
-      const { error: deleteError } = await supabase
-        .from('user_follows')
-        .delete()
-        .eq('user_id', userId)
+      const { error: deleteError } = await supabase.from('user_follows').delete().eq('user_id', userId)
 
       if (deleteError && !/relation .* does not exist/i.test(deleteError.message)) {
         throw deleteError
@@ -678,9 +717,7 @@ export default function MyLabPage() {
           subtitle: item.subtitle,
         }))
 
-        const { error: insertError } = await supabase
-          .from('user_follows')
-          .insert(payload)
+        const { error: insertError } = await supabase.from('user_follows').insert(payload)
 
         if (insertError && !/relation .* does not exist/i.test(insertError.message)) {
           throw insertError
@@ -714,7 +751,9 @@ export default function MyLabPage() {
   }
 
   async function removeFollow(item: FollowItem) {
-    const next = follows.filter((follow) => !(follow.entity_type === item.entity_type && follow.entity_id === item.entity_id))
+    const next = follows.filter(
+      (follow) => !(follow.entity_type === item.entity_type && follow.entity_id === item.entity_id),
+    )
     await persistFollows(next)
   }
 
@@ -723,130 +762,160 @@ export default function MyLabPage() {
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
 
   const heroStats = [
-    { label: 'Following', value: String(follows.length), note: 'Players, teams, and leagues in your lab' },
-    { label: 'Feed items', value: String(feed.length), note: 'Personalized updates across your network' },
-    { label: 'Cloud sync', value: savedToCloud ? 'On' : 'Local', note: savedToCloud ? 'Persisting to Supabase' : 'Fallback storage active' },
+    {
+      label: 'Following',
+      value: String(follows.length),
+      note: 'Players, teams, and leagues in your lab',
+    },
+    {
+      label: 'Feed items',
+      value: String(feed.length),
+      note: 'Personalized updates across your network',
+    },
+    {
+      label: 'Cloud sync',
+      value: savedToCloud ? 'On' : 'Local',
+      note: savedToCloud ? 'Persisting to Supabase' : 'Fallback storage active',
+    },
   ]
 
   return (
-    <SiteShell active="/mylab">
-      <section style={pageStyle}>
-        <section style={heroStyle(isTablet, isMobile)}>
-          <div>
-            <div style={eyebrowStyle}>My Lab</div>
-            <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>Your tennis intelligence hub</h1>
-            <p style={heroTextStyle}>
-              Follow the players, teams, and leagues that matter to you. My Lab turns TenAceIQ into a personalized member experience with a curated feed, watchlists, and community-style momentum around the matches you care about most.
-            </p>
+    <section style={pageStyle}>
+      <section style={heroStyle(isTablet, isMobile)}>
+        <div>
+          <div style={eyebrowStyle}>My Lab</div>
+          <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>Your tennis intelligence hub</h1>
+          <p style={heroTextStyle}>
+            Follow the players, teams, and leagues that matter to you. My Lab turns TenAceIQ into a
+            personalized member experience with a curated feed, watchlists, and community-style
+            momentum around the matches you care about most.
+          </p>
 
-            <div style={heroButtonRowStyle}>
-              <Link href="/players" style={primaryButtonStyle}>Find players</Link>
-              <Link href="/teams" style={secondaryButtonStyle}>Browse teams</Link>
-              <Link href="/leagues" style={secondaryButtonStyle}>Explore leagues</Link>
-            </div>
-
-            <div style={metricGridStyle(isSmallMobile)}>
-              {heroStats.map((stat) => (
-                <div key={stat.label} style={metricCardStyle}>
-                  <div style={metricLabelStyle}>{stat.label}</div>
-                  <div style={metricValueStyle}>{stat.value}</div>
-                  <div style={metricNoteStyle}>{stat.note}</div>
-                </div>
-              ))}
-            </div>
+          <div style={heroButtonRowStyle}>
+            <Link href="/players" style={primaryButtonStyle}>
+              Find players
+            </Link>
+            <Link href="/teams" style={secondaryButtonStyle}>
+              Browse teams
+            </Link>
+            <Link href="/leagues" style={secondaryButtonStyle}>
+              Explore leagues
+            </Link>
           </div>
 
-          <div style={heroRailCardStyle}>
-            <p style={sectionKickerStyle}>What makes this elite</p>
-            <h2 style={sideTitleStyle}>A community layer on top of your analytics</h2>
-            <div style={workflowListStyle}>
-              {[
-                ['Follow smarter', 'Track players, teams, and leagues in one place.'],
-                ['See momentum', 'Recent matches, rating movement, lineup activity, and achievements.'],
-                ['Stay connected', 'Build the foundation for future community and member engagement.'],
-              ].map(([title, text]) => (
-                <div key={title} style={workflowRowStyle}>
-                  <div style={workflowDotStyle} />
-                  <div>
-                    <div style={workflowTitleStyle}>{title}</div>
-                    <div style={workflowTextStyle}>{text}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div style={metricGridStyle(isSmallMobile)}>
+            {heroStats.map((stat) => (
+              <div key={stat.label} style={metricCardStyle}>
+                <div style={metricLabelStyle}>{stat.label}</div>
+                <div style={metricValueStyle}>{stat.value}</div>
+                <div style={metricNoteStyle}>{stat.note}</div>
+              </div>
+            ))}
           </div>
-        </section>
+        </div>
 
-        <section style={contentGridStyle(isTablet)}>
-          <div style={leftColumnStyle}>
-            <section style={surfaceStrongStyle}>
-              <div style={sectionHeaderStyle}>
+        <div style={heroRailCardStyle}>
+          <p style={sectionKickerStyle}>What makes this elite</p>
+          <h2 style={sideTitleStyle}>A community layer on top of your analytics</h2>
+          <div style={workflowListStyle}>
+            {[
+              ['Follow smarter', 'Track players, teams, and leagues in one place.'],
+              ['See momentum', 'Recent matches, rating movement, lineup activity, and achievements.'],
+              ['Stay connected', 'Build the foundation for future community and member engagement.'],
+            ].map(([title, text]) => (
+              <div key={title} style={workflowRowStyle}>
+                <div style={workflowDotStyle} />
                 <div>
-                  <p style={sectionKickerStyle}>Build your lab</p>
-                  <h2 style={sectionTitleStyle}>Follow players, teams, and leagues</h2>
-                  <p style={sectionTextStyle}>Search the live data already in your app and add entities to your personal watchlist.</p>
+                  <div style={workflowTitleStyle}>{title}</div>
+                  <div style={workflowTextStyle}>{text}</div>
                 </div>
-                <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>{savedToCloud ? 'Cloud synced' : 'Local fallback'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={contentGridStyle(isTablet)}>
+        <div style={leftColumnStyle}>
+          <section style={surfaceStrongStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Build your lab</p>
+                <h2 style={sectionTitleStyle}>Follow players, teams, and leagues</h2>
+                <p style={sectionTextStyle}>
+                  Search the live data already in your app and add entities to your personal watchlist.
+                </p>
+              </div>
+              <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
+                {savedToCloud ? 'Cloud synced' : 'Local fallback'}
+              </span>
+            </div>
+
+            <div style={searchPanelStyle}>
+              <div style={inputWrapStyle}>
+                <label style={labelStyle}>Search</label>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Find a player, team, or league"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={filterRowStyle}>
+                {(['all', 'player', 'team', 'league'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFilter(value)}
+                    style={value === filter ? tabActiveStyle : tabButtonStyle}
+                  >
+                    {value === 'all' ? 'All' : value[0].toUpperCase() + value.slice(1)}
+                  </button>
+                ))}
               </div>
 
-              <div style={searchPanelStyle}>
-                <div style={inputWrapStyle}>
-                  <label style={labelStyle}>Search</label>
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Find a player, team, or league"
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={filterRowStyle}>
-                  {(['all', 'player', 'team', 'league'] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFilter(value)}
-                      style={value === filter ? tabActiveStyle : tabButtonStyle}
-                    >
-                      {value === 'all' ? 'All' : value[0].toUpperCase() + value.slice(1)}
-                    </button>
-                  ))}
-                </div>
-
-                {search.trim() ? (
-                  <div style={searchResultsStyle}>
-                    {filteredSearchOptions.length ? (
-                      filteredSearchOptions.map((option) => {
-                        const followed = followedIds.has(`${option.type}:${option.id}`)
-                        return (
-                          <div key={`${option.type}-${option.id}`} style={searchResultItemStyle}>
-                            <div>
-                              <div style={searchResultTitleStyle}>{option.name}</div>
-                              <div style={searchResultMetaStyle}>{option.type.toUpperCase()} {option.subtitle ? `• ${option.subtitle}` : ''}</div>
+              {search.trim() ? (
+                <div style={searchResultsStyle}>
+                  {filteredSearchOptions.length ? (
+                    filteredSearchOptions.map((option) => {
+                      const followed = followedIds.has(`${option.type}:${option.id}`)
+                      return (
+                        <div key={`${option.type}-${option.id}`} style={searchResultItemStyle}>
+                          <div>
+                            <div style={searchResultTitleStyle}>{option.name}</div>
+                            <div style={searchResultMetaStyle}>
+                              {option.type.toUpperCase()} {option.subtitle ? `• ${option.subtitle}` : ''}
                             </div>
-                            <button type="button" onClick={() => addFollow(option)} style={followed ? tabButtonStyle : primaryMiniButtonStyle}>
-                              {followed ? 'Following' : 'Follow'}
-                            </button>
                           </div>
-                        )
-                      })
-                    ) : (
-                      <div style={emptyInlineStyle}>No matching players, teams, or leagues found.</div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={emptyInlineStyle}>Start typing to build your lab.</div>
-                )}
-              </div>
-            </section>
-
-            <section style={surfaceStyle}>
-              <div style={sectionHeaderStyle}>
-                <div>
-                  <p style={sectionKickerStyle}>Personal feed</p>
-                  <h2 style={sectionTitleStyle}>What’s happening around your network</h2>
+                          <button
+                            type="button"
+                            onClick={() => addFollow(option)}
+                            style={followed ? tabButtonStyle : primaryMiniButtonStyle}
+                          >
+                            {followed ? 'Following' : 'Follow'}
+                          </button>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div style={emptyInlineStyle}>No matching players, teams, or leagues found.</div>
+                  )}
                 </div>
-                <div style={filterRowStyle}>
-                  {(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map((value) => (
+              ) : (
+                <div style={emptyInlineStyle}>Start typing to build your lab.</div>
+              )}
+            </div>
+          </section>
+
+          <section style={surfaceStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Personal feed</p>
+                <h2 style={sectionTitleStyle}>What’s happening around your network</h2>
+              </div>
+              <div style={filterRowStyle}>
+                {(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(
+                  (value) => (
                     <button
                       key={value}
                       type="button"
@@ -855,94 +924,119 @@ export default function MyLabPage() {
                     >
                       {value === 'all' ? 'All' : value}
                     </button>
-                  ))}
-                </div>
+                  ),
+                )}
               </div>
+            </div>
 
-              {loading ? (
-                <div style={emptyStateStyle}>Loading your lab...</div>
-              ) : error ? (
-                <div style={errorStateStyle}>Some data could not be loaded: {error}</div>
-              ) : (
-                <div style={feedListStyle}>
-                  {feed.map((item) => (
-                    <article key={item.id} style={feedCardStyle(item.accent)}>
-                      <div style={feedTopRowStyle}>
-                        <span style={badgeForAccent(item.accent)}>{item.badge}</span>
-                        <span style={feedTimeStyle}>{timeAgo(item.createdAt)}</span>
-                      </div>
-                      <h3 style={feedTitleStyle}>{item.title}</h3>
-                      <p style={feedBodyStyle}>{item.body}</p>
-                      <div style={feedMetaRowStyle}>
-                        <span style={pillSlateStyle}>{item.entityName}</span>
-                        {item.entityType === 'player' && item.entityId ? (
-                          <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>Open</Link>
-                        ) : item.entityType === 'team' && item.entityId ? (
-                          <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>Open</Link>
-                        ) : item.entityType === 'league' && item.entityId ? (
-                          <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>Open</Link>
-                        ) : null}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-
-          <div style={rightColumnStyle}>
-            <section style={surfaceStyle}>
-              <div style={sectionHeaderStyle}>
-                <div>
-                  <p style={sectionKickerStyle}>Collections</p>
-                  <h2 style={sectionTitleStyle}>Your followed entities</h2>
-                </div>
-                <div style={filterRowStyle}>
-                  {(['feed', 'players', 'teams', 'leagues'] as const).map((value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setSelectedTab(value)}
-                      style={selectedTab === value ? tabActiveStyle : tabButtonStyle}
-                    >
-                      {value[0].toUpperCase() + value.slice(1)}
-                    </button>
-                  ))}
-                </div>
+            {loading ? (
+              <div style={emptyStateStyle}>Loading your lab...</div>
+            ) : error ? (
+              <div style={errorStateStyle}>Some data could not be loaded: {error}</div>
+            ) : (
+              <div style={feedListStyle}>
+                {feed.map((item) => (
+                  <article key={item.id} style={feedCardStyle(item.accent)}>
+                    <div style={feedTopRowStyle}>
+                      <span style={badgeForAccent(item.accent)}>{item.badge}</span>
+                      <span style={feedTimeStyle}>{timeAgo(item.createdAt)}</span>
+                    </div>
+                    <h3 style={feedTitleStyle}>{item.title}</h3>
+                    <p style={feedBodyStyle}>{item.body}</p>
+                    <div style={feedMetaRowStyle}>
+                      <span style={pillSlateStyle}>{item.entityName}</span>
+                      {item.entityType === 'player' && item.entityId ? (
+                        <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
+                          Open
+                        </Link>
+                      ) : item.entityType === 'team' && item.entityId ? (
+                        <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                          Open
+                        </Link>
+                      ) : item.entityType === 'league' && item.entityId ? (
+                        <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                          Open
+                        </Link>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
               </div>
+            )}
+          </section>
+        </div>
 
-              {selectedTab === 'feed' ? (
-                <div style={summaryGridStyle}>
-                  <SummaryCard label="Players" value={String(followedPlayers.length)} note="Watchlist athletes" />
-                  <SummaryCard label="Teams" value={String(followedTeams.length)} note="Tracked squads" />
-                  <SummaryCard label="Leagues" value={String(followedLeagues.length)} note="Competition groups" />
-                </div>
-              ) : null}
+        <div style={rightColumnStyle}>
+          <section style={surfaceStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Collections</p>
+                <h2 style={sectionTitleStyle}>Your followed entities</h2>
+              </div>
+              <div style={filterRowStyle}>
+                {(['feed', 'players', 'teams', 'leagues'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setSelectedTab(value)}
+                    style={selectedTab === value ? tabActiveStyle : tabButtonStyle}
+                  >
+                    {value[0].toUpperCase() + value.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-              {selectedTab === 'players' ? <FollowList items={followedPlayers} onRemove={removeFollow} /> : null}
-              {selectedTab === 'teams' ? <FollowList items={followedTeams} onRemove={removeFollow} /> : null}
-              {selectedTab === 'leagues' ? <FollowList items={followedLeagues} onRemove={removeFollow} /> : null}
-              {selectedTab === 'feed' ? (
-                <div style={insightStackStyle}>
-                  <InsightCard
-                    title="Community direction"
-                    text="My Lab gives members a reason to come back even when they are not actively searching. This is the surface that can later support alerts, achievements, reactions, and player-to-player community momentum."
-                  />
-                  <InsightCard
-                    title="Best next upgrade"
-                    text="Add a simple event writer into imports and rating recalculation so match results and rating moves automatically populate my_lab_feed for followed entities."
-                  />
-                </div>
-              ) : null}
-            </section>
-          </div>
-        </section>
+            {selectedTab === 'feed' ? (
+              <div style={summaryGridStyle}>
+                <SummaryCard
+                  label="Players"
+                  value={String(followedPlayers.length)}
+                  note="Watchlist athletes"
+                />
+                <SummaryCard
+                  label="Teams"
+                  value={String(followedTeams.length)}
+                  note="Tracked squads"
+                />
+                <SummaryCard
+                  label="Leagues"
+                  value={String(followedLeagues.length)}
+                  note="Competition groups"
+                />
+              </div>
+            ) : null}
+
+            {selectedTab === 'players' ? <FollowList items={followedPlayers} onRemove={removeFollow} /> : null}
+            {selectedTab === 'teams' ? <FollowList items={followedTeams} onRemove={removeFollow} /> : null}
+            {selectedTab === 'leagues' ? <FollowList items={followedLeagues} onRemove={removeFollow} /> : null}
+
+            {selectedTab === 'feed' ? (
+              <div style={insightStackStyle}>
+                <InsightCard
+                  title="Community direction"
+                  text="My Lab gives members a reason to come back even when they are not actively searching. This is the surface that can later support alerts, achievements, reactions, and player-to-player community momentum."
+                />
+                <InsightCard
+                  title="Best next upgrade"
+                  text="Add a simple event writer into imports and rating recalculation so match results and rating moves automatically populate my_lab_feed for followed entities."
+                />
+              </div>
+            ) : null}
+          </section>
+        </div>
       </section>
-    </SiteShell>
+    </section>
   )
 }
 
-function FollowList({ items, onRemove }: { items: FollowItem[]; onRemove: (item: FollowItem) => void }) {
+function FollowList({
+  items,
+  onRemove,
+}: {
+  items: FollowItem[]
+  onRemove: (item: FollowItem) => void
+}) {
   if (!items.length) {
     return <div style={emptyStateStyle}>Nothing followed here yet.</div>
   }
@@ -953,9 +1047,13 @@ function FollowList({ items, onRemove }: { items: FollowItem[]; onRemove: (item:
         <div key={`${item.entity_type}:${item.entity_id}`} style={followCardStyle}>
           <div>
             <div style={followNameStyle}>{item.entity_name}</div>
-            <div style={followMetaStyle}>{item.entity_type.toUpperCase()} {item.subtitle ? `• ${item.subtitle}` : ''}</div>
+            <div style={followMetaStyle}>
+              {item.entity_type.toUpperCase()} {item.subtitle ? `• ${item.subtitle}` : ''}
+            </div>
           </div>
-          <button type="button" onClick={() => onRemove(item)} style={ghostMiniButtonStyle}>Remove</button>
+          <button type="button" onClick={() => onRemove(item)} style={ghostMiniButtonStyle}>
+            Remove
+          </button>
         </div>
       ))}
     </div>
@@ -998,7 +1096,8 @@ const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   padding: isMobile ? '26px 18px' : '34px 26px',
   borderRadius: 34,
   border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 52%, rgba(8,27,56,0.92) 100%)',
+  background:
+    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 52%, rgba(8,27,56,0.92) 100%)',
   boxShadow: '0 28px 80px rgba(3, 10, 24, 0.30)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
@@ -1180,7 +1279,8 @@ const surfaceStrongStyle: CSSProperties = {
   borderRadius: 28,
   padding: 20,
   border: '1px solid rgba(116,190,255,0.16)',
-  background: 'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
+  background:
+    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
   boxShadow: '0 24px 60px rgba(2, 8, 23, 0.24)',
 }
 
@@ -1360,11 +1460,12 @@ const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
   borderRadius: 22,
   padding: 18,
   border: '1px solid rgba(255,255,255,0.08)',
-  background: accent === 'green'
-    ? 'linear-gradient(180deg, rgba(97,160,69,0.14) 0%, rgba(16,34,70,0.42) 100%)'
-    : accent === 'violet'
-      ? 'linear-gradient(180deg, rgba(119,98,255,0.14) 0%, rgba(16,34,70,0.42) 100%)'
-      : 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
+  background:
+    accent === 'green'
+      ? 'linear-gradient(180deg, rgba(97,160,69,0.14) 0%, rgba(16,34,70,0.42) 100%)'
+      : accent === 'violet'
+        ? 'linear-gradient(180deg, rgba(119,98,255,0.14) 0%, rgba(16,34,70,0.42) 100%)'
+        : 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
 })
 
 const feedTopRowStyle: CSSProperties = {

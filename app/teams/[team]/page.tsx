@@ -21,6 +21,7 @@ type TeamMatch = {
   league_name?: string | null
   usta_section?: string | null
   district_area?: string | null
+  line_number?: string | null
 }
 
 type Player = {
@@ -181,23 +182,25 @@ export default function TeamPage() {
         return
       }
 
-      let matchQuery = supabase
-        .from('matches')
-        .select(`
-          id,
-          home_team,
-          away_team,
-          match_date,
-          match_type,
-          winner_side,
-          score,
-          flight,
-          league_name,
-          usta_section,
-          district_area
-        `)
-        .order('match_date', { ascending: false })
-        .limit(250)
+    let matchQuery = supabase
+  .from('matches')
+  .select(`
+    id,
+    home_team,
+    away_team,
+    match_date,
+    match_type,
+    winner_side,
+    score,
+    flight,
+    league_name,
+    usta_section,
+    district_area,
+    line_number
+  `)
+  .is('line_number', null)
+  .order('match_date', { ascending: false })
+  .limit(250)
 
       if (leagueFilter) {
         matchQuery = matchQuery.eq('league_name', leagueFilter)

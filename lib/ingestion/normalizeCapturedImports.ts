@@ -101,7 +101,9 @@ function normalizeWinnerSide(value: unknown): MatchSide | null {
 
 function splitPlayerList(value: unknown): string[] {
   if (Array.isArray(value)) {
-    return value.map((entry) => cleanString(entry)).filter(Boolean)
+    return value
+      .map((entry) => cleanString(entry))
+      .filter((entry) => Boolean(entry) && entry.toLowerCase() !== 'timed match')
   }
 
   const cleaned = cleanString(value)
@@ -110,7 +112,7 @@ function splitPlayerList(value: unknown): string[] {
   return cleaned
     .split(/\s*(?:\/|&|,|\band\b)\s*/i)
     .map((entry) => cleanString(entry))
-    .filter(Boolean)
+    .filter((entry) => Boolean(entry) && entry.toLowerCase() !== 'timed match')
 }
 
 function unwrapRootRows(payload: unknown): unknown[] {
@@ -185,6 +187,21 @@ function normalizeLeagueName(record: UnknownRecord): string | null {
     ]),
   )
   if (nested) return nested
+
+  const districtFallback = nullableString(
+    pickFirst(record, ['districtArea', 'district_area', 'district', 'area']),
+  )
+
+  const sectionFallback = nullableString(
+    pickFirst(record, ['ustaSection', 'usta_section', 'section']),
+  )
+
+  const flightFallback = nullableString(pickFirst(record, ['flight']))
+
+  if (districtFallback) return districtFallback
+  if (sectionFallback && flightFallback) return `${sectionFallback} • ${flightFallback}`
+  if (sectionFallback) return sectionFallback
+  if (flightFallback) return `USTA ${flightFallback}`
 
   return null
 }
@@ -298,16 +315,69 @@ function normalizeTime(record: UnknownRecord): string | null {
   return null
 }
 
+function splitFlagDelimitedTeamParts(value: string): string[] {
+  return value
+    .split(/\(\s*F\s*\)?/i)
+    .map((part) => cleanString(part))
+    .filter(Boolean)
+}
+
+function normalizeRawTeamValue(value: unknown): string {
+  return cleanString(value).replace(/\(\s*F\s*\)?/gi, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function extractTeamsFromScheduleFields(record: UnknownRecord): { home: string; away: string } {
+  const rawHome = cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']))
+  const rawAway = cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']))
+
+  const homeParts = splitFlagDelimitedTeamParts(rawHome)
+  const awayParts = splitFlagDelimitedTeamParts(rawAway)
+
+  const simpleHome = normalizeRawTeamValue(rawHome)
+  const simpleAway = normalizeRawTeamValue(rawAway)
+
+  if (simpleHome && simpleAway && homeParts.length <= 1 && awayParts.length <= 1) {
+    return {
+      home: simpleHome,
+      away: simpleAway,
+    }
+  }
+
+  if (homeParts.length >= 2 && awayParts.length === 0) {
+    return {
+      home: homeParts[0] || '',
+      away: homeParts[1] || '',
+    }
+  }
+
+  if (homeParts.length === 1 && awayParts.length === 1) {
+    return {
+      home: homeParts[0] || '',
+      away: awayParts[0] || '',
+    }
+  }
+
+  if (homeParts.length === 1 && awayParts.length >= 2) {
+    return {
+      home: `${homeParts[0]} ${awayParts[0]}`.trim(),
+      away: awayParts[1] || '',
+    }
+  }
+
+  return {
+    home: simpleHome,
+    away: simpleAway,
+  }
+}
+
 function normalizeHomeTeam(record: UnknownRecord): string {
-  return cleanString(
-    pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']),
-  )
+  const extracted = extractTeamsFromScheduleFields(record)
+  return cleanString(extracted.home)
 }
 
 function normalizeAwayTeam(record: UnknownRecord): string {
-  return cleanString(
-    pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']),
-  )
+  const extracted = extractTeamsFromScheduleFields(record)
+  return cleanString(extracted.away)
 }
 
 function buildScoreFromSets(value: unknown): string | null {

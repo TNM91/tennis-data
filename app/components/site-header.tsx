@@ -4,14 +4,14 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
-import { supabase } from '@/lib/supabase'
-import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { useAuth } from '@/app/components/auth-provider'
 import {
   transitionBase,
   hoverLift,
   hoverGlowGreen,
   hoverBrighten,
 } from '@/lib/interaction-styles'
+import { supabase } from '@/lib/supabase'
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
@@ -286,33 +286,12 @@ function HeaderButton({
   )
 }
 
-async function loadProfileRole(userId: string | null | undefined): Promise<UserRole> {
-  if (!userId) return 'public'
-
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (error) {
-      return 'member'
-    }
-
-    return normalizeUserRole(data?.role ?? 'member')
-  } catch {
-    return 'member'
-  }
-}
-
 export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { role } = useAuth()
 
   const [screenWidth, setScreenWidth] = useState(1280)
-  const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
 
   const isTablet = screenWidth < 1080
@@ -326,57 +305,11 @@ export default function SiteHeader({ active }: { active?: string }) {
   }, [])
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadUser() {
-      try {
-        const { data, error } = await supabase.auth.getUser()
-
-        if (!mounted) return
-
-        if (error || !data.user) {
-          setRole('public')
-          return
-        }
-
-        const resolvedRole = await loadProfileRole(data.user.id)
-        if (!mounted) return
-
-        setRole(resolvedRole)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
-    }
-
-    loadUser()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session?.user) {
-        setRole('public')
-        setAuthLoading(false)
-        return
-      }
-
-      const resolvedRole = await loadProfileRole(session.user.id)
-      setRole(resolvedRole)
-      setAuthLoading(false)
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  useEffect(() => {
     setMenuOpen(false)
   }, [pathname, screenWidth])
 
   async function handleLogout() {
     await supabase.auth.signOut()
-    setRole('public')
     router.push('/')
     router.refresh()
   }
@@ -470,6 +403,9 @@ export default function SiteHeader({ active }: { active?: string }) {
     zIndex: 1,
   } as const
 
+  const showAuthenticatedActions = role !== 'public'
+  const showPublicActions = role === 'public'
+
   return (
     <header
       style={{
@@ -513,22 +449,14 @@ export default function SiteHeader({ active }: { active?: string }) {
           </div>
 
           <div style={actionCluster}>
-            {authLoading ? (
-              <span
-                style={{
-                  color: 'rgba(214,228,246,0.58)',
-                  fontWeight: 700,
-                  fontSize: '14px',
-                }}
-              >
-                Loading...
-              </span>
-            ) : role === 'public' ? (
+            {showPublicActions ? (
               <>
                 <HeaderLink href="/login" label="Login" variant="quiet" />
                 <HeaderLink href="/join" label="Join" variant="cta" />
               </>
-            ) : (
+            ) : null}
+
+            {showAuthenticatedActions ? (
               <>
                 <HeaderLink href="/mylab" label="My Lab" variant="cta" />
                 {role === 'admin' ? (
@@ -536,7 +464,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 ) : null}
                 <HeaderButton label="Logout" onClick={handleLogout} />
               </>
-            )}
+            ) : null}
           </div>
 
           <button
@@ -567,17 +495,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               )
             })}
 
-            {authLoading ? (
-              <span
-                style={{
-                  ...mobilePanelLink,
-                  opacity: 0.72,
-                }}
-              >
-                <span>Loading...</span>
-                <span style={{ opacity: 0.38 }}>•</span>
-              </span>
-            ) : role === 'public' ? (
+            {showPublicActions ? (
               <>
                 <Link href="/login" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
                   <span>Login</span>
@@ -600,7 +518,9 @@ export default function SiteHeader({ active }: { active?: string }) {
                   <span style={{ opacity: 0.62 }}>→</span>
                 </Link>
               </>
-            ) : (
+            ) : null}
+
+            {showAuthenticatedActions ? (
               <>
                 <Link
                   href="/mylab"
@@ -638,7 +558,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   <span style={{ opacity: 0.38 }}>→</span>
                 </button>
               </>
-            )}
+            ) : null}
           </nav>
         </div>
       </div>

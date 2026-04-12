@@ -623,25 +623,6 @@ export class ImportEngine {
           continue
         }
 
-        const completedLineCount = row.lines.filter((line) => Boolean(line.winnerSide)).length
-        const alreadyImported = await this.isCompletedScorecardAlreadyImported(
-          parentPayload.external_match_id,
-          completedLineCount,
-        )
-
-        if (alreadyImported) {
-          result.skippedCount += 1
-          result.rows.push({
-            rowIndex,
-            externalMatchId: parentPayload.external_match_id,
-            status: 'skipped',
-            createdPlayerNames: [],
-            linkedPlayerCount: 0,
-            message: 'This scorecard has already been completed and imported.',
-          })
-          continue
-        }
-
         const existingParent = await this.findMatchByExternalMatchId(parentPayload.external_match_id)
 
         const { data: upsertedParentMatch, error: parentUpsertError } = await this.supabase
@@ -865,12 +846,37 @@ export class ImportEngine {
           continue
         }
 
-        try {
-          await this.linkPlayersToParentMatch(parentMatchId, row, resolvedPlayers)
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : 'Failed to link parent match players'
+        const parentMatchPlayers: MatchPlayerInsertPayload[] = []
+        const nextSeatBySide: Record<MatchSide, number> = { A: 1, B: 1 }
 
+        for (const line of row.lines) {
+          if (!line.winnerSide) continue
+
+          const linePlayers = buildLinePlayerNames(line)
+
+          for (const playerEntry of linePlayers) {
+            const resolved = resolvedPlayers.get(normalizeName(playerEntry.name))
+            if (!resolved) continue
+
+            parentMatchPlayers.push({
+              match_id: parentMatchId,
+              player_id: resolved.id,
+              side: playerEntry.side,
+              seat: nextSeatBySide[playerEntry.side]++,
+            })
+          }
+        }
+
+        const uniqueParentPlayers = Array.from(
+          new Map(parentMatchPlayers.map((player) => [player.player_id, player])).values(),
+        )
+
+        const { error: deleteParentPlayersError } = await this.supabase
+          .from('match_players')
+          .delete()
+          .eq('match_id', parentMatchId)
+
+        if (deleteParentPlayersError) {
           result.failedCount += 1
           result.rows.push({
             rowIndex,
@@ -879,15 +885,41 @@ export class ImportEngine {
             matchId: parentMatchId,
             createdPlayerNames,
             linkedPlayerCount: totalLinkedPlayerCount,
-            message,
+            message: deleteParentPlayersError.message,
           })
           result.errors.push({
             rowIndex,
             externalMatchId: parentPayload.external_match_id,
-            code: 'MATCH_PLAYERS_INSERT_FAILED',
-            message,
+            code: 'MATCH_PLAYERS_DELETE_FAILED',
+            message: deleteParentPlayersError.message,
           })
           continue
+        }
+
+        if (uniqueParentPlayers.length > 0) {
+          const { error: insertParentPlayersError } = await this.supabase
+            .from('match_players')
+            .insert(uniqueParentPlayers)
+
+          if (insertParentPlayersError) {
+            result.failedCount += 1
+            result.rows.push({
+              rowIndex,
+              externalMatchId: parentPayload.external_match_id,
+              status: 'failed',
+              matchId: parentMatchId,
+              createdPlayerNames,
+              linkedPlayerCount: totalLinkedPlayerCount,
+              message: `Failed to insert parent match players: ${insertParentPlayersError.message}`,
+            })
+            result.errors.push({
+              rowIndex,
+              externalMatchId: parentPayload.external_match_id,
+              code: 'MATCH_PLAYERS_INSERT_FAILED',
+              message: `Failed to insert parent match players: ${insertParentPlayersError.message}`,
+            })
+            continue
+          }
         }
 
         if (this.options.scorecardLinesTable) {
@@ -957,7 +989,7 @@ export class ImportEngine {
         }
 
         result.createdPlayersCount += createdPlayerNames.length
-        result.linkedPlayersCount += totalLinkedPlayerCount
+        result.linkedPlayersCount += totalLinkedPlayerCount + uniqueParentPlayers.length
 
         const status = existingParent ? 'updated' : 'imported'
         if (status === 'updated') result.updatedCount += 1
@@ -967,7 +999,7 @@ export class ImportEngine {
           matchId: parentMatchId,
           row,
           rowIndex,
-          linkedPlayerCount: totalLinkedPlayerCount,
+          linkedPlayerCount: totalLinkedPlayerCount + uniqueParentPlayers.length,
           createdPlayerNames,
           status,
         })
@@ -978,11 +1010,11 @@ export class ImportEngine {
           status,
           matchId: parentMatchId,
           createdPlayerNames,
-          linkedPlayerCount: totalLinkedPlayerCount,
+          linkedPlayerCount: totalLinkedPlayerCount + uniqueParentPlayers.length,
           message:
             status === 'updated'
-              ? `Updated completed match, created line-level rated matches, and linked ${totalLinkedPlayerCount} players`
-              : `Imported completed match, created line-level rated matches, and linked ${totalLinkedPlayerCount} players`,
+              ? `Updated completed match, created line-level rated matches, and linked ${totalLinkedPlayerCount} line players plus ${uniqueParentPlayers.length} parent match players`
+              : `Imported completed match, created line-level rated matches, and linked ${totalLinkedPlayerCount} line players plus ${uniqueParentPlayers.length} parent match players`,
         })
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown scorecard import error'
@@ -1042,88 +1074,6 @@ export class ImportEngine {
       })
       throw new Error(`Failed to clear existing scorecard line matches: ${deleteError.message}`)
     }
-  }
-
-
-  private async linkPlayersToParentMatch(
-    parentMatchId: string,
-    row: ScorecardImportRow,
-    resolvedPlayers: Map<string, PlayerResolution>,
-  ): Promise<number> {
-    const seatCounter: Record<MatchSide, number> = { A: 0, B: 0 }
-    const parentMatchPlayers: MatchPlayerInsertPayload[] = []
-
-    for (const line of row.lines) {
-      if (!line.winnerSide) continue
-
-      const linePlayers = buildLinePlayerNames(line)
-      for (const playerEntry of linePlayers) {
-        const resolved = resolvedPlayers.get(normalizeName(playerEntry.name))
-        if (!resolved) continue
-
-        seatCounter[playerEntry.side] += 1
-        parentMatchPlayers.push({
-          match_id: parentMatchId,
-          player_id: resolved.id,
-          side: playerEntry.side,
-          seat: seatCounter[playerEntry.side],
-        })
-      }
-    }
-
-    const { error: deleteParentError } = await this.supabase
-      .from('match_players')
-      .delete()
-      .eq('match_id', parentMatchId)
-
-    if (deleteParentError) {
-      throw new Error(`Failed to clear parent match players: ${deleteParentError.message}`)
-    }
-
-    if (parentMatchPlayers.length === 0) return 0
-
-    const { error: insertParentError } = await this.supabase
-      .from('match_players')
-      .insert(parentMatchPlayers)
-
-    if (insertParentError) {
-      throw new Error(`Failed to insert parent match players: ${insertParentError.message}`)
-    }
-
-    return parentMatchPlayers.length
-  }
-
-  private async isCompletedScorecardAlreadyImported(
-    externalMatchId: string,
-    completedLineCount: number,
-  ): Promise<boolean> {
-    const existingParent = await this.findMatchByExternalMatchId(externalMatchId)
-    if (!existingParent) return false
-
-    const looksCompleted =
-      existingParent.status === 'completed' ||
-      Boolean(existingParent.winner_side) ||
-      Boolean(nullableString(existingParent.score))
-
-    if (!looksCompleted) return false
-
-    const pattern = `${cleanString(externalMatchId)}::line:%`
-
-    const { data, error } = await this.supabase
-      .from('matches')
-      .select('id')
-      .like('external_match_id', pattern)
-
-    if (error) {
-      this.options.log('isCompletedScorecardAlreadyImported lookup failed', {
-        externalMatchId,
-        error: error.message,
-      })
-      return looksCompleted
-    }
-
-    const lineCount = ((data ?? []) as Array<{ id: string }>).length
-    return lineCount >= completedLineCount
   }
 
   private async writeImportIntelligenceEvents(contexts: ImportedScorecardEventContext[]) {
