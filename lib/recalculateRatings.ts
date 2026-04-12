@@ -76,34 +76,30 @@ type ScoreMetrics = {
   multiplier: number
 }
 
-type FeedInsert = {
-  event_type: string
-  entity_type: 'player'
-  entity_id: string
-  entity_name: string
-  subtitle: string | null
-  title: string
-  body: string | null
+export type RatingProgress = {
+  current: number
+  next: number
+  previous: number
+  gainedWithinBand: number
+  bandWidth: number
+  progressPct: number
 }
 
 const DEFAULT_RATING = 3.5
-
 const MIN_RATING = 1.5
 const MAX_RATING = 7.0
 
-const K_SINGLES = 0.115
-const K_DOUBLES = 0.105
-const K_OVERALL = 0.05
+const K_SINGLES = 0.12
+const K_DOUBLES = 0.107
+const K_OVERALL = 0.052
 
 const RATING_DIVISOR = 0.45
-
-const MAX_MULTIPLIER = 2.0
+const MAX_MULTIPLIER = 2.02
 const MIN_MULTIPLIER = 0.82
 
-const MEANINGFUL_DELTA_THRESHOLD = 0.01
-const BIG_MOVE_THRESHOLD = 0.05
-const BREAKOUT_RATING_THRESHOLD = 4.0
-const BREAKOUT_RECENT_GAIN_THRESHOLD = 0.09
+const RATING_BANDS = [
+  1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
+] as const
 
 export async function recalculateDynamicRatings() {
   const players = await fetchPlayers()
@@ -116,7 +112,7 @@ export async function recalculateDynamicRatings() {
       const doublesBase = safeNumber(player.doubles_rating, DEFAULT_RATING)
       const overallBase = safeNumber(
         player.overall_rating,
-        roundRating((singlesBase + doublesBase) / 2)
+        roundRating((singlesBase + doublesBase) / 2),
       )
 
       return [
@@ -125,16 +121,16 @@ export async function recalculateDynamicRatings() {
           id: player.id,
           name: player.name,
           singlesBase,
-          singlesDynamic: singlesBase,
+          singlesDynamic: safeNumber(player.singles_dynamic_rating, singlesBase),
           doublesBase,
-          doublesDynamic: doublesBase,
+          doublesDynamic: safeNumber(player.doubles_dynamic_rating, doublesBase),
           overallBase,
-          overallDynamic: overallBase,
+          overallDynamic: safeNumber(player.overall_dynamic_rating, overallBase),
           matchesProcessed: 0,
           recentDeltas: [],
         },
       ]
-    })
+    }),
   )
 
   const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
@@ -202,11 +198,60 @@ export async function recalculateDynamicRatings() {
     }
   }
 
-  const finalPlayers = [...playersById.values()]
-
-  await persistPlayerRatings(finalPlayers)
+  await persistPlayerRatings([...playersById.values()])
   await replaceRatingSnapshots(snapshotRows)
-  await writeRatingFeedEvents(finalPlayers)
+}
+
+export function getNextRatingThreshold(currentRating: number): number {
+  const current = clampAndRoundRating(currentRating)
+
+  for (const band of RATING_BANDS) {
+    if (band > current) return band
+  }
+
+  return MAX_RATING
+}
+
+export function getPreviousRatingThreshold(currentRating: number): number {
+  const current = clampAndRoundRating(currentRating)
+
+  for (let index = RATING_BANDS.length - 1; index >= 0; index -= 1) {
+    const band = RATING_BANDS[index]
+    if (band < current) return band
+  }
+
+  return MIN_RATING
+}
+
+export function getRatingProgressToNextLevel(currentRating: number): RatingProgress {
+  const current = clampAndRoundRating(currentRating)
+  const previous = getPreviousRatingThreshold(current)
+  const next = getNextRatingThreshold(current)
+  const bandWidth = Math.max(next - previous, 0.5)
+  const gainedWithinBand = clampNumber(current - previous, 0, bandWidth)
+  const progressPct = roundRating((gainedWithinBand / bandWidth) * 100)
+
+  return {
+    current,
+    next,
+    previous,
+    gainedWithinBand: roundRating(gainedWithinBand),
+    bandWidth: roundRating(bandWidth),
+    progressPct,
+  }
+}
+
+export function projectHeadToHeadWinProbability(playerRating: number, opponentRating: number): number {
+  return roundRating(expectedScore(playerRating, opponentRating) * 100)
+}
+
+export function projectDoublesTeamWinProbability(
+  teamARatings: number[],
+  teamBRatings: number[],
+): number {
+  const teamA = average(teamARatings)
+  const teamB = average(teamBRatings)
+  return roundRating(expectedScore(teamA, teamB) * 100)
 }
 
 async function fetchPlayers(): Promise<PlayerRow[]> {
@@ -241,6 +286,8 @@ async function fetchMatches(): Promise<MatchRow[]> {
       winner_side,
       created_at
     `)
+    .not('match_type', 'is', null)
+    .not('winner_side', 'is', null)
     .order('match_date', { ascending: true })
     .order('created_at', { ascending: true })
 
@@ -273,7 +320,7 @@ function processSinglesMatch(
   playerA: WorkingPlayer,
   playerB: WorkingPlayer,
   snapshotRows: RatingSnapshotInsert[],
-  recencyWeight: number
+  recencyWeight: number,
 ) {
   const ratingA = playerA.singlesDynamic
   const ratingB = playerB.singlesDynamic
@@ -306,7 +353,7 @@ function processSinglesMatch(
     buildSnapshot(playerA.id, match.id, match.match_date, 'singles', playerA.singlesDynamic),
     buildSnapshot(playerB.id, match.id, match.match_date, 'singles', playerB.singlesDynamic),
     buildSnapshot(playerA.id, match.id, match.match_date, 'overall', playerA.overallDynamic),
-    buildSnapshot(playerB.id, match.id, match.match_date, 'overall', playerB.overallDynamic)
+    buildSnapshot(playerB.id, match.id, match.match_date, 'overall', playerB.overallDynamic),
   )
 }
 
@@ -315,7 +362,7 @@ function processDoublesMatch(
   teamA: WorkingPlayer[],
   teamB: WorkingPlayer[],
   snapshotRows: RatingSnapshotInsert[],
-  recencyWeight: number
+  recencyWeight: number,
 ) {
   const teamARating = average(teamA.map((player) => player.doublesDynamic))
   const teamBRating = average(teamB.map((player) => player.doublesDynamic))
@@ -342,7 +389,7 @@ function processDoublesMatch(
 
     snapshotRows.push(
       buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
-      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic)
+      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic),
     )
   }
 
@@ -353,7 +400,7 @@ function processDoublesMatch(
 
     snapshotRows.push(
       buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
-      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic)
+      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic),
     )
   }
 }
@@ -363,7 +410,7 @@ function buildSnapshot(
   matchId: string,
   snapshotDate: string,
   ratingType: 'singles' | 'doubles' | 'overall',
-  dynamicRating: number
+  dynamicRating: number,
 ): RatingSnapshotInsert {
   return {
     player_id: playerId,
@@ -372,98 +419,6 @@ function buildSnapshot(
     rating_type: ratingType,
     dynamic_rating: roundRating(dynamicRating),
   }
-}
-
-async function writeRatingFeedEvents(players: WorkingPlayer[]) {
-  const eventsByKey = new Map<string, FeedInsert>()
-
-  for (const player of players) {
-    const latestDelta = player.recentDeltas[player.recentDeltas.length - 1] ?? 0
-    const cumulativeRecentDelta = roundRating(
-      player.recentDeltas.reduce((sum, delta) => sum + delta, 0)
-    )
-
-    const sharedSubtitle = buildPlayerSubtitle(player)
-
-    if (Math.abs(latestDelta) >= MEANINGFUL_DELTA_THRESHOLD) {
-      const direction = latestDelta > 0 ? 'up' : 'down'
-      const deltaText = `${latestDelta > 0 ? '+' : ''}${latestDelta.toFixed(3)}`
-
-      eventsByKey.set(`rating_update:${player.id}`, {
-        event_type: 'rating_update',
-        entity_type: 'player',
-        entity_id: player.id,
-        entity_name: player.name,
-        subtitle: sharedSubtitle,
-        title: `${player.name} rating ${direction} ${deltaText}`,
-        body: `${player.name} now sits at overall ${player.overallDynamic.toFixed(2)} after ${player.matchesProcessed} processed match${player.matchesProcessed === 1 ? '' : 'es'}.`,
-      })
-    }
-
-    if (Math.abs(latestDelta) >= BIG_MOVE_THRESHOLD) {
-      const positiveMove = latestDelta > 0
-      const movementLabel = positiveMove ? 'big_rating_gain' : 'big_rating_drop'
-      const moveText = `${positiveMove ? '+' : ''}${latestDelta.toFixed(3)}`
-
-      eventsByKey.set(`${movementLabel}:${player.id}`, {
-        event_type: movementLabel,
-        entity_type: 'player',
-        entity_id: player.id,
-        entity_name: player.name,
-        subtitle: sharedSubtitle,
-        title: positiveMove
-          ? `${player.name} made a big rating move`
-          : `${player.name} took a rating dip`,
-        body: positiveMove
-          ? `${player.name} jumped ${moveText} in the latest recalculation and is now at overall ${player.overallDynamic.toFixed(2)}.`
-          : `${player.name} moved ${moveText} in the latest recalculation and now sits at overall ${player.overallDynamic.toFixed(2)}.`,
-      })
-    }
-
-    if (isBreakoutPlayer(player, cumulativeRecentDelta)) {
-      eventsByKey.set(`breakout_player:${player.id}`, {
-        event_type: 'breakout_player',
-        entity_type: 'player',
-        entity_id: player.id,
-        entity_name: player.name,
-        subtitle: sharedSubtitle,
-        title: `${player.name} is breaking out`,
-        body: `${player.name} has climbed from base overall ${player.overallBase.toFixed(2)} to ${player.overallDynamic.toFixed(2)} with recent momentum of ${formatSignedDelta(cumulativeRecentDelta)}.`,
-      })
-    }
-  }
-
-  const events = [...eventsByKey.values()]
-  if (events.length === 0) return
-
-  for (const chunk of chunkArray(events, 200)) {
-    const { error } = await supabase.from('my_lab_feed').insert(chunk)
-
-    if (error) {
-      throw new Error(`Failed to insert rating feed events: ${error.message}`)
-    }
-  }
-}
-
-function buildPlayerSubtitle(player: WorkingPlayer) {
-  return `Overall ${player.overallDynamic.toFixed(2)} • Singles ${player.singlesDynamic.toFixed(2)} • Doubles ${player.doublesDynamic.toFixed(2)}`
-}
-
-function isBreakoutPlayer(player: WorkingPlayer, cumulativeRecentDelta: number) {
-  const crossedThreshold =
-    player.overallBase < BREAKOUT_RATING_THRESHOLD &&
-    player.overallDynamic >= BREAKOUT_RATING_THRESHOLD
-
-  const sustainedMomentum =
-    player.recentDeltas.length >= 3 &&
-    cumulativeRecentDelta >= BREAKOUT_RECENT_GAIN_THRESHOLD &&
-    player.recentDeltas.slice(-3).every((delta) => delta > 0)
-
-  return crossedThreshold || sustainedMomentum
-}
-
-function formatSignedDelta(value: number) {
-  return `${value > 0 ? '+' : ''}${value.toFixed(3)}`
 }
 
 async function persistPlayerRatings(players: WorkingPlayer[]) {
@@ -521,7 +476,7 @@ function parseScoreMetrics(score: string | null | undefined, winnerSide: MatchSi
   }
 
   const setTokens = normalized
-    .split(/[;,]/)
+    .split(/[;,|]/)
     .map((token) => token.trim())
     .filter(Boolean)
 
@@ -604,8 +559,8 @@ function parseScoreMetrics(score: string | null | undefined, winnerSide: MatchSi
         tiebreakSets * 0.04 -
         closeSets * 0.015,
       MIN_MULTIPLIER,
-      MAX_MULTIPLIER
-    )
+      MAX_MULTIPLIER,
+    ),
   )
 
   return {
@@ -657,7 +612,7 @@ function buildMatchMultiplier(
   ratingB: number,
   actualA: number,
   actualB: number,
-  recencyWeight: number
+  recencyWeight: number,
 ) {
   const ratingGap = Math.abs(ratingA - ratingB)
   const strongerSide = ratingA >= ratingB ? 'A' : 'B'
@@ -676,8 +631,17 @@ function buildMatchMultiplier(
     }
   }
 
-  const expectedCompressionA = clampNumber(0.96 + Math.abs(actualA - expectedScore(ratingA, ratingB)) * 0.14, 0.96, 1.08)
-  const expectedCompressionB = clampNumber(0.96 + Math.abs(actualB - expectedScore(ratingB, ratingA)) * 0.14, 0.96, 1.08)
+  const expectedCompressionA = clampNumber(
+    0.96 + Math.abs(actualA - expectedScore(ratingA, ratingB)) * 0.14,
+    0.96,
+    1.08,
+  )
+
+  const expectedCompressionB = clampNumber(
+    0.96 + Math.abs(actualB - expectedScore(ratingB, ratingA)) * 0.14,
+    0.96,
+    1.08,
+  )
 
   const baseMultiplier = scoreMetrics.multiplier
 
@@ -728,7 +692,6 @@ function getRecencyWeight(matchIndex: number, totalMatches: number) {
   if (totalMatches <= 1) return 1
 
   const progress = matchIndex / Math.max(totalMatches - 1, 1)
-
   return roundRating(clampNumber(0.97 + progress * 0.09, 0.97, 1.06))
 }
 

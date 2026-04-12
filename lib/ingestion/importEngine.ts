@@ -488,7 +488,6 @@ export class ImportEngine {
         }
 
         const payload = toScheduleMatchUpsert(row)
-        console.log('SCHEDULE_IMPORT_PAYLOAD', payload)
 
         if (mode === 'preview') {
           result.successCount += 1
@@ -603,25 +602,23 @@ export class ImportEngine {
         }
 
         const parentPayload = toScorecardParentMatchUpsert(row)
-
-        console.log('SCORECARD_IMPORT_START', {
-          rowIndex,
-          externalMatchId: parentPayload.external_match_id,
-          lineCount: row.lines.length,
-        })
-
         const linePeople = row.lines.flatMap(buildLinePlayerNames)
         const uniquePlayerNames = dedupeStrings(linePeople.map((entry) => entry.name))
 
         if (mode === 'preview') {
+          const completeLines = row.lines.filter((line) => Boolean(line.winnerSide)).length
+          const previewLinkedCount = row.lines
+            .filter((line) => Boolean(line.winnerSide))
+            .flatMap(buildLinePlayerNames).length
+
           result.successCount += 1
           result.rows.push({
             rowIndex,
             externalMatchId: parentPayload.external_match_id,
             status: 'preview',
             createdPlayerNames: [],
-            linkedPlayerCount: linePeople.length,
-            message: `Validated scorecard with ${row.lines.length} lines`,
+            linkedPlayerCount: previewLinkedCount,
+            message: `Validated scorecard with ${row.lines.length} lines (${completeLines} completed for rating import)`,
           })
           continue
         }
@@ -655,12 +652,6 @@ export class ImportEngine {
         }
 
         const parentMatchId = upsertedParentMatch.id
-
-        console.log('SCORECARD_PARENT_MATCH_UPSERTED', {
-          rowIndex,
-          externalMatchId: parentPayload.external_match_id,
-          matchId: parentMatchId,
-        })
 
         let resolvedPlayers = new Map<string, PlayerResolution>()
         let createdPlayerNames: string[] = []
@@ -715,8 +706,17 @@ export class ImportEngine {
         await this.deleteExistingScorecardLineMatches(parentPayload.external_match_id)
 
         let totalLinkedPlayerCount = 0
+        let hadLineFailure = false
 
         for (const line of row.lines) {
+          if (!line.winnerSide) {
+            this.options.log('Skipping incomplete scorecard line', {
+              externalMatchId: row.externalMatchId,
+              lineNumber: line.lineNumber,
+            })
+            continue
+          }
+
           const linePayload = toScorecardLineMatchUpsert(row, line)
 
           const { data: upsertedLineMatch, error: lineUpsertError } = await this.supabase
@@ -743,15 +743,13 @@ export class ImportEngine {
               code: 'MATCH_UPSERT_FAILED',
               message,
             })
-            totalLinkedPlayerCount = 0
+            hadLineFailure = true
             break
           }
 
           const lineMatchId = upsertedLineMatch.id
           const linePlayers = buildLinePlayerNames(line)
           const matchPlayersToInsert: MatchPlayerInsertPayload[] = []
-
-          let failedDuringPlayerAssembly = false
 
           for (const playerEntry of linePlayers) {
             const resolved = resolvedPlayers.get(normalizeName(playerEntry.name))
@@ -772,7 +770,7 @@ export class ImportEngine {
                 code: 'PLAYER_LOOKUP_FAILED',
                 message: `Resolved player missing for "${playerEntry.name}"`,
               })
-              failedDuringPlayerAssembly = true
+              hadLineFailure = true
               break
             }
 
@@ -784,10 +782,7 @@ export class ImportEngine {
             })
           }
 
-          if (failedDuringPlayerAssembly) {
-            totalLinkedPlayerCount = 0
-            break
-          }
+          if (hadLineFailure) break
 
           if (this.options.matchPlayersDeleteBeforeInsert) {
             const { error: deleteError } = await this.supabase
@@ -812,7 +807,7 @@ export class ImportEngine {
                 code: 'MATCH_PLAYERS_DELETE_FAILED',
                 message: deleteError.message,
               })
-              totalLinkedPlayerCount = 0
+              hadLineFailure = true
               break
             }
           }
@@ -839,7 +834,7 @@ export class ImportEngine {
                 code: 'MATCH_PLAYERS_INSERT_FAILED',
                 message: insertPlayersError.message,
               })
-              totalLinkedPlayerCount = 0
+              hadLineFailure = true
               break
             }
           }
@@ -847,7 +842,7 @@ export class ImportEngine {
           totalLinkedPlayerCount += matchPlayersToInsert.length
         }
 
-        if (totalLinkedPlayerCount === 0 && row.lines.length > 0) {
+        if (hadLineFailure) {
           continue
         }
 
@@ -878,7 +873,7 @@ export class ImportEngine {
               status: 'failed',
               matchId: parentMatchId,
               createdPlayerNames,
-              linkedPlayerCount: 0,
+              linkedPlayerCount: totalLinkedPlayerCount,
               message: deleteLinesError.message,
             })
             result.errors.push({
@@ -903,7 +898,7 @@ export class ImportEngine {
                 status: 'failed',
                 matchId: parentMatchId,
                 createdPlayerNames,
-                linkedPlayerCount: 0,
+                linkedPlayerCount: totalLinkedPlayerCount,
                 message: insertLinesError.message,
               })
               result.errors.push({
@@ -1046,7 +1041,7 @@ export class ImportEngine {
         })
       }
 
-      const expectedLinks = expectedLinkedPlayerCount(row.lines)
+      const expectedLinks = expectedLinkedPlayerCount(row.lines.filter((line) => Boolean(line.winnerSide)))
       if (context.linkedPlayerCount < expectedLinks) {
         events.push({
           event_type: 'captain_alert_missing_player_links',
@@ -1054,7 +1049,7 @@ export class ImportEngine {
           entity_id: buildTeamEntityId(cleanString(row.homeTeam), leagueName, flight),
           entity_name: cleanString(row.homeTeam),
           subtitle: [leagueName, flight].filter(Boolean).join(' • ') || null,
-          title: `Captain alert: incomplete player linkage`,
+          title: 'Captain alert: incomplete player linkage',
           body: `Expected ${expectedLinks} player links but only connected ${context.linkedPlayerCount} for ${cleanString(row.homeTeam)} vs ${cleanString(row.awayTeam)}.`,
         })
       }
@@ -1091,14 +1086,17 @@ export class ImportEngine {
     }
 
     const burstCounts = new Map<string, { leagueName: string; flight: string | null; ustaSection: string | null; districtArea: string | null; count: number }>()
+
     for (const context of contexts) {
       const leagueName = nullableString(context.row.leagueName)
       if (!leagueName) continue
+
       const flight = nullableString(context.row.flight)
       const ustaSection = nullableString(context.row.ustaSection)
       const districtArea = nullableString(context.row.districtArea)
       const key = buildLeagueEntityId(leagueName, flight, ustaSection, districtArea)
       const current = burstCounts.get(key)
+
       if (current) {
         current.count += 1
       } else {
@@ -1114,6 +1112,7 @@ export class ImportEngine {
 
     for (const [key, burst] of burstCounts.entries()) {
       if (burst.count < 2) continue
+
       events.push({
         event_type: 'league_result_burst',
         entity_type: 'league',
@@ -1211,7 +1210,7 @@ export class ImportEngine {
       return []
     }
 
-    return ((data ?? []) as MatchRecord[]).filter((match) => match.status === 'completed' || match.winner_side)
+    return ((data ?? []) as MatchRecord[]).filter((match) => match.status === 'completed' || Boolean(match.winner_side))
   }
 
   private didTeamWin(match: MatchRecord, teamName: string): boolean | null {
@@ -1431,9 +1430,11 @@ export class ImportEngine {
 
   private chunkArray<T>(items: T[], size: number): T[][] {
     const chunks: T[][] = []
+
     for (let i = 0; i < items.length; i += size) {
       chunks.push(items.slice(i, i + size))
     }
+
     return chunks
   }
 }

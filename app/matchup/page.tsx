@@ -98,6 +98,10 @@ type ProjectionState = {
   favoriteEdgeText: string
   favoriteLabel: string
   underdogLabel: string
+  matchTier: string
+  isSwingMatch: boolean
+  captainInsight: string
+  swapImpactHint: string
 }
 
 type AccuracyState = {
@@ -945,6 +949,10 @@ export default function MatchupPage() {
       favoriteEdgeText: `${formatPercent(favoriteProbability)} vs ${formatPercent(underdogProbability)}`,
       favoriteLabel,
       underdogLabel,
+      matchTier: getMatchTier(favoriteProbability),
+      isSwingMatch: isSwingMatch(favoriteProbability),
+      captainInsight: getCaptainInsight(favoriteProbability, favoriteLabel, underdogLabel),
+      swapImpactHint: getSwapImpactHint(favoriteProbability, comparison.gap),
     }
   }, [comparison])
 
@@ -1311,6 +1319,21 @@ export default function MatchupPage() {
                     <div style={recommendationTitle}>Recommended move</div>
                     <div style={recommendationTextStyle}>{recommendationText}</div>
                   </div>
+
+                  <div style={recommendationCard}>
+                    <div style={recommendationTitle}>Match intelligence</div>
+                    <div style={intelligenceTierRow}>
+                      <span style={intelligenceTierPill}>{projection.matchTier}</span>
+                      {projection.isSwingMatch ? (
+                        <span style={intelligenceWarningPill}>Swing court</span>
+                      ) : null}
+                    </div>
+                    <div style={recommendationTextStyle}>{projection.captainInsight}</div>
+                    <div style={intelligenceHintBox}>
+                      <div style={intelligenceHintLabel}>Swap impact</div>
+                      <div style={intelligenceHintText}>{projection.swapImpactHint}</div>
+                    </div>
+                  </div>
                 </article>
               ) : null}
 
@@ -1566,6 +1589,54 @@ function getUpsetIndicator(favoriteProbability: number) {
   if (favoriteProbability >= 0.66) return 'Upset possible'
   if (favoriteProbability >= 0.58) return 'Slight upset risk'
   return 'True coin flip'
+}
+
+function getMatchTier(favoriteProbability: number) {
+  if (favoriteProbability >= 0.75) return 'Anchor Match'
+  if (favoriteProbability >= 0.66) return 'Strong Lean'
+  if (favoriteProbability >= 0.58) return 'Lean Match'
+  if (favoriteProbability >= 0.52) return 'Swing Match'
+  return 'Toss-up'
+}
+
+function isSwingMatch(favoriteProbability: number) {
+  return favoriteProbability >= 0.45 && favoriteProbability <= 0.55
+}
+
+function getCaptainInsight(
+  favoriteProbability: number,
+  favoriteLabel: string,
+  underdogLabel: string,
+) {
+  if (favoriteProbability >= 0.75) {
+    return `${favoriteLabel} should be treated as an anchor court. This is one of your cleaner spots to trust the favorite and use elsewhere to absorb risk.`
+  }
+  if (favoriteProbability >= 0.66) {
+    return `${favoriteLabel} has a meaningful edge over ${underdogLabel}. This is a favorable court, but placement and surrounding lineup context still matter.`
+  }
+  if (favoriteProbability >= 0.58) {
+    return `${favoriteLabel} is favored, but not safely. This is a leverage court where a small lineup change or opponent adjustment can change the tie picture.`
+  }
+  if (favoriteProbability >= 0.52) {
+    return `This is a swing court. Treat it as one of the likely tie-deciding matches and be careful about where you expose weaker lineup spots around it.`
+  }
+  return `This is a true toss-up. Do not count this court as secure for either side without stronger lineup context or scouting.`
+}
+
+function getSwapImpactHint(favoriteProbability: number, ratingGap: number) {
+  if (favoriteProbability >= 0.75 && ratingGap >= 0.25) {
+    return 'Low swap urgency. This court is already carrying a strong edge.'
+  }
+  if (favoriteProbability >= 0.66) {
+    return 'Moderate swap value. A stronger opponent assignment could still tighten this court.'
+  }
+  if (favoriteProbability >= 0.58) {
+    return 'Meaningful swap opportunity. A better placement here can improve your overall tie odds.'
+  }
+  if (favoriteProbability >= 0.52) {
+    return 'High swap sensitivity. Even a small move could flip this court.'
+  }
+  return 'Maximum swap sensitivity. This matchup is close enough that player placement likely decides it.'
 }
 
 function getExpectedOutcomeText(
@@ -2281,6 +2352,71 @@ const recommendationTextStyle: CSSProperties = {
   color: 'rgba(220,233,248,0.78)',
   fontSize: '14px',
   lineHeight: 1.72,
+  fontWeight: 500,
+}
+
+
+const intelligenceTierRow: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '10px',
+}
+
+const intelligenceTierPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  padding: '8px 12px',
+  background: 'rgba(37,91,227,0.16)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  color: '#d6e9ff',
+  fontSize: '12px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const intelligenceWarningPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  padding: '8px 12px',
+  background: 'rgba(250,204,21,0.14)',
+  border: '1px solid rgba(250,204,21,0.24)',
+  color: '#fde68a',
+  fontSize: '12px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const intelligenceHintBox: CSSProperties = {
+  marginTop: '12px',
+  borderRadius: '14px',
+  padding: '12px 14px',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const intelligenceHintLabel: CSSProperties = {
+  color: '#f4f9ff',
+  fontSize: '12px',
+  lineHeight: 1.2,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const intelligenceHintText: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.65,
   fontWeight: 500,
 }
 
