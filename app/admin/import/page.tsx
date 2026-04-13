@@ -89,7 +89,7 @@ type PreviewScorecardMatch = {
   lines: PreviewScorecardLine[]
 }
 
-const IMPORT_TIMEOUT_MS = 10000
+const IMPORT_TIMEOUT_MS = 60000
 
 const pageWrapStyle: CSSProperties = {
   width: '100%',
@@ -455,7 +455,7 @@ function TypeCard({
 function timeoutImport<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
-      reject(new Error(`Import timed out after ${Math.round(timeoutMs / 1000)} seconds.`))
+      reject(new Error(`Import timed out after ${Math.round(timeoutMs / 1000)} seconds. Large schedule and scorecard batches can take longer, so try preview first and then commit.`))
     }, timeoutMs)
 
     promise
