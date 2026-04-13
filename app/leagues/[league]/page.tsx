@@ -34,9 +34,18 @@ type TeamSummary = {
   winPct: number
 }
 
+type LeagueScopeDiagnostic = {
+  totalRows: number
+  leagueNames: string[]
+}
+
 function cleanText(value: string | null | undefined): string | null {
   const text = (value || '').trim()
   return text.length > 0 ? text : null
+}
+
+function normalizeCompareText(value: string | null | undefined): string {
+  return (value || '').trim().toLowerCase()
 }
 
 function formatDate(value: string | null) {
@@ -61,6 +70,18 @@ function buildTeamHref(teamName: string, leagueName: string, flight: string) {
   return `/teams/${encodeURIComponent(teamName)}${query ? `?${query}` : ''}`
 }
 
+function buildLeagueScopeHref(leagueName: string, flight: string, section: string, district: string) {
+  const params = new URLSearchParams()
+
+  if (leagueName) params.set('league', leagueName)
+  if (flight) params.set('flight', flight)
+  if (section) params.set('section', section)
+  if (district) params.set('district', district)
+
+  const query = params.toString()
+  return `/leagues/${encodeURIComponent(leagueName || 'league')}${query ? `?${query}` : ''}`
+}
+
 export default function LeagueDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -71,6 +92,7 @@ export default function LeagueDetailPage() {
   const district = searchParams.get('district') || ''
 
   const [rows, setRows] = useState<LeagueMatchRow[]>([])
+  const [nearbyRows, setNearbyRows] = useState<LeagueMatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [teamFilter, setTeamFilter] = useState('all')
@@ -119,7 +141,38 @@ export default function LeagueDetailPage() {
 
       if (error) throw new Error(error.message)
 
-      setRows((data || []) as LeagueMatchRow[])
+      const exactRows = (data || []) as LeagueMatchRow[]
+      setRows(exactRows)
+
+      if (exactRows.length === 0 && (flight || section || district)) {
+        let fallbackQuery = supabase
+          .from('matches')
+          .select(`
+            id,
+            league_name,
+            flight,
+            usta_section,
+            district_area,
+            home_team,
+            away_team,
+            match_date,
+            match_type,
+            score,
+            winner_side
+          `)
+          .order('match_date', { ascending: false })
+          .limit(200)
+
+        if (flight) fallbackQuery = fallbackQuery.eq('flight', flight)
+        if (section) fallbackQuery = fallbackQuery.eq('usta_section', section)
+        if (district) fallbackQuery = fallbackQuery.eq('district_area', district)
+
+        const { data: fallbackData, error: fallbackError } = await fallbackQuery
+        if (fallbackError) throw new Error(fallbackError.message)
+        setNearbyRows((fallbackData || []) as LeagueMatchRow[])
+      } else {
+        setNearbyRows([])
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load league.')
     } finally {
@@ -138,6 +191,29 @@ export default function LeagueDetailPage() {
       return Boolean(home && away)
     })
   }, [rows])
+
+  const nearbyScopeDiagnostic = useMemo<LeagueScopeDiagnostic | null>(() => {
+    if (validRows.length > 0 || nearbyRows.length === 0) return null
+
+    const leagueNames = Array.from(
+      new Set(
+        nearbyRows
+          .map((row) => cleanText(row.league_name))
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ).sort((a, b) => {
+      const route = normalizeCompareText(leagueFromRoute)
+      const aMatches = normalizeCompareText(a).includes(route) ? 1 : 0
+      const bMatches = normalizeCompareText(b).includes(route) ? 1 : 0
+      if (aMatches !== bMatches) return bMatches - aMatches
+      return a.localeCompare(b)
+    })
+
+    return {
+      totalRows: nearbyRows.length,
+      leagueNames,
+    }
+  }, [validRows.length, nearbyRows, leagueFromRoute])
 
   const leagueInfo = useMemo(() => {
     if (!validRows.length) {
@@ -394,6 +470,27 @@ export default function LeagueDetailPage() {
                 This usually means the season scope exists, but imported match rows do not yet include both team names
                 for this exact league, flight, or district slice.
               </div>
+              {nearbyScopeDiagnostic ? (
+                <div style={{ ...stateHelperText, marginTop: 12 }}>
+                  I did find {nearbyScopeDiagnostic.totalRows} nearby rows in the same flight/section/district scope.
+                  {nearbyScopeDiagnostic.leagueNames.length > 0
+                    ? ` Nearby league names: ${nearbyScopeDiagnostic.leagueNames.slice(0, 5).join(' | ')}`
+                    : ' Those rows are also missing a visible league name.'}
+                </div>
+              ) : null}
+              {nearbyScopeDiagnostic && nearbyScopeDiagnostic.leagueNames.length > 0 ? (
+                <div style={{ ...stateActionRow, marginTop: 12 }}>
+                  {nearbyScopeDiagnostic.leagueNames.slice(0, 3).map((name) => (
+                    <Link
+                      key={name}
+                      href={buildLeagueScopeHref(name, leagueInfo.flight, leagueInfo.section, leagueInfo.district)}
+                      style={ghostButton}
+                    >
+                      Try {name}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
               <div style={stateActionRow}>
                 <Link href="/leagues" style={ghostButton}>
                   Back to leagues

@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import Link from 'next/link'
 import {
   useEffect,
   useMemo,
@@ -27,6 +28,27 @@ import {
 
 type ImportKind = 'schedule' | 'scorecard'
 type ImportMode = 'preview' | 'commit'
+
+type UploadedFileSummary = {
+  fileName: string
+  kind: ImportKind
+  normalizedRowCount: number
+  warningCount: number
+  externalMatchIds: string[]
+}
+
+type MatchUploadLedgerRow = {
+  id: string
+  external_match_id: string | null
+  league_name: string | null
+  flight: string | null
+  home_team: string | null
+  away_team: string | null
+  match_date: string | null
+  status: string | null
+  score: string | null
+  line_number?: string | null
+}
 
 type PreviewScheduleMatch = {
   externalMatchId: string
@@ -306,6 +328,32 @@ function getScorecardWinnerLabel(
   return '—'
 }
 
+function summarizeUploadedFile(
+  fileName: string,
+  payload: unknown,
+  kind: ImportKind,
+): UploadedFileSummary {
+  if (kind === 'schedule') {
+    const preview = buildSchedulePreview(payload)
+    return {
+      fileName,
+      kind,
+      normalizedRowCount: preview.rows.length,
+      warningCount: preview.warnings.length,
+      externalMatchIds: preview.rows.map((row) => row.externalMatchId),
+    }
+  }
+
+  const preview = buildScorecardPreview(payload)
+  return {
+    fileName,
+    kind,
+    normalizedRowCount: preview.rows.length,
+    warningCount: preview.warnings.length,
+    externalMatchIds: preview.rows.map((row) => row.externalMatchId),
+  }
+}
+
 function SummaryMetric({
   label,
   value,
@@ -427,6 +475,9 @@ export default function AdminImportPage() {
   const [importType, setImportType] = useState<ImportKind>('schedule')
   const [selectedFileName, setSelectedFileName] = useState('')
   const [selectedFileCount, setSelectedFileCount] = useState(0)
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFileSummary[]>([])
+  const [uploadLedger, setUploadLedger] = useState<MatchUploadLedgerRow[]>([])
+  const [ledgerLoading, setLedgerLoading] = useState(true)
   const [isRunningPreview, setIsRunningPreview] = useState(false)
   const [isRunningCommit, setIsRunningCommit] = useState(false)
   const [importResponse, setImportResponse] = useState<RunImportResponse | null>(null)
@@ -475,6 +526,115 @@ export default function AdminImportPage() {
     if (!importResponse) return []
     return collectImportMessages(importResponse)
   }, [importResponse])
+
+  const uploadDiagnostics = useMemo(() => {
+    const relevantFiles = uploadedFiles.filter((file) => file.kind === importType)
+    const duplicateMap = new Map<string, string[]>()
+
+    for (const file of relevantFiles) {
+      for (const externalMatchId of file.externalMatchIds) {
+        const existing = duplicateMap.get(externalMatchId) ?? []
+        existing.push(file.fileName)
+        duplicateMap.set(externalMatchId, existing)
+      }
+    }
+
+    const duplicates = [...duplicateMap.entries()]
+      .filter(([, fileNames]) => fileNames.length > 1)
+      .map(([externalMatchId, fileNames]) => ({
+        externalMatchId,
+        fileNames,
+      }))
+      .sort((a, b) => a.externalMatchId.localeCompare(b.externalMatchId))
+
+    return {
+      files: relevantFiles,
+      duplicateMatchIds: duplicates,
+    }
+  }, [uploadedFiles, importType])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadUploadLedger() {
+      setLedgerLoading(true)
+
+      try {
+        const { data, error } = await supabase
+          .from('matches')
+          .select(`
+            id,
+            external_match_id,
+            league_name,
+            flight,
+            home_team,
+            away_team,
+            match_date,
+            status,
+            score,
+            line_number
+          `)
+          .is('line_number', null)
+          .order('match_date', { ascending: true })
+          .limit(300)
+
+        if (error) throw new Error(error.message)
+        if (!mounted) return
+
+        setUploadLedger((data || []) as MatchUploadLedgerRow[])
+      } catch {
+        if (mounted) setUploadLedger([])
+      } finally {
+        if (mounted) setLedgerLoading(false)
+      }
+    }
+
+    void loadUploadLedger()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const uploadLedgerSummary = useMemo(() => {
+    const now = new Date()
+    const todayKey = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+
+    const parentRows = uploadLedger.filter((row) => !row.line_number)
+    const lineRows = uploadLedger.filter((row) => Boolean(row.line_number))
+    const importedLineCounts = new Map<string, number>()
+
+    for (const row of lineRows) {
+      const externalMatchId = cleanString(row.external_match_id)
+      const parentExternalMatchId = externalMatchId.split('::line:')[0] || ''
+      if (!parentExternalMatchId) continue
+      importedLineCounts.set(
+        parentExternalMatchId,
+        (importedLineCounts.get(parentExternalMatchId) || 0) + 1,
+      )
+    }
+
+    const isCompleted = (row: MatchUploadLedgerRow) => {
+      const externalMatchId = cleanString(row.external_match_id)
+      return row.status === 'completed' || Boolean(row.score) || (externalMatchId ? (importedLineCounts.get(externalMatchId) || 0) > 0 : false)
+    }
+
+    const completed = parentRows.filter((row) => isCompleted(row))
+    const pending = parentRows.filter((row) => {
+      if (isCompleted(row)) return false
+      if (!row.match_date) return false
+      const matchKey = new Date(row.match_date).getTime()
+      return !Number.isNaN(matchKey) && matchKey <= todayKey
+    })
+    const upcoming = parentRows.filter((row) => {
+      if (isCompleted(row)) return false
+      if (!row.match_date) return false
+      const matchKey = new Date(row.match_date).getTime()
+      return !Number.isNaN(matchKey) && matchKey > todayKey
+    })
+
+    return { completed, pending, upcoming, importedLineCounts }
+  }, [uploadLedger])
 
   const showCommitSuccess =
     lastRunMode === 'commit' &&
@@ -551,14 +711,11 @@ export default function AdminImportPage() {
 
     const fileNames: string[] = []
     const aggregatedPayloads: unknown[] = []
+    const nextUploadedFiles: UploadedFileSummary[] = []
     let inferredType: ImportKind | null = null
 
     for (const file of Array.from(files)) {
       fileNames.push(file.name)
-
-      if (!inferredType) {
-        inferredType = inferImportTypeFromFileName(file.name)
-      }
 
       let parsedFile: unknown
       try {
@@ -570,11 +727,24 @@ export default function AdminImportPage() {
         return
       }
 
-      if (Array.isArray(parsedFile)) {
-        aggregatedPayloads.push(...parsedFile)
-      } else {
-        aggregatedPayloads.push(parsedFile)
+      const fileKind: ImportKind =
+        inferImportTypeFromFileName(file.name) ??
+        inferImportTypeFromPayload(parsedFile) ??
+        inferredType ??
+        importType
+
+      if (!inferredType) {
+        inferredType = fileKind
+      } else if (inferredType !== fileKind) {
+        setTopLevelError(
+          `Mixed import types detected. ${file.name} looks like ${fileKind}, but the batch is currently ${inferredType}. Upload schedules and scorecards separately.`,
+        )
+        event.target.value = ''
+        return
       }
+
+      aggregatedPayloads.push(parsedFile)
+      nextUploadedFiles.push(summarizeUploadedFile(file.name, parsedFile, fileKind))
     }
 
     if (inferredType) {
@@ -583,6 +753,7 @@ export default function AdminImportPage() {
 
     setSelectedFileCount(fileNames.length)
     setSelectedFileName(fileNames.join(', '))
+    setUploadedFiles(nextUploadedFiles)
     setJsonInput(prettyJson(aggregatedPayloads.length === 1 ? aggregatedPayloads[0] : aggregatedPayloads))
 
     event.target.value = ''
@@ -620,6 +791,7 @@ export default function AdminImportPage() {
 
       setSelectedFileName('sample-schedule.json')
       setSelectedFileCount(1)
+      setUploadedFiles([summarizeUploadedFile('sample-schedule.json', sample, 'schedule')])
       setJsonInput(prettyJson(sample))
       return
     }
@@ -665,12 +837,14 @@ export default function AdminImportPage() {
 
     setSelectedFileName('sample-scorecard.json')
     setSelectedFileCount(1)
+    setUploadedFiles([summarizeUploadedFile('sample-scorecard.json', sample, 'scorecard')])
     setJsonInput(prettyJson(sample))
   }
 
   function handleClearAll() {
     setSelectedFileName('')
     setSelectedFileCount(0)
+    setUploadedFiles([])
     setJsonInput('')
     setTopLevelError('')
     setImportResponse(null)
@@ -1127,9 +1301,178 @@ export default function AdminImportPage() {
                   Non-fatal shaping issues found while normalizing the captured JSON.
                 </div>
               </StatusPanel>
+
+              <StatusPanel title="Files loaded" tone="blue">
+                <div style={summaryValueStyle}>{uploadDiagnostics.files.length}</div>
+                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                  File-by-file diagnostics are shown below when you upload a batch.
+                </div>
+              </StatusPanel>
+
+              <StatusPanel title="Duplicate match IDs" tone={uploadDiagnostics.duplicateMatchIds.length > 0 ? 'slate' : 'green'}>
+                <div style={summaryValueStyle}>{uploadDiagnostics.duplicateMatchIds.length}</div>
+                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                  Duplicate external match ids across uploaded files should be reviewed before commit.
+                </div>
+              </StatusPanel>
+
+              <StatusPanel title="Past matches needing scorecards" tone={uploadLedgerSummary.pending.length > 0 ? 'slate' : 'green'}>
+                <div style={summaryValueStyle}>{uploadLedgerSummary.pending.length}</div>
+                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                  Scheduled matches on or before today that still do not look completed.
+                </div>
+              </StatusPanel>
             </div>
           </div>
         </section>
+
+        <section style={{ ...panelStyle, marginTop: 22 }}>
+          <div style={labelStyle}>Upload ledger</div>
+          <div
+            style={{
+              color: '#F8FBFF',
+              fontWeight: 800,
+              fontSize: '1.06rem',
+              marginTop: 8,
+            }}
+          >
+            Schedule-to-scorecard tracking
+          </div>
+          <div style={{ ...subtleTextStyle, marginTop: 10 }}>
+            Use this to see what has already been completed versus which scheduled matches still need a scorecard upload after match day.
+          </div>
+
+          {ledgerLoading ? (
+            <div style={{ ...subtleTextStyle, marginTop: 14 }}>Loading upload ledger…</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 18, marginTop: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                <SummaryMetric label="Needs upload" value={String(uploadLedgerSummary.pending.length)} helper="Past scheduled matches still missing scorecards." />
+                <SummaryMetric label="Upcoming" value={String(uploadLedgerSummary.upcoming.length)} helper="Future scheduled matches waiting on results." />
+                <SummaryMetric label="Completed" value={String(uploadLedgerSummary.completed.length)} helper="Parent matches that already look complete." />
+              </div>
+
+              {uploadLedgerSummary.pending.length > 0 ? (
+                <div>
+                  <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '0.98rem' }}>Past matches still needing scorecards</div>
+                  <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                    {uploadLedgerSummary.pending.slice(0, 12).map((row) => (
+                      <div
+                        key={row.id}
+                        style={{
+                          borderRadius: 18,
+                          border: '1px solid rgba(250,204,21,0.18)',
+                          background: 'linear-gradient(180deg, rgba(58,44,12,0.52) 0%, rgba(24,18,10,0.90) 100%)',
+                          padding: '14px 16px',
+                        }}
+                      >
+                        <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
+                          {(row.home_team || 'TBD')} vs {(row.away_team || 'TBD')}
+                        </div>
+                        <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                          {cleanString(row.match_date) || 'No date'}
+                          {row.flight ? ` • ${row.flight}` : ''}
+                          {row.league_name ? ` • ${row.league_name}` : ''}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                          <span style={pillBlueStyle}>Match ID: {row.external_match_id || 'Missing'}</span>
+                          <span style={pillSlateStyle}>Status: {row.status || 'scheduled'}</span>
+                          <span style={pillGreenStyle}>
+                            Scorecard lines: {row.external_match_id ? (uploadLedgerSummary.importedLineCounts.get(cleanString(row.external_match_id)) || 0) : 0}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                          <Link
+                            href={`/admin/manage-matches?search=${encodeURIComponent(row.external_match_id || `${row.home_team || ''} ${row.away_team || ''}`.trim())}`}
+                            style={{ ...secondaryButtonStyle, minHeight: 40, textDecoration: 'none' }}
+                          >
+                            Review match record
+                          </Link>
+                          <span style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
+                            Open a filtered match review to confirm the parent record once a scorecard is uploaded.
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ ...subtleTextStyle }}>
+                  No past scheduled matches are currently waiting on scorecard uploads.
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {uploadDiagnostics.files.length > 0 ? (
+          <section style={{ ...panelStyle, marginTop: 22 }}>
+            <div style={labelStyle}>Batch diagnostics</div>
+            <div
+              style={{
+                color: '#F8FBFF',
+                fontWeight: 800,
+                fontSize: '1.06rem',
+                marginTop: 8,
+              }}
+            >
+              Uploaded file breakdown
+            </div>
+
+            <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+              {uploadDiagnostics.files.map((file) => (
+                <div
+                  key={file.fileName}
+                  style={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(116,190,255,0.10)',
+                    background: 'rgba(8,15,28,0.62)',
+                    padding: '14px 16px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div style={{ color: '#F8FBFF', fontWeight: 800 }}>{file.fileName}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={pillBlueStyle}>{file.kind}</span>
+                      <span style={pillGreenStyle}>{file.normalizedRowCount} rows</span>
+                      <span style={pillSlateStyle}>{file.warningCount} warnings</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {uploadDiagnostics.duplicateMatchIds.length > 0 ? (
+              <div
+                style={{
+                  marginTop: 16,
+                  borderRadius: 18,
+                  border: '1px solid rgba(250,204,21,0.22)',
+                  background: 'linear-gradient(180deg, rgba(58,44,12,0.82) 0%, rgba(24,18,10,0.96) 100%)',
+                  color: '#FDE68A',
+                  padding: '14px 16px',
+                }}
+              >
+                <div style={{ fontWeight: 800 }}>Duplicate external match IDs detected across files</div>
+                <div style={{ ...subtleTextStyle, marginTop: 8, color: '#FDE68A' }}>
+                  Review these before commit. A duplicate id means one file may overwrite another match record if they are not truly the same match.
+                </div>
+                <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                  {uploadDiagnostics.duplicateMatchIds.slice(0, 12).map((item) => (
+                    <div key={item.externalMatchId} style={{ color: '#FDE68A', fontSize: '0.9rem' }}>
+                      Match ID {item.externalMatchId}: {item.fileNames.join(', ')}
+                    </div>
+                  ))}
+                  {uploadDiagnostics.duplicateMatchIds.length > 12 ? (
+                    <div style={{ color: '#FDE68A', fontSize: '0.9rem' }}>
+                      {uploadDiagnostics.duplicateMatchIds.length - 12} more duplicate ids hidden for brevity.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section style={{ ...panelStyle, marginTop: 22 }}>
           <div style={labelStyle}>Preview</div>

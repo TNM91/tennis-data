@@ -153,6 +153,25 @@ function mergeWithRoot(record: UnknownRecord, root: UnknownRecord | null): Unkno
   }
 }
 
+type RootRowEntry = {
+  row: unknown
+  rootMeta: UnknownRecord | null
+}
+
+function collectRootRowEntries(payload: unknown): RootRowEntry[] {
+  if (Array.isArray(payload)) {
+    return payload.flatMap((entry) => collectRootRowEntries(entry))
+  }
+
+  const sourceRows = unwrapRootRows(payload)
+  const rootMeta = getRootMeta(payload)
+
+  return sourceRows.map((row) => ({
+    row,
+    rootMeta,
+  }))
+}
+
 function normalizeExternalMatchId(record: UnknownRecord): string {
   return cleanString(
     pickFirst(record, [
@@ -607,12 +626,11 @@ function normalizeScorecardRow(
 
 export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeScheduleResult {
   const warnings: NormalizationWarning[] = []
-  const sourceRows = unwrapRootRows(payload)
-  const rootMeta = getRootMeta(payload)
+  const sourceRows = collectRootRowEntries(payload)
 
   const rows = sourceRows
     .map((entry, rowIndex) => {
-      if (!isRecord(entry)) {
+      if (!isRecord(entry.row)) {
         warnings.push({
           rowIndex,
           message: 'Skipped schedule row: invalid object',
@@ -620,7 +638,7 @@ export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeSch
         return null
       }
 
-      const merged = mergeWithRoot(entry, rootMeta)
+      const merged = mergeWithRoot(entry.row, entry.rootMeta)
       return normalizeScheduleRow(merged, rowIndex, warnings)
     })
     .filter((row): row is ScheduleImportRow => Boolean(row))
@@ -630,12 +648,11 @@ export function normalizeCapturedSchedulePayload(payload: unknown): NormalizeSch
 
 export function normalizeCapturedScorecardPayload(payload: unknown): NormalizeScorecardResult {
   const warnings: NormalizationWarning[] = []
-  const sourceRows = unwrapRootRows(payload)
-  const rootMeta = getRootMeta(payload)
+  const sourceRows = collectRootRowEntries(payload)
 
   const rows = sourceRows
     .map((entry, rowIndex) => {
-      if (!isRecord(entry)) {
+      if (!isRecord(entry.row)) {
         warnings.push({
           rowIndex,
           message: 'Skipped scorecard row: invalid object',
@@ -643,7 +660,7 @@ export function normalizeCapturedScorecardPayload(payload: unknown): NormalizeSc
         return null
       }
 
-      const merged = mergeWithRoot(entry, rootMeta)
+      const merged = mergeWithRoot(entry.row, entry.rootMeta)
       return normalizeScorecardRow(merged, rowIndex, warnings)
     })
     .filter((row): row is ScorecardImportRow => Boolean(row))

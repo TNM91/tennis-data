@@ -1,6 +1,7 @@
 'use client'
 
 import type { User } from '@supabase/supabase-js'
+import Link from 'next/link'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminGate from '@/app/components/admin-gate'
@@ -66,6 +67,7 @@ const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
 
 export default function ManageMatchesPage() {
   const router = useRouter()
+  const [searchParam, setSearchParam] = useState('')
 
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -82,6 +84,14 @@ export default function ManageMatchesPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const deferredSearch = useDeferredValue(search)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const nextSearch = params.get('search') || ''
+    setSearchParam(nextSearch)
+    setSearch(nextSearch)
+  }, [])
 
   useEffect(() => {
     const checkUser = async () => {
@@ -494,6 +504,23 @@ export default function ManageMatchesPage() {
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 760 }}>
               Narrow the table when you need a specific cleanup target, then reset back to the full ledger before doing destructive deletes or broad rating recalculations.
             </p>
+
+            {searchParam ? (
+              <div style={{ marginTop: 12 }}>
+                <Link
+                  href="/admin/manage-matches"
+                  className="button-ghost"
+                  style={{
+                    background: 'rgba(15,23,42,0.24)',
+                    color: '#dbeafe',
+                    border: '1px solid rgba(116,190,255,0.12)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Clear deep link
+                </Link>
+              </div>
+            ) : null}
 
             {message && (
               <div
