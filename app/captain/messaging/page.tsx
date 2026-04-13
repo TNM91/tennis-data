@@ -166,6 +166,7 @@ function formatDate(value: string | null | undefined) {
   return date.toLocaleDateString()
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '—'
   const date = new Date(value)
@@ -796,6 +797,7 @@ export default function CaptainMessagingPage() {
     return () => {
       mounted = false
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -967,6 +969,7 @@ export default function CaptainMessagingPage() {
     if (syncedRows.length) {
       saveAvailability([...availability.filter((row) => row.event_key !== eventKey), ...syncedRows])
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventKey, scopedContacts, syncedAvailabilityCandidates, availability])
 
   useEffect(() => {
@@ -981,6 +984,7 @@ export default function CaptainMessagingPage() {
       players: slot.players,
     }))
     saveLineups([...lineups.filter((row) => row.event_key !== eventKey), ...seededRows])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventKey, lineupRows.length, selectedScenario])
 
   useEffect(() => {
@@ -1767,6 +1771,7 @@ useEffect(() => {
     window.localStorage.removeItem('tenace_selected_scenario')
     window.localStorage.removeItem('tenace_flow_source')
   }
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [prefillApplied, prefillFlowSource, selectedScenario, lineupRows.length])
 
 function importScenarioToLineup() {
@@ -1964,7 +1969,7 @@ function importScenarioToLineup() {
             </p>
             <div style={heroButtonRowStyle}>
               <Link href="/captain/lineup-builder" style={primaryButton}>Open Lineup Builder</Link>
-              <Link href="/captain" style={ghostButton}>Back to Captain&apos;s Corner</Link>
+              <Link href="/captain" style={ghostButton}>Back to Captain Console</Link>
             </div>
             <div style={heroMetricGridStyle(isSmallMobile)}>
               <MetricStat label="Team contacts" value={String(scopedContacts.length)} />
@@ -3184,8 +3189,12 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={filtersGridStyle}>
-                      <Field label="Message type">
-                        <select value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
+                      <Field
+                        label="Message type"
+                        htmlFor="message-kind"
+                        hint="Start with the communication goal, then tailor the audience and body."
+                      >
+                        <select id="message-kind" value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
                           <option value="availability">Availability check</option>
                           <option value="lineup">Lineup announcement</option>
                           <option value="directions">Directions + details</option>
@@ -3193,8 +3202,12 @@ function importScenarioToLineup() {
                           <option value="follow-up">Follow-up</option>
                         </select>
                       </Field>
-                      <Field label="Recipient mode">
-                        <select value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
+                      <Field
+                        label="Recipient mode"
+                        htmlFor="recipient-mode"
+                        hint="Choose the broadest useful audience first, then narrow it only if needed."
+                      >
+                        <select id="recipient-mode" value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
                           <option value="all-opted-in">All opted-in</option>
                           <option value="captains">Captains only</option>
                           <option value="active-only">Active only</option>
@@ -3204,8 +3217,13 @@ function importScenarioToLineup() {
                           <option value="custom">Custom</option>
                         </select>
                       </Field>
-                      <Field label="Saved template">
+                      <Field
+                        label="Saved template"
+                        htmlFor="saved-template"
+                        hint="Loading a template will replace the current title and body."
+                      >
                         <select
+                          id="saved-template"
                           value={selectedTemplateId}
                           onChange={(e) => {
                             const value = e.target.value
@@ -3222,13 +3240,22 @@ function importScenarioToLineup() {
                           {scopedTemplates.map((template) => <option key={template.id} value={template.id}>{template.template_name}</option>)}
                         </select>
                       </Field>
-                      <Field label="Message title">
-                        <input value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
+                      <Field
+                        label="Message title"
+                        htmlFor="message-title"
+                        hint="Use a short internal label so you can find or save this message later."
+                      >
+                        <input id="message-title" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
                       </Field>
                     </div>
 
                     {recipientMode === 'custom' ? (
-                      <div style={recipientChooserStyle}>
+                      <div style={recipientChooserStyle} role="group" aria-label="Custom recipient list">
+                        <p style={fieldHintStyle}>
+                          {scopedContacts.filter((c) => c.phone && c.opt_in_text).length > 0
+                            ? 'Only opted-in contacts with a saved phone number are shown here.'
+                            : 'No opted-in contacts with phone numbers are available in the current scope yet.'}
+                        </p>
                         {scopedContacts.filter((c) => c.phone && c.opt_in_text).map((contact) => (
                           <label key={contact.id} style={checkboxRowStyle}>
                             <input
@@ -3246,8 +3273,12 @@ function importScenarioToLineup() {
                       </div>
                     ) : null}
 
-                    <Field label="Message body">
-                      <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
+                    <Field
+                      label="Message body"
+                      htmlFor="message-body"
+                      hint="Keep it skimmable: key ask first, details second, deadlines or arrival notes last."
+                    >
+                      <textarea id="message-body" value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
                     </Field>
 
                     <div style={pillRowStyle}>
@@ -3296,10 +3327,18 @@ function importScenarioToLineup() {
                   </div>
 
                   <div style={filtersGridStyle}>
-                    <Field label="Full name"><input value={draftContact.full_name} onChange={(e) => setDraftContact((c) => ({ ...c, full_name: e.target.value }))} style={inputStyle} /></Field>
-                    <Field label="Cell phone"><input value={draftContact.phone} onChange={(e) => setDraftContact((c) => ({ ...c, phone: e.target.value }))} style={inputStyle} /></Field>
-                    <Field label="Role"><input value={draftContact.role} onChange={(e) => setDraftContact((c) => ({ ...c, role: e.target.value }))} style={inputStyle} /></Field>
-                    <Field label="Notes"><input value={draftContact.notes} onChange={(e) => setDraftContact((c) => ({ ...c, notes: e.target.value }))} style={inputStyle} /></Field>
+                    <Field label="Full name" htmlFor="draft-contact-name">
+                      <input id="draft-contact-name" value={draftContact.full_name} onChange={(e) => setDraftContact((c) => ({ ...c, full_name: e.target.value }))} style={inputStyle} />
+                    </Field>
+                    <Field label="Cell phone" htmlFor="draft-contact-phone" hint="Use the number exactly as you want it texted.">
+                      <input id="draft-contact-phone" value={draftContact.phone} onChange={(e) => setDraftContact((c) => ({ ...c, phone: e.target.value }))} style={inputStyle} />
+                    </Field>
+                    <Field label="Role" htmlFor="draft-contact-role">
+                      <input id="draft-contact-role" value={draftContact.role} onChange={(e) => setDraftContact((c) => ({ ...c, role: e.target.value }))} style={inputStyle} />
+                    </Field>
+                    <Field label="Notes" htmlFor="draft-contact-notes" hint="Add context like doubles-only, early arrival, or sub availability.">
+                      <input id="draft-contact-notes" value={draftContact.notes} onChange={(e) => setDraftContact((c) => ({ ...c, notes: e.target.value }))} style={inputStyle} />
+                    </Field>
                   </div>
 
                   <div style={checkboxGridStyle}>
@@ -3316,8 +3355,12 @@ function importScenarioToLineup() {
                     }}>Cancel edit</button> : null}
                   </div>
 
-                  <Field label="Bulk import (Name, Phone, Role, captain, note)">
-                    <textarea value={bulkImportText} onChange={(e) => setBulkImportText(e.target.value)} style={textareaStyle} placeholder={'Jane Smith, 314-555-1111, Player, captain, early arrival\nJohn Doe, 314-555-2222, Player, , doubles only'} />
+                  <Field
+                    label="Bulk import (Name, Phone, Role, captain, note)"
+                    htmlFor="bulk-import"
+                    hint="One contact per line. Leave the captain column blank for regular players."
+                  >
+                    <textarea id="bulk-import" value={bulkImportText} onChange={(e) => setBulkImportText(e.target.value)} style={textareaStyle} placeholder={'Jane Smith, 314-555-1111, Player, captain, early arrival\nJohn Doe, 314-555-2222, Player, , doubles only'} />
                   </Field>
                   <button type="button" style={ghostButtonSmallButton} onClick={handleBulkImport} disabled={!captainAccess}>Import contacts</button>
                 </section>
@@ -3388,10 +3431,11 @@ function importScenarioToLineup() {
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: ReactNode }) {
   return (
     <div>
-      <label style={labelStyle}>{label}</label>
+      <label htmlFor={htmlFor} style={labelStyle}>{label}</label>
+      {hint ? <p style={fieldHintStyle}>{hint}</p> : null}
       {children}
     </div>
   )
@@ -3649,6 +3693,7 @@ const miniMetricCardStyle: CSSProperties = { borderRadius: 18, padding: 14, bord
 const miniMetricValueStyle: CSSProperties = { color: '#f8fbff', fontSize: '1.15rem', fontWeight: 900, marginBottom: 10 }
 
 const labelStyle: CSSProperties = { display: 'block', marginBottom: 8, color: 'rgba(198,216,248,0.84)', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }
+const fieldHintStyle: CSSProperties = { margin: '0 0 8px', color: 'rgba(224,234,247,0.62)', fontSize: '12px', lineHeight: 1.55 }
 const inputStyle: CSSProperties = { width: '100%', height: '48px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f8fbff', padding: '0 14px', fontSize: '14px', outline: 'none' }
 const inputStyleMuted: CSSProperties = { ...inputStyle, opacity: 0.78 }
 const textareaStyle: CSSProperties = { width: '100%', minHeight: '100px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f8fbff', padding: '12px 14px', fontSize: '14px', outline: 'none', resize: 'vertical' }

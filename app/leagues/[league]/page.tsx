@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
@@ -87,11 +87,7 @@ export default function LeagueDetailPage() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  useEffect(() => {
-    void loadLeagueMatches()
-  }, [leagueFromRoute, flight, section, district])
-
-  async function loadLeagueMatches() {
+  const loadLeagueMatches = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -129,7 +125,11 @@ export default function LeagueDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [district, flight, leagueFromRoute, section])
+
+  useEffect(() => {
+    void loadLeagueMatches()
+  }, [loadLeagueMatches])
 
   const validRows = useMemo(() => {
     return rows.filter((row) => {

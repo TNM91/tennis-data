@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 
 type Accent = 'blue' | 'green' | 'slate'
@@ -30,26 +31,15 @@ const adminTools: AdminTool[] = [
     statValue: 'All imports',
   },
   {
-    title: 'CSV Import',
-    href: '/admin/csv-import',
+    title: 'Lineup Availability',
+    href: '/admin/lineup-availability',
     description:
-      'Bulk import structured match rows from CSV files when you need to backfill larger datasets or process preformatted records.',
-    badge: 'Bulk',
-    accent: 'blue',
-    highlights: ['Bulk ingest', 'Structured import', 'Backfill workflow'],
-    statLabel: 'Best for',
-    statValue: 'Large batches',
-  },
-  {
-    title: 'Paste Results',
-    href: '/admin/paste-results',
-    description:
-      'Paste raw results text and convert it into import-ready records for fast entry when a file is not available.',
-    badge: 'Fast Entry',
+      'Review player availability snapshots and lineup readiness so admin support stays aligned with the captain workflow.',
+    badge: 'Support',
     accent: 'slate',
-    highlights: ['Quick parsing', 'Manual cleanup', 'Rapid entry'],
+    highlights: ['Availability audit', 'Roster support', 'Lineup readiness'],
     statLabel: 'Best for',
-    statValue: 'Quick updates',
+    statValue: 'Weekly support',
   },
   {
     title: 'Add Match',
@@ -87,7 +77,7 @@ const adminTools: AdminTool[] = [
 ]
 
 const importTools = adminTools.filter((tool) =>
-  ['/admin/import', '/admin/csv-import', '/admin/paste-results'].includes(tool.href)
+  ['/admin/import', '/admin/lineup-availability'].includes(tool.href)
 )
 
 const managementTools = adminTools.filter((tool) =>
@@ -139,7 +129,8 @@ function accentStyles(accent: Accent) {
 export default function AdminDashboardPage() {
   return (
     <SiteShell active="/admin">
-      <section
+      <AdminGate>
+        <section
         style={{
           width: '100%',
           maxWidth: '1280px',
@@ -172,16 +163,16 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="6" helper="Unified and cleaned up" />
+              <MetricCard label="Admin Tools" value="5" helper="Unified and cleaned up" />
               <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
-              <MetricCard label="Data Control" value="3" helper="Players, matches, manual entry" />
-              <MetricCard label="Recommended Flow" value="Preview → Commit" helper="Validate before writing" />
+              <MetricCard label="Data Control" value="4" helper="Imports, availability, player and match ops" />
+              <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
             </div>
 
             <div className="card-grid three" style={{ marginTop: 18 }}>
               <MiniPanel
                 title="Unified Import"
-                text="Use the new import center first so schedule and scorecard data always flow through the same ingestion path."
+                text="Use the import center first so schedule and scorecard data always flow through the same ingestion path."
                 tone="green"
               />
               <MiniPanel
@@ -190,8 +181,8 @@ export default function AdminDashboardPage() {
                 tone="blue"
               />
               <MiniPanel
-                title="Cleaner Structure"
-                text="This dashboard now points toward one main import route instead of overlapping legacy import screens."
+                title="Captain Support"
+                text="Use lineup availability to support weekly roster and readiness work without sending admins to dead-end routes."
                 tone="slate"
               />
             </div>
@@ -202,7 +193,7 @@ export default function AdminDashboardPage() {
           <SectionHeader
             kicker="Imports"
             title="Bring data into the system"
-            subtitle="Start with the unified import center. Use the other import surfaces only when the data source truly requires them."
+            subtitle="Start with the unified import center, then use lineup availability when weekly readiness needs admin support."
           />
           <div className="card-grid three" style={{ marginTop: 14 }}>
             {importTools.map((tool) => (
@@ -287,14 +278,9 @@ export default function AdminDashboardPage() {
                     <td>Main import route going forward</td>
                   </tr>
                   <tr>
-                    <td>/admin/csv-import</td>
-                    <td>Bulk CSV ingest</td>
-                    <td>Use only for structured CSV workflows</td>
-                  </tr>
-                  <tr>
-                    <td>/admin/paste-results</td>
-                    <td>Paste-to-import workflow</td>
-                    <td>Best for quick manual batches</td>
+                    <td>/admin/lineup-availability</td>
+                    <td>Availability and readiness support</td>
+                    <td>Use when admin operations overlap with captain planning</td>
                   </tr>
                   <tr>
                     <td>/admin/add-match</td>
@@ -353,8 +339,8 @@ export default function AdminDashboardPage() {
                 />
                 <WorkflowStep
                   number="02"
-                  title="Validate and review"
-                  text="Preview normalized rows, check warnings, then commit only when the shape and metadata look right."
+                  title="Validate and support the week"
+                  text="Preview normalized rows, check warnings, and use lineup availability when roster readiness needs admin help."
                 />
                 <WorkflowStep
                   number="03"
@@ -391,8 +377,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <QuickAction href="/admin/import" label="Open Unified Import Center" />
-                <QuickAction href="/admin/csv-import" label="Open CSV Import" />
-                <QuickAction href="/admin/paste-results" label="Open Paste Results" />
+                <QuickAction href="/admin/lineup-availability" label="Open Lineup Availability" />
                 <QuickAction href="/admin/add-match" label="Open Add Match" />
                 <QuickAction href="/admin/manage-matches" label="Open Manage Matches" />
                 <QuickAction href="/admin/manage-players" label="Open Manage Players" />
@@ -400,7 +385,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </section>
-      </section>
+        </section>
+      </AdminGate>
     </SiteShell>
   )
 }

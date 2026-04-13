@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
@@ -94,13 +94,7 @@ export default function PlayerProfilePage() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  useEffect(() => {
-    if (playerId) {
-      void loadPlayerProfile()
-    }
-  }, [playerId])
-
-  async function loadPlayerProfile() {
+  const loadPlayerProfile = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -242,7 +236,13 @@ export default function PlayerProfilePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [playerId])
+
+  useEffect(() => {
+    if (playerId) {
+      void loadPlayerProfile()
+    }
+  }, [playerId, loadPlayerProfile])
 
   const filteredMatches = useMemo(() => {
     if (ratingView === 'overall') return matches
@@ -486,6 +486,12 @@ export default function PlayerProfilePage() {
                   entityName={player.name}
                   subtitle={player.location || ''}
                 />
+                <Link href="/matchup" style={secondaryMiniLink}>
+                  Compare in matchup
+                </Link>
+                <Link href="/rankings" style={secondaryMiniLink}>
+                  Browse rankings
+                </Link>
               </div>
 
               <div style={heroHintRow}>
@@ -726,7 +732,12 @@ export default function PlayerProfilePage() {
             </div>
 
             {chartPoints.length === 0 ? (
-              <p style={emptyText}>No rating history yet for this view.</p>
+              <div style={emptyStateStack}>
+                <p style={emptyText}>No rating history yet for this view.</p>
+                <p style={sectionText}>
+                  This profile has not built enough snapshot history for a trendline yet. Check recent matches below or switch rating views to see if singles, doubles, or overall has more signal.
+                </p>
+              </div>
             ) : (
               <SimpleLineChart points={chartPoints} />
             )}
@@ -742,7 +753,20 @@ export default function PlayerProfilePage() {
             </div>
 
             {mostRecentMatches.length === 0 ? (
-              <p style={emptyText}>No matches found for this view.</p>
+              <div style={emptyStateStack}>
+                <p style={emptyText}>No matches found for this view.</p>
+                <p style={sectionText}>
+                  Try another rating view or head back to the player directory to compare against teammates and nearby-rated players.
+                </p>
+                <div style={followRow}>
+                  <Link href="/players" style={secondaryMiniLink}>
+                    Back to players
+                  </Link>
+                  <Link href="/matchup" style={secondaryMiniLink}>
+                    Open matchup tool
+                  </Link>
+                </div>
+              </div>
             ) : (
               <div style={tableWrap}>
                 <table style={dataTable}>
@@ -1557,6 +1581,11 @@ const emptyText: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 550,
+}
+
+const emptyStateStack: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
 }
 
 const tableWrap: CSSProperties = {

@@ -1,7 +1,9 @@
 'use client'
 
+import type { User } from '@supabase/supabase-js'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
@@ -65,7 +67,7 @@ const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
 export default function ManageMatchesPage() {
   const router = useRouter()
 
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   const [matches, setMatches] = useState<MatchWithParticipants[]>([])
@@ -321,7 +323,8 @@ export default function ManageMatchesPage() {
 
   return (
     <SiteShell active="/admin">
-      <section
+      <AdminGate>
+        <section
         style={{
           width: '100%',
           maxWidth: '1280px',
@@ -578,7 +581,8 @@ export default function ManageMatchesPage() {
             )}
           </div>
         </section>
-      </section>
+        </section>
+      </AdminGate>
     </SiteShell>
   )
 }

@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     description: 'Know more. Plan better. Compete smarter.',
     images: [
       {
-        url: '/og-image.png',
+        url: '/hero-tenaceiq-final.png',
         width: 1200,
         height: 630,
         alt: 'TenAceIQ',
@@ -63,7 +63,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TenAceIQ',
     description: 'Know more. Plan better. Compete smarter.',
-    images: ['/og-image.png'],
+    images: ['/hero-tenaceiq-final.png'],
   },
 }
 

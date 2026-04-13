@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
@@ -166,11 +166,7 @@ export default function TeamPage() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  useEffect(() => {
-    void loadTeamPage()
-  }, [team, leagueFilter, flightFilter])
-
-  async function loadTeamPage() {
+  const loadTeamPage = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -265,7 +261,11 @@ export default function TeamPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [flightFilter, leagueFilter, team])
+
+  useEffect(() => {
+    void loadTeamPage()
+  }, [loadTeamPage])
 
   const teamMeta = useMemo(() => {
     const firstWithLeague = matches.find(
@@ -458,17 +458,17 @@ export default function TeamPage() {
     {
       title: 'Availability',
       description: 'Track who is in, out, and on the bubble before lineup lock.',
-      href: `/captain/availability?team=${encodeURIComponent(team)}`,
+      href: `/captain/availability?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
     },
     {
       title: 'Lineup Builder',
       description: 'Build stronger singles and doubles combinations around your core.',
-      href: `/captain/lineup-builder?team=${encodeURIComponent(team)}`,
+      href: `/captain/lineup-builder?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
     },
     {
       title: 'Scenario Compare',
       description: 'Stress-test alternate lineups and compare projected outcomes.',
-      href: `/captain/scenario-comparison?team=${encodeURIComponent(team)}`,
+      href: `/captain/scenario-comparison?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
     },
   ]
 
@@ -536,10 +536,10 @@ export default function TeamPage() {
             </div>
 
             <div style={heroActions}>
-              <Link style={buttonPrimary} href={`/captain/lineup-builder?team=${encodeURIComponent(team)}`}>
+              <Link style={buttonPrimary} href={captainLinks[1].href}>
                 Open lineup builder
               </Link>
-              <Link style={buttonSecondary} href={`/captain/availability?team=${encodeURIComponent(team)}`}>
+              <Link style={buttonSecondary} href={captainLinks[0].href}>
                 Check availability
               </Link>
               <div style={followButtonWrap}>
@@ -587,6 +587,17 @@ export default function TeamPage() {
             <p style={bodyText}>
               We could not find any valid matches for this team with the current league and flight filters.
             </p>
+            <p style={bodyText}>
+              Try opening the broader team directory, removing the active league or flight filter from the URL, or jumping straight into the captain tools to start planning before match history is complete.
+            </p>
+            <div style={heroActions}>
+              <Link href="/teams" style={buttonSecondary}>
+                Browse all teams
+              </Link>
+              <Link href={captainLinks[0].href} style={buttonGhost}>
+                Open captain availability
+              </Link>
+            </div>
           </section>
         ) : null}
 
@@ -644,7 +655,7 @@ export default function TeamPage() {
                 ))}
               </div>
             ) : (
-              <p style={emptyState}>No singles data available yet.</p>
+              <p style={emptyState}>No singles data available yet. Once this team logs singles courts, the strongest options will surface here.</p>
             )}
           </article>
 
@@ -671,7 +682,7 @@ export default function TeamPage() {
                 ))}
               </div>
             ) : (
-              <p style={emptyState}>No doubles pairings available yet.</p>
+              <p style={emptyState}>No doubles pairings available yet. As soon as this roster logs repeat partnerships, chemistry trends will appear here.</p>
             )}
           </article>
         </section>
@@ -720,7 +731,7 @@ export default function TeamPage() {
                 ))}
               </div>
             ) : (
-              <p style={emptyState}>No doubles depth data available yet.</p>
+              <p style={emptyState}>No doubles depth data available yet. Match results will fill in this ladder once players start appearing in doubles lines.</p>
             )}
           </article>
         </section>
@@ -814,7 +825,7 @@ export default function TeamPage() {
               </table>
             </div>
           ) : (
-            <p style={emptyState}>No roster data available for this team yet.</p>
+            <p style={emptyState}>No roster data available for this team yet. Use the captain tools above to start from availability and lineup planning while the roster history catches up.</p>
           )}
         </section>
       </section>

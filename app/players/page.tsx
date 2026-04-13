@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -49,14 +48,6 @@ type PlayerCard = PlayerRow & {
   confidence: ConfidenceLevel
   overallDiff: number
 }
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
-]
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<PlayerCard[]>([])
@@ -219,20 +210,6 @@ export default function PlayersPage() {
     return players.reduce((sum, player) => sum + player.matches, 0)
   }, [players])
 
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
     padding: isMobile ? '14px 16px 24px' : '10px 18px 24px',
@@ -325,28 +302,6 @@ export default function PlayersPage() {
   const dynamicRatingRow: CSSProperties = {
     ...ratingRow,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
   }
 
   return (
@@ -618,58 +573,6 @@ function RatingPill({
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : footer ? 38 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '8px' : '10px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
@@ -797,103 +700,6 @@ function getMeterTheme(status: RatingStatus) {
         trendBorder: 'rgba(239,68,68,0.22)',
       }
   }
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(66,149,255,0.16), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1730 42%, #0d1b35 100%)',
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-90px',
-  left: '-110px',
-  width: '340px',
-  height: '340px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(84,163,255,0.18) 0%, rgba(84,163,255,0) 70%)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-120px',
-  top: '180px',
-  width: '340px',
-  height: '340px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(90,233,176,0.11) 0%, rgba(90,233,176,0) 68%)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '24px 18px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.9)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: 700,
-  letterSpacing: '0.01em',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-  transition: 'all 180ms ease',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#06111f',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
 }
 
 const heroWrap: CSSProperties = {
@@ -1398,53 +1204,6 @@ const arrowText: CSSProperties = {
 const iconSvgStyle: CSSProperties = {
   width: '22px',
   height: '22px',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '28px 18px 20px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
 }
 
 const followButtonWrap: CSSProperties = {

@@ -99,7 +99,7 @@ const NAV_LINKS = [
   { href: '/matchup', label: 'Matchup' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/captain', label: 'Captain Console' },
 ]
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -222,7 +222,7 @@ export default function LineupProjectionPage() {
             setRole('public')
             setAuthLoading(false)
           }
-          router.replace('/login?next=/captains-corner/lineup-projection')
+          router.replace('/login?next=/captain/lineup-projection')
           return
         }
 
@@ -268,6 +268,7 @@ export default function LineupProjectionPage() {
 
     if (authLoading || role === 'public') return
     void loadTeamRoster()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeagueKey, selectedTeam, selectedDate, authLoading, role])
 
   async function loadLeaguesAndTeams() {
@@ -638,7 +639,7 @@ export default function LineupProjectionPage() {
     if (selectedTeam) params.set('team', selectedTeam)
     if (selectedDate) params.set('date', selectedDate)
     const query = params.toString()
-    return query ? `/captains-corner/lineup-builder?${query}` : '/captains-corner/lineup-builder'
+    return query ? `/captain/lineup-builder?${query}` : '/captain/lineup-builder'
   }, [selectedLeagueLabel, selectedLeagueKey, selectedTeam, selectedDate])
 
   if (authLoading) {
@@ -670,7 +671,7 @@ export default function LineupProjectionPage() {
 
           <nav style={navStyleResponsive(isTablet)}>
             {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/captains-corner'
+              const isActive = link.href === '/captain'
               return (
                 <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
                   {link.label}
@@ -694,7 +695,7 @@ export default function LineupProjectionPage() {
 
           <div style={heroButtonRowStyle}>
             <Link href={builderHref} style={primaryButton}>Build in Lineup Builder</Link>
-            <Link href="/captains-corner" style={ghostButton}>Back to Captain&apos;s Corner</Link>
+            <Link href="/captain" style={ghostButton}>Back to Captain Console</Link>
           </div>
 
           <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -726,6 +727,12 @@ export default function LineupProjectionPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div style={heroBadgeRowStyleCompact}>
+            <span style={miniPillSlate}>{selectedLeagueKey ? 'League selected' : 'Pick a league'}</span>
+            <span style={miniPillSlate}>{selectedTeam ? 'Team selected' : 'Pick a team'}</span>
+            <span style={miniPillSlate}>{roster.length ? 'Roster loaded' : 'Roster pending'}</span>
           </div>
         </div>
       </section>
@@ -807,11 +814,21 @@ export default function LineupProjectionPage() {
           ) : error ? (
             <div style={errorBox}>{error}</div>
           ) : !selectedLeagueKey || !selectedTeam ? (
-            <div style={stateBox}>Choose a league and team to generate a projected lineup.</div>
+            <div style={stateBox}>
+              Choose a league and team to generate a projected lineup.
+              <div style={stateHelperTextStyle}>
+                Start broad, then optionally narrow by match date if you want this estimate to reflect a specific availability snapshot.
+              </div>
+            </div>
           ) : rosterLoading ? (
             <div style={stateBox}>Loading roster...</div>
           ) : roster.length === 0 ? (
-            <div style={stateBox}>No roster usage found for this team yet.</div>
+            <div style={stateBox}>
+              No roster usage found for this team yet.
+              <div style={stateHelperTextStyle}>
+                Try another team, remove the date filter, or open the lineup builder to start a manual scenario while roster history catches up.
+              </div>
+            </div>
           ) : (
             <>
               <div style={heroBadgeRowStyleCompact}>
@@ -847,10 +864,36 @@ export default function LineupProjectionPage() {
               />
               <ProjectionCard
                 label="Builder ready"
-                value={selectedTeam ? 'Yes' : 'No'}
-                subtext="Send this team context into the full Lineup Builder."
+                value={selectedTeam && roster.length ? 'Yes' : 'No'}
+                subtext="Carry this scoped estimate into the full Lineup Builder when you are ready to save a scenario."
                 accent
               />
+            </section>
+
+            <section style={surfaceCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Projection readiness</p>
+                  <h2 style={sectionTitle}>What this estimate is based on</h2>
+                </div>
+              </div>
+              <div style={projectionGridResponsive(isSmallMobile, isTablet)}>
+                <ProjectionCard
+                  label="League context"
+                  value={selectedLeagueKey ? 'Ready' : 'Missing'}
+                  subtext={selectedLeagueLabel || 'Choose the exact league and flight first.'}
+                />
+                <ProjectionCard
+                  label="Team context"
+                  value={selectedTeam ? 'Ready' : 'Missing'}
+                  subtext={selectedTeam || 'Select the roster you want to project.'}
+                />
+                <ProjectionCard
+                  label="Roster confidence"
+                  value={roster.length ? confidenceLabel : 'Low'}
+                  subtext={roster.length ? `${roster.length} players are informing this estimate.` : 'No team roster is loaded into the projection yet.'}
+                />
+              </div>
             </section>
 
             <section style={sectionCard}>
@@ -1014,7 +1057,7 @@ export default function LineupProjectionPage() {
               <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
               <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+          <Link href="/captain" style={footerUtilityLink}>Captain Console</Link>
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
@@ -1593,6 +1636,14 @@ const stateBox: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const stateHelperTextStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'rgba(219,234,254,0.82)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
 }
 
 const errorBox: CSSProperties = {

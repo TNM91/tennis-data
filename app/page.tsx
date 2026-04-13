@@ -14,7 +14,8 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { type UserRole } from '@/lib/roles'
+import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
 
 type PlayerSearchRow = {
@@ -106,19 +107,17 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadUser() {
-      try {
-        const { data } = await supabase.auth.getUser()
-        setRole(getUserRole(data.user?.id ?? null))
-      } finally {
-      }
+      const authState = await getClientAuthState()
+      setRole(authState.role)
     }
 
-    loadUser()
+    void loadUser()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setRole(getUserRole(session?.user?.id ?? null))
+    } = supabase.auth.onAuthStateChange(async () => {
+      const authState = await getClientAuthState()
+      setRole(authState.role)
     })
 
     return () => subscription.unsubscribe()
@@ -1879,4 +1878,3 @@ const weeklyCardText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.7,
 }
-

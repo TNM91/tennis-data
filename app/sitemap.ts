@@ -1,0 +1,34 @@
+import type { MetadataRoute } from 'next'
+
+const SITE_URL = 'https://tenaceiq.com'
+
+const staticRoutes = [
+  '',
+  '/explore',
+  '/join',
+  '/login',
+  '/forget-password',
+  '/matchup',
+  '/mylab',
+  '/players',
+  '/rankings',
+  '/teams',
+  '/leagues',
+  '/captain',
+  '/admin',
+  '/legal/privacy',
+  '/legal/terms',
+  '/legal/cookies',
+  '/legal/disclaimer',
+  '/legal/data-policy',
+  '/legal/copyright',
+]
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return staticRoutes.map((route) => ({
+    url: `${SITE_URL}${route}`,
+    lastModified: new Date(),
+    changeFrequency: route === '' ? 'weekly' : 'monthly',
+    priority: route === '' ? 1 : route.startsWith('/legal/') ? 0.4 : 0.7,
+  }))
+}

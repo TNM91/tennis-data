@@ -5,12 +5,14 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import {
   CSSProperties,
+  useCallback,
   useEffect,
   useMemo,
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
@@ -28,6 +30,38 @@ type AvailabilityPlayer = {
   name: string
   status: AvailabilityStatus
   note?: string
+}
+
+type TeamOptionMatchRow = {
+  home_team: string | null
+  away_team: string | null
+  league_name: string | null
+  flight: string | null
+}
+
+type TeamRosterMatchRow = {
+  id: string
+  home_team: string | null
+  away_team: string | null
+  league_name: string | null
+  flight: string | null
+}
+
+type RosterPlayerRelation =
+  | {
+      id: string
+      name: string
+    }
+  | {
+      id: string
+      name: string
+    }[]
+  | null
+
+type MatchPlayerRosterRow = {
+  match_id: string
+  side: 'A' | 'B'
+  players: RosterPlayerRelation
 }
 
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
@@ -63,77 +97,7 @@ export default function CaptainAvailabilityPage() {
   const isMobile = screenWidth < 820
   const isSmallMobile = screenWidth < 560
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    setTeamParam(params.get('team') || '')
-    setLeagueParam(params.get('league') || '')
-    setFlightParam(params.get('flight') || '')
-  }, [])
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  useEffect(() => {
-    let mounted = true
-
-    async function loadAuth() {
-      try {
-        const { data } = await supabase.auth.getUser()
-        const user = data.user
-
-        if (!user) {
-          if (mounted) {
-            setRole('public')
-            setAuthLoading(false)
-          }
-          router.replace('/login?next=/captain/availability')
-          return
-        }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-
-        const nextRole = normalizeUserRole(profile?.role)
-
-        if (!mounted) return
-        setRole(nextRole)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
-    }
-
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadAuth()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [router])
-
-  useEffect(() => {
-    void loadTeamOptions()
-  }, [])
-
-  useEffect(() => {
-    if (!selectedTeam) return
-    void loadRoster()
-  }, [selectedTeam, selectedLeague, selectedFlight])
-
-  async function loadTeamOptions() {
+  const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
     setError('')
 
@@ -146,7 +110,7 @@ export default function CaptainAvailabilityPage() {
 
       const map = new Map<string, TeamOption>()
 
-      for (const row of (data || []) as any[]) {
+      for (const row of (data || []) as TeamOptionMatchRow[]) {
         const league = safeText(row.league_name, 'Unknown League')
         const flight = safeText(row.flight, 'Unknown Flight')
 
@@ -179,9 +143,9 @@ export default function CaptainAvailabilityPage() {
     } finally {
       setLoadingOptions(false)
     }
-  }
+  }, [teamParam])
 
-  async function loadRoster() {
+  const loadRoster = useCallback(async () => {
     setLoadingRoster(true)
     setError('')
 
@@ -197,7 +161,8 @@ export default function CaptainAvailabilityPage() {
       const { data: matches, error: matchError } = await matchQuery.limit(25)
       if (matchError) throw new Error(matchError.message)
 
-      const matchIds = (matches || []).map((m: any) => m.id)
+      const typedMatches = (matches || []) as TeamRosterMatchRow[]
+      const matchIds = typedMatches.map((match) => match.id)
 
       if (!matchIds.length) {
         setPlayers([])
@@ -219,14 +184,14 @@ export default function CaptainAvailabilityPage() {
       if (playerError) throw new Error(playerError.message)
 
       const teamSides = new Map<string, 'A' | 'B'>()
-      for (const match of (matches || []) as any[]) {
+      for (const match of typedMatches) {
         if (safeText(match.home_team) === selectedTeam) teamSides.set(match.id, 'A')
         if (safeText(match.away_team) === selectedTeam) teamSides.set(match.id, 'B')
       }
 
       const rosterMap = new Map<string, AvailabilityPlayer>()
 
-      for (const row of (matchPlayers || []) as any[]) {
+      for (const row of (matchPlayers || []) as MatchPlayerRosterRow[]) {
         const expectedSide = teamSides.get(row.match_id)
         if (!expectedSide || row.side !== expectedSide) continue
 
@@ -257,7 +222,70 @@ export default function CaptainAvailabilityPage() {
     } finally {
       setLoadingRoster(false)
     }
-  }
+  }, [selectedFlight, selectedLeague, selectedTeam])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    setTeamParam(params.get('team') || '')
+    setLeagueParam(params.get('league') || '')
+    setFlightParam(params.get('flight') || '')
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => setScreenWidth(window.innerWidth)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadAuth() {
+      try {
+        const authState = await getClientAuthState()
+
+        if (!authState.user) {
+          if (mounted) {
+            setRole('public')
+            setAuthLoading(false)
+          }
+          router.replace('/login?next=/captain/availability')
+          return
+        }
+
+        const nextRole = normalizeUserRole(authState.role)
+
+        if (!mounted) return
+        setRole(nextRole)
+      } finally {
+        if (mounted) setAuthLoading(false)
+      }
+    }
+
+    void loadAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(() => {
+      void loadAuth()
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
+  }, [router])
+
+  useEffect(() => {
+    void loadTeamOptions()
+  }, [loadTeamOptions])
+
+  useEffect(() => {
+    if (!selectedTeam) return
+    void loadRoster()
+  }, [loadRoster, selectedTeam])
 
   function updateStatus(playerId: string, status: AvailabilityStatus) {
     setPlayers((current) =>
@@ -270,6 +298,13 @@ export default function CaptainAvailabilityPage() {
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
   }, [teamOptions])
+  const hasScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+  const lineupBuilderHref = hasScope
+    ? `/captain/lineup-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/lineup-builder'
+  const messagingHref = hasScope
+    ? `/captain/messaging?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
+    : '/captain/messaging'
 
   const counts = useMemo(() => {
     return {
@@ -279,6 +314,12 @@ export default function CaptainAvailabilityPage() {
       unanswered: players.filter((p) => p.status === 'unanswered').length,
     }
   }, [players])
+  const responseSummary =
+    counts.unanswered > 0
+      ? `${counts.unanswered} player${counts.unanswered === 1 ? '' : 's'} still need a reply before the lineup is safe to finalize.`
+      : counts.in === 0 && counts.out === 0 && counts.maybe === 0
+        ? 'Start by picking a team to load the weekly roster.'
+        : 'The roster is fully answered, so you can move straight into lineup planning.'
 
   if (authLoading) {
     return (
@@ -339,8 +380,15 @@ export default function CaptainAvailabilityPage() {
 
               <button
                 type="button"
-                style={primaryButton}
-                onClick={() => setRequestSent(true)}
+                style={{
+                  ...primaryButton,
+                  ...(!hasScope ? disabledAction : {}),
+                }}
+                onClick={() => {
+                  if (!hasScope) return
+                  setRequestSent(true)
+                }}
+                disabled={!hasScope}
               >
                 Send Request
               </button>
@@ -378,7 +426,7 @@ export default function CaptainAvailabilityPage() {
             {requestSent ? (
               <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
             ) : (
-              <div style={helperBanner}>Set your match label and send a request when ready.</div>
+              <div style={helperBanner}>{responseSummary}</div>
             )}
           </div>
         </section>
@@ -404,19 +452,25 @@ export default function CaptainAvailabilityPage() {
               </div>
 
               <div style={sectionActions}>
-                <Link href="/captain/lineup-builder" style={sectionCtaPrimary}>
+                <Link href={lineupBuilderHref} style={sectionCtaPrimary}>
                   Build Lineup
                 </Link>
-                <Link href="/captain/messaging" style={sectionCtaSecondary}>
+                <Link href={messagingHref} style={sectionCtaSecondary}>
                   Text Team
                 </Link>
               </div>
             </div>
 
-            {loadingRoster ? (
+            {!filteredTeamOptions.length && !loadingOptions ? (
+              <div style={stateBox}>
+                No team history is available yet. Import match data first, then return here to track responses.
+              </div>
+            ) : loadingRoster ? (
               <div style={stateBox}>Loading roster...</div>
             ) : players.length === 0 ? (
-              <div style={stateBox}>No roster found yet for this team selection.</div>
+              <div style={stateBox}>
+                No roster was found for this team selection yet. Try another team scope or load more match history first.
+              </div>
             ) : (
               <div style={playerList}>
                 {players.map((player) => (
@@ -647,6 +701,12 @@ const primaryButton: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.34)',
   boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
   cursor: 'pointer',
+}
+
+const disabledAction: CSSProperties = {
+  opacity: 0.55,
+  cursor: 'not-allowed',
+  boxShadow: 'none',
 }
 
 const heroBadgeRow: CSSProperties = {

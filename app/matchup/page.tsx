@@ -206,11 +206,13 @@ export default function MatchupPage() {
     } else {
       setHeadToHead(null)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
   useEffect(() => {
     if (!players.length) return
     void loadPredictionAccuracy()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, matchType])
 
   async function loadPlayers() {
@@ -429,8 +431,8 @@ export default function MatchupPage() {
       let total = 0
       let winsA = 0
       let winsB = 0
-      let singlesA = 0
-      let singlesB = 0
+      const singlesA = 0
+      const singlesB = 0
       let doublesA = 0
       let doublesB = 0
       let lastMatch: HeadToHeadState['lastMatch'] = null
@@ -717,6 +719,16 @@ export default function MatchupPage() {
     !!teamB1 &&
     !!teamB2 &&
     areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+  const selectionCount =
+    matchType === 'singles'
+      ? [playerAId, playerBId].filter(Boolean).length
+      : [teamA1Id, teamA2Id, teamB1Id, teamB2Id].filter(Boolean).length
+  const selectionTarget = matchType === 'singles' ? 2 : 4
+  const selectionProgressText = `${selectionCount} of ${selectionTarget} slots selected`
+  const selectionGuidance =
+    matchType === 'singles'
+      ? 'Pick two different players to see the projection, edge, and head-to-head history.'
+      : 'Pick four different players to compare doubles teams and see partner-aware projections.'
 
   const insufficientDataMessage = useMemo(() => {
     if (matchType === 'singles') {
@@ -1158,6 +1170,12 @@ export default function MatchupPage() {
                 </button>
               </div>
             </div>
+
+            <div style={selectionProgressCard}>
+              <div style={selectionProgressLabel}>Comparison readiness</div>
+              <div style={selectionProgressValue}>{selectionProgressText}</div>
+              <div style={selectionProgressTextStyle}>{selectionGuidance}</div>
+            </div>
           </div>
 
           {matchType === 'singles' ? (
@@ -1216,10 +1234,31 @@ export default function MatchupPage() {
             <div style={emptyState}>Loading players...</div>
           ) : !comparison ? (
             <div style={emptyState}>
-              {insufficientDataMessage ||
-                (matchType === 'singles'
-                  ? 'Select two different players to compare.'
-                  : 'Select four different players to compare doubles teams.')}
+              <div style={emptyStateTitle}>Build the matchup first</div>
+              <div style={emptyStateText}>
+                {insufficientDataMessage ||
+                  (matchType === 'singles'
+                    ? 'Select two different players to compare.'
+                    : 'Select four different players to compare doubles teams.')}
+              </div>
+              <div style={emptyStateHint}>
+                Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.
+              </div>
+              <button
+                type="button"
+                style={resetButton}
+                onClick={() => {
+                  setPlayerAId('')
+                  setPlayerBId('')
+                  setTeamA1Id('')
+                  setTeamA2Id('')
+                  setTeamB1Id('')
+                  setTeamB2Id('')
+                  setHeadToHead(null)
+                }}
+              >
+                Reset selections
+              </button>
             </div>
           ) : (
             <>
@@ -1941,6 +1980,69 @@ const emptyState: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const emptyStateTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+  marginBottom: '10px',
+}
+
+const emptyStateText: CSSProperties = {
+  color: '#dfe8f8',
+  lineHeight: 1.65,
+  marginBottom: '10px',
+}
+
+const emptyStateHint: CSSProperties = {
+  color: 'rgba(224,236,249,0.72)',
+  lineHeight: 1.6,
+  marginBottom: '14px',
+}
+
+const resetButton: CSSProperties = {
+  minHeight: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
+  color: '#e7eefb',
+  fontWeight: 800,
+  fontSize: '13px',
+  cursor: 'pointer',
+}
+
+const selectionProgressCard: CSSProperties = {
+  borderRadius: '20px',
+  padding: '14px 16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.05)',
+  minWidth: '220px',
+}
+
+const selectionProgressLabel: CSSProperties = {
+  color: 'rgba(198,216,248,0.84)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '8px',
+}
+
+const selectionProgressValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+  marginBottom: '6px',
+}
+
+const selectionProgressTextStyle: CSSProperties = {
+  color: 'rgba(224,236,249,0.76)',
+  fontSize: '13px',
+  lineHeight: 1.6,
 }
 
 const decisionBanner: CSSProperties = {

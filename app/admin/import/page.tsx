@@ -10,6 +10,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from 'react'
+import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import {
@@ -700,7 +701,8 @@ export default function AdminImportPage() {
 
   return (
     <SiteShell active="/admin">
-      <section style={pageWrapStyle}>
+      <AdminGate>
+        <section style={pageWrapStyle}>
         <section
           style={{
             ...glassCardStyle,
@@ -1483,7 +1485,8 @@ export default function AdminImportPage() {
             )}
           </div>
         </section>
-      </section>
+        </section>
+      </AdminGate>
     </SiteShell>
   )
 }

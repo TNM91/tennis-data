@@ -1209,7 +1209,7 @@ export default function LineupBuilderPage() {
     if (matchDate) params.set('date', matchDate)
     if (currentScenarioId) params.set('left', currentScenarioId)
     const query = params.toString()
-    return query ? `/captain/scenario-comparison?${query}` : '/captain/scenario-comparison'
+    return query ? `/captain/scenario-builder?${query}` : '/captain/scenario-builder'
   }, [leagueName, flight, teamName, matchDate, currentScenarioId])
 
   function toggleLockedSlot(slotId: string) {
@@ -1743,6 +1743,7 @@ function sendCurrentScenarioToMessaging() {
       setMessage('Analytics context loaded into the lineup builder.')
       setPrefillApplied(true)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefillApplied, prefillScenarioId, prefillSingleId, prefillPairIds, savedScenarios, players])
 
   const lineupWarnings = useMemo(() => getLineupWarnings(teamSlots, opponentSlots), [teamSlots, opponentSlots])
@@ -1825,6 +1826,33 @@ function sendCurrentScenarioToMessaging() {
   ]
 
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
+  const hasScenarioName = !!scenarioName.trim()
+  const hasCoreContext = !!teamName && !!opponentTeam && !!matchDate
+  const hasComparisonCandidates = scenarioOptions.length > 1
+  const lineupHasAssignments = teamSlots.some((slot) => slot.players.some((player) => player.playerId))
+  const builderReadiness = [
+    {
+      label: 'Scenario named',
+      done: hasScenarioName,
+      detail: hasScenarioName ? scenarioName.trim() : 'Give this build a name before you save or compare it.',
+    },
+    {
+      label: 'Match context set',
+      done: hasCoreContext,
+      detail: hasCoreContext ? `${teamName} vs ${opponentTeam} on ${formatDate(matchDate || null)}` : 'Add team, opponent, and match date so the scenario stays trustworthy later.',
+    },
+    {
+      label: 'Lineup started',
+      done: lineupHasAssignments,
+      detail: lineupHasAssignments ? 'At least one court has player assignments in place.' : 'Start with one singles or doubles court to give the optimizer something real to work with.',
+    },
+    {
+      label: 'Comparison ready',
+      done: hasComparisonCandidates,
+      detail: hasComparisonCandidates ? `${scenarioOptions.length} saved versions are ready to compare.` : 'Save another version in this same scope to unlock a meaningful side-by-side comparison.',
+    },
+  ]
+  const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
 
   if (authLoading) {
     return (
@@ -1854,7 +1882,7 @@ function sendCurrentScenarioToMessaging() {
             </p>
 
             <div style={heroButtonRowStyle}>
-              <Link href={compareHref} style={primaryButton}>Compare Saved Scenarios</Link>
+              <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare Saved Scenarios</Link>
               <button type="button" onClick={resetBuilder} style={ghostButton}>Reset Builder</button>
             </div>
 
@@ -1950,6 +1978,32 @@ function sendCurrentScenarioToMessaging() {
             {!teamName || !opponentTeam || !matchDate
               ? 'Set the missing match context fields so saved scenarios and comparisons stay easier to trust later.'
               : 'Your scenario has enough context to save, compare, and track prediction snapshots with more confidence.'}
+          </div>
+        </section>
+
+        <section style={surfaceCard}>
+          <div style={tableHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Builder readiness</p>
+              <h3 style={sectionTitleSmall}>What is ready and what still needs attention</h3>
+            </div>
+            <span style={miniPillBlueStyle}>{readinessCompleteCount}/4 complete</span>
+          </div>
+
+          <div style={decisionSnapshotGridStyle}>
+            {builderReadiness.map((item) => (
+              <div key={item.label} style={item.done ? decisionCardGoodStyle : decisionCardSlateStyle}>
+                <div style={decisionCardLabelStyle}>{item.label}</div>
+                <div style={decisionCardValueStyle}>{item.done ? 'Ready' : 'Needs setup'}</div>
+                <div style={decisionCardTextStyle}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={actionPlanInsightStyle}>
+            {readinessCompleteCount === builderReadiness.length
+              ? 'This build has enough structure to save, compare, and push forward into weekly messaging with confidence.'
+              : 'Finish the setup items above first, then use save and compare as decision tools instead of placeholders.'}
           </div>
         </section>
 
@@ -2053,7 +2107,12 @@ function sendCurrentScenarioToMessaging() {
                     </div>
                   </div>
                 )) : (
-                  <p style={mutedTextStyle}>No saved scenarios match the current filters yet.</p>
+                  <div style={stackStyleCompact}>
+                    <p style={mutedTextStyle}>No saved scenarios match the current filters yet.</p>
+                    <p style={subtleHelperTextStyle}>
+                      Save this build as your first version, or broaden the league, flight, team, or date context above to bring more scenarios back into scope.
+                    </p>
+                  </div>
                 )}
               </div>
             </section>
@@ -2569,9 +2628,16 @@ function sendCurrentScenarioToMessaging() {
                     </div>
                   </div>
                 )) : (
-                  <p style={mutedTextStyle}>
-                    {loading ? 'Loading player pool…' : 'No players match the current scope.'}
-                  </p>
+                  <div style={stackStyleCompact}>
+                    <p style={mutedTextStyle}>
+                      {loading ? 'Loading player pool…' : 'No players match the current scope.'}
+                    </p>
+                    {!loading ? (
+                      <p style={subtleHelperTextStyle}>
+                        Check the team, league, flight, and availability toggles first. This builder stays tightly scoped, so an empty pool usually means the context is too narrow or the roster has not been linked yet.
+                      </p>
+                    ) : null}
+                  </div>
                 )}
               </div>
             </section>
@@ -3006,6 +3072,13 @@ const ghostButton: CSSProperties = {
   cursor: 'pointer',
 }
 
+const disabledLinkButtonStyle: CSSProperties = {
+  ...ghostButton,
+  opacity: 0.6,
+  cursor: 'not-allowed',
+  pointerEvents: 'none',
+}
+
 const ghostButtonSmallButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -3438,6 +3511,12 @@ const mutedTextStyle: CSSProperties = {
   color: '#94a3b8',
   fontSize: 14,
   lineHeight: 1.6,
+}
+
+const subtleHelperTextStyle: CSSProperties = {
+  color: '#cbd5e1',
+  fontSize: 13,
+  lineHeight: 1.65,
 }
 
 const rightPillStackStyle: CSSProperties = {

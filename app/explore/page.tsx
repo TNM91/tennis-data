@@ -1,25 +1,8 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
-import {
-  CSSProperties,
-  ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { CSSProperties, ReactNode, useEffect, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
-
-const PRIMARY_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-]
 
 const FEATURE_CARDS = [
   {
@@ -75,11 +58,8 @@ const GLOBAL_FEED = [
 ]
 
 export default function ExplorePage() {
-  const router = useRouter()
   const [screenWidth, setScreenWidth] = useState(1280)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
-  const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -91,48 +71,6 @@ export default function ExplorePage() {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
-
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const { data } = await supabase.auth.getUser()
-        setRole(getUserRole(data.user?.id ?? null))
-      } finally {
-        setAuthLoading(false)
-      }
-    }
-
-    loadUser()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setRole(getUserRole(session?.user?.id ?? null))
-      setAuthLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/')
-    router.refresh()
-  }
-
-  const dynamicHeaderInner: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
-
-  const dynamicNavStyle: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -173,28 +111,6 @@ export default function ExplorePage() {
     ...actionGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(4, minmax(220px, 1fr))',
     gap: isMobile ? '14px' : '16px',
-  }
-
-  const dynamicFooterInner: CSSProperties = {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-
-  const dynamicFooterRow: CSSProperties = {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-
-  const dynamicFooterLinks: CSSProperties = {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-
-  const dynamicFooterBottom: CSSProperties = {
-    ...footerBottom,
-    marginLeft: isTablet ? 0 : 'auto',
   }
 
   return (
@@ -331,58 +247,6 @@ function ActionCard({
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 56 : footer ? 44 : 36
-  const fontSize = compact ? 27 : top ? 34 : footer ? 29 : 29
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: compact ? '10px' : '12px',
-        lineHeight: 1,
-      }}
-    >
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority={top}
-        style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'block',
-          objectFit: 'contain',
-        }}
-      />
-
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={heroIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
 function IconBase({ children }: { children: ReactNode }) {
   return (
     <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
@@ -477,151 +341,6 @@ function MatchupIcon() {
   )
 }
 
-function TennisPulseIcon() {
-  return (
-    <svg viewBox="0 0 32 32" style={{ width: '82%', height: '82%', display: 'block' }} aria-hidden="true">
-      <path
-        d="M11 6.5c1.9 0 3.7.5 5.2 1.4M7.7 9.2c-1.8 2-2.9 4.6-2.9 7.5M7.7 23c-1.8-2-2.9-4.6-2.9-7.5M11 25.7c1.9 0 3.7-.5 5.2-1.4"
-        fill="none"
-        stroke="#C8F36B"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <circle cx="22" cy="16" r="5.2" fill="none" stroke="#EAF4FF" strokeWidth="1.8" />
-      <path
-        d="M0 16h6.3l2-4.2 2.2 8 2.1-5 1.6 1.2h3"
-        fill="none"
-        stroke="#74BEFF"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-120px',
-  left: '-140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  right: '-140px',
-  top: '140px',
-  width: '420px',
-  height: '420px',
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
-  filter: 'blur(8px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
-  backgroundRepeat: 'repeat, repeat',
-  backgroundSize: '34px 34px, 34px 34px',
-  maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
-  pointerEvents: 'none',
-}
-
-const topBlueWash: CSSProperties = {
-  position: 'absolute',
-  top: 0,
-  left: 0,
-  right: 0,
-  height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '18px 24px 0',
-}
-
-const headerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-}
-
-const navLink: CSSProperties = {
-  color: 'rgba(238,247,255,0.94)',
-  textDecoration: 'none',
-  fontSize: '15px',
-  fontWeight: 800,
-  letterSpacing: '0.01em',
-  padding: '12px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  backdropFilter: 'blur(14px)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
-  transition: 'all 180ms ease',
-}
-
-const ctaNavLink: CSSProperties = {
-  ...navLink,
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-}
-
-const navButtonReset: CSSProperties = {
-  ...navLink,
-  cursor: 'pointer',
-  appearance: 'none',
-}
-
-const activeNavLink: CSSProperties = {
-  color: '#08111d',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 10px 28px rgba(155,225,29,0.18)',
-}
-
 const heroWrap: CSSProperties = {
   position: 'relative',
   zIndex: 1,
@@ -669,12 +388,6 @@ const heroLeft: CSSProperties = {
   gap: '18px',
 }
 
-const heroRight: CSSProperties = {
-  display: 'grid',
-  gap: '16px',
-  alignContent: 'start',
-}
-
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
@@ -702,14 +415,6 @@ const heroText: CSSProperties = {
   color: 'rgba(224,236,249,0.86)',
   lineHeight: 1.7,
   fontWeight: 500,
-}
-
-const heroIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
 }
 
 const explorePills: CSSProperties = {
@@ -931,53 +636,4 @@ const iconSvgStyle: CSSProperties = {
   width: '24px',
   height: '24px',
   display: 'block',
-}
-
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  marginTop: '26px',
-  padding: '0 18px 24px',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  borderRadius: '24px',
-  background:
-    'linear-gradient(180deg, rgba(21,42,80,0.54) 0%, rgba(12,24,46,0.88) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '18px',
-}
-
-const footerBrandLink: CSSProperties = {
-  textDecoration: 'none',
-  display: 'inline-flex',
-  alignItems: 'center',
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '12px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(215,229,247,0.8)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '13px',
-  fontWeight: 700,
 }

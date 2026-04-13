@@ -76,7 +76,7 @@ function unknownToMessage(error: unknown): string {
 }
 
 export async function runImport(
-  supabase: SupabaseClient<any, any, any>,
+  supabase: SupabaseClient,
   request: RunImportRequest,
 ): Promise<RunImportResponse> {
   const mode = getMode(request.mode)
@@ -121,7 +121,7 @@ export async function runImport(
 }
 
 export async function runScheduleImport(
-  supabase: SupabaseClient<any, any, any>,
+  supabase: SupabaseClient,
   payload: unknown,
   mode: ImportMode = 'commit',
   engineOptions?: ImportEngineOptions,
@@ -135,7 +135,7 @@ export async function runScheduleImport(
 }
 
 export async function runScorecardImport(
-  supabase: SupabaseClient<any, any, any>,
+  supabase: SupabaseClient,
   payload: unknown,
   mode: ImportMode = 'commit',
   engineOptions?: ImportEngineOptions,

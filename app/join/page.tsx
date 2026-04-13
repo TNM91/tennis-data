@@ -10,7 +10,8 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { type UserRole } from '@/lib/roles'
+import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
 
 export default function JoinPage() {
@@ -43,8 +44,8 @@ export default function JoinPage() {
   useEffect(() => {
     async function loadAuth() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const nextRole = getUserRole(data.user?.id ?? null)
+        const authState = await getClientAuthState()
+        const nextRole = authState.role
         setRole(nextRole)
 
         if (nextRole !== 'public') {
@@ -59,8 +60,9 @@ export default function JoinPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      const nextRole = getUserRole(session?.user?.id ?? null)
+    } = supabase.auth.onAuthStateChange(async () => {
+      const authState = await getClientAuthState()
+      const nextRole = authState.role
       setRole(nextRole)
       setAuthLoading(false)
 

@@ -3,11 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, isCaptain, isMember, type UserRole } from '@/lib/roles'
+import { isCaptain, isMember, type UserRole } from '@/lib/roles'
 
 type TeamMatch = {
   id: string
@@ -51,6 +52,14 @@ type TeamOption = {
   league: string
   flight: string
   matches: number
+}
+
+type TeamOptionMatchRow = {
+  home_team: string | null
+  away_team: string | null
+  league_name: string | null
+  flight: string | null
+  match_date: string
 }
 
 
@@ -193,8 +202,7 @@ export default function CaptainHubPage() {
     lastUpdatedLabel: 'Not updated yet',
   })
 
-  async function loadRole(userId: string | null | undefined) {
-    const nextRole = await getUserRole(userId ?? null)
+  const loadRole = useCallback(async (nextRole: UserRole) => {
     setRole(nextRole)
     setAuthLoading(false)
 
@@ -203,49 +211,9 @@ export default function CaptainHubPage() {
     }
 
     return nextRole
-  }
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    setSelectedTeam(params.get('team') || '')
-    setSelectedLeague(params.get('league') || '')
-    setSelectedFlight(params.get('flight') || '')
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      const { data } = await supabase.auth.getUser()
-      if (!active) return
-      await loadRole(data.user?.id ?? null)
-    }
-
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return
-      void loadRole(session?.user?.id ?? null)
-    })
-
-    return () => {
-      active = false
-      subscription.unsubscribe()
-    }
   }, [router])
 
-  useEffect(() => {
-    void loadTeamOptions()
-  }, [])
-
-  useEffect(() => {
-    if (!selectedTeam) return
-    void loadSelectedTeam()
-  }, [selectedTeam, selectedLeague, selectedFlight])
-
-  async function loadTeamOptions() {
+  const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
     setError('')
 
@@ -258,7 +226,7 @@ export default function CaptainHubPage() {
 
       const map = new Map<string, TeamOption>()
 
-      for (const row of (data || []) as any[]) {
+      for (const row of (data || []) as TeamOptionMatchRow[]) {
         const league = safeText(row.league_name, 'Unknown League')
         const flight = safeText(row.flight, 'Unknown Flight')
 
@@ -287,19 +255,19 @@ export default function CaptainHubPage() {
 
       setTeamOptions(next)
 
-      if (!selectedTeam && next.length > 0) {
-        setSelectedTeam(next[0].team)
-        setSelectedLeague(next[0].league)
-        setSelectedFlight(next[0].flight)
+      if (next.length > 0) {
+        setSelectedTeam((current) => current || next[0].team)
+        setSelectedLeague((current) => current || next[0].league)
+        setSelectedFlight((current) => current || next[0].flight)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load teams')
     } finally {
       setLoadingOptions(false)
     }
-  }
+  }, [])
 
-  async function loadSelectedTeam() {
+  const loadSelectedTeam = useCallback(async () => {
     setLoadingTeam(true)
     setError('')
 
@@ -376,11 +344,52 @@ export default function CaptainHubPage() {
       setScenarioCount(typedScenarios.length)
       setLatestScenarioName(typedScenarios[0]?.scenario_name || '')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load captain hub')
+      setError(err instanceof Error ? err.message : 'Failed to load captain console')
     } finally {
       setLoadingTeam(false)
     }
-  }
+  }, [selectedFlight, selectedLeague, selectedTeam])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSelectedTeam(params.get('team') || '')
+    setSelectedLeague(params.get('league') || '')
+    setSelectedFlight(params.get('flight') || '')
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadAuth() {
+      const authState = await getClientAuthState()
+      if (!active) return
+      await loadRole(authState.role)
+    }
+
+    void loadAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async () => {
+      if (!active) return
+      const authState = await getClientAuthState()
+      void loadRole(authState.role)
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
+  }, [loadRole])
+
+  useEffect(() => {
+    void loadTeamOptions()
+  }, [loadTeamOptions])
+
+  useEffect(() => {
+    if (!selectedTeam) return
+    void loadSelectedTeam()
+  }, [loadSelectedTeam, selectedTeam])
 
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
@@ -584,6 +593,14 @@ export default function CaptainHubPage() {
     : '/captain/analytics'
 
   const premiumEnabled = isCaptain(role)
+  const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+  const scopeStatusText = loadingOptions
+    ? 'Loading your team options and recent match context.'
+    : !filteredTeamOptions.length
+      ? 'No team history is available yet. Add match data to unlock the weekly captain workflow.'
+      : hasTeamScope
+        ? `Active scope: ${selectedTeam} · ${selectedLeague} · ${selectedFlight}`
+        : 'Choose a team, league, and flight to activate the weekly workflow.'
 
   const nextAction = useMemo(() => {
     if (!selectedTeam) {
@@ -685,7 +702,7 @@ export default function CaptainHubPage() {
         <section style={heroCard}>
           <div style={heroLeft}>
             <div style={eyebrow}>Premium captain workflow</div>
-            <h1 style={heroTitle}>Captain&apos;s Corner</h1>
+            <h1 style={heroTitle}>Captain Console</h1>
             <p style={heroText}>
               A strategic command center for captains. Choose your team, review lineup intelligence,
               track availability, build match-day options, compare scenarios, communicate with your
@@ -721,11 +738,27 @@ export default function CaptainHubPage() {
 
               <button
                 type="button"
-                style={primaryButtonButton}
-                onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}
+                style={{
+                  ...primaryButtonButton,
+                  ...(!hasTeamScope ? disabledButton : {}),
+                }}
+                onClick={() => {
+                  if (!hasTeamScope) return
+                  handleCaptainNav(lineupBuilderHref, 'lineup')
+                }}
+                disabled={!hasTeamScope}
               >
-                Open Lineup Builder
+                {hasTeamScope ? 'Open Lineup Builder' : 'Choose Team Scope'}
               </button>
+            </div>
+
+            <div
+              style={{
+                ...scopeBanner,
+                ...(!filteredTeamOptions.length && !loadingOptions ? scopeBannerWarn : {}),
+              }}
+            >
+              {scopeStatusText}
             </div>
 
             <div style={heroBadgeRow}>
@@ -770,7 +803,7 @@ export default function CaptainHubPage() {
               {premiumEnabled ? 'Premium workflow unlocked' : 'Premium workflow preview'}
             </h2>
             <div style={premiumText}>
-              Lineup Builder, Scenario Builder, Messaging, and Captain IQ are the premium captain loop.
+              Lineup Builder, Scenario Comparison, Messaging, and Captain Analytics make up the premium captain loop.
             </div>
           </div>
           <div style={pillGroupWrap}>
@@ -831,7 +864,10 @@ export default function CaptainHubPage() {
             <div style={nextActionButtonRow}>
               <button
                 type="button"
-                style={primaryButtonButton}
+                style={{
+                  ...primaryButtonButton,
+                  ...(!hasTeamScope ? disabledButton : {}),
+                }}
                 onClick={() => handleCaptainNav(
                   nextAction.href,
                   nextAction.href === lineupBuilderHref
@@ -844,13 +880,21 @@ export default function CaptainHubPage() {
                           ? 'analytics'
                           : 'team',
                 )}
+                disabled={!hasTeamScope}
               >
                 {nextAction.cta}
               </button>
               <button
                 type="button"
-                style={secondaryButtonSmallButton}
-                onClick={() => handleCaptainNav(messagingHref, 'messaging')}
+                style={{
+                  ...secondaryButtonSmallButton,
+                  ...(!hasTeamScope ? disabledButtonSecondary : {}),
+                }}
+                onClick={() => {
+                  if (!hasTeamScope) return
+                  handleCaptainNav(messagingHref, 'messaging')
+                }}
+                disabled={!hasTeamScope}
               >
                 Continue Messaging
               </button>
@@ -993,7 +1037,11 @@ export default function CaptainHubPage() {
             </div>
           </div>
 
-          {loadingTeam ? (
+          {!hasTeamScope ? (
+            <div style={stateCard}>
+              Choose a team scope above to unlock lineup intelligence, pairings, and roster signals.
+            </div>
+          ) : loadingTeam ? (
             <div style={stateCard}>Loading captain insights...</div>
           ) : (
             <div style={insightGrid}>
@@ -1078,7 +1126,9 @@ export default function CaptainHubPage() {
           </div>
 
           <div style={rosterTableWrap}>
-            {roster.length === 0 ? (
+            {!hasTeamScope ? (
+              <div style={emptyLine}>Choose a team scope to see roster usage and match mix.</div>
+            ) : roster.length === 0 ? (
               <div style={emptyLine}>No roster history found for this team selection.</div>
             ) : (
               <div style={rosterList}>
@@ -1358,6 +1408,17 @@ const secondaryButtonSmallButton: CSSProperties = {
   cursor: 'pointer',
 }
 
+const disabledButton: CSSProperties = {
+  opacity: 0.55,
+  cursor: 'not-allowed',
+  boxShadow: 'none',
+}
+
+const disabledButtonSecondary: CSSProperties = {
+  opacity: 0.55,
+  cursor: 'not-allowed',
+}
+
 const heroBadgeRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -1588,6 +1649,25 @@ const stateCard: CSSProperties = {
     'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
   color: '#dbeafe',
   fontWeight: 700,
+}
+
+const scopeBanner: CSSProperties = {
+  marginTop: '12px',
+  borderRadius: '18px',
+  padding: '12px 14px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color: '#e7eefb',
+  fontWeight: 700,
+  fontSize: '14px',
+  lineHeight: 1.55,
+  maxWidth: '940px',
+}
+
+const scopeBannerWarn: CSSProperties = {
+  background: 'rgba(245, 158, 11, 0.12)',
+  border: '1px solid rgba(245, 158, 11, 0.2)',
+  color: '#fde68a',
 }
 
 const metricGrid: CSSProperties = {

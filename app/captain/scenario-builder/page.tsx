@@ -541,8 +541,16 @@ export default function ScenarioComparisonPage() {
 
   const premiumEnabled = isCaptain(role)
 
-  const builderHref = (scenarioId: string) =>
-    `/captain/lineup-builder?scenarioId=${encodeURIComponent(scenarioId)}&source=scenario`
+  const builderHref = (scenarioId: string) => {
+    const params = new URLSearchParams()
+    params.set('scenario', scenarioId)
+    params.set('source', 'scenario')
+    if (leagueFilter) params.set('league', leagueFilter)
+    if (flightFilter) params.set('flight', flightFilter)
+    if (teamFilter) params.set('team', teamFilter)
+    if (dateFilter) params.set('date', dateFilter)
+    return `/captain/lineup-builder?${params.toString()}`
+  }
 
   if (authLoading) {
     return (
@@ -574,8 +582,8 @@ export default function ScenarioComparisonPage() {
               <Link href="/captain/lineup-builder" style={primaryButton}>
                 Open Lineup Builder
               </Link>
-              <Link href="/captains-corner" style={ghostButton}>
-                Back to Captain&apos;s Corner
+              <Link href="/captain" style={ghostButton}>
+                Back to Captain Console
               </Link>
             </div>
 
@@ -715,6 +723,17 @@ export default function ScenarioComparisonPage() {
               <p style={mutedTextStyle}>
                 Save lineup scenarios in the Lineup Builder, then come back here to compare them side by side.
               </p>
+              <p style={mutedTextStyle}>
+                If you already saved one, clear the filters above or reopen the builder with the same team and match context before comparing.
+              </p>
+              <div style={heroButtonRowStyle}>
+                <Link href="/captain/lineup-builder" style={primaryButtonSmall}>
+                  Start in lineup builder
+                </Link>
+                <Link href="/captain" style={ghostButtonSmall}>
+                  Return to captain console
+                </Link>
+              </div>
             </section>
           ) : (
             <>
@@ -1077,7 +1096,7 @@ export default function ScenarioComparisonPage() {
                         Send Winning Scenario
                       </button>
                       <Link href="/captain" style={ghostButtonSmall}>
-                        Back to Captain Hub
+                        Back to Captain Console
                       </Link>
                     </div>
                   </section>

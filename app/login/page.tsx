@@ -5,7 +5,8 @@ import Image from 'next/image'
 import { CSSProperties, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getUserRole, type UserRole } from '@/lib/roles'
+import { type UserRole } from '@/lib/roles'
+import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
@@ -74,13 +75,10 @@ export default function LoginPage() {
 
     async function loadAuth() {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
         if (!mounted) return
 
-        const nextRole = getUserRole(session?.user?.id ?? null)
+        const authState = await getClientAuthState()
+        const nextRole = authState.role
         setRole(nextRole)
 
         if (nextRole !== 'public') {
@@ -102,10 +100,11 @@ export default function LoginPage() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async () => {
       if (!mounted) return
 
-      const nextRole = getUserRole(session?.user?.id ?? null)
+      const authState = await getClientAuthState()
+      const nextRole = authState.role
       setRole(nextRole)
 
       if (nextRole !== 'public') {
@@ -335,7 +334,7 @@ export default function LoginPage() {
                 <Link href="/join" style={inlineLink}>
                   Create account
                 </Link>
-                <Link href="/forgot-password" style={inlineLinkMuted}>
+                <Link href="/forget-password" style={inlineLinkMuted}>
                   Forgot password?
                 </Link>
               </div>

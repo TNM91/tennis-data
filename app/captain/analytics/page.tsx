@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
@@ -64,16 +63,6 @@ type PoolPlayer = PlayerRow & {
   availabilityStatus: string | null
   availabilityNotes: string | null
 }
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/players', label: 'Players' },
-  { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/leagues', label: 'Leagues' },
-  { href: '/teams', label: 'Teams' },
-  { href: '/captain', label: "Captain's Corner" },
-]
 
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = [
   createSinglesSlot('s1', 'Singles 1'),
@@ -814,7 +803,7 @@ export default function LineupBuilderPage() {
     if (matchDate) params.set('date', matchDate)
     if (currentScenarioId) params.set('left', currentScenarioId)
     const query = params.toString()
-    return query ? `/captain/scenario-comparison?${query}` : '/captain/scenario-comparison'
+    return query ? `/captain/scenario-builder?${query}` : '/captain/scenario-builder'
   }, [leagueName, flight, teamName, matchDate, currentScenarioId])
 
   const analysis = useMemo(() => {
@@ -857,10 +846,9 @@ export default function LineupBuilderPage() {
         <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Captain Analytics</h1>
           <p style={heroTextStyle}>
-            Build match-day lineups, work from availability-aware player pools, save multiple scenarios,
-            compare versions, and pressure-test your expected edge line by line.
+            Pressure-test lineup ideas, review line-by-line strength, and keep the scenario work focused on decision clarity before you save or compare.
           </p>
 
           <div style={heroButtonRowStyle}>
@@ -881,7 +869,7 @@ export default function LineupBuilderPage() {
 
         <div style={quickStartCard}>
           <p style={sectionKicker}>Builder workflow</p>
-          <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
+          <h2 style={quickStartTitle}>Set context, model both sides, then compare</h2>
           <div style={workflowListStyle}>
             {[
               ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
@@ -896,6 +884,12 @@ export default function LineupBuilderPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div style={heroBadgeRowStyleCompact}>
+            <span style={badgeSlate}>{scenarioName.trim() ? 'Scenario named' : 'Name needed'}</span>
+            <span style={badgeSlate}>{teamName && opponentTeam ? 'Matchup set' : 'Matchup incomplete'}</span>
+            <span style={badgeSlate}>{scenarioOptions.length > 1 ? 'Compare ready' : 'Need 2 versions'}</span>
           </div>
         </div>
       </section>
@@ -996,6 +990,28 @@ export default function LineupBuilderPage() {
               {currentScenarioId ? <p style={infoTextStyle}>Loaded scenario is ready for update and comparison.</p> : null}
               {message ? <p style={successTextStyle}>{message}</p> : null}
               {error ? <p style={errorTextStyle}>{error}</p> : null}
+
+              <div style={readinessGridStyle}>
+                <div style={readinessCardStyle}>
+                  <div style={bannerTitleStyle}>Scenario naming</div>
+                  <div style={readinessValueStyle}>{scenarioName.trim() ? 'Ready' : 'Needs setup'}</div>
+                  <div style={bannerMetaStyle}>{scenarioName.trim() || 'Add a scenario name before saving so versions stay understandable later.'}</div>
+                </div>
+                <div style={readinessCardStyle}>
+                  <div style={bannerTitleStyle}>Match context</div>
+                  <div style={readinessValueStyle}>{teamName && opponentTeam && matchDate ? 'Ready' : 'Needs setup'}</div>
+                  <div style={bannerMetaStyle}>
+                    {teamName && opponentTeam && matchDate ? `${teamName} vs ${opponentTeam} on ${formatDate(matchDate)}` : 'Add team, opponent, and match date so comparison results stay trustworthy.'}
+                  </div>
+                </div>
+                <div style={readinessCardStyle}>
+                  <div style={bannerTitleStyle}>Comparison readiness</div>
+                  <div style={readinessValueStyle}>{scenarioOptions.length > 1 ? 'Ready' : 'Needs another version'}</div>
+                  <div style={bannerMetaStyle}>
+                    {scenarioOptions.length > 1 ? `${scenarioOptions.length} saved scenarios are available in the current scope.` : 'Save one more scenario in this same scope to unlock a meaningful comparison.'}
+                  </div>
+                </div>
+              </div>
             </section>
 
             <section style={surfaceCard}>
@@ -1121,7 +1137,12 @@ export default function LineupBuilderPage() {
                 {loading ? (
                   <p style={mutedTextStyle}>Loading players...</p>
                 ) : availablePlayerPool.length === 0 ? (
-                  <p style={mutedTextStyle}>No players match the current filters.</p>
+                  <div style={stackStyle}>
+                    <p style={mutedTextStyle}>No players match the current filters.</p>
+                    <p style={sectionBodyTextStyle}>
+                      Broaden the league, flight, or team context, or relax the availability toggles if you are still in early planning mode.
+                    </p>
+                  </div>
                 ) : (
                   availablePlayerPool.map((player) => {
                     const tone = statusTone(player.availabilityStatus)
@@ -1167,7 +1188,12 @@ export default function LineupBuilderPage() {
 
               <div style={stackStyle}>
                 {scenarioOptions.length === 0 ? (
-                  <p style={mutedTextStyle}>No saved scenarios for the current filters.</p>
+                  <div style={stackStyle}>
+                    <p style={mutedTextStyle}>No saved scenarios for the current filters.</p>
+                    <p style={sectionBodyTextStyle}>
+                      Save the current build as your first version, or loosen the match context above to bring previous scenarios back into scope.
+                    </p>
+                  </div>
                 ) : (
                   scenarioOptions.map((scenario) => {
                     const isCurrent = scenario.id === currentScenarioId
@@ -1305,63 +1331,6 @@ function MetricStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  footer = false,
-  top = false,
-}: {
-  compact?: boolean
-  footer?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-      />
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-function headerInnerResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '14px' : '18px',
-  }
-}
-
-function navStyleResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-}
-
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
@@ -1399,29 +1368,6 @@ function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
   }
 }
 
-function footerInnerResponsive(isMobile: boolean): CSSProperties {
-  return {
-    ...footerInner,
-    padding: isMobile ? '16px 16px 14px' : '16px 20px 14px',
-  }
-}
-
-function footerRowResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerRow,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '12px' : '18px',
-  }
-}
-
-function footerLinksResponsive(isTablet: boolean): CSSProperties {
-  return {
-    ...footerLinks,
-    justifyContent: isTablet ? 'flex-start' : 'center',
-  }
-}
-
 const pageWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - 48px))',
   margin: '0 auto',
@@ -1430,96 +1376,6 @@ const pageWrap: CSSProperties = {
   padding: '14px 0 28px',
   position: 'relative',
   zIndex: 2,
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.20), transparent 28%), linear-gradient(180deg, #050b17 0%, #071224 44%, #081527 100%)',
-  padding: '24px 18px 56px',
-}
-
-const orbOne: CSSProperties = {
-  position: 'absolute',
-  top: '-100px',
-  right: '-60px',
-  width: '360px',
-  height: '360px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(122,255,98,0.16), rgba(122,255,98,0) 68%)',
-  filter: 'blur(10px)',
-  pointerEvents: 'none',
-}
-
-const orbTwo: CSSProperties = {
-  position: 'absolute',
-  top: '60px',
-  left: '-100px',
-  width: '320px',
-  height: '320px',
-  borderRadius: '999px',
-  background: 'radial-gradient(circle, rgba(37,91,227,0.18), rgba(37,91,227,0) 70%)',
-  filter: 'blur(12px)',
-  pointerEvents: 'none',
-}
-
-const gridGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
-  backgroundSize: '64px 64px',
-  maskImage: 'linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0))',
-  pointerEvents: 'none',
-}
-
-const headerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  maxWidth: '1240px',
-  margin: '0 auto 18px',
-}
-
-const headerInner: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-}
-
-const brandWrap: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-}
-
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-}
-
-const navStyle: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-}
-
-const navLink: CSSProperties = {
-  padding: '13px 18px',
-  borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(12, 28, 52, 0.78)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '15px',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
-}
-
-const activeNavLink: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(29,60,108,0.94), rgba(25,92,78,0.82))',
-  border: '1px solid rgba(130, 244, 118, 0.22)',
 }
 
 const eyebrow: CSSProperties = {
@@ -1798,6 +1654,29 @@ const actionRowStyle: CSSProperties = {
   marginTop: '18px',
 }
 
+const readinessGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '12px',
+  marginTop: '18px',
+}
+
+const readinessCardStyle: CSSProperties = {
+  borderRadius: '16px',
+  padding: '14px 16px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '6px',
+}
+
+const readinessValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '20px',
+  lineHeight: 1.1,
+  fontWeight: 900,
+}
+
 const miniActionRowStyle: CSSProperties = {
   display: 'flex',
   gap: '10px',
@@ -1983,40 +1862,6 @@ const badgeSlate: CSSProperties = {
   borderColor: 'rgba(255, 255, 255, 0.1)',
 }
 
-
-const metricGrid: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  marginBottom: '18px',
-}
-
-const metricCard: CSSProperties = {
-  borderRadius: '22px',
-  padding: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(12,25,45,0.94), rgba(9,18,34,0.96))',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
-  minWidth: 0,
-}
-
-const metricCardAccent: CSSProperties = {
-  borderColor: 'rgba(111,236,168,0.34)',
-}
-
-const metricLabel: CSSProperties = {
-  color: 'rgba(224, 234, 247, 0.7)',
-  fontSize: '0.82rem',
-  marginBottom: '0.42rem',
-  fontWeight: 700,
-}
-
-const metricValue: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: 'clamp(1.1rem, 2vw, 1.5rem)',
-  lineHeight: 1.15,
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
 
 const stackStyle: CSSProperties = {
   display: 'flex',
@@ -2214,49 +2059,3 @@ const dangerButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-const footerStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  padding: '28px 0 0',
-}
-
-const footerInner: CSSProperties = {
-  width: '100%',
-  maxWidth: '1240px',
-  margin: '0 auto',
-  borderRadius: '22px',
-  background: 'rgba(17,31,58,0.72)',
-  border: '1px solid rgba(128,174,255,0.12)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const footerRow: CSSProperties = {
-  display: 'flex',
-  width: '100%',
-}
-
-const footerBrandLink: CSSProperties = {
-  display: 'inline-flex',
-  textDecoration: 'none',
-  flexShrink: 0,
-}
-
-const footerLinks: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '10px 14px',
-}
-
-const footerUtilityLink: CSSProperties = {
-  color: 'rgba(231,243,255,0.86)',
-  textDecoration: 'none',
-  fontSize: '14px',
-  fontWeight: 700,
-}
-
-const footerBottom: CSSProperties = {
-  color: 'rgba(190,205,224,0.74)',
-  fontSize: '13px',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
-}

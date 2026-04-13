@@ -436,10 +436,10 @@ function buildLinePlayerNames(line: ScorecardLineImportRow): { side: MatchSide; 
 }
 
 export class ImportEngine {
-  private readonly supabase: SupabaseClient<any, any, any>
+  private readonly supabase: SupabaseClient
   private readonly options: Required<ImportEngineOptions>
 
-  constructor(supabase: SupabaseClient<any, any, any>, options?: ImportEngineOptions) {
+  constructor(supabase: SupabaseClient, options?: ImportEngineOptions) {
     this.supabase = supabase
     this.options = {
       hasNormalizedPlayerNameColumn: options?.hasNormalizedPlayerNameColumn ?? false,
@@ -1516,7 +1516,7 @@ export class ImportEngine {
 }
 
 export function createImportEngine(
-  supabase: SupabaseClient<any, any, any>,
+  supabase: SupabaseClient,
   options?: ImportEngineOptions,
 ): ImportEngine {
   return new ImportEngine(supabase, options)

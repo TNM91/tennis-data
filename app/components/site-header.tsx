@@ -304,10 +304,6 @@ export default function SiteHeader({ active }: { active?: string }) {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  useEffect(() => {
-    setMenuOpen(false)
-  }, [pathname, screenWidth])
-
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/')

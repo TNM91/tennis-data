@@ -7,14 +7,6 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
-]
-
 export default function ResetPasswordPage() {
   const router = useRouter()
   const [screenWidth, setScreenWidth] = useState(1280)
@@ -103,20 +95,6 @@ export default function ResetPasswordPage() {
     }
   }
 
-  const headerInnerResponsive: CSSProperties = {
-    ...headerInner,
-    flexDirection: isTablet ? 'column' : 'row',
-    alignItems: isTablet ? 'flex-start' : 'center',
-    gap: isTablet ? '16px' : '22px',
-  }
-
-  const navStyleResponsive: CSSProperties = {
-    ...navStyle,
-    width: isTablet ? '100%' : 'auto',
-    justifyContent: isTablet ? 'flex-start' : 'flex-end',
-    flexWrap: 'wrap',
-  }
-
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
     gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
@@ -132,7 +110,7 @@ export default function ResetPasswordPage() {
   if (checking) {
     return (
       <SiteShell active="reset-password">
-                <section style={loadingShell}>
+        <section style={loadingShell}>
           <div style={loadingCard}>Preparing reset session...</div>
         </section>
       </SiteShell>
@@ -141,8 +119,6 @@ export default function ResetPasswordPage() {
 
   return (
     <SiteShell active="reset-password">
-      
-      
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>New password</div>
@@ -264,7 +240,7 @@ export default function ResetPasswordPage() {
               {error ? <div style={errorBanner}>{error}</div> : null}
 
               <div style={helperRow}>
-                <Link href="/forgot-password" style={inlineLink}>
+                <Link href="/forget-password" style={inlineLink}>
                   Send another reset email
                 </Link>
                 <Link href="/login" style={inlineLinkMuted}>
@@ -279,17 +255,6 @@ export default function ResetPasswordPage() {
   )
 }
 
-function BackgroundDecor() {
-  return (
-    <>
-      <div style={orbOne} />
-      <div style={orbTwo} />
-      <div style={gridGlow} />
-      <div style={topBlueWash} />
-    </>
-  )
-}
-
 function InfoCard({ title, text }: { title: string; text: string }) {
   return (
     <div style={infoCard}>
@@ -299,65 +264,7 @@ function InfoCard({ title, text }: { title: string; text: string }) {
   )
 }
 
-function BrandWordmark({
-  compact = false,
-  top = false,
-}: {
-  compact?: boolean
-  top?: boolean
-}) {
-  const iconSize = compact ? 34 : top ? 46 : 38
-  const fontSize = compact ? 27 : top ? 34 : 29
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '10px' : '12px', lineHeight: 1 }}>
-      <Image
-        src="/logo-icon.png"
-        alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
-        priority
-        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-      />
-      <div
-        style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
-        }}
-      >
-        <span style={{ color: '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
-  )
-}
-
-const pageStyle: CSSProperties = {
-  minHeight: '100vh',
-  position: 'relative',
-  overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
-}
-const orbOne: CSSProperties = { position: 'absolute', top: '-120px', left: '-140px', width: '420px', height: '420px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)', filter: 'blur(8px)', pointerEvents: 'none' }
-const orbTwo: CSSProperties = { position: 'absolute', right: '-140px', top: '140px', width: '420px', height: '420px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)', filter: 'blur(8px)', pointerEvents: 'none' }
-const gridGlow: CSSProperties = { position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)', backgroundRepeat: 'repeat, repeat', backgroundSize: '34px 34px, 34px 34px', maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)', pointerEvents: 'none' }
-const topBlueWash: CSSProperties = { position: 'absolute', top: 0, left: 0, right: 0, height: '420px', background: 'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)', pointerEvents: 'none' }
-const headerStyle: CSSProperties = { position: 'relative', zIndex: 2, padding: '18px 24px 0' }
-const headerInner: CSSProperties = { width: '100%', maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between' }
-const brandWrap: CSSProperties = { display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }
 const brandIQ: CSSProperties = { background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginLeft: '2px' }
-const navStyle: CSSProperties = { display: 'flex', gap: '12px' }
-const navLink: CSSProperties = { padding: '12px 18px', borderRadius: '999px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)', color: '#e7eefb', textDecoration: 'none', fontWeight: 800, fontSize: '15px', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }
-const ctaNavLink: CSSProperties = { ...navLink, color: '#08111d', background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', border: '1px solid rgba(155,225,29,0.34)', boxShadow: '0 10px 28px rgba(155,225,29,0.18)' }
 const heroShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '14px auto 24px', display: 'grid', borderRadius: '34px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)', boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)' }
 const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(130,244,118,0.28)', background: 'rgba(89,145,73,0.14)', color: '#d9e7ef', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
 const heroTitle: CSSProperties = { margin: '0 0 12px', color: '#f7fbff', fontWeight: 900, lineHeight: 0.98, letterSpacing: '-0.055em', maxWidth: '760px', fontSize: '58px' }

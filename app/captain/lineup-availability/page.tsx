@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
@@ -90,7 +90,7 @@ const NAV_LINKS = [
   { href: '/matchup', label: 'Matchup' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/teams', label: 'Teams' },
-  { href: '/captains-corner', label: "Captain's Corner" },
+  { href: '/captain', label: 'Captain Console' },
 ]
 
 function cleanText(value: string | null | undefined): string | null {
@@ -232,7 +232,7 @@ export default function LineupAvailabilityPage() {
             setRole('public')
             setAuthLoading(false)
           }
-          router.replace('/login?next=/captains-corner/lineup-availability')
+          router.replace('/login?next=/captain/lineup-availability')
           return
         }
 
@@ -253,7 +253,7 @@ export default function LineupAvailabilityPage() {
           setRole('public')
           setAuthLoading(false)
         }
-        router.replace('/login?next=/captains-corner/lineup-availability')
+        router.replace('/login?next=/captain/lineup-availability')
       }
     }
 
@@ -274,16 +274,6 @@ export default function LineupAvailabilityPage() {
   useEffect(() => {
     void loadMatches()
   }, [])
-
-  useEffect(() => {
-    if (!selectedLeagueKey || !selectedTeam) {
-      setRoster([])
-      setAvailabilityMap({})
-      return
-    }
-
-    void loadRosterAndAvailability()
-  }, [selectedLeagueKey, selectedTeam, selectedDate])
 
   async function loadMatches() {
     setLoading(true)
@@ -312,7 +302,7 @@ export default function LineupAvailabilityPage() {
     }
   }
 
-  async function loadRosterAndAvailability() {
+  const loadRosterAndAvailability = useCallback(async () => {
     setRosterLoading(true)
     setError('')
     setStatus('')
@@ -452,7 +442,17 @@ export default function LineupAvailabilityPage() {
     } finally {
       setRosterLoading(false)
     }
-  }
+  }, [selectedDate, selectedLeagueKey, selectedTeam])
+
+  useEffect(() => {
+    if (!selectedLeagueKey || !selectedTeam) {
+      setRoster([])
+      setAvailabilityMap({})
+      return
+    }
+
+    void loadRosterAndAvailability()
+  }, [loadRosterAndAvailability, selectedLeagueKey, selectedTeam])
 
   async function writeCaptainAlerts(
     leagueName: string,
@@ -786,7 +786,7 @@ export default function LineupAvailabilityPage() {
 
           <nav style={navStyleResponsive(isTablet)}>
             {NAV_LINKS.map((link) => {
-              const isActive = link.href === '/captains-corner'
+              const isActive = link.href === '/captain'
               return (
                 <Link key={link.href} href={link.href} style={{ ...navLink, ...(isActive ? activeNavLink : {}) }}>
                   {link.label}
@@ -811,7 +811,7 @@ export default function LineupAvailabilityPage() {
             <button type="button" onClick={saveAvailability} style={primaryButton} disabled={saving || !selectedDate}>
               {saving ? 'Saving...' : 'Save Availability'}
             </button>
-            <Link href="/captains-corner/lineup-builder" style={ghostButton}>Open Lineup Builder</Link>
+            <Link href="/captain/lineup-builder" style={ghostButton}>Open Lineup Builder</Link>
           </div>
 
           <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -1106,7 +1106,7 @@ export default function LineupAvailabilityPage() {
               <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
               <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captains-corner" style={footerUtilityLink}>Captain&apos;s Corner</Link>
+              <Link href="/captain" style={footerUtilityLink}>Captain Console</Link>
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>

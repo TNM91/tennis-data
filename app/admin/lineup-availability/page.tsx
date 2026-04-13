@@ -2,8 +2,11 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { getClientAuthState } from '@/lib/auth'
+import { type UserRole } from '@/lib/roles'
 
 type MatchRow = {
   id: string
@@ -119,6 +122,9 @@ const statusOptions: AvailabilityStatus[] = [
 ]
 
 export default function LineupAvailabilityPage() {
+  const router = useRouter()
+  const [role, setRole] = useState<UserRole>('public')
+  const [authResolved, setAuthResolved] = useState(false)
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -136,18 +142,37 @@ export default function LineupAvailabilityPage() {
   >({})
 
   useEffect(() => {
-    void loadMatches()
-  }, [])
+    async function loadAuth() {
+      const authState = await getClientAuthState()
+      setRole(authState.role)
+      setAuthResolved(true)
 
-  useEffect(() => {
-    if (!selectedLeagueKey || !selectedTeam) {
-      setRoster([])
-      setAvailabilityMap({})
-      return
+      if (authState.role !== 'admin') {
+        router.replace(`/login?next=${encodeURIComponent('/admin/lineup-availability')}`)
+      }
     }
 
-    void loadRosterAndAvailability()
-  }, [selectedLeagueKey, selectedTeam, selectedDate])
+    void loadAuth()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async () => {
+      const authState = await getClientAuthState()
+      setRole(authState.role)
+      setAuthResolved(true)
+
+      if (authState.role !== 'admin') {
+        router.replace(`/login?next=${encodeURIComponent('/admin/lineup-availability')}`)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [router])
+
+  useEffect(() => {
+    if (!authResolved || role !== 'admin') return
+    void loadMatches()
+  }, [authResolved, role])
 
   async function loadMatches() {
     setLoading(true)
@@ -176,7 +201,7 @@ export default function LineupAvailabilityPage() {
     }
   }
 
-  async function loadRosterAndAvailability() {
+  const loadRosterAndAvailability = useCallback(async () => {
     setRosterLoading(true)
     setError('')
     setStatus('')
@@ -315,7 +340,17 @@ export default function LineupAvailabilityPage() {
     } finally {
       setRosterLoading(false)
     }
-  }
+  }, [selectedDate, selectedLeagueKey, selectedTeam])
+
+  useEffect(() => {
+    if (!selectedLeagueKey || !selectedTeam) {
+      setRoster([])
+      setAvailabilityMap({})
+      return
+    }
+
+    void loadRosterAndAvailability()
+  }, [loadRosterAndAvailability, selectedLeagueKey, selectedTeam])
 
   async function saveAvailability() {
     if (!selectedLeagueKey || !selectedTeam || !selectedDate) {
@@ -441,6 +476,16 @@ export default function LineupAvailabilityPage() {
 
   return (
     <main className="page-shell">
+      {!authResolved ? (
+        <section className="surface-card panel-pad section">
+          <div className="subtle-text">Checking admin access...</div>
+        </section>
+      ) : role !== 'admin' ? (
+        <section className="surface-card panel-pad section">
+          <div className="subtle-text">Admin access is required. Redirecting to login...</div>
+        </section>
+      ) : (
+        <>
       <section className="hero-panel">
         <div className="hero-inner">
           <div className="section-kicker">Admin Tool</div>
@@ -767,6 +812,8 @@ export default function LineupAvailabilityPage() {
           </>
         )}
       </section>
+        </>
+      )}
     </main>
   )
 }
