@@ -52,8 +52,16 @@ export default function LeaguesPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [datasetTotalMatches, setDatasetTotalMatches] = useState(0)
+  const [datasetTotalParentMatches, setDatasetTotalParentMatches] = useState(0)
   const [datasetTotalFlights, setDatasetTotalFlights] = useState(0)
   const [datasetLatestMatch, setDatasetLatestMatch] = useState<string | null>(null)
+  const [diagnostics, setDiagnostics] = useState<LeagueSummaryPayload['diagnostics']>({
+    totalParentMatches: 0,
+    namedParentMatches: 0,
+    missingLeagueNameCount: 0,
+    missingTeamCount: 0,
+    sampleMissingLeagueRows: [],
+  })
   const [search, setSearch] = useState('')
   const [flightFilter, setFlightFilter] = useState('all')
   const [screenWidth, setScreenWidth] = useState(1280)
@@ -95,9 +103,19 @@ export default function LeaguesPage() {
 
       setLeagues(payload.leagues || [])
       setDatasetTotalMatches(payload.totalMatches || 0)
+      setDatasetTotalParentMatches(payload.diagnostics?.totalParentMatches || payload.totalMatches || 0)
       setDatasetTotalFlights(payload.totalFlights || 0)
       setDatasetLatestMatch(payload.latestMatch || null)
       setNotice(payload.notice || '')
+      setDiagnostics(
+        payload.diagnostics || {
+          totalParentMatches: 0,
+          namedParentMatches: 0,
+          missingLeagueNameCount: 0,
+          missingTeamCount: 0,
+          sampleMissingLeagueRows: [],
+        }
+      )
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
         setError(
@@ -231,7 +249,7 @@ export default function LeaguesPage() {
 
               <div style={heroHintRow}>
                 <span style={heroHintPill}>{summary.totalLeagues} leagues</span>
-                <span style={heroHintPill}>{summary.totalMatches} imported league matches</span>
+                <span style={heroHintPill}>{datasetTotalParentMatches} imported parent matches</span>
                 <span style={heroHintPill}>Latest: {formatDate(summary.latestMatch)}</span>
               </div>
             </div>
@@ -324,10 +342,51 @@ export default function LeaguesPage() {
                   ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
                   : 'League cards only appear when imported matches include a real league name, so this usually means more season data still needs to be imported or normalized.'}
               </div>
+              {!hasActiveFilters && diagnostics.totalParentMatches > 0 ? (
+                <div style={diagnosticWrap}>
+                  <div style={diagnosticTitle}>Import diagnostics</div>
+                  <div style={diagnosticText}>
+                    I can see {diagnostics.totalParentMatches} parent matches in the dataset, but only {diagnostics.namedParentMatches} currently have a visible league name.
+                  </div>
+                  <div style={diagnosticChipRow}>
+                    <span style={diagnosticChip}>
+                      Missing league names: {diagnostics.missingLeagueNameCount}
+                    </span>
+                    <span style={diagnosticChip}>
+                      Missing team names: {diagnostics.missingTeamCount}
+                    </span>
+                  </div>
+                  {diagnostics.sampleMissingLeagueRows.length > 0 ? (
+                    <div style={diagnosticSampleList}>
+                      {diagnostics.sampleMissingLeagueRows.map((row) => (
+                        <div key={row.externalMatchId} style={diagnosticSampleCard}>
+                          <div style={diagnosticSampleTitle}>
+                            {row.homeTeam || 'Unknown home'} vs {row.awayTeam || 'Unknown away'}
+                          </div>
+                          <div style={diagnosticSampleMeta}>
+                            Match ID: {row.externalMatchId}
+                          </div>
+                          <div style={diagnosticSampleMeta}>
+                            Scope: {[row.flight, row.ustaSection, row.districtArea].filter(Boolean).join(' | ') || 'No scope fields'}
+                          </div>
+                          <div style={diagnosticSampleMeta}>
+                            Source: {row.source || 'Unknown'}{row.matchDate ? ` | ${formatDate(row.matchDate)}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <>
               {notice ? <div style={noticeBox}>{notice}</div> : null}
+              {diagnostics.missingLeagueNameCount > 0 ? (
+                <div style={noticeBox}>
+                  {diagnostics.missingLeagueNameCount} imported parent matches are missing a visible league name, so they will not appear as league cards yet.
+                </div>
+              ) : null}
 
               <div style={summaryBadgeRow}>
                 <span style={heroHintPill}>{filteredLeagues.length} visible leagues</span>
@@ -769,6 +828,72 @@ const stateHelperTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+}
+
+const diagnosticWrap: CSSProperties = {
+  marginTop: '16px',
+  paddingTop: '16px',
+  borderTop: '1px solid rgba(255,255,255,0.08)',
+  display: 'grid',
+  gap: '10px',
+  textAlign: 'left',
+}
+
+const diagnosticTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '14px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+}
+
+const diagnosticText: CSSProperties = {
+  color: 'rgba(219,234,254,0.88)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const diagnosticChipRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+}
+
+const diagnosticChip: CSSProperties = {
+  borderRadius: '999px',
+  padding: '8px 12px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(18,34,67,0.54)',
+  color: '#dbeafe',
+  fontSize: '12px',
+  fontWeight: 700,
+}
+
+const diagnosticSampleList: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const diagnosticSampleCard: CSSProperties = {
+  borderRadius: '16px',
+  padding: '12px 14px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,20,43,0.5)',
+}
+
+const diagnosticSampleTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '14px',
+  fontWeight: 700,
+  lineHeight: 1.5,
+}
+
+const diagnosticSampleMeta: CSSProperties = {
+  marginTop: '4px',
+  color: 'rgba(219,234,254,0.8)',
+  fontSize: '13px',
+  lineHeight: 1.55,
 }
 
 const summaryBadgeRow: CSSProperties = {

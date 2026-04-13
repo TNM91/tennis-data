@@ -7,6 +7,7 @@ const LEAGUE_SUMMARY_TIMEOUT_MS = 20000
 
 type MatchLeagueRow = {
   id: string
+  external_match_id: string | null
   league_name: string | null
   flight: string | null
   usta_section: string | null
@@ -14,6 +15,7 @@ type MatchLeagueRow = {
   home_team: string | null
   away_team: string | null
   match_date: string
+  source?: string | null
   line_number?: string | null
 }
 
@@ -34,6 +36,22 @@ export type LeagueSummaryPayload = {
   totalFlights: number
   latestMatch: string | null
   notice: string | null
+  diagnostics: {
+    totalParentMatches: number
+    namedParentMatches: number
+    missingLeagueNameCount: number
+    missingTeamCount: number
+    sampleMissingLeagueRows: Array<{
+      externalMatchId: string
+      matchDate: string | null
+      homeTeam: string
+      awayTeam: string
+      flight: string
+      ustaSection: string
+      districtArea: string
+      source: string
+    }>
+  }
 }
 
 function safeText(value: string | null | undefined) {
@@ -74,6 +92,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
   const deadline = Date.now() + LEAGUE_SUMMARY_TIMEOUT_MS
   const leagueMap = new Map<string, LeagueCard & { teamSet: Set<string> }>()
   let totalMatches = 0
+  let totalParentMatches = 0
+  let missingLeagueNameCount = 0
+  let missingTeamCount = 0
+  const sampleMissingLeagueRows: LeagueSummaryPayload['diagnostics']['sampleMissingLeagueRows'] = []
   let notice: string | null = null
 
   for (let offset = 0; offset < LEAGUE_SUMMARY_FETCH_LIMIT; offset += LEAGUE_SUMMARY_PAGE_SIZE) {
@@ -91,6 +113,7 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         .from('matches')
         .select(`
           id,
+          external_match_id,
           league_name,
           flight,
           usta_section,
@@ -98,6 +121,7 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
           home_team,
           away_team,
           match_date,
+          source,
           line_number
         `)
         .is('line_number', null)
@@ -109,14 +133,42 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         throw new Error(error.message)
       }
 
-      const batch = ((data || []) as MatchLeagueRow[]).filter((row) => safeText(row.league_name))
-      totalMatches += batch.length
+      const batch = (data || []) as MatchLeagueRow[]
+      totalParentMatches += batch.length
 
       for (const row of batch) {
+        const leagueNameText = safeText(row.league_name)
+        const homeTeam = safeText(row.home_team)
+        const awayTeam = safeText(row.away_team)
+
+        if (!leagueNameText) {
+          missingLeagueNameCount += 1
+
+          if (sampleMissingLeagueRows.length < 6) {
+            sampleMissingLeagueRows.push({
+              externalMatchId: safeText(row.external_match_id) || row.id,
+              matchDate: row.match_date || null,
+              homeTeam,
+              awayTeam,
+              flight: safeText(row.flight),
+              ustaSection: safeText(row.usta_section),
+              districtArea: safeText(row.district_area),
+              source: safeText(row.source),
+            })
+          }
+        }
+
+        if (!homeTeam || !awayTeam) {
+          missingTeamCount += 1
+        }
+
+        if (!leagueNameText) continue
+
+        totalMatches += 1
         const key = buildLeagueKey(row)
         if (!key) continue
 
-        const leagueName = safeText(row.league_name)
+        const leagueName = leagueNameText
         const flight = safeText(row.flight)
         const ustaSection = safeText(row.usta_section)
         const districtArea = safeText(row.district_area)
@@ -141,9 +193,6 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         current.flight = chooseBetterText(current.flight, flight)
         current.ustaSection = chooseBetterText(current.ustaSection, ustaSection)
         current.districtArea = chooseBetterText(current.districtArea, districtArea)
-
-        const homeTeam = safeText(row.home_team)
-        const awayTeam = safeText(row.away_team)
 
         if (homeTeam) current.teamSet.add(homeTeam)
         if (awayTeam) current.teamSet.add(awayTeam)
@@ -204,5 +253,12 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
     totalFlights,
     latestMatch,
     notice,
+    diagnostics: {
+      totalParentMatches,
+      namedParentMatches: totalMatches,
+      missingLeagueNameCount,
+      missingTeamCount,
+      sampleMissingLeagueRows,
+    },
   }
 }
