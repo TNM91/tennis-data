@@ -225,6 +225,111 @@ function normalizeLeagueName(record: UnknownRecord): string | null {
   return null
 }
 
+function looksLikeLeagueName(value: string): boolean {
+  const lower = cleanString(value).toLowerCase()
+  if (!lower) return false
+
+  return (
+    lower.includes('adult') ||
+    lower.includes('mixed') ||
+    lower.includes('tri-level') ||
+    lower.includes('combo') ||
+    lower.includes('league') ||
+    lower.includes('over') ||
+    lower.includes('daytime') ||
+    lower.includes('singles')
+  )
+}
+
+function sanitizeLeagueNameCandidate(value: unknown): string | null {
+  const cleaned = cleanString(value)
+  if (!cleaned) return null
+
+  const stripped = cleaned
+    .replace(/\b(season schedule|schedule|scorecard|match details|match detail|team roster)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+
+  return stripped || null
+}
+
+function resolveLeagueName(record: UnknownRecord): string | null {
+  const districtValue = nullableString(
+    pickFirst(record, ['districtArea', 'district_area', 'district', 'area']),
+  )
+
+  const directCandidate = sanitizeLeagueNameCandidate(
+    pickFirst(record, [
+      'leagueName',
+      'league_name',
+      'leagueTitle',
+      'league_title',
+      'divisionName',
+      'division_name',
+      'seasonName',
+      'season_name',
+      'competitionName',
+      'competition_name',
+      'eventName',
+      'event_name',
+      'pageTitle',
+      'page_title',
+      'title',
+      'headerTitle',
+      'header_title',
+      'heading',
+    ]),
+  )
+  if (directCandidate && directCandidate !== districtValue) return directCandidate
+
+  const nestedCandidate = sanitizeLeagueNameCandidate(
+    pickNested(record, [
+      ['league', 'name'],
+      ['league', 'leagueName'],
+      ['league', 'league_name'],
+      ['league', 'title'],
+      ['metadata', 'title'],
+      ['metadata', 'pageTitle'],
+      ['metadata', 'leagueName'],
+      ['metadata', 'league_name'],
+      ['metadata', 'divisionName'],
+      ['metadata', 'seasonName'],
+      ['metadata', 'eventName'],
+      ['metadata', 'league'],
+      ['context', 'title'],
+      ['context', 'pageTitle'],
+      ['context', 'leagueName'],
+      ['context', 'league_name'],
+      ['context', 'divisionName'],
+      ['context', 'seasonName'],
+      ['context', 'eventName'],
+      ['context', 'league'],
+    ]),
+  )
+  if (nestedCandidate && nestedCandidate !== districtValue) return nestedCandidate
+
+  const original = normalizeLeagueName(record)
+  if (original && original !== districtValue) return original
+
+  const titleFallback = sanitizeLeagueNameCandidate(
+    pickFirst(record, ['pageTitle', 'page_title', 'title', 'headerTitle', 'header_title', 'heading']),
+  )
+  if (titleFallback && titleFallback !== districtValue && looksLikeLeagueName(titleFallback)) {
+    return titleFallback
+  }
+
+  const sectionFallback = nullableString(
+    pickFirst(record, ['ustaSection', 'usta_section', 'section']),
+  )
+  const flightFallback = nullableString(pickFirst(record, ['flight']))
+  if (sectionFallback && flightFallback) {
+    const combined = `${sectionFallback} ${flightFallback}`
+    if (looksLikeLeagueName(combined)) return combined
+  }
+
+  return null
+}
+
 function normalizeFlight(record: UnknownRecord): string | null {
   const direct = nullableString(pickFirst(record, ['flight']))
   if (direct) return direct
@@ -423,7 +528,7 @@ function buildUnifiedSource(
   const directSource = nullableString(pickFirst(record, ['source']))
   if (directSource) return directSource
 
-  const leagueName = normalizeLeagueName(record)
+  const leagueName = resolveLeagueName(record)
   const externalMatchId = normalizeExternalMatchId(record)
 
   if (type === 'schedule') {
@@ -473,6 +578,14 @@ function normalizeScheduleRow(
     return null
   }
 
+  const leagueName = resolveLeagueName(record)
+  if (!leagueName) {
+    warnings.push({
+      rowIndex,
+      message: `Schedule row ${externalMatchId} is missing a visible league name. This match will import, but it will not appear as a league card until league mapping is corrected.`,
+    })
+  }
+
   return {
     externalMatchId,
     matchDate,
@@ -480,7 +593,7 @@ function normalizeScheduleRow(
     homeTeam,
     awayTeam,
     facility: normalizeFacility(record),
-    leagueName: normalizeLeagueName(record),
+    leagueName,
     flight: normalizeFlight(record),
     ustaSection: normalizeSection(record),
     districtArea: normalizeDistrict(record),
@@ -608,13 +721,21 @@ function normalizeScorecardRow(
     return null
   }
 
+  const leagueName = resolveLeagueName(record)
+  if (!leagueName) {
+    warnings.push({
+      rowIndex,
+      message: `Scorecard row ${externalMatchId} is missing a visible league name. This result will import, but it will not appear under league views until league mapping is corrected.`,
+    })
+  }
+
   return {
     externalMatchId,
     matchDate,
     homeTeam,
     awayTeam,
     lines,
-    leagueName: normalizeLeagueName(record),
+    leagueName,
     flight: normalizeFlight(record),
     ustaSection: normalizeSection(record),
     districtArea: normalizeDistrict(record),
