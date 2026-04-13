@@ -4,43 +4,18 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import FollowButton from '@/app/components/follow-button'
 import SiteShell from '@/app/components/site-shell'
+import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 
-type MatchLeagueRow = {
-  id: string
-  league_name: string | null
-  flight: string | null
-  usta_section: string | null
-  district_area: string | null
-  home_team: string | null
-  away_team: string | null
-  match_date: string
-  line_number?: string | null
-}
-
-type LeagueCard = {
-  key: string
-  leagueName: string
-  flight: string
-  ustaSection: string
-  districtArea: string
-  matchCount: number
-  teamCount: number
-  latestMatchDate: string | null
-}
+const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 
 function safeText(value: string | null | undefined) {
   return (value || '').trim()
 }
 
-function hasVisibleText(value: string | null | undefined) {
-  return safeText(value).length > 0
-}
-
 function formatDate(value: string | null) {
-  if (!value) return '—'
+  if (!value) return '-'
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
 
@@ -49,19 +24,6 @@ function formatDate(value: string | null) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-function normalizeKeyPart(value: string | null | undefined) {
-  return safeText(value).toLowerCase()
-}
-
-function buildLeagueKey(row: MatchLeagueRow) {
-  return [
-    normalizeKeyPart(row.league_name),
-    normalizeKeyPart(row.flight),
-    normalizeKeyPart(row.usta_section),
-    normalizeKeyPart(row.district_area),
-  ].join('__')
 }
 
 function buildLeagueHref(league: LeagueCard) {
@@ -81,19 +43,17 @@ function buildLeagueSubtitle(league: LeagueCard) {
   return [league.flight, league.ustaSection, league.districtArea]
     .map((value) => safeText(value))
     .filter(Boolean)
-    .join(' · ')
-}
-
-function chooseBetterText(current: string, incoming: string) {
-  if (!current && incoming) return incoming
-  if (incoming.length > current.length) return incoming
-  return current
+    .join(' | ')
 }
 
 export default function LeaguesPage() {
-  const [rows, setRows] = useState<MatchLeagueRow[]>([])
+  const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [datasetTotalMatches, setDatasetTotalMatches] = useState(0)
+  const [datasetTotalFlights, setDatasetTotalFlights] = useState(0)
+  const [datasetLatestMatch, setDatasetLatestMatch] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [flightFilter, setFlightFilter] = useState('all')
   const [screenWidth, setScreenWidth] = useState(1280)
@@ -110,110 +70,47 @@ export default function LeaguesPage() {
   }, [])
 
   useEffect(() => {
-    void loadLeagueRows()
+    void loadLeagueSummary()
   }, [])
 
-  async function loadLeagueRows() {
+  async function loadLeagueSummary() {
     setLoading(true)
     setError('')
+    setNotice('')
+
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), LEAGUE_SUMMARY_TIMEOUT_MS)
 
     try {
-    const { data, error } = await supabase
-  .from('matches')
-  .select(`
-    id,
-    league_name,
-    flight,
-    usta_section,
-    district_area,
-    home_team,
-    away_team,
-    match_date,
-    line_number
-  `)
-  .is('line_number', null)
-  .order('match_date', { ascending: false })
+      const response = await fetch('/api/leagues/summary', {
+        cache: 'no-store',
+        signal: controller.signal,
+      })
 
-      if (error) throw new Error(error.message)
+      const payload = (await response.json()) as LeagueSummaryPayload & { error?: string }
 
-      setRows((data || []) as MatchLeagueRow[])
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load league summary.')
+      }
+
+      setLeagues(payload.leagues || [])
+      setDatasetTotalMatches(payload.totalMatches || 0)
+      setDatasetTotalFlights(payload.totalFlights || 0)
+      setDatasetLatestMatch(payload.latestMatch || null)
+      setNotice(payload.notice || '')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load leagues.')
+      if ((err as Error).name === 'AbortError') {
+        setError(
+          'League loading timed out after 12 seconds. The import likely succeeded, but the summary request took too long.'
+        )
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load leagues.')
+      }
     } finally {
+      window.clearTimeout(timeoutId)
       setLoading(false)
     }
   }
-
-  const leagueRows = useMemo(() => {
-    return rows.filter((row) => hasVisibleText(row.league_name))
-  }, [rows])
-
-  const leagues = useMemo<LeagueCard[]>(() => {
-    const map = new Map<string, LeagueCard & { teamSet: Set<string> }>()
-
-    for (const row of leagueRows) {
-      const key = buildLeagueKey(row)
-      if (!key) continue
-
-      const leagueName = safeText(row.league_name)
-      const flight = safeText(row.flight)
-      const ustaSection = safeText(row.usta_section)
-      const districtArea = safeText(row.district_area)
-
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          leagueName,
-          flight,
-          ustaSection,
-          districtArea,
-          matchCount: 0,
-          teamCount: 0,
-          latestMatchDate: row.match_date || null,
-          teamSet: new Set<string>(),
-        })
-      }
-
-      const current = map.get(key)!
-      current.matchCount += 1
-
-      current.leagueName = chooseBetterText(current.leagueName, leagueName)
-      current.flight = chooseBetterText(current.flight, flight)
-      current.ustaSection = chooseBetterText(current.ustaSection, ustaSection)
-      current.districtArea = chooseBetterText(current.districtArea, districtArea)
-
-      const homeTeam = safeText(row.home_team)
-      const awayTeam = safeText(row.away_team)
-
-      if (homeTeam) current.teamSet.add(homeTeam)
-      if (awayTeam) current.teamSet.add(awayTeam)
-
-      if (
-        row.match_date &&
-        (!current.latestMatchDate ||
-          new Date(row.match_date).getTime() > new Date(current.latestMatchDate).getTime())
-      ) {
-        current.latestMatchDate = row.match_date
-      }
-    }
-
-    return [...map.values()]
-      .map((item) => ({
-        key: item.key,
-        leagueName: item.leagueName,
-        flight: item.flight,
-        ustaSection: item.ustaSection,
-        districtArea: item.districtArea,
-        matchCount: item.matchCount,
-        teamCount: item.teamSet.size,
-        latestMatchDate: item.latestMatchDate,
-      }))
-      .sort((a, b) => {
-        const aDate = a.latestMatchDate ? new Date(a.latestMatchDate).getTime() : 0
-        const bDate = b.latestMatchDate ? new Date(b.latestMatchDate).getTime() : 0
-        return bDate - aDate
-      })
-  }, [leagueRows])
 
   const flights = useMemo(() => {
     const unique = [...new Set(leagues.map((league) => league.flight).filter(Boolean))]
@@ -235,22 +132,21 @@ export default function LeaguesPage() {
       return matchesFlight && matchesSearch
     })
   }, [leagues, search, flightFilter])
+
   const hasActiveFilters = search.trim().length > 0 || flightFilter !== 'all'
+
+  const visibleMatchCount = useMemo(() => {
+    return filteredLeagues.reduce((sum, league) => sum + league.matchCount, 0)
+  }, [filteredLeagues])
 
   const summary = useMemo(() => {
     return {
       totalLeagues: filteredLeagues.length,
-      totalMatches: leagueRows.length,
-      totalFlights: flights.length,
-      latestMatch:
-        leagues.length > 0
-          ? leagues
-              .map((league) => league.latestMatchDate)
-              .filter(Boolean)
-              .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime())[0] || null
-          : null,
+      totalMatches: datasetTotalMatches,
+      totalFlights: datasetTotalFlights,
+      latestMatch: datasetLatestMatch,
     }
-  }, [filteredLeagues.length, leagueRows.length, flights.length, leagues])
+  }, [datasetLatestMatch, datasetTotalFlights, datasetTotalMatches, filteredLeagues.length])
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -420,7 +316,9 @@ export default function LeaguesPage() {
             <div style={errorBox}>{error}</div>
           ) : filteredLeagues.length === 0 ? (
             <div style={stateBox}>
-              {hasActiveFilters ? 'No leagues matched the current search or flight filter.' : 'No named league records found yet.'}
+              {hasActiveFilters
+                ? 'No leagues matched the current search or flight filter.'
+                : 'No named league records found yet.'}
               <div style={stateHelperTextStyle}>
                 {hasActiveFilters
                   ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
@@ -429,9 +327,11 @@ export default function LeaguesPage() {
             </div>
           ) : (
             <>
+              {notice ? <div style={noticeBox}>{notice}</div> : null}
+
               <div style={summaryBadgeRow}>
                 <span style={heroHintPill}>{filteredLeagues.length} visible leagues</span>
-                <span style={heroHintPill}>{leagueRows.length} total league matches</span>
+                <span style={heroHintPill}>{visibleMatchCount} visible league matches</span>
               </div>
 
               <div style={dynamicCardGrid}>
@@ -528,7 +428,7 @@ function DetailCard({
   return (
     <div style={detailCard}>
       <div style={detailLabel}>{label}</div>
-      <div style={detailValue}>{text || '—'}</div>
+      <div style={detailValue}>{text || '-'}</div>
     </div>
   )
 }
@@ -848,6 +748,19 @@ const errorBox: CSSProperties = {
   color: '#fecaca',
   fontWeight: 700,
   fontSize: '14px',
+}
+
+const noticeBox: CSSProperties = {
+  marginTop: '8px',
+  marginBottom: '14px',
+  borderRadius: '16px',
+  padding: '12px 14px',
+  background: 'rgba(59, 130, 246, 0.10)',
+  border: '1px solid rgba(96, 165, 250, 0.22)',
+  color: '#dbeafe',
+  fontWeight: 600,
+  fontSize: '14px',
+  lineHeight: 1.6,
 }
 
 const stateHelperTextStyle: CSSProperties = {
