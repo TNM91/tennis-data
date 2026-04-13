@@ -200,6 +200,7 @@ type ImportedScorecardEventContext = {
 
 const DEFAULT_SOURCE_SCHEDULE = 'tennislink_schedule'
 const DEFAULT_SOURCE_SCORECARD = 'tennislink_scorecard'
+const SCHEDULE_UPSERT_CHUNK_SIZE = 100
 
 function cleanString(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -464,93 +465,133 @@ export class ImportEngine {
       errors: [],
     }
 
+    const validRows: Array<{ rowIndex: number; payload: MatchUpsertPayload }> = []
+
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
       const row = rows[rowIndex]
       const externalMatchId = cleanString(row?.externalMatchId)
 
-      try {
-        const validationError = validateScheduleRow(row)
-        if (validationError) {
-          result.failedCount += 1
-          result.rows.push({
-            rowIndex,
-            externalMatchId,
-            status: 'failed',
-            message: validationError,
-          })
-          result.errors.push({
-            rowIndex,
-            externalMatchId,
-            code: 'INVALID_ROW',
-            message: validationError,
-          })
-          continue
-        }
-
-        const payload = toScheduleMatchUpsert(row)
-
-        if (mode === 'preview') {
-          result.successCount += 1
-          result.rows.push({
-            rowIndex,
-            externalMatchId: payload.external_match_id,
-            status: 'preview',
-            message: 'Validated for schedule import',
-          })
-          continue
-        }
-
-        const existing = await this.findMatchByExternalMatchId(payload.external_match_id)
-
-        const { data: upserted, error: upsertError } = await this.supabase
-          .from('matches')
-          .upsert(payload, { onConflict: 'external_match_id' })
-          .select('id, external_match_id')
-          .single()
-
-        if (upsertError) {
-          result.failedCount += 1
-          result.rows.push({
-            rowIndex,
-            externalMatchId: payload.external_match_id,
-            status: 'failed',
-            message: upsertError.message,
-          })
-          result.errors.push({
-            rowIndex,
-            externalMatchId: payload.external_match_id,
-            code: 'MATCH_UPSERT_FAILED',
-            message: upsertError.message,
-          })
-          continue
-        }
-
-        const status = existing ? 'updated' : 'imported'
-        if (status === 'updated') result.updatedCount += 1
-        else result.successCount += 1
-
-        result.rows.push({
-          rowIndex,
-          externalMatchId: payload.external_match_id,
-          status,
-          matchId: upserted?.id ?? null,
-          message: status === 'updated' ? 'Updated existing scheduled match' : 'Imported scheduled match',
-        })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unknown schedule import error'
+      const validationError = validateScheduleRow(row)
+      if (validationError) {
         result.failedCount += 1
         result.rows.push({
           rowIndex,
           externalMatchId,
           status: 'failed',
-          message,
+          message: validationError,
         })
         result.errors.push({
           rowIndex,
           externalMatchId,
-          code: 'UNKNOWN',
-          message,
+          code: 'INVALID_ROW',
+          message: validationError,
         })
+        continue
+      }
+
+      const payload = toScheduleMatchUpsert(row)
+
+      if (mode === 'preview') {
+        result.successCount += 1
+        result.rows.push({
+          rowIndex,
+          externalMatchId: payload.external_match_id,
+          status: 'preview',
+          message: 'Validated for schedule import',
+        })
+        continue
+      }
+
+      validRows.push({ rowIndex, payload })
+    }
+
+    if (mode === 'preview' || validRows.length === 0) {
+      return result
+    }
+
+    const existingIds = await this.findExistingMatchIdsByExternalMatchIds(
+      validRows.map((entry) => entry.payload.external_match_id),
+    )
+
+    for (const chunk of this.chunkArray(validRows, SCHEDULE_UPSERT_CHUNK_SIZE)) {
+      const chunkPayloads = chunk.map((entry) => entry.payload)
+
+      try {
+        const { data, error } = await this.supabase
+          .from('matches')
+          .upsert(chunkPayloads, { onConflict: 'external_match_id' })
+          .select('id, external_match_id')
+
+        if (error) {
+          throw new Error(error.message)
+        }
+
+        const upsertedByExternalId = new Map<string, { id: string | null }>()
+        for (const row of (data ?? []) as Array<{ id: string | null; external_match_id: string | null }>) {
+          if (row.external_match_id) {
+            upsertedByExternalId.set(row.external_match_id, { id: row.id })
+          }
+        }
+
+        for (const entry of chunk) {
+          const status = existingIds.has(entry.payload.external_match_id) ? 'updated' : 'imported'
+          if (status === 'updated') result.updatedCount += 1
+          else result.successCount += 1
+
+          result.rows.push({
+            rowIndex: entry.rowIndex,
+            externalMatchId: entry.payload.external_match_id,
+            status,
+            matchId: upsertedByExternalId.get(entry.payload.external_match_id)?.id ?? null,
+            message: status === 'updated' ? 'Updated existing scheduled match' : 'Imported scheduled match',
+          })
+        }
+      } catch (error) {
+        const chunkMessage = error instanceof Error ? error.message : 'Unknown schedule import error'
+
+        for (const entry of chunk) {
+          try {
+            const { data: upserted, error: upsertError } = await this.supabase
+              .from('matches')
+              .upsert(entry.payload, { onConflict: 'external_match_id' })
+              .select('id, external_match_id')
+              .single()
+
+            if (upsertError) {
+              throw new Error(upsertError.message)
+            }
+
+            const status = existingIds.has(entry.payload.external_match_id) ? 'updated' : 'imported'
+            if (status === 'updated') result.updatedCount += 1
+            else result.successCount += 1
+
+            result.rows.push({
+              rowIndex: entry.rowIndex,
+              externalMatchId: entry.payload.external_match_id,
+              status,
+              matchId: upserted?.id ?? null,
+              message:
+                status === 'updated'
+                  ? 'Updated existing scheduled match after chunk retry'
+                  : 'Imported scheduled match after chunk retry',
+            })
+          } catch (rowError) {
+            const message = rowError instanceof Error ? rowError.message : chunkMessage
+            result.failedCount += 1
+            result.rows.push({
+              rowIndex: entry.rowIndex,
+              externalMatchId: entry.payload.external_match_id,
+              status: 'failed',
+              message,
+            })
+            result.errors.push({
+              rowIndex: entry.rowIndex,
+              externalMatchId: entry.payload.external_match_id,
+              code: 'MATCH_UPSERT_FAILED',
+              message,
+            })
+          }
+        }
       }
     }
 
@@ -1318,6 +1359,32 @@ export class ImportEngine {
     }
 
     return (data as MatchRecord | null) ?? null
+  }
+
+  private async findExistingMatchIdsByExternalMatchIds(externalMatchIds: string[]): Promise<Set<string>> {
+    const existingIds = new Set<string>()
+    const uniqueIds = dedupeStrings(externalMatchIds)
+
+    for (const chunk of this.chunkArray(uniqueIds, 200)) {
+      const { data, error } = await this.supabase
+        .from('matches')
+        .select('external_match_id')
+        .in('external_match_id', chunk)
+
+      if (error) {
+        this.options.log('findExistingMatchIdsByExternalMatchIds failed', {
+          count: chunk.length,
+          error: error.message,
+        })
+        continue
+      }
+
+      for (const row of (data ?? []) as Array<{ external_match_id: string | null }>) {
+        if (row.external_match_id) existingIds.add(row.external_match_id)
+      }
+    }
+
+    return existingIds
   }
 
   private async resolvePlayersBatch(names: string[]): Promise<{

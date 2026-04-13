@@ -245,6 +245,11 @@ function sanitizeLeagueNameCandidate(value: unknown): string | null {
   const cleaned = cleanString(value)
   if (!cleaned) return null
 
+  const seasonMatch = cleaned.match(/\b\d{4}\s+.*?\b(Spring|Summer|Fall|Winter)\b/i)
+  if (seasonMatch) {
+    return seasonMatch[0].trim()
+  }
+
   const stripped = cleaned
     .replace(/\b(season schedule|schedule|scorecard|match details|match detail|team roster)\b/gi, '')
     .replace(/\s{2,}/g, ' ')

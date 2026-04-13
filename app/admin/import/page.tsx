@@ -89,7 +89,7 @@ type PreviewScorecardMatch = {
   lines: PreviewScorecardLine[]
 }
 
-const IMPORT_TIMEOUT_MS = 60000
+const IMPORT_TIMEOUT_MS = 180000
 
 const pageWrapStyle: CSSProperties = {
   width: '100%',
