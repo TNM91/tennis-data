@@ -286,6 +286,11 @@ function collectSeasonLikeStrings(value: unknown, depth = 0, results: string[] =
 }
 
 function resolveLeagueName(record: UnknownRecord): string | null {
+  const explicitOverride = sanitizeLeagueNameCandidate(
+    pickFirst(record, ['leagueNameOverride', 'league_name_override', '__leagueNameOverride']),
+  )
+  if (explicitOverride) return explicitOverride
+
   const districtValue = nullableString(
     pickFirst(record, ['districtArea', 'district_area', 'district', 'area']),
   )

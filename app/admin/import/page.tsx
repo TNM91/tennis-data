@@ -371,9 +371,13 @@ function applyLeagueNameOverride(payload: unknown, leagueName: string): unknown 
   if (record.seasonSchedule && typeof record.seasonSchedule === 'object' && record.seasonSchedule !== null) {
     return {
       ...record,
+      leagueNameOverride: trimmedLeagueName,
+      __leagueNameOverride: trimmedLeagueName,
       seasonSchedule: {
         ...(record.seasonSchedule as Record<string, unknown>),
         leagueName: trimmedLeagueName,
+        leagueNameOverride: trimmedLeagueName,
+        __leagueNameOverride: trimmedLeagueName,
       },
     }
   }
@@ -381,9 +385,13 @@ function applyLeagueNameOverride(payload: unknown, leagueName: string): unknown 
   if (record.scorecard && typeof record.scorecard === 'object' && record.scorecard !== null) {
     return {
       ...record,
+      leagueNameOverride: trimmedLeagueName,
+      __leagueNameOverride: trimmedLeagueName,
       scorecard: {
         ...(record.scorecard as Record<string, unknown>),
         leagueName: trimmedLeagueName,
+        leagueNameOverride: trimmedLeagueName,
+        __leagueNameOverride: trimmedLeagueName,
       },
     }
   }
@@ -391,6 +399,8 @@ function applyLeagueNameOverride(payload: unknown, leagueName: string): unknown 
   return {
     ...record,
     leagueName: trimmedLeagueName,
+    leagueNameOverride: trimmedLeagueName,
+    __leagueNameOverride: trimmedLeagueName,
   }
 }
 
