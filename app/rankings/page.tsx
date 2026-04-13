@@ -150,6 +150,7 @@ export default function RankingsPage() {
       return matchesSearch && matchesLocation
     })
   }, [players, searchText, locationFilter])
+  const hasActiveFilters = searchText.trim().length > 0 || locationFilter.length > 0
 
   const snapshotMap = useMemo(() => {
     const map = new Map<string, SnapshotRow[]>()
@@ -353,6 +354,22 @@ export default function RankingsPage() {
                 <div style={errorBanner}>{error}</div>
               ) : null}
 
+              {hasActiveFilters ? (
+                <div style={panelChipWrap}>
+                  <span style={panelChip}>Filters active</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchText('')
+                      setLocationFilter('')
+                    }}
+                    style={clearFilterButton}
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : null}
+
               <div style={summaryStatsGrid}>
                 <StatChip label="Players shown" value={String(rankedPlayers.length)} />
                 <StatChip label="Top rating" value={formatRating(topThree[0]?.selectedRating)} accent />
@@ -456,7 +473,11 @@ export default function RankingsPage() {
                   </tr>
                 ) : rankedPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={emptyCell}>No players found.</td>
+                    <td colSpan={9} style={emptyCell}>
+                      {hasActiveFilters
+                        ? 'No players matched the current search or location filter. Clear filters to widen the board.'
+                        : 'No players found yet.'}
+                    </td>
                   </tr>
                 ) : (
                   rankedPlayers.map((player, index) => {
@@ -1084,6 +1105,20 @@ const panelChip: CSSProperties = {
   border: '1px solid rgba(82, 127, 201, 0.2)',
   fontWeight: 800,
   fontSize: '13px',
+}
+
+const clearFilterButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e6eefb',
+  fontWeight: 800,
+  cursor: 'pointer',
 }
 
 const tableWrap: CSSProperties = {

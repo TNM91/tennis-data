@@ -57,6 +57,14 @@ export default function HomePage() {
 
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
   const shouldShowSuggestions = showSuggestions && trimmedSearch.length >= 2
+  const searchGuidance = useMemo(() => {
+    if (searchError) return searchError
+    if (trimmedSearch.length === 0) return 'Search ratings, results, and recent player performance from one place.'
+    if (trimmedSearch.length === 1) return 'Type at least 2 characters to see live player suggestions.'
+    if (suggestionsLoading) return 'Searching the player directory now.'
+    if (suggestions.length > 0) return 'Use the arrow keys to preview suggestions or press Enter to open the best match.'
+    return 'No exact suggestion yet. Press Enter to run a broader player search.'
+  }, [searchError, trimmedSearch.length, suggestionsLoading, suggestions.length])
   const quickActions = useMemo(
     () => [...recentPlayerActions, ...FALLBACK_QUICK_ACTIONS].slice(0, 3),
     [recentPlayerActions],
@@ -477,16 +485,14 @@ export default function HomePage() {
                   ) : null}
                 </div>
 
-                <div style={searchHelperText}>
-                  Search ratings, results, and recent player performance from one place.
-                </div>
+                <div style={searchHelperText}>{searchGuidance}</div>
 
-                {searchError ? <div style={searchErrorStyle}>{searchError}</div> : null}
+                {searchError ? <div style={searchErrorStyle}>Try another spelling, or browse the full player directory instead.</div> : null}
               </form>
 
               </div>
 
-              <div style={sectionLabel}>Recent / featured</div>
+              <div style={sectionLabel}>Quick starts</div>
               <div style={dynamicQuickActionGrid}>
                 {quickActions.map((action) => {
                   const hovered = hoveredQuickAction === action.label

@@ -235,6 +235,7 @@ export default function LeaguesPage() {
       return matchesFlight && matchesSearch
     })
   }, [leagues, search, flightFilter])
+  const hasActiveFilters = search.trim().length > 0 || flightFilter !== 'all'
 
   const summary = useMemo(() => {
     return {
@@ -364,6 +365,18 @@ export default function LeaguesPage() {
               <div style={sectionKicker}>Filters</div>
               <h2 style={panelTitle}>Search and narrow league groups</h2>
             </div>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  setFlightFilter('all')
+                }}
+                style={clearFilterButton}
+              >
+                Clear active filters
+              </button>
+            ) : null}
           </div>
 
           <div style={dynamicFilterGrid}>
@@ -406,7 +419,14 @@ export default function LeaguesPage() {
           ) : error ? (
             <div style={errorBox}>{error}</div>
           ) : filteredLeagues.length === 0 ? (
-            <div style={stateBox}>No named league records found yet.</div>
+            <div style={stateBox}>
+              {hasActiveFilters ? 'No leagues matched the current search or flight filter.' : 'No named league records found yet.'}
+              <div style={stateHelperTextStyle}>
+                {hasActiveFilters
+                  ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
+                  : 'League cards only appear when imported matches include a real league name, so this usually means more season data still needs to be imported or normalized.'}
+              </div>
+            </div>
           ) : (
             <>
               <div style={summaryBadgeRow}>
@@ -778,6 +798,20 @@ const searchInput: CSSProperties = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
+const clearFilterButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e6eefb',
+  fontWeight: 800,
+  cursor: 'pointer',
+}
+
 const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
@@ -814,6 +848,14 @@ const errorBox: CSSProperties = {
   color: '#fecaca',
   fontWeight: 700,
   fontSize: '14px',
+}
+
+const stateHelperTextStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'rgba(219,234,254,0.82)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
 }
 
 const summaryBadgeRow: CSSProperties = {

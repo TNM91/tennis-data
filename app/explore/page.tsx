@@ -57,6 +57,27 @@ const GLOBAL_FEED = [
   },
 ]
 
+const DISCOVERY_GUIDES = [
+  {
+    title: 'Start with a player',
+    text: 'Open the player directory when you already know a name and want profile context, rating movement, and recent match history.',
+    href: '/players',
+    cta: 'Open players',
+  },
+  {
+    title: 'Scan the field first',
+    text: 'Use rankings when you want a wider leaderboard view before drilling into a specific player, team, or flight.',
+    href: '/rankings',
+    cta: 'View rankings',
+  },
+  {
+    title: 'Prepare a comparison',
+    text: 'Jump into matchup prep once you have two players or doubles teams in mind and want a quick prediction readout.',
+    href: '/matchup',
+    cta: 'Compare now',
+  },
+]
+
 export default function ExplorePage() {
   const [screenWidth, setScreenWidth] = useState(1280)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
@@ -111,6 +132,11 @@ export default function ExplorePage() {
     ...actionGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(4, minmax(220px, 1fr))',
     gap: isMobile ? '14px' : '16px',
+  }
+
+  const dynamicGuideGrid: CSSProperties = {
+    ...guideGrid,
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
   return (
@@ -173,6 +199,29 @@ export default function ExplorePage() {
                 accent={card.accent}
               />
             ))}
+          </div>
+
+          <div style={guidePanel}>
+            <div style={guideHeader}>
+              <div>
+                <div style={guideEyebrow}>Where to start</div>
+                <h2 style={guideTitle}>Choose the shortest path for the question you have.</h2>
+              </div>
+              <p style={guideIntro}>
+                The public side is strongest when you move from broad discovery into a focused profile
+                or comparison. These are the fastest starting points.
+              </p>
+            </div>
+
+            <div style={dynamicGuideGrid}>
+              {DISCOVERY_GUIDES.map((guide) => (
+                <Link key={guide.href} href={guide.href} style={guideCard}>
+                  <div style={guideCardTitle}>{guide.title}</div>
+                  <div style={guideCardText}>{guide.text}</div>
+                  <div style={guideCardCta}>{guide.cta} -&gt;</div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -526,6 +575,90 @@ const actionGrid: CSSProperties = {
   display: 'grid',
   position: 'relative',
   zIndex: 1,
+}
+
+const guidePanel: CSSProperties = {
+  marginTop: '20px',
+  position: 'relative',
+  zIndex: 1,
+  borderRadius: '26px',
+  padding: '22px',
+  background:
+    'linear-gradient(180deg, rgba(20,40,76,0.88) 0%, rgba(12,26,49,0.94) 100%)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  boxShadow: '0 20px 48px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const guideHeader: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '16px',
+  flexWrap: 'wrap',
+  marginBottom: '16px',
+}
+
+const guideEyebrow: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.12em',
+  marginBottom: '8px',
+}
+
+const guideTitle: CSSProperties = {
+  margin: 0,
+  color: '#f8fbff',
+  fontSize: '28px',
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const guideIntro: CSSProperties = {
+  margin: 0,
+  maxWidth: '520px',
+  color: 'rgba(215,229,247,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.7,
+}
+
+const guideGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+}
+
+const guideCard: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  minHeight: '180px',
+  padding: '18px',
+  borderRadius: '22px',
+  textDecoration: 'none',
+  background: 'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 16px 36px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const guideCardTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const guideCardText: CSSProperties = {
+  color: 'rgba(215,229,247,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.7,
+}
+
+const guideCardCta: CSSProperties = {
+  marginTop: 'auto',
+  color: '#d5e8ff',
+  fontSize: '13px',
+  fontWeight: 800,
 }
 
 const actionCard: CSSProperties = {

@@ -194,6 +194,7 @@ export default function PlayersPage() {
 
     return next
   }, [filterBy, players, search, sortBy])
+  const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall'
 
   const topOverall = useMemo(() => {
     if (players.length === 0) return 0
@@ -377,6 +378,21 @@ export default function PlayersPage() {
                 <div style={controlsHelperText}>
                   Use the directory to move from a broad search into exact player profiles in one step.
                 </div>
+                {hasActiveFilters ? (
+                  <div style={controlsActionRow}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('')
+                        setSortBy('overall')
+                        setFilterBy('all')
+                      }}
+                      style={clearFilterButton}
+                    >
+                      Reset directory filters
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
               <div style={summaryCard}>
@@ -395,7 +411,7 @@ export default function PlayersPage() {
                     <span style={summaryInlineValue}>{totalMatches}</span>
                   </div>
                   <div style={summaryHint}>
-                    Search here, open a profile, then use Matchup or Captain&apos;s Corner when you need deeper prep.
+                    Search here, open a profile, then use Matchup or Captain Console when you need deeper prep.
                   </div>
                 </div>
               </div>
@@ -426,7 +442,12 @@ export default function PlayersPage() {
         {loading ? (
           <div style={loadingCard}>Loading player directory...</div>
         ) : filteredPlayers.length === 0 ? (
-          <div style={loadingCard}>No players matched that search.</div>
+          <div style={loadingCard}>
+            <div style={emptyStateTitle}>No players matched the current directory view.</div>
+            <p style={emptyStateText}>
+              Try a broader name or location search, or reset the sort and filter controls to reopen the full player board.
+            </p>
+          </div>
         ) : (
           <div style={dynamicCardGrid}>
             {filteredPlayers.map((player) => {
@@ -883,6 +904,27 @@ const controlsHelperText: CSSProperties = {
   lineHeight: 1.6,
 }
 
+const controlsActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '12px',
+}
+
+const clearFilterButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e6eefb',
+  fontWeight: 800,
+  cursor: 'pointer',
+}
+
 const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
@@ -1044,6 +1086,20 @@ const loadingCard: CSSProperties = {
   background: 'rgba(11, 22, 39, 0.82)',
   color: '#dfe8f8',
   fontWeight: 700,
+}
+
+const emptyStateTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontWeight: 900,
+  fontSize: '20px',
+  lineHeight: 1.2,
+}
+
+const emptyStateText: CSSProperties = {
+  margin: '10px 0 0',
+  color: 'rgba(224,236,249,0.78)',
+  lineHeight: 1.65,
+  fontWeight: 500,
 }
 
 const cardGrid: CSSProperties = {

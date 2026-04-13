@@ -1415,7 +1415,21 @@ export default function MatchupPage() {
                 {headToHeadLoading ? (
                   <p style={paragraph}>Loading head-to-head...</p>
                 ) : !headToHead || headToHead.total === 0 ? (
-                  <p style={paragraph}>No head-to-head matches found.</p>
+                  <div style={emptyHeadToHeadCard}>
+                    <div style={emptyHeadToHeadTitle}>No direct head-to-head history yet.</div>
+                    <p style={emptyHeadToHeadText}>
+                      The projection still uses current ratings, but there are no recorded matches for this
+                      exact singles pairing or doubles team matchup.
+                    </p>
+                    <div style={emptyHeadToHeadActions}>
+                      <Link href="/players" style={miniGhostButton}>
+                        Browse players
+                      </Link>
+                      <Link href="/rankings" style={miniGhostButton}>
+                        Check rankings
+                      </Link>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <div style={dynamicMetricGrid}>
@@ -2455,6 +2469,37 @@ const recommendationTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.72,
   fontWeight: 500,
+}
+
+const emptyHeadToHeadCard: CSSProperties = {
+  marginTop: '12px',
+  borderRadius: '18px',
+  padding: '18px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+}
+
+const emptyHeadToHeadTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const emptyHeadToHeadText: CSSProperties = {
+  margin: '10px 0 0',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const emptyHeadToHeadActions: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+  marginTop: '14px',
 }
 
 

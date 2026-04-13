@@ -326,6 +326,8 @@ export default function TeamsPage() {
 
     return next
   }, [flightFilter, leagueFilter, rows, search, sortBy])
+  const hasActiveFilters =
+    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || sortBy !== 'matches'
 
   const totals = useMemo(() => {
     const uniqueTeams = new Set(filteredRows.map((row) => row.key))
@@ -441,6 +443,22 @@ export default function TeamsPage() {
                 </select>
               </div>
             </div>
+            {hasActiveFilters ? (
+              <div style={filtersActionRow}>
+                <button
+                  type="button"
+                  style={clearFilterButton}
+                  onClick={() => {
+                    setSearch('')
+                    setLeagueFilter('')
+                    setFlightFilter('')
+                    setSortBy('matches')
+                  }}
+                >
+                  Clear active filters
+                </button>
+              </div>
+            ) : null}
           </section>
 
           {loading ? (
@@ -456,7 +474,9 @@ export default function TeamsPage() {
           ) : filteredRows.length === 0 ? (
             <section style={surfaceCard}>
               <div style={emptyTitle}>No teams found</div>
-              <p style={emptyText}>Try widening your filters or import more season data.</p>
+              <p style={emptyText}>
+                Try widening your filters, clearing the search box, or importing more season data if this league and flight should already exist.
+              </p>
             </section>
           ) : (
             <section style={cardsGrid(isTablet, isMobile)}>
@@ -657,6 +677,27 @@ const resetButton: CSSProperties = {
   cursor: 'pointer',
   fontSize: '13px',
   fontWeight: 700,
+}
+
+const filtersActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '14px',
+}
+
+const clearFilterButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e6eefb',
+  fontWeight: 800,
+  cursor: 'pointer',
 }
 
 const filtersGrid = (isMobile: boolean): CSSProperties => ({
