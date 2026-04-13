@@ -5,6 +5,7 @@ import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import FollowButton from '@/app/components/follow-button'
 import SiteShell from '@/app/components/site-shell'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated'
@@ -56,20 +57,9 @@ export default function PlayersPage() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('overall')
   const [filterBy, setFilterBy] = useState<FilterKey>('all')
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     void loadPlayers()
@@ -105,14 +95,25 @@ export default function PlayersPage() {
       if (playerIds.length > 0) {
         const { data: matchPlayerRows, error: matchPlayersError } = await supabase
           .from('match_players')
-          .select('player_id')
+          .select('player_id,match_id')
           .in('player_id', playerIds)
 
         if (matchPlayersError) throw new Error(matchPlayersError.message)
 
+        const uniqueMatchesByPlayer = new Map<string, Set<string>>()
+
         for (const row of matchPlayerRows || []) {
           const playerId = String(row.player_id)
-          matchCounts.set(playerId, (matchCounts.get(playerId) || 0) + 1)
+          const matchId = String(row.match_id || '')
+          if (!matchId) continue
+
+          const existing = uniqueMatchesByPlayer.get(playerId) ?? new Set<string>()
+          existing.add(matchId)
+          uniqueMatchesByPlayer.set(playerId, existing)
+        }
+
+        for (const [playerId, matchIds] of uniqueMatchesByPlayer.entries()) {
+          matchCounts.set(playerId, matchIds.size)
         }
 
         const { data: snapshotRows, error: snapshotError } = await supabase
@@ -428,10 +429,15 @@ export default function PlayersPage() {
       </section>
 
       {error ? (
-        <section style={errorCard}>
+      <section style={errorCard}>
           <div style={sectionKicker}>Players</div>
           <h2 style={sectionTitle}>Unable to load players</h2>
           <p style={sectionText}>{error}</p>
+          <div style={controlsActionRow}>
+            <button type="button" onClick={() => void loadPlayers()} style={clearFilterButton}>
+              Retry player directory
+            </button>
+          </div>
         </section>
       ) : null}
 

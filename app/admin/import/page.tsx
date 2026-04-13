@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -528,6 +529,7 @@ export default function AdminImportPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFileSummary[]>([])
   const [uploadLedger, setUploadLedger] = useState<MatchUploadLedgerRow[]>([])
   const [ledgerLoading, setLedgerLoading] = useState(true)
+  const [ledgerError, setLedgerError] = useState('')
   const [isRunningPreview, setIsRunningPreview] = useState(false)
   const [isRunningCommit, setIsRunningCommit] = useState(false)
   const [importResponse, setImportResponse] = useState<RunImportResponse | null>(null)
@@ -608,48 +610,42 @@ export default function AdminImportPage() {
     }
   }, [uploadedFiles, importType])
 
-  useEffect(() => {
-    let mounted = true
+  const loadUploadLedger = useCallback(async () => {
+    setLedgerLoading(true)
+    setLedgerError('')
 
-    async function loadUploadLedger() {
-      setLedgerLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          external_match_id,
+          league_name,
+          flight,
+          home_team,
+          away_team,
+          match_date,
+          status,
+          score,
+          line_number
+        `)
+        .order('match_date', { ascending: true })
+        .limit(1200)
 
-      try {
-        const { data, error } = await supabase
-          .from('matches')
-          .select(`
-            id,
-            external_match_id,
-            league_name,
-            flight,
-            home_team,
-            away_team,
-            match_date,
-            status,
-            score,
-            line_number
-          `)
-          .is('line_number', null)
-          .order('match_date', { ascending: true })
-          .limit(300)
+      if (error) throw new Error(error.message)
 
-        if (error) throw new Error(error.message)
-        if (!mounted) return
-
-        setUploadLedger((data || []) as MatchUploadLedgerRow[])
-      } catch {
-        if (mounted) setUploadLedger([])
-      } finally {
-        if (mounted) setLedgerLoading(false)
-      }
-    }
-
-    void loadUploadLedger()
-
-    return () => {
-      mounted = false
+      setUploadLedger((data || []) as MatchUploadLedgerRow[])
+    } catch (error) {
+      setUploadLedger([])
+      setLedgerError(error instanceof Error ? error.message : 'Unable to load upload ledger.')
+    } finally {
+      setLedgerLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    void loadUploadLedger()
+  }, [loadUploadLedger])
 
   const uploadLedgerSummary = useMemo(() => {
     const now = new Date()
@@ -746,6 +742,8 @@ export default function AdminImportPage() {
 
       if (!response.ok) {
         setTopLevelError(response.error)
+      } else if (mode === 'commit') {
+        await loadUploadLedger()
       }
     } catch (error) {
       setTopLevelError(error instanceof Error ? error.message : 'Import failed.')
@@ -1413,8 +1411,33 @@ export default function AdminImportPage() {
             Use this to see what has already been completed versus which scheduled matches still need a scorecard upload after match day.
           </div>
 
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+            <button
+              type="button"
+              style={mutedButtonStyle}
+              onClick={() => void loadUploadLedger()}
+              disabled={ledgerLoading}
+            >
+              {ledgerLoading ? 'Refreshing ledger...' : 'Refresh upload ledger'}
+            </button>
+          </div>
+
           {ledgerLoading ? (
             <div style={{ ...subtleTextStyle, marginTop: 14 }}>Loading upload ledger…</div>
+          ) : ledgerError ? (
+            <div
+              role="alert"
+              style={{
+                marginTop: 14,
+                borderRadius: 18,
+                border: '1px solid rgba(248,113,113,0.24)',
+                background: 'rgba(127,29,29,0.18)',
+                color: '#fecaca',
+                padding: '14px 16px',
+              }}
+            >
+              {ledgerError}
+            </div>
           ) : (
             <div style={{ display: 'grid', gap: 18, marginTop: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>

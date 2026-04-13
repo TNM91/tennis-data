@@ -12,6 +12,7 @@ type MatchRow = {
   away_team: string | null
   league_name: string | null
   flight: string | null
+  line_number: string | null
 }
 
 type MatchPlayerRow = {
@@ -121,7 +122,8 @@ export default function TeamsPage() {
     try {
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight')
+        .select('id, match_date, home_team, away_team, league_name, flight, line_number')
+        .is('line_number', null)
         .order('match_date', { ascending: false })
 
       if (matchError) throw new Error(matchError.message)
@@ -470,6 +472,15 @@ export default function TeamsPage() {
             <section style={surfaceCard}>
               <div style={errorTitle}>Unable to load teams</div>
               <p style={emptyText}>{error}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  void loadTeams()
+                }}
+                style={ghostButton}
+              >
+                Retry team load
+              </button>
             </section>
           ) : filteredRows.length === 0 ? (
             <section style={surfaceCard}>
@@ -697,6 +708,23 @@ const clearFilterButton: CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
   color: '#e6eefb',
   fontWeight: 800,
+  cursor: 'pointer',
+}
+
+const ghostButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '42px',
+  marginTop: '12px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '13px',
   cursor: 'pointer',
 }
 

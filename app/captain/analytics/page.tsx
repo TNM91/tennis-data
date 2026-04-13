@@ -3,11 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { getClientAuthState } from '@/lib/auth'
 import { uniqueSorted } from '@/lib/captain-formatters'
-import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { isCaptain, type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
@@ -300,29 +301,16 @@ export default function LineupBuilderPage() {
     let mounted = true
 
     async function loadRole() {
-      const { data, error: authError } = await supabase.auth.getUser()
-      const user = data.user
-
-      if (authError || !user) {
-        if (!mounted) return
-        setRole('public')
-        setAuthLoading(false)
-        if (typeof window !== 'undefined') {
-          const next = encodeURIComponent('/captain/analytics')
-          window.location.href = `/login?next=${next}`
-        }
-        return
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle()
-
+      const authState = await getClientAuthState()
       if (!mounted) return
-      setRole(normalizeUserRole(profile?.role))
+
+      setRole(authState.role)
       setAuthLoading(false)
+
+      if (authState.role === 'public' && typeof window !== 'undefined') {
+        const next = encodeURIComponent('/captain/analytics')
+        window.location.href = `/login?next=${next}`
+      }
     }
 
     void loadRole()
@@ -337,6 +325,75 @@ export default function LineupBuilderPage() {
       mounted = false
       subscription.unsubscribe()
     }
+  }, [])
+
+  const refreshAnalyticsData = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    const [playersResult, availabilityResult, scenariosResult] = await Promise.all([
+      supabase
+        .from('players')
+        .select(`
+          id,
+          name,
+          location,
+          flight,
+          preferred_role,
+          lineup_notes,
+          singles_rating,
+          singles_dynamic_rating,
+          doubles_rating,
+          doubles_dynamic_rating,
+          overall_rating,
+          overall_dynamic_rating
+        `)
+        .order('name', { ascending: true }),
+      supabase
+        .from('lineup_availability')
+        .select(`
+          id,
+          match_date,
+          team_name,
+          league_name,
+          flight,
+          player_id,
+          status,
+          notes
+        `)
+        .order('match_date', { ascending: false }),
+      supabase
+        .from('lineup_scenarios')
+        .select(`
+          id,
+          scenario_name,
+          league_name,
+          flight,
+          match_date,
+          team_name,
+          opponent_team,
+          slots_json,
+          opponent_slots_json,
+          notes
+        `)
+        .order('match_date', { ascending: false })
+        .order('scenario_name', { ascending: true }),
+    ])
+
+    if (playersResult.error) {
+      setError(playersResult.error.message)
+    } else if (availabilityResult.error) {
+      setError(availabilityResult.error.message)
+    } else if (scenariosResult.error) {
+      setError(scenariosResult.error.message)
+    } else {
+      setPlayers((playersResult.data ?? []) as PlayerRow[])
+      setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
+      setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
+    }
+
+    setLoading(false)
   }, [])
 
   useEffect(() => {
@@ -413,7 +470,7 @@ export default function LineupBuilderPage() {
       setLoading(false)
     }
 
-    loadData()
+    void loadData()
 
     return () => {
       mounted = false
@@ -971,6 +1028,9 @@ export default function LineupBuilderPage() {
                   Save as New
                 </button>
                 <Link href={compareHref} style={secondaryLinkButton}>Open Comparison</Link>
+                <button type="button" onClick={() => void refreshAnalyticsData()} style={ghostButton} disabled={loading}>
+                  {loading ? 'Refreshing...' : 'Refresh Data'}
+                </button>
               </div>
 
               {currentScenarioId ? <p style={infoTextStyle}>Loaded scenario is ready for update and comparison.</p> : null}

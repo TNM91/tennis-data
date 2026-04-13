@@ -1,8 +1,6 @@
 'use client'
 
-import type { User } from '@supabase/supabase-js'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
@@ -19,15 +17,7 @@ type PlayerRow = {
   overall_rating: number | null
   overall_dynamic_rating: number | null
 }
-
-const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
-
 export default function ManagePlayersPage() {
-  const router = useRouter()
-
-  const [user, setUser] = useState<User | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
-
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -54,26 +44,8 @@ export default function ManagePlayersPage() {
   const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      setUser(user)
-      setAuthLoading(false)
-
-      if (!user || user.id !== ADMIN_ID) {
-        router.push('/admin')
-      }
-    }
-
-    checkUser()
-  }, [router])
-
-  useEffect(() => {
-    if (!user || user.id !== ADMIN_ID) return
-    loadPlayers()
-  }, [user])
+    void loadPlayers()
+  }, [])
 
   async function loadPlayers(showRefreshing = false) {
     if (showRefreshing) {
@@ -304,35 +276,6 @@ export default function ManagePlayersPage() {
   function resetFilters() {
     setSearch('')
     setSortBy('overall_dynamic_rating')
-  }
-
-  if (authLoading) {
-    return (
-      <SiteShell active="/admin">
-        <section
-          style={{
-            width: '100%',
-            maxWidth: '1280px',
-            margin: '0 auto',
-            padding: '18px 24px 0',
-          }}
-        >
-          <section className="hero-panel">
-            <div className="hero-inner">
-              <div className="section-kicker">Admin Tool</div>
-              <h1 className="page-title">Checking access...</h1>
-              <p className="page-subtitle">
-                Verifying administrator permissions and loading player management tools.
-              </p>
-            </div>
-          </section>
-        </section>
-      </SiteShell>
-    )
-  }
-
-  if (!user || user.id !== ADMIN_ID) {
-    return null
   }
 
   return (

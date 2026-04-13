@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type EntityType = 'player' | 'team' | 'league'
 type FeedType = 'match' | 'rating' | 'achievement' | 'community' | 'team' | 'league'
@@ -53,6 +54,7 @@ type MatchRow = {
   home_team: string | null
   away_team: string | null
   winner_side: string | null
+  line_number: string | null
 }
 
 type MatchPlayerRow = {
@@ -241,18 +243,7 @@ function MyLabPageInner() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  useEffect(() => {
-    const onResize = () => setScreenWidth(window.innerWidth)
-    onResize()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     if (!authResolved) return
@@ -266,42 +257,50 @@ function MyLabPageInner() {
       const local = readLocalFollows()
       if (mounted) setFollows(local)
 
-      const [playersRes, matchesRes, matchPlayersRes, scenariosRes, followsRes, cloudFeedRes] =
-        await Promise.all([
-          supabase
-            .from('players')
-            .select(
-              'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating',
-            )
-            .order('name', { ascending: true }),
-          supabase
-            .from('matches')
-            .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side')
-            .order('match_date', { ascending: false })
-            .limit(160),
-          supabase.from('match_players').select('match_id,player_id,side,seat').limit(1200),
-          supabase
-            .from('lineup_scenarios')
-            .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
-            .order('match_date', { ascending: false })
-            .limit(40),
-          userId
-            ? supabase
-                .from('user_follows')
-                .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
-                .eq('user_id', userId)
-                .order('created_at', { ascending: false })
-            : Promise.resolve({ data: [], error: null }),
-          supabase
-            .from('my_lab_feed')
-            .select(
-              'id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at',
-            )
-            .order('created_at', { ascending: false })
-            .limit(160),
-        ])
+      const [playersRes, matchesRes, scenariosRes, followsRes, cloudFeedRes] = await Promise.all([
+        supabase
+          .from('players')
+          .select(
+            'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating',
+          )
+          .order('name', { ascending: true }),
+        supabase
+          .from('matches')
+          .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side,line_number')
+          .is('line_number', null)
+          .order('match_date', { ascending: false })
+          .limit(160),
+        supabase
+          .from('lineup_scenarios')
+          .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
+          .order('match_date', { ascending: false })
+          .limit(40),
+        userId
+          ? supabase
+              .from('user_follows')
+              .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
+              .eq('user_id', userId)
+              .order('created_at', { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from('my_lab_feed')
+          .select(
+            'id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at',
+          )
+          .order('created_at', { ascending: false })
+          .limit(160),
+      ])
 
       if (!mounted) return
+
+      const matchIds = ((matchesRes.data ?? []) as MatchRow[]).map((match) => match.id)
+      const matchPlayersRes =
+        matchIds.length > 0
+          ? await supabase
+              .from('match_players')
+              .select('match_id,player_id,side,seat')
+              .in('match_id', matchIds)
+          : { data: [], error: null }
 
       const firstHardError = [
         playersRes.error,
@@ -932,7 +931,14 @@ function MyLabPageInner() {
             {loading ? (
               <div style={emptyStateStyle}>Loading your lab...</div>
             ) : error ? (
-              <div style={errorStateStyle}>Some data could not be loaded: {error}</div>
+              <div style={errorStateStyle}>
+                <div>Some data could not be loaded: {error}</div>
+                <div style={errorActionRowStyle}>
+                  <button type="button" onClick={() => window.location.reload()} style={ghostMiniButtonStyle}>
+                    Retry lab load
+                  </button>
+                </div>
+              </div>
             ) : (
               <div style={feedListStyle}>
                 {feed.map((item) => (
@@ -1449,6 +1455,13 @@ const errorStateStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(248,113,113,0.20)',
   background: 'rgba(127,29,29,0.18)',
+}
+
+const errorActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  marginTop: 14,
 }
 
 const feedListStyle: CSSProperties = {

@@ -1,9 +1,7 @@
 'use client'
 
-import type { User } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
@@ -62,15 +60,8 @@ type MatchWithParticipants = {
   sideA: MatchParticipant[]
   sideB: MatchParticipant[]
 }
-
-const ADMIN_ID = 'accc3471-8912-491c-b8d9-4a84dcc7c42e'
-
 export default function ManageMatchesPage() {
-  const router = useRouter()
   const [searchParam, setSearchParam] = useState('')
-
-  const [user, setUser] = useState<User | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
 
   const [matches, setMatches] = useState<MatchWithParticipants[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,26 +85,8 @@ export default function ManageMatchesPage() {
   }, [])
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      setUser(user)
-      setAuthLoading(false)
-
-      if (!user || user.id !== ADMIN_ID) {
-        router.push('/admin')
-      }
-    }
-
-    void checkUser()
-  }, [router])
-
-  useEffect(() => {
-    if (!user || user.id !== ADMIN_ID) return
     void loadMatches()
-  }, [user])
+  }, [])
 
   async function loadMatches(showRefreshing = false) {
     if (showRefreshing) {
@@ -308,35 +281,6 @@ export default function ManageMatchesPage() {
   function resetFilters() {
     setSearch('')
     setMatchTypeFilter('all')
-  }
-
-  if (authLoading) {
-    return (
-      <SiteShell active="/admin">
-        <section
-          style={{
-            width: '100%',
-            maxWidth: '1280px',
-            margin: '0 auto',
-            padding: '18px 24px 0',
-          }}
-        >
-          <section className="hero-panel">
-            <div className="hero-inner">
-              <div className="section-kicker">Admin Tool</div>
-              <h1 className="page-title">Checking access...</h1>
-              <p className="page-subtitle">
-                Verifying administrator permissions and loading match management tools.
-              </p>
-            </div>
-          </section>
-        </section>
-      </SiteShell>
-    )
-  }
-
-  if (!user || user.id !== ADMIN_ID) {
-    return null
   }
 
   return (
