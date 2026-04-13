@@ -240,6 +240,7 @@ export default function LeagueDetailPage() {
       return home === teamFilter || away === teamFilter
     })
   }, [validRows, teamFilter])
+  const hasActiveTeamFilter = teamFilter !== 'all'
 
   const stats = useMemo(() => {
     const singles = validRows.filter((row) => row.match_type === 'singles').length
@@ -387,7 +388,21 @@ export default function LeagueDetailPage() {
           ) : error ? (
             <div style={errorBox}>{error}</div>
           ) : validRows.length === 0 ? (
-            <div style={stateBox}>No valid matches found for this league.</div>
+            <div style={stateBox}>
+              No valid matches were found for this league segment yet.
+              <div style={stateHelperText}>
+                This usually means the season scope exists, but imported match rows do not yet include both team names
+                for this exact league, flight, or district slice.
+              </div>
+              <div style={stateActionRow}>
+                <Link href="/leagues" style={ghostButton}>
+                  Back to leagues
+                </Link>
+                <Link href="/teams" style={ghostButton}>
+                  Browse teams
+                </Link>
+              </div>
+            </div>
           ) : (
             <>
               <section>
@@ -462,8 +477,27 @@ export default function LeagueDetailPage() {
                         </option>
                       ))}
                     </select>
+                    {hasActiveTeamFilter ? (
+                      <button
+                        type="button"
+                        onClick={() => setTeamFilter('all')}
+                        style={clearFilterButton}
+                      >
+                        Clear team filter
+                      </button>
+                    ) : null}
                   </div>
                 </div>
+
+                {filteredMatches.length === 0 ? (
+                  <div style={stateBox}>
+                    No matches matched the selected team filter.
+                    <div style={stateHelperText}>
+                      Clear the active filter to return to the full season view, or choose another team from the season
+                      summary above.
+                    </div>
+                  </div>
+                ) : null}
 
                 <div style={matchList}>
                   {filteredMatches.map((row) => {
@@ -774,6 +808,22 @@ const errorBox: CSSProperties = {
   fontSize: '14px',
 }
 
+const stateHelperText: CSSProperties = {
+  marginTop: '10px',
+  color: 'rgba(219, 234, 254, 0.84)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const stateActionRow: CSSProperties = {
+  marginTop: '14px',
+  display: 'flex',
+  justifyContent: 'center',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
 const sectionHead: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -940,6 +990,21 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
+}
+
+const clearFilterButton: CSSProperties = {
+  marginTop: '10px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e6eefb',
+  fontWeight: 800,
+  cursor: 'pointer',
 }
 
 const matchList: CSSProperties = {

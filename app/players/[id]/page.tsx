@@ -458,6 +458,14 @@ export default function PlayerProfilePage() {
               <div style={sectionKicker}>Player profile</div>
               <h2 style={sectionTitle}>Unable to load player</h2>
               <p style={sectionText}>{error || 'Player not found.'}</p>
+              <div style={errorActionRow}>
+                <Link href="/players" style={secondaryMiniLink}>
+                  Back to players
+                </Link>
+                <Link href="/rankings" style={secondaryMiniLink}>
+                  Browse rankings
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -737,6 +745,14 @@ export default function PlayerProfilePage() {
                 <p style={sectionText}>
                   This profile has not built enough snapshot history for a trendline yet. Check recent matches below or switch rating views to see if singles, doubles, or overall has more signal.
                 </p>
+                <div style={followRow}>
+                  <Link href="/rankings" style={secondaryMiniLink}>
+                    Compare on rankings
+                  </Link>
+                  <Link href="/matchup" style={secondaryMiniLink}>
+                    Open matchup tool
+                  </Link>
+                </div>
               </div>
             ) : (
               <SimpleLineChart points={chartPoints} />
@@ -1666,6 +1682,13 @@ const errorCard: CSSProperties = {
   background: 'rgba(19,30,54,0.92)',
   position: 'relative',
   zIndex: 1,
+}
+
+const errorActionRow: CSSProperties = {
+  marginTop: '14px',
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
 }
 
 const sectionTitle: CSSProperties = {

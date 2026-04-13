@@ -468,7 +468,7 @@ export default function TeamPage() {
     {
       title: 'Scenario Compare',
       description: 'Stress-test alternate lineups and compare projected outcomes.',
-      href: `/captain/scenario-comparison?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
+      href: `/captain/scenario-builder?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
     },
   ]
 
@@ -590,6 +590,9 @@ export default function TeamPage() {
             <p style={bodyText}>
               Try opening the broader team directory, removing the active league or flight filter from the URL, or jumping straight into the captain tools to start planning before match history is complete.
             </p>
+            <div style={helperCallout}>
+              Current scope: {[teamMeta.league, teamMeta.flight].filter(Boolean).join(' | ') || 'All leagues'}
+            </div>
             <div style={heroActions}>
               <Link href="/teams" style={buttonSecondary}>
                 Browse all teams
@@ -655,7 +658,10 @@ export default function TeamPage() {
                 ))}
               </div>
             ) : (
-              <p style={emptyState}>No singles data available yet. Once this team logs singles courts, the strongest options will surface here.</p>
+              <div style={emptyStateBlock}>
+                <p style={emptyState}>No singles data available yet.</p>
+                <p style={mutedText}>Once this team logs singles courts, the strongest options will surface here.</p>
+              </div>
             )}
           </article>
 
@@ -682,7 +688,10 @@ export default function TeamPage() {
                 ))}
               </div>
             ) : (
-              <p style={emptyState}>No doubles pairings available yet. As soon as this roster logs repeat partnerships, chemistry trends will appear here.</p>
+              <div style={emptyStateBlock}>
+                <p style={emptyState}>No doubles pairings available yet.</p>
+                <p style={mutedText}>As soon as this roster logs repeat partnerships, chemistry trends will appear here.</p>
+              </div>
             )}
           </article>
         </section>
@@ -731,7 +740,10 @@ export default function TeamPage() {
                 ))}
               </div>
             ) : (
-              <p style={emptyState}>No doubles depth data available yet. Match results will fill in this ladder once players start appearing in doubles lines.</p>
+              <div style={emptyStateBlock}>
+                <p style={emptyState}>No doubles depth data available yet.</p>
+                <p style={mutedText}>Match results will fill in this ladder once players start appearing in doubles lines.</p>
+              </div>
             )}
           </article>
         </section>
@@ -778,7 +790,10 @@ export default function TeamPage() {
               </table>
             </div>
           ) : (
-            <p style={emptyState}>No team matches found yet.</p>
+            <div style={emptyStateBlock}>
+              <p style={emptyState}>No team matches found yet.</p>
+              <p style={mutedText}>Return to the team directory or use the captain tools above while the season history catches up.</p>
+            </div>
           )}
         </section>
 
@@ -825,7 +840,10 @@ export default function TeamPage() {
               </table>
             </div>
           ) : (
-            <p style={emptyState}>No roster data available for this team yet. Use the captain tools above to start from availability and lineup planning while the roster history catches up.</p>
+            <div style={emptyStateBlock}>
+              <p style={emptyState}>No roster data available for this team yet.</p>
+              <p style={mutedText}>Use the captain tools above to start from availability and lineup planning while the roster history catches up.</p>
+            </div>
           )}
         </section>
       </section>
@@ -1166,6 +1184,25 @@ const emptyState: CSSProperties = {
   color: 'rgba(224,234,247,0.72)',
   margin: 0,
   lineHeight: 1.65,
+}
+
+const emptyStateBlock: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const helperCallout: CSSProperties = {
+  marginTop: '14px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: '#e6eefb',
+  fontSize: '13px',
+  fontWeight: 700,
 }
 
 const listLinkCard: CSSProperties = {
