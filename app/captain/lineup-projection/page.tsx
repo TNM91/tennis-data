@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
   id: string
@@ -196,18 +197,7 @@ export default function LineupProjectionPage() {
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     let mounted = true

@@ -1,7 +1,7 @@
 'use client'
 
 import type { User } from '@supabase/supabase-js'
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -51,6 +51,7 @@ export default function ManagePlayersPage() {
   const [error, setError] = useState('')
 
   const [editedPlayers, setEditedPlayers] = useState<Record<string, Partial<PlayerRow>>>({})
+  const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -276,7 +277,7 @@ export default function ManagePlayersPage() {
   }
 
   const filteredPlayers = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
+    const normalizedSearch = deferredSearch.trim().toLowerCase()
 
     const filtered = players.filter((player) => {
       if (!normalizedSearch) return true
@@ -296,7 +297,14 @@ export default function ManagePlayersPage() {
 
       return Number(bValue || 0) - Number(aValue || 0)
     })
-  }, [players, search, sortBy])
+  }, [players, deferredSearch, sortBy])
+
+  const hasActiveFilters = search.trim().length > 0 || sortBy !== 'overall_dynamic_rating'
+
+  function resetFilters() {
+    setSearch('')
+    setSortBy('overall_dynamic_rating')
+  }
 
   if (authLoading) {
     return (
@@ -402,8 +410,13 @@ export default function ManagePlayersPage() {
                   minWidth: '320px',
                 }}
               >
-                <Field label="Search">
+                <Field
+                  label="Search"
+                  htmlFor="manage-players-search"
+                  hint="Search by player name or location to narrow the edit table quickly."
+                >
                   <input
+                    id="manage-players-search"
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -413,8 +426,13 @@ export default function ManagePlayersPage() {
                   />
                 </Field>
 
-                <Field label="Sort By">
+                <Field
+                  label="Sort By"
+                  htmlFor="manage-players-sort"
+                  hint="Sort by the signal you care about before reviewing or bulk-touching rows."
+                >
                   <select
+                    id="manage-players-sort"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
                     className="select"
@@ -465,11 +483,33 @@ export default function ManagePlayersPage() {
                 >
                   {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
                 </button>
+
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="button-ghost"
+                    style={{
+                      background: 'rgba(15,23,42,0.24)',
+                      color: '#dbeafe',
+                      border: '1px solid rgba(148,163,184,0.18)',
+                    }}
+                    disabled={loading || refreshing}
+                  >
+                    Reset Filters
+                  </button>
+                ) : null}
               </div>
             </div>
 
+            <p className="subtle-text" style={{ marginTop: 14, maxWidth: 760 }}>
+              Use search to isolate a player or location, then save only the rows you actually changed. Recalculate ratings after larger cleanup waves if you want a fresh board immediately.
+            </p>
+
             {message && (
               <div
+                role="status"
+                aria-live="polite"
                 className="badge badge-green"
                 style={{
                   marginTop: '16px',
@@ -485,6 +525,7 @@ export default function ManagePlayersPage() {
 
             {error && (
               <div
+                role="alert"
                 className="badge"
                 style={{
                   marginTop: '16px',
@@ -515,9 +556,39 @@ export default function ManagePlayersPage() {
                 Loading players...
               </p>
             ) : filteredPlayers.length === 0 ? (
-              <p style={{ marginTop: '20px' }} className="subtle-text">
-                No players found.
-              </p>
+              <div
+                style={{
+                  marginTop: '20px',
+                  borderRadius: 20,
+                  border: '1px solid rgba(148,163,184,0.16)',
+                  background: 'rgba(15,23,42,0.28)',
+                  padding: '18px 20px',
+                }}
+              >
+                <div className="section-title" style={{ fontSize: '1.05rem' }}>
+                  {players.length === 0 ? 'No players loaded yet' : 'No players match the current filters'}
+                </div>
+                <p className="subtle-text" style={{ marginTop: 8 }}>
+                  {players.length === 0
+                    ? 'Import player data or create records first, then this editor will show up here.'
+                    : 'Broaden the search or return the sort to the default view to bring rows back into scope.'}
+                </p>
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="button-ghost"
+                    style={{
+                      marginTop: 12,
+                      background: 'rgba(15,23,42,0.24)',
+                      color: '#dbeafe',
+                      border: '1px solid rgba(116,190,255,0.12)',
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <div className="table-wrap" style={{ marginTop: '20px' }}>
                 <table className="data-table" style={{ minWidth: 1250 }}>
@@ -672,14 +743,19 @@ export default function ManagePlayersPage() {
 
 function Field({
   label,
+  htmlFor,
+  hint,
   children,
 }: {
   label: string
+  htmlFor?: string
+  hint?: string
   children: React.ReactNode
 }) {
   return (
     <div>
-      <label className="label">{label}</label>
+      <label htmlFor={htmlFor} className="label">{label}</label>
+      {hint ? <div className="subtle-text" style={{ marginTop: 6, fontSize: '0.88rem' }}>{hint}</div> : null}
       {children}
     </div>
   )

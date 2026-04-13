@@ -859,10 +859,12 @@ export default function AdminImportPage() {
               }}
             >
               <div>
-                <label style={labelStyle}>Import type</label>
+                <label htmlFor="admin-import-type" style={labelStyle}>Import type</label>
                 <select
+                  id="admin-import-type"
                   value={importType}
                   onChange={(event) => setImportType(event.target.value as ImportKind)}
+                  aria-describedby="admin-import-helper"
                   style={selectStyle}
                 >
                   <option value="schedule">Schedule</option>
@@ -905,8 +907,10 @@ export default function AdminImportPage() {
             </div>
 
             <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.88rem' }}>
+              <span id="admin-import-helper">
               Schedule accepts wrapped schedule payloads or arrays of rows. Scorecard accepts single
               scorecard objects, wrapped payloads, or arrays.
+              </span>
             </div>
 
             <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.88rem' }}>
@@ -922,11 +926,14 @@ export default function AdminImportPage() {
             ) : null}
 
             <div style={{ marginTop: 16 }}>
+              <label htmlFor="admin-import-json" style={labelStyle}>Import JSON</label>
               <textarea
+                id="admin-import-json"
                 value={jsonInput}
                 onChange={(event) => setJsonInput(event.target.value)}
                 placeholder="Paste captured JSON here..."
                 style={textareaStyle}
+                aria-describedby="admin-import-helper"
                 spellCheck={false}
               />
             </div>
@@ -968,6 +975,7 @@ export default function AdminImportPage() {
 
             {topLevelError ? (
               <div
+                role="alert"
                 style={{
                   marginTop: 14,
                   borderRadius: 18,
@@ -985,6 +993,8 @@ export default function AdminImportPage() {
 
             {showCommitSuccess && importSummary ? (
               <div
+                role="status"
+                aria-live="polite"
                 style={{
                   marginTop: 14,
                   borderRadius: 18,

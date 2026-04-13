@@ -15,6 +15,7 @@ import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamOption = {
   team: string
@@ -79,7 +80,6 @@ export default function CaptainAvailabilityPage() {
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
 
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedTeam, setSelectedTeam] = useState(teamParam)
   const [selectedLeague, setSelectedLeague] = useState(leagueParam)
@@ -93,9 +93,7 @@ export default function CaptainAvailabilityPage() {
   const [weekLabel, setWeekLabel] = useState('Wednesday · 8:30 PM')
   const [requestSent, setRequestSent] = useState(false)
 
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
@@ -230,13 +228,6 @@ export default function CaptainAvailabilityPage() {
     setTeamParam(params.get('team') || '')
     setLeagueParam(params.get('league') || '')
     setFlightParam(params.get('flight') || '')
-  }, [])
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {

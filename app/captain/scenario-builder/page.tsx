@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { uniqueSorted } from '@/lib/captain-formatters'
 import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
 import SiteShell from '@/app/components/site-shell'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ScenarioRow = {
   id: string
@@ -47,12 +49,6 @@ function formatDate(value: string | null) {
 
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
-}
-
-function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((v) => (v ?? '').trim()).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b)
-  )
 }
 
 function safeArray(value: unknown): unknown[] {
@@ -349,18 +345,7 @@ export default function ScenarioComparisonPage() {
   const [dateFilter, setDateFilter] = useState('')
   const [leftId, setLeftId] = useState('')
   const [rightId, setRightId] = useState('')
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     let mounted = true
@@ -656,8 +641,8 @@ export default function ScenarioComparisonPage() {
 
             <div style={filtersGridStyle}>
               <div>
-                <label style={labelStyle}>League</label>
-                <select value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
+                <label htmlFor="scenario-builder-league-filter" style={labelStyle}>League</label>
+                <select id="scenario-builder-league-filter" value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {leagueOptions.map((option) => (
                     <option key={option} value={option}>
@@ -668,8 +653,8 @@ export default function ScenarioComparisonPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Flight</label>
-                <select value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
+                <label htmlFor="scenario-builder-flight-filter" style={labelStyle}>Flight</label>
+                <select id="scenario-builder-flight-filter" value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {flightOptions.map((option) => (
                     <option key={option} value={option}>
@@ -680,8 +665,8 @@ export default function ScenarioComparisonPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Team</label>
-                <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
+                <label htmlFor="scenario-builder-team-filter" style={labelStyle}>Team</label>
+                <select id="scenario-builder-team-filter" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {teamOptions.map((option) => (
                     <option key={option} value={option}>
@@ -692,8 +677,9 @@ export default function ScenarioComparisonPage() {
               </div>
 
               <div>
-                <label style={labelStyle}>Match Date</label>
+                <label htmlFor="scenario-builder-date-filter" style={labelStyle}>Match Date</label>
                 <input
+                  id="scenario-builder-date-filter"
                   type="date"
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
@@ -1344,6 +1330,9 @@ function ScenarioPanel({
   scenario: ScenarioRow | null
   builderHref: string
 }) {
+  const selectorId = `scenario-panel-${title.toLowerCase().replace(/\s+/g, '-')}`
+  const helperId = `${selectorId}-helper`
+
   return (
     <div style={surfaceCard}>
       <div style={panelTopStyle}>
@@ -1355,8 +1344,11 @@ function ScenarioPanel({
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <label style={labelStyle}>Select scenario</label>
-        <select value={selectedId} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
+        <label htmlFor={selectorId} style={labelStyle}>Select scenario</label>
+        <p id={helperId} style={sectionBodyTextStyle}>
+          Choose the saved version you want on this side before reviewing slot-level differences and projection shifts.
+        </p>
+        <select id={selectorId} aria-describedby={helperId} value={selectedId} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
           {scenarios.map((item) => (
             <option key={item.id} value={item.id}>
               {item.scenario_name} • {item.team_name || '—'} • {formatDate(item.match_date)}
@@ -1468,6 +1460,9 @@ function ComparisonTable({
       ) : (
         <div style={tableWrapStyle}>
           <table style={tableStyle}>
+            <caption style={tableCaptionStyle}>
+              Slot-by-slot comparison showing lineup assignments, projected edge, and whether each position changed between Scenario A and Scenario B.
+            </caption>
             <thead>
               <tr>
                 <th style={thStyle}>Slot</th>
@@ -2015,6 +2010,15 @@ const tableWrapStyle: CSSProperties = {
   overflowX: 'auto',
   borderRadius: '18px',
   border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const tableCaptionStyle: CSSProperties = {
+  captionSide: 'top',
+  textAlign: 'left',
+  padding: '0 0 12px',
+  color: '#94a3b8',
+  fontSize: 13,
+  lineHeight: 1.5,
 }
 
 const tableStyle: CSSProperties = {

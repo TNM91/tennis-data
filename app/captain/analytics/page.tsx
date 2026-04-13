@@ -6,7 +6,9 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { uniqueSorted } from '@/lib/captain-formatters'
 import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
   id: string
@@ -117,12 +119,6 @@ function formatDate(value: string | null) {
 
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
-}
-
-function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(
-    new Set(values.map((value) => (value ?? '').trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b))
 }
 
 function availabilityRank(status: string | null | undefined) {
@@ -292,14 +288,11 @@ export default function LineupBuilderPage() {
 
   const [availabilityOnly, setAvailabilityOnly] = useState(true)
   const [hideUnavailable, setHideUnavailable] = useState(true)
-  const [screenWidth, setScreenWidth] = useState(1280)
 
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_TEAM_SLOTS))
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
 
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const isCaptainAccess = isCaptain(role)
   const isMemberPreview = !authLoading && role === 'member'
 
@@ -344,13 +337,6 @@ export default function LineupBuilderPage() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {

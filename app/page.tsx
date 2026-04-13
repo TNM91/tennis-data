@@ -7,6 +7,7 @@ import {
   FormEvent,
   KeyboardEvent,
   ReactNode,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -34,6 +35,27 @@ const FALLBACK_QUICK_ACTIONS: QuickAction[] = [
   { type: 'route', label: 'Browse leagues', href: '/leagues' },
 ]
 
+const HOME_PATHS = [
+  {
+    href: '/explore',
+    eyebrow: 'Public layer',
+    title: 'Scout the landscape',
+    text: 'Start broad with players, rankings, leagues, and matchup prep when you are still figuring out what matters.',
+  },
+  {
+    href: '/mylab',
+    eyebrow: 'Personal layer',
+    title: 'Track your game',
+    text: 'Use My Lab when you want your own ratings, recent progress, and a tighter view of what to work on next.',
+  },
+  {
+    href: '/captain',
+    eyebrow: 'Team layer',
+    title: 'Run the captain workflow',
+    text: 'Move from roster context to availability, lineup planning, and scenario decisions without bouncing between tools.',
+  },
+]
+
 export default function HomePage() {
   const router = useRouter()
   const searchRef = useRef<HTMLDivElement | null>(null)
@@ -56,7 +78,8 @@ export default function HomePage() {
   const [previewCtaHovered, setPreviewCtaHovered] = useState(false)
 
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
-  const shouldShowSuggestions = showSuggestions && trimmedSearch.length >= 2
+  const deferredSearch = useDeferredValue(trimmedSearch)
+  const shouldShowSuggestions = showSuggestions && deferredSearch.length >= 2
   const searchGuidance = useMemo(() => {
     if (searchError) return searchError
     if (trimmedSearch.length === 0) return 'Search ratings, results, and recent player performance from one place.'
@@ -69,6 +92,9 @@ export default function HomePage() {
     () => [...recentPlayerActions, ...FALLBACK_QUICK_ACTIONS].slice(0, 3),
     [recentPlayerActions],
   )
+  const searchHelpId = 'home-player-search-help'
+  const searchErrorId = 'home-player-search-error'
+  const suggestionsListId = 'home-player-search-suggestions'
 
   const isTablet = screenWidth < 1080
   const isMobile = screenWidth < 820
@@ -148,7 +174,7 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
-    if (trimmedSearch.length < 2) {
+    if (deferredSearch.length < 2) {
       setSuggestions([])
       setSuggestionsLoading(false)
       setActiveSuggestionIndex(-1)
@@ -164,14 +190,14 @@ export default function HomePage() {
         const { data, error } = await supabase
           .from('players')
           .select('id, name')
-          .ilike('name', `%${trimmedSearch}%`)
+          .ilike('name', `%${deferredSearch}%`)
           .order('name', { ascending: true })
           .limit(8)
 
         if (error) throw new Error(error.message)
         if (isCancelled) return
 
-        const q = trimmedSearch.toLowerCase()
+        const q = deferredSearch.toLowerCase()
         const results = ((data || []) as PlayerSearchRow[]).sort((a, b) => {
           const aStarts = a.name.toLowerCase().startsWith(q) ? 1 : 0
           const bStarts = b.name.toLowerCase().startsWith(q) ? 1 : 0
@@ -195,7 +221,7 @@ export default function HomePage() {
       isCancelled = true
       window.clearTimeout(timeout)
     }
-  }, [trimmedSearch])
+  }, [deferredSearch])
 
   async function handlePlayerSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -380,6 +406,11 @@ export default function HomePage() {
     gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
+  const dynamicPathGrid: CSSProperties = {
+    ...pathGrid,
+    gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
   const dynamicActionStrip: CSSProperties = {
     ...actionStrip,
     gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
@@ -408,7 +439,7 @@ export default function HomePage() {
                     <div style={searchLabel}>Search a player</div>
                     <div style={searchSubLabel}>Start with the name. Jump straight into the data.</div>
                   </div>
-                  {!isSmallMobile ? <div style={searchShortcutHint}>Use ↑ ↓ Enter</div> : null}
+                  {!isSmallMobile ? <div style={searchShortcutHint}>Use Up/Down + Enter</div> : null}
                 </div>
 
                 <div ref={searchRef} style={searchAutocompleteWrap}>
@@ -420,6 +451,7 @@ export default function HomePage() {
 
                       <input
                         ref={inputRef}
+                        id="home-player-search"
                         type="text"
                         value={playerSearch}
                         onChange={(e) => {
@@ -436,6 +468,17 @@ export default function HomePage() {
                         placeholder="Search player name..."
                         autoComplete="off"
                         aria-label="Search player name"
+                        role="combobox"
+                        aria-expanded={shouldShowSuggestions}
+                        aria-controls={suggestionsListId}
+                        aria-autocomplete="list"
+                        aria-activedescendant={
+                          shouldShowSuggestions && activeSuggestionIndex >= 0
+                            ? `home-player-suggestion-${suggestions[activeSuggestionIndex]?.id}`
+                            : undefined
+                        }
+                        aria-describedby={searchError ? `${searchHelpId} ${searchErrorId}` : searchHelpId}
+                        aria-invalid={searchError ? true : undefined}
                         style={searchInput}
                       />
                     </div>
@@ -455,7 +498,7 @@ export default function HomePage() {
                   </div>
 
                   {shouldShowSuggestions ? (
-                    <div style={suggestionsDropdown}>
+                    <div id={suggestionsListId} role="listbox" style={suggestionsDropdown}>
                       {suggestionsLoading ? (
                         <div style={suggestionStatus}>Searching players...</div>
                       ) : suggestions.length > 0 ? (
@@ -464,7 +507,10 @@ export default function HomePage() {
                           return (
                             <button
                               key={player.id}
+                              id={`home-player-suggestion-${player.id}`}
                               type="button"
+                              role="option"
+                              aria-selected={isActive}
                               style={{
                                 ...suggestionItem,
                                 ...(isActive ? suggestionItemActive : {}),
@@ -485,9 +531,9 @@ export default function HomePage() {
                   ) : null}
                 </div>
 
-                <div style={searchHelperText}>{searchGuidance}</div>
+                <div id={searchHelpId} style={searchHelperText}>{searchGuidance}</div>
 
-                {searchError ? <div style={searchErrorStyle}>Try another spelling, or browse the full player directory instead.</div> : null}
+                {searchError ? <div id={searchErrorId} style={searchErrorStyle}>Try another spelling, or browse the full player directory instead.</div> : null}
               </form>
 
               </div>
@@ -520,6 +566,17 @@ export default function HomePage() {
                     </button>
                   )
                 })}
+              </div>
+
+              <div style={sectionLabel}>Pick your path</div>
+              <div style={dynamicPathGrid}>
+                {HOME_PATHS.map((path) => (
+                  <Link key={path.href} href={path.href} style={pathCard}>
+                    <div style={pathEyebrow}>{path.eyebrow}</div>
+                    <div style={pathTitle}>{path.title}</div>
+                    <div style={pathText}>{path.text}</div>
+                  </Link>
+                ))}
               </div>
             </div>
 
@@ -712,7 +769,7 @@ export default function HomePage() {
 
             <div style={premiumCtaRow}>
               <Link href={myLabHref} style={previewCta}>{myLabLabel}</Link>
-              <Link href="/captain" style={secondaryInlineLink}>Explore captain tools →</Link>
+              <Link href="/captain" style={secondaryInlineLink}>Explore captain tools {'->'}</Link>
             </div>
           </div>
         </section>
@@ -722,7 +779,7 @@ export default function HomePage() {
             <div style={sectionEyebrow}>Come back every week</div>
             <h2 style={sectionTitle}>A smarter pulse on your tennis community.</h2>
             <p style={sectionText}>
-              The best version of TenAceIQ is alive every time you open it — from player movement to fresh results to what matters next in your league.
+              The best version of TenAceIQ is alive every time you open it, from player movement to fresh results to what matters next in your league.
             </p>
           </div>
 
@@ -806,7 +863,7 @@ function PreviewStep({
           ...(hovered ? previewStepArrowHover : {}),
         }}
       >
-        →
+        {'->'}
       </div>
     </Link>
   )
@@ -857,7 +914,7 @@ function ActionTile({
       </div>
       <div style={actionTileTitle}>{title}</div>
       <div style={actionTileText}>{text}</div>
-      <div style={actionTileFooter}>Open →</div>
+      <div style={actionTileFooter}>Open {'->'}</div>
     </Link>
   )
 }
@@ -912,7 +969,7 @@ function AudienceCard({
           ...(hovered ? audienceFooterHover : {}),
         }}
       >
-        Explore →
+        Explore {'->'}
       </div>
     </Link>
   )
@@ -1281,6 +1338,46 @@ const sectionLabel: CSSProperties = {
 const quickActionGrid: CSSProperties = {
   display: 'grid',
   gap: '10px',
+}
+
+const pathGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginTop: '14px',
+}
+
+const pathCard: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  padding: '16px',
+  borderRadius: '22px',
+  textDecoration: 'none',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const pathEyebrow: CSSProperties = {
+  color: '#8fb7ff',
+  fontWeight: 800,
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const pathTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const pathText: CSSProperties = {
+  color: 'rgba(224,236,249,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
 }
 
 const quickActionButton: CSSProperties = {

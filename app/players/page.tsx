@@ -344,6 +344,9 @@ export default function PlayersPage() {
                       <SearchIcon />
                     </div>
                     <input
+                      id="players-directory-search"
+                      aria-label="Search players by name or location"
+                      aria-describedby="players-directory-helper"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onFocus={() => setSearchFocused(true)}
@@ -354,6 +357,8 @@ export default function PlayersPage() {
                   </div>
 
                   <select
+                    id="players-directory-sort"
+                    aria-label="Sort player directory"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortKey)}
                     style={dynamicSelectStyle}
@@ -365,6 +370,8 @@ export default function PlayersPage() {
                   </select>
 
                   <select
+                    id="players-directory-filter"
+                    aria-label="Filter player directory"
                     value={filterBy}
                     onChange={(e) => setFilterBy(e.target.value as FilterKey)}
                     style={dynamicSelectStyle}
@@ -375,7 +382,7 @@ export default function PlayersPage() {
                   </select>
                 </div>
 
-                <div style={controlsHelperText}>
+                <div id="players-directory-helper" style={controlsHelperText}>
                   Use the directory to move from a broad search into exact player profiles in one step.
                 </div>
                 {hasActiveFilters ? (

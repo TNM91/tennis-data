@@ -7,7 +7,9 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { formatLongDate as formatDate } from '@/lib/captain-formatters'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
   id: string
@@ -111,18 +113,6 @@ function normalizePlayerRelation(player: PlayerRelation) {
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
-function formatDate(value: string | null) {
-  if (!value) return 'Unknown'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 function buildLeagueKey(leagueName: string, flight: string) {
   return `${leagueName}___${flight}`
 }
@@ -206,18 +196,7 @@ export default function LineupAvailabilityPage() {
   const [availabilityMap, setAvailabilityMap] = useState<
     Record<string, { status: AvailabilityStatus; notes: string }>
   >({})
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     let mounted = true

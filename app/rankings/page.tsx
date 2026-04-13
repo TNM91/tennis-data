@@ -285,27 +285,33 @@ export default function RankingsPage() {
                 </div>
 
                 <div style={segmentWrap}>
-                  <button
-                    onClick={() => setRatingView('overall')}
-                    style={{
+                    <button
+                      type="button"
+                      aria-pressed={ratingView === 'overall'}
+                      onClick={() => setRatingView('overall')}
+                      style={{
                       ...segmentButton,
                       ...(ratingView === 'overall' ? segmentButtonActive : {}),
                     }}
                   >
                     Overall
                   </button>
-                  <button
-                    onClick={() => setRatingView('singles')}
-                    style={{
+                    <button
+                      type="button"
+                      aria-pressed={ratingView === 'singles'}
+                      onClick={() => setRatingView('singles')}
+                      style={{
                       ...segmentButton,
                       ...(ratingView === 'singles' ? segmentButtonActive : {}),
                     }}
                   >
                     Singles
                   </button>
-                  <button
-                    onClick={() => setRatingView('doubles')}
-                    style={{
+                    <button
+                      type="button"
+                      aria-pressed={ratingView === 'doubles'}
+                      onClick={() => setRatingView('doubles')}
+                      style={{
                       ...segmentButton,
                       ...(ratingView === 'doubles' ? segmentButtonActive : {}),
                     }}
@@ -322,9 +328,10 @@ export default function RankingsPage() {
                     <div style={searchIconWrap}>
                       <SearchIcon />
                     </div>
-                    <input
-                      id="rankings-search"
-                      value={searchText}
+                     <input
+                        id="rankings-search"
+                        aria-describedby="rankings-filter-helper"
+                        value={searchText}
                       onChange={(e) => setSearchText(e.target.value)}
                       placeholder="Search players or location..."
                       style={searchInput}
@@ -335,10 +342,11 @@ export default function RankingsPage() {
                 <div>
                   <label htmlFor="rankings-location" style={inputLabel}>Location</label>
                   <select
-                    id="rankings-location"
-                    value={locationFilter}
-                    onChange={(e) => setLocationFilter(e.target.value)}
-                    style={selectStyle}
+                      id="rankings-location"
+                      aria-describedby="rankings-filter-helper"
+                      value={locationFilter}
+                      onChange={(e) => setLocationFilter(e.target.value)}
+                      style={selectStyle}
                   >
                     <option value="">All locations</option>
                     {locations.map((location) => (
@@ -369,6 +377,10 @@ export default function RankingsPage() {
                   </button>
                 </div>
               ) : null}
+
+              <div id="rankings-filter-helper" style={controlsHelperText}>
+                Search by player or location, then use the rating basis buttons to shift the board between overall, singles, and doubles.
+              </div>
 
               <div style={summaryStatsGrid}>
                 <StatChip label="Players shown" value={String(rankedPlayers.length)} />
@@ -886,6 +898,14 @@ const inputLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
+}
+
+const controlsHelperText: CSSProperties = {
+  marginTop: '14px',
+  color: 'rgba(220,231,244,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 500,
 }
 
 const searchWrap: CSSProperties = {

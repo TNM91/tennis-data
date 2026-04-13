@@ -11,9 +11,12 @@ import {
   type ReactNode,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import CaptainFormField from '@/app/components/captain-form-field'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { uniqueSorted } from '@/lib/captain-formatters'
 import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
   id: string
@@ -195,12 +198,6 @@ function cloneSlots(slots: LineupSlot[]) {
 
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
-}
-
-function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((value) => (value ?? '').trim()).filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b)
-  )
 }
 
 function buildRosterPlayerIdSet(
@@ -850,8 +847,6 @@ export default function LineupBuilderPage() {
 
   const [availabilityOnly, setAvailabilityOnly] = useState(true)
   const [hideUnavailable, setHideUnavailable] = useState(true)
-  const [screenWidth, setScreenWidth] = useState(1280)
-
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_TEAM_SLOTS))
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
@@ -862,9 +857,7 @@ export default function LineupBuilderPage() {
   const [prefillSingleId, setPrefillSingleId] = useState('')
   const [prefillApplied, setPrefillApplied] = useState(false)
 
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const isCaptainAccess = isCaptain(role)
   const isPreviewMode = role === 'member'
 
@@ -910,13 +903,6 @@ export default function LineupBuilderPage() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   useEffect(() => {
@@ -1920,8 +1906,8 @@ function sendCurrentScenarioToMessaging() {
           </div>
         </section>
 
-        {!!message && <div style={bannerGreenStyle}>{message}</div>}
-        {!!error && <div style={warningCardStyle}>{error}</div>}
+        {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
+        {!!error && <div role="alert" style={warningCardStyle}>{error}</div>}
         {isPreviewMode ? (
           <div style={bannerBlueStyle}>
             Preview mode: members can explore the lineup builder, but saving scenarios, deleting scenarios, and tracking prediction snapshots require Captain tier.
@@ -2033,37 +2019,48 @@ function sendCurrentScenarioToMessaging() {
               </div>
 
               <div style={filtersGridStyle}>
-                <Field label="Scenario name">
-                  <input value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} style={inputStyle} placeholder="Spring Week 4 best build" />
+                <Field label="Scenario name" htmlFor="lineup-builder-scenario-name">
+                  <input id="lineup-builder-scenario-name" value={scenarioName} onChange={(e) => setScenarioName(e.target.value)} style={inputStyle} placeholder="Spring Week 4 best build" />
                 </Field>
-                <Field label="League">
-                  <input list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} style={inputStyle} placeholder="League name" />
+                <Field label="League" htmlFor="lineup-builder-league">
+                  <input id="lineup-builder-league" list="league-options" value={leagueName} onChange={(e) => setLeagueName(e.target.value)} style={inputStyle} placeholder="League name" />
                   <datalist id="league-options">
                     {leagueOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
-                <Field label="Flight">
-                  <input list="flight-options" value={flight} onChange={(e) => setFlight(e.target.value)} style={inputStyle} placeholder="Flight" />
+                <Field label="Flight" htmlFor="lineup-builder-flight">
+                  <input id="lineup-builder-flight" list="flight-options" value={flight} onChange={(e) => setFlight(e.target.value)} style={inputStyle} placeholder="Flight" />
                   <datalist id="flight-options">
                     {flightOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
-                <Field label="Match date">
-                  <input type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
+                <Field label="Match date" htmlFor="lineup-builder-date">
+                  <input id="lineup-builder-date" type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
                 </Field>
-                <Field label="Team">
-                  <input list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} style={inputStyle} placeholder="Your team" />
+                <Field label="Team" htmlFor="lineup-builder-team">
+                  <input id="lineup-builder-team" list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} style={inputStyle} placeholder="Your team" />
                   <datalist id="team-options">
                     {teamOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
-                <Field label="Opponent">
-                  <input value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} style={inputStyle} placeholder="Opponent team" />
+                <Field label="Opponent" htmlFor="lineup-builder-opponent">
+                  <input id="lineup-builder-opponent" value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} style={inputStyle} placeholder="Opponent team" />
                 </Field>
               </div>
 
-              <Field label="Notes">
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} style={textareaStyle} rows={4} placeholder="Anything captains should remember for this build…" />
+              <Field
+                label="Notes"
+                htmlFor="lineup-builder-notes"
+                hint="Capture partner logic, availability context, or court-specific reminders before you save this version."
+              >
+                <textarea
+                  id="lineup-builder-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  style={textareaStyle}
+                  rows={4}
+                  placeholder="Anything captains should remember for this build…"
+                />
               </Field>
 
               <div style={toggleRowStyle}>
@@ -2648,12 +2645,17 @@ function sendCurrentScenarioToMessaging() {
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: ReactNode }) {
   return (
-    <div>
-      <label style={labelStyle}>{label}</label>
+    <CaptainFormField
+      label={label}
+      htmlFor={htmlFor}
+      hint={hint}
+      hintStyle={subtleHelperTextStyle}
+      labelStyle={labelStyle}
+    >
       {children}
-    </div>
+    </CaptainFormField>
   )
 }
 
@@ -2696,13 +2698,14 @@ function SlotEditor({
       <div style={slotHeaderStyle}>
         <div style={slotHeaderLeftStyle}>
           <input
+            aria-label={`${side} slot label`}
             value={slot.label}
             onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
             style={slotLabelInputStyle}
           />
           <span style={miniPillSlateStyle}>{slot.slotType}</span>
           {side === 'team' ? (
-            <button type="button" style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
+            <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
               {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
             </button>
           ) : null}
@@ -2716,10 +2719,11 @@ function SlotEditor({
       <div style={slotPlayersGridStyle}>
         {slot.players.map((player, index) => (
           <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
-            <select
-              value={player.playerId}
-              onChange={(e) => onPlayerChange(side, slot.id, index, e.target.value)}
-              style={inputStyle}
+              <select
+                aria-label={`${slot.label} player ${index + 1}`}
+                value={player.playerId}
+                onChange={(e) => onPlayerChange(side, slot.id, index, e.target.value)}
+                style={inputStyle}
             >
               <option value="">Select player</option>
               {playerPool.map((poolPlayer) => {
@@ -2739,6 +2743,7 @@ function SlotEditor({
             {side === 'team' && player.playerId ? (
               <button
                 type="button"
+                aria-pressed={lockedPlayerIds.has(player.playerId)}
                 style={lockedPlayerIds.has(player.playerId) ? pillButtonActive : pillButton}
                 onClick={() => toggleLockedPlayer(player.playerId)}
               >

@@ -1,7 +1,7 @@
 'use client'
 
 import type { User } from '@supabase/supabase-js'
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -81,6 +81,7 @@ export default function ManageMatchesPage() {
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
     const checkUser = async () => {
@@ -266,7 +267,7 @@ export default function ManageMatchesPage() {
   }
 
   const filteredMatches = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
+    const normalizedSearch = deferredSearch.trim().toLowerCase()
 
     return matches.filter((match) => {
       if (matchTypeFilter !== 'all' && match.matchType !== matchTypeFilter) {
@@ -290,7 +291,14 @@ export default function ManageMatchesPage() {
 
       return haystack.includes(normalizedSearch)
     })
-  }, [matches, search, matchTypeFilter])
+  }, [matches, deferredSearch, matchTypeFilter])
+
+  const hasActiveFilters = search.trim().length > 0 || matchTypeFilter !== 'all'
+
+  function resetFilters() {
+    setSearch('')
+    setMatchTypeFilter('all')
+  }
 
   if (authLoading) {
     return (
@@ -396,8 +404,13 @@ export default function ManageMatchesPage() {
                   minWidth: 320,
                 }}
               >
-                <Field label="Search">
+                <Field
+                  label="Search"
+                  htmlFor="manage-matches-search"
+                  hint="Search by player, score, source, external id, or line label."
+                >
                   <input
+                    id="manage-matches-search"
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -407,8 +420,13 @@ export default function ManageMatchesPage() {
                   />
                 </Field>
 
-                <Field label="Match Type">
+                <Field
+                  label="Match Type"
+                  htmlFor="manage-matches-type"
+                  hint="Use the type filter when you only want singles or doubles cleanup in view."
+                >
                   <select
+                    id="manage-matches-type"
                     value={matchTypeFilter}
                     onChange={(e) => setMatchTypeFilter(e.target.value as 'all' | MatchType)}
                     className="select"
@@ -454,11 +472,33 @@ export default function ManageMatchesPage() {
                 >
                   {recalculating ? 'Recalculating...' : 'Recalculate Ratings'}
                 </button>
+
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="button-ghost"
+                    style={{
+                      background: 'rgba(15,23,42,0.24)',
+                      color: '#dbeafe',
+                      border: '1px solid rgba(148,163,184,0.18)',
+                    }}
+                    disabled={loading || refreshing}
+                  >
+                    Reset Filters
+                  </button>
+                ) : null}
               </div>
             </div>
 
+            <p className="subtle-text" style={{ marginTop: 14, maxWidth: 760 }}>
+              Narrow the table when you need a specific cleanup target, then reset back to the full ledger before doing destructive deletes or broad rating recalculations.
+            </p>
+
             {message && (
               <div
+                role="status"
+                aria-live="polite"
                 className="badge badge-green"
                 style={{
                   marginTop: 16,
@@ -474,6 +514,7 @@ export default function ManageMatchesPage() {
 
             {error && (
               <div
+                role="alert"
                 className="badge"
                 style={{
                   marginTop: 16,
@@ -508,9 +549,39 @@ export default function ManageMatchesPage() {
                 Loading matches...
               </p>
             ) : filteredMatches.length === 0 ? (
-              <p style={{ marginTop: 20 }} className="subtle-text">
-                No matches found.
-              </p>
+              <div
+                style={{
+                  marginTop: 20,
+                  borderRadius: 20,
+                  border: '1px solid rgba(148,163,184,0.16)',
+                  background: 'rgba(15,23,42,0.28)',
+                  padding: '18px 20px',
+                }}
+              >
+                <div className="section-title" style={{ fontSize: '1.05rem' }}>
+                  {matches.length === 0 ? 'No matches loaded yet' : 'No matches match the current filters'}
+                </div>
+                <p className="subtle-text" style={{ marginTop: 8 }}>
+                  {matches.length === 0
+                    ? 'Import schedules or scorecards first, then the operational match ledger will appear here.'
+                    : 'Widen the search or return the type filter to All to bring matches back into scope.'}
+                </p>
+                {hasActiveFilters ? (
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="button-ghost"
+                    style={{
+                      marginTop: 12,
+                      background: 'rgba(15,23,42,0.24)',
+                      color: '#dbeafe',
+                      border: '1px solid rgba(116,190,255,0.12)',
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
                 <table className="data-table" style={{ minWidth: 1300 }}>
@@ -589,14 +660,19 @@ export default function ManageMatchesPage() {
 
 function Field({
   label,
+  htmlFor,
+  hint,
   children,
 }: {
   label: string
+  htmlFor?: string
+  hint?: string
   children: React.ReactNode
 }) {
   return (
     <div>
-      <label className="label">{label}</label>
+      <label htmlFor={htmlFor} className="label">{label}</label>
+      {hint ? <div className="subtle-text" style={{ marginTop: 6, fontSize: '0.88rem' }}>{hint}</div> : null}
       {children}
     </div>
   )

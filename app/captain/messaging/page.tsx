@@ -5,10 +5,13 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import CaptainFormField from '@/app/components/captain-form-field'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
+import { uniqueSorted } from '@/lib/captain-formatters'
 import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ContactRow = {
   id: string
@@ -149,10 +152,6 @@ function formatPhone(phone: string) {
     return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
   }
   return phone
-}
-
-function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((v) => normalizeText(v)).filter(Boolean))).sort((a, b) => a.localeCompare(b))
 }
 
 function safeKey(...parts: Array<string | null | undefined>) {
@@ -512,7 +511,6 @@ export default function CaptainMessagingPage() {
   const router = useRouter()
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -564,9 +562,7 @@ export default function CaptainMessagingPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const captainAccess = isCaptain(role)
 
   function requireCaptainAccess(message = 'Captain tier required to use Messaging.') {
@@ -625,13 +621,6 @@ export default function CaptainMessagingPage() {
       router.replace('/login')
     }
   }, [authLoading, role, router])
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -2027,38 +2016,38 @@ function importScenarioToLineup() {
             </div>
 
             <div style={filtersGridStyle}>
-              <Field label="League">
-                <select value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
+              <Field label="League" htmlFor="captain-messaging-league">
+                <select id="captain-messaging-league" value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {leagueOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </Field>
-              <Field label="Flight">
-                <select value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
+              <Field label="Flight" htmlFor="captain-messaging-flight">
+                <select id="captain-messaging-flight" value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {flightOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </Field>
-              <Field label="Season">
-                <select value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} style={inputStyle}>
+              <Field label="Season" htmlFor="captain-messaging-season">
+                <select id="captain-messaging-season" value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {seasonOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </Field>
-              <Field label="Session">
-                <select value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} style={inputStyle}>
+              <Field label="Session" htmlFor="captain-messaging-session">
+                <select id="captain-messaging-session" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {sessionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </Field>
-              <Field label="Team">
-                <select value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
+              <Field label="Team" htmlFor="captain-messaging-team">
+                <select id="captain-messaging-team" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
                   <option value="">All</option>
                   {teamOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </Field>
-              <Field label="Upcoming match">
-                <select value={eventMatchId} onChange={(e) => setEventMatchId(e.target.value)} style={inputStyle}>
+              <Field label="Upcoming match" htmlFor="captain-messaging-match">
+                <select id="captain-messaging-match" value={eventMatchId} onChange={(e) => setEventMatchId(e.target.value)} style={inputStyle}>
                   <option value="">Select match</option>
                   {filteredMatches.map((match) => (
                     <option key={match.id} value={match.id}>
@@ -2082,7 +2071,7 @@ function importScenarioToLineup() {
             <section style={surfaceCard}><p style={mutedTextStyle}>Loading captain console...</p></section>
           ) : (
             <>
-              {error ? <section style={surfaceCard}><p style={errorTextStyle}>{error}</p></section> : null}
+              {error ? <section style={surfaceCard}><p role="alert" style={errorTextStyle}>{error}</p></section> : null}
 
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCard}>
@@ -2095,22 +2084,22 @@ function importScenarioToLineup() {
                   </div>
 
                   <div style={filtersGridStyle}>
-                    <Field label="Opponent">
-                      <input value={inferredOpponent} readOnly style={inputStyleMuted} />
+                    <Field label="Opponent" htmlFor="captain-messaging-opponent">
+                      <input id="captain-messaging-opponent" value={inferredOpponent} readOnly style={inputStyleMuted} />
                     </Field>
-                    <Field label="Arrival time">
-                      <input value={eventArrivalTime} onChange={(e) => setEventArrivalTime(e.target.value)} placeholder="7:15 PM" style={inputStyle} />
+                    <Field label="Arrival time" htmlFor="captain-messaging-arrival">
+                      <input id="captain-messaging-arrival" value={eventArrivalTime} onChange={(e) => setEventArrivalTime(e.target.value)} placeholder="7:15 PM" style={inputStyle} />
                     </Field>
-                    <Field label="Location">
-                      <input value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} placeholder="Club name + address" style={inputStyle} />
+                    <Field label="Location" htmlFor="captain-messaging-location">
+                      <input id="captain-messaging-location" value={eventLocation} onChange={(e) => setEventLocation(e.target.value)} placeholder="Club name + address" style={inputStyle} />
                     </Field>
-                    <Field label="Directions / parking / gate code">
-                      <textarea value={eventDirections} onChange={(e) => setEventDirections(e.target.value)} placeholder="Parking lot entry, courts, pro shop, etc." style={textareaStyle} />
+                    <Field label="Directions / parking / gate code" htmlFor="captain-messaging-directions">
+                      <textarea id="captain-messaging-directions" value={eventDirections} onChange={(e) => setEventDirections(e.target.value)} placeholder="Parking lot entry, courts, pro shop, etc." style={textareaStyle} />
                     </Field>
                   </div>
 
-                  <Field label="Captain notes for the week">
-                    <textarea value={eventNotes} onChange={(e) => setEventNotes(e.target.value)} placeholder="Rain plan, warm-up court, expected finish, balls, uniforms, snacks..." style={textareaStyle} />
+                  <Field label="Captain notes for the week" htmlFor="captain-messaging-notes">
+                    <textarea id="captain-messaging-notes" value={eventNotes} onChange={(e) => setEventNotes(e.target.value)} placeholder="Rain plan, warm-up court, expected finish, balls, uniforms, snacks..." style={textareaStyle} />
                   </Field>
                 </section>
 
@@ -2164,7 +2153,7 @@ function importScenarioToLineup() {
                             <td style={tdStyle}>
                               <div style={rowControlWrapStyle}>
                                 {(['available', 'tentative', 'unavailable', 'no-response'] as WeeklyAvailability['status'][]).map((status) => (
-                                  <button key={status} type="button" onClick={() => setAvailabilityStatus(contact.id, status)} style={availabilityStatus === status ? statusButtonActive(status) : statusButtonStyle}>
+                                  <button key={status} type="button" aria-pressed={availabilityStatus === status} onClick={() => setAvailabilityStatus(contact.id, status)} style={availabilityStatus === status ? statusButtonActive(status) : statusButtonStyle}>
                                     {status.replace('-', ' ')}
                                   </button>
                                 ))}
@@ -2173,7 +2162,7 @@ function importScenarioToLineup() {
                             <td style={tdStyle}>
                               <div style={rowControlWrapStyle}>
                                 {(['confirmed', 'viewed', 'declined', 'running-late', 'need-sub', 'no-response'] as WeeklyResponse['status'][]).map((status) => (
-                                  <button key={status} type="button" onClick={() => setResponseStatus(contact.id, status)} style={responseStatus === status ? responseButtonActive(status) : statusButtonStyle}>
+                                  <button key={status} type="button" aria-pressed={responseStatus === status} onClick={() => setResponseStatus(contact.id, status)} style={responseStatus === status ? responseButtonActive(status) : statusButtonStyle}>
                                     {status.replace('-', ' ')}
                                   </button>
                                 ))}
@@ -3188,13 +3177,17 @@ function importScenarioToLineup() {
                       <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
                     </div>
 
+                    <p id="captain-messaging-composer-helper" style={sectionBodyTextStyle}>
+                      Start with the communication goal, confirm the audience, then review the launch snapshot before opening texts.
+                    </p>
+
                     <div style={filtersGridStyle}>
                       <Field
                         label="Message type"
                         htmlFor="message-kind"
                         hint="Start with the communication goal, then tailor the audience and body."
                       >
-                        <select id="message-kind" value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
+                        <select id="message-kind" aria-describedby="captain-messaging-composer-helper" value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
                           <option value="availability">Availability check</option>
                           <option value="lineup">Lineup announcement</option>
                           <option value="directions">Directions + details</option>
@@ -3207,7 +3200,7 @@ function importScenarioToLineup() {
                         htmlFor="recipient-mode"
                         hint="Choose the broadest useful audience first, then narrow it only if needed."
                       >
-                        <select id="recipient-mode" value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
+                        <select id="recipient-mode" aria-describedby="captain-messaging-composer-helper" value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
                           <option value="all-opted-in">All opted-in</option>
                           <option value="captains">Captains only</option>
                           <option value="active-only">Active only</option>
@@ -3224,6 +3217,7 @@ function importScenarioToLineup() {
                       >
                         <select
                           id="saved-template"
+                          aria-describedby="captain-messaging-composer-helper"
                           value={selectedTemplateId}
                           onChange={(e) => {
                             const value = e.target.value
@@ -3245,13 +3239,13 @@ function importScenarioToLineup() {
                         htmlFor="message-title"
                         hint="Use a short internal label so you can find or save this message later."
                       >
-                        <input id="message-title" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
+                        <input id="message-title" aria-describedby="captain-messaging-composer-helper" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
                       </Field>
                     </div>
 
                     {recipientMode === 'custom' ? (
-                      <div style={recipientChooserStyle} role="group" aria-label="Custom recipient list">
-                        <p style={fieldHintStyle}>
+                      <div style={recipientChooserStyle} role="group" aria-label="Custom recipient list" aria-describedby="captain-messaging-recipient-helper">
+                        <p id="captain-messaging-recipient-helper" style={fieldHintStyle}>
                           {scopedContacts.filter((c) => c.phone && c.opt_in_text).length > 0
                             ? 'Only opted-in contacts with a saved phone number are shown here.'
                             : 'No opted-in contacts with phone numbers are available in the current scope yet.'}
@@ -3278,7 +3272,7 @@ function importScenarioToLineup() {
                       htmlFor="message-body"
                       hint="Keep it skimmable: key ask first, details second, deadlines or arrival notes last."
                     >
-                      <textarea id="message-body" value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
+                      <textarea id="message-body" aria-describedby="captain-messaging-composer-helper" value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
                     </Field>
 
                     <div style={pillRowStyle}>
@@ -3433,11 +3427,15 @@ function importScenarioToLineup() {
 
 function Field({ label, htmlFor, hint, children }: { label: string; htmlFor?: string; hint?: string; children: ReactNode }) {
   return (
-    <div>
-      <label htmlFor={htmlFor} style={labelStyle}>{label}</label>
-      {hint ? <p style={fieldHintStyle}>{hint}</p> : null}
+    <CaptainFormField
+      label={label}
+      htmlFor={htmlFor}
+      hint={hint}
+      hintStyle={fieldHintStyle}
+      labelStyle={labelStyle}
+    >
       {children}
-    </div>
+    </CaptainFormField>
   )
 }
 
