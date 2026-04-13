@@ -354,6 +354,46 @@ function summarizeUploadedFile(
   }
 }
 
+function applyLeagueNameOverride(payload: unknown, leagueName: string): unknown {
+  const trimmedLeagueName = cleanString(leagueName)
+  if (!trimmedLeagueName) return payload
+
+  if (Array.isArray(payload)) {
+    return payload.map((entry) => applyLeagueNameOverride(entry, trimmedLeagueName))
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return payload
+  }
+
+  const record = payload as Record<string, unknown>
+
+  if (record.seasonSchedule && typeof record.seasonSchedule === 'object' && record.seasonSchedule !== null) {
+    return {
+      ...record,
+      seasonSchedule: {
+        ...(record.seasonSchedule as Record<string, unknown>),
+        leagueName: trimmedLeagueName,
+      },
+    }
+  }
+
+  if (record.scorecard && typeof record.scorecard === 'object' && record.scorecard !== null) {
+    return {
+      ...record,
+      scorecard: {
+        ...(record.scorecard as Record<string, unknown>),
+        leagueName: trimmedLeagueName,
+      },
+    }
+  }
+
+  return {
+    ...record,
+    leagueName: trimmedLeagueName,
+  }
+}
+
 function SummaryMetric({
   label,
   value,
@@ -484,32 +524,37 @@ export default function AdminImportPage() {
   const [topLevelError, setTopLevelError] = useState('')
   const [lastRunMode, setLastRunMode] = useState<ImportMode | null>(null)
   const [copied, setCopied] = useState(false)
+  const [leagueNameOverride, setLeagueNameOverride] = useState('')
 
   const parsed = useMemo(() => parseJsonInput(jsonInput), [jsonInput])
+  const effectivePayload = useMemo(() => {
+    if (!parsed.value) return null
+    return applyLeagueNameOverride(parsed.value, leagueNameOverride)
+  }, [leagueNameOverride, parsed.value])
 
   const schedulePreview = useMemo(() => {
-    if (!parsed.value || importType !== 'schedule') {
+    if (!effectivePayload || importType !== 'schedule') {
       return { rows: [] as PreviewScheduleMatch[], warnings: [] as NormalizationWarning[] }
     }
 
     try {
-      return buildSchedulePreview(parsed.value)
+      return buildSchedulePreview(effectivePayload)
     } catch {
       return { rows: [] as PreviewScheduleMatch[], warnings: [] as NormalizationWarning[] }
     }
-  }, [parsed.value, importType])
+  }, [effectivePayload, importType])
 
   const scorecardPreview = useMemo(() => {
-    if (!parsed.value || importType !== 'scorecard') {
+    if (!effectivePayload || importType !== 'scorecard') {
       return { rows: [] as PreviewScorecardMatch[], warnings: [] as NormalizationWarning[] }
     }
 
     try {
-      return buildScorecardPreview(parsed.value)
+      return buildScorecardPreview(effectivePayload)
     } catch {
       return { rows: [] as PreviewScorecardMatch[], warnings: [] as NormalizationWarning[] }
     }
-  }, [parsed.value, importType])
+  }, [effectivePayload, importType])
 
   const previewWarnings =
     importType === 'schedule' ? schedulePreview.warnings : scorecardPreview.warnings
@@ -656,7 +701,7 @@ export default function AdminImportPage() {
     setTopLevelError('')
     setLastRunMode(null)
     setCopied(false)
-  }, [jsonInput, importType])
+  }, [jsonInput, importType, leagueNameOverride])
 
   async function handleRun(mode: ImportMode) {
     setTopLevelError('')
@@ -664,7 +709,7 @@ export default function AdminImportPage() {
     setLastRunMode(mode)
     setCopied(false)
 
-    if (!parsed.value) {
+    if (!effectivePayload) {
       setTopLevelError(parsed.error ?? 'Invalid JSON.')
       return
     }
@@ -676,7 +721,7 @@ export default function AdminImportPage() {
       const response = await timeoutImport(
         runImport(supabase, {
           kind: importType,
-          payload: parsed.value,
+          payload: effectivePayload,
           mode,
           engineOptions: {
             hasNormalizedPlayerNameColumn: true,
@@ -850,6 +895,7 @@ export default function AdminImportPage() {
     setImportResponse(null)
     setLastRunMode(null)
     setCopied(false)
+    setLeagueNameOverride('')
     setIsRunningPreview(false)
     setIsRunningCommit(false)
   }
@@ -1060,6 +1106,21 @@ export default function AdminImportPage() {
                     ? `${selectedFileName}${selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}`
                     : 'No file selected'}
                 </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16 }}>
+              <label htmlFor="admin-import-league-override" style={labelStyle}>League name override</label>
+              <input
+                id="admin-import-league-override"
+                type="text"
+                value={leagueNameOverride}
+                onChange={(event) => setLeagueNameOverride(event.target.value)}
+                placeholder="Optional: force a season name like 2026 Adult 18 & Over Fall"
+                style={inputStyle}
+              />
+              <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.86rem' }}>
+                Use this when the captured file includes the right district and flight but misses the actual season name. The override applies to both preview and commit for the current batch.
               </div>
             </div>
 
