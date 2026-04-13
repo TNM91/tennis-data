@@ -258,6 +258,33 @@ function sanitizeLeagueNameCandidate(value: unknown): string | null {
   return stripped || null
 }
 
+function collectSeasonLikeStrings(value: unknown, depth = 0, results: string[] = []): string[] {
+  if (depth > 3) return results
+
+  if (typeof value === 'string') {
+    const candidate = sanitizeLeagueNameCandidate(value)
+    if (candidate && looksLikeLeagueName(candidate)) {
+      results.push(candidate)
+    }
+    return results
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectSeasonLikeStrings(entry, depth + 1, results)
+    }
+    return results
+  }
+
+  if (isRecord(value)) {
+    for (const entry of Object.values(value)) {
+      collectSeasonLikeStrings(entry, depth + 1, results)
+    }
+  }
+
+  return results
+}
+
 function resolveLeagueName(record: UnknownRecord): string | null {
   const districtValue = nullableString(
     pickFirst(record, ['districtArea', 'district_area', 'district', 'area']),
@@ -331,6 +358,10 @@ function resolveLeagueName(record: UnknownRecord): string | null {
     const combined = `${sectionFallback} ${flightFallback}`
     if (looksLikeLeagueName(combined)) return combined
   }
+
+  const discoveredCandidates = collectSeasonLikeStrings(record)
+  const firstDistinctCandidate = discoveredCandidates.find((candidate) => candidate !== districtValue)
+  if (firstDistinctCandidate) return firstDistinctCandidate
 
   return null
 }

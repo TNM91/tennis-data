@@ -12,6 +12,7 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { getClientAuthState } from '@/lib/auth'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
 type AuthContextValue = {
@@ -23,6 +24,7 @@ type AuthContextValue = {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+const AUTH_PROVIDER_TIMEOUT_MS = 8000
 
 async function fetchProfileRole(userId: string | null | undefined): Promise<UserRole> {
   if (!userId) return 'public'
@@ -41,6 +43,15 @@ async function fetchProfileRole(userId: string | null | undefined): Promise<User
   }
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      window.setTimeout(() => resolve(fallback), timeoutMs)
+    }),
+  ])
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole>('public')
@@ -50,23 +61,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadAuth = useCallback(async () => {
     try {
+      const authState = await getClientAuthState()
+      if (!mountedRef.current) return
+
       const {
         data: { session: nextSession },
-      } = await supabase.auth.getSession()
+      } = await withTimeout(
+        supabase.auth.getSession(),
+        AUTH_PROVIDER_TIMEOUT_MS,
+        { data: { session: null }, error: null },
+      )
 
       if (!mountedRef.current) return
 
       setSession(nextSession ?? null)
-
-      if (!nextSession?.user?.id) {
-        setRole('public')
-        return
-      }
-
-      const nextRole = await fetchProfileRole(nextSession.user.id)
-
-      if (!mountedRef.current) return
-      setRole(nextRole)
+      setRole(authState.role)
     } catch {
       if (!mountedRef.current) return
       setSession(null)
@@ -95,7 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const nextRole = await fetchProfileRole(nextSession.user.id)
+      const nextRole = await withTimeout(
+        fetchProfileRole(nextSession.user.id),
+        AUTH_PROVIDER_TIMEOUT_MS,
+        'member' as UserRole,
+      )
 
       if (!mountedRef.current) return
       setRole(nextRole)
