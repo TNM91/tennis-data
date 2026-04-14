@@ -484,7 +484,7 @@ export default function ManageMatchesPage() {
             </p>
 
             {searchParam ? (
-              <div style={{ marginTop: 12 }}>
+              <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <Link
                   href="/admin/manage-matches"
                   className="button-ghost"
@@ -496,6 +496,18 @@ export default function ManageMatchesPage() {
                   }}
                 >
                   Clear deep link
+                </Link>
+                <Link
+                  href={`/admin/missing-scorecards?search=${encodeURIComponent(searchParam)}`}
+                  className="button-ghost"
+                  style={{
+                    background: 'rgba(15,23,42,0.24)',
+                    color: '#dbeafe',
+                    border: '1px solid rgba(116,190,255,0.12)',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Open in Missing Scorecards
                 </Link>
               </div>
             ) : null}

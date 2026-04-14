@@ -20,6 +20,7 @@ type MatchLedgerRow = {
 }
 
 type StatusFilter = 'pending' | 'upcoming' | 'completed' | 'all'
+type FocusFilter = 'all' | 'due-this-week' | 'missing-id' | 'missing-league'
 
 function cleanText(value: string | null | undefined) {
   return (value || '').trim()
@@ -53,6 +54,7 @@ export default function MissingScorecardsPage() {
   const [leagueFilter, setLeagueFilter] = useState('')
   const [teamFilter, setTeamFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
+  const [focusFilter, setFocusFilter] = useState<FocusFilter>('all')
   const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
@@ -62,11 +64,13 @@ export default function MissingScorecardsPage() {
     const nextLeague = params.get('league') || ''
     const nextTeam = params.get('team') || ''
     const nextStatus = (params.get('status') || 'pending') as StatusFilter
+    const nextFocus = (params.get('focus') || 'all') as FocusFilter
 
     setSearch(nextSearch)
     setLeagueFilter(nextLeague)
     setTeamFilter(nextTeam)
     setStatusFilter(['pending', 'upcoming', 'completed', 'all'].includes(nextStatus) ? nextStatus : 'pending')
+    setFocusFilter(['all', 'due-this-week', 'missing-id', 'missing-league'].includes(nextFocus) ? nextFocus : 'all')
   }, [])
 
   useEffect(() => {
@@ -161,6 +165,12 @@ export default function MissingScorecardsPage() {
 
   const filteredRows = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase()
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const sevenDaysFromNow = new Date(today)
+    sevenDaysFromNow.setDate(today.getDate() + 7)
+    const todayKey = today.getTime()
+    const dueSoonKey = sevenDaysFromNow.getTime()
 
     return summary.parentRows.filter((row) => {
       const classification = summary.classify(row)
@@ -174,6 +184,15 @@ export default function MissingScorecardsPage() {
         cleanText(row.home_team) === teamFilter ||
         cleanText(row.away_team) === teamFilter
       if (!matchesTeam) return false
+
+      if (focusFilter === 'missing-id' && cleanText(row.external_match_id)) return false
+      if (focusFilter === 'missing-league' && cleanText(row.league_name)) return false
+      if (focusFilter === 'due-this-week') {
+        if (classification !== 'pending' && classification !== 'upcoming') return false
+        if (!row.match_date) return false
+        const matchKey = new Date(row.match_date).getTime()
+        if (Number.isNaN(matchKey) || matchKey < todayKey || matchKey > dueSoonKey) return false
+      }
 
       if (!query) return true
 
@@ -189,7 +208,7 @@ export default function MissingScorecardsPage() {
 
       return haystack.includes(query)
     })
-  }, [deferredSearch, leagueFilter, statusFilter, summary, teamFilter])
+  }, [deferredSearch, focusFilter, leagueFilter, statusFilter, summary, teamFilter])
 
   const metrics = useMemo(() => {
     const counts = {
@@ -197,6 +216,7 @@ export default function MissingScorecardsPage() {
       upcoming: 0,
       completed: 0,
       missingExternalIds: 0,
+      missingLeagueNames: 0,
     }
 
     for (const row of summary.parentRows) {
@@ -205,10 +225,39 @@ export default function MissingScorecardsPage() {
       if (classification === 'upcoming') counts.upcoming += 1
       if (classification === 'completed') counts.completed += 1
       if (!cleanText(row.external_match_id)) counts.missingExternalIds += 1
+      if (!cleanText(row.league_name)) counts.missingLeagueNames += 1
     }
 
     return counts
   }, [summary])
+
+  const actionLanes = useMemo(() => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const sevenDaysFromNow = new Date(today)
+    sevenDaysFromNow.setDate(today.getDate() + 7)
+    const todayKey = today.getTime()
+    const dueSoonKey = sevenDaysFromNow.getTime()
+
+    let dueThisWeek = 0
+
+    for (const row of summary.parentRows) {
+      if (!row.match_date) continue
+      const matchKey = new Date(row.match_date).getTime()
+      if (Number.isNaN(matchKey)) continue
+      if (matchKey < todayKey || matchKey > dueSoonKey) continue
+      const classification = summary.classify(row)
+      if (classification === 'pending' || classification === 'upcoming') {
+        dueThisWeek += 1
+      }
+    }
+
+    return {
+      dueThisWeek,
+      missingExternalIds: metrics.missingExternalIds,
+      missingLeagueNames: metrics.missingLeagueNames,
+    }
+  }, [metrics.missingExternalIds, metrics.missingLeagueNames, summary])
 
   const backlogSummaries = useMemo(() => {
     const pendingRows = summary.parentRows.filter((row) => summary.classify(row) === 'pending')
@@ -253,11 +302,12 @@ export default function MissingScorecardsPage() {
     if (leagueFilter) params.set('league', leagueFilter)
     if (teamFilter) params.set('team', teamFilter)
     if (statusFilter !== 'pending') params.set('status', statusFilter)
+    if (focusFilter !== 'all') params.set('focus', focusFilter)
 
     const query = params.toString()
     const nextUrl = query ? `/admin/missing-scorecards?${query}` : '/admin/missing-scorecards'
     window.history.replaceState(null, '', nextUrl)
-  }, [leagueFilter, search, statusFilter, teamFilter])
+  }, [focusFilter, leagueFilter, search, statusFilter, teamFilter])
 
   return (
     <SiteShell active="/admin">
@@ -287,6 +337,77 @@ export default function MissingScorecardsPage() {
               <MetricCard label="Upcoming" value={String(metrics.upcoming)} helper="Future scheduled matches not due yet." />
               <MetricCard label="Completed" value={String(metrics.completed)} helper="Parent matches with score or imported scorecard lines." />
               <MetricCard label="Missing match ID" value={String(metrics.missingExternalIds)} helper="Parent rows without an external match ID." />
+            </div>
+          </section>
+
+          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+            <div className="section-kicker">Action lanes</div>
+            <h2 className="section-title" style={{ marginTop: 6 }}>Jump straight into the work queue that needs attention</h2>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 14,
+                marginTop: 16,
+              }}
+            >
+              <button
+                type="button"
+                className="button-ghost"
+                style={{ justifyContent: 'space-between' }}
+                onClick={() => {
+                  setFocusFilter('due-this-week')
+                  setStatusFilter('all')
+                  setLeagueFilter('')
+                  setTeamFilter('')
+                }}
+              >
+                <span>Due this week</span>
+                <span>{actionLanes.dueThisWeek}</span>
+              </button>
+              <button
+                type="button"
+                className="button-ghost"
+                style={{ justifyContent: 'space-between' }}
+                onClick={() => {
+                  setFocusFilter('missing-id')
+                  setStatusFilter('all')
+                  setLeagueFilter('')
+                  setTeamFilter('')
+                }}
+              >
+                <span>Missing external IDs</span>
+                <span>{actionLanes.missingExternalIds}</span>
+              </button>
+              <button
+                type="button"
+                className="button-ghost"
+                style={{ justifyContent: 'space-between' }}
+                onClick={() => {
+                  setFocusFilter('missing-league')
+                  setStatusFilter('all')
+                  setLeagueFilter('')
+                  setTeamFilter('')
+                }}
+              >
+                <span>Missing league names</span>
+                <span>{actionLanes.missingLeagueNames}</span>
+              </button>
+              <button
+                type="button"
+                className="button-ghost"
+                style={{ justifyContent: 'space-between' }}
+                onClick={() => {
+                  setFocusFilter('all')
+                  setStatusFilter('pending')
+                  setLeagueFilter('')
+                  setTeamFilter('')
+                  setSearch('')
+                }}
+              >
+                <span>Reset to past due</span>
+                <span>{metrics.pending}</span>
+              </button>
             </div>
           </section>
 
@@ -334,6 +455,14 @@ export default function MissingScorecardsPage() {
                   ))}
                 </select>
               </Field>
+              <Field label="Focus lane">
+                <select value={focusFilter} onChange={(event) => setFocusFilter(event.target.value as FocusFilter)} className="select">
+                  <option value="all">All queue items</option>
+                  <option value="due-this-week">Due this week</option>
+                  <option value="missing-id">Missing external IDs</option>
+                  <option value="missing-league">Missing league names</option>
+                </select>
+              </Field>
             </div>
 
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
@@ -347,6 +476,7 @@ export default function MissingScorecardsPage() {
                   setLeagueFilter('')
                   setTeamFilter('')
                   setStatusFilter('pending')
+                  setFocusFilter('all')
                 }}
                 className="button-ghost"
               >
@@ -433,6 +563,11 @@ export default function MissingScorecardsPage() {
                   Use this list to track what still needs to be uploaded, what is coming up later, and
                   which parent matches already look complete from score or imported line data.
                 </p>
+                {focusFilter !== 'all' ? (
+                  <p className="subtle-text" style={{ marginTop: 8, maxWidth: 760 }}>
+                    Focus lane active: {focusFilter === 'due-this-week' ? 'Due this week' : focusFilter === 'missing-id' ? 'Missing external IDs' : 'Missing league names'}.
+                  </p>
+                ) : null}
               </div>
               <div className="badge badge-slate" style={{ minHeight: 42 }}>
                 {filteredRows.length} visible match{filteredRows.length === 1 ? '' : 'es'}
@@ -522,6 +657,12 @@ export default function MissingScorecardsPage() {
                         <div style={{ display: 'grid', gap: 10 }}>
                           <Link href={`/admin/manage-matches?search=${encodeURIComponent(searchSeed)}`} className="button-ghost">
                             Review in Manage Matches
+                          </Link>
+                          <Link
+                            href={`/admin/missing-scorecards?status=${status}&league=${encodeURIComponent(leagueScopeLabel(row.league_name, row.flight))}&team=${encodeURIComponent(cleanText(row.home_team) || cleanText(row.away_team))}`}
+                            className="button-ghost"
+                          >
+                            Open scoped queue
                           </Link>
                           <Link href="/admin/import" className="button-primary">
                             Open Import Center
