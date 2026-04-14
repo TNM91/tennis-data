@@ -13,6 +13,8 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
@@ -905,12 +907,13 @@ export default function LineupBuilderPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
+    const resumeState = readCaptainResumeState()
     const scenario = params.get('scenario') || params.get('left') || ''
-    const team = params.get('team') || ''
-    const league = params.get('league') || ''
-    const nextFlight = params.get('flight') || ''
-    const nextDate = params.get('date') || ''
-    const opponent = params.get('opponent') || ''
+    const team = params.get('team') || resumeState?.team || ''
+    const league = params.get('league') || resumeState?.league || ''
+    const nextFlight = params.get('flight') || resumeState?.flight || ''
+    const nextDate = params.get('date') || resumeState?.eventDate || ''
+    const opponent = params.get('opponent') || resumeState?.opponentTeam || ''
     const pair = (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean)
     const single = params.get('single') || ''
 
@@ -923,6 +926,44 @@ export default function LineupBuilderPage() {
     if (pair.length) setPrefillPairIds(pair)
     if (single) setPrefillSingleId(single)
   }, [])
+
+  useEffect(() => {
+    if (!teamName && !leagueName && !flight) return
+
+    writeCaptainResumeState({
+      team: teamName,
+      league: leagueName,
+      flight,
+      lastTool: 'lineup-builder',
+      lastToolLabel: 'Lineup Builder',
+      eventDate: matchDate || undefined,
+      opponentTeam: opponentTeam || undefined,
+    })
+  }, [flight, leagueName, matchDate, opponentTeam, teamName])
+
+  const sharedCaptainNotes = useMemo(
+    () =>
+      readCaptainWeekNotes({
+        team: teamName,
+        league: leagueName,
+        flight,
+        eventDate: matchDate,
+        opponentTeam,
+      }),
+    [flight, leagueName, matchDate, opponentTeam, teamName]
+  )
+
+  function appendSharedScenarioNotes(nextNotes: string) {
+    const trimmed = nextNotes.trim()
+    if (!trimmed) return
+
+    setNotes((current) => {
+      const currentTrimmed = current.trim()
+      if (!currentTrimmed) return trimmed
+      if (currentTrimmed.includes(trimmed)) return current
+      return `${currentTrimmed}\n\n${trimmed}`
+    })
+  }
 
   const refreshBuilderData = useCallback(async () => {
     setLoading(true)
@@ -1967,6 +2008,38 @@ function sendCurrentScenarioToMessaging() {
               ? 'Set the missing match context fields so saved scenarios and comparisons stay easier to trust later.'
               : 'Your scenario has enough context to save, compare, and track prediction snapshots with more confidence.'}
           </div>
+
+          {sharedCaptainNotes?.weeklyNotes || sharedCaptainNotes?.opponentNotes ? (
+            <div style={sharedNotesCardStyle}>
+              <div style={tableHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Captain memory notes</p>
+                  <h3 style={sectionTitleSmall}>Bring the saved weekly plan into this build</h3>
+                </div>
+                <span style={miniPillBlueStyle}>Shared context</span>
+              </div>
+
+              {sharedCaptainNotes?.weeklyNotes ? (
+                <div style={sharedNotesBlockStyle}>
+                  <div style={sharedNotesLabelStyle}>Weekly prep notes</div>
+                  <div style={sharedNotesTextStyle}>{sharedCaptainNotes.weeklyNotes}</div>
+                  <button type="button" style={ghostButtonSmallButton} onClick={() => appendSharedScenarioNotes(sharedCaptainNotes.weeklyNotes)}>
+                    Add to scenario notes
+                  </button>
+                </div>
+              ) : null}
+
+              {sharedCaptainNotes?.opponentNotes ? (
+                <div style={sharedNotesBlockStyle}>
+                  <div style={sharedNotesLabelStyle}>Opponent scouting notes</div>
+                  <div style={sharedNotesTextStyle}>{sharedCaptainNotes.opponentNotes}</div>
+                  <button type="button" style={ghostButtonSmallButton} onClick={() => appendSharedScenarioNotes(sharedCaptainNotes.opponentNotes)}>
+                    Add scouting notes
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         <section style={surfaceCard}>
@@ -3032,6 +3105,36 @@ const contextSummaryInsightStyle: CSSProperties = {
   color: '#dbeafe',
   fontSize: 13,
   lineHeight: 1.65,
+}
+
+const sharedNotesCardStyle: CSSProperties = {
+  marginTop: 16,
+  display: 'grid',
+  gap: 14,
+  padding: '16px 18px',
+  borderRadius: 20,
+  border: '1px solid rgba(74, 222, 128, 0.16)',
+  background: 'linear-gradient(180deg, rgba(16, 38, 70, 0.72) 0%, rgba(15, 31, 58, 0.62) 100%)',
+}
+
+const sharedNotesBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+}
+
+const sharedNotesLabelStyle: CSSProperties = {
+  color: '#dbeafe',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const sharedNotesTextStyle: CSSProperties = {
+  color: 'rgba(229, 238, 251, 0.82)',
+  fontSize: 14,
+  lineHeight: 1.7,
+  whiteSpace: 'pre-wrap',
 }
 
 const toggleRowStyle: CSSProperties = {

@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -229,10 +230,23 @@ export default function CaptainAvailabilityPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
-    setTeamParam(params.get('team') || '')
-    setLeagueParam(params.get('league') || '')
-    setFlightParam(params.get('flight') || '')
+    const resumeState = readCaptainResumeState()
+    setTeamParam(params.get('team') || resumeState?.team || '')
+    setLeagueParam(params.get('league') || resumeState?.league || '')
+    setFlightParam(params.get('flight') || resumeState?.flight || '')
   }, [])
+
+  useEffect(() => {
+    if (!selectedTeam && !selectedLeague && !selectedFlight) return
+
+    writeCaptainResumeState({
+      team: selectedTeam,
+      league: selectedLeague,
+      flight: selectedFlight,
+      lastTool: 'availability',
+      lastToolLabel: 'Availability',
+    })
+  }, [selectedFlight, selectedLeague, selectedTeam])
 
   useEffect(() => {
     let mounted = true

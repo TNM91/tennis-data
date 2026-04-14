@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { uniqueSorted } from '@/lib/captain-formatters'
 import { isCaptain, type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -263,7 +264,31 @@ function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlo
   }
 }
 
+function readInitialCaptainAnalyticsContext() {
+  if (typeof window === 'undefined') {
+    return {
+      leagueName: '',
+      flight: '',
+      teamName: '',
+      matchDate: '',
+      opponentTeam: '',
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const resumeState = readCaptainResumeState()
+
+  return {
+    leagueName: params.get('league') ?? resumeState?.league ?? '',
+    flight: params.get('flight') ?? resumeState?.flight ?? '',
+    teamName: params.get('team') ?? resumeState?.team ?? '',
+    matchDate: params.get('date') ?? resumeState?.eventDate ?? '',
+    opponentTeam: params.get('opponent') ?? resumeState?.opponentTeam ?? '',
+  }
+}
+
 export default function LineupBuilderPage() {
+  const initialCaptainContext = readInitialCaptainAnalyticsContext()
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
@@ -279,11 +304,11 @@ export default function LineupBuilderPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  const [leagueName, setLeagueName] = useState('')
-  const [flight, setFlight] = useState('')
-  const [teamName, setTeamName] = useState('')
-  const [opponentTeam, setOpponentTeam] = useState('')
-  const [matchDate, setMatchDate] = useState('')
+  const [leagueName, setLeagueName] = useState(initialCaptainContext.leagueName)
+  const [flight, setFlight] = useState(initialCaptainContext.flight)
+  const [teamName, setTeamName] = useState(initialCaptainContext.teamName)
+  const [opponentTeam, setOpponentTeam] = useState(initialCaptainContext.opponentTeam)
+  const [matchDate, setMatchDate] = useState(initialCaptainContext.matchDate)
   const [scenarioName, setScenarioName] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -326,6 +351,18 @@ export default function LineupBuilderPage() {
       subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+    writeCaptainResumeState({
+      team: teamName || undefined,
+      league: leagueName || undefined,
+      flight: flight || undefined,
+      eventDate: matchDate || undefined,
+      opponentTeam: opponentTeam || undefined,
+      lastTool: 'analytics',
+      lastToolLabel: 'Captain IQ',
+    })
+  }, [teamName, leagueName, flight, matchDate, opponentTeam])
 
   const refreshAnalyticsData = useCallback(async () => {
     setLoading(true)

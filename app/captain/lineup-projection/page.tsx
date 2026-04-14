@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getClientAuthState } from '@/lib/auth'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -240,6 +241,23 @@ export default function LineupProjectionPage() {
   }, [router])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const resumeState = readCaptainResumeState()
+    const initialLeague = params.get('league') ?? resumeState?.league ?? ''
+    const initialFlight = params.get('flight') ?? resumeState?.flight ?? ''
+    const initialTeam = params.get('team') ?? resumeState?.team ?? ''
+    const initialDate = params.get('date') ?? resumeState?.eventDate ?? ''
+
+    if (initialLeague || initialFlight) {
+      setSelectedLeagueKey(`${initialLeague}___${initialFlight}`)
+    }
+    setSelectedTeam(initialTeam)
+    setSelectedDate(initialDate)
+  }, [])
+
+  useEffect(() => {
     if (authLoading || role === 'public') return
     void loadLeaguesAndTeams()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -255,6 +273,18 @@ export default function LineupProjectionPage() {
     void loadTeamRoster()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeagueKey, selectedTeam, selectedDate, authLoading, role])
+
+  useEffect(() => {
+    const [leagueName = '', flight = ''] = selectedLeagueKey.split('___')
+    writeCaptainResumeState({
+      team: selectedTeam || undefined,
+      league: leagueName || undefined,
+      flight: flight || undefined,
+      eventDate: selectedDate || undefined,
+      lastTool: 'lineup-projection',
+      lastToolLabel: 'Lineup Projection',
+    })
+  }, [selectedLeagueKey, selectedTeam, selectedDate])
 
   const loadLeaguesAndTeams = useCallback(async () => {
     setLoading(true)

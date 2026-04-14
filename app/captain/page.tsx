@@ -7,6 +7,23 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
+import {
+  buildCaptainScopedHref,
+  readCaptainResumeState,
+  writeCaptainResumeState,
+} from '@/lib/captain-memory'
+import {
+  buildCaptainWeekNotesScopeKey,
+  readCaptainWeekNotes,
+  upsertCaptainWeekNotes,
+} from '@/lib/captain-week-notes'
+import {
+  buildCaptainWeekStatusKey,
+  getCaptainWeekStatusMeta,
+  readCaptainWeekStatus,
+  upsertCaptainWeekStatus,
+  type CaptainWeekStatus,
+} from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
 import { isCaptain, isMember, type UserRole } from '@/lib/roles'
 
@@ -68,15 +85,19 @@ type CaptainWorkspaceState = {
   lineupReady: boolean
   scenarioReady: boolean
   messagingReady: boolean
+  briefReady: boolean
   currentEventKey: string
   lineupCount: number
   scenarioCount: number
+  responseAlertCount: number
+  pendingResponseCount: number
+  latestResponseUpdateLabel: string
   lastUpdatedLabel: string
 }
 
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
-const CAPTAIN_RESUME_STORAGE_KEY = 'tenaceiq_captain_resume'
+const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 
 
 type TeamPlayerSummary = {
@@ -101,6 +122,13 @@ type PairingSummary = {
 function safeText(value: string | null | undefined, fallback = 'Unknown') {
   const text = (value || '').trim()
   return text || fallback
+}
+
+function formatDateShort(value: string | null | undefined) {
+  if (!value) return 'No date set'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 
@@ -198,11 +226,20 @@ export default function CaptainHubPage() {
     lineupReady: false,
     scenarioReady: false,
     messagingReady: false,
+    briefReady: false,
     currentEventKey: '',
     lineupCount: 0,
     scenarioCount: 0,
+    responseAlertCount: 0,
+    pendingResponseCount: 0,
+    latestResponseUpdateLabel: 'Not updated yet',
     lastUpdatedLabel: 'Not updated yet',
   })
+  const [weeklyPrepNotes, setWeeklyPrepNotes] = useState('')
+  const [opponentScoutNotes, setOpponentScoutNotes] = useState('')
+  const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('No notes saved yet')
+  const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
+  const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
 
   const loadRole = useCallback(async (nextRole: UserRole) => {
     setRole(nextRole)
@@ -360,9 +397,10 @@ export default function CaptainHubPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    setSelectedTeam(params.get('team') || '')
-    setSelectedLeague(params.get('league') || '')
-    setSelectedFlight(params.get('flight') || '')
+    const resumeState = readCaptainResumeState()
+    setSelectedTeam(params.get('team') || resumeState?.team || '')
+    setSelectedLeague(params.get('league') || resumeState?.league || '')
+    setSelectedFlight(params.get('flight') || resumeState?.flight || '')
   }, [])
 
   useEffect(() => {
@@ -418,26 +456,59 @@ export default function CaptainHubPage() {
     const eventDetails = readLocalArray<{ key?: string; location?: string; arrivalTime?: string; notes?: string }>(
       WEEKLY_EVENT_DETAILS_STORAGE_KEY,
     )
+    const responseRows = readLocalArray<{
+      event_key?: string
+      status?: string
+      updated_at?: string
+    }>(WEEKLY_RESPONSES_STORAGE_KEY)
     const selectedScenario = readLocalObject<{ id?: string; scenario_name?: string }>('tenace_selected_scenario')
-    const resumeState = readLocalObject<{ updatedAt?: string }>(CAPTAIN_RESUME_STORAGE_KEY)
+    const resumeState = readCaptainResumeState()
 
     const lineupCount = lineupRows.filter((row) => (row.event_key || '') === currentEventKey).length
     const eventDetail = eventDetails.find((row) => (row.key || '') === currentEventKey) || null
+    const eventResponses = responseRows.filter((row) => (row.event_key || '') === currentEventKey)
+    const responseAlertCount = eventResponses.filter((row) =>
+      ['running-late', 'need-sub'].includes((row.status || '').trim().toLowerCase()),
+    ).length
+    const pendingResponseCount = eventResponses.filter((row) => {
+      const status = (row.status || '').trim().toLowerCase()
+      return !status || status === 'no-response' || status === 'viewed'
+    }).length
+    const latestResponseUpdate =
+      eventResponses
+        .map((row) => row.updated_at || null)
+        .filter((value): value is string => Boolean(value))
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null
 
     const lineupReady = lineupCount > 0
     const scenarioReady = !!selectedScenario?.id || scenarioCount > 0
     const messagingReady = !!(eventDetail && (eventDetail.location || eventDetail.arrivalTime || eventDetail.notes) && lineupReady)
+    const briefReady = Boolean(lineupReady || eventDetail || eventResponses.length)
 
     setWorkspaceState({
       lineupReady,
       scenarioReady,
       messagingReady,
+      briefReady,
       currentEventKey,
       lineupCount,
       scenarioCount,
-      lastUpdatedLabel: formatDateTimeShort(resumeState?.updatedAt || null),
+      responseAlertCount,
+      pendingResponseCount,
+      latestResponseUpdateLabel: formatDateTimeShort(latestResponseUpdate),
+      lastUpdatedLabel: formatDateTimeShort(resumeState?.lastVisitedAt || null),
     })
   }, [matches, selectedTeam, selectedLeague, selectedFlight, scenarioCount])
+
+  useEffect(() => {
+    if (!selectedTeam && !selectedLeague && !selectedFlight) return
+
+    writeCaptainResumeState({
+      team: selectedTeam,
+      league: selectedLeague,
+      flight: selectedFlight,
+    })
+  }, [selectedFlight, selectedLeague, selectedTeam])
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
@@ -580,25 +651,143 @@ export default function CaptainHubPage() {
     ? `/teams/${encodeURIComponent(selectedTeam)}?league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
     : '/teams'
 
-  const lineupBuilderHref = selectedTeam
-    ? `/captain/lineup-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/lineup-builder'
+  const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
 
-  const availabilityHref = selectedTeam
-    ? `/captain/availability?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/availability'
+  const availabilityHref = buildCaptainScopedHref('/captain/availability', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
 
-  const scenarioHref = selectedTeam
-    ? `/captain/scenario-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/scenario-builder'
+  const scenarioHref = buildCaptainScopedHref('/captain/scenario-builder', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
 
-  const messagingHref = selectedTeam
-    ? `/captain/messaging?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/messaging'
+  const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
 
-  const analyticsHref = selectedTeam
-    ? `/captain/analytics?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/analytics'
+  const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
+
+  const captainResume = readCaptainResumeState()
+  const weeklyBriefHref = buildCaptainScopedHref('/captain/weekly-brief', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+    date: captainResume?.eventDate,
+    opponent: captainResume?.opponentTeam,
+  })
+  const teamBriefHref = buildCaptainScopedHref('/captain/team-brief', {
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+    date: captainResume?.eventDate,
+    opponent: captainResume?.opponentTeam,
+  })
+  const captainNotesScope = useMemo(
+    () => ({
+      team: selectedTeam || captainResume?.team,
+      league: selectedLeague || captainResume?.league,
+      flight: selectedFlight || captainResume?.flight,
+      eventDate: captainResume?.eventDate,
+      opponentTeam: captainResume?.opponentTeam,
+    }),
+    [captainResume?.eventDate, captainResume?.flight, captainResume?.league, captainResume?.opponentTeam, captainResume?.team, selectedFlight, selectedLeague, selectedTeam]
+  )
+  const captainNotesScopeKey = useMemo(() => buildCaptainWeekNotesScopeKey(captainNotesScope), [captainNotesScope])
+  const captainWeekStatusScope = useMemo(
+    () => ({
+      team: selectedTeam || captainResume?.team,
+      league: selectedLeague || captainResume?.league,
+      flight: selectedFlight || captainResume?.flight,
+      eventDate: captainResume?.eventDate || matches[0]?.match_date || '',
+      opponentTeam: captainResume?.opponentTeam || '',
+    }),
+    [
+      captainResume?.eventDate,
+      captainResume?.flight,
+      captainResume?.league,
+      captainResume?.opponentTeam,
+      captainResume?.team,
+      matches,
+      selectedFlight,
+      selectedLeague,
+      selectedTeam,
+    ],
+  )
+  const captainWeekStatusKey = useMemo(
+    () => buildCaptainWeekStatusKey(captainWeekStatusScope),
+    [captainWeekStatusScope],
+  )
+  const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
+
+  useEffect(() => {
+    const savedNotes = readCaptainWeekNotes(captainNotesScope)
+    setWeeklyPrepNotes(savedNotes?.weeklyNotes || '')
+    setOpponentScoutNotes(savedNotes?.opponentNotes || '')
+    setNotesUpdatedLabel(savedNotes?.updatedAt ? formatDateTimeShort(savedNotes.updatedAt) : 'No notes saved yet')
+    setLoadedNotesScopeKey(captainNotesScopeKey)
+  }, [captainNotesScope, captainNotesScopeKey])
+
+  useEffect(() => {
+    if (loadedNotesScopeKey !== captainNotesScopeKey) return
+    if (!captainNotesScope.team && !captainNotesScope.league && !captainNotesScope.eventDate) return
+
+    const saved = upsertCaptainWeekNotes(captainNotesScope, {
+      weeklyNotes: weeklyPrepNotes,
+      opponentNotes: opponentScoutNotes,
+    })
+
+    if (saved?.updatedAt) {
+      setNotesUpdatedLabel(formatDateTimeShort(saved.updatedAt))
+    }
+  }, [captainNotesScope, captainNotesScopeKey, loadedNotesScopeKey, opponentScoutNotes, weeklyPrepNotes])
+
+  useEffect(() => {
+    const saved = readCaptainWeekStatus(captainWeekStatusScope)
+    setWeekStatus(saved?.status || 'draft-lineup')
+  }, [captainWeekStatusKey, captainWeekStatusScope])
+
+  const resumeHref = buildCaptainScopedHref(
+    captainResume?.lastTool === 'availability'
+      ? '/captain/availability'
+      : captainResume?.lastTool === 'lineup-builder'
+        ? '/captain/lineup-builder'
+        : captainResume?.lastTool === 'lineup-projection'
+          ? '/captain/lineup-projection'
+          : captainResume?.lastTool === 'messaging'
+            ? '/captain/messaging'
+            : captainResume?.lastTool === 'analytics'
+              ? '/captain/analytics'
+                : captainResume?.lastTool === 'scenario-builder'
+                  ? '/captain/scenario-builder'
+                : captainResume?.lastTool === 'lineup-availability'
+                  ? '/captain/lineup-availability'
+                : captainResume?.lastTool === 'weekly-brief'
+                  ? '/captain/weekly-brief'
+                : captainResume?.lastTool === 'team-brief'
+                  ? '/captain/team-brief'
+                  : '/captain',
+    {
+      team: captainResume?.team || selectedTeam,
+      league: captainResume?.league || selectedLeague,
+      flight: captainResume?.flight || selectedFlight,
+      date: captainResume?.eventDate,
+      opponent: captainResume?.opponentTeam,
+    },
+  )
 
   const premiumEnabled = isCaptain(role)
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
@@ -670,26 +859,131 @@ export default function CaptainHubPage() {
     }
   }, [selectedTeam, matches.length, workspaceState, currentTeamHref, lineupBuilderHref, scenarioHref, messagingHref, analyticsHref])
 
-  function rememberCaptainResume(stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team') {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(
-      CAPTAIN_RESUME_STORAGE_KEY,
-      JSON.stringify({
-        team: selectedTeam,
-        league: selectedLeague,
-        flight: selectedFlight,
-        stage,
-        updatedAt: new Date().toISOString(),
-      }),
-    )
+  const weeklyOpsStatus = useMemo(() => {
+    if (!selectedTeam) {
+      return {
+        tone: 'info' as const,
+        title: 'Weekly ops will appear after you choose a team scope.',
+        detail:
+          'Load the right team, league, and flight to surface weekly brief readiness, response risk, and follow-up actions.',
+      }
+    }
+
+    if (workspaceState.responseAlertCount > 0) {
+      return {
+        tone: 'warn' as const,
+        title: `${workspaceState.responseAlertCount} active match-week alert${workspaceState.responseAlertCount === 1 ? '' : 's'} need attention.`,
+        detail:
+          'Open the team brief or messaging flow to address late arrivals or substitution risk before match day.',
+      }
+    }
+
+    if (workspaceState.pendingResponseCount > 0) {
+      return {
+        tone: 'info' as const,
+        title: `${workspaceState.pendingResponseCount} player${workspaceState.pendingResponseCount === 1 ? '' : 's'} still need a clean response.`,
+        detail:
+          'Availability follow-up is the fastest way to tighten this week before you send the final team note.',
+      }
+    }
+
+    if (workspaceState.briefReady) {
+      return {
+        tone: 'good' as const,
+        title: 'Weekly brief is ready to review and share.',
+        detail:
+          'Your week has enough saved context to open the captain and team briefs as a true command sheet.',
+      }
+    }
+
+    return {
+      tone: 'info' as const,
+      title: 'Start saving the week’s operating context.',
+      detail:
+        'Add lineup, event, or response details to unlock a stronger brief and week-at-a-glance operations view.',
+    }
+  }, [selectedTeam, workspaceState.briefReady, workspaceState.pendingResponseCount, workspaceState.responseAlertCount])
+
+  const weekAtGlance = useMemo(() => {
+    const currentMatch = matches[0] ?? null
+    const eventDate = captainResume?.eventDate || currentMatch?.match_date || null
+    const opponent =
+      captainResume?.opponentTeam ||
+      (currentMatch
+        ? safeText(currentMatch.home_team) === selectedTeam
+          ? safeText(currentMatch.away_team, 'Opponent TBD')
+          : safeText(currentMatch.home_team, 'Opponent TBD')
+        : 'Opponent TBD')
+
+    return {
+      eventDateLabel: formatDate(eventDate),
+      opponentLabel: opponent || 'Opponent TBD',
+      scopeLabel: hasTeamScope ? `${selectedLeague} · ${selectedFlight}` : 'Choose team scope',
+      lineupLabel: workspaceState.lineupReady ? `${workspaceState.lineupCount} slots ready` : 'Lineup not saved',
+      messagingLabel: workspaceState.messagingReady ? 'Ready to send' : 'Needs event details',
+      briefLabel: workspaceState.briefReady ? 'Briefing ready' : 'Brief building',
+    }
+  }, [
+    captainResume?.eventDate,
+    captainResume?.opponentTeam,
+    hasTeamScope,
+    matches,
+    selectedFlight,
+    selectedLeague,
+    selectedTeam,
+    workspaceState.briefReady,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+  ])
+
+  function rememberCaptainResume(stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief') {
+    writeCaptainResumeState({
+      team: selectedTeam,
+      league: selectedLeague,
+      flight: selectedFlight,
+      lastTool:
+        stage === 'lineup'
+          ? 'lineup-builder'
+          : stage === 'scenario'
+            ? 'scenario-builder'
+            : stage === 'messaging'
+              ? 'messaging'
+              : stage === 'analytics'
+                ? 'analytics'
+                : stage === 'availability'
+                  ? 'availability'
+                  : stage === 'brief'
+                    ? 'weekly-brief'
+                  : 'hub',
+      lastToolLabel:
+        stage === 'lineup'
+          ? 'Lineup Builder'
+          : stage === 'scenario'
+            ? 'Scenario Builder'
+            : stage === 'messaging'
+              ? 'Messaging'
+              : stage === 'analytics'
+                ? 'Captain IQ'
+                : stage === 'availability'
+                  ? 'Availability'
+                  : stage === 'brief'
+                    ? 'Weekly Brief'
+                  : 'Captain Console',
+    })
   }
 
   function handleCaptainNav(
     href: string,
-    stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team',
+    stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief',
   ) {
     rememberCaptainResume(stage)
     router.push(href)
+  }
+
+  function handleWeekStatusUpdate(nextStatus: CaptainWeekStatus) {
+    setWeekStatus(nextStatus)
+    upsertCaptainWeekStatus(captainWeekStatusScope, nextStatus)
   }
 
   if (authLoading) {
@@ -825,6 +1119,92 @@ export default function CaptainHubPage() {
           </section>
         ) : null}
 
+        <section style={nextActionShell}>
+          <div style={nextActionIntro}>
+            <div style={sectionKicker}>Captain memory</div>
+            <h2 style={sectionTitle}>Resume your weekly workflow.</h2>
+            <div style={sectionSub}>
+              The captain suite now remembers your last active team scope and workflow so you can jump back into the exact part of the week you were working on.
+            </div>
+          </div>
+
+          <div style={nextActionCard}>
+            <div style={nextActionHeader}>
+              <span style={badgeBlue}>{captainResume?.lastToolLabel || 'Captain Console'}</span>
+              <span style={badgeSlate}>{captainResume?.lastVisitedAt ? formatDateTimeShort(captainResume.lastVisitedAt) : 'No saved session yet'}</span>
+            </div>
+
+            <div style={nextActionTitle}>
+              {captainResume?.team
+                ? `${captainResume.team}${captainResume.league ? ` - ${captainResume.league}` : ''}${captainResume.flight ? ` - ${captainResume.flight}` : ''}`
+                : 'Choose a team scope to start building memory'}
+            </div>
+
+            <div style={nextActionText}>
+              {captainResume?.team
+                ? 'Resume the saved captain workflow instantly, or keep working below and your newest scope will stay in memory.'
+                : 'Once you open availability, lineup, scenarios, messaging, or analytics, the suite will remember where you left off.'}
+            </div>
+
+            <div style={nextActionButtonRow}>
+              <Link href={resumeHref} style={primaryButton}>
+                Resume workflow
+              </Link>
+              <Link href={availabilityHref} style={secondaryButtonSmall}>
+                Open availability
+              </Link>
+              <Link href={weeklyBriefHref} style={secondaryButtonSmall}>
+                Weekly brief
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section style={sectionCard}>
+          <div style={sectionHead}>
+            <div>
+              <div style={sectionKicker}>Weekly notes memory</div>
+              <h2 style={sectionTitle}>Carry the plan through the whole week.</h2>
+              <div style={sectionSub}>
+                Save the weekly prep details and opponent scouting notes once, then reuse them as you move into lineup building and team messaging.
+              </div>
+            </div>
+            <span style={badgeSlate}>{notesUpdatedLabel}</span>
+          </div>
+
+          <div style={notesScopeBanner}>
+            {captainNotesScope.team
+              ? `Saving notes for ${captainNotesScope.team}${captainNotesScope.league ? ` · ${captainNotesScope.league}` : ''}${captainNotesScope.flight ? ` · ${captainNotesScope.flight}` : ''}${captainNotesScope.eventDate ? ` · ${formatDateShort(captainNotesScope.eventDate)}` : ''}${captainNotesScope.opponentTeam ? ` · vs ${captainNotesScope.opponentTeam}` : ''}`
+              : 'Pick a team scope above to start a saved weekly notes thread.'}
+          </div>
+
+          <div style={notesGrid}>
+            <label style={notesField}>
+              <span style={notesLabel}>Weekly prep notes</span>
+              <span style={notesHint}>Travel, arrival plan, court prep, roster reminders, subs, weather, or anything your team needs this week.</span>
+              <textarea
+                value={weeklyPrepNotes}
+                onChange={(e) => setWeeklyPrepNotes(e.target.value)}
+                placeholder="Arrival time, balls, warm-up courts, weather plan, subs on standby..."
+                style={notesTextarea}
+                rows={5}
+              />
+            </label>
+
+            <label style={notesField}>
+              <span style={notesLabel}>Opponent scouting notes</span>
+              <span style={notesHint}>Patterns to exploit, likely pairings, court tendencies, pressure points, or lineup traps to avoid.</span>
+              <textarea
+                value={opponentScoutNotes}
+                onChange={(e) => setOpponentScoutNotes(e.target.value)}
+                placeholder="Likely stack on D1, protect S1, target slower second serve pair, expect late lineup changes..."
+                style={notesTextarea}
+                rows={5}
+              />
+            </label>
+          </div>
+        </section>
+
         <section style={premiumStrip}>
           <div>
             <div style={sectionKicker}>Captain tier</div>
@@ -938,6 +1318,164 @@ export default function CaptainHubPage() {
           <MetricCard label="Latest match" value={formatDate(quickStats.latest)} accent />
           <MetricCard label="Singles core" value={String(quickStats.singlesCore)} />
           <MetricCard label="Top pair win rate" value={quickStats.topPairWinPct} />
+          <MetricCard
+            label="Weekly alerts"
+            value={String(workspaceState.responseAlertCount)}
+            accent={workspaceState.responseAlertCount > 0}
+          />
+          <MetricCard label="Pending replies" value={String(workspaceState.pendingResponseCount)} />
+          <MetricCard
+            label="Brief status"
+            value={workspaceState.briefReady ? 'Ready' : 'Building'}
+            accent={workspaceState.briefReady}
+          />
+          <MetricCard label="Responses updated" value={workspaceState.latestResponseUpdateLabel} />
+        </section>
+
+        <section
+          style={{
+            ...nextActionShell,
+            borderColor:
+              weeklyOpsStatus.tone === 'warn'
+                ? 'rgba(251, 191, 36, 0.45)'
+                : weeklyOpsStatus.tone === 'good'
+                  ? 'rgba(163, 230, 53, 0.35)'
+                  : 'rgba(96, 165, 250, 0.28)',
+            boxShadow:
+              weeklyOpsStatus.tone === 'warn'
+                ? '0 18px 45px rgba(120, 53, 15, 0.26)'
+                : weeklyOpsStatus.tone === 'good'
+                  ? '0 18px 45px rgba(39, 84, 24, 0.22)'
+                  : nextActionShell.boxShadow,
+          }}
+        >
+          <div style={nextActionIntro}>
+            <div style={sectionKicker}>Weekly risk watch</div>
+            <h2 style={sectionTitle}>{weeklyOpsStatus.title}</h2>
+            <div style={sectionSub}>{weeklyOpsStatus.detail}</div>
+          </div>
+
+          <div style={nextActionGrid}>
+            <div style={nextActionCard}>
+              <div style={nextActionLabel}>Captain brief</div>
+              <div style={nextActionTitle}>
+                {workspaceState.briefReady ? 'Command sheet is ready' : 'Still gathering week context'}
+              </div>
+              <div style={nextActionText}>
+                Open the weekly brief for lineup, notes, opponent context, and final captain actions in one place.
+              </div>
+            </div>
+
+            <div style={nextActionCardAccent}>
+              <div style={nextActionLabel}>Team brief</div>
+              <div style={nextActionTitle}>
+                {workspaceState.responseAlertCount > 0 ? 'Risk-aware team note available' : 'Player-facing brief ready'}
+              </div>
+              <div style={nextActionText}>
+                Use the team brief for a cleaner shareable summary with logistics, lineup, and live risk callouts.
+              </div>
+            </div>
+
+            <div style={nextActionButtonRow}>
+              <Link href={weeklyBriefHref} style={primaryButton}>
+                Open weekly brief
+              </Link>
+              <Link href={teamBriefHref} style={secondaryButtonSmall}>
+                Open team brief
+              </Link>
+              <Link
+                href={workspaceState.pendingResponseCount > 0 ? availabilityHref : messagingHref}
+                style={secondaryButtonSmall}
+              >
+                {workspaceState.pendingResponseCount > 0 ? 'Follow up responses' : 'Open messaging'}
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section style={sectionCard}>
+          <div style={sectionHead}>
+            <div>
+              <div style={sectionKicker}>This week at a glance</div>
+              <h2 style={sectionTitle}>One compact read on the current match week</h2>
+              <div style={sectionSub}>
+                See the opponent, scope, readiness, and fastest captain actions without leaving the hub.
+              </div>
+            </div>
+          </div>
+
+          <div style={glanceGrid}>
+            <div style={glanceCardAccent}>
+              <div style={glanceLabel}>Match week</div>
+              <div style={glanceValue}>{weekAtGlance.eventDateLabel}</div>
+              <div style={glanceHint}>Opponent: {weekAtGlance.opponentLabel}</div>
+            </div>
+
+            <div style={glanceCard}>
+              <div style={glanceLabel}>Active scope</div>
+              <div style={glanceValue}>{selectedTeam || 'Team not selected'}</div>
+              <div style={glanceHint}>{weekAtGlance.scopeLabel}</div>
+            </div>
+
+            <div style={glanceCard}>
+              <div style={glanceLabel}>Lineup</div>
+              <div style={glanceValue}>{weekAtGlance.lineupLabel}</div>
+              <div style={glanceHint}>Last captain visit: {workspaceState.lastUpdatedLabel}</div>
+            </div>
+
+            <div style={glanceCard}>
+              <div style={glanceLabel}>Comms + brief</div>
+              <div style={glanceValue}>{weekAtGlance.messagingLabel}</div>
+              <div style={glanceHint}>{weekAtGlance.briefLabel}</div>
+            </div>
+          </div>
+
+          <div style={glanceActionRow}>
+            <Link href={weeklyBriefHref} style={primaryButton}>
+              Open weekly brief
+            </Link>
+            <Link href={teamBriefHref} style={secondaryButtonSmall}>
+              Open team brief
+            </Link>
+            <Link href={lineupBuilderHref} style={secondaryButtonSmall}>
+              Edit lineup
+            </Link>
+            <Link href={messagingHref} style={secondaryButtonSmall}>
+              Send update
+            </Link>
+          </div>
+
+          <div style={weekStatusShell}>
+            <div>
+              <div style={glanceLabel}>Weekly workflow status</div>
+              <div style={weekStatusValue}>{weekStatusMeta.label}</div>
+              <div style={glanceHint}>{weekStatusMeta.detail}</div>
+            </div>
+
+            <div style={weekStatusButtonRow}>
+              <button
+                type="button"
+                style={weekStatus === 'draft-lineup' ? primaryButtonButton : secondaryButtonSmallButton}
+                onClick={() => handleWeekStatusUpdate('draft-lineup')}
+              >
+                Draft lineup
+              </button>
+              <button
+                type="button"
+                style={weekStatus === 'ready-to-send' ? primaryButtonButton : secondaryButtonSmallButton}
+                onClick={() => handleWeekStatusUpdate('ready-to-send')}
+              >
+                Ready to send
+              </button>
+              <button
+                type="button"
+                style={weekStatus === 'finalized' ? primaryButtonButton : secondaryButtonSmallButton}
+                onClick={() => handleWeekStatusUpdate('finalized')}
+              >
+                Finalized
+              </button>
+            </div>
+          </div>
         </section>
 
         <section style={sectionCard}>
@@ -950,6 +1488,15 @@ export default function CaptainHubPage() {
           </div>
 
           <div style={actionGrid}>
+            <ActionCard
+              badge="Briefing"
+              title="Weekly Brief"
+              description="Open one printable command sheet with notes, lineup state, event details, and the next captain actions."
+              href={weeklyBriefHref}
+              cta="Open Weekly Brief"
+              accent
+              onAction={() => handleCaptainNav(weeklyBriefHref, 'brief')}
+            />
             <ActionCard
               badge="Availability"
               title="Availability Tracker"
@@ -1626,6 +2173,11 @@ const nextActionIntro: CSSProperties = {
   gap: 10,
 }
 
+const nextActionGrid: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+}
+
 const nextActionCard: CSSProperties = {
   display: 'grid',
   gap: 14,
@@ -1633,6 +2185,20 @@ const nextActionCard: CSSProperties = {
   borderRadius: 22,
   border: '1px solid rgba(74,222,128,0.16)',
   background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+}
+
+const nextActionCardAccent: CSSProperties = {
+  ...nextActionCard,
+  border: '1px solid rgba(163,230,53,0.2)',
+  background: 'linear-gradient(180deg, rgba(32,58,31,0.28) 0%, rgba(18,36,66,0.7) 100%)',
+}
+
+const nextActionLabel: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  letterSpacing: '0.16em',
+  textTransform: 'uppercase',
 }
 
 const nextActionHeader: CSSProperties = {
@@ -1714,6 +2280,81 @@ const metricCard: CSSProperties = {
   boxShadow: '0 10px 30px rgba(2,10,24,0.14)',
 }
 
+const glanceGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: 16,
+}
+
+const glanceCard: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+}
+
+const glanceCardAccent: CSSProperties = {
+  ...glanceCard,
+  border: '1px solid rgba(163,230,53,0.22)',
+  background: 'linear-gradient(180deg, rgba(32,58,31,0.28) 0%, rgba(18,36,66,0.7) 100%)',
+}
+
+const glanceLabel: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 800,
+  letterSpacing: '0.16em',
+  textTransform: 'uppercase',
+}
+
+const glanceValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 24,
+  fontWeight: 900,
+  lineHeight: 1.15,
+  letterSpacing: '-0.03em',
+}
+
+const glanceHint: CSSProperties = {
+  color: 'rgba(229,238,251,0.76)',
+  fontSize: 14,
+  lineHeight: 1.6,
+}
+
+const glanceActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  marginTop: 18,
+}
+
+const weekStatusShell: CSSProperties = {
+  marginTop: 18,
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+}
+
+const weekStatusValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 24,
+  fontWeight: 900,
+  lineHeight: 1.1,
+  letterSpacing: '-0.03em',
+  marginTop: 6,
+}
+
+const weekStatusButtonRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
 const metricCardAccent: CSSProperties = {
   border: '1px solid rgba(74,222,128,0.18)',
   boxShadow: '0 10px 24px rgba(74,222,128,0.08)',
@@ -1776,6 +2417,53 @@ const sectionSub: CSSProperties = {
   color: 'rgba(229,238,251,0.78)',
   fontSize: 14,
   lineHeight: 1.7,
+}
+
+const notesScopeBanner: CSSProperties = {
+  borderRadius: 18,
+  padding: '12px 14px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  color: '#e7eefb',
+  fontWeight: 700,
+  fontSize: 14,
+  lineHeight: 1.6,
+}
+
+const notesGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: 16,
+}
+
+const notesField: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const notesLabel: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 14,
+  fontWeight: 800,
+}
+
+const notesHint: CSSProperties = {
+  color: 'rgba(229,238,251,0.72)',
+  fontSize: 13,
+  lineHeight: 1.65,
+}
+
+const notesTextarea: CSSProperties = {
+  width: '100%',
+  minHeight: 148,
+  borderRadius: 18,
+  border: '1px solid rgba(148, 163, 184, 0.22)',
+  background: 'rgba(15, 23, 42, 0.92)',
+  color: '#f8fafc',
+  padding: '14px 16px',
+  outline: 'none',
+  resize: 'vertical',
+  lineHeight: 1.65,
 }
 
 const actionGrid: CSSProperties = {

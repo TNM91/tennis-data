@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClientAuthState } from '@/lib/auth'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { buildTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '../../../lib/supabase'
 import { formatLongDate as formatDate } from '@/lib/captain-formatters'
@@ -242,6 +243,23 @@ export default function LineupAvailabilityPage() {
   }, [router])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const resumeState = readCaptainResumeState()
+    const initialLeague = params.get('league') ?? resumeState?.league ?? ''
+    const initialFlight = params.get('flight') ?? resumeState?.flight ?? ''
+    const initialTeam = params.get('team') ?? resumeState?.team ?? ''
+    const initialDate = params.get('date') ?? resumeState?.eventDate ?? ''
+
+    if (initialLeague || initialFlight) {
+      setSelectedLeagueKey(buildLeagueKey(initialLeague, initialFlight))
+    }
+    setSelectedTeam(initialTeam)
+    setSelectedDate(initialDate)
+  }, [])
+
+  useEffect(() => {
     void loadMatches()
   }, [refreshTick])
 
@@ -428,6 +446,18 @@ export default function LineupAvailabilityPage() {
 
     void loadRosterAndAvailability()
   }, [loadRosterAndAvailability, selectedLeagueKey, selectedTeam])
+
+  useEffect(() => {
+    const [leagueName = '', flight = ''] = selectedLeagueKey.split('___')
+    writeCaptainResumeState({
+      team: selectedTeam || undefined,
+      league: leagueName || undefined,
+      flight: flight || undefined,
+      eventDate: selectedDate || undefined,
+      lastTool: 'lineup-availability',
+      lastToolLabel: 'Lineup Availability',
+    })
+  }, [selectedDate, selectedLeagueKey, selectedTeam])
 
   async function writeCaptainAlerts(
     leagueName: string,

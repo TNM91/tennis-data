@@ -8,6 +8,15 @@ import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
+import {
+  buildCaptainWeekStatusKey,
+  getCaptainWeekStatusMeta,
+  readCaptainWeekStatus,
+  upsertCaptainWeekStatus,
+  type CaptainWeekStatus,
+} from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
 import { uniqueSorted } from '@/lib/captain-formatters'
 import { isCaptain, type UserRole } from '@/lib/roles'
@@ -516,6 +525,7 @@ export default function CaptainMessagingPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -624,6 +634,7 @@ export default function CaptainMessagingPage() {
     try {
       const rawScenario = window.localStorage.getItem('tenace_selected_scenario')
       const rawFlowSource = window.localStorage.getItem('tenace_flow_source') || ''
+      const resumeState = readCaptainResumeState()
 
       if (rawScenario) {
         const parsed = JSON.parse(rawScenario) as ScenarioRow
@@ -636,9 +647,9 @@ export default function CaptainMessagingPage() {
         setPrefillFlowSource(sourceFromUrl || rawFlowSource)
       }
 
-      const teamFromUrl = params.get('team') || ''
-      const leagueFromUrl = params.get('league') || ''
-      const flightFromUrl = params.get('flight') || ''
+      const teamFromUrl = params.get('team') || resumeState?.team || ''
+      const leagueFromUrl = params.get('league') || resumeState?.league || ''
+      const flightFromUrl = params.get('flight') || resumeState?.flight || ''
 
       if (teamFromUrl) setTeamFilter(teamFromUrl)
       if (leagueFromUrl) setLeagueFilter(leagueFromUrl)
@@ -892,7 +903,60 @@ export default function CaptainMessagingPage() {
       ? normalizeText(selectedMatch.away_team)
       : normalizeText(selectedMatch.home_team)
     : ''
+  const sharedCaptainNotes = useMemo(
+    () =>
+      readCaptainWeekNotes({
+        team: teamFilter || inferredTeamName,
+        league: leagueFilter,
+        flight: flightFilter,
+        eventDate: selectedMatch?.match_date || '',
+        opponentTeam: inferredOpponent,
+      }),
+    [flightFilter, inferredOpponent, inferredTeamName, leagueFilter, selectedMatch, teamFilter]
+  )
+
+  useEffect(() => {
+    if (!teamFilter && !leagueFilter && !flightFilter) return
+
+    writeCaptainResumeState({
+      team: teamFilter,
+      league: leagueFilter,
+      flight: flightFilter,
+      lastTool: 'messaging',
+      lastToolLabel: 'Messaging',
+      eventDate: selectedMatch?.match_date || undefined,
+      opponentTeam: inferredOpponent || undefined,
+    })
+  }, [flightFilter, inferredOpponent, leagueFilter, selectedMatch, teamFilter])
   const eventKey = safeKey(inferredTeamName, selectedMatch?.league_name, selectedMatch?.flight, selectedMatch?.match_date)
+  const weekStatusScope = useMemo(
+    () => ({
+      team: teamFilter || inferredTeamName,
+      league: leagueFilter || selectedMatch?.league_name || '',
+      flight: flightFilter || selectedMatch?.flight || '',
+      eventDate: selectedMatch?.match_date || '',
+      opponentTeam: inferredOpponent,
+    }),
+    [flightFilter, inferredOpponent, inferredTeamName, leagueFilter, selectedMatch, teamFilter],
+  )
+  const weekStatusKey = useMemo(() => buildCaptainWeekStatusKey(weekStatusScope), [weekStatusScope])
+  const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
+
+  useEffect(() => {
+    const saved = readCaptainWeekStatus(weekStatusScope)
+    setWeekStatus(saved?.status || 'draft-lineup')
+  }, [weekStatusKey, weekStatusScope])
+
+  function updateWeekStatus(nextStatus: CaptainWeekStatus) {
+    setWeekStatus(nextStatus)
+    upsertCaptainWeekStatus(weekStatusScope, nextStatus)
+  }
+
+  useEffect(() => {
+    if (!sharedCaptainNotes?.weeklyNotes) return
+    if (eventNotes.trim()) return
+    setEventNotes(sharedCaptainNotes.weeklyNotes)
+  }, [eventNotes, sharedCaptainNotes])
 
   const scenarioOptions = useMemo(() => {
     return scenarios.filter((scenario) => {
@@ -1961,6 +2025,24 @@ function importScenarioToLineup() {
               <Link href="/captain/lineup-builder" style={primaryButton}>Open Lineup Builder</Link>
               <Link href="/captain" style={ghostButton}>Back to Captain Console</Link>
             </div>
+            <div style={heroStatusShell}>
+              <div>
+                <div style={eyebrow}>Weekly workflow status</div>
+                <div style={heroStatusValue}>{weekStatusMeta.label}</div>
+                <div style={heroStatusText}>{weekStatusMeta.detail}</div>
+              </div>
+              <div style={heroStatusButtonRow}>
+                <button type="button" onClick={() => updateWeekStatus('draft-lineup')} style={weekStatus === 'draft-lineup' ? primaryButtonBlock : ghostButtonSmallButton}>
+                  Draft lineup
+                </button>
+                <button type="button" onClick={() => updateWeekStatus('ready-to-send')} style={weekStatus === 'ready-to-send' ? primaryButtonBlock : ghostButtonSmallButton}>
+                  Ready to send
+                </button>
+                <button type="button" onClick={() => updateWeekStatus('finalized')} style={weekStatus === 'finalized' ? primaryButtonBlock : ghostButtonSmallButton}>
+                  Finalized
+                </button>
+              </div>
+            </div>
             <div style={heroMetricGridStyle(isSmallMobile)}>
               <MetricStat label="Team contacts" value={String(scopedContacts.length)} />
               <MetricStat label="Available this week" value={String(availabilitySummary.availableCount)} />
@@ -2123,6 +2205,12 @@ function importScenarioToLineup() {
                   <Field label="Captain notes for the week" htmlFor="captain-messaging-notes">
                     <textarea id="captain-messaging-notes" value={eventNotes} onChange={(e) => setEventNotes(e.target.value)} placeholder="Rain plan, warm-up court, expected finish, balls, uniforms, snacks..." style={textareaStyle} />
                   </Field>
+
+                  {sharedCaptainNotes?.opponentNotes ? (
+                    <div style={miniMetricCardStyle}>
+                      <strong>Opponent scouting memory:</strong> {sharedCaptainNotes.opponentNotes}
+                    </div>
+                  ) : null}
                 </section>
 
                 <section style={surfaceCard}>
@@ -3584,6 +3672,38 @@ const heroButtonRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 12,
   marginTop: 22,
+}
+
+const heroStatusShell: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+  marginTop: 18,
+}
+
+const heroStatusValue: CSSProperties = {
+  color: '#f7fbff',
+  fontWeight: 900,
+  fontSize: 26,
+  lineHeight: 1.08,
+  letterSpacing: '-0.03em',
+  marginTop: 6,
+}
+
+const heroStatusText: CSSProperties = {
+  color: 'rgba(229,238,251,0.8)',
+  fontSize: 14,
+  lineHeight: 1.7,
+  marginTop: 6,
+}
+
+const heroStatusButtonRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
 }
 
 const heroMetricGridBaseStyle: CSSProperties = {

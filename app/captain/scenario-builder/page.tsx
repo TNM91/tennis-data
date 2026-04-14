@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { uniqueSorted } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
+import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { isCaptain, type UserRole } from '@/lib/roles'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -391,13 +392,25 @@ export default function ScenarioComparisonPage() {
     if (typeof window === 'undefined') return
 
     const params = new URLSearchParams(window.location.search)
-    setLeagueFilter(params.get('league') ?? '')
-    setFlightFilter(params.get('flight') ?? '')
-    setTeamFilter(params.get('team') ?? '')
-    setDateFilter(params.get('date') ?? '')
+    const resumeState = readCaptainResumeState()
+    setLeagueFilter(params.get('league') ?? resumeState?.league ?? '')
+    setFlightFilter(params.get('flight') ?? resumeState?.flight ?? '')
+    setTeamFilter(params.get('team') ?? resumeState?.team ?? '')
+    setDateFilter(params.get('date') ?? resumeState?.eventDate ?? '')
     setLeftId(params.get('left') ?? '')
     setRightId(params.get('right') ?? '')
   }, [])
+
+  useEffect(() => {
+    writeCaptainResumeState({
+      team: teamFilter || undefined,
+      league: leagueFilter || undefined,
+      flight: flightFilter || undefined,
+      eventDate: dateFilter || undefined,
+      lastTool: 'scenario-builder',
+      lastToolLabel: 'Scenario Builder',
+    })
+  }, [teamFilter, leagueFilter, flightFilter, dateFilter])
 
   const refreshScenarioData = useCallback(async () => {
     setLoading(true)
