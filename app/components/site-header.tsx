@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
@@ -12,6 +12,7 @@ import {
   hoverBrighten,
 } from '@/lib/interaction-styles'
 import { supabase } from '@/lib/supabase'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
@@ -291,18 +292,8 @@ export default function SiteHeader({ active }: { active?: string }) {
   const router = useRouter()
   const { role } = useAuth()
 
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [menuOpen, setMenuOpen] = useState(false)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile } = useViewportBreakpoints()
 
   async function handleLogout() {
     await supabase.auth.signOut()

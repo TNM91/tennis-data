@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -12,10 +13,11 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
+import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { uniqueSorted } from '@/lib/captain-formatters'
-import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { isCaptain, type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
@@ -51,6 +53,7 @@ type MatchTeamRow = {
   match_date: string | null
   home_team: string | null
   away_team: string | null
+  line_number: string | null
 }
 
 type MatchPlayerLinkRow = {
@@ -844,6 +847,7 @@ export default function LineupBuilderPage() {
   const [matchDate, setMatchDate] = useState('')
   const [scenarioName, setScenarioName] = useState('')
   const [notes, setNotes] = useState('')
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const [availabilityOnly, setAvailabilityOnly] = useState(true)
   const [hideUnavailable, setHideUnavailable] = useState(true)
@@ -866,26 +870,19 @@ export default function LineupBuilderPage() {
 
     async function loadRole() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const user = data.user
+        const authState = await getClientAuthState()
 
         if (!mounted) return
 
-        if (!user) {
+        if (!authState.user) {
           setRole('public')
           setAuthLoading(false)
           return
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle()
-
         if (!mounted) return
 
-        setRole(normalizeUserRole(profile?.role))
+        setRole(authState.role)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -927,114 +924,107 @@ export default function LineupBuilderPage() {
     if (single) setPrefillSingleId(single)
   }, [])
 
+  const refreshBuilderData = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    setMessage('')
+
+    const [playersResult, matchesResult, matchPlayersResult, availabilityResult, scenariosResult] = await Promise.all([
+      supabase
+        .from('players')
+        .select(`
+          id,
+          name,
+          location,
+          flight,
+          preferred_role,
+          lineup_notes,
+          singles_rating,
+          singles_dynamic_rating,
+          doubles_rating,
+          doubles_dynamic_rating,
+          overall_rating,
+          overall_dynamic_rating
+        `)
+        .order('name', { ascending: true }),
+      supabase
+        .from('matches')
+        .select(`
+          id,
+          league_name,
+          flight,
+          match_date,
+          home_team,
+          away_team,
+          line_number
+        `)
+        .is('line_number', null)
+        .order('match_date', { ascending: false })
+        .limit(400),
+      supabase
+        .from('match_players')
+        .select(`
+          match_id,
+          player_id,
+          side
+        `)
+        .limit(4000),
+      supabase
+        .from('lineup_availability')
+        .select(`
+          id,
+          match_date,
+          team_name,
+          league_name,
+          flight,
+          player_id,
+          status,
+          notes
+        `)
+        .order('match_date', { ascending: false }),
+      supabase
+        .from('lineup_scenarios')
+        .select(`
+          id,
+          scenario_name,
+          league_name,
+          flight,
+          match_date,
+          team_name,
+          opponent_team,
+          slots_json,
+          opponent_slots_json,
+          notes
+        `)
+        .order('match_date', { ascending: false })
+        .order('scenario_name', { ascending: true }),
+    ])
+
+    if (playersResult.error) {
+      setError(playersResult.error.message)
+    } else if (matchesResult.error) {
+      setError(matchesResult.error.message)
+    } else if (matchPlayersResult.error) {
+      setError(matchPlayersResult.error.message)
+    } else if (availabilityResult.error) {
+      setError(availabilityResult.error.message)
+    } else if (scenariosResult.error) {
+      setError(scenariosResult.error.message)
+    } else {
+      setPlayers((playersResult.data ?? []) as PlayerRow[])
+      setMatches((matchesResult.data ?? []) as MatchTeamRow[])
+      setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
+      setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
+      setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
+    }
+
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     if (authLoading || role === 'public') return
-
-    let mounted = true
-
-    async function loadData() {
-      setLoading(true)
-      setError('')
-      setMessage('')
-
-      const [playersResult, matchesResult, matchPlayersResult, availabilityResult, scenariosResult] = await Promise.all([
-        supabase
-          .from('players')
-          .select(`
-            id,
-            name,
-            location,
-            flight,
-            preferred_role,
-            lineup_notes,
-            singles_rating,
-            singles_dynamic_rating,
-            doubles_rating,
-            doubles_dynamic_rating,
-            overall_rating,
-            overall_dynamic_rating
-          `)
-          .order('name', { ascending: true }),
-        supabase
-          .from('matches')
-          .select(`
-            id,
-            league_name,
-            flight,
-            match_date,
-            home_team,
-            away_team
-          `)
-          .order('match_date', { ascending: false })
-          .limit(600),
-        supabase
-          .from('match_players')
-          .select(`
-            match_id,
-            player_id,
-            side
-          `)
-          .limit(4000),
-        supabase
-          .from('lineup_availability')
-          .select(`
-            id,
-            match_date,
-            team_name,
-            league_name,
-            flight,
-            player_id,
-            status,
-            notes
-          `)
-          .order('match_date', { ascending: false }),
-        supabase
-          .from('lineup_scenarios')
-          .select(`
-            id,
-            scenario_name,
-            league_name,
-            flight,
-            match_date,
-            team_name,
-            opponent_team,
-            slots_json,
-            opponent_slots_json,
-            notes
-          `)
-          .order('match_date', { ascending: false })
-          .order('scenario_name', { ascending: true }),
-      ])
-
-      if (!mounted) return
-
-      if (playersResult.error) {
-        setError(playersResult.error.message)
-      } else if (matchesResult.error) {
-        setError(matchesResult.error.message)
-      } else if (matchPlayersResult.error) {
-        setError(matchPlayersResult.error.message)
-      } else if (availabilityResult.error) {
-        setError(availabilityResult.error.message)
-      } else if (scenariosResult.error) {
-        setError(scenariosResult.error.message)
-      } else {
-        setPlayers((playersResult.data ?? []) as PlayerRow[])
-        setMatches((matchesResult.data ?? []) as MatchTeamRow[])
-        setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
-        setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
-        setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
-      }
-
-      setLoading(false)
-    }
-
-    void loadData()
-
-    return () => {
-      mounted = false
-    }
-  }, [authLoading, role])
+    void refreshBuilderData()
+  }, [authLoading, role, refreshTick, refreshBuilderData])
 
   const leagueOptions = useMemo(
     () =>
@@ -1870,6 +1860,9 @@ function sendCurrentScenarioToMessaging() {
             <div style={heroButtonRowStyle}>
               <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare Saved Scenarios</Link>
               <button type="button" onClick={resetBuilder} style={ghostButton}>Reset Builder</button>
+              <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButton}>
+                {loading ? 'Refreshing...' : 'Refresh data'}
+              </button>
             </div>
 
             <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -1907,7 +1900,16 @@ function sendCurrentScenarioToMessaging() {
         </section>
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
-        {!!error && <div role="alert" style={warningCardStyle}>{error}</div>}
+        {!!error && (
+          <div role="alert" style={warningCardStyle}>
+            <div>{error}</div>
+            <div style={{ marginTop: 12 }}>
+              <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButtonSmallButton}>
+                Retry builder load
+              </button>
+            </div>
+          </div>
+        )}
         {isPreviewMode ? (
           <div style={bannerBlueStyle}>
             Preview mode: members can explore the lineup builder, but saving scenarios, deleting scenarios, and tracking prediction snapshots require Captain tier.

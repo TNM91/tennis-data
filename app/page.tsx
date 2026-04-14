@@ -17,6 +17,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import SiteShell from '@/app/components/site-shell'
 
 type PlayerSearchRow = {
@@ -68,7 +69,6 @@ export default function HomePage() {
   const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [inputFocused, setInputFocused] = useState(false)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [recentPlayerActions, setRecentPlayerActions] = useState<QuickAction[]>([])
@@ -76,6 +76,7 @@ export default function HomePage() {
   const [hoveredQuickAction, setHoveredQuickAction] = useState<string | null>(null)
   const [searchButtonHovered, setSearchButtonHovered] = useState(false)
   const [previewCtaHovered, setPreviewCtaHovered] = useState(false)
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const trimmedSearch = useMemo(() => playerSearch.trim(), [playerSearch])
   const deferredSearch = useDeferredValue(trimmedSearch)
@@ -95,17 +96,6 @@ export default function HomePage() {
   const searchHelpId = 'home-player-search-help'
   const searchErrorId = 'home-player-search-error'
   const suggestionsListId = 'home-player-search-suggestions'
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

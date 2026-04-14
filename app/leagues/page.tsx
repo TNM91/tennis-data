@@ -7,6 +7,7 @@ import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import FollowButton from '@/app/components/follow-button'
 import SiteShell from '@/app/components/site-shell'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 
@@ -64,18 +65,7 @@ export default function LeaguesPage() {
   })
   const [search, setSearch] = useState('')
   const [flightFilter, setFlightFilter] = useState('all')
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     void loadLeagueSummary()
@@ -279,18 +269,23 @@ export default function LeaguesPage() {
               <div style={sectionKicker}>Filters</div>
               <h2 style={panelTitle}>Search and narrow league groups</h2>
             </div>
-            {hasActiveFilters ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch('')
-                  setFlightFilter('all')
-                }}
-                style={clearFilterButton}
-              >
-                Clear active filters
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => void loadLeagueSummary()} style={clearFilterButton}>
+                {loading ? 'Refreshing...' : 'Refresh league summary'}
               </button>
-            ) : null}
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('')
+                    setFlightFilter('all')
+                  }}
+                  style={clearFilterButton}
+                >
+                  Clear active filters
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div style={dynamicFilterGrid}>
@@ -331,7 +326,17 @@ export default function LeaguesPage() {
           {loading ? (
             <div style={stateBox}>Loading leagues...</div>
           ) : error ? (
-            <div style={errorBox}>{error}</div>
+            <div style={errorBox}>
+              <div>{error}</div>
+              <div style={stateHelperTextStyle}>
+                Refresh the league summary to try again without leaving the page.
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <button type="button" onClick={() => void loadLeagueSummary()} style={clearFilterButton}>
+                  Retry league load
+                </button>
+              </div>
+            </div>
           ) : filteredLeagues.length === 0 ? (
             <div style={stateBox}>
               {hasActiveFilters

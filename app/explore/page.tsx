@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, ReactNode, useEffect, useState } from 'react'
+import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const FEATURE_CARDS = [
   {
@@ -79,19 +80,8 @@ const DISCOVERY_GUIDES = [
 ]
 
 export default function ExplorePage() {
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,

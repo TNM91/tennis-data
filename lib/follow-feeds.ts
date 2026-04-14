@@ -1,3 +1,4 @@
+import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
 export type FollowEntityType = 'player' | 'team' | 'league'
@@ -36,9 +37,8 @@ function writeLocal<T>(key: string, value: T) {
 }
 
 async function getCurrentUserId(): Promise<string | null> {
-  const { data, error } = await supabase.auth.getUser()
-  if (error || !data.user) return null
-  return data.user.id
+  const authState = await getClientAuthState()
+  return authState.user?.id ?? null
 }
 
 export async function isFollowing(record: FollowRecord) {
@@ -145,7 +145,7 @@ export async function appendFeedEvent(type: FeedEventType, record: FollowRecord)
 
   const body =
     type === 'followed'
-      ? `Added ${record.entity_name} to My Lab${record.subtitle ? ` • ${record.subtitle}` : ''}`
+      ? `Added ${record.entity_name} to My Lab${record.subtitle ? ` - ${record.subtitle}` : ''}`
       : `Removed ${record.entity_name} from My Lab`
 
   const payload = {

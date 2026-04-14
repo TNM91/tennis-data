@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic'
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { getClientAuthState } from '@/lib/auth'
+import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
@@ -17,6 +18,7 @@ type MatchRow = {
   home_team: string | null
   away_team: string | null
   match_date: string
+  line_number: string | null
 }
 
 type PlayerRelation =
@@ -197,6 +199,7 @@ export default function LineupProjectionPage() {
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
+  const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
@@ -204,10 +207,9 @@ export default function LineupProjectionPage() {
 
     async function loadRole() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const user = data.user
+        const authState = await getClientAuthState()
 
-        if (!user) {
+        if (!authState.user) {
           if (mounted) {
             setRole('public')
             setAuthLoading(false)
@@ -216,16 +218,8 @@ export default function LineupProjectionPage() {
           return
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-
-        const normalized = normalizeUserRole(profile?.role)
-
         if (!mounted) return
-        setRole(normalized)
+        setRole(authState.role)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -248,7 +242,8 @@ export default function LineupProjectionPage() {
   useEffect(() => {
     if (authLoading || role === 'public') return
     void loadLeaguesAndTeams()
-  }, [authLoading, role])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, role, refreshTick])
 
   useEffect(() => {
     if (!selectedLeagueKey || !selectedTeam) {
@@ -261,7 +256,7 @@ export default function LineupProjectionPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLeagueKey, selectedTeam, selectedDate, authLoading, role])
 
-  async function loadLeaguesAndTeams() {
+  const loadLeaguesAndTeams = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -274,9 +269,12 @@ export default function LineupProjectionPage() {
           flight,
           home_team,
           away_team,
-          match_date
+          match_date,
+          line_number
         `)
+        .is('line_number', null)
         .order('match_date', { ascending: false })
+        .limit(400)
 
       if (error) throw new Error(error.message)
 
@@ -286,9 +284,9 @@ export default function LineupProjectionPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  async function loadTeamRoster() {
+  const loadTeamRoster = useCallback(async () => {
     setRosterLoading(true)
     setError('')
 
@@ -303,11 +301,13 @@ export default function LineupProjectionPage() {
           flight,
           home_team,
           away_team,
-          match_date
+          match_date,
+          line_number
         `)
         .eq('league_name', leagueName)
         .eq('flight', flight)
         .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
+        .is('line_number', null)
 
       if (teamMatchesError) throw new Error(teamMatchesError.message)
 
@@ -426,7 +426,7 @@ export default function LineupProjectionPage() {
     } finally {
       setRosterLoading(false)
     }
-  }
+  }, [selectedLeagueKey, selectedTeam, selectedDate])
 
   const leagueOptions = useMemo<LeagueOption[]>(() => {
     const map = new Map<string, LeagueOption>()
@@ -686,6 +686,9 @@ export default function LineupProjectionPage() {
           <div style={heroButtonRowStyle}>
             <Link href={builderHref} style={primaryButton}>Build in Lineup Builder</Link>
             <Link href="/captain" style={ghostButton}>Back to Captain Console</Link>
+            <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButton}>
+              {loading || rosterLoading ? 'Refreshing...' : 'Refresh data'}
+            </button>
           </div>
 
           <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -802,7 +805,17 @@ export default function LineupProjectionPage() {
           {loading ? (
             <div style={stateBox}>Loading lineup data...</div>
           ) : error ? (
-            <div style={errorBox}>{error}</div>
+            <div style={errorBox}>
+              <div>{error}</div>
+              <div style={stateHelperTextStyle}>
+                Refresh the projection data to retry without leaving the page.
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButton}>
+                  Retry projection load
+                </button>
+              </div>
+            </div>
           ) : !selectedLeagueKey || !selectedTeam ? (
             <div style={stateBox}>
               Choose a league and team to generate a projected lineup.

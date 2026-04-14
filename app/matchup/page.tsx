@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -124,7 +125,7 @@ export default function MatchupPage() {
   const [error, setError] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
   const [accuracyLoading, setAccuracyLoading] = useState(false)
-  const [screenWidth, setScreenWidth] = useState(1280)
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const [matchType, setMatchType] = useState<MatchType>('singles')
 
@@ -145,17 +146,6 @@ export default function MatchupPage() {
     low: null,
     sampleSize: 0,
   })
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   useEffect(() => {
     void loadPlayers()
@@ -1228,7 +1218,16 @@ export default function MatchupPage() {
             </div>
           )}
 
-          {error ? <div style={errorBanner}>{error}</div> : null}
+          {error ? (
+            <div style={errorBanner}>
+              <div>{error}</div>
+              <div style={{ marginTop: 12 }}>
+                <button type="button" onClick={() => void loadPlayers()} style={retryButtonStyle}>
+                  Retry matchup load
+                </button>
+              </div>
+            </div>
+          ) : null}
 
           {loading ? (
             <div style={emptyState}>Loading players...</div>
@@ -1981,6 +1980,20 @@ const errorBanner: CSSProperties = {
   color: '#fecaca',
   fontWeight: 700,
   fontSize: '14px',
+}
+
+const retryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(15,23,42,0.28)',
+  color: '#dbeafe',
+  fontWeight: 800,
+  cursor: 'pointer',
 }
 
 const emptyState: CSSProperties = {

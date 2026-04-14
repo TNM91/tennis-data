@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
   id: string
@@ -153,18 +154,7 @@ export default function TeamPage() {
   const [players, setPlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const loadTeamPage = useCallback(async () => {
     setLoading(true)
@@ -178,25 +168,25 @@ export default function TeamPage() {
         return
       }
 
-    let matchQuery = supabase
-  .from('matches')
-  .select(`
-    id,
-    home_team,
-    away_team,
-    match_date,
-    match_type,
-    winner_side,
-    score,
-    flight,
-    league_name,
-    usta_section,
-    district_area,
-    line_number
-  `)
-  .is('line_number', null)
-  .order('match_date', { ascending: false })
-  .limit(250)
+      let matchQuery = supabase
+        .from('matches')
+        .select(`
+          id,
+          home_team,
+          away_team,
+          match_date,
+          match_type,
+          winner_side,
+          score,
+          flight,
+          league_name,
+          usta_section,
+          district_area,
+          line_number
+        `)
+        .is('line_number', null)
+        .order('match_date', { ascending: false })
+        .limit(250)
 
       if (leagueFilter) {
         matchQuery = matchQuery.eq('league_name', leagueFilter)
@@ -578,6 +568,11 @@ export default function TeamPage() {
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>Something went wrong</h2>
             <p style={bodyText}>{error}</p>
+            <div style={{ marginTop: 14 }}>
+              <button type="button" onClick={() => void loadTeamPage()} style={buttonSecondary}>
+                Retry team page
+              </button>
+            </div>
           </section>
         ) : null}
 

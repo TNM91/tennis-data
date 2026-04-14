@@ -2,8 +2,9 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const statCardStyle = {
   borderRadius: '22px',
@@ -36,17 +37,7 @@ const actionLinkBase = {
 } as const
 
 export default function HomePageHeroResponsive() {
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  useEffect(() => {
-    const onResize = () => setScreenWidth(window.innerWidth)
-    onResize()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-
-  const isTablet = screenWidth < 1100
-  const isMobile = screenWidth < 820
+  const { isTablet, isMobile } = useViewportBreakpoints()
 
   const shellPadding = isMobile ? '16px' : '24px'
   const heroPadding = isMobile ? '18px' : isTablet ? '22px' : '30px'

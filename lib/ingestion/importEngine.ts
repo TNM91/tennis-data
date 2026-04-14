@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { buildLeagueEntityId, buildTeamEntityId } from '@/lib/entity-ids'
 
 export type MatchSide = 'A' | 'B'
 export type MatchType = 'singles' | 'doubles'
@@ -246,19 +247,6 @@ function normalizeDateInput(value: string): string {
   const month = `${parsed.getMonth() + 1}`.padStart(2, '0')
   const day = `${parsed.getDate()}`.padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function buildTeamEntityId(teamName: string, leagueName?: string | null, flight?: string | null): string {
-  return `${cleanString(teamName)}__${nullableString(leagueName) ?? ''}__${nullableString(flight) ?? ''}`
-}
-
-function buildLeagueEntityId(
-  leagueName?: string | null,
-  flight?: string | null,
-  ustaSection?: string | null,
-  districtArea?: string | null,
-): string {
-  return `${nullableString(leagueName) ?? ''}__${nullableString(flight) ?? ''}__${nullableString(ustaSection) ?? ''}__${nullableString(districtArea) ?? ''}`
 }
 
 function buildLineExternalMatchId(externalMatchId: string, lineNumber: number): string {

@@ -1477,6 +1477,12 @@ export default function AdminImportPage() {
                         </div>
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                           <Link
+                            href={`/admin/missing-scorecards?status=pending&league=${encodeURIComponent([cleanString(row.league_name), cleanString(row.flight)].filter(Boolean).join(' - '))}&team=${encodeURIComponent(cleanString(row.home_team) || cleanString(row.away_team))}`}
+                            style={{ ...secondaryButtonStyle, minHeight: 40, textDecoration: 'none' }}
+                          >
+                            Open scorecard queue
+                          </Link>
+                          <Link
                             href={`/admin/manage-matches?search=${encodeURIComponent(row.external_match_id || `${row.home_team || ''} ${row.away_team || ''}`.trim())}`}
                             style={{ ...secondaryButtonStyle, minHeight: 40, textDecoration: 'none' }}
                           >

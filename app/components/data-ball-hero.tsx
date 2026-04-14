@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type Particle = {
   id: number
@@ -18,17 +19,7 @@ export default function DataBallHero() {
   const ballRef = useRef<HTMLDivElement>(null)
 
   const [pointer, setPointer] = useState({ x: 0, y: 0, active: false })
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const update = () => {
-      setIsMobile(window.innerWidth < 820)
-    }
-
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
+  const { isMobile } = useViewportBreakpoints()
 
   const particles = useMemo<Particle[]>(
     () => [

@@ -6,10 +6,10 @@ import { CSSProperties, FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -18,17 +18,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [sessionReady, setSessionReady] = useState(false)
   const [checking, setChecking] = useState(true)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const onResize = () => setScreenWidth(window.innerWidth)
-    onResize()
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     async function loadSession() {

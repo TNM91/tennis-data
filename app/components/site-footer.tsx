@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import {
   hoverLift,
@@ -9,6 +9,7 @@ import {
   hoverBrighten,
   transitionBase,
 } from '@/lib/interaction-styles'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const PLATFORM_LINKS = [
   { href: '/explore', label: 'Explore' },
@@ -92,17 +93,7 @@ function FooterCta({
 }
 
 export default function SiteFooter() {
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 760
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile } = useViewportBreakpoints()
 
   const footerPadding = isMobile ? '18px 12px 24px' : '28px 16px 34px'
 

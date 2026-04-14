@@ -3,11 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { uniqueSorted } from '@/lib/captain-formatters'
-import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { getClientAuthState } from '@/lib/auth'
+import { isCaptain, type UserRole } from '@/lib/roles'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -345,6 +346,7 @@ export default function ScenarioComparisonPage() {
   const [dateFilter, setDateFilter] = useState('')
   const [leftId, setLeftId] = useState('')
   const [rightId, setRightId] = useState('')
+  const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
@@ -352,8 +354,8 @@ export default function ScenarioComparisonPage() {
 
     async function loadRole() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const user = data.user
+        const authState = await getClientAuthState()
+        const user = authState.user
 
         if (!user) {
           if (mounted) {
@@ -364,16 +366,8 @@ export default function ScenarioComparisonPage() {
           return
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-
-        const normalized = normalizeUserRole(profile?.role)
-
         if (!mounted) return
-        setRole(normalized)
+        setRole(authState.role)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -405,64 +399,55 @@ export default function ScenarioComparisonPage() {
     setRightId(params.get('right') ?? '')
   }, [])
 
+  const refreshScenarioData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    const [scenarioResult, playersResult] = await Promise.all([
+      supabase
+        .from('lineup_scenarios')
+        .select(`
+          id,
+          scenario_name,
+          league_name,
+          flight,
+          match_date,
+          team_name,
+          opponent_team,
+          slots_json,
+          opponent_slots_json,
+          notes
+        `)
+        .order('match_date', { ascending: false })
+        .order('scenario_name', { ascending: true }),
+      supabase
+        .from('players')
+        .select(`
+          id,
+          name,
+          singles_dynamic_rating,
+          doubles_dynamic_rating,
+          overall_dynamic_rating
+        `)
+        .order('name', { ascending: true }),
+    ])
+
+    if (scenarioResult.error) {
+      setError(scenarioResult.error.message)
+    } else if (playersResult.error) {
+      setError(playersResult.error.message)
+    } else {
+      setScenarios((scenarioResult.data ?? []) as ScenarioRow[])
+      setPlayers((playersResult.data ?? []) as PlayerRow[])
+    }
+
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     if (authLoading || role === 'public') return
-
-    let mounted = true
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
-      const [scenarioResult, playersResult] = await Promise.all([
-        supabase
-          .from('lineup_scenarios')
-          .select(`
-            id,
-            scenario_name,
-            league_name,
-            flight,
-            match_date,
-            team_name,
-            opponent_team,
-            slots_json,
-            opponent_slots_json,
-            notes
-          `)
-          .order('match_date', { ascending: false })
-          .order('scenario_name', { ascending: true }),
-        supabase
-          .from('players')
-          .select(`
-            id,
-            name,
-            singles_dynamic_rating,
-            doubles_dynamic_rating,
-            overall_dynamic_rating
-          `)
-          .order('name', { ascending: true }),
-      ])
-
-      if (!mounted) return
-
-      if (scenarioResult.error) {
-        setError(scenarioResult.error.message)
-      } else if (playersResult.error) {
-        setError(playersResult.error.message)
-      } else {
-        setScenarios((scenarioResult.data ?? []) as ScenarioRow[])
-        setPlayers((playersResult.data ?? []) as PlayerRow[])
-      }
-
-      setLoading(false)
-    }
-
-    void load()
-
-    return () => {
-      mounted = false
-    }
-  }, [authLoading, role])
+    void refreshScenarioData()
+  }, [authLoading, refreshScenarioData, role, refreshTick])
 
   const leagueOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.league_name)), [scenarios])
   const flightOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.flight)), [scenarios])
@@ -567,6 +552,13 @@ export default function ScenarioComparisonPage() {
               <Link href="/captain/lineup-builder" style={primaryButton}>
                 Open Lineup Builder
               </Link>
+              <button
+                type="button"
+                style={ghostButtonSmallButton}
+                onClick={() => setRefreshTick((current) => current + 1)}
+              >
+                Refresh data
+              </button>
               <Link href="/captain" style={ghostButton}>
                 Back to Captain Console
               </Link>
@@ -702,6 +694,15 @@ export default function ScenarioComparisonPage() {
           ) : error ? (
             <section style={surfaceCard}>
               <p style={errorTextStyle}>Unable to load scenarios: {error}</p>
+              <div style={{ marginTop: 14 }}>
+                <button
+                  type="button"
+                  style={ghostButtonSmallButton}
+                  onClick={() => setRefreshTick((current) => current + 1)}
+                >
+                  Retry scenario load
+                </button>
+              </div>
             </section>
           ) : filteredScenarios.length === 0 ? (
             <section style={surfaceCard}>

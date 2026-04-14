@@ -60,6 +60,7 @@ type TeamOptionMatchRow = {
   league_name: string | null
   flight: string | null
   match_date: string
+  line_number?: string | null
 }
 
 
@@ -189,6 +190,7 @@ export default function CaptainHubPage() {
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [error, setError] = useState('')
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const [scenarioCount, setScenarioCount] = useState(0)
   const [latestScenarioName, setLatestScenarioName] = useState('')
@@ -220,7 +222,10 @@ export default function CaptainHubPage() {
     try {
       const { data, error: matchesError } = await supabase
         .from('matches')
-        .select('home_team, away_team, league_name, flight, match_date')
+        .select('home_team, away_team, league_name, flight, match_date, line_number')
+        .is('line_number', null)
+        .order('match_date', { ascending: false })
+        .limit(600)
 
       if (matchesError) throw new Error(matchesError.message)
 
@@ -283,10 +288,13 @@ export default function CaptainHubPage() {
           match_date,
           match_type,
           score,
-          winner_side
+          winner_side,
+          line_number
         `)
+        .is('line_number', null)
         .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
         .order('match_date', { ascending: false })
+        .limit(400)
 
       if (selectedLeague) query = query.eq('league_name', selectedLeague)
       if (selectedFlight) query = query.eq('flight', selectedFlight)
@@ -384,12 +392,12 @@ export default function CaptainHubPage() {
 
   useEffect(() => {
     void loadTeamOptions()
-  }, [loadTeamOptions])
+  }, [loadTeamOptions, refreshTick])
 
   useEffect(() => {
     if (!selectedTeam) return
     void loadSelectedTeam()
-  }, [loadSelectedTeam, selectedTeam])
+  }, [loadSelectedTeam, refreshTick, selectedTeam])
 
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
@@ -738,6 +746,14 @@ export default function CaptainHubPage() {
 
               <button
                 type="button"
+                style={secondaryButtonSmallButton}
+                onClick={() => setRefreshTick((current) => current + 1)}
+              >
+                {loadingOptions || loadingTeam ? 'Refreshing...' : 'Refresh data'}
+              </button>
+
+              <button
+                type="button"
                 style={{
                   ...primaryButtonButton,
                   ...(!hasTeamScope ? disabledButton : {}),
@@ -794,7 +810,20 @@ export default function CaptainHubPage() {
           </div>
         </section>
 
-        {error ? <section style={errorCard}>{error}</section> : null}
+        {error ? (
+          <section style={errorCard}>
+            <div>{error}</div>
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                style={secondaryButtonSmallButton}
+                onClick={() => setRefreshTick((current) => current + 1)}
+              >
+                Retry captain hub load
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <section style={premiumStrip}>
           <div>

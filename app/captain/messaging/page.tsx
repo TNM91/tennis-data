@@ -7,9 +7,10 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import SiteShell from '@/app/components/site-shell'
+import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { uniqueSorted } from '@/lib/captain-formatters'
-import { normalizeUserRole, isCaptain, type UserRole } from '@/lib/roles'
+import { isCaptain, type UserRole } from '@/lib/roles'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -47,6 +48,7 @@ type MatchRow = {
   flight: string | null
   home_team: string | null
   away_team: string | null
+  line_number: string | null
 }
 
 type ScenarioRow = {
@@ -515,6 +517,7 @@ export default function CaptainMessagingPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const [contacts, setContacts] = useState<ContactRow[]>([])
   const [templates, setTemplates] = useState<TemplateRow[]>([])
@@ -576,10 +579,9 @@ export default function CaptainMessagingPage() {
 
     async function loadAuth() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const user = data.user
+        const authState = await getClientAuthState()
 
-        if (!user) {
+        if (!authState.user) {
           if (mounted) {
             setRole('public')
             setAuthLoading(false)
@@ -587,15 +589,9 @@ export default function CaptainMessagingPage() {
           return
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle()
-
         if (!mounted) return
 
-        setRole(normalizeUserRole(profile?.role))
+        setRole(authState.role)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -659,7 +655,12 @@ export default function CaptainMessagingPage() {
       setError(null)
       try {
         const [matchesResult, contactsResult, templatesResult, scenariosResult] = await Promise.all([
-          supabase.from('matches').select('id, match_date, league_name, flight, home_team, away_team').order('match_date', { ascending: false }),
+          supabase
+            .from('matches')
+            .select('id, match_date, league_name, flight, home_team, away_team, line_number')
+            .is('line_number', null)
+            .order('match_date', { ascending: false })
+            .limit(400),
           supabase.from(CONTACTS_TABLE).select('*').order('team_name', { ascending: true }).order('full_name', { ascending: true }),
           supabase.from(TEMPLATES_TABLE).select('*').order('template_name', { ascending: true }),
           supabase
@@ -787,7 +788,7 @@ export default function CaptainMessagingPage() {
       mounted = false
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [refreshTick])
 
   useEffect(() => {
     if (loading) return
@@ -2012,7 +2013,19 @@ function importScenarioToLineup() {
                 <h2 style={sectionTitle}>Roster + season/session filters</h2>
                 <p style={sectionBodyTextStyle}>Load the correct contact list for the right league team and session before sending anything.</p>
               </div>
-              <span style={storageMode === 'supabase' ? miniPillGreen : miniPillSlate}>{storageMode === 'supabase' ? 'Supabase-backed' : 'Local fallback mode'}</span>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  style={ghostButtonSmallButton}
+                  onClick={() => setRefreshTick((current) => current + 1)}
+                  disabled={loading}
+                >
+                  {loading ? 'Refreshing...' : 'Refresh data'}
+                </button>
+                <span style={storageMode === 'supabase' ? miniPillGreen : miniPillSlate}>
+                  {storageMode === 'supabase' ? 'Supabase-backed' : 'Local fallback mode'}
+                </span>
+              </div>
             </div>
 
             <div style={filtersGridStyle}>
@@ -2071,7 +2084,16 @@ function importScenarioToLineup() {
             <section style={surfaceCard}><p style={mutedTextStyle}>Loading captain console...</p></section>
           ) : (
             <>
-              {error ? <section style={surfaceCard}><p role="alert" style={errorTextStyle}>{error}</p></section> : null}
+              {error ? (
+                <section style={surfaceCard}>
+                  <p role="alert" style={errorTextStyle}>{error}</p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                    <button type="button" style={ghostButtonSmallButton} onClick={() => setRefreshTick((current) => current + 1)}>
+                      Retry console load
+                    </button>
+                  </div>
+                </section>
+              ) : null}
 
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCard}>

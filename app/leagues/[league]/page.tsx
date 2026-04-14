@@ -8,6 +8,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type LeagueMatchRow = {
   id: string
@@ -96,18 +97,7 @@ export default function LeagueDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [teamFilter, setTeamFilter] = useState('all')
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const loadLeagueMatches = useCallback(async () => {
     setLoading(true)

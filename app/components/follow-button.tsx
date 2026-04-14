@@ -1,8 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/app/components/auth-provider'
+import {
+  createFollow,
+  isFollowing as checkIsFollowing,
+  removeFollow,
+  type FollowRecord,
+} from '@/lib/follow-feeds'
 
 type Props = {
   entityType: 'player' | 'team' | 'league'
@@ -45,15 +50,12 @@ export default function FollowButton({
           return
         }
 
-        const { data, error } = await supabase
-          .from('user_follows')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('entity_type', entityType)
-          .eq('entity_id', normalizedEntityId)
-          .maybeSingle()
-
-        if (error) throw error
+        const data = await checkIsFollowing({
+          entity_type: entityType,
+          entity_id: normalizedEntityId,
+          entity_name: normalizedEntityName || normalizedEntityId,
+          subtitle: normalizedSubtitle ?? null,
+        })
         if (cancelled) return
 
         setIsFollowing(Boolean(data))
@@ -75,57 +77,34 @@ export default function FollowButton({
     return () => {
       cancelled = true
     }
-  }, [authResolved, entityType, normalizedEntityId, userId])
+  }, [authResolved, entityType, normalizedEntityId, normalizedEntityName, normalizedSubtitle, userId])
 
   async function toggleFollow() {
     if (loading || saving || !normalizedEntityId || !userId) return
 
     setSaving(true)
 
+    const record: FollowRecord = {
+      entity_type: entityType,
+      entity_id: normalizedEntityId,
+      entity_name: normalizedEntityName || normalizedEntityId,
+      subtitle: normalizedSubtitle ?? null,
+    }
+
     try {
       if (isFollowing) {
-        const { error } = await supabase
-          .from('user_follows')
-          .delete()
-          .eq('user_id', userId)
-          .eq('entity_type', entityType)
-          .eq('entity_id', normalizedEntityId)
-
-        if (error) throw error
-
+        await removeFollow(record)
         setIsFollowing(false)
         return
       }
 
-      const { error } = await supabase.from('user_follows').upsert(
-        {
-          user_id: userId,
-          entity_type: entityType,
-          entity_id: normalizedEntityId,
-          entity_name: normalizedEntityName || normalizedEntityId,
-          subtitle: normalizedSubtitle ?? null,
-        },
-        {
-          onConflict: 'user_id,entity_type,entity_id',
-        },
-      )
-
-      if (error) throw error
-
+      await createFollow(record)
       setIsFollowing(true)
     } catch (error) {
       console.error('Failed to toggle follow state', error)
 
       try {
-        const { data, error: refreshError } = await supabase
-          .from('user_follows')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('entity_type', entityType)
-          .eq('entity_id', normalizedEntityId)
-          .maybeSingle()
-
-        if (refreshError) throw refreshError
+        const data = await checkIsFollowing(record)
         setIsFollowing(Boolean(data))
       } catch (refreshErr) {
         console.error('Failed to refresh follow state after toggle error', refreshErr)

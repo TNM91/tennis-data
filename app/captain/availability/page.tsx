@@ -38,6 +38,7 @@ type TeamOptionMatchRow = {
   away_team: string | null
   league_name: string | null
   flight: string | null
+  line_number: string | null
 }
 
 type TeamRosterMatchRow = {
@@ -46,6 +47,7 @@ type TeamRosterMatchRow = {
   away_team: string | null
   league_name: string | null
   flight: string | null
+  line_number: string | null
 }
 
 type RosterPlayerRelation =
@@ -102,7 +104,8 @@ export default function CaptainAvailabilityPage() {
     try {
       const { data, error } = await supabase
         .from('matches')
-        .select('home_team, away_team, league_name, flight')
+        .select('home_team, away_team, league_name, flight, line_number')
+        .is('line_number', null)
 
       if (error) throw new Error(error.message)
 
@@ -150,7 +153,8 @@ export default function CaptainAvailabilityPage() {
     try {
       let matchQuery = supabase
         .from('matches')
-        .select('id, home_team, away_team, league_name, flight')
+        .select('id, home_team, away_team, league_name, flight, line_number')
+        .is('line_number', null)
         .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
 
       if (selectedLeague) matchQuery = matchQuery.eq('league_name', selectedLeague)
@@ -383,6 +387,15 @@ export default function CaptainAvailabilityPage() {
               >
                 Send Request
               </button>
+
+              <button
+                type="button"
+                style={sectionCtaSecondary}
+                onClick={() => void loadRoster()}
+                disabled={!hasScope || loadingRoster}
+              >
+                {loadingRoster ? 'Refreshing...' : 'Refresh roster'}
+              </button>
             </div>
 
             <div style={heroBadgeRow}>
@@ -422,7 +435,24 @@ export default function CaptainAvailabilityPage() {
           </div>
         </section>
 
-        {error ? <section style={errorCard}>{error}</section> : null}
+        {error ? (
+          <section style={errorCard}>
+            <div>{error}</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+              <button type="button" style={sectionCtaSecondary} onClick={() => void loadTeamOptions()}>
+                Retry teams
+              </button>
+              <button
+                type="button"
+                style={sectionCtaSecondary}
+                onClick={() => void loadRoster()}
+                disabled={!hasScope}
+              >
+                Retry roster
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <section style={contentWrap}>
           <div style={metricGridResponsive(isSmallMobile, isMobile)}>

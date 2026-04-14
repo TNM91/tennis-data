@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 
@@ -26,7 +27,6 @@ export default function LoginPage() {
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
   const [redirecting, setRedirecting] = useState(false)
-  const [screenWidth, setScreenWidth] = useState(1280)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -40,17 +40,7 @@ export default function LoginPage() {
     if (typeof window === 'undefined') return DEFAULT_POST_LOGIN_ROUTE
     return resolvePostLoginRoute(new URLSearchParams(window.location.search).get('next'))
   }, [])
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     router.prefetch(postLoginRoute)

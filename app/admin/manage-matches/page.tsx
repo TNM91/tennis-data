@@ -9,6 +9,7 @@ import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
 
 type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
+type MatchScopeFilter = 'all' | 'parent' | 'scorecard-lines'
 
 type MatchRow = {
   id: string
@@ -71,6 +72,7 @@ export default function ManageMatchesPage() {
 
   const [search, setSearch] = useState('')
   const [matchTypeFilter, setMatchTypeFilter] = useState<'all' | MatchType>('all')
+  const [matchScopeFilter, setMatchScopeFilter] = useState<MatchScopeFilter>('all')
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -114,6 +116,7 @@ export default function ManageMatchesPage() {
         `)
         .order('match_date', { ascending: false })
         .order('created_at', { ascending: false })
+        .limit(1200)
 
       if (matchesError) {
         throw new Error(matchesError.message)
@@ -257,6 +260,14 @@ export default function ManageMatchesPage() {
         return false
       }
 
+      if (matchScopeFilter === 'parent' && match.lineNumber) {
+        return false
+      }
+
+      if (matchScopeFilter === 'scorecard-lines' && !match.lineNumber) {
+        return false
+      }
+
       if (!normalizedSearch) return true
 
       const haystack = [
@@ -274,13 +285,15 @@ export default function ManageMatchesPage() {
 
       return haystack.includes(normalizedSearch)
     })
-  }, [matches, deferredSearch, matchTypeFilter])
+  }, [matches, deferredSearch, matchScopeFilter, matchTypeFilter])
 
-  const hasActiveFilters = search.trim().length > 0 || matchTypeFilter !== 'all'
+  const hasActiveFilters =
+    search.trim().length > 0 || matchTypeFilter !== 'all' || matchScopeFilter !== 'all'
 
   function resetFilters() {
     setSearch('')
     setMatchTypeFilter('all')
+    setMatchScopeFilter('all')
   }
 
   return (
@@ -391,6 +404,24 @@ export default function ManageMatchesPage() {
                     <option value="doubles">Doubles</option>
                   </select>
                 </Field>
+
+                <Field
+                  label="Match Scope"
+                  htmlFor="manage-matches-scope"
+                  hint="Separate parent schedule rows from imported scorecard lines when the ledger gets crowded."
+                >
+                  <select
+                    id="manage-matches-scope"
+                    value={matchScopeFilter}
+                    onChange={(e) => setMatchScopeFilter(e.target.value as MatchScopeFilter)}
+                    className="select"
+                    disabled={loading || refreshing}
+                  >
+                    <option value="all">All rows</option>
+                    <option value="parent">Parent matches only</option>
+                    <option value="scorecard-lines">Scorecard lines only</option>
+                  </select>
+                </Field>
               </div>
 
               <div
@@ -448,6 +479,9 @@ export default function ManageMatchesPage() {
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 760 }}>
               Narrow the table when you need a specific cleanup target, then reset back to the full ledger before doing destructive deletes or broad rating recalculations.
             </p>
+            <p className="subtle-text" style={{ marginTop: 8, maxWidth: 760 }}>
+              The table loads the most recent 1,200 rows so match cleanup stays responsive after large season imports.
+            </p>
 
             {searchParam ? (
               <div style={{ marginTop: 12 }}>
@@ -499,12 +533,27 @@ export default function ManageMatchesPage() {
                 }}
               >
                 {error}
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => void loadMatches(true)}
+                    className="button-ghost"
+                    style={{
+                      background: 'rgba(15,23,42,0.24)',
+                      color: '#dbeafe',
+                      border: '1px solid rgba(116,190,255,0.12)',
+                    }}
+                  >
+                    Retry match load
+                  </button>
+                </div>
               </div>
             )}
 
             <div className="metric-grid" style={{ marginTop: 20 }}>
               <MetricCard label="Total Matches" value={matches.length} />
               <MetricCard label="Filtered Matches" value={filteredMatches.length} />
+              <MetricCard label="Parent Matches" value={matches.filter((m) => !m.lineNumber).length} />
               <MetricCard
                 label="Singles"
                 value={matches.filter((m) => m.matchType === 'singles').length}

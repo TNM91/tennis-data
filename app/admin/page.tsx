@@ -31,6 +31,17 @@ const adminTools: AdminTool[] = [
     statValue: 'All imports',
   },
   {
+    title: 'Missing Scorecards',
+    href: '/admin/missing-scorecards',
+    description:
+      'Track which scheduled matches still need scorecards, filter by league and team, and jump directly into import or match review.',
+    badge: 'Operations',
+    accent: 'green',
+    highlights: ['Past due queue', 'League + team filters', 'Import handoff'],
+    statLabel: 'Best for',
+    statValue: 'Weekly ops',
+  },
+  {
     title: 'Lineup Availability',
     href: '/admin/lineup-availability',
     description:
@@ -77,7 +88,7 @@ const adminTools: AdminTool[] = [
 ]
 
 const importTools = adminTools.filter((tool) =>
-  ['/admin/import', '/admin/lineup-availability'].includes(tool.href)
+  ['/admin/import', '/admin/missing-scorecards', '/admin/lineup-availability'].includes(tool.href)
 )
 
 const managementTools = adminTools.filter((tool) =>
@@ -163,7 +174,7 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="5" helper="Unified and cleaned up" />
+              <MetricCard label="Admin Tools" value="6" helper="Unified and cleaned up" />
               <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
               <MetricCard label="Data Control" value="4" helper="Imports, availability, player and match ops" />
               <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
@@ -176,14 +187,14 @@ export default function AdminDashboardPage() {
                 tone="green"
               />
               <MiniPanel
+                title="Missing Scorecards"
+                text="Use the scorecard queue to see which scheduled matches are still missing results after match day."
+                tone="green"
+              />
+              <MiniPanel
                 title="Data Stewardship"
                 text="Use the management tools when you need to clean records, fix metadata, or refine ratings inputs."
                 tone="blue"
-              />
-              <MiniPanel
-                title="Captain Support"
-                text="Use lineup availability to support weekly roster and readiness work without sending admins to dead-end routes."
-                tone="slate"
               />
             </div>
           </div>
@@ -192,8 +203,8 @@ export default function AdminDashboardPage() {
         <section id="imports" style={{ marginTop: 26 }}>
           <SectionHeader
             kicker="Imports"
-            title="Bring data into the system"
-            subtitle="Start with the unified import center, then use lineup availability when weekly readiness needs admin support."
+            title="Bring data into the system and manage weekly result flow"
+            subtitle="Start with the unified import center, use missing scorecards to track what is still outstanding, and use lineup availability when weekly readiness needs admin support."
           />
           <div className="card-grid three" style={{ marginTop: 14 }}>
             {importTools.map((tool) => (
@@ -278,6 +289,11 @@ export default function AdminDashboardPage() {
                     <td>Main import route going forward</td>
                   </tr>
                   <tr>
+                    <td>/admin/missing-scorecards</td>
+                    <td>Schedule-to-scorecard operations dashboard</td>
+                    <td>Best for past-due result follow-up and weekly tracking</td>
+                  </tr>
+                  <tr>
                     <td>/admin/lineup-availability</td>
                     <td>Availability and readiness support</td>
                     <td>Use when admin operations overlap with captain planning</td>
@@ -339,11 +355,16 @@ export default function AdminDashboardPage() {
                 />
                 <WorkflowStep
                   number="02"
+                  title="Track what still needs scorecards"
+                  text="Use Missing Scorecards after uploads to see which scheduled parent matches are still waiting on results."
+                />
+                <WorkflowStep
+                  number="03"
                   title="Validate and support the week"
                   text="Preview normalized rows, check warnings, and use lineup availability when roster readiness needs admin help."
                 />
                 <WorkflowStep
-                  number="03"
+                  number="04"
                   title="Clean up records"
                   text="Use Manage Matches and Manage Players to tighten data quality after imports or manual entry."
                 />
@@ -377,6 +398,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <QuickAction href="/admin/import" label="Open Unified Import Center" />
+                <QuickAction href="/admin/missing-scorecards" label="Open Missing Scorecards" />
                 <QuickAction href="/admin/lineup-availability" label="Open Lineup Availability" />
                 <QuickAction href="/admin/add-match" label="Open Add Match" />
                 <QuickAction href="/admin/manage-matches" label="Open Manage Matches" />

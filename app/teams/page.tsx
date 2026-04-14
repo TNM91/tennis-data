@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
   id: string
@@ -90,7 +91,6 @@ function chunkArray<T>(rows: T[], size: number) {
 }
 
 export default function TeamsPage() {
-  const [screenWidth, setScreenWidth] = useState(1280)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TeamDirectoryEntry[]>([])
@@ -100,16 +100,7 @@ export default function TeamsPage() {
   const [flightFilter, setFlightFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
 
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
     void loadTeams()

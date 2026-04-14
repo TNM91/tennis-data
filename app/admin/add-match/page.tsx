@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
@@ -36,26 +36,26 @@ export default function AddMatchPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const loadPlayers = async () => {
-      setPlayersLoading(true)
+  const loadPlayers = useCallback(async () => {
+    setPlayersLoading(true)
 
-      const { data, error } = await supabase
-        .from('players')
-        .select('id, name')
-        .order('name', { ascending: true })
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, name')
+      .order('name', { ascending: true })
 
-      if (error) {
-        setError(error.message)
-      } else {
-        setPlayers((data || []) as Player[])
-      }
-
-      setPlayersLoading(false)
+    if (error) {
+      setError(error.message)
+    } else {
+      setPlayers((data || []) as Player[])
     }
 
-    void loadPlayers()
+    setPlayersLoading(false)
   }, [])
+
+  useEffect(() => {
+    void loadPlayers()
+  }, [loadPlayers])
 
   useEffect(() => {
     if (matchType === 'singles') {
@@ -207,22 +207,11 @@ export default function AddMatchPage() {
       )
 
       resetForm()
-      await refreshPlayers()
+      await loadPlayers()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add match.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function refreshPlayers() {
-    const { data, error } = await supabase
-      .from('players')
-      .select('id, name')
-      .order('name', { ascending: true })
-
-    if (!error) {
-      setPlayers((data || []) as Player[])
     }
   }
 
@@ -320,6 +309,7 @@ export default function AddMatchPage() {
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '10px',
+                alignItems: 'center',
               }}
             >
               <span className="badge badge-blue">
@@ -328,8 +318,29 @@ export default function AddMatchPage() {
               <span className="badge badge-slate">
                 {matchType === 'singles' ? 'Singles mode' : 'Doubles mode'}
               </span>
+              <button
+                type="button"
+                className="button-ghost"
+                style={{
+                  background: 'rgba(15,23,42,0.24)',
+                  color: '#dbeafe',
+                  border: '1px solid rgba(116,190,255,0.12)',
+                  opacity: playersLoading ? 0.7 : 1,
+                  cursor: playersLoading ? 'not-allowed' : 'pointer',
+                }}
+                onClick={() => void loadPlayers()}
+                disabled={playersLoading}
+              >
+                {playersLoading ? 'Refreshing players...' : 'Refresh players'}
+              </button>
             </div>
           </div>
+
+          {playersLoading ? (
+            <div className="subtle-text" style={{ marginTop: 16, position: 'relative', zIndex: 1 }}>
+              Loading the player directory for autocomplete and validation.
+            </div>
+          ) : null}
 
           <form onSubmit={handleSubmit} style={{ marginTop: 24, position: 'relative', zIndex: 1 }}>
             <div className="card-grid two">
@@ -605,9 +616,27 @@ export default function AddMatchPage() {
                   background: 'rgba(220,38,38,0.12)',
                   color: '#fca5a5',
                   border: '1px solid rgba(248,113,113,0.18)',
+                  display: 'grid',
+                  gap: 10,
+                  justifyItems: 'start',
                 }}
               >
-                {error}
+                <div>{error}</div>
+                <button
+                  type="button"
+                  onClick={() => void loadPlayers()}
+                  className="button-ghost"
+                  style={{
+                    background: 'rgba(15,23,42,0.24)',
+                    color: '#dbeafe',
+                    border: '1px solid rgba(116,190,255,0.12)',
+                    opacity: playersLoading ? 0.7 : 1,
+                    cursor: playersLoading ? 'not-allowed' : 'pointer',
+                  }}
+                  disabled={playersLoading}
+                >
+                  {playersLoading ? 'Refreshing players...' : 'Retry player load'}
+                </button>
               </div>
             )}
 

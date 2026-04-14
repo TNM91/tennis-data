@@ -3,9 +3,10 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildLeagueEntityId, buildTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -168,19 +169,6 @@ function accentForType(type: FeedType): FeedItem['accent'] {
   return 'blue'
 }
 
-function buildTeamEntityId(teamName: string, leagueName?: string | null, flight?: string | null) {
-  return `${teamName.trim()}__${cleanText(leagueName) || ''}__${cleanText(flight) || ''}`
-}
-
-function buildLeagueEntityId(
-  leagueName: string,
-  flight?: string | null,
-  section?: string | null,
-  district?: string | null,
-) {
-  return `${leagueName.trim()}__${cleanText(flight) || ''}__${cleanText(section) || ''}__${cleanText(district) || ''}`
-}
-
 function parseTeamEntityId(entityId: string) {
   const [teamName = '', leagueName = '', flight = ''] = entityId.split('__')
   return {
@@ -243,107 +231,99 @@ function MyLabPageInner() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  const refreshMyLab = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    const local = readLocalFollows()
+    setFollows(local)
+
+    const [playersRes, matchesRes, scenariosRes, followsRes, cloudFeedRes] = await Promise.all([
+      supabase
+        .from('players')
+        .select(
+          'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating',
+        )
+        .order('name', { ascending: true }),
+      supabase
+        .from('matches')
+        .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side,line_number')
+        .is('line_number', null)
+        .order('match_date', { ascending: false })
+        .limit(160),
+      supabase
+        .from('lineup_scenarios')
+        .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
+        .order('match_date', { ascending: false })
+        .limit(40),
+      userId
+        ? supabase
+            .from('user_follows')
+            .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from('my_lab_feed')
+        .select(
+          'id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at',
+        )
+        .order('created_at', { ascending: false })
+        .limit(160),
+    ])
+
+    const matchIds = ((matchesRes.data ?? []) as MatchRow[]).map((match) => match.id)
+    const matchPlayersRes =
+      matchIds.length > 0
+        ? await supabase
+            .from('match_players')
+            .select('match_id,player_id,side,seat')
+            .in('match_id', matchIds)
+        : { data: [], error: null }
+
+    const firstHardError = [
+      playersRes.error,
+      matchesRes.error,
+      matchPlayersRes.error,
+      scenariosRes.error,
+      cloudFeedRes.error,
+    ].find(Boolean)
+
+    if (firstHardError) {
+      setError(firstHardError.message)
+    }
+
+    setPlayers((playersRes.data ?? []) as PlayerRow[])
+    setMatches(
+      ((matchesRes.data ?? []) as MatchRow[]).filter(
+        (row) => cleanText(row.home_team) && cleanText(row.away_team),
+      ),
+    )
+    setMatchPlayers((matchPlayersRes.data ?? []) as MatchPlayerRow[])
+    setScenarios((scenariosRes.data ?? []) as ScenarioRow[])
+    setCloudFeedRows((cloudFeedRes.data ?? []) as MyLabFeedRow[])
+
+    if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
+      const cloudFollows = followsRes.data as FollowItem[]
+      setFollows(cloudFollows)
+      setSavedToCloud(true)
+      writeLocalFollows(cloudFollows)
+    } else if (userId) {
+      setSavedToCloud(true)
+    } else {
+      setSavedToCloud(false)
+    }
+
+    setLoading(false)
+  }, [userId])
 
   useEffect(() => {
     if (!authResolved) return
-
-    let mounted = true
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
-      const local = readLocalFollows()
-      if (mounted) setFollows(local)
-
-      const [playersRes, matchesRes, scenariosRes, followsRes, cloudFeedRes] = await Promise.all([
-        supabase
-          .from('players')
-          .select(
-            'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating',
-          )
-          .order('name', { ascending: true }),
-        supabase
-          .from('matches')
-          .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side,line_number')
-          .is('line_number', null)
-          .order('match_date', { ascending: false })
-          .limit(160),
-        supabase
-          .from('lineup_scenarios')
-          .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team')
-          .order('match_date', { ascending: false })
-          .limit(40),
-        userId
-          ? supabase
-              .from('user_follows')
-              .select('id,entity_type,entity_id,entity_name,subtitle,created_at')
-              .eq('user_id', userId)
-              .order('created_at', { ascending: false })
-          : Promise.resolve({ data: [], error: null }),
-        supabase
-          .from('my_lab_feed')
-          .select(
-            'id,event_type,entity_type,entity_id,entity_name,subtitle,title,body,created_at',
-          )
-          .order('created_at', { ascending: false })
-          .limit(160),
-      ])
-
-      if (!mounted) return
-
-      const matchIds = ((matchesRes.data ?? []) as MatchRow[]).map((match) => match.id)
-      const matchPlayersRes =
-        matchIds.length > 0
-          ? await supabase
-              .from('match_players')
-              .select('match_id,player_id,side,seat')
-              .in('match_id', matchIds)
-          : { data: [], error: null }
-
-      const firstHardError = [
-        playersRes.error,
-        matchesRes.error,
-        matchPlayersRes.error,
-        scenariosRes.error,
-        cloudFeedRes.error,
-      ].find(Boolean)
-
-      if (firstHardError) {
-        setError(firstHardError.message)
-      }
-
-      setPlayers((playersRes.data ?? []) as PlayerRow[])
-      setMatches(
-        ((matchesRes.data ?? []) as MatchRow[]).filter(
-          (row) => cleanText(row.home_team) && cleanText(row.away_team),
-        ),
-      )
-      setMatchPlayers((matchPlayersRes.data ?? []) as MatchPlayerRow[])
-      setScenarios((scenariosRes.data ?? []) as ScenarioRow[])
-      setCloudFeedRows((cloudFeedRes.data ?? []) as MyLabFeedRow[])
-
-      if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
-        const cloudFollows = followsRes.data as FollowItem[]
-        setFollows(cloudFollows)
-        setSavedToCloud(true)
-        writeLocalFollows(cloudFollows)
-      } else if (userId) {
-        setSavedToCloud(true)
-      } else {
-        setSavedToCloud(false)
-      }
-
-      setLoading(false)
-    }
-
-    void load()
-
-    return () => {
-      mounted = false
-    }
-  }, [authResolved, userId])
+    void refreshMyLab()
+  }, [authResolved, refreshMyLab, refreshTick])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
 
@@ -913,6 +893,13 @@ function MyLabPageInner() {
                 <h2 style={sectionTitleStyle}>What’s happening around your network</h2>
               </div>
               <div style={filterRowStyle}>
+                <button
+                  type="button"
+                  onClick={() => setRefreshTick((current) => current + 1)}
+                  style={ghostMiniButtonStyle}
+                >
+                  {loading ? 'Refreshing...' : 'Refresh lab'}
+                </button>
                 {(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(
                   (value) => (
                     <button
@@ -934,7 +921,11 @@ function MyLabPageInner() {
               <div style={errorStateStyle}>
                 <div>Some data could not be loaded: {error}</div>
                 <div style={errorActionRowStyle}>
-                  <button type="button" onClick={() => window.location.reload()} style={ghostMiniButtonStyle}>
+                  <button
+                    type="button"
+                    onClick={() => setRefreshTick((current) => current + 1)}
+                    style={ghostMiniButtonStyle}
+                  >
                     Retry lab load
                   </button>
                 </div>

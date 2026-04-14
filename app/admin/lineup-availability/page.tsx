@@ -15,6 +15,7 @@ type MatchRow = {
   home_team: string | null
   away_team: string | null
   match_date: string
+  line_number: string | null
 }
 
 type PlayerRelation =
@@ -108,6 +109,10 @@ function buildLeagueKey(leagueName: string, flight: string) {
   return `${leagueName}___${flight}`
 }
 
+function formatLeagueScopeLabel(leagueName: string, flight: string) {
+  return [leagueName, flight].filter(Boolean).join(' - ')
+}
+
 function formatRating(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—'
   return value.toFixed(2)
@@ -133,6 +138,7 @@ export default function LineupAvailabilityPage() {
   const [selectedLeagueKey, setSelectedLeagueKey] = useState('')
   const [selectedTeam, setSelectedTeam] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -172,7 +178,7 @@ export default function LineupAvailabilityPage() {
   useEffect(() => {
     if (!authResolved || role !== 'admin') return
     void loadMatches()
-  }, [authResolved, role])
+  }, [authResolved, role, refreshTick])
 
   async function loadMatches() {
     setLoading(true)
@@ -187,9 +193,12 @@ export default function LineupAvailabilityPage() {
           flight,
           home_team,
           away_team,
-          match_date
+          match_date,
+          line_number
         `)
+        .is('line_number', null)
         .order('match_date', { ascending: false })
+        .limit(400)
 
       if (error) throw new Error(error.message)
 
@@ -217,11 +226,13 @@ export default function LineupAvailabilityPage() {
           flight,
           home_team,
           away_team,
-          match_date
+          match_date,
+          line_number
         `)
         .eq('league_name', leagueName)
         .eq('flight', flight)
         .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
+        .is('line_number', null)
 
       if (teamMatchesError) throw new Error(teamMatchesError.message)
 
@@ -451,7 +462,7 @@ export default function LineupAvailabilityPage() {
   const selectedLeagueLabel = useMemo(() => {
     if (!selectedLeagueKey) return ''
     const [leagueName, flight] = selectedLeagueKey.split('___')
-    return `${leagueName} · ${flight}`
+    return formatLeagueScopeLabel(leagueName, flight)
   }, [selectedLeagueKey])
 
   function updatePlayerStatus(playerId: string, status: AvailabilityStatus) {
@@ -523,7 +534,7 @@ export default function LineupAvailabilityPage() {
                 const key = buildLeagueKey(option.leagueName, option.flight)
                 return (
                   <option key={key} value={key}>
-                    {option.leagueName} · {option.flight}
+                    {formatLeagueScopeLabel(option.leagueName, option.flight)}
                   </option>
                 )
               })}
@@ -568,6 +579,24 @@ export default function LineupAvailabilityPage() {
           </Field>
         </div>
 
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+          <button
+            type="button"
+            onClick={() => setRefreshTick((current) => current + 1)}
+            className="button-ghost"
+            style={{
+              background: 'rgba(15,23,42,0.24)',
+              color: '#dbeafe',
+              border: '1px solid rgba(116,190,255,0.12)',
+              opacity: loading || rosterLoading ? 0.7 : 1,
+              cursor: loading || rosterLoading ? 'not-allowed' : 'pointer',
+            }}
+            disabled={loading || rosterLoading}
+          >
+            {loading || rosterLoading ? 'Refreshing...' : 'Refresh availability data'}
+          </button>
+        </div>
+
         {loading ? (
           <div
             style={{
@@ -595,7 +624,21 @@ export default function LineupAvailabilityPage() {
               border: '1px solid rgba(220,38,38,0.18)',
             }}
           >
-            {error}
+            <div>{error}</div>
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={() => setRefreshTick((current) => current + 1)}
+                className="button-ghost"
+                style={{
+                  background: 'rgba(15,23,42,0.24)',
+                  color: '#dbeafe',
+                  border: '1px solid rgba(116,190,255,0.12)',
+                }}
+              >
+                Retry availability load
+              </button>
+            </div>
           </div>
         ) : !selectedLeagueKey || !selectedTeam ? (
           <div

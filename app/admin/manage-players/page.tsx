@@ -70,6 +70,7 @@ export default function ManagePlayersPage() {
           overall_rating,
           overall_dynamic_rating
         `)
+        .limit(1200)
 
       if (error) {
         throw new Error(error.message)
@@ -272,6 +273,7 @@ export default function ManagePlayersPage() {
   }, [players, deferredSearch, sortBy])
 
   const hasActiveFilters = search.trim().length > 0 || sortBy !== 'overall_dynamic_rating'
+  const dirtyPlayerCount = Object.keys(editedPlayers).length
 
   function resetFilters() {
     setSearch('')
@@ -482,17 +484,36 @@ export default function ManagePlayersPage() {
                 }}
               >
                 {error}
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => void loadPlayers(true)}
+                    className="button-ghost"
+                    style={{
+                      background: 'rgba(15,23,42,0.24)',
+                      color: '#dbeafe',
+                      border: '1px solid rgba(116,190,255,0.12)',
+                    }}
+                  >
+                    Retry player load
+                  </button>
+                </div>
               </div>
             )}
 
             <div className="metric-grid" style={{ marginTop: '20px' }}>
               <MetricCard label="Total Players" value={players.length} />
               <MetricCard label="Filtered Players" value={filteredPlayers.length} />
+              <MetricCard label="Unsaved Edits" value={dirtyPlayerCount} />
               <MetricCard
                 label="Editable Rows"
                 value={filteredPlayers.length}
               />
             </div>
+
+            <p className="subtle-text" style={{ marginTop: 12, maxWidth: 760 }}>
+              This editor loads the most recent 1,200 player rows so admin cleanup stays responsive as the roster grows.
+            </p>
 
             {loading ? (
               <p style={{ marginTop: '20px' }} className="subtle-text">

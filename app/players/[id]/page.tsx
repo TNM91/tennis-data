@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -81,18 +82,7 @@ export default function PlayerProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [ratingView, setRatingView] = useState<RatingView>('overall')
-  const [screenWidth, setScreenWidth] = useState(1280)
-
-  const isTablet = screenWidth < 1080
-  const isMobile = screenWidth < 820
-  const isSmallMobile = screenWidth < 560
-
-  useEffect(() => {
-    const handleResize = () => setScreenWidth(window.innerWidth)
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const loadPlayerProfile = useCallback(async () => {
     setLoading(true)
@@ -459,6 +449,9 @@ export default function PlayerProfilePage() {
               <h2 style={sectionTitle}>Unable to load player</h2>
               <p style={sectionText}>{error || 'Player not found.'}</p>
               <div style={errorActionRow}>
+                <button type="button" onClick={() => void loadPlayerProfile()} style={secondaryMiniButton}>
+                  Retry profile load
+                </button>
                 <Link href="/players" style={secondaryMiniLink}>
                   Back to players
                 </Link>
@@ -1399,6 +1392,12 @@ const secondaryMiniLink: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
+}
+
+const secondaryMiniButton: CSSProperties = {
+  ...secondaryMiniLink,
+  appearance: 'none',
+  cursor: 'pointer',
 }
 
 const segmentWrap: CSSProperties = {

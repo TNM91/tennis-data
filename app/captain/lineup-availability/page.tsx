@@ -6,9 +6,11 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
+import { getClientAuthState } from '@/lib/auth'
+import { buildTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '../../../lib/supabase'
 import { formatLongDate as formatDate } from '@/lib/captain-formatters'
-import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
@@ -18,6 +20,7 @@ type MatchRow = {
   home_team: string | null
   away_team: string | null
   match_date: string
+  line_number: string | null
 }
 
 type PlayerRelation =
@@ -104,10 +107,6 @@ function safeText(value: string | null | undefined, fallback = 'Unknown') {
   return cleanText(value) || fallback
 }
 
-function buildTeamEntityId(team: string, leagueName: string, flight: string) {
-  return `${team}__${leagueName || ''}__${flight || ''}`
-}
-
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -189,6 +188,7 @@ export default function LineupAvailabilityPage() {
   const [selectedLeagueKey, setSelectedLeagueKey] = useState('')
   const [selectedTeam, setSelectedTeam] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -203,10 +203,9 @@ export default function LineupAvailabilityPage() {
 
     async function loadRole() {
       try {
-        const { data } = await supabase.auth.getUser()
-        const user = data.user
+        const authState = await getClientAuthState()
 
-        if (!user) {
+        if (!authState.user) {
           if (mounted) {
             setRole('public')
             setAuthLoading(false)
@@ -215,16 +214,8 @@ export default function LineupAvailabilityPage() {
           return
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-
-        const normalized = normalizeUserRole(profile?.role)
-
         if (mounted) {
-          setRole(normalized)
+          setRole(authState.role)
           setAuthLoading(false)
         }
       } catch {
@@ -252,7 +243,7 @@ export default function LineupAvailabilityPage() {
 
   useEffect(() => {
     void loadMatches()
-  }, [])
+  }, [refreshTick])
 
   async function loadMatches() {
     setLoading(true)
@@ -267,9 +258,12 @@ export default function LineupAvailabilityPage() {
           flight,
           home_team,
           away_team,
-          match_date
+          match_date,
+          line_number
         `)
+        .is('line_number', null)
         .order('match_date', { ascending: false })
+        .limit(400)
 
       if (error) throw new Error(error.message)
 
@@ -297,11 +291,13 @@ export default function LineupAvailabilityPage() {
           flight,
           home_team,
           away_team,
-          match_date
+          match_date,
+          line_number
         `)
         .eq('league_name', leagueName)
         .eq('flight', flight)
         .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
+        .is('line_number', null)
 
       if (teamMatchesError) throw new Error(teamMatchesError.message)
 
@@ -791,6 +787,9 @@ export default function LineupAvailabilityPage() {
               {saving ? 'Saving...' : 'Save Availability'}
             </button>
             <Link href="/captain/lineup-builder" style={ghostButton}>Open Lineup Builder</Link>
+            <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButton}>
+              {loading || rosterLoading ? 'Refreshing...' : 'Refresh data'}
+            </button>
           </div>
 
           <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -916,6 +915,11 @@ export default function LineupAvailabilityPage() {
         ) : error ? (
           <section style={surfaceCard}>
             <p style={errorTextStyle}>{error}</p>
+            <div style={{ marginTop: 12 }}>
+              <button type="button" style={ghostButtonSmall} onClick={() => setRefreshTick((current) => current + 1)}>
+                Retry availability load
+              </button>
+            </div>
           </section>
         ) : !selectedLeagueKey || !selectedTeam ? (
           <section style={surfaceCard}>
