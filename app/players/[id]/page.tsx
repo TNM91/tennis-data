@@ -641,6 +641,39 @@ export default function PlayerProfilePage() {
       </section>
 
       <section style={contentWrap}>
+        <article
+          style={{
+            display: 'grid',
+            gap: 14,
+            marginBottom: 18,
+            padding: 24,
+            borderRadius: 26,
+            background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
+            border: '1px solid rgba(116,190,255,0.14)',
+            boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+          }}
+        >
+          <div style={sectionKicker}>Profile context</div>
+          <h2 style={sectionTitle}>Read the full signal, not just one rating.</h2>
+          <p style={sectionText}>
+            This profile is designed to combine current level, trend direction, match volume, and recent
+            results in one place. The most useful read usually comes from comparing the current dynamic
+            rating against the player&apos;s base level and recent match history rather than relying on a
+            single number by itself.
+          </p>
+          <div style={followRow}>
+            <Link href="/rankings" style={secondaryMiniLink}>
+              Compare on rankings
+            </Link>
+            <Link href="/matchup" style={secondaryMiniLink}>
+              Use matchup tool
+            </Link>
+            <Link href="/advertising-disclosure" style={secondaryMiniLink}>
+              Advertising disclosure
+            </Link>
+          </div>
+        </article>
+
         <div style={dynamicStatsGrid}>
           <article style={{ ...statCard, ...statCardAccentGreen }}>
             <div style={statLabel}>Current {capitalize(ratingView)} dynamic</div>

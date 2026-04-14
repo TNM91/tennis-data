@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import AdsenseSlot from '@/app/components/adsense-slot'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -114,6 +115,7 @@ type AccuracyState = {
 }
 
 const RATING_DIVISOR = 0.35
+const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
 
 function hasValidRating(value: number | null | undefined): value is number {
   return typeof value === 'number' && !Number.isNaN(value)
@@ -1465,6 +1467,39 @@ export default function MatchupPage() {
           )}
         </article>
       </section>
+      {!loading && !error ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>How to read matchup output</div>
+            <h2 style={sectionTitle}>Use matchup as a decision aid, not a guarantee.</h2>
+            <p style={editorialText}>
+              The projection is most useful when you combine probability, confidence, head-to-head
+              history, and the surrounding roster decision. This page helps you compare options and
+              spot swing courts, but it should still sit inside a wider lineup or scouting conversation.
+            </p>
+            <div style={editorialGrid}>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Best use</div>
+                <div style={editorialCardValue}>Compare options</div>
+                <div style={editorialCardText}>Great for deciding between close lineup alternatives.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Strongest signals</div>
+                <div style={editorialCardValue}>Gap + confidence</div>
+                <div style={editorialCardText}>Those usually matter more than a single flashy percentage alone.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Next move</div>
+                <div style={editorialCardValue}>Apply team context</div>
+                <div style={editorialCardText}>Take the result into captain tools when the decision affects a full lineup.</div>
+              </div>
+            </div>
+          </article>
+        </section>
+      ) : null}
+      <div style={{ marginTop: 12 }}>
+        <AdsenseSlot slot={MATCHUP_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+      </div>
     </SiteShell>
   )
 }
@@ -1982,6 +2017,61 @@ const errorBanner: CSSProperties = {
   fontSize: '14px',
 }
 
+const editorialPanel: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '24px',
+  borderRadius: '26px',
+  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const editorialText: CSSProperties = {
+  margin: 0,
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '15px',
+  lineHeight: 1.8,
+  maxWidth: '860px',
+}
+
+const editorialGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+}
+
+const editorialCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '18px',
+  borderRadius: '20px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+}
+
+const editorialCardLabel: CSSProperties = {
+  color: 'rgba(188,208,232,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const editorialCardValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  lineHeight: 1.04,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const editorialCardText: CSSProperties = {
+  color: 'rgba(215,229,247,0.76)',
+  fontSize: '13px',
+  lineHeight: 1.65,
+}
+
 const retryButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -2360,6 +2450,14 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1.2,
   fontWeight: 900,
   letterSpacing: '-0.02em',
+}
+
+const sectionKicker: CSSProperties = {
+  color: 'rgba(188,208,232,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
 }
 
 const projectionSectionTitle: CSSProperties = {

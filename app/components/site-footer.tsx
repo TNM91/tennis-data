@@ -21,6 +21,14 @@ const PLATFORM_LINKS = [
 const RESOURCE_LINKS = [
   { href: '/players', label: 'Players' },
   { href: '/rankings', label: 'Rankings' },
+  { href: '/how-it-works', label: 'How It Works' },
+  { href: '/methodology', label: 'Methodology' },
+]
+
+const COMPANY_LINKS = [
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+  { href: '/faq', label: 'FAQ' },
   { href: '/login', label: 'Login' },
 ]
 
@@ -28,6 +36,7 @@ const LEGAL_LINKS = [
   { href: '/legal/privacy', label: 'Privacy' },
   { href: '/legal/terms', label: 'Terms' },
   { href: '/legal/cookies', label: 'Cookies' },
+  { href: '/advertising-disclosure', label: 'Advertising' },
 ]
 
 function FooterLink({
@@ -132,7 +141,7 @@ export default function SiteFooter() {
   const navGrid = useMemo(
     () => ({
       display: 'grid',
-      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
       gap: isMobile ? '18px' : '28px',
       alignItems: 'start',
       minWidth: 0,
@@ -232,9 +241,18 @@ export default function SiteFooter() {
             </div>
 
             <div style={footerColumn}>
-              <div style={sectionLabel}>Access</div>
+              <div style={sectionLabel}>Resources</div>
               <div style={footerLinkStack}>
                 {RESOURCE_LINKS.map((link) => (
+                  <FooterLink key={link.href} href={link.href} label={link.label} />
+                ))}
+              </div>
+            </div>
+
+            <div style={footerColumn}>
+              <div style={sectionLabel}>Company</div>
+              <div style={footerLinkStack}>
+                {COMPANY_LINKS.map((link) => (
                   <FooterLink key={link.href} href={link.href} label={link.label} />
                 ))}
               </div>

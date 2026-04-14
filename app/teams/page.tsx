@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import AdsenseSlot from '@/app/components/adsense-slot'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -43,6 +44,8 @@ type TeamDirectoryEntry = {
 }
 
 type SortKey = 'team' | 'matches' | 'players' | 'recent'
+
+const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
 
 function cleanText(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null
@@ -336,6 +339,11 @@ export default function TeamsPage() {
     }
   }, [filteredRows])
 
+  const avgVisibleMatches = useMemo(() => {
+    if (filteredRows.length === 0) return 0
+    return filteredRows.reduce((sum, row) => sum + row.matchCount, 0) / filteredRows.length
+  }, [filteredRows])
+
   return (
     <SiteShell active="TEAMS">
       <main style={pageWrap}>
@@ -360,6 +368,23 @@ export default function TeamsPage() {
         </section>
 
         <section style={contentWrap}>
+          {!loading && !error ? (
+            <section style={editorialPanel}>
+              <p style={sectionKicker}>Directory context</p>
+              <h2 style={sectionTitle}>Team cards are best used to understand season shape before you drill in.</h2>
+              <p style={sectionText}>
+                This board is meant to help you see how teams cluster inside leagues and flights, how
+                active they have been, and where to go next for more useful context. It works best as a
+                season discovery layer, not as the final word on a team.
+              </p>
+              <div style={editorialGrid}>
+                <StatPill label="Visible teams" value={String(totals.teams)} />
+                <StatPill label="Avg matches" value={avgVisibleMatches.toFixed(1)} />
+                <StatPill label="Best next step" value="Open team page" />
+              </div>
+            </section>
+          ) : null}
+
           <section style={filtersCard}>
             <div style={sectionHeader}>
               <div>
@@ -522,6 +547,9 @@ export default function TeamsPage() {
           )}
         </section>
       </main>
+      <div style={{ marginTop: 12 }}>
+        <AdsenseSlot slot={TEAMS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+      </div>
     </SiteShell>
   )
 }
@@ -679,6 +707,23 @@ const resetButton: CSSProperties = {
   cursor: 'pointer',
   fontSize: '13px',
   fontWeight: 700,
+}
+
+const editorialPanel: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '18px',
+  padding: '24px',
+  borderRadius: '26px',
+  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const editorialGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
 }
 
 const filtersActionRow: CSSProperties = {

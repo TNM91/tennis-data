@@ -448,6 +448,29 @@ export default function LeagueDetailPage() {
           <MetricCard label="Latest Match" value={formatDate(stats.latest)} accent />
         </div>
 
+        <article
+          style={{
+            ...panelCard,
+            marginTop: '18px',
+          }}
+        >
+          <div style={sectionKicker}>Season context</div>
+          <h2 style={sectionTitle}>League detail is strongest when it explains structure and momentum together.</h2>
+          <div style={sectionSub}>
+            This page is meant to connect the season-level team picture with the underlying match list.
+            Use it to understand how a league segment is shaped, which teams are active, and where to
+            drill down next across teams, match history, and season scope.
+          </div>
+          <div style={stateActionRow}>
+            <Link href="/leagues" style={ghostButton}>
+              Back to leagues
+            </Link>
+            <Link href="/advertising-disclosure" style={ghostButton}>
+              Advertising disclosure
+            </Link>
+          </div>
+        </article>
+
         <article style={panelCard}>
           {loading ? (
             <div style={stateBox}>Loading season data...</div>

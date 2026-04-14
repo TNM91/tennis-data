@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import AdsenseSlot from '@/app/components/adsense-slot'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const FEATURE_CARDS = [
@@ -78,6 +79,8 @@ const DISCOVERY_GUIDES = [
     cta: 'Compare now',
   },
 ]
+
+const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE || null
 
 export default function ExplorePage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
@@ -215,6 +218,9 @@ export default function ExplorePage() {
           </div>
         </div>
       </section>
+      <div style={{ marginTop: 12 }}>
+        <AdsenseSlot slot={EXPLORE_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+      </div>
     </SiteShell>
   )
 }

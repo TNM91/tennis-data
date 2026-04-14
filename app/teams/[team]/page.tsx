@@ -600,6 +600,33 @@ export default function TeamPage() {
         ) : null}
 
         <section style={dynamicMetricGrid}>
+          <article
+            style={{
+              ...surfaceCardStrong,
+              gridColumn: '1 / -1',
+            }}
+          >
+            <div style={sectionHeadingRow}>
+              <div>
+                <p style={sectionKicker}>Team context</p>
+                <h2 style={sectionTitle}>Use this page to understand shape, depth, and weekly options.</h2>
+              </div>
+            </div>
+            <p style={bodyText}>
+              The team page is meant to connect record, roster depth, pairings, and recent form. It is
+              most helpful when you use it to see where a team is strong, where lineup flexibility exists,
+              and which captain tools should come next.
+            </p>
+            <div style={heroActions}>
+              <Link href="/teams" style={buttonSecondary}>
+                Back to teams
+              </Link>
+              <Link href="/advertising-disclosure" style={buttonGhost}>
+                Advertising disclosure
+              </Link>
+            </div>
+          </article>
+
           <article style={metricCard}>
             <span style={metricLabel}>Record</span>
             <strong style={metricValue}>{record.wins}-{record.losses}</strong>

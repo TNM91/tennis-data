@@ -19,6 +19,7 @@ import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import SiteShell from '@/app/components/site-shell'
+import AdsenseSlot from '@/app/components/adsense-slot'
 
 type PlayerSearchRow = {
   id: string
@@ -35,6 +36,8 @@ const FALLBACK_QUICK_ACTIONS: QuickAction[] = [
   { type: 'route', label: 'Explore rankings', href: '/rankings' },
   { type: 'route', label: 'Browse leagues', href: '/leagues' },
 ]
+
+const HOME_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_HOME_INLINE || null
 
 const HOME_PATHS = [
   {
@@ -789,7 +792,48 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section style={contentSection}>
+          <div style={sectionHeader}>
+            <div style={sectionEyebrow}>Know the platform</div>
+            <h2 style={sectionTitle}>Clear ownership, clear purpose, clear support paths.</h2>
+            <p style={sectionText}>
+              TenAceIQ is more than a tool surface. These pages explain what the platform does,
+              how it approaches tennis data, and how to get help when something looks wrong.
+            </p>
+          </div>
+
+          <div style={trustGrid}>
+            <AudienceCard
+              href="/about"
+              eyebrow="About"
+              title="Why TenAceIQ exists"
+              text="Read what the platform is built for, who it serves, and how it adds value beyond raw records."
+              bullets={['Platform purpose', 'User fit', 'What makes it useful']}
+              accent="blue"
+            />
+            <AudienceCard
+              href="/methodology"
+              eyebrow="Methodology"
+              title="How the data becomes usable"
+              text="See the high-level approach behind normalization, context, and workflow-driven tennis intelligence."
+              bullets={['Data normalization', 'Context layers', 'Workflow value']}
+              accent="green"
+            />
+            <AudienceCard
+              href="/contact"
+              eyebrow="Contact"
+              title="Reach the team"
+              text="Use direct support paths for account questions, data quality issues, and partnership conversations."
+              bullets={['Support email', 'Data issue reporting', 'Business inquiries']}
+              accent="blue"
+            />
+          </div>
+        </section>
+
       </section>
+      <div style={{ marginTop: 12 }}>
+        <AdsenseSlot slot={HOME_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+      </div>
     </SiteShell>
   )
 }
@@ -1787,6 +1831,12 @@ const sectionText: CSSProperties = {
 const audienceGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
+}
+
+const trustGrid: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
 }
 
 const audienceCard: CSSProperties = {

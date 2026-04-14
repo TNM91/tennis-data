@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TenAceIQ
 
-## Getting Started
+TenAceIQ is a tennis intelligence platform focused on player discovery, rankings, leagues, matchup analysis, and captain workflow tools.
 
-First, run the development server:
+## Local development
+
+Run the app locally with:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run the verification commands before deploy:
 
-## Learn More
+```bash
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## AdSense rollout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The site is already wired for:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- publisher id `ca-pub-1351888380884789`
+- `ads.txt`
+- ad-safe route gating
+- prepared public placements on content-rich pages only
 
-## Deploy on Vercel
+To activate prepared placements, add real slot ids to your production environment:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+NEXT_PUBLIC_ADSENSE_SLOT_HOME_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_LEAGUES_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE=
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+You can copy the variable names from [.env.example](./.env.example).
+
+## Launch checklist
+
+Use the full rollout checklist in [docs/adsense-launch-checklist.md](./docs/adsense-launch-checklist.md).
+
+The most important live checks are:
+
+- verify `https://tenaceiq.com/ads.txt`
+- verify `support@tenaceiq.com` and `hello@tenaceiq.com`
+- confirm ads only render on approved public pages
+- confirm private and utility routes remain ad-free and `noindex`
+- re-read the live public site as a first-time visitor before requesting review

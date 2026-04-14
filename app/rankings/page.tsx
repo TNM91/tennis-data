@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import AdsenseSlot from '@/app/components/adsense-slot'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -45,6 +46,8 @@ type RankedPlayer = Player & {
   trendDirection: TrendDirection
   trendDelta: number
 }
+
+const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
 
 export default function RankingsPage() {
   const [players, setPlayers] = useState<Player[]>([])
@@ -190,6 +193,11 @@ export default function RankingsPage() {
     if (rankedPlayers.length === 0) return 0
     const total = rankedPlayers.reduce((sum, player) => sum + player.selectedRating, 0)
     return total / rankedPlayers.length
+  }, [rankedPlayers])
+
+  const avgMatches = useMemo(() => {
+    if (rankedPlayers.length === 0) return 0
+    return rankedPlayers.reduce((sum, player) => sum + player.matches, 0) / rankedPlayers.length
   }, [rankedPlayers])
 
   const dynamicHeroWrap: CSSProperties = {
@@ -439,6 +447,38 @@ export default function RankingsPage() {
         </section>
       ) : null}
 
+      {!loading && !error ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>Ranking context</div>
+            <h2 style={panelTitle}>Use this board to spot movement, not just order.</h2>
+            <p style={editorialText}>
+              A strong leaderboard helps you separate stable top-tier players from fast risers and
+              thin-sample noise. Use the public board to find tiers, momentum, and recent confidence,
+              then open individual player pages for deeper match and trend context.
+            </p>
+
+            <div style={editorialGrid}>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Average selected rating</div>
+                <div style={editorialCardValue}>{avgSelected.toFixed(2)}</div>
+                <div style={editorialCardText}>A quick snapshot of the current filtered board strength.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Average match count</div>
+                <div style={editorialCardValue}>{avgMatches.toFixed(1)}</div>
+                <div style={editorialCardText}>Helpful for judging how mature the current sample set is.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Best next step</div>
+                <div style={editorialCardValue}>Open profiles</div>
+                <div style={editorialCardText}>Use rankings to shortlist players, then inspect profiles before drawing conclusions.</div>
+              </div>
+            </div>
+          </article>
+        </section>
+      ) : null}
+
       <section style={contentWrap}>
         <article style={tableCard}>
           <div style={panelHead}>
@@ -551,6 +591,9 @@ export default function RankingsPage() {
           </div>
         </article>
       </section>
+      <div style={{ marginTop: 12 }}>
+        <AdsenseSlot slot={RANKINGS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+      </div>
     </SiteShell>
   )
 }
@@ -1206,6 +1249,61 @@ const activeRatingCell: CSSProperties = {
 const iconSvgStyle: CSSProperties = {
   width: '22px',
   height: '22px',
+}
+
+const editorialPanel: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '24px',
+  borderRadius: '26px',
+  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const editorialText: CSSProperties = {
+  margin: 0,
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '15px',
+  lineHeight: 1.8,
+  maxWidth: '860px',
+}
+
+const editorialGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+}
+
+const editorialCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '18px',
+  borderRadius: '20px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+}
+
+const editorialCardLabel: CSSProperties = {
+  color: 'rgba(188,208,232,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const editorialCardValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  lineHeight: 1.04,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const editorialCardText: CSSProperties = {
+  color: 'rgba(215,229,247,0.76)',
+  fontSize: '13px',
+  lineHeight: 1.65,
 }
 
 const statusPill: CSSProperties = {

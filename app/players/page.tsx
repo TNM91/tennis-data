@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import AdsenseSlot from '@/app/components/adsense-slot'
 import FollowButton from '@/app/components/follow-button'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -49,6 +50,8 @@ type PlayerCard = PlayerRow & {
   confidence: ConfidenceLevel
   overallDiff: number
 }
+
+const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<PlayerCard[]>([])
@@ -207,6 +210,11 @@ export default function PlayersPage() {
     const total = players.reduce((sum, player) => sum + getRating(player, 'overall'), 0)
     return total / players.length
   }, [players])
+
+  const avgVisibleMatches = useMemo(() => {
+    if (filteredPlayers.length === 0) return 0
+    return filteredPlayers.reduce((sum, player) => sum + player.matches, 0) / filteredPlayers.length
+  }, [filteredPlayers])
 
   const totalMatches = useMemo(() => {
     return players.reduce((sum, player) => sum + player.matches, 0)
@@ -442,6 +450,35 @@ export default function PlayersPage() {
       ) : null}
 
       <section style={contentWrap}>
+        {!loading && !error ? (
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>Directory context</div>
+            <h2 style={sectionTitle}>Use the directory to shortlist, then open full profiles for the real read.</h2>
+            <p style={editorialText}>
+              The player directory is best used as a fast scouting layer. Search by name or location,
+              sort by the rating lens you care about, and then open the full profile before making
+              decisions off a single number alone.
+            </p>
+            <div style={editorialGrid}>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Average visible overall</div>
+                <div style={editorialCardValue}>{formatRating(avgOverall)}</div>
+                <div style={editorialCardText}>A quick benchmark for the current board quality and strength.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Average visible matches</div>
+                <div style={editorialCardValue}>{avgVisibleMatches.toFixed(1)}</div>
+                <div style={editorialCardText}>Useful when you want to tell mature profiles from thinner samples.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Best next step</div>
+                <div style={editorialCardValue}>Open profile</div>
+                <div style={editorialCardText}>Player pages add trend, history, and matchup context that a card list cannot.</div>
+              </div>
+            </div>
+          </article>
+        ) : null}
+
         <div style={dynamicSectionHeader}>
           <div>
             <div style={sectionKicker}>Directory</div>
@@ -559,6 +596,9 @@ export default function PlayersPage() {
           </div>
         )}
       </section>
+      <div style={{ marginTop: 12 }}>
+        <AdsenseSlot slot={PLAYERS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+      </div>
     </SiteShell>
   )
 }
@@ -1044,6 +1084,62 @@ const contentWrap: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   padding: '0 18px 0',
+}
+
+const editorialPanel: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '24px',
+  borderRadius: '26px',
+  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  marginBottom: '18px',
+}
+
+const editorialText: CSSProperties = {
+  margin: 0,
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '15px',
+  lineHeight: 1.8,
+  maxWidth: '860px',
+}
+
+const editorialGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+}
+
+const editorialCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '18px',
+  borderRadius: '20px',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+}
+
+const editorialCardLabel: CSSProperties = {
+  color: 'rgba(188,208,232,0.78)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const editorialCardValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  lineHeight: 1.04,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const editorialCardText: CSSProperties = {
+  color: 'rgba(215,229,247,0.76)',
+  fontSize: '13px',
+  lineHeight: 1.65,
 }
 
 const sectionHeader: CSSProperties = {

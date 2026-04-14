@@ -31,10 +31,23 @@ export default function CookiesPage() {
           <p>Remember preferences and improve usability.</p>
           <p>Measure traffic, engagement, and performance.</p>
           <p>Support reliability, diagnostics, and abuse prevention.</p>
+          <p>
+            Support advertising and monetization features where enabled, including services such as
+            Google AdSense that may use cookies or similar technologies to help serve and measure ads.
+          </p>
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>3. Your choices</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>3. Advertising cookies</h2>
+          <p>
+            If TenAceIQ displays ads, third-party vendors may use cookies to personalize content,
+            limit repeated ad exposure, measure performance, and support reporting. The exact
+            technologies in use may change over time as advertising tools evolve.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>4. Your choices</h2>
           <p>
             Most browsers allow you to control cookies through browser settings. Disabling
             cookies may affect functionality and may prevent some parts of TenAceIQ from

@@ -42,6 +42,10 @@ export default function PrivacyPage() {
           <p>Personalize user experience and improve platform performance.</p>
           <p>Maintain platform security, prevent abuse, and investigate suspicious activity.</p>
           <p>Communicate with you about your account, updates, support, and service-related notices.</p>
+          <p>
+            Support monetization and advertising operations where enabled, including ad delivery,
+            frequency management, fraud prevention, performance measurement, and related reporting.
+          </p>
         </div>
 
         <div>
@@ -71,6 +75,11 @@ export default function PrivacyPage() {
           <p>
             We may use cookies and similar technologies to maintain sessions, remember
             preferences, analyze usage, and improve reliability and performance.
+          </p>
+          <p>
+            If advertising is enabled on parts of the site, third-party advertising providers may
+            also use cookies, similar technologies, or request metadata to support ad serving and
+            measurement.
           </p>
         </div>
 
@@ -114,6 +123,13 @@ export default function PrivacyPage() {
           <p>
             We may update this Privacy Policy from time to time. Updated versions become
             effective when posted on this page.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>11. Contact</h2>
+          <p>
+            For privacy or data handling questions, contact <a href="mailto:support@tenaceiq.com">support@tenaceiq.com</a>.
           </p>
         </div>
       </LegalPage>
