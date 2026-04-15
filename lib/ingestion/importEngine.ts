@@ -490,6 +490,27 @@ function toScorecardLineMatchUpsert(row: ScorecardImportRow, line: ScorecardLine
   }
 }
 
+function mergeScorecardRowWithExistingMatch(
+  row: ScorecardImportRow,
+  existingMatch: MatchRecord | null,
+): ScorecardImportRow {
+  if (!existingMatch) return row
+
+  return {
+    ...row,
+    homeTeam: cleanString(row.homeTeam) || cleanString(existingMatch.home_team),
+    awayTeam: cleanString(row.awayTeam) || cleanString(existingMatch.away_team),
+    matchDate: normalizeDateInput(row.matchDate) || normalizeDateInput(existingMatch.match_date ?? ''),
+    matchTime: nullableString(row.matchTime) ?? nullableString(existingMatch.match_time),
+    facility: nullableString(row.facility) ?? nullableString(existingMatch.facility),
+    leagueName: nullableString(row.leagueName) ?? nullableString(existingMatch.league_name),
+    flight: nullableString(row.flight) ?? nullableString(existingMatch.flight),
+    ustaSection: nullableString(row.ustaSection) ?? nullableString(existingMatch.usta_section),
+    districtArea: nullableString(row.districtArea) ?? nullableString(existingMatch.district_area),
+    source: nullableString(row.source) ?? nullableString(existingMatch.source) ?? DEFAULT_SOURCE_SCORECARD,
+  }
+}
+
 function buildLinePlayerNames(line: ScorecardLineImportRow): { side: MatchSide; seat: number; name: string }[] {
   const aPlayers = dedupeStrings(line.sideAPlayers)
   const bPlayers = dedupeStrings(line.sideBPlayers)
@@ -717,13 +738,15 @@ export class ImportEngine {
           continue
         }
 
-        const parentPayload = toScorecardParentMatchUpsert(row)
-        const linePeople = row.lines.flatMap(buildLinePlayerNames)
+        const existingParent = await this.findMatchByExternalMatchId(externalMatchId)
+        const hydratedRow = mergeScorecardRowWithExistingMatch(row, existingParent)
+        const parentPayload = toScorecardParentMatchUpsert(hydratedRow)
+        const linePeople = hydratedRow.lines.flatMap(buildLinePlayerNames)
         const uniquePlayerNames = dedupeStrings(linePeople.map((entry) => entry.name))
 
         if (mode === 'preview') {
-          const completeLines = row.lines.filter((line) => Boolean(line.winnerSide)).length
-          const previewLinkedCount = row.lines
+          const completeLines = hydratedRow.lines.filter((line) => Boolean(line.winnerSide)).length
+          const previewLinkedCount = hydratedRow.lines
             .filter((line) => Boolean(line.winnerSide))
             .flatMap(buildLinePlayerNames).length
 
@@ -734,12 +757,10 @@ export class ImportEngine {
             status: 'preview',
             createdPlayerNames: [],
             linkedPlayerCount: previewLinkedCount,
-            message: `Validated scorecard with ${row.lines.length} lines (${completeLines} completed for rating import)`,
+            message: `Validated scorecard with ${hydratedRow.lines.length} lines (${completeLines} completed for rating import)`,
           })
           continue
         }
-
-        const existingParent = await this.findMatchByExternalMatchId(parentPayload.external_match_id)
 
         const { data: upsertedParentMatch, error: parentUpsertError } = await this.supabase
           .from('matches')
@@ -824,16 +845,16 @@ export class ImportEngine {
         let totalLinkedPlayerCount = 0
         let hadLineFailure = false
 
-        for (const line of row.lines) {
+        for (const line of hydratedRow.lines) {
           if (!line.winnerSide) {
             this.options.log('Skipping incomplete scorecard line', {
-              externalMatchId: row.externalMatchId,
+              externalMatchId: hydratedRow.externalMatchId,
               lineNumber: line.lineNumber,
             })
             continue
           }
 
-          const linePayload = toScorecardLineMatchUpsert(row, line)
+          const linePayload = toScorecardLineMatchUpsert(hydratedRow, line)
 
           const { data: upsertedLineMatch, error: lineUpsertError } = await this.supabase
             .from('matches')
@@ -965,7 +986,7 @@ export class ImportEngine {
         const parentMatchPlayers: MatchPlayerInsertPayload[] = []
         const nextSeatBySide: Record<MatchSide, number> = { A: 1, B: 1 }
 
-        for (const line of row.lines) {
+        for (const line of hydratedRow.lines) {
           if (!line.winnerSide) continue
 
           const linePlayers = buildLinePlayerNames(line)
@@ -1039,7 +1060,7 @@ export class ImportEngine {
         }
 
         if (this.options.scorecardLinesTable) {
-          const scorecardLinesPayload: PersistedScorecardLinePayload[] = row.lines.map((line) => ({
+          const scorecardLinesPayload: PersistedScorecardLinePayload[] = hydratedRow.lines.map((line) => ({
             match_id: parentMatchId,
             external_match_id: parentPayload.external_match_id,
             line_number: line.lineNumber,
@@ -1105,7 +1126,7 @@ export class ImportEngine {
         }
 
         if (this.options.persistReviewMetadata) {
-          await this.persistScorecardReviewMetadata(parentMatchId, row)
+          await this.persistScorecardReviewMetadata(parentMatchId, hydratedRow)
         }
 
         result.createdPlayersCount += createdPlayerNames.length
@@ -1117,7 +1138,7 @@ export class ImportEngine {
 
         successfulImports.push({
           matchId: parentMatchId,
-          row,
+          row: hydratedRow,
           rowIndex,
           linkedPlayerCount: totalLinkedPlayerCount + uniqueParentPlayers.length,
           createdPlayerNames,
