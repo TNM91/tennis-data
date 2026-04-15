@@ -731,6 +731,7 @@ export default function ScorecardReviewPanel({
                       line={line}
                       preview={preview}
                       onLineOverrideChange={onLineOverrideChange}
+                      onApproveAndSubmitMatch={onApproveAndSubmitMatch}
                     />
                   ))}
                 </div>
@@ -809,10 +810,12 @@ function LineReviewCard({
   line,
   preview,
   onLineOverrideChange,
+  onApproveAndSubmitMatch,
 }: {
   line: ReviewedScorecardLine
   preview: ScorecardPreviewModel
   onLineOverrideChange: Props['onLineOverrideChange']
+  onApproveAndSubmitMatch: Props['onApproveAndSubmitMatch']
 }) {
   return (
     <div
@@ -989,6 +992,19 @@ function LineReviewCard({
             placeholder="Why this line was adjusted"
           />
         </label>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+        <button
+          type="button"
+          style={primaryButtonStyle}
+          onClick={() => onApproveAndSubmitMatch(preview)}
+        >
+          Approve and submit this match
+        </button>
+        <div style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
+          Your line changes already update the match preview immediately. This submits the full match using the latest line edits.
+        </div>
       </div>
 
       {line.parseNotes.length > 0 ? (
