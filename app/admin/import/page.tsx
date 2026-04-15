@@ -37,6 +37,17 @@ import {
 
 type ImportKind = 'schedule' | 'scorecard'
 type ImportMode = 'preview' | 'commit'
+type ReviewFilterMode = 'all' | 'needs_review' | 'ready' | 'blocked'
+
+type AutoImportRequest = {
+  autoPaste: boolean
+  autoPreview: boolean
+  autoCommitMode: 'none' | 'all' | 'clean_only'
+  reviewFilter: ReviewFilterMode
+  source: string | null
+  started: boolean
+  cleanCommitTriggered: boolean
+}
 
 type UploadedFileSummary = {
   fileName: string
@@ -104,6 +115,7 @@ const SCORECARD_REVIEWER_STORAGE_KEY = 'tenaceiq-scorecard-reviewer-v1'
 const IMPORT_DRAFT_STORAGE_KEY = 'tenaceiq-admin-import-draft-v1'
 const IMPORT_TYPE_STORAGE_KEY = 'tenaceiq-admin-import-type-v1'
 const IMPORT_LEAGUE_OVERRIDE_STORAGE_KEY = 'tenaceiq-admin-import-league-override-v1'
+const LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY = 'tenaceiq-last-admin-import-route-v1'
 
 const pageWrapStyle: CSSProperties = {
   width: '100%',
@@ -556,6 +568,9 @@ export default function AdminImportPage() {
   const [scorecardReviewOverrides, setScorecardReviewOverrides] = useState<
     Record<string, ScorecardMatchReviewOverride>
   >({})
+  const [reviewDefaultFilter, setReviewDefaultFilter] = useState<ReviewFilterMode>('all')
+  const [autoImportRequest, setAutoImportRequest] = useState<AutoImportRequest | null>(null)
+  const [extensionStatusMessage, setExtensionStatusMessage] = useState('')
 
   const parsed = useMemo(() => parseJsonInput(jsonInput), [jsonInput])
   const effectivePayload = useMemo(() => {
@@ -683,6 +698,14 @@ export default function AdminImportPage() {
     const params = new URLSearchParams(window.location.search)
     const nextKind = params.get('kind')
     const nextLeagueOverride = params.get('leagueOverride')
+    const nextReviewFilter = parseReviewFilter(params.get('focus'))
+    const autoPaste = params.get('autopaste') === '1'
+    const autoPreview = params.get('autopreview') === '1'
+    const autoCommitParam = params.get('autocommit')
+
+    let autoCommitMode: AutoImportRequest['autoCommitMode'] = 'none'
+    if (autoCommitParam === 'all') autoCommitMode = 'all'
+    if (autoCommitParam === 'clean_safe') autoCommitMode = 'clean_only'
 
     if (nextKind === 'schedule' || nextKind === 'scorecard') {
       setImportType(nextKind)
@@ -691,10 +714,20 @@ export default function AdminImportPage() {
     if (nextLeagueOverride) {
       setLeagueNameOverride(nextLeagueOverride)
     }
-  }, [])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
+    setReviewDefaultFilter(nextReviewFilter)
+
+    if (autoPaste || autoPreview || autoCommitMode !== 'none') {
+      setAutoImportRequest({
+        autoPaste,
+        autoPreview,
+        autoCommitMode,
+        reviewFilter: nextReviewFilter,
+        source: params.get('source'),
+        started: false,
+        cleanCommitTriggered: false,
+      })
+    }
 
     try {
       const savedDraft = window.localStorage.getItem(IMPORT_DRAFT_STORAGE_KEY)
@@ -702,14 +735,18 @@ export default function AdminImportPage() {
         setJsonInput(savedDraft)
       }
 
-      const savedImportType = window.localStorage.getItem(IMPORT_TYPE_STORAGE_KEY)
-      if (savedImportType === 'schedule' || savedImportType === 'scorecard') {
-        setImportType(savedImportType)
+      if (!(nextKind === 'schedule' || nextKind === 'scorecard')) {
+        const savedImportType = window.localStorage.getItem(IMPORT_TYPE_STORAGE_KEY)
+        if (savedImportType === 'schedule' || savedImportType === 'scorecard') {
+          setImportType(savedImportType)
+        }
       }
 
-      const savedLeagueOverride = window.localStorage.getItem(IMPORT_LEAGUE_OVERRIDE_STORAGE_KEY)
-      if (savedLeagueOverride) {
-        setLeagueNameOverride(savedLeagueOverride)
+      if (!nextLeagueOverride) {
+        const savedLeagueOverride = window.localStorage.getItem(IMPORT_LEAGUE_OVERRIDE_STORAGE_KEY)
+        if (savedLeagueOverride) {
+          setLeagueNameOverride(savedLeagueOverride)
+        }
       }
 
       const savedReviewer = window.localStorage.getItem(SCORECARD_REVIEWER_STORAGE_KEY)
@@ -755,6 +792,14 @@ export default function AdminImportPage() {
       JSON.stringify(scorecardReviewOverrides),
     )
   }, [scorecardReviewOverrides])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(
+      LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY,
+      `${window.location.pathname}${window.location.search}`,
+    )
+  }, [importType, leagueNameOverride])
 
   useEffect(() => {
     void loadUploadLedger()
@@ -815,18 +860,7 @@ export default function AdminImportPage() {
     importResponse?.ok === true &&
     importSummary != null
 
-  useEffect(() => {
-    setImportResponse(null)
-    setTopLevelError('')
-    setLastRunMode(null)
-    setCopied(false)
-    setScorecardReviewOverrides({})
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(SCORECARD_REVIEW_STORAGE_KEY)
-    }
-  }, [jsonInput, importType, leagueNameOverride])
-
-  async function executeImport(mode: ImportMode, kind: ImportKind, payload: unknown) {
+  const executeImport = useCallback(async (mode: ImportMode, kind: ImportKind, payload: unknown) => {
     setTopLevelError('')
     setImportResponse(null)
     setLastRunMode(mode)
@@ -865,7 +899,7 @@ export default function AdminImportPage() {
       setIsRunningPreview(false)
       setIsRunningCommit(false)
     }
-  }
+  }, [loadUploadLedger])
 
   async function handleRun(mode: ImportMode) {
     if (!effectivePayload) {
@@ -879,6 +913,55 @@ export default function AdminImportPage() {
     }
 
     await executeImport(mode, importType, effectivePayload)
+  }
+
+  const applyJsonInput = useCallback(async (
+    rawText: string,
+    options?: {
+      sourceLabel?: string
+      autoPreview?: boolean
+      autoCommitMode?: AutoImportRequest['autoCommitMode']
+    },
+  ) => {
+    const parsedInput = parseJsonInput(rawText)
+    if (!parsedInput.value) {
+      setTopLevelError(parsedInput.error ?? 'Invalid JSON.')
+      return
+    }
+
+    const inferredKind = inferImportTypeFromPayload(parsedInput.value) ?? importType
+    const nextPayload = applyLeagueNameOverride(parsedInput.value, leagueNameOverride)
+
+    resetScorecardReviewState()
+    setJsonInput(rawText)
+    setImportType(inferredKind)
+    setExtensionStatusMessage(options?.sourceLabel ?? '')
+
+    if (options?.autoPreview) {
+      if (inferredKind === 'scorecard') {
+        const normalized = normalizeCapturedScorecardPayload(nextPayload)
+        await executeImport('preview', 'scorecard', normalized.rows)
+        return
+      }
+
+      await executeImport('preview', inferredKind, nextPayload)
+      return
+    }
+
+    if (options?.autoCommitMode === 'all' && inferredKind === 'schedule') {
+      await executeImport('commit', inferredKind, nextPayload)
+    }
+  }, [executeImport, importType, leagueNameOverride])
+
+  function resetScorecardReviewState() {
+    setImportResponse(null)
+    setTopLevelError('')
+    setLastRunMode(null)
+    setCopied(false)
+    setScorecardReviewOverrides({})
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(SCORECARD_REVIEW_STORAGE_KEY)
+    }
   }
 
   function upsertScorecardOverride(
@@ -919,6 +1002,7 @@ export default function AdminImportPage() {
   ) {
     upsertScorecardOverride(externalMatchId, (current) => ({
       ...current,
+      decision: 'approve_with_overrides',
       reviewedBy: reviewerName.trim() || current.reviewedBy || 'Admin',
       reviewedAt: new Date().toISOString(),
       lineOverrides: {
@@ -928,6 +1012,15 @@ export default function AdminImportPage() {
           ...patch,
         },
       },
+    }))
+  }
+
+  function handleApproveMatch(externalMatchId: string) {
+    upsertScorecardOverride(externalMatchId, (current) => ({
+      ...current,
+      decision: current.lineOverrides ? 'approve_with_overrides' : 'accept_parser_result',
+      reviewedBy: reviewerName.trim() || current.reviewedBy || 'Admin',
+      reviewedAt: new Date().toISOString(),
     }))
   }
 
@@ -945,6 +1038,70 @@ export default function AdminImportPage() {
     await executeImport('commit', 'scorecard', commitRows)
   }
 
+  useEffect(() => {
+    if (!autoImportRequest || autoImportRequest.started || !autoImportRequest.autoPaste) {
+      return
+    }
+
+    setAutoImportRequest((current) =>
+      current ? { ...current, started: true } : current,
+    )
+
+    void (async () => {
+      try {
+        const clipboardText = await navigator.clipboard.readText()
+        if (!clipboardText.trim()) {
+          setTopLevelError('Clipboard is empty.')
+          return
+        }
+
+        await applyJsonInput(clipboardText, {
+          sourceLabel: autoImportRequest.source
+            ? `${autoImportRequest.source} capture loaded from clipboard`
+            : 'Latest capture loaded from clipboard',
+          autoPreview: autoImportRequest.autoPreview,
+          autoCommitMode: autoImportRequest.autoCommitMode,
+        })
+      } catch (error) {
+        setTopLevelError(
+          error instanceof Error
+            ? `Automatic clipboard load failed: ${error.message}`
+            : 'Automatic clipboard load failed.',
+        )
+      }
+    })()
+  }, [autoImportRequest, applyJsonInput])
+
+  useEffect(() => {
+    if (
+      !autoImportRequest ||
+      autoImportRequest.autoCommitMode !== 'clean_only' ||
+      autoImportRequest.cleanCommitTriggered ||
+      importType !== 'scorecard' ||
+      lastRunMode !== 'preview' ||
+      importResponse?.ok !== true ||
+      scorecardReviewPreviews.length === 0 ||
+      isRunningPreview ||
+      isRunningCommit
+    ) {
+      return
+    }
+
+    setAutoImportRequest((current) =>
+      current ? { ...current, cleanCommitTriggered: true } : current,
+    )
+    setExtensionStatusMessage('Safe scorecards are being committed automatically. Flagged matches are staying in review.')
+    void handleScorecardCommit('clean_only')
+  }, [
+    autoImportRequest,
+    importResponse?.ok,
+    importType,
+    isRunningCommit,
+    isRunningPreview,
+    lastRunMode,
+    scorecardReviewPreviews.length,
+  ])
+
   function handleReviewFlaggedMatches() {
     const target = document.querySelector('[data-review-match="flagged"]')
     if (target instanceof HTMLElement) {
@@ -956,11 +1113,8 @@ export default function AdminImportPage() {
     const files = event.target.files
     if (!files || files.length === 0) return
 
-    setTopLevelError('')
-    setImportResponse(null)
-    setLastRunMode(null)
-    setCopied(false)
-    setScorecardReviewOverrides({})
+    resetScorecardReviewState()
+    setExtensionStatusMessage('')
 
     const fileNames: string[] = []
     const aggregatedPayloads: unknown[] = []
@@ -1013,6 +1167,8 @@ export default function AdminImportPage() {
   }
 
   function handleLoadSample() {
+    setExtensionStatusMessage('')
+    resetScorecardReviewState()
     if (importType === 'schedule') {
       const sample = {
         pageType: 'season_schedule',
@@ -1046,7 +1202,6 @@ export default function AdminImportPage() {
       setSelectedFileCount(1)
       setUploadedFiles([summarizeUploadedFile('sample-schedule.json', sample, 'schedule')])
       setJsonInput(prettyJson(sample))
-      setScorecardReviewOverrides({})
       return
     }
 
@@ -1093,7 +1248,6 @@ export default function AdminImportPage() {
     setSelectedFileCount(1)
     setUploadedFiles([summarizeUploadedFile('sample-scorecard.json', sample, 'scorecard')])
     setJsonInput(prettyJson(sample))
-    setScorecardReviewOverrides({})
   }
 
   function handleClearAll() {
@@ -1101,23 +1255,18 @@ export default function AdminImportPage() {
     setSelectedFileCount(0)
     setUploadedFiles([])
     setJsonInput('')
-    setTopLevelError('')
-    setImportResponse(null)
-    setLastRunMode(null)
-    setCopied(false)
+    resetScorecardReviewState()
     setLeagueNameOverride('')
+    setExtensionStatusMessage('')
     setIsRunningPreview(false)
     setIsRunningCommit(false)
-    setScorecardReviewOverrides({})
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(SCORECARD_REVIEW_STORAGE_KEY)
-    }
   }
 
   function handleAutoDetectType() {
     if (!parsed.value) return
     const inferred = inferImportTypeFromPayload(parsed.value)
     if (inferred) {
+      resetScorecardReviewState()
       setImportType(inferred)
     }
   }
@@ -1140,12 +1289,7 @@ export default function AdminImportPage() {
         setTopLevelError('Clipboard is empty.')
         return
       }
-
-      setJsonInput(clipboardText)
-      setTopLevelError('')
-      setImportResponse(null)
-      setLastRunMode(null)
-      setCopied(false)
+      await applyJsonInput(clipboardText)
     } catch (error) {
       setTopLevelError(
         error instanceof Error
@@ -1238,12 +1382,14 @@ export default function AdminImportPage() {
             reviewerName={reviewerName}
             onReviewerNameChange={setReviewerName}
             onMatchDecisionChange={handleMatchDecisionChange}
+            onApproveMatch={handleApproveMatch}
             onReviewerNoteChange={handleReviewerNoteChange}
             onLineOverrideChange={handleLineOverrideChange}
             onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}
             onCommitApprovedItems={() => void handleScorecardCommit('approved_items')}
             onReviewFlagged={handleReviewFlaggedMatches}
             isRunningCommit={isRunningCommit}
+            defaultFilter={reviewDefaultFilter}
           />
         ) : null}
 
@@ -1311,13 +1457,19 @@ export default function AdminImportPage() {
                 active={importType === 'schedule'}
                 title="Schedule import"
                 subtitle="Use for season schedules and upcoming team match records."
-                onClick={() => setImportType('schedule')}
+                onClick={() => {
+                  resetScorecardReviewState()
+                  setImportType('schedule')
+                }}
               />
               <TypeCard
                 active={importType === 'scorecard'}
                 title="Scorecard import"
                 subtitle="Use for completed line-by-line results with player detail."
-                onClick={() => setImportType('scorecard')}
+                onClick={() => {
+                  resetScorecardReviewState()
+                  setImportType('scorecard')
+                }}
               />
             </div>
 
@@ -1334,7 +1486,10 @@ export default function AdminImportPage() {
                 <select
                   id="admin-import-type"
                   value={importType}
-                  onChange={(event) => setImportType(event.target.value as ImportKind)}
+                  onChange={(event) => {
+                    resetScorecardReviewState()
+                    setImportType(event.target.value as ImportKind)
+                  }}
                   aria-describedby="admin-import-helper"
                   style={selectStyle}
                 >
@@ -1366,7 +1521,10 @@ export default function AdminImportPage() {
                 id="admin-import-league-override"
                 type="text"
                 value={leagueNameOverride}
-                onChange={(event) => setLeagueNameOverride(event.target.value)}
+                onChange={(event) => {
+                  resetScorecardReviewState()
+                  setLeagueNameOverride(event.target.value)
+                }}
                 placeholder="Optional: force a season name like 2026 Adult 18 & Over Fall"
                 style={inputStyle}
               />
@@ -1406,6 +1564,22 @@ export default function AdminImportPage() {
               You can also select multiple JSON files at once. Duplicate completed scorecards are skipped and should be called out in the import response below.
             </div>
 
+            {extensionStatusMessage ? (
+              <div
+                style={{
+                  marginTop: 12,
+                  borderRadius: 16,
+                  border: '1px solid rgba(116,190,255,0.16)',
+                  background: 'rgba(17,34,63,0.48)',
+                  color: '#EAF4FF',
+                  padding: '12px 14px',
+                  fontWeight: 700,
+                }}
+              >
+                {extensionStatusMessage}
+              </div>
+            ) : null}
+
             {selectedFileName ? (
               <div style={{ marginTop: 12 }}>
                 <span style={pillGreenStyle}>
@@ -1419,7 +1593,10 @@ export default function AdminImportPage() {
               <textarea
                 id="admin-import-json"
                 value={jsonInput}
-                onChange={(event) => setJsonInput(event.target.value)}
+                onChange={(event) => {
+                  resetScorecardReviewState()
+                  setJsonInput(event.target.value)
+                }}
                 placeholder="Paste captured JSON here..."
                 style={textareaStyle}
                 aria-describedby="admin-import-helper"
@@ -1465,7 +1642,7 @@ export default function AdminImportPage() {
                 {isRunningCommit
                   ? 'Committing…'
                   : importType === 'scorecard'
-                    ? 'Commit approved scorecards'
+                    ? 'Submit reviewed matches'
                     : 'Commit import'}
               </button>
             </div>
@@ -1902,6 +2079,32 @@ export default function AdminImportPage() {
                 ))}
               </div>
             )
+          ) : scorecardReviewPreviews.length > 0 ? (
+            <div
+              style={{
+                marginTop: 16,
+                borderRadius: 20,
+                border: '1px solid rgba(116,190,255,0.10)',
+                background: 'rgba(8,15,28,0.62)',
+                padding: '16px',
+              }}
+            >
+              <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
+                Focused scorecard review is active above.
+              </div>
+              <div style={{ ...subtleTextStyle, marginTop: 8 }}>
+                The detailed review panel now replaces the large raw scorecard preview so you can go straight to flagged lines and approvals.
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                <span style={pillSlateStyle}>Matches: {scorecardReviewPreviews.length}</span>
+                <span style={pillSlateStyle}>
+                  Needs review: {scorecardReviewPreviews.filter((preview) => preview.status === 'needs_review').length}
+                </span>
+                <span style={pillSlateStyle}>
+                  Blocked: {scorecardReviewPreviews.filter((preview) => preview.status === 'blocked').length}
+                </span>
+              </div>
+            </div>
           ) : scorecardPreview.rows.length === 0 ? (
             <div style={{ ...subtleTextStyle, marginTop: 14 }}>
               Paste or upload scorecard JSON to preview normalized scorecard rows.
@@ -2219,4 +2422,11 @@ function inferImportTypeFromPayload(payload: unknown): ImportKind | null {
   if ('seasonSchedule' in record) return 'schedule'
 
   return null
+}
+
+function parseReviewFilter(value: string | null): ReviewFilterMode {
+  if (value === 'needs_review' || value === 'unresolved') return 'needs_review'
+  if (value === 'ready') return 'ready'
+  if (value === 'blocked') return 'blocked'
+  return 'all'
 }

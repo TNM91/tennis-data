@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type {
   ReviewDecision,
   ReviewedScorecardLine,
@@ -10,11 +10,14 @@ import type {
 } from '@/lib/ingestion/scorecardReview'
 import type { MatchSide, ScoreEventType } from '@/lib/ingestion/importEngine'
 
+type ReviewFilterMode = 'all' | 'needs_review' | 'ready' | 'blocked'
+
 type Props = {
   previews: ScorecardPreviewModel[]
   reviewerName: string
   onReviewerNameChange: (value: string) => void
   onMatchDecisionChange: (externalMatchId: string, decision: ReviewDecision) => void
+  onApproveMatch: (externalMatchId: string) => void
   onReviewerNoteChange: (externalMatchId: string, note: string) => void
   onLineOverrideChange: (
     externalMatchId: string,
@@ -25,6 +28,7 @@ type Props = {
   onCommitApprovedItems: () => void
   onReviewFlagged: () => void
   isRunningCommit: boolean
+  defaultFilter?: ReviewFilterMode
 }
 
 const panelStyle: CSSProperties = {
@@ -145,6 +149,22 @@ function badgeStyle(tone: 'green' | 'amber' | 'red' | 'blue' | 'slate'): CSSProp
   }
 }
 
+function filterButtonStyle(active: boolean): CSSProperties {
+  return active
+    ? {
+        ...primaryButtonStyle,
+        minHeight: 38,
+        padding: '0 14px',
+        fontSize: '0.86rem',
+      }
+    : {
+        ...secondaryButtonStyle,
+        minHeight: 38,
+        padding: '0 14px',
+        fontSize: '0.86rem',
+      }
+}
+
 function formatWinner(line: ReviewedScorecardLine, preview: ScorecardPreviewModel) {
   if (line.winnerSide === 'A') return preview.finalPreview.homeTeam || 'Home'
   if (line.winnerSide === 'B') return preview.finalPreview.awayTeam || 'Away'
@@ -161,6 +181,14 @@ function statusTone(status: ScorecardPreviewModel['status']): 'green' | 'amber' 
   if (status === 'repaired') return 'blue'
   if (status === 'blocked') return 'red'
   return 'amber'
+}
+
+function decisionTone(decision: ReviewDecision): 'green' | 'amber' | 'red' | 'blue' | 'slate' {
+  if (decision === 'approve_with_overrides') return 'green'
+  if (decision === 'accept_parser_result' || decision === 'accept_suggested_repair') return 'blue'
+  if (decision === 'exclude_from_commit') return 'red'
+  if (decision === 'needs_review_later') return 'amber'
+  return 'slate'
 }
 
 function decisionLabel(decision: ReviewDecision) {
@@ -188,21 +216,96 @@ function countByStatus(previews: ScorecardPreviewModel[]) {
   )
 }
 
+function isReadyPreview(preview: ScorecardPreviewModel) {
+  return (
+    !preview.blocked &&
+    preview.reviewDecision !== 'exclude_from_commit' &&
+    (preview.commitEligible || preview.status === 'clean' || preview.status === 'repaired')
+  )
+}
+
 export default function ScorecardReviewPanel({
   previews,
   reviewerName,
   onReviewerNameChange,
   onMatchDecisionChange,
+  onApproveMatch,
   onReviewerNoteChange,
   onLineOverrideChange,
   onCommitCleanOnly,
   onCommitApprovedItems,
   onReviewFlagged,
   isRunningCommit,
+  defaultFilter = 'all',
 }: Props) {
   const counts = countByStatus(previews)
   const flaggedCount = previews.filter((preview) => preview.status === 'needs_review').length
   const blockedCount = previews.filter((preview) => preview.blocked).length
+  const readyCount = previews.filter((preview) => isReadyPreview(preview)).length
+  const [filterMode, setFilterMode] = useState<ReviewFilterMode>(defaultFilter)
+  const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFilterMode(defaultFilter)
+  }, [defaultFilter])
+
+  useEffect(() => {
+    if (activeMatchId && previews.some((preview) => preview.externalMatchId === activeMatchId)) {
+      return
+    }
+
+    const fallbackMatchId =
+      previews.find((preview) => preview.status === 'needs_review')?.externalMatchId ??
+      previews.find((preview) => preview.status === 'blocked')?.externalMatchId ??
+      previews.find((preview) => isReadyPreview(preview))?.externalMatchId ??
+      previews[0]?.externalMatchId ??
+      null
+
+    setActiveMatchId(fallbackMatchId)
+  }, [activeMatchId, previews])
+
+  const filteredPreviews = useMemo(() => {
+    if (filterMode === 'needs_review') {
+      return previews.filter((preview) => preview.status === 'needs_review')
+    }
+
+    if (filterMode === 'blocked') {
+      return previews.filter((preview) => preview.status === 'blocked')
+    }
+
+    if (filterMode === 'ready') {
+      return previews.filter((preview) => isReadyPreview(preview))
+    }
+
+    return previews
+  }, [filterMode, previews])
+
+  const activeFilterCount =
+    filterMode === 'all'
+      ? previews.length
+      : filterMode === 'needs_review'
+        ? counts.needs_review
+        : filterMode === 'blocked'
+          ? counts.blocked
+          : readyCount
+
+  function jumpToMatch(predicate: (preview: ScorecardPreviewModel) => boolean) {
+    const targetPreview = filteredPreviews.find(predicate) ?? previews.find(predicate)
+    if (!targetPreview) return
+
+    setActiveMatchId(targetPreview.externalMatchId)
+
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const target = document.querySelector(
+          `[data-review-id="${targetPreview.externalMatchId}"]`,
+        )
+        if (target instanceof HTMLElement) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      })
+    }
+  }
 
   return (
     <section style={{ ...panelStyle, marginTop: 22 }}>
@@ -211,7 +314,7 @@ export default function ScorecardReviewPanel({
         Validation summary and approval flow
       </div>
       <div style={{ ...subtleTextStyle, marginTop: 10 }}>
-        Clean matches can move fast. Repaired matches keep a repair log. Conflicts and ambiguous winners stay visible until you explicitly approve or exclude them.
+        Clean matches can move fast. Repaired matches keep a repair log. Conflicts and ambiguous winners stay visible until you explicitly approve or exclude them. Line edits are saved automatically and marked ready for reviewed submission.
       </div>
 
       <div
@@ -269,26 +372,81 @@ export default function ScorecardReviewPanel({
           }}
         >
           <button type="button" style={primaryButtonStyle} onClick={onCommitCleanOnly} disabled={isRunningCommit}>
-            {isRunningCommit ? 'Committing…' : 'Commit clean only'}
+            {isRunningCommit ? 'Committing...' : 'Commit clean only'}
           </button>
           <button type="button" style={secondaryButtonStyle} onClick={onReviewFlagged}>
-            Review flagged matches
+            Jump to flagged match
           </button>
           <button type="button" style={secondaryButtonStyle} onClick={onCommitApprovedItems} disabled={isRunningCommit}>
-            {isRunningCommit ? 'Committing…' : 'Commit approved items'}
+            {isRunningCommit ? 'Committing...' : 'Submit reviewed matches'}
           </button>
           <div style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
-            {flaggedCount} flagged match{flaggedCount === 1 ? '' : 'es'} and {blockedCount} blocked.
+            {flaggedCount} flagged match{flaggedCount === 1 ? '' : 'es'}, {blockedCount} blocked, {readyCount} ready.
           </div>
         </div>
       </div>
 
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          marginTop: 16,
+        }}
+      >
+        <button type="button" style={filterButtonStyle(filterMode === 'needs_review')} onClick={() => setFilterMode('needs_review')}>
+          Needs review ({counts.needs_review})
+        </button>
+        <button type="button" style={filterButtonStyle(filterMode === 'ready')} onClick={() => setFilterMode('ready')}>
+          Ready to submit ({readyCount})
+        </button>
+        <button type="button" style={filterButtonStyle(filterMode === 'blocked')} onClick={() => setFilterMode('blocked')}>
+          Blocked ({counts.blocked})
+        </button>
+        <button type="button" style={filterButtonStyle(filterMode === 'all')} onClick={() => setFilterMode('all')}>
+          All matches ({previews.length})
+        </button>
+        <button
+          type="button"
+          style={secondaryButtonStyle}
+          onClick={() =>
+            jumpToMatch(
+              (preview) => preview.status === 'needs_review' || preview.status === 'blocked',
+            )
+          }
+        >
+          Next unresolved
+        </button>
+        <div style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
+          Showing {activeFilterCount} match{activeFilterCount === 1 ? '' : 'es'} in the current view.
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gap: 14, marginTop: 18 }}>
-        {previews.map((preview) => (
+        {filteredPreviews.length === 0 ? (
+          <div
+            style={{
+              borderRadius: 18,
+              border: '1px solid rgba(116,190,255,0.10)',
+              background: 'rgba(8,15,28,0.55)',
+              padding: '16px',
+            }}
+          >
+            <div style={{ color: '#F8FBFF', fontWeight: 800 }}>Nothing in this filter yet.</div>
+            <div style={{ ...subtleTextStyle, marginTop: 8 }}>
+              Switch filters to see the rest of the batch, or use "Commit clean only" to move the safe items through first.
+            </div>
+          </div>
+        ) : filteredPreviews.map((preview) => (
           <details
             key={preview.externalMatchId}
-            open={preview.status !== 'clean'}
+            open={
+              activeMatchId === preview.externalMatchId ||
+              (!activeMatchId && preview.status !== 'clean')
+            }
             data-review-match={preview.status === 'needs_review' ? 'flagged' : 'unflagged'}
+            data-review-id={preview.externalMatchId}
             style={{
               borderRadius: 22,
               border:
@@ -306,7 +464,7 @@ export default function ScorecardReviewPanel({
               padding: '16px',
             }}
           >
-            <summary style={{ listStyle: 'none', cursor: 'pointer' }}>
+            <summary style={{ listStyle: 'none', cursor: 'pointer' }} onClick={() => setActiveMatchId(preview.externalMatchId)}>
               <div
                 style={{
                   display: 'flex',
@@ -329,6 +487,9 @@ export default function ScorecardReviewPanel({
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <span style={badgeStyle(statusTone(preview.status))}>{statusLabel(preview.status)}</span>
+                  <span style={badgeStyle(decisionTone(preview.reviewDecision))}>
+                    {decisionLabel(preview.reviewDecision)}
+                  </span>
                   <span style={badgeStyle('blue')}>Match ID: {preview.externalMatchId}</span>
                   <span style={badgeStyle('slate')}>Confidence {preview.confidenceScore}</span>
                   <span style={badgeStyle('slate')}>
@@ -408,7 +569,31 @@ export default function ScorecardReviewPanel({
                 </div>
 
                 <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.86rem' }}>
-                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them.
+                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them. If you changed a line and want it included, use "Approve this match" or "Submit reviewed matches".
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                  <button
+                    type="button"
+                    style={primaryButtonStyle}
+                    onClick={() => onApproveMatch(preview.externalMatchId)}
+                  >
+                    Approve this match
+                  </button>
+                  <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    onClick={() => onMatchDecisionChange(preview.externalMatchId, 'needs_review_later')}
+                  >
+                    Keep for later
+                  </button>
+                  <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    onClick={() => onMatchDecisionChange(preview.externalMatchId, 'exclude_from_commit')}
+                  >
+                    Exclude from commit
+                  </button>
                 </div>
               </section>
 
@@ -522,7 +707,10 @@ function LineReviewCard({
     <div
       style={{
         borderRadius: 18,
-        border: '1px solid rgba(116,190,255,0.08)',
+        border:
+          line.winnerSide === null
+            ? '1px solid rgba(250,204,21,0.20)'
+            : '1px solid rgba(116,190,255,0.08)',
         background: 'rgba(12,22,40,0.72)',
         padding: '14px',
       }}
@@ -543,7 +731,9 @@ function LineReviewCard({
           <span style={badgeStyle(line.isLocked ? 'green' : line.winnerSide ? 'blue' : 'amber')}>
             {line.isLocked ? 'Locked' : line.evidenceClass}
           </span>
-          <span style={badgeStyle('slate')}>Winner: {formatWinner(line, preview)}</span>
+          <span style={badgeStyle(line.winnerSide ? 'slate' : 'amber')}>
+            Winner: {formatWinner(line, preview)}
+          </span>
           <span style={badgeStyle('slate')}>Source: {line.winnerSource}</span>
           <span style={badgeStyle('slate')}>Confidence: {line.captureConfidence}</span>
           <span style={badgeStyle('slate')}>{line.scoreEventType}</span>

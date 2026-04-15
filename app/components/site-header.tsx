@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
@@ -13,6 +13,8 @@ import {
 } from '@/lib/interaction-styles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+
+const LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY = 'tenaceiq-last-admin-import-route-v1'
 
 const PRIMARY_LINKS = [
   { href: '/', label: 'Home' },
@@ -293,7 +295,17 @@ export default function SiteHeader({ active }: { active?: string }) {
   const { role } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [resumeImportHref, setResumeImportHref] = useState('/admin/import')
   const { isTablet, isMobile } = useViewportBreakpoints()
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || role !== 'admin') return
+
+    const savedHref = window.localStorage.getItem(LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY)
+    if (savedHref) {
+      setResumeImportHref(savedHref)
+    }
+  }, [pathname, role])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -447,7 +459,10 @@ export default function SiteHeader({ active }: { active?: string }) {
               <>
                 <HeaderLink href="/mylab" label="My Lab" variant="cta" />
                 {role === 'admin' ? (
-                  <HeaderLink href="/admin" label="Admin" variant="quiet" />
+                  <>
+                    <HeaderLink href={resumeImportHref} label="Resume import" variant="quiet" />
+                    <HeaderLink href="/admin" label="Admin" variant="quiet" />
+                  </>
                 ) : null}
                 <HeaderButton label="Logout" onClick={handleLogout} />
               </>
@@ -526,10 +541,16 @@ export default function SiteHeader({ active }: { active?: string }) {
                   <span style={{ opacity: 0.62 }}>→</span>
                 </Link>
                 {role === 'admin' ? (
-                  <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
-                    <span>Admin</span>
-                    <span style={{ opacity: 0.38 }}>→</span>
-                  </Link>
+                  <>
+                    <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
+                      <span>Resume import</span>
+                      <span style={{ opacity: 0.38 }}>→</span>
+                    </Link>
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
+                      <span>Admin</span>
+                      <span style={{ opacity: 0.38 }}>→</span>
+                    </Link>
+                  </>
                 ) : null}
                 <button
                   type="button"
