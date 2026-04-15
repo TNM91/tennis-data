@@ -33,6 +33,7 @@ import {
   buildScorecardPreviewModels,
   type ReviewDecision,
   type ScorecardMatchReviewOverride,
+  type ScorecardPreviewModel,
 } from '@/lib/ingestion/scorecardReview'
 
 type ImportKind = 'schedule' | 'scorecard'
@@ -1024,6 +1025,26 @@ export default function AdminImportPage() {
     }))
   }
 
+  async function handleApproveAndSubmitMatch(preview: ScorecardPreviewModel) {
+    const reviewedBy = reviewerName.trim() || preview.finalPreview.reviewed_by || 'Admin'
+    const reviewedAt = new Date().toISOString()
+
+    handleApproveMatch(preview.externalMatchId)
+
+    await executeImport('commit', 'scorecard', [
+      {
+        ...preview.finalPreview,
+        reviewed_by: reviewedBy,
+        reviewed_at: reviewedAt,
+        reviewStatus:
+          preview.finalPreview.lines.some((line) => line.winnerSide === null) ||
+          preview.finalPreview.dataConflict
+            ? 'needs_review'
+            : 'clean',
+      },
+    ])
+  }
+
   async function handleScorecardCommit(selectionMode: 'clean_only' | 'approved_items') {
     const commitRows = buildScorecardCommitRows(scorecardReviewPreviews, selectionMode)
     if (commitRows.length === 0) {
@@ -1383,6 +1404,7 @@ export default function AdminImportPage() {
             onReviewerNameChange={setReviewerName}
             onMatchDecisionChange={handleMatchDecisionChange}
             onApproveMatch={handleApproveMatch}
+            onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
             onReviewerNoteChange={handleReviewerNoteChange}
             onLineOverrideChange={handleLineOverrideChange}
             onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}

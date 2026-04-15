@@ -18,6 +18,7 @@ type Props = {
   onReviewerNameChange: (value: string) => void
   onMatchDecisionChange: (externalMatchId: string, decision: ReviewDecision) => void
   onApproveMatch: (externalMatchId: string) => void
+  onApproveAndSubmitMatch: (preview: ScorecardPreviewModel) => void
   onReviewerNoteChange: (externalMatchId: string, note: string) => void
   onLineOverrideChange: (
     externalMatchId: string,
@@ -224,12 +225,28 @@ function isReadyPreview(preview: ScorecardPreviewModel) {
   )
 }
 
+function getReviewFocusLineNumbers(preview: ScorecardPreviewModel): number[] {
+  const focus = preview.finalPreview.lines
+    .filter((line) => {
+      if (line.winnerSide === null) return true
+      if (line.timedMatch && line.winnerSide === null) return true
+      if (line.evidenceClass === 'conflict_candidate') return true
+      if (!line.isLocked && (line.captureConfidence ?? 0) < 0.75) return true
+      if ((line.parseNotes ?? []).some((note) => note.toLowerCase().includes('missing deciding set'))) return true
+      return false
+    })
+    .map((line) => line.lineNumber)
+
+  return [...new Set(focus)].sort((a, b) => a - b)
+}
+
 export default function ScorecardReviewPanel({
   previews,
   reviewerName,
   onReviewerNameChange,
   onMatchDecisionChange,
   onApproveMatch,
+  onApproveAndSubmitMatch,
   onReviewerNoteChange,
   onLineOverrideChange,
   onCommitCleanOnly,
@@ -244,6 +261,7 @@ export default function ScorecardReviewPanel({
   const readyCount = previews.filter((preview) => isReadyPreview(preview)).length
   const [filterMode, setFilterMode] = useState<ReviewFilterMode>(defaultFilter)
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null)
+  const [showAllLinesByMatch, setShowAllLinesByMatch] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     setFilterMode(defaultFilter)
@@ -262,6 +280,25 @@ export default function ScorecardReviewPanel({
       null
 
     setActiveMatchId(fallbackMatchId)
+  }, [activeMatchId, previews])
+
+  useEffect(() => {
+    if (!activeMatchId || typeof window === 'undefined') return
+
+    const activePreview = previews.find((preview) => preview.externalMatchId === activeMatchId)
+    if (!activePreview) return
+
+    const focusLine = getReviewFocusLineNumbers(activePreview)[0]
+    if (!focusLine) return
+
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector(
+        `[data-review-line="${activeMatchId}-${focusLine}"]`,
+      )
+      if (target instanceof HTMLElement) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    })
   }, [activeMatchId, previews])
 
   const filteredPreviews = useMemo(() => {
@@ -438,7 +475,17 @@ export default function ScorecardReviewPanel({
               Switch filters to see the rest of the batch, or use "Commit clean only" to move the safe items through first.
             </div>
           </div>
-        ) : filteredPreviews.map((preview) => (
+        ) : filteredPreviews.map((preview) => {
+          const focusLineNumbers = getReviewFocusLineNumbers(preview)
+          const shouldShowAllLines =
+            showAllLinesByMatch[preview.externalMatchId] || focusLineNumbers.length === 0
+          const linesToRender = shouldShowAllLines
+            ? (preview.finalPreview.lines as ReviewedScorecardLine[])
+            : (preview.finalPreview.lines as ReviewedScorecardLine[]).filter((line) =>
+                focusLineNumbers.includes(line.lineNumber),
+              )
+
+          return (
           <details
             key={preview.externalMatchId}
             open={
@@ -520,6 +567,57 @@ export default function ScorecardReviewPanel({
             </summary>
 
             <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
+              {focusLineNumbers.length > 0 ? (
+                <section
+                  style={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(250,204,21,0.18)',
+                    background: 'rgba(40,28,8,0.42)',
+                    padding: '14px',
+                  }}
+                >
+                  <div style={{ ...labelStyle, fontSize: '0.72rem' }}>Review focus</div>
+                  <div style={{ color: '#F8FBFF', fontWeight: 800, marginTop: 8 }}>
+                    Start with line {focusLineNumbers[0]}
+                    {focusLineNumbers.length > 1 ? `, then ${focusLineNumbers.slice(1).join(', ')}` : ''}
+                  </div>
+                  <div style={{ ...subtleTextStyle, marginTop: 8 }}>
+                    Only the lines that need attention are shown first so you can fix the issue, approve the match, and move on.
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                    <button
+                      type="button"
+                      style={secondaryButtonStyle}
+                      onClick={() =>
+                        setShowAllLinesByMatch((current) => ({
+                          ...current,
+                          [preview.externalMatchId]: !shouldShowAllLines,
+                        }))
+                      }
+                    >
+                      {shouldShowAllLines ? 'Show issue lines only' : 'Show all lines'}
+                    </button>
+                    <button
+                      type="button"
+                      style={secondaryButtonStyle}
+                      onClick={() => {
+                        setActiveMatchId(preview.externalMatchId)
+                        window.requestAnimationFrame(() => {
+                          const target = document.querySelector(
+                            `[data-review-line="${preview.externalMatchId}-${focusLineNumbers[0]}"]`,
+                          )
+                          if (target instanceof HTMLElement) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                          }
+                        })
+                      }}
+                    >
+                      Go to line {focusLineNumbers[0]}
+                    </button>
+                  </div>
+                </section>
+              ) : null}
+
               <section
                 style={{
                   borderRadius: 18,
@@ -582,6 +680,13 @@ export default function ScorecardReviewPanel({
                   </button>
                   <button
                     type="button"
+                    style={primaryButtonStyle}
+                    onClick={() => onApproveAndSubmitMatch(preview)}
+                  >
+                    Approve and submit match
+                  </button>
+                  <button
+                    type="button"
                     style={secondaryButtonStyle}
                     onClick={() => onMatchDecisionChange(preview.externalMatchId, 'needs_review_later')}
                   >
@@ -614,8 +719,13 @@ export default function ScorecardReviewPanel({
                 }}
               >
                 <div style={{ ...labelStyle, fontSize: '0.72rem' }}>Line-by-line review</div>
+                {!shouldShowAllLines && focusLineNumbers.length > 0 ? (
+                  <div style={{ ...subtleTextStyle, marginTop: 8 }}>
+                    Showing the specific line{focusLineNumbers.length === 1 ? '' : 's'} that need review first.
+                  </div>
+                ) : null}
                 <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-                  {(preview.finalPreview.lines as ReviewedScorecardLine[]).map((line) => (
+                  {linesToRender.map((line) => (
                     <LineReviewCard
                       key={`${preview.externalMatchId}-${line.lineNumber}`}
                       line={line}
@@ -627,7 +737,8 @@ export default function ScorecardReviewPanel({
               </section>
             </div>
           </details>
-        ))}
+          )
+        })}
       </div>
     </section>
   )
@@ -705,6 +816,7 @@ function LineReviewCard({
 }) {
   return (
     <div
+      data-review-line={`${preview.externalMatchId}-${line.lineNumber}`}
       style={{
         borderRadius: 18,
         border:
