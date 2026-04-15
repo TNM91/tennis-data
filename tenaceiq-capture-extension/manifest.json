@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "TenAceIQ Capture",
+  "version": "0.9.1",
+  "description": "Capture TennisLink page data for TenAceIQ imports.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TenAceIQ Capture"
+  },
+  "background": {
+    "service_worker": "service_worker.js"
+  }
+}

@@ -478,7 +478,7 @@ export default function ScorecardReviewPanel({
           >
             <div style={{ color: '#F8FBFF', fontWeight: 800 }}>Nothing in this filter yet.</div>
             <div style={{ ...subtleTextStyle, marginTop: 8 }}>
-              Switch filters to see the rest of the batch, or use "Commit clean only" to move the safe items through first.
+              Switch filters to see the rest of the batch, or use &ldquo;Commit clean only&rdquo; to move the safe items through first.
             </div>
           </div>
         ) : filteredPreviews.map((preview) => {
@@ -676,7 +676,7 @@ export default function ScorecardReviewPanel({
                 </div>
 
                 <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.86rem' }}>
-                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them. If you changed a line and want it included, use "Approve this match" or "Submit reviewed matches". 
+                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them. If you changed a line and want it included, use &ldquo;Approve this match&rdquo; or &ldquo;Submit reviewed matches&rdquo;.
                 </div>
 
                 {committedMatchIds.includes(preview.externalMatchId) ? (

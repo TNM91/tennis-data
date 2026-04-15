@@ -1,6 +1,5 @@
 import type {
   MatchSide,
-  MatchType,
   ScorecardImportRow,
   ScorecardLineImportRow,
 } from './importEngine'
@@ -306,7 +305,6 @@ function normalizeLine(line: ScorecardLineImportRow): ReviewedScorecardLine {
   const winnerColumnSide =
     normalizeMatchSide(lineRecord.winnerColumnSide) ??
     normalizeMatchSide(lineRecord.textWinnerSide)
-  const computedSetWinner = determineWinnerFromSets(normalizeVisibleSets(lineRecord))
   const winnerSide = normalizeMatchSide(line.winnerSide)
   const winnerSource = normalizeWinnerSource(lineRecord.winnerSource)
   const baseNotes = uniqueStrings((lineRecord.parseNotes as string[] | undefined) ?? [])
@@ -669,7 +667,10 @@ export function buildScorecardPreviewModel(
   }
 
   finalPreview = applyScorecardReviewOverride(finalPreview, override)
-  finalPreview.validated_capture_json = finalPreview
+  // Capture a shallow snapshot before assigning so we don't create a circular
+  // reference (finalPreview → validated_capture_json → finalPreview) that
+  // breaks JSON.stringify when Supabase persists review metadata.
+  finalPreview.validated_capture_json = { ...finalPreview }
 
   const confidenceScore = reviewedLines.length
     ? Number(

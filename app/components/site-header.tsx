@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
@@ -295,17 +295,12 @@ export default function SiteHeader({ active }: { active?: string }) {
   const { role } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
-  const [resumeImportHref, setResumeImportHref] = useState('/admin/import')
   const { isTablet, isMobile } = useViewportBreakpoints()
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || role !== 'admin') return
-
-    const savedHref = window.localStorage.getItem(LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY)
-    if (savedHref) {
-      setResumeImportHref(savedHref)
-    }
-  }, [pathname, role])
+  const resumeImportHref = useMemo(() => {
+    if (typeof window === 'undefined' || role !== 'admin') return '/admin/import'
+    return window.localStorage.getItem(LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY) ?? '/admin/import'
+  }, [role])
 
   async function handleLogout() {
     await supabase.auth.signOut()

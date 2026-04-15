@@ -1,0 +1,178 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TenAceIQ Capture</title>
+    <style>
+      :root {
+        --text: #ffffff;
+        --muted: #cbd5e1;
+        --muted-2: #94a3b8;
+        --accent-a: #9be11d;
+        --accent-b: #4ade80;
+        --panel-border: rgba(255, 255, 255, 0.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-width: 420px;
+        font-family: 'Segoe UI', Arial, sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(155, 225, 29, 0.08), transparent 40%),
+          linear-gradient(180deg, #0f1632 0%, #121a38 100%);
+        color: var(--text);
+      }
+      .wrap { padding: 16px; }
+      .card {
+        background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+        border: 1px solid var(--panel-border);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.24);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      .brand-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .brand-mark {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+        box-shadow: 0 0 18px rgba(74, 222, 128, 0.45);
+        flex: 0 0 auto;
+      }
+      h1 { margin: 0; font-size: 18px; line-height: 1.2; }
+      p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(116, 190, 255, 0.18);
+        background: rgba(74, 163, 255, 0.10);
+        color: #bfe1ff;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+      }
+      .field-label {
+        display: block;
+        margin: 12px 0 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .input {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.04);
+        color: var(--text);
+        padding: 10px 12px;
+        font-size: 12px;
+      }
+      .button-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 12px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
+        color: #0f1632;
+      }
+      .button.secondary {
+        background: linear-gradient(180deg, rgba(21,42,77,0.82) 0%, rgba(11,20,36,0.96) 100%);
+        color: #eaf4ff;
+        border: 1px solid rgba(116,190,255,0.20);
+      }
+      .button:disabled { opacity: 0.65; cursor: not-allowed; }
+      .status, .recent {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.06);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--muted);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .status {
+        min-height: 120px;
+      }
+      .status.error {
+        color: #fecaca;
+        border-color: rgba(248, 113, 113, 0.28);
+        background: rgba(248, 113, 113, 0.08);
+      }
+      .footer {
+        margin-top: 12px;
+        font-size: 11px;
+        color: var(--muted-2);
+        line-height: 1.5;
+      }
+      .footer strong { color: var(--text); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <div class="brand">
+          <div class="brand-left">
+            <div class="brand-mark"></div>
+            <h1>TenAceIQ Capture</h1>
+          </div>
+          <div id="reviewBadge" class="badge">Ready</div>
+        </div>
+
+        <p>Capture TennisLink schedules and scorecards, keep the latest payload handy, and jump straight into the review-safe TenAceIQ import flow.</p>
+
+        <button id="captureBtn" class="button">Capture and Send</button>
+
+        <label class="field-label" for="importUrl">Import center URL</label>
+        <input id="importUrl" class="input" type="text" placeholder="https://tenaceiq.com/admin/import" />
+
+        <div class="button-grid">
+          <button id="copyBtn" class="button secondary" disabled>Copy latest JSON</button>
+          <button id="downloadBtn" class="button secondary" disabled>Re-download latest</button>
+          <button id="openImportBtn" class="button secondary" disabled>Open import center</button>
+          <button id="clearBtn" class="button secondary" disabled>Clear recent</button>
+        </div>
+
+        <div id="recentMeta" class="recent">No recent capture stored yet.</div>
+        <div id="status" class="status">Ready.</div>
+
+        <div class="footer">
+          <strong>Workflow:</strong><br />
+          Capture on TennisLink and the extension can send the payload straight into the matching TenAceIQ import flow. Use <strong>Re-download latest</strong> only when you want a backup file.
+        </div>
+      </div>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
+

@@ -1106,7 +1106,7 @@ export default function AdminImportPage() {
     }
   }, [importResponse, isRunningCommit, lastRunMode, lineCommitTargetMatchId, topLevelError])
 
-  async function handleScorecardCommit(selectionMode: 'clean_only' | 'approved_items') {
+  const handleScorecardCommit = useCallback(async (selectionMode: 'clean_only' | 'approved_items') => {
     const commitRows = buildScorecardCommitRows(scorecardReviewPreviews, selectionMode)
     if (commitRows.length === 0) {
       setTopLevelError(
@@ -1118,7 +1118,7 @@ export default function AdminImportPage() {
     }
 
     await executeImport('commit', 'scorecard', commitRows)
-  }
+  }, [scorecardReviewPreviews, executeImport])
 
   useEffect(() => {
     if (!autoImportRequest || autoImportRequest.started || !autoImportRequest.autoPaste) {
@@ -1176,6 +1176,7 @@ export default function AdminImportPage() {
     void handleScorecardCommit('clean_only')
   }, [
     autoImportRequest,
+    handleScorecardCommit,
     importResponse?.ok,
     importType,
     isRunningCommit,

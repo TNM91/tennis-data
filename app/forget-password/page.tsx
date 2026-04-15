@@ -76,6 +76,8 @@ export default function ForgotPasswordPage() {
   }
 
   const roleLabel = useMemo(() => {
+    if (role === 'admin') return 'Admin access enabled'
+    if (role === 'captain') return 'Captain access enabled'
     if (role === 'member') return 'Member access enabled'
     return 'Public access'
   }, [role])

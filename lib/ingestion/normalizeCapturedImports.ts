@@ -202,6 +202,13 @@ function unwrapRootRows(payload: unknown): unknown[] {
     return payload.rows
   }
 
+  // Detect a plain scorecard row (ScorecardImportRow or ReviewedScorecardRow).
+  // This handles the case where already-normalised rows are passed back through
+  // the pipeline (e.g. from the scorecard review panel commit buttons).
+  if (typeof payload.externalMatchId === 'string' && Array.isArray(payload.lines)) {
+    return [payload]
+  }
+
   return []
 }
 
