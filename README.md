@@ -21,6 +21,14 @@ npm run lint
 npm run build
 ```
 
+## Scorecard Review Persistence
+
+The admin import flow now supports review-safe scorecard preview, approval, and audit metadata.
+
+- Local browser persistence for reviewer name and per-line review overrides is automatic in `/admin/import`.
+- Best-effort server persistence is wired into the ingestion engine and will write review metadata when your Supabase schema supports it.
+- An optional SQL starter for review/audit columns and a dedicated audit table lives in [docs/scorecard-review-audit.sql](./docs/scorecard-review-audit.sql).
+
 ## AdSense rollout
 
 The site is already wired for:

@@ -55,6 +55,7 @@ export default function MissingScorecardsPage() {
   const [teamFilter, setTeamFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
   const [focusFilter, setFocusFilter] = useState<FocusFilter>('all')
+  const [copiedQueue, setCopiedQueue] = useState(false)
   const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
@@ -309,6 +310,25 @@ export default function MissingScorecardsPage() {
     window.history.replaceState(null, '', nextUrl)
   }, [focusFilter, leagueFilter, search, statusFilter, teamFilter])
 
+  async function handleCopyVisibleQueue() {
+    const lines = filteredRows.map((row) => {
+      const externalMatchId = cleanText(row.external_match_id) || 'missing-id'
+      const league = leagueScopeLabel(row.league_name, row.flight)
+      const teams = `${cleanText(row.home_team) || 'Unknown home'} vs ${cleanText(row.away_team) || 'Unknown away'}`
+      return `${formatDate(row.match_date)} | ${league} | ${teams} | Match ID: ${externalMatchId}`
+    })
+
+    if (lines.length === 0) return
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setCopiedQueue(true)
+      window.setTimeout(() => setCopiedQueue(false), 1800)
+    } catch {
+      setCopiedQueue(false)
+    }
+  }
+
   return (
     <SiteShell active="/admin">
       <AdminGate>
@@ -469,6 +489,9 @@ export default function MissingScorecardsPage() {
               <button type="button" onClick={() => void loadLedger()} className="button-ghost">
                 {loading ? 'Refreshing dashboard...' : 'Refresh dashboard'}
               </button>
+              <button type="button" onClick={() => void handleCopyVisibleQueue()} className="button-ghost">
+                {copiedQueue ? 'Queue copied' : 'Copy visible queue'}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -482,8 +505,8 @@ export default function MissingScorecardsPage() {
               >
                 Reset filters
               </button>
-              <Link href="/admin/import" className="button-primary">
-                Open Import Center
+              <Link href="/admin/import?kind=scorecard" className="button-primary">
+                Open Scorecard Import
               </Link>
             </div>
           </section>
@@ -664,8 +687,11 @@ export default function MissingScorecardsPage() {
                           >
                             Open scoped queue
                           </Link>
-                          <Link href="/admin/import" className="button-primary">
-                            Open Import Center
+                          <Link
+                            href={`/admin/import?kind=scorecard&leagueOverride=${encodeURIComponent(cleanText(row.league_name))}`}
+                            className="button-primary"
+                          >
+                            Import scorecard
                           </Link>
                         </div>
                       </div>

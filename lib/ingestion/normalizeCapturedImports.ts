@@ -99,6 +99,73 @@ function normalizeWinnerSide(value: unknown): MatchSide | null {
   return null
 }
 
+function normalizeScoreEventType(
+  value: unknown,
+): 'standard' | 'third_set_match_tiebreak' | 'timed_match' | null {
+  const cleaned = cleanString(value).toLowerCase()
+  if (cleaned === 'standard') return 'standard'
+  if (cleaned === 'third_set_match_tiebreak') return 'third_set_match_tiebreak'
+  if (cleaned === 'timed_match') return 'timed_match'
+  return null
+}
+
+function normalizeWinnerSource(
+  value: unknown,
+): 'dom_marker' | 'winner_column' | 'set_math' | 'inferred_missing_third_set' | 'unknown' {
+  const cleaned = cleanString(value).toLowerCase()
+  if (cleaned === 'dom_marker') return 'dom_marker'
+  if (cleaned === 'winner_column') return 'winner_column'
+  if (cleaned === 'set_math') return 'set_math'
+  if (cleaned === 'inferred_missing_third_set') return 'inferred_missing_third_set'
+  return 'unknown'
+}
+
+function normalizeBoolean(value: unknown): boolean {
+  if (typeof value === 'boolean') return value
+  const cleaned = cleanString(value).toLowerCase()
+  return cleaned === 'true' || cleaned === 'yes' || cleaned === '1'
+}
+
+function normalizeConfidence(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Number(Math.max(0, Math.min(1, value)).toFixed(2))
+  }
+
+  const cleaned = cleanString(value)
+  if (!cleaned) return undefined
+  const numeric = Number(cleaned)
+  if (!Number.isFinite(numeric)) return undefined
+  return Number(Math.max(0, Math.min(1, numeric)).toFixed(2))
+}
+
+function normalizeScorecardSets(value: unknown): Array<{
+  homeGames?: number | null
+  awayGames?: number | null
+  isMatchTiebreak?: boolean
+  isTimed?: boolean
+}> {
+  const normalized: Array<{
+    homeGames?: number | null
+    awayGames?: number | null
+    isMatchTiebreak?: boolean
+    isTimed?: boolean
+  }> = []
+
+  for (const entry of toArray(value)) {
+    if (!isRecord(entry)) continue
+    const homeGames = pickFirst(entry, ['homeGames', 'home_games'])
+    const awayGames = pickFirst(entry, ['awayGames', 'away_games'])
+    normalized.push({
+      homeGames: typeof homeGames === 'number' ? homeGames : Number.parseInt(cleanString(homeGames), 10),
+      awayGames: typeof awayGames === 'number' ? awayGames : Number.parseInt(cleanString(awayGames), 10),
+      isMatchTiebreak: normalizeBoolean(pickFirst(entry, ['isMatchTiebreak', 'is_match_tiebreak'])),
+      isTimed: normalizeBoolean(pickFirst(entry, ['isTimed', 'is_timed'])),
+    })
+  }
+
+  return normalized
+}
+
 function splitPlayerList(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
@@ -694,6 +761,36 @@ function normalizeScorecardLine(
     sideBPlayers,
     winnerSide,
     score,
+    rawScoreText: nullableString(pickFirst(line, ['rawScoreText', 'raw_score_text'])) ?? score,
+    visibleSetScores: toArray(pickFirst(line, ['visibleSetScores', 'visible_set_scores']))
+      .map((entry) => cleanString(entry))
+      .filter(Boolean),
+    explicitWinnerMarker: nullableString(
+      pickFirst(line, ['explicitWinnerMarker', 'explicit_winner_marker']),
+    ),
+    explicitWinnerSide: normalizeWinnerSide(
+      pickFirst(line, ['explicitWinnerSide', 'explicit_winner_side', 'markerWinnerSide']),
+    ),
+    winnerColumnSide: normalizeWinnerSide(
+      pickFirst(line, ['winnerColumnSide', 'winner_column_side', 'textWinnerSide']),
+    ),
+    captureConfidence: normalizeConfidence(
+      pickFirst(line, ['captureConfidence', 'capture_confidence']),
+    ),
+    winnerSource: normalizeWinnerSource(
+      pickFirst(line, ['winnerSource', 'winner_source']),
+    ),
+    scoreEventType:
+      normalizeScoreEventType(pickFirst(line, ['scoreEventType', 'score_event_type'])) ?? 'standard',
+    timedMatch: normalizeBoolean(pickFirst(line, ['timedMatch', 'timed_match'])),
+    hasThirdSetMatchTiebreak: normalizeBoolean(
+      pickFirst(line, ['hasThirdSetMatchTiebreak', 'has_third_set_match_tiebreak']),
+    ),
+    parseNotes: toArray(pickFirst(line, ['parseNotes', 'parse_notes']))
+      .map((entry) => cleanString(entry))
+      .filter(Boolean),
+    isLocked: normalizeBoolean(pickFirst(line, ['isLocked', 'is_locked'])),
+    sets: normalizeScorecardSets(pickFirst(line, ['sets', 'setResults', 'set_results'])),
   }
 }
 
@@ -783,6 +880,33 @@ function normalizeScorecardRow(
     facility: normalizeFacility(record),
     matchTime: normalizeTime(record),
     source: buildUnifiedSource('scorecard', record),
+    totalTeamScore: isRecord(pickFirst(record, ['totalTeamScore', 'total_team_score']))
+      ? {
+          home: typeof (pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).home === 'number'
+            ? ((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).home as number)
+            : Number.parseInt(cleanString((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).home), 10) || null,
+          away: typeof (pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).away === 'number'
+            ? ((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).away as number)
+            : Number.parseInt(cleanString((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).away), 10) || null,
+        }
+      : null,
+    captureEngine: isRecord(pickFirst(record, ['captureEngine', 'capture_engine']))
+      ? {
+          version:
+            cleanString((pickFirst(record, ['captureEngine', 'capture_engine']) as UnknownRecord).version) ||
+            'capture',
+          captureQuality:
+            normalizeConfidence((pickFirst(record, ['captureEngine', 'capture_engine']) as UnknownRecord).captureQuality) ??
+            0,
+          diagnostics: toArray((pickFirst(record, ['captureEngine', 'capture_engine']) as UnknownRecord).diagnostics)
+            .map((entry) => cleanString(entry))
+            .filter(Boolean),
+        }
+      : null,
+    dataConflict: normalizeBoolean(pickFirst(record, ['dataConflict', 'data_conflict'])),
+    conflictType: nullableString(pickFirst(record, ['conflictType', 'conflict_type'])),
+    needsReview: normalizeBoolean(pickFirst(record, ['needsReview', 'needs_review'])),
+    raw_capture_json: record,
   }
 }
 

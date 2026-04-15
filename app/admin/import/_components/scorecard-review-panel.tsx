@@ -1,0 +1,735 @@
+'use client'
+
+import type { CSSProperties } from 'react'
+import type {
+  ReviewDecision,
+  ReviewedScorecardLine,
+  ScorecardMatchReviewOverride,
+  ScorecardPreviewModel,
+  ScorecardLineOverride,
+} from '@/lib/ingestion/scorecardReview'
+import type { MatchSide, ScoreEventType } from '@/lib/ingestion/importEngine'
+
+type Props = {
+  previews: ScorecardPreviewModel[]
+  reviewerName: string
+  onReviewerNameChange: (value: string) => void
+  onMatchDecisionChange: (externalMatchId: string, decision: ReviewDecision) => void
+  onReviewerNoteChange: (externalMatchId: string, note: string) => void
+  onLineOverrideChange: (
+    externalMatchId: string,
+    lineNumber: number,
+    patch: Partial<ScorecardLineOverride>,
+  ) => void
+  onCommitCleanOnly: () => void
+  onCommitApprovedItems: () => void
+  onReviewFlagged: () => void
+  isRunningCommit: boolean
+}
+
+const panelStyle: CSSProperties = {
+  borderRadius: 28,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(17,34,63,0.76) 0%, rgba(9,18,34,0.94) 100%)',
+  boxShadow: '0 24px 70px rgba(5,12,26,0.26), inset 0 1px 0 rgba(255,255,255,0.04)',
+  padding: '18px',
+}
+
+const labelStyle: CSSProperties = {
+  color: '#DCEBFF',
+  fontSize: '0.8rem',
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const subtleTextStyle: CSSProperties = {
+  color: '#AFC3DB',
+  lineHeight: 1.6,
+}
+
+const inputStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 42,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(8,15,28,0.78)',
+  color: '#F8FBFF',
+  padding: '10px 12px',
+  outline: 'none',
+  fontSize: '0.9rem',
+}
+
+const textareaStyle: CSSProperties = {
+  ...inputStyle,
+  minHeight: 84,
+  resize: 'vertical',
+}
+
+const selectStyle: CSSProperties = {
+  ...inputStyle,
+  minHeight: 42,
+}
+
+const primaryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 46,
+  borderRadius: 999,
+  padding: '0 18px',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
+  color: '#08111d',
+  fontWeight: 900,
+  fontSize: '0.95rem',
+  cursor: 'pointer',
+}
+
+const secondaryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 46,
+  borderRadius: 999,
+  padding: '0 18px',
+  border: '1px solid rgba(116,190,255,0.20)',
+  background: 'linear-gradient(180deg, rgba(21,42,77,0.82) 0%, rgba(11,20,36,0.96) 100%)',
+  color: '#EAF4FF',
+  fontWeight: 800,
+  fontSize: '0.95rem',
+  cursor: 'pointer',
+}
+
+function badgeStyle(tone: 'green' | 'amber' | 'red' | 'blue' | 'slate'): CSSProperties {
+  const palette =
+    tone === 'green'
+      ? {
+          border: '1px solid rgba(155,225,29,0.18)',
+          background: 'rgba(155,225,29,0.10)',
+          color: '#C8F56B',
+        }
+      : tone === 'amber'
+        ? {
+            border: '1px solid rgba(250,204,21,0.18)',
+            background: 'rgba(250,204,21,0.10)',
+            color: '#FDE68A',
+          }
+        : tone === 'red'
+          ? {
+              border: '1px solid rgba(248,113,113,0.22)',
+              background: 'rgba(127,29,29,0.24)',
+              color: '#FCA5A5',
+            }
+          : tone === 'blue'
+            ? {
+                border: '1px solid rgba(116,190,255,0.16)',
+                background: 'rgba(74,163,255,0.10)',
+                color: '#BFE1FF',
+              }
+            : {
+                border: '1px solid rgba(148,163,184,0.18)',
+                background: 'rgba(148,163,184,0.10)',
+                color: '#D6E1EF',
+              }
+
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: 30,
+    padding: '5px 11px',
+    borderRadius: 999,
+    fontSize: '0.78rem',
+    fontWeight: 800,
+    ...palette,
+  }
+}
+
+function formatWinner(line: ReviewedScorecardLine, preview: ScorecardPreviewModel) {
+  if (line.winnerSide === 'A') return preview.finalPreview.homeTeam || 'Home'
+  if (line.winnerSide === 'B') return preview.finalPreview.awayTeam || 'Away'
+  return 'Unresolved'
+}
+
+function lineWinnerSideValue(value: MatchSide | null | undefined): 'A' | 'B' | 'unresolved' {
+  if (value === 'A' || value === 'B') return value
+  return 'unresolved'
+}
+
+function statusTone(status: ScorecardPreviewModel['status']): 'green' | 'amber' | 'red' | 'blue' {
+  if (status === 'clean') return 'green'
+  if (status === 'repaired') return 'blue'
+  if (status === 'blocked') return 'red'
+  return 'amber'
+}
+
+function decisionLabel(decision: ReviewDecision) {
+  if (decision === 'accept_parser_result') return 'Accept parser result'
+  if (decision === 'accept_suggested_repair') return 'Accept suggested repair'
+  if (decision === 'exclude_from_commit') return 'Exclude from commit'
+  if (decision === 'approve_with_overrides') return 'Approve with overrides'
+  return 'Needs review later'
+}
+
+function statusLabel(status: ScorecardPreviewModel['status']) {
+  if (status === 'needs_review') return 'Needs review'
+  if (status === 'repaired') return 'Auto-repaired'
+  if (status === 'blocked') return 'Blocked'
+  return 'Clean'
+}
+
+function countByStatus(previews: ScorecardPreviewModel[]) {
+  return previews.reduce(
+    (acc, preview) => {
+      acc[preview.status] += 1
+      return acc
+    },
+    { clean: 0, repaired: 0, needs_review: 0, blocked: 0 },
+  )
+}
+
+export default function ScorecardReviewPanel({
+  previews,
+  reviewerName,
+  onReviewerNameChange,
+  onMatchDecisionChange,
+  onReviewerNoteChange,
+  onLineOverrideChange,
+  onCommitCleanOnly,
+  onCommitApprovedItems,
+  onReviewFlagged,
+  isRunningCommit,
+}: Props) {
+  const counts = countByStatus(previews)
+  const flaggedCount = previews.filter((preview) => preview.status === 'needs_review').length
+  const blockedCount = previews.filter((preview) => preview.blocked).length
+
+  return (
+    <section style={{ ...panelStyle, marginTop: 22 }}>
+      <div style={labelStyle}>Scorecard Review</div>
+      <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1.06rem', marginTop: 8 }}>
+        Validation summary and approval flow
+      </div>
+      <div style={{ ...subtleTextStyle, marginTop: 10 }}>
+        Clean matches can move fast. Repaired matches keep a repair log. Conflicts and ambiguous winners stay visible until you explicitly approve or exclude them.
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gap: 12,
+          marginTop: 16,
+        }}
+      >
+        <MetricCard label="Clean" value={counts.clean} tone="green" />
+        <MetricCard label="Auto-repaired" value={counts.repaired} tone="blue" />
+        <MetricCard label="Needs review" value={counts.needs_review} tone="amber" />
+        <MetricCard label="Blocked" value={counts.blocked} tone="red" />
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(220px, 260px) 1fr',
+          gap: 14,
+          marginTop: 18,
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 20,
+            border: '1px solid rgba(116,190,255,0.10)',
+            background: 'rgba(8,15,28,0.62)',
+            padding: '14px',
+          }}
+        >
+          <div style={{ ...labelStyle, fontSize: '0.72rem' }}>Reviewer</div>
+          <input
+            value={reviewerName}
+            onChange={(event) => onReviewerNameChange(event.target.value)}
+            style={{ ...inputStyle, marginTop: 10 }}
+            placeholder="Reviewer name"
+          />
+          <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.86rem' }}>
+            Reviewer identity is threaded into approved overrides so raw, validated, and reviewed values stay attributable.
+          </div>
+        </div>
+
+        <div
+          style={{
+            borderRadius: 20,
+            border: '1px solid rgba(116,190,255,0.10)',
+            background: 'rgba(8,15,28,0.62)',
+            padding: '14px',
+            display: 'flex',
+            gap: 10,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
+          <button type="button" style={primaryButtonStyle} onClick={onCommitCleanOnly} disabled={isRunningCommit}>
+            {isRunningCommit ? 'Committing…' : 'Commit clean only'}
+          </button>
+          <button type="button" style={secondaryButtonStyle} onClick={onReviewFlagged}>
+            Review flagged matches
+          </button>
+          <button type="button" style={secondaryButtonStyle} onClick={onCommitApprovedItems} disabled={isRunningCommit}>
+            {isRunningCommit ? 'Committing…' : 'Commit approved items'}
+          </button>
+          <div style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
+            {flaggedCount} flagged match{flaggedCount === 1 ? '' : 'es'} and {blockedCount} blocked.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 14, marginTop: 18 }}>
+        {previews.map((preview) => (
+          <details
+            key={preview.externalMatchId}
+            open={preview.status !== 'clean'}
+            data-review-match={preview.status === 'needs_review' ? 'flagged' : 'unflagged'}
+            style={{
+              borderRadius: 22,
+              border:
+                preview.status === 'blocked'
+                  ? '1px solid rgba(248,113,113,0.26)'
+                  : preview.status === 'needs_review'
+                    ? '1px solid rgba(250,204,21,0.24)'
+                    : '1px solid rgba(116,190,255,0.10)',
+              background:
+                preview.status === 'blocked'
+                  ? 'linear-gradient(180deg, rgba(68,18,18,0.76) 0%, rgba(23,12,17,0.95) 100%)'
+                  : preview.status === 'needs_review'
+                    ? 'linear-gradient(180deg, rgba(58,44,12,0.72) 0%, rgba(24,18,10,0.96) 100%)'
+                    : 'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.92) 100%)',
+              padding: '16px',
+            }}
+          >
+            <summary style={{ listStyle: 'none', cursor: 'pointer' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 14,
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1rem' }}>
+                    {preview.finalPreview.homeTeam} vs {preview.finalPreview.awayTeam}
+                  </div>
+                  <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                    {preview.finalPreview.matchDate}
+                    {preview.finalPreview.matchTime ? ` • ${preview.finalPreview.matchTime}` : ''}
+                    {preview.finalPreview.facility ? ` • ${preview.finalPreview.facility}` : ''}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <span style={badgeStyle(statusTone(preview.status))}>{statusLabel(preview.status)}</span>
+                  <span style={badgeStyle('blue')}>Match ID: {preview.externalMatchId}</span>
+                  <span style={badgeStyle('slate')}>Confidence {preview.confidenceScore}</span>
+                  <span style={badgeStyle('slate')}>
+                    Official {preview.officialTeamTotal.home ?? '—'}-{preview.officialTeamTotal.away ?? '—'}
+                  </span>
+                  <span style={badgeStyle('slate')}>
+                    Derived {preview.derivedTeamTotal.home}-{preview.derivedTeamTotal.away}
+                    {preview.derivedTeamTotal.unresolved > 0 ? ` (+${preview.derivedTeamTotal.unresolved} unresolved)` : ''}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                {preview.issues.map((issue) => (
+                  <span
+                    key={`${preview.externalMatchId}-${issue.code}-${issue.message}`}
+                    style={badgeStyle(issue.severity === 'error' ? 'red' : issue.severity === 'warning' ? 'amber' : 'blue')}
+                  >
+                    {issue.code}
+                  </span>
+                ))}
+                {preview.repairLog.map((repair) => (
+                  <span key={`${preview.externalMatchId}-${repair.code}`} style={badgeStyle('blue')}>
+                    {repair.label}
+                  </span>
+                ))}
+              </div>
+            </summary>
+
+            <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
+              <section
+                style={{
+                  borderRadius: 18,
+                  border: '1px solid rgba(116,190,255,0.08)',
+                  background: 'rgba(8,15,28,0.55)',
+                  padding: '14px',
+                }}
+              >
+                <div style={{ ...labelStyle, fontSize: '0.72rem' }}>Match approval</div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                    gap: 12,
+                    marginTop: 12,
+                  }}
+                >
+                  <label style={{ display: 'grid', gap: 8 }}>
+                    <span style={subtleTextStyle}>Decision</span>
+                    <select
+                      value={preview.reviewDecision}
+                      onChange={(event) =>
+                        onMatchDecisionChange(
+                          preview.externalMatchId,
+                          event.target.value as ScorecardMatchReviewOverride['decision'] & ReviewDecision,
+                        )
+                      }
+                      style={selectStyle}
+                    >
+                      <option value="accept_parser_result">Accept parser result</option>
+                      <option value="accept_suggested_repair">Accept suggested repair</option>
+                      <option value="needs_review_later">Mark needs review later</option>
+                      <option value="exclude_from_commit">Exclude from commit</option>
+                      <option value="approve_with_overrides">Approve with overrides</option>
+                    </select>
+                  </label>
+
+                  <label style={{ display: 'grid', gap: 8 }}>
+                    <span style={subtleTextStyle}>Reviewer note</span>
+                    <textarea
+                      value={preview.finalPreview.reviewer_note ?? ''}
+                      onChange={(event) => onReviewerNoteChange(preview.externalMatchId, event.target.value)}
+                      style={textareaStyle}
+                      placeholder="Optional admin note"
+                    />
+                  </label>
+                </div>
+
+                <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.86rem' }}>
+                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them.
+                </div>
+              </section>
+
+              {preview.diagnostics.length > 0 ? (
+                <TextListCard title="Diagnostics" items={preview.diagnostics} tone="amber" />
+              ) : null}
+
+              {preview.parserNotes.length > 0 ? (
+                <TextListCard title="Parser notes" items={preview.parserNotes} tone="blue" />
+              ) : null}
+
+              <section
+                style={{
+                  borderRadius: 18,
+                  border: '1px solid rgba(116,190,255,0.08)',
+                  background: 'rgba(8,15,28,0.55)',
+                  padding: '14px',
+                }}
+              >
+                <div style={{ ...labelStyle, fontSize: '0.72rem' }}>Line-by-line review</div>
+                <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+                  {(preview.finalPreview.lines as ReviewedScorecardLine[]).map((line) => (
+                    <LineReviewCard
+                      key={`${preview.externalMatchId}-${line.lineNumber}`}
+                      line={line}
+                      preview={preview}
+                      onLineOverrideChange={onLineOverrideChange}
+                    />
+                  ))}
+                </div>
+              </section>
+            </div>
+          </details>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function MetricCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: number
+  tone: 'green' | 'blue' | 'amber' | 'red'
+}) {
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        border:
+          tone === 'red'
+            ? '1px solid rgba(248,113,113,0.18)'
+            : tone === 'amber'
+              ? '1px solid rgba(250,204,21,0.16)'
+              : tone === 'green'
+                ? '1px solid rgba(155,225,29,0.16)'
+                : '1px solid rgba(116,190,255,0.16)',
+        background: 'rgba(8,15,28,0.62)',
+        padding: '14px',
+      }}
+    >
+      <div style={{ ...labelStyle, fontSize: '0.72rem' }}>{label}</div>
+      <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1.18rem', marginTop: 8 }}>{value}</div>
+    </div>
+  )
+}
+
+function TextListCard({
+  title,
+  items,
+  tone,
+}: {
+  title: string
+  items: string[]
+  tone: 'blue' | 'amber'
+}) {
+  return (
+    <section
+      style={{
+        borderRadius: 18,
+        border: tone === 'amber' ? '1px solid rgba(250,204,21,0.18)' : '1px solid rgba(116,190,255,0.10)',
+        background: 'rgba(8,15,28,0.55)',
+        padding: '14px',
+      }}
+    >
+      <div style={{ ...labelStyle, fontSize: '0.72rem' }}>{title}</div>
+      <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+        {items.map((item) => (
+          <div key={`${title}-${item}`} style={{ ...subtleTextStyle, fontSize: '0.9rem' }}>
+            {item}
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function LineReviewCard({
+  line,
+  preview,
+  onLineOverrideChange,
+}: {
+  line: ReviewedScorecardLine
+  preview: ScorecardPreviewModel
+  onLineOverrideChange: Props['onLineOverrideChange']
+}) {
+  return (
+    <div
+      style={{
+        borderRadius: 18,
+        border: '1px solid rgba(116,190,255,0.08)',
+        background: 'rgba(12,22,40,0.72)',
+        padding: '14px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
+          Line {line.lineNumber} • {line.matchType}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <span style={badgeStyle(line.isLocked ? 'green' : line.winnerSide ? 'blue' : 'amber')}>
+            {line.isLocked ? 'Locked' : line.evidenceClass}
+          </span>
+          <span style={badgeStyle('slate')}>Winner: {formatWinner(line, preview)}</span>
+          <span style={badgeStyle('slate')}>Source: {line.winnerSource}</span>
+          <span style={badgeStyle('slate')}>Confidence: {line.captureConfidence}</span>
+          <span style={badgeStyle('slate')}>{line.scoreEventType}</span>
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
+        <PlayerCard title="Home side" players={line.sideAPlayers} />
+        <PlayerCard title="Away side" players={line.sideBPlayers} />
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
+        <ValueRow label="Raw score text" value={line.rawScoreText || line.score || '—'} />
+        <ValueRow label="Parsed sets" value={line.visibleSetScores?.join(' | ') || line.score || '—'} />
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
+        <label style={{ display: 'grid', gap: 8 }}>
+          <span style={subtleTextStyle}>Winner side</span>
+          <select
+            value={lineWinnerSideValue(line.winnerSide)}
+            onChange={(event) =>
+              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                winnerSide:
+                  event.target.value === 'A' || event.target.value === 'B'
+                    ? (event.target.value as MatchSide)
+                    : null,
+              })
+            }
+            style={selectStyle}
+          >
+            <option value="A">Home</option>
+            <option value="B">Away</option>
+            <option value="unresolved">Unresolved</option>
+          </select>
+        </label>
+
+        <label style={{ display: 'grid', gap: 8 }}>
+          <span style={subtleTextStyle}>Score event type</span>
+          <select
+            value={line.scoreEventType}
+            onChange={(event) =>
+              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                scoreEventType: event.target.value as ScoreEventType,
+              })
+            }
+            style={selectStyle}
+          >
+            <option value="standard">Standard</option>
+            <option value="third_set_match_tiebreak">Third-set match tiebreak</option>
+            <option value="timed_match">Timed match</option>
+          </select>
+        </label>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
+        <label style={{ ...subtleTextStyle, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={line.timedMatch}
+            onChange={(event) =>
+              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                timedMatch: event.target.checked,
+              })
+            }
+          />
+          Timed match
+        </label>
+        <label style={{ ...subtleTextStyle, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="checkbox"
+            checked={line.hasThirdSetMatchTiebreak}
+            onChange={(event) =>
+              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                hasThirdSetMatchTiebreak: event.target.checked,
+              })
+            }
+          />
+          Third-set match tiebreak
+        </label>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          gap: 12,
+          marginTop: 12,
+        }}
+      >
+        <label style={{ display: 'grid', gap: 8 }}>
+          <span style={subtleTextStyle}>Optional score text correction</span>
+          <input
+            defaultValue={line.rawScoreText || line.score || ''}
+            onBlur={(event) =>
+              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                scoreTextCorrection: event.target.value,
+              })
+            }
+            style={inputStyle}
+          />
+        </label>
+
+        <label style={{ display: 'grid', gap: 8 }}>
+          <span style={subtleTextStyle}>Optional admin note</span>
+          <input
+            onBlur={(event) =>
+              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                adminNote: event.target.value,
+              })
+            }
+            style={inputStyle}
+            placeholder="Why this line was adjusted"
+          />
+        </label>
+      </div>
+
+      {line.parseNotes.length > 0 ? (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+          {line.parseNotes.map((note) => (
+            <span key={`${line.lineNumber}-${note}`} style={badgeStyle('slate')}>
+              {note}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function PlayerCard({ title, players }: { title: string; players: string[] }) {
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        border: '1px solid rgba(116,190,255,0.08)',
+        background: 'rgba(8,15,28,0.55)',
+        padding: '12px',
+      }}
+    >
+      <div style={{ ...labelStyle, fontSize: '0.7rem' }}>{title}</div>
+      <div style={{ ...subtleTextStyle, marginTop: 8 }}>{players.join(' / ') || '—'}</div>
+    </div>
+  )
+}
+
+function ValueRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        border: '1px solid rgba(116,190,255,0.08)',
+        background: 'rgba(8,15,28,0.55)',
+        padding: '12px',
+      }}
+    >
+      <div style={{ ...labelStyle, fontSize: '0.7rem' }}>{label}</div>
+      <div style={{ ...subtleTextStyle, marginTop: 8 }}>{value}</div>
+    </div>
+  )
+}

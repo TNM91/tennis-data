@@ -4,6 +4,13 @@ import { buildLeagueEntityId, buildTeamEntityId } from '@/lib/entity-ids'
 export type MatchSide = 'A' | 'B'
 export type MatchType = 'singles' | 'doubles'
 export type ImportMode = 'preview' | 'commit'
+export type ScoreEventType = 'standard' | 'third_set_match_tiebreak' | 'timed_match'
+export type WinnerSource =
+  | 'dom_marker'
+  | 'winner_column'
+  | 'set_math'
+  | 'inferred_missing_third_set'
+  | 'unknown'
 
 export type ScheduleImportRow = {
   externalMatchId: string
@@ -26,6 +33,25 @@ export type ScorecardLineImportRow = {
   sideBPlayers: string[]
   winnerSide: MatchSide | null
   score?: string | null
+  rawScoreText?: string | null
+  visibleSetScores?: string[]
+  explicitWinnerMarker?: string | null
+  explicitWinnerSide?: MatchSide | null
+  winnerColumnSide?: MatchSide | null
+  captureConfidence?: number
+  winnerSource?: WinnerSource
+  scoreEventType?: ScoreEventType
+  timedMatch?: boolean
+  hasThirdSetMatchTiebreak?: boolean
+  parseNotes?: string[]
+  isLocked?: boolean
+  evidenceClass?: 'locked' | 'inferred' | 'unresolved' | 'conflict_candidate'
+  sets?: Array<{
+    homeGames?: number | null
+    awayGames?: number | null
+    isMatchTiebreak?: boolean
+    isTimed?: boolean
+  }>
 }
 
 export type ScorecardImportRow = {
@@ -41,6 +67,30 @@ export type ScorecardImportRow = {
   facility?: string | null
   matchTime?: string | null
   source?: string | null
+  totalTeamScore?: {
+    home: number | null
+    away: number | null
+  } | null
+  captureEngine?: {
+    version: string
+    captureQuality: number
+    diagnostics: string[]
+  } | null
+  dataConflict?: boolean
+  conflictType?: string | null
+  needsReview?: boolean
+  reviewStatus?: 'clean' | 'repaired' | 'needs_review' | 'blocked'
+  raw_capture_json?: unknown
+  validated_capture_json?: unknown
+  repair_log?: Array<{
+    code: string
+    label: string
+    description: string
+    autoApplied: boolean
+  }>
+  reviewer_note?: string | null
+  reviewed_by?: string | null
+  reviewed_at?: string | null
 }
 
 export type ImportIssueCode =
@@ -133,6 +183,8 @@ export type ImportEngineOptions = {
   hasNormalizedPlayerNameColumn?: boolean
   matchPlayersDeleteBeforeInsert?: boolean
   scorecardLinesTable?: string | null
+  scorecardReviewTable?: string | null
+  persistReviewMetadata?: boolean
   log?: (message: string, meta?: Record<string, unknown>) => void
 }
 
@@ -296,12 +348,37 @@ function lineOutcomeSummary(lines: ScorecardLineImportRow[]) {
 }
 
 function buildParentMatchScore(row: ScorecardImportRow): string | null {
+  const officialScore = row.totalTeamScore
+  if (officialScore?.home !== null && officialScore?.home !== undefined && officialScore?.away !== null && officialScore?.away !== undefined) {
+    return `${officialScore.home}-${officialScore.away}`
+  }
   const { sideAWins, sideBWins, completedLines } = lineOutcomeSummary(row.lines)
   if (completedLines === 0) return null
   return `${sideAWins}-${sideBWins}`
 }
 
+type ScorecardReviewAuditPayload = {
+  match_id: string
+  external_match_id: string
+  review_status: string | null
+  needs_review: boolean
+  data_conflict: boolean
+  conflict_type: string | null
+  reviewer_note: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  raw_capture_json: unknown
+  validated_capture_json: unknown
+  repair_log: unknown
+  capture_engine: unknown
+}
+
 function buildParentWinnerSide(row: ScorecardImportRow): MatchSide | null {
+  const officialScore = row.totalTeamScore
+  if (officialScore?.home !== null && officialScore?.home !== undefined && officialScore?.away !== null && officialScore?.away !== undefined) {
+    if (officialScore.home > officialScore.away) return 'A'
+    if (officialScore.away > officialScore.home) return 'B'
+  }
   const { sideAWins, sideBWins } = lineOutcomeSummary(row.lines)
   if (sideAWins > sideBWins) return 'A'
   if (sideBWins > sideAWins) return 'B'
@@ -333,6 +410,14 @@ function validateScorecardRow(row: ScorecardImportRow): string | null {
     }
     if (!Array.isArray(line.sideAPlayers) || !Array.isArray(line.sideBPlayers)) {
       return 'Invalid players array'
+    }
+    if (
+      line.scoreEventType &&
+      line.scoreEventType !== 'standard' &&
+      line.scoreEventType !== 'third_set_match_tiebreak' &&
+      line.scoreEventType !== 'timed_match'
+    ) {
+      return 'Invalid scoreEventType'
     }
   }
 
@@ -399,7 +484,7 @@ function toScorecardLineMatchUpsert(row: ScorecardImportRow, line: ScorecardLine
     status: 'completed',
     match_type: line.matchType,
     winner_side: line.winnerSide,
-    score: nullableString(line.score),
+    score: nullableString(line.score ?? line.rawScoreText),
     line_number: String(line.lineNumber),
     dedupe_key: null,
   }
@@ -434,6 +519,8 @@ export class ImportEngine {
       hasNormalizedPlayerNameColumn: options?.hasNormalizedPlayerNameColumn ?? false,
       matchPlayersDeleteBeforeInsert: options?.matchPlayersDeleteBeforeInsert ?? true,
       scorecardLinesTable: options?.scorecardLinesTable ?? null,
+      scorecardReviewTable: options?.scorecardReviewTable ?? null,
+      persistReviewMetadata: options?.persistReviewMetadata ?? true,
       log: options?.log ?? (() => undefined),
     }
   }
@@ -1017,6 +1104,10 @@ export class ImportEngine {
           }
         }
 
+        if (this.options.persistReviewMetadata) {
+          await this.persistScorecardReviewMetadata(parentMatchId, row)
+        }
+
         result.createdPlayersCount += createdPlayerNames.length
         result.linkedPlayersCount += totalLinkedPlayerCount + uniqueParentPlayers.length
 
@@ -1102,6 +1193,98 @@ export class ImportEngine {
         error: deleteError.message,
       })
       throw new Error(`Failed to clear existing scorecard line matches: ${deleteError.message}`)
+    }
+  }
+
+  private buildScorecardReviewAuditPayload(
+    matchId: string,
+    row: ScorecardImportRow,
+  ): ScorecardReviewAuditPayload {
+    return {
+      match_id: matchId,
+      external_match_id: cleanString(row.externalMatchId),
+      review_status: nullableString(row.reviewStatus),
+      needs_review: Boolean(row.needsReview),
+      data_conflict: Boolean(row.dataConflict),
+      conflict_type: nullableString(row.conflictType),
+      reviewer_note: nullableString(row.reviewer_note),
+      reviewed_by: nullableString(row.reviewed_by),
+      reviewed_at: nullableString(row.reviewed_at),
+      raw_capture_json: row.raw_capture_json ?? null,
+      validated_capture_json: row.validated_capture_json ?? null,
+      repair_log: row.repair_log ?? [],
+      capture_engine: row.captureEngine ?? null,
+    }
+  }
+
+  private async persistScorecardReviewMetadata(matchId: string, row: ScorecardImportRow) {
+    const payload = this.buildScorecardReviewAuditPayload(matchId, row)
+
+    await this.tryPersistReviewMetadataOnMatch(matchId, payload)
+
+    if (this.options.scorecardReviewTable) {
+      await this.tryPersistReviewMetadataOnAuditTable(this.options.scorecardReviewTable, payload)
+    }
+  }
+
+  private async tryPersistReviewMetadataOnMatch(
+    matchId: string,
+    payload: ScorecardReviewAuditPayload,
+  ) {
+    try {
+      const { error } = await this.supabase
+        .from('matches')
+        .update({
+          review_status: payload.review_status,
+          needs_review: payload.needs_review,
+          data_conflict: payload.data_conflict,
+          conflict_type: payload.conflict_type,
+          reviewer_note: payload.reviewer_note,
+          reviewed_by: payload.reviewed_by,
+          reviewed_at: payload.reviewed_at,
+          raw_capture_json: payload.raw_capture_json,
+          validated_capture_json: payload.validated_capture_json,
+          repair_log: payload.repair_log,
+          capture_engine: payload.capture_engine,
+        })
+        .eq('id', matchId)
+
+      if (error) {
+        this.options.log('persistScorecardReviewMetadata match update skipped', {
+          matchId,
+          error: error.message,
+        })
+      }
+    } catch (error) {
+      this.options.log('persistScorecardReviewMetadata match update failed', {
+        matchId,
+        error: error instanceof Error ? error.message : 'Unknown persistence error',
+      })
+    }
+  }
+
+  private async tryPersistReviewMetadataOnAuditTable(
+    tableName: string,
+    payload: ScorecardReviewAuditPayload,
+  ) {
+    try {
+      const { error } = await this.supabase
+        .from(tableName)
+        .upsert(payload, { onConflict: 'external_match_id' })
+
+      if (error) {
+        this.options.log('persistScorecardReviewMetadata audit upsert skipped', {
+          tableName,
+          externalMatchId: payload.external_match_id,
+          error: error.message,
+        })
+      }
+    } catch (error) {
+      this.options.log('persistScorecardReviewMetadata audit upsert failed', {
+        tableName,
+        externalMatchId: payload.external_match_id,
+        error: error instanceof Error ? error.message : 'Unknown persistence error',
+      })
     }
   }
 
