@@ -30,6 +30,8 @@ type Props = {
   onReviewFlagged: () => void
   isRunningCommit: boolean
   defaultFilter?: ReviewFilterMode
+  commitFeedbackMessage?: string
+  commitFeedbackMatchId?: string | null
 }
 
 const panelStyle: CSSProperties = {
@@ -254,6 +256,8 @@ export default function ScorecardReviewPanel({
   onReviewFlagged,
   isRunningCommit,
   defaultFilter = 'all',
+  commitFeedbackMessage,
+  commitFeedbackMatchId,
 }: Props) {
   const counts = countByStatus(previews)
   const flaggedCount = previews.filter((preview) => preview.status === 'needs_review').length
@@ -732,6 +736,12 @@ export default function ScorecardReviewPanel({
                       preview={preview}
                       onLineOverrideChange={onLineOverrideChange}
                       onApproveAndSubmitMatch={onApproveAndSubmitMatch}
+                      isRunningCommit={isRunningCommit}
+                      commitFeedbackMessage={
+                        commitFeedbackMatchId === preview.externalMatchId
+                          ? commitFeedbackMessage
+                          : null
+                      }
                     />
                   ))}
                 </div>
@@ -811,11 +821,15 @@ function LineReviewCard({
   preview,
   onLineOverrideChange,
   onApproveAndSubmitMatch,
+  isRunningCommit,
+  commitFeedbackMessage,
 }: {
   line: ReviewedScorecardLine
   preview: ScorecardPreviewModel
   onLineOverrideChange: Props['onLineOverrideChange']
   onApproveAndSubmitMatch: Props['onApproveAndSubmitMatch']
+  isRunningCommit: boolean
+  commitFeedbackMessage?: string | null
 }) {
   return (
     <div
@@ -998,14 +1012,31 @@ function LineReviewCard({
         <button
           type="button"
           style={primaryButtonStyle}
+          disabled={isRunningCommit}
           onClick={() => onApproveAndSubmitMatch(preview)}
         >
-          Approve and submit this match
+          {isRunningCommit ? 'Submitting match...' : 'Approve and submit this match'}
         </button>
         <div style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
           Your line changes already update the match preview immediately. This submits the full match using the latest line edits.
         </div>
       </div>
+
+      {commitFeedbackMessage ? (
+        <div
+          style={{
+            marginTop: 12,
+            borderRadius: 14,
+            border: '1px solid rgba(116,190,255,0.16)',
+            background: 'rgba(17,34,63,0.48)',
+            color: '#EAF4FF',
+            padding: '10px 12px',
+            fontWeight: 700,
+          }}
+        >
+          {commitFeedbackMessage}
+        </div>
+      ) : null}
 
       {line.parseNotes.length > 0 ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>

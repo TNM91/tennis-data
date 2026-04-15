@@ -572,6 +572,8 @@ export default function AdminImportPage() {
   const [reviewDefaultFilter, setReviewDefaultFilter] = useState<ReviewFilterMode>('all')
   const [autoImportRequest, setAutoImportRequest] = useState<AutoImportRequest | null>(null)
   const [extensionStatusMessage, setExtensionStatusMessage] = useState('')
+  const [lineCommitTargetMatchId, setLineCommitTargetMatchId] = useState<string | null>(null)
+  const [lineCommitFeedback, setLineCommitFeedback] = useState('')
 
   const parsed = useMemo(() => parseJsonInput(jsonInput), [jsonInput])
   const effectivePayload = useMemo(() => {
@@ -959,6 +961,8 @@ export default function AdminImportPage() {
     setTopLevelError('')
     setLastRunMode(null)
     setCopied(false)
+    setLineCommitTargetMatchId(null)
+    setLineCommitFeedback('')
     setScorecardReviewOverrides({})
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(SCORECARD_REVIEW_STORAGE_KEY)
@@ -1029,6 +1033,8 @@ export default function AdminImportPage() {
     const reviewedBy = reviewerName.trim() || preview.finalPreview.reviewed_by || 'Admin'
     const reviewedAt = new Date().toISOString()
 
+    setLineCommitTargetMatchId(preview.externalMatchId)
+    setLineCommitFeedback('Submitting reviewed match...')
     handleApproveMatch(preview.externalMatchId)
 
     await executeImport('commit', 'scorecard', [
@@ -1044,6 +1050,24 @@ export default function AdminImportPage() {
       },
     ])
   }
+
+  useEffect(() => {
+    if (!lineCommitTargetMatchId || lastRunMode !== 'commit') return
+
+    if (isRunningCommit) {
+      setLineCommitFeedback('Submitting reviewed match...')
+      return
+    }
+
+    if (topLevelError) {
+      setLineCommitFeedback(topLevelError)
+      return
+    }
+
+    if (importResponse?.ok === true) {
+      setLineCommitFeedback('Match submitted. If this line was the last issue, the match is now finalized.')
+    }
+  }, [importResponse, isRunningCommit, lastRunMode, lineCommitTargetMatchId, topLevelError])
 
   async function handleScorecardCommit(selectionMode: 'clean_only' | 'approved_items') {
     const commitRows = buildScorecardCommitRows(scorecardReviewPreviews, selectionMode)
@@ -1412,6 +1436,8 @@ export default function AdminImportPage() {
             onReviewFlagged={handleReviewFlaggedMatches}
             isRunningCommit={isRunningCommit}
             defaultFilter={reviewDefaultFilter}
+            commitFeedbackMatchId={lineCommitTargetMatchId}
+            commitFeedbackMessage={lineCommitFeedback}
           />
         ) : null}
 
