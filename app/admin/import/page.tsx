@@ -12,6 +12,7 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from 'react'
+import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import ScorecardReviewPanel from '@/app/admin/import/_components/scorecard-review-panel'
@@ -117,6 +118,7 @@ const IMPORT_DRAFT_STORAGE_KEY = 'tenaceiq-admin-import-draft-v1'
 const IMPORT_TYPE_STORAGE_KEY = 'tenaceiq-admin-import-type-v1'
 const IMPORT_LEAGUE_OVERRIDE_STORAGE_KEY = 'tenaceiq-admin-import-league-override-v1'
 const LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY = 'tenaceiq-last-admin-import-route-v1'
+const TRANSIENT_IMPORT_QUERY_KEYS = ['autopaste', 'autopreview', 'autocommit', 'source', 'focus']
 
 const pageWrapStyle: CSSProperties = {
   width: '100%',
@@ -574,6 +576,7 @@ export default function AdminImportPage() {
   const [extensionStatusMessage, setExtensionStatusMessage] = useState('')
   const [lineCommitTargetMatchId, setLineCommitTargetMatchId] = useState<string | null>(null)
   const [lineCommitFeedback, setLineCommitFeedback] = useState('')
+  const [committedMatchIds, setCommittedMatchIds] = useState<string[]>([])
 
   const parsed = useMemo(() => parseJsonInput(jsonInput), [jsonInput])
   const effectivePayload = useMemo(() => {
@@ -732,6 +735,12 @@ export default function AdminImportPage() {
       })
     }
 
+    const sanitizedRoute = sanitizeImportRoute(window.location.pathname, window.location.search)
+    const currentRoute = `${window.location.pathname}${window.location.search}`
+    if (sanitizedRoute !== currentRoute) {
+      window.history.replaceState({}, '', sanitizedRoute)
+    }
+
     try {
       const savedDraft = window.localStorage.getItem(IMPORT_DRAFT_STORAGE_KEY)
       if (savedDraft) {
@@ -800,7 +809,7 @@ export default function AdminImportPage() {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(
       LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY,
-      `${window.location.pathname}${window.location.search}`,
+      sanitizeImportRoute(window.location.pathname, window.location.search),
     )
   }, [importType, leagueNameOverride])
 
@@ -894,6 +903,17 @@ export default function AdminImportPage() {
       if (!response.ok) {
         setTopLevelError(response.error)
       } else if (mode === 'commit') {
+        if (kind === 'scorecard') {
+          try {
+            await recalculateDynamicRatings()
+          } catch (ratingError) {
+            const ratingMessage =
+              ratingError instanceof Error
+                ? `Scorecards committed, but ratings did not recalculate: ${ratingError.message}`
+                : 'Scorecards committed, but ratings did not recalculate.'
+            setTopLevelError(ratingMessage)
+          }
+        }
         await loadUploadLedger()
       }
     } catch (error) {
@@ -963,6 +983,7 @@ export default function AdminImportPage() {
     setCopied(false)
     setLineCommitTargetMatchId(null)
     setLineCommitFeedback('')
+    setCommittedMatchIds([])
     setScorecardReviewOverrides({})
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(SCORECARD_REVIEW_STORAGE_KEY)
@@ -1064,8 +1085,24 @@ export default function AdminImportPage() {
       return
     }
 
-    if (importResponse?.ok === true) {
-      setLineCommitFeedback('Match submitted. If this line was the last issue, the match is now finalized.')
+    if (importResponse?.ok === true && importResponse.kind === 'scorecard') {
+      const committedMatch = importResponse.result.rows.find(
+        (row) =>
+          row.externalMatchId === lineCommitTargetMatchId &&
+          (row.status === 'imported' || row.status === 'updated'),
+      )
+
+      if (committedMatch) {
+        setCommittedMatchIds((current) =>
+          current.includes(lineCommitTargetMatchId)
+            ? current
+            : [...current, lineCommitTargetMatchId],
+        )
+        setLineCommitFeedback('Match submitted and finalized with your latest review changes.')
+        return
+      }
+
+      setLineCommitFeedback('Commit finished, but this match did not report a successful save. Check the import messages below.')
     }
   }, [importResponse, isRunningCommit, lastRunMode, lineCommitTargetMatchId, topLevelError])
 
@@ -1438,6 +1475,7 @@ export default function AdminImportPage() {
             defaultFilter={reviewDefaultFilter}
             commitFeedbackMatchId={lineCommitTargetMatchId}
             commitFeedbackMessage={lineCommitFeedback}
+            committedMatchIds={committedMatchIds}
           />
         ) : null}
 
@@ -2477,4 +2515,15 @@ function parseReviewFilter(value: string | null): ReviewFilterMode {
   if (value === 'ready') return 'ready'
   if (value === 'blocked') return 'blocked'
   return 'all'
+}
+
+function sanitizeImportRoute(pathname: string, search: string): string {
+  const params = new URLSearchParams(search)
+
+  for (const key of TRANSIENT_IMPORT_QUERY_KEYS) {
+    params.delete(key)
+  }
+
+  const nextSearch = params.toString()
+  return nextSearch ? `${pathname}?${nextSearch}` : pathname
 }

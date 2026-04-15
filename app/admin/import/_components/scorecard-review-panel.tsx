@@ -32,6 +32,7 @@ type Props = {
   defaultFilter?: ReviewFilterMode
   commitFeedbackMessage?: string
   commitFeedbackMatchId?: string | null
+  committedMatchIds?: string[]
 }
 
 const panelStyle: CSSProperties = {
@@ -258,6 +259,7 @@ export default function ScorecardReviewPanel({
   defaultFilter = 'all',
   commitFeedbackMessage,
   commitFeedbackMatchId,
+  committedMatchIds = [],
 }: Props) {
   const counts = countByStatus(previews)
   const flaggedCount = previews.filter((preview) => preview.status === 'needs_review').length
@@ -550,6 +552,9 @@ export default function ScorecardReviewPanel({
                     Derived {preview.derivedTeamTotal.home}-{preview.derivedTeamTotal.away}
                     {preview.derivedTeamTotal.unresolved > 0 ? ` (+${preview.derivedTeamTotal.unresolved} unresolved)` : ''}
                   </span>
+                  {committedMatchIds.includes(preview.externalMatchId) ? (
+                    <span style={badgeStyle('green')}>Submitted</span>
+                  ) : null}
                 </div>
               </div>
 
@@ -671,8 +676,24 @@ export default function ScorecardReviewPanel({
                 </div>
 
                 <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.86rem' }}>
-                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them. If you changed a line and want it included, use "Approve this match" or "Submit reviewed matches".
+                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them. If you changed a line and want it included, use "Approve this match" or "Submit reviewed matches". 
                 </div>
+
+                {committedMatchIds.includes(preview.externalMatchId) ? (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      borderRadius: 14,
+                      border: '1px solid rgba(155,225,29,0.18)',
+                      background: 'rgba(31,58,24,0.42)',
+                      color: '#E7FFD0',
+                      padding: '10px 12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    This match was submitted. The latest approved line values are now the committed result for this scorecard.
+                  </div>
+                ) : null}
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                   <button

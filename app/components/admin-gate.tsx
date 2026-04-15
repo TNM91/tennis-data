@@ -13,7 +13,12 @@ export default function AdminGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authResolved || role === 'admin') return
 
-    const next = pathname && pathname !== '/login' ? `?next=${encodeURIComponent(pathname)}` : ''
+    const search = typeof window !== 'undefined' ? window.location.search : ''
+    const nextPath =
+      pathname && pathname !== '/login'
+        ? `${pathname}${search ? `?${search}` : ''}`
+        : ''
+    const next = nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''
     router.replace(`/login${next}`)
   }, [authResolved, pathname, role, router])
 

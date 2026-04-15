@@ -177,6 +177,12 @@ export type PlayerRecord = {
   id: string
   name: string
   normalized_name?: string | null
+  singles_rating?: number | null
+  singles_dynamic_rating?: number | null
+  doubles_rating?: number | null
+  doubles_dynamic_rating?: number | null
+  overall_rating?: number | null
+  overall_dynamic_rating?: number | null
 }
 
 export type ImportEngineOptions = {
@@ -230,6 +236,12 @@ type PlayerResolution = {
   id: string
   name: string
   wasCreated: boolean
+  singlesRating: number | null
+  doublesRating: number | null
+  overallRating: number | null
+  singlesDynamicRating: number | null
+  doublesDynamicRating: number | null
+  overallDynamicRating: number | null
 }
 
 type FeedInsert = {
@@ -254,6 +266,7 @@ type ImportedScorecardEventContext = {
 const DEFAULT_SOURCE_SCHEDULE = 'tennislink_schedule'
 const DEFAULT_SOURCE_SCORECARD = 'tennislink_scorecard'
 const SCHEDULE_UPSERT_CHUNK_SIZE = 100
+const DEFAULT_PLAYER_BASELINE = 3.5
 
 function cleanString(value: unknown): string {
   if (typeof value !== 'string') return ''
@@ -355,6 +368,43 @@ function buildParentMatchScore(row: ScorecardImportRow): string | null {
   const { sideAWins, sideBWins, completedLines } = lineOutcomeSummary(row.lines)
   if (completedLines === 0) return null
   return `${sideAWins}-${sideBWins}`
+}
+
+function parseRatingSeed(...values: Array<string | null | undefined>): number | null {
+  for (const value of values) {
+    const cleaned = cleanString(value)
+    if (!cleaned) continue
+
+    const match = cleaned.match(/(?:^|\b)([1-7](?:\.[05])?)(?:\b|$)/)
+    if (!match) continue
+
+    const parsed = Number(match[1])
+    if (Number.isFinite(parsed)) return parsed
+  }
+
+  return null
+}
+
+function inferPlayerBaselineFromRow(row: ScorecardImportRow): number {
+  return (
+    parseRatingSeed(
+      nullableString(row.flight),
+      nullableString(row.leagueName),
+      nullableString(row.ustaSection),
+      nullableString(row.districtArea),
+      nullableString(row.source),
+    ) ?? DEFAULT_PLAYER_BASELINE
+  )
+}
+
+function nullableRatingValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+
+  const cleaned = cleanString(value)
+  if (!cleaned) return null
+
+  const parsed = Number(cleaned)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 type ScorecardReviewAuditPayload = {
@@ -794,7 +844,10 @@ export class ImportEngine {
         let createdPlayerNames: string[] = []
 
         try {
-          const batch = await this.resolvePlayersBatch(uniquePlayerNames)
+          const batch = await this.resolvePlayersBatch(
+            uniquePlayerNames,
+            inferPlayerBaselineFromRow(hydratedRow),
+          )
           resolvedPlayers = batch.map
           createdPlayerNames = batch.created
         } catch (error) {
@@ -1579,7 +1632,7 @@ export class ImportEngine {
     return existingIds
   }
 
-  private async resolvePlayersBatch(names: string[]): Promise<{
+  private async resolvePlayersBatch(names: string[], baselineRating = DEFAULT_PLAYER_BASELINE): Promise<{
     map: Map<string, PlayerResolution>
     created: string[]
   }> {
@@ -1594,7 +1647,7 @@ export class ImportEngine {
 
       const { data, error } = await this.supabase
         .from('players')
-        .select('id, name, normalized_name')
+        .select('id, name, normalized_name, singles_rating, singles_dynamic_rating, doubles_rating, doubles_dynamic_rating, overall_rating, overall_dynamic_rating')
         .in('normalized_name', normalizedNames)
 
       if (error) {
@@ -1609,6 +1662,12 @@ export class ImportEngine {
             id: row.id,
             name: row.name,
             wasCreated: false,
+            singlesRating: nullableRatingValue(row.singles_rating),
+            doublesRating: nullableRatingValue(row.doubles_rating),
+            overallRating: nullableRatingValue(row.overall_rating),
+            singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
+            doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
+            overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
           })
         }
       }
@@ -1619,7 +1678,7 @@ export class ImportEngine {
     if (unresolvedNames.length > 0) {
       const { data, error } = await this.supabase
         .from('players')
-        .select('id, name')
+        .select('id, name, singles_rating, singles_dynamic_rating, doubles_rating, doubles_dynamic_rating, overall_rating, overall_dynamic_rating')
         .in('name', unresolvedNames)
 
       if (error) {
@@ -1634,6 +1693,12 @@ export class ImportEngine {
             id: row.id,
             name: row.name,
             wasCreated: false,
+            singlesRating: nullableRatingValue(row.singles_rating),
+            doublesRating: nullableRatingValue(row.doubles_rating),
+            overallRating: nullableRatingValue(row.overall_rating),
+            singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
+            doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
+            overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
           })
         }
       }
@@ -1645,6 +1710,12 @@ export class ImportEngine {
       const insertPayload: Record<string, unknown>[] = missing.map((name) => {
         const payload: Record<string, unknown> = {
           name: cleanString(name),
+          singles_rating: baselineRating,
+          singles_dynamic_rating: baselineRating,
+          doubles_rating: baselineRating,
+          doubles_dynamic_rating: baselineRating,
+          overall_rating: baselineRating,
+          overall_dynamic_rating: baselineRating,
         }
 
         if (this.options.hasNormalizedPlayerNameColumn) {
@@ -1657,7 +1728,7 @@ export class ImportEngine {
       const { data: inserted, error: insertError } = await this.supabase
         .from('players')
         .insert(insertPayload)
-        .select('id, name')
+        .select('id, name, singles_rating, singles_dynamic_rating, doubles_rating, doubles_dynamic_rating, overall_rating, overall_dynamic_rating')
 
       if (insertError) {
         this.options.log('batch player create failed', {
@@ -1673,6 +1744,12 @@ export class ImportEngine {
           id: row.id,
           name: row.name,
           wasCreated: true,
+          singlesRating: nullableRatingValue(row.singles_rating),
+          doublesRating: nullableRatingValue(row.doubles_rating),
+          overallRating: nullableRatingValue(row.overall_rating),
+          singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
+          doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
+          overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
         })
         created.push(row.name)
       }
@@ -1704,6 +1781,12 @@ export class ImportEngine {
           id: data.id as string,
           name: (data.name as string) ?? cleanedName,
           wasCreated: false,
+          singlesRating: null,
+          doublesRating: null,
+          overallRating: null,
+          singlesDynamicRating: null,
+          doublesDynamicRating: null,
+          overallDynamicRating: null,
         }
       }
     }
@@ -1731,6 +1814,12 @@ export class ImportEngine {
         id: exactMatch.id,
         name: exactMatch.name,
         wasCreated: false,
+        singlesRating: nullableRatingValue(exactMatch.singles_rating),
+        doublesRating: nullableRatingValue(exactMatch.doubles_rating),
+        overallRating: nullableRatingValue(exactMatch.overall_rating),
+        singlesDynamicRating: nullableRatingValue(exactMatch.singles_dynamic_rating),
+        doublesDynamicRating: nullableRatingValue(exactMatch.doubles_dynamic_rating),
+        overallDynamicRating: nullableRatingValue(exactMatch.overall_dynamic_rating),
       }
     }
 
@@ -1760,6 +1849,12 @@ export class ImportEngine {
       id: created.id as string,
       name: (created.name as string) ?? cleanedName,
       wasCreated: true,
+      singlesRating: null,
+      doublesRating: null,
+      overallRating: null,
+      singlesDynamicRating: null,
+      doublesDynamicRating: null,
+      overallDynamicRating: null,
     }
   }
 
