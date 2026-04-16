@@ -759,6 +759,7 @@ function normalizeScheduleRow(
     ustaSection: normalizeSection(record),
     districtArea: normalizeDistrict(record),
     source: buildUnifiedSource('schedule', record),
+    playerRatingSeeds: extractPlayerRatingSeeds(record),
   }
 }
 

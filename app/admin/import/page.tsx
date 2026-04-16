@@ -27,9 +27,10 @@ import {
 import {
   normalizeCapturedSchedulePayload,
   normalizeCapturedScorecardPayload,
+  normalizeCapturedTeamSummaryPayload,
   type NormalizationWarning,
 } from '@/lib/ingestion/normalizeCapturedImports'
-import type { ScorecardImportRow } from '@/lib/ingestion/importEngine'
+import type { ScorecardImportRow, TeamSummaryPlayerRow } from '@/lib/ingestion/importEngine'
 import {
   buildScorecardCommitRows,
   buildScorecardPreviewModels,
@@ -38,7 +39,7 @@ import {
   type ScorecardPreviewModel,
 } from '@/lib/ingestion/scorecardReview'
 
-type ImportKind = 'schedule' | 'scorecard'
+type ImportKind = 'schedule' | 'scorecard' | 'team_summary'
 type ImportMode = 'preview' | 'commit'
 type ReviewFilterMode = 'all' | 'needs_review' | 'ready' | 'blocked'
 
@@ -634,11 +635,32 @@ export default function AdminImportPage() {
     return { clean, flagged, blocked }
   }, [scorecardReviewPreviews])
 
+  const teamSummaryPreview = useMemo(() => {
+    if (!effectivePayload || importType !== 'team_summary') {
+      return { rows: [] as TeamSummaryPlayerRow[], warnings: [] as NormalizationWarning[] }
+    }
+    try {
+      const normalized = normalizeCapturedTeamSummaryPayload(effectivePayload)
+      const allPlayers = normalized.rows.flatMap((r) => r.players)
+      return { rows: allPlayers, warnings: normalized.warnings }
+    } catch {
+      return { rows: [] as TeamSummaryPlayerRow[], warnings: [] as NormalizationWarning[] }
+    }
+  }, [effectivePayload, importType])
+
   const previewWarnings =
-    importType === 'schedule' ? schedulePreview.warnings : scorecardPreview.warnings
+    importType === 'schedule'
+      ? schedulePreview.warnings
+      : importType === 'team_summary'
+        ? teamSummaryPreview.warnings
+        : scorecardPreview.warnings
 
   const normalizedRowCount =
-    importType === 'schedule' ? schedulePreview.rows.length : scorecardPreview.rows.length
+    importType === 'schedule'
+      ? schedulePreview.rows.length
+      : importType === 'team_summary'
+        ? teamSummaryPreview.rows.length
+        : scorecardPreview.rows.length
 
   const importSummary = useMemo(() => {
     if (!importResponse) return null
@@ -1195,6 +1217,37 @@ export default function AdminImportPage() {
     scorecardReviewPreviews.length,
   ])
 
+  useEffect(() => {
+    if (scorecardReviewPreviews.length === 0 || committedMatchIds.length === 0) return
+    const committableIds = scorecardReviewPreviews
+      .filter((p) => !p.blocked)
+      .map((p) => p.externalMatchId)
+    if (committableIds.length === 0) return
+    if (!committableIds.every((id) => committedMatchIds.includes(id))) return
+    const timer = window.setTimeout(() => {
+      setSelectedFileName('')
+      setSelectedFileCount(0)
+      setUploadedFiles([])
+      setJsonInput('')
+      setImportResponse(null)
+      setTopLevelError('')
+      setLastRunMode(null)
+      setCopied(false)
+      setLineCommitTargetMatchId(null)
+      setLineCommitFeedback('')
+      setCommittedMatchIds([])
+      setScorecardReviewOverrides({})
+      setExtensionStatusMessage('')
+      try {
+        window.localStorage.removeItem(SCORECARD_REVIEW_STORAGE_KEY)
+        window.localStorage.removeItem(IMPORT_DRAFT_STORAGE_KEY)
+      } catch {
+        // ignore
+      }
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [committedMatchIds, scorecardReviewPreviews])
+
   function handleReviewFlaggedMatches() {
     const target = document.querySelector('[data-review-match="flagged"]')
     if (target instanceof HTMLElement) {
@@ -1448,7 +1501,7 @@ export default function AdminImportPage() {
                 </span>
               ) : normalizedRowCount > 0 ? (
                 <span style={{ color: '#AFC3DB' }}>
-                  {normalizedRowCount} {importType === 'schedule' ? 'matches' : 'scorecards'} loaded · run Preview to check readiness
+                  {normalizedRowCount} {importType === 'schedule' ? 'matches' : importType === 'team_summary' ? 'players in roster' : 'scorecards'} loaded · run Preview to check readiness
                 </span>
               ) : (
                 <span style={{ color: '#7A96B5' }}>Drop or paste a JSON capture to get started</span>
@@ -1561,6 +1614,45 @@ export default function AdminImportPage() {
               </div>
             </div>
           </section>
+        ) : importType === 'team_summary' && normalizedRowCount > 0 ? (
+          <section style={{ ...glassCardStyle, padding: '24px', marginTop: 18 }}>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1.4rem', lineHeight: 1.2 }}>
+                Team roster ready
+              </div>
+              <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                Committing this roster sets the TRUE baseline NTRP rating for each player. All dynamic ratings start from these numbers and only change when a new season roster is imported.
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  style={{
+                    ...primaryButtonStyle,
+                    minHeight: 52,
+                    fontSize: '1.02rem',
+                    opacity: isRunningCommit ? 0.82 : 1,
+                    cursor: isRunningCommit ? 'wait' : 'pointer',
+                  }}
+                  disabled={isRunningPreview || isRunningCommit}
+                  onClick={() => void handleRun('commit')}
+                >
+                  {isRunningCommit ? 'Committing…' : 'Commit roster baselines'}
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...secondaryButtonStyle,
+                    opacity: isRunningPreview ? 0.8 : 1,
+                    cursor: isRunningPreview ? 'wait' : 'pointer',
+                  }}
+                  disabled={isRunningPreview || isRunningCommit}
+                  onClick={() => void handleRun('preview')}
+                >
+                  {isRunningPreview ? 'Previewing…' : 'Preview first'}
+                </button>
+              </div>
+            </div>
+          </section>
         ) : null}
 
         {/* ── SCORECARD REVIEW PANEL — progressive disclosure ── */}
@@ -1652,6 +1744,15 @@ export default function AdminImportPage() {
               onClick={() => {
                 resetScorecardReviewState()
                 setImportType('scorecard')
+              }}
+            />
+            <TypeCard
+              active={importType === 'team_summary'}
+              title="Team roster"
+              subtitle="Season roster with NTRP baselines. Sets the true starting rating for every player."
+              onClick={() => {
+                resetScorecardReviewState()
+                setImportType('team_summary')
               }}
             />
           </div>
@@ -2438,6 +2539,7 @@ function inferImportTypeFromFileName(fileName: string): ImportKind | null {
 
   if (normalized.includes('scorecard')) return 'scorecard'
   if (normalized.includes('schedule')) return 'schedule'
+  if (normalized.includes('team_summary') || normalized.includes('teamsummary') || normalized.includes('roster')) return 'team_summary'
   return null
 }
 
@@ -2449,9 +2551,11 @@ function inferImportTypeFromPayload(payload: unknown): ImportKind | null {
 
   if (pageType.includes('scorecard')) return 'scorecard'
   if (pageType.includes('schedule')) return 'schedule'
+  if (pageType === 'team_summary' || pageType.includes('team_summary')) return 'team_summary'
 
   if ('scorecard' in record) return 'scorecard'
   if ('seasonSchedule' in record) return 'schedule'
+  if ('teamSummary' in record) return 'team_summary'
 
   return null
 }

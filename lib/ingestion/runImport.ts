@@ -5,14 +5,16 @@ import {
   type ImportMode,
   type ScheduleImportResult,
   type ScorecardImportResult,
+  type TeamSummaryImportResult,
 } from './importEngine'
 import {
   normalizeCapturedSchedulePayload,
   normalizeCapturedScorecardPayload,
+  normalizeCapturedTeamSummaryPayload,
   type NormalizationWarning,
 } from './normalizeCapturedImports'
 
-export type CapturedImportKind = 'schedule' | 'scorecard'
+export type CapturedImportKind = 'schedule' | 'scorecard' | 'team_summary'
 
 export type RunImportRequest = {
   kind: CapturedImportKind
@@ -37,6 +39,14 @@ export type RunImportSuccess =
       normalizedRowCount: number
       warnings: NormalizationWarning[]
       result: ScorecardImportResult
+    }
+  | {
+      ok: true
+      kind: 'team_summary'
+      mode: ImportMode
+      normalizedRowCount: number
+      warnings: NormalizationWarning[]
+      result: TeamSummaryImportResult
     }
 
 export type RunImportFailure = {
@@ -97,6 +107,20 @@ export async function runImport(
       }
     }
 
+    if (request.kind === 'team_summary') {
+      const normalized = normalizeCapturedTeamSummaryPayload(request.payload)
+      const result = await engine.importTeamSummary(normalized.rows, mode)
+
+      return {
+        ok: true,
+        kind: 'team_summary',
+        mode,
+        normalizedRowCount: normalized.rows.length,
+        warnings: normalized.warnings,
+        result,
+      }
+    }
+
     const normalized = normalizeCapturedScorecardPayload(request.payload)
     const result = await engine.importScorecards(normalized.rows, mode)
 
@@ -148,6 +172,20 @@ export async function runScorecardImport(
   })
 }
 
+export async function runTeamSummaryImport(
+  supabase: SupabaseClient,
+  payload: unknown,
+  mode: ImportMode = 'commit',
+  engineOptions?: ImportEngineOptions,
+): Promise<RunImportResponse> {
+  return runImport(supabase, {
+    kind: 'team_summary',
+    payload,
+    mode,
+    engineOptions,
+  })
+}
+
 export function summarizeImportResponse(response: RunImportResponse): ImportSummary {
   if (!response.ok) {
     return {
@@ -178,6 +216,22 @@ export function summarizeImportResponse(response: RunImportResponse): ImportSumm
       skippedCount: response.result.skippedCount,
       failedCount: response.result.failedCount,
       createdPlayersCount: 0,
+      linkedPlayersCount: 0,
+    }
+  }
+
+  if (response.kind === 'team_summary') {
+    return {
+      ok: true,
+      kind: 'team_summary',
+      mode: response.mode,
+      normalizedRowCount: response.normalizedRowCount,
+      warningCount: response.warnings.length,
+      successCount: response.result.createdCount + response.result.updatedCount,
+      updatedCount: response.result.updatedCount,
+      skippedCount: response.result.skippedCount,
+      failedCount: response.result.failedCount,
+      createdPlayersCount: response.result.createdCount,
       linkedPlayersCount: 0,
     }
   }
@@ -214,6 +268,10 @@ export function importResponseToUiLines(response: RunImportResponse): string[] {
   if (summary.kind === 'scorecard') {
     lines.push(`Created players: ${summary.createdPlayersCount}`)
     lines.push(`Linked players: ${summary.linkedPlayersCount}`)
+  }
+
+  if (summary.kind === 'team_summary') {
+    lines.push(`Created players: ${summary.createdPlayersCount}`)
   }
 
   if (!summary.ok && summary.error) {
@@ -253,6 +311,15 @@ export function collectImportMessages(response: RunImportResponse): string[] {
         messages.push(
           `- Row ${error.rowIndex + 1}${error.externalMatchId ? ` (${error.externalMatchId})` : ''}: ${error.message}`,
         )
+      }
+    }
+  }
+
+  if (response.ok && response.kind === 'team_summary') {
+    if (response.result.errors.length > 0) {
+      messages.push('Import errors:')
+      for (const error of response.result.errors) {
+        messages.push(`- ${error.message}`)
       }
     }
   }

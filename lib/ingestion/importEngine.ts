@@ -49,6 +49,7 @@ export type ScheduleImportRow = {
   ustaSection?: string | null
   districtArea?: string | null
   source?: string | null
+  playerRatingSeeds?: Record<string, number>
 }
 
 export type ScorecardLineImportRow = {
@@ -155,6 +156,24 @@ export type ScorecardRowResult = {
   message?: string
 }
 
+export type TeamSummaryPlayerResult = {
+  name: string
+  status: 'created' | 'updated' | 'skipped' | 'failed'
+  ntrp: number | null
+  message?: string
+}
+
+export type TeamSummaryImportResult = {
+  mode: ImportMode
+  totalPlayers: number
+  createdCount: number
+  updatedCount: number
+  skippedCount: number
+  failedCount: number
+  players: TeamSummaryPlayerResult[]
+  errors: ImportRowError[]
+}
+
 export type ScheduleImportResult = {
   mode: ImportMode
   totalRows: number
@@ -225,10 +244,15 @@ function canonicalizeTeamName(name: string, canonicalMap: Record<string, string>
 
 export function applyTeamSummaryContextToScheduleRows(rows: ScheduleImportRow[], summaryRows: TeamSummaryImportRow[]): ScheduleImportRow[] {
   const canonicalMap = buildCanonicalTeamMapFromTeamSummaryRows(summaryRows)
+  const ratingSeeds = buildPlayerRatingSeedMapFromTeamSummaryRows(summaryRows)
   return rows.map((row) => ({
     ...row,
     homeTeam: canonicalizeTeamName(row.homeTeam, canonicalMap),
     awayTeam: canonicalizeTeamName(row.awayTeam, canonicalMap),
+    playerRatingSeeds: {
+      ...(ratingSeeds ?? {}),
+      ...(row.playerRatingSeeds ?? {}),
+    },
   }))
 }
 
@@ -1971,6 +1995,150 @@ export class ImportEngine {
     }
 
     return chunks
+  }
+
+  // ---------------------------------------------------------------------------
+  // importTeamSummary
+  // Writes season-baseline ratings (singles_rating, doubles_rating,
+  // overall_rating) from a TeamSummaryImportRow batch.  These are the TRUE
+  // starting point for dynamic ratings — they only change once per season when
+  // a new team summary is imported.  Dynamic ratings are also seeded to the
+  // baseline if they were still at the 3.5 default or have no value yet.
+  // ---------------------------------------------------------------------------
+  async importTeamSummary(
+    rows: TeamSummaryImportRow[],
+    mode: ImportMode = 'commit',
+  ): Promise<TeamSummaryImportResult> {
+    const result: TeamSummaryImportResult = {
+      mode,
+      totalPlayers: 0,
+      createdCount: 0,
+      updatedCount: 0,
+      skippedCount: 0,
+      failedCount: 0,
+      players: [],
+      errors: [],
+    }
+
+    // Collect all valid players (deduplicated by normalised name)
+    const playerMap = new Map<string, { name: string; ntrp: number }>()
+    for (const row of rows) {
+      for (const player of row.players ?? []) {
+        const name = cleanString(player.name)
+        if (!name) continue
+        const ntrp = typeof player.ntrp === 'number' && Number.isFinite(player.ntrp) ? player.ntrp : null
+        if (ntrp === null) continue
+        const key = normalizeName(name)
+        if (!playerMap.has(key)) {
+          playerMap.set(key, { name, ntrp })
+        }
+      }
+      // Also pick up any explicit playerRatingSeeds map entries
+      for (const [rawName, ntrp] of Object.entries(row.playerRatingSeeds ?? {})) {
+        const name = cleanString(rawName)
+        if (!name) continue
+        if (typeof ntrp !== 'number' || !Number.isFinite(ntrp)) continue
+        const key = normalizeName(name)
+        if (!playerMap.has(key)) {
+          playerMap.set(key, { name, ntrp })
+        }
+      }
+    }
+
+    result.totalPlayers = playerMap.size
+
+    if (mode === 'preview') {
+      for (const { name, ntrp } of playerMap.values()) {
+        result.players.push({ name, status: 'skipped', ntrp, message: 'Preview mode — no changes written' })
+        result.skippedCount += 1
+      }
+      return result
+    }
+
+    // Commit mode: look up each player, upsert baseline ratings
+    for (const { name, ntrp } of playerMap.values()) {
+      try {
+        const normalizedKey = normalizeName(name)
+
+        // Try to find existing player
+        const { data: existing, error: lookupError } = await this.supabase
+          .from('players')
+          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+          .ilike('name', name)
+          .maybeSingle()
+
+        if (lookupError) {
+          result.failedCount += 1
+          result.players.push({ name, status: 'failed', ntrp, message: lookupError.message })
+          result.errors.push({ rowIndex: 0, code: 'PLAYER_LOOKUP_FAILED', message: `${name}: ${lookupError.message}` })
+          continue
+        }
+
+        const roundedNtrp = Math.round(ntrp * 1000) / 1000
+
+        if (existing) {
+          // Only seed dynamic rating if it equals the old baseline (3.5 default)
+          // or has no value — don't overwrite in-season progress.
+          const oldBaseline = existing.singles_rating ?? DEFAULT_PLAYER_BASELINE
+          const singlesWasDefault = (existing.singles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
+          const doublesWasDefault = (existing.doubles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
+          const overallWasDefault = (existing.overall_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
+
+          const update: Record<string, number> = {
+            singles_rating: roundedNtrp,
+            doubles_rating: roundedNtrp,
+            overall_rating: roundedNtrp,
+          }
+          if (singlesWasDefault) update.singles_dynamic_rating = roundedNtrp
+          if (doublesWasDefault) update.doubles_dynamic_rating = roundedNtrp
+          if (overallWasDefault) update.overall_dynamic_rating = roundedNtrp
+
+          const { error: updateError } = await this.supabase
+            .from('players')
+            .update(update)
+            .eq('id', existing.id)
+
+          if (updateError) {
+            result.failedCount += 1
+            result.players.push({ name, status: 'failed', ntrp, message: updateError.message })
+            result.errors.push({ rowIndex: 0, code: 'PLAYER_LOOKUP_FAILED', message: `${name}: ${updateError.message}` })
+          } else {
+            result.updatedCount += 1
+            result.players.push({ name, status: 'updated', ntrp })
+          }
+        } else {
+          // Create the player with both baseline and dynamic ratings set
+          const { error: insertError } = await this.supabase
+            .from('players')
+            .insert({
+              name,
+              normalized_name: normalizedKey,
+              singles_rating: roundedNtrp,
+              doubles_rating: roundedNtrp,
+              overall_rating: roundedNtrp,
+              singles_dynamic_rating: roundedNtrp,
+              doubles_dynamic_rating: roundedNtrp,
+              overall_dynamic_rating: roundedNtrp,
+            })
+
+          if (insertError) {
+            result.failedCount += 1
+            result.players.push({ name, status: 'failed', ntrp, message: insertError.message })
+            result.errors.push({ rowIndex: 0, code: 'PLAYER_CREATE_FAILED', message: `${name}: ${insertError.message}` })
+          } else {
+            result.createdCount += 1
+            result.players.push({ name, status: 'created', ntrp })
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error'
+        result.failedCount += 1
+        result.players.push({ name, status: 'failed', ntrp, message: msg })
+        result.errors.push({ rowIndex: 0, code: 'UNKNOWN', message: `${name}: ${msg}` })
+      }
+    }
+
+    return result
   }
 }
 

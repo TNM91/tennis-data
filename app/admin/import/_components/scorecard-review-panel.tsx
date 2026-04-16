@@ -482,6 +482,36 @@ export default function ScorecardReviewPanel({
             </div>
           </div>
         ) : filteredPreviews.map((preview) => {
+          if (committedMatchIds.includes(preview.externalMatchId)) {
+            return (
+              <div
+                key={preview.externalMatchId}
+                style={{
+                  borderRadius: 22,
+                  border: '1px solid rgba(155,225,29,0.22)',
+                  background: 'linear-gradient(180deg, rgba(18,38,33,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                  padding: '16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ color: '#DFFFC2', fontWeight: 800 }}>
+                    {preview.finalPreview.homeTeam} vs {preview.finalPreview.awayTeam}
+                  </div>
+                  <div style={{ ...subtleTextStyle, marginTop: 4, fontSize: '0.88rem' }}>
+                    {preview.finalPreview.matchDate}
+                    {preview.finalPreview.flight ? ` · ${preview.finalPreview.flight}` : ''}
+                  </div>
+                </div>
+                <span style={badgeStyle('green')}>Committed</span>
+              </div>
+            )
+          }
+
           const focusLineNumbers = getReviewFocusLineNumbers(preview)
           const shouldShowAllLines =
             showAllLinesByMatch[preview.externalMatchId] || focusLineNumbers.length === 0
@@ -636,93 +666,32 @@ export default function ScorecardReviewPanel({
                 }}
               >
                 <div style={{ ...labelStyle, fontSize: '0.72rem' }}>Match approval</div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                    gap: 12,
-                    marginTop: 12,
-                  }}
-                >
-                  <label style={{ display: 'grid', gap: 8 }}>
-                    <span style={subtleTextStyle}>Decision</span>
-                    <select
-                      value={preview.reviewDecision}
-                      onChange={(event) =>
-                        onMatchDecisionChange(
-                          preview.externalMatchId,
-                          event.target.value as ScorecardMatchReviewOverride['decision'] & ReviewDecision,
-                        )
-                      }
-                      style={selectStyle}
-                    >
-                      <option value="accept_parser_result">Accept parser result</option>
-                      <option value="accept_suggested_repair">Accept suggested repair</option>
-                      <option value="needs_review_later">Mark needs review later</option>
-                      <option value="exclude_from_commit">Exclude from commit</option>
-                      <option value="approve_with_overrides">Approve with overrides</option>
-                    </select>
-                  </label>
 
-                  <label style={{ display: 'grid', gap: 8 }}>
-                    <span style={subtleTextStyle}>Reviewer note</span>
-                    <textarea
-                      value={preview.finalPreview.reviewer_note ?? ''}
-                      onChange={(event) => onReviewerNoteChange(preview.externalMatchId, event.target.value)}
-                      style={textareaStyle}
-                      placeholder="Optional admin note"
-                    />
-                  </label>
-                </div>
-
-                <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.86rem' }}>
-                  Current decision: {decisionLabel(preview.reviewDecision)}. Blocked items never commit. Needs-review items only commit after you explicitly accept or approve them. If you changed a line and want it included, use &ldquo;Approve this match&rdquo; or &ldquo;Submit reviewed matches&rdquo;.
-                </div>
-
-                {committedMatchIds.includes(preview.externalMatchId) ? (
-                  <div
-                    style={{
-                      marginTop: 12,
-                      borderRadius: 14,
-                      border: '1px solid rgba(155,225,29,0.18)',
-                      background: 'rgba(31,58,24,0.42)',
-                      color: '#E7FFD0',
-                      padding: '10px 12px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    This match was submitted. The latest approved line values are now the committed result for this scorecard.
-                  </div>
-                ) : null}
+                <label style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                  <span style={subtleTextStyle}>Reviewer note (optional)</span>
+                  <textarea
+                    value={preview.finalPreview.reviewer_note ?? ''}
+                    onChange={(event) => onReviewerNoteChange(preview.externalMatchId, event.target.value)}
+                    style={{ ...textareaStyle, minHeight: 60 }}
+                    placeholder="Any notes about this match"
+                  />
+                </label>
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                   <button
                     type="button"
                     style={primaryButtonStyle}
-                    onClick={() => onApproveMatch(preview.externalMatchId)}
-                  >
-                    Approve this match
-                  </button>
-                  <button
-                    type="button"
-                    style={primaryButtonStyle}
                     onClick={() => onApproveAndSubmitMatch(preview)}
+                    disabled={isRunningCommit}
                   >
-                    Approve and submit match
-                  </button>
-                  <button
-                    type="button"
-                    style={secondaryButtonStyle}
-                    onClick={() => onMatchDecisionChange(preview.externalMatchId, 'needs_review_later')}
-                  >
-                    Keep for later
+                    {isRunningCommit ? 'Submitting...' : 'Approve and submit'}
                   </button>
                   <button
                     type="button"
                     style={secondaryButtonStyle}
                     onClick={() => onMatchDecisionChange(preview.externalMatchId, 'exclude_from_commit')}
                   >
-                    Exclude from commit
+                    Skip this match
                   </button>
                 </div>
               </section>
@@ -960,74 +929,70 @@ function LineReviewCard({
         </label>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 12,
-          marginTop: 12,
-        }}
-      >
-        <label style={{ ...subtleTextStyle, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={line.timedMatch}
-            onChange={(event) =>
-              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
-                timedMatch: event.target.checked,
-              })
-            }
-          />
-          Timed match
-        </label>
-        <label style={{ ...subtleTextStyle, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            type="checkbox"
-            checked={line.hasThirdSetMatchTiebreak}
-            onChange={(event) =>
-              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
-                hasThirdSetMatchTiebreak: event.target.checked,
-              })
-            }
-          />
-          Third-set match tiebreak
-        </label>
-      </div>
+      {line.scoreEventType === 'timed_match' ? (
+        <div
+          style={{
+            marginTop: 12,
+            borderRadius: 14,
+            border: '1px solid rgba(116,190,255,0.14)',
+            background: 'rgba(8,15,28,0.55)',
+            padding: '10px 12px',
+            ...subtleTextStyle,
+            fontSize: '0.88rem',
+          }}
+        >
+          Timed match — select the winner above, no score needed.
+        </div>
+      ) : line.scoreEventType === 'third_set_match_tiebreak' ? (
+        <div
+          style={{
+            marginTop: 12,
+            borderRadius: 14,
+            border: '1px solid rgba(116,190,255,0.14)',
+            background: 'rgba(8,15,28,0.55)',
+            padding: '10px 12px',
+            ...subtleTextStyle,
+            fontSize: '0.88rem',
+          }}
+        >
+          Third-set match tiebreak — winning team is recorded as 1-0 in the deciding set.
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 12,
+            marginTop: 12,
+          }}
+        >
+          <label style={{ display: 'grid', gap: 8 }}>
+            <span style={subtleTextStyle}>Score text correction</span>
+            <input
+              defaultValue={line.rawScoreText || line.score || ''}
+              onBlur={(event) =>
+                onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                  scoreTextCorrection: event.target.value,
+                })
+              }
+              style={inputStyle}
+            />
+          </label>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 12,
-          marginTop: 12,
-        }}
-      >
-        <label style={{ display: 'grid', gap: 8 }}>
-          <span style={subtleTextStyle}>Optional score text correction</span>
-          <input
-            defaultValue={line.rawScoreText || line.score || ''}
-            onBlur={(event) =>
-              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
-                scoreTextCorrection: event.target.value,
-              })
-            }
-            style={inputStyle}
-          />
-        </label>
-
-        <label style={{ display: 'grid', gap: 8 }}>
-          <span style={subtleTextStyle}>Optional admin note</span>
-          <input
-            onBlur={(event) =>
-              onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
-                adminNote: event.target.value,
-              })
-            }
-            style={inputStyle}
-            placeholder="Why this line was adjusted"
-          />
-        </label>
-      </div>
+          <label style={{ display: 'grid', gap: 8 }}>
+            <span style={subtleTextStyle}>Admin note</span>
+            <input
+              onBlur={(event) =>
+                onLineOverrideChange(preview.externalMatchId, line.lineNumber, {
+                  adminNote: event.target.value,
+                })
+              }
+              style={inputStyle}
+              placeholder="Why this line was adjusted"
+            />
+          </label>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
         <button
