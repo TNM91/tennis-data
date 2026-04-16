@@ -561,51 +561,77 @@ function splitFlagDelimitedTeamParts(value: string): string[] {
     .filter(Boolean)
 }
 
+function normalizeTeamToken(value: string): string {
+  return cleanString(value)
+    .replace(/\(\s*F\s*\)?/gi, ' ')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function normalizeRawTeamValue(value: unknown): string {
-  return cleanString(value).replace(/\(\s*F\s*\)?/gi, ' ').replace(/\s+/g, ' ').trim()
+  return normalizeTeamToken(cleanString(value))
 }
 
 function extractTeamsFromScheduleFields(record: UnknownRecord): { home: string; away: string } {
-  const rawHome = cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home']))
-  const rawAway = cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away']))
+  const rawHome = normalizeTeamToken(
+    cleanString(pickFirst(record, ['homeTeam', 'home_team', 'teamA', 'home'])),
+  )
+  const rawAway = normalizeTeamToken(
+    cleanString(pickFirst(record, ['awayTeam', 'away_team', 'teamB', 'away'])),
+  )
 
-  const homeParts = splitFlagDelimitedTeamParts(rawHome)
-  const awayParts = splitFlagDelimitedTeamParts(rawAway)
-
-  const simpleHome = normalizeRawTeamValue(rawHome)
-  const simpleAway = normalizeRawTeamValue(rawAway)
-
-  if (simpleHome && simpleAway && homeParts.length <= 1 && awayParts.length <= 1) {
+  if (rawHome && rawAway) {
     return {
-      home: simpleHome,
-      away: simpleAway,
+      home: rawHome,
+      away: rawAway,
     }
   }
 
-  if (homeParts.length >= 2 && awayParts.length === 0) {
+  const combined = normalizeTeamToken(
+    cleanString(
+      pickFirst(record, [
+        'teams',
+        'matchup',
+        'matchUp',
+        'teamMatchup',
+        'team_matchup',
+        'title',
+        'heading',
+      ]),
+    ),
+  )
+
+  if (!combined) {
     return {
-      home: homeParts[0] || '',
-      away: homeParts[1] || '',
+      home: rawHome,
+      away: rawAway,
     }
   }
 
-  if (homeParts.length === 1 && awayParts.length === 1) {
+  const flagParts = combined
+    .split(/\(\s*F\s*\)?/i)
+    .map((part) => normalizeTeamToken(part))
+    .filter(Boolean)
+
+  if (flagParts.length >= 2) {
     return {
-      home: homeParts[0] || '',
-      away: awayParts[0] || '',
+      home: flagParts[0] || rawHome,
+      away: flagParts[1] || rawAway,
     }
   }
 
-  if (homeParts.length === 1 && awayParts.length >= 2) {
+  const vsMatch = combined.match(/^(.+?)\s+(?:vs\.?|v\.?)\s+(.+)$/i)
+  if (vsMatch) {
     return {
-      home: `${homeParts[0]} ${awayParts[0]}`.trim(),
-      away: awayParts[1] || '',
+      home: normalizeTeamToken(vsMatch[1]),
+      away: normalizeTeamToken(vsMatch[2]),
     }
   }
 
   return {
-    home: simpleHome,
-    away: simpleAway,
+    home: rawHome,
+    away: rawAway,
   }
 }
 

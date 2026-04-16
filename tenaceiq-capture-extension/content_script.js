@@ -449,15 +449,28 @@
   }
 
   function splitDoubleTeam(homeTeam) {
-    const value = String(homeTeam || '').trim();
+    const value = normalizeTeamName(homeTeam || '');
     if (!value) return null;
 
-    const parts = value.split(/ (?=[A-Z][a-z])/);
+    if (value.includes('/')) return null;
 
-    if (parts.length >= 2) {
+    if (
+      /the other guys/i.test(value) ||
+      /wily wolverines/i.test(value) ||
+      /badly badgered badgers/i.test(value)
+    ) {
+      return null;
+    }
+
+    const parts = value
+      .split(/\s{2,}/)
+      .map((part) => normalizeWhitespace(part))
+      .filter(Boolean);
+
+    if (parts.length === 2) {
       return {
-        home: parts[0].trim(),
-        away: parts.slice(1).join(' ').trim(),
+        home: parts[0],
+        away: parts[1],
       };
     }
 
@@ -632,13 +645,6 @@
       const parsedTeams = parseScheduleTeamsAndFacility(joined, homeCaptains, awayCaptains);
       let facility = parsedTeams.facility;
 
-      if (!parsedTeams.awayTeam && parsedTeams.homeTeam.includes(' ')) {
-        const split = splitDoubleTeam(parsedTeams.homeTeam);
-        if (split) {
-          parsedTeams.homeTeam = split.home;
-          parsedTeams.awayTeam = split.away;
-        }
-      }
 
       const repairedTeams = repairBrokenScheduleTeams(parsedTeams.homeTeam, parsedTeams.awayTeam);
 
