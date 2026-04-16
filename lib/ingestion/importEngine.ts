@@ -2048,9 +2048,29 @@ export class ImportEngine {
     result.totalPlayers = playerMap.size
 
     if (mode === 'preview') {
+      // Dry-run: look up each player to report what would happen, but write nothing.
       for (const { name, ntrp } of playerMap.values()) {
-        result.players.push({ name, status: 'skipped', ntrp, message: 'Preview mode — no changes written' })
-        result.skippedCount += 1
+        try {
+          const { data: existing, error: lookupError } = await this.supabase
+            .from('players')
+            .select('id, name, singles_rating')
+            .ilike('name', name)
+            .maybeSingle()
+
+          if (lookupError) {
+            result.failedCount += 1
+            result.players.push({ name, status: 'failed', ntrp, message: lookupError.message })
+          } else if (existing) {
+            result.updatedCount += 1
+            result.players.push({ name, status: 'updated', ntrp, message: `Would update baseline from ${existing.singles_rating ?? 'unset'} → ${ntrp}` })
+          } else {
+            result.createdCount += 1
+            result.players.push({ name, status: 'created', ntrp, message: `Would create new player with baseline ${ntrp}` })
+          }
+        } catch (err) {
+          result.failedCount += 1
+          result.players.push({ name, status: 'failed', ntrp, message: err instanceof Error ? err.message : 'Lookup failed' })
+        }
       }
       return result
     }

@@ -745,7 +745,7 @@ export default function AdminImportPage() {
     if (autoCommitParam === 'all') autoCommitMode = 'all'
     if (autoCommitParam === 'clean_safe') autoCommitMode = 'clean_only'
 
-    if (nextKind === 'schedule' || nextKind === 'scorecard') {
+    if (nextKind === 'schedule' || nextKind === 'scorecard' || nextKind === 'team_summary') {
       setImportType(nextKind)
     }
 

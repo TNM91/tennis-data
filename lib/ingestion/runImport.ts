@@ -221,17 +221,18 @@ export function summarizeImportResponse(response: RunImportResponse): ImportSumm
   }
 
   if (response.kind === 'team_summary') {
+    const r = response.result
     return {
       ok: true,
       kind: 'team_summary',
       mode: response.mode,
       normalizedRowCount: response.normalizedRowCount,
       warningCount: response.warnings.length,
-      successCount: response.result.createdCount + response.result.updatedCount,
-      updatedCount: response.result.updatedCount,
-      skippedCount: response.result.skippedCount,
-      failedCount: response.result.failedCount,
-      createdPlayersCount: response.result.createdCount,
+      successCount: r.createdCount + r.updatedCount,
+      updatedCount: r.updatedCount,
+      skippedCount: r.skippedCount,
+      failedCount: r.failedCount,
+      createdPlayersCount: r.createdCount,
       linkedPlayersCount: 0,
     }
   }
@@ -271,7 +272,12 @@ export function importResponseToUiLines(response: RunImportResponse): string[] {
   }
 
   if (summary.kind === 'team_summary') {
-    lines.push(`Created players: ${summary.createdPlayersCount}`)
+    if (summary.mode === 'preview') {
+      lines.push(`Would create: ${summary.createdPlayersCount} new players`)
+      lines.push(`Would update: ${summary.updatedCount} existing player baselines`)
+    } else {
+      lines.push(`Created players: ${summary.createdPlayersCount}`)
+    }
   }
 
   if (!summary.ok && summary.error) {
