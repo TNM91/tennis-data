@@ -4,6 +4,9 @@ import type {
   ScheduleImportRow,
   ScorecardImportRow,
   ScorecardLineImportRow,
+  TeamSummaryImportRow,
+  TeamSummaryPlayerRow,
+  TeamSummaryTeamRow,
 } from './importEngine'
 
 export type NormalizationWarning = {
@@ -18,6 +21,11 @@ export type NormalizeScheduleResult = {
 
 export type NormalizeScorecardResult = {
   rows: ScorecardImportRow[]
+  warnings: NormalizationWarning[]
+}
+
+export type NormalizeTeamSummaryResult = {
+  rows: TeamSummaryImportRow[]
   warnings: NormalizationWarning[]
 }
 
@@ -194,6 +202,10 @@ function unwrapRootRows(payload: unknown): unknown[] {
     return [payload.scorecard]
   }
 
+  if (isRecord(payload.teamSummary)) {
+    return [payload.teamSummary]
+  }
+
   if (Array.isArray(payload.matches)) {
     return payload.matches
   }
@@ -216,6 +228,7 @@ function getRootMeta(payload: unknown): UnknownRecord | null {
   if (!isRecord(payload)) return null
   if (isRecord(payload.seasonSchedule)) return payload.seasonSchedule
   if (isRecord(payload.scorecard)) return payload.scorecard
+  if (isRecord(payload.teamSummary)) return payload.teamSummary
   return payload
 }
 
@@ -663,7 +676,7 @@ function buildScoreFromSets(value: unknown): string | null {
 }
 
 function buildUnifiedSource(
-  type: 'schedule' | 'scorecard',
+  type: 'schedule' | 'scorecard' | 'team_summary',
   record: UnknownRecord,
 ): string {
   const directSource = nullableString(pickFirst(record, ['source']))
@@ -679,11 +692,18 @@ function buildUnifiedSource(
     return 'tennislink_schedule'
   }
 
-  if (leagueName && externalMatchId) {
-    return `tennislink_scorecard | ${leagueName} | match-${externalMatchId}`
+  if (type === 'scorecard') {
+    if (leagueName && externalMatchId) {
+      return `tennislink_scorecard | ${leagueName} | match-${externalMatchId}`
+    }
+    return 'tennislink_scorecard'
   }
 
-  return 'tennislink_scorecard'
+  if (leagueName) {
+    return `tennislink_team_summary | ${leagueName}`
+  }
+
+  return 'tennislink_team_summary'
 }
 
 function normalizeScheduleRow(
@@ -827,6 +847,186 @@ function normalizeScorecardLine(
   }
 }
 
+
+
+function normalizeSeedRatingValue(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+
+  const cleaned = cleanString(value)
+  if (!cleaned) return null
+
+  const match = cleaned.match(/(?:^|\b)([1-7](?:\.[05])?)(?:\b|$)/)
+  if (!match) return null
+
+  const parsed = Number(match[1])
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function extractPlayerRatingSeedsFromObject(
+  value: unknown,
+  seeds: Record<string, number>,
+): void {
+  if (!isRecord(value)) return
+
+  for (const [key, entry] of Object.entries(value)) {
+    const playerName = cleanString(key)
+    const rating = normalizeSeedRatingValue(entry)
+
+    if (playerName && rating !== null) {
+      seeds[playerName] = rating
+    }
+  }
+}
+
+function extractPlayerRatingSeedsFromPlayersArray(
+  value: unknown,
+  seeds: Record<string, number>,
+): void {
+  for (const entry of toArray(value)) {
+    if (!isRecord(entry)) continue
+
+    const playerName = cleanString(
+      pickFirst(entry, ['name', 'playerName', 'player_name', 'fullName', 'full_name']),
+    )
+    const rating = normalizeSeedRatingValue(
+      pickFirst(entry, ['ntrp', 'rating', 'baseRating', 'base_rating', 'level']),
+    )
+
+    if (playerName && rating !== null) {
+      seeds[playerName] = rating
+    }
+  }
+}
+
+function extractPlayerRatingSeeds(record: UnknownRecord): Record<string, number> | undefined {
+  const seeds: Record<string, number> = {}
+
+  extractPlayerRatingSeedsFromObject(
+    pickFirst(record, ['playerRatingSeeds', 'player_rating_seeds']),
+    seeds,
+  )
+
+  extractPlayerRatingSeedsFromObject(
+    pickNested(record, [
+      ['metadata', 'playerRatingSeeds'],
+      ['metadata', 'player_rating_seeds'],
+      ['context', 'playerRatingSeeds'],
+      ['context', 'player_rating_seeds'],
+      ['teamSummary', 'playerRatingSeeds'],
+      ['teamSummary', 'player_rating_seeds'],
+      ['team_summary', 'playerRatingSeeds'],
+      ['team_summary', 'player_rating_seeds'],
+    ]),
+    seeds,
+  )
+
+  extractPlayerRatingSeedsFromPlayersArray(
+    pickFirst(record, ['players', 'roster', 'playerRows', 'player_rows']),
+    seeds,
+  )
+
+  extractPlayerRatingSeedsFromPlayersArray(
+    pickNested(record, [
+      ['teamSummary', 'players'],
+      ['team_summary', 'players'],
+      ['metadata', 'players'],
+    ]),
+    seeds,
+  )
+
+  return Object.keys(seeds).length > 0 ? seeds : undefined
+}
+
+
+function normalizeSummaryLookupKey(value: string): string {
+  return cleanString(value).replace(/\s*\/\s*/g, '/').toLowerCase()
+}
+
+function normalizeTeamSummaryTeam(
+  entry: UnknownRecord,
+  rowIndex: number,
+  teamIndex: number,
+  warnings: NormalizationWarning[],
+): TeamSummaryTeamRow | null {
+  const name = cleanString(
+    pickFirst(entry, ['name', 'teamName', 'team_name', 'team', 'displayName', 'display_name']),
+  )
+  if (!name) {
+    warnings.push({ rowIndex, message: `Skipped team summary team ${teamIndex + 1}: missing team name` })
+    return null
+  }
+  return {
+    name,
+    wins: normalizeSeedRatingValue(pickFirst(entry, ['wins', 'w'])),
+    losses: normalizeSeedRatingValue(pickFirst(entry, ['losses', 'l'])),
+  }
+}
+
+function normalizeTeamSummaryPlayer(
+  entry: UnknownRecord,
+  rowIndex: number,
+  playerIndex: number,
+  warnings: NormalizationWarning[],
+): TeamSummaryPlayerRow | null {
+  const name = cleanString(
+    pickFirst(entry, ['name', 'playerName', 'player_name', 'fullName', 'full_name']),
+  )
+  if (!name) {
+    warnings.push({ rowIndex, message: `Skipped team summary player ${playerIndex + 1}: missing player name` })
+    return null
+  }
+  return {
+    name,
+    ntrp: normalizeSeedRatingValue(
+      pickFirst(entry, ['ntrp', 'rating', 'baseRating', 'base_rating', 'level']),
+    ),
+    teamName: nullableString(pickFirst(entry, ['teamName', 'team_name', 'team'])),
+  }
+}
+
+function normalizeTeamSummaryRow(
+  record: UnknownRecord,
+  rowIndex: number,
+  warnings: NormalizationWarning[],
+): TeamSummaryImportRow | null {
+  const teamEntries = toArray(pickFirst(record, ['teams', 'teamStandings', 'team_standings', 'standings']))
+  const playerEntries = toArray(pickFirst(record, ['players', 'roster', 'playerRows', 'player_rows']))
+
+  const teams = teamEntries
+    .map((entry, teamIndex) => isRecord(entry) ? normalizeTeamSummaryTeam(entry, rowIndex, teamIndex, warnings) : null)
+    .filter((entry): entry is TeamSummaryTeamRow => Boolean(entry))
+
+  const players = playerEntries
+    .map((entry, playerIndex) => isRecord(entry) ? normalizeTeamSummaryPlayer(entry, rowIndex, playerIndex, warnings) : null)
+    .filter((entry): entry is TeamSummaryPlayerRow => Boolean(entry))
+
+  if (teams.length === 0 && players.length === 0) {
+    warnings.push({ rowIndex, message: 'Skipped team summary row: no valid teams or players found' })
+    return null
+  }
+
+  const canonicalTeamMap: Record<string, string> = {}
+  for (const team of teams) {
+    const key = normalizeSummaryLookupKey(team.name)
+    if (key && !canonicalTeamMap[key]) canonicalTeamMap[key] = team.name
+  }
+
+  const playerRatingSeeds = extractPlayerRatingSeeds({ ...record, players })
+
+  return {
+    leagueName: resolveLeagueName(record),
+    flight: normalizeFlight(record),
+    ustaSection: normalizeSection(record),
+    districtArea: normalizeDistrict(record),
+    source: buildUnifiedSource('team_summary', record),
+    teams,
+    players,
+    canonicalTeamMap,
+    playerRatingSeeds,
+    raw_capture_json: record,
+  }
+}
+
 function normalizeScorecardRow(
   record: UnknownRecord,
   rowIndex: number,
@@ -939,6 +1139,7 @@ function normalizeScorecardRow(
     dataConflict: normalizeBoolean(pickFirst(record, ['dataConflict', 'data_conflict'])),
     conflictType: nullableString(pickFirst(record, ['conflictType', 'conflict_type'])),
     needsReview: normalizeBoolean(pickFirst(record, ['needsReview', 'needs_review'])),
+    playerRatingSeeds: extractPlayerRatingSeeds(record),
     raw_capture_json: record,
   }
 }
@@ -983,6 +1184,26 @@ export function normalizeCapturedScorecardPayload(payload: unknown): NormalizeSc
       return normalizeScorecardRow(merged, rowIndex, warnings)
     })
     .filter((row): row is ScorecardImportRow => Boolean(row))
+
+  return { rows, warnings }
+}
+
+
+export function normalizeCapturedTeamSummaryPayload(payload: unknown): NormalizeTeamSummaryResult {
+  const warnings: NormalizationWarning[] = []
+  const sourceRows = collectRootRowEntries(payload)
+
+  const rows = sourceRows
+    .map((entry, rowIndex) => {
+      if (!isRecord(entry.row)) {
+        warnings.push({ rowIndex, message: 'Skipped team summary row: invalid object' })
+        return null
+      }
+
+      const merged = mergeWithRoot(entry.row, entry.rootMeta)
+      return normalizeTeamSummaryRow(merged, rowIndex, warnings)
+    })
+    .filter((row): row is TeamSummaryImportRow => Boolean(row))
 
   return { rows, warnings }
 }

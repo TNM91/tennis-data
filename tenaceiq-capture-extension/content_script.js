@@ -38,6 +38,13 @@
     const text = document.body?.innerText || '';
     const pageType = detectPageType(text);
 
+    if (pageType === 'team_summary') {
+      return {
+        pageType: 'team_summary',
+        teamSummary: extractTeamSummary(),
+      };
+    }
+
     if (pageType === 'scorecard') {
       return {
         pageType: 'scorecard',
@@ -96,6 +103,17 @@
     const bodyText = String(text || '');
     const normalized = bodyText.toLowerCase();
     const url = String(window.location.href || '').toLowerCase();
+
+    const teamSummarySignals = [
+      normalized.includes('team summary'),
+      normalized.includes('team standings'),
+      normalized.includes('players'),
+      normalized.includes('wins'),
+      normalized.includes('losses'),
+      url.includes('teamsummary'),
+    ].filter(Boolean).length;
+
+    if (teamSummarySignals >= 3) return 'team_summary';
 
     const scorecardSignals = [
       url.includes('scorecard'),
@@ -528,6 +546,130 @@
     return {
       homeTeam: home,
       awayTeam: away,
+    };
+  }
+
+
+  function normalizeSummaryLookupKey(value) {
+    return normalizeTeamName(value || '').toLowerCase();
+  }
+
+  function looksLikeTeamStandingsTable(table) {
+    const rows = getRows(table);
+    if (!rows.length) return false;
+    const preview = rows.slice(0, 6).map((row) => lower(rowTexts(row).join(' | '))).join(' || ');
+    return preview.includes('team') && (preview.includes('wins') || preview.includes('w')) && (preview.includes('losses') || preview.includes('l'));
+  }
+
+  function looksLikePlayersTable(table) {
+    const rows = getRows(table);
+    if (!rows.length) return false;
+    const preview = rows.slice(0, 6).map((row) => lower(rowTexts(row).join(' | '))).join(' || ');
+    return preview.includes('player') && (preview.includes('ntrp') || preview.includes('rating') || preview.includes('level'));
+  }
+
+  function dedupeTeamSummaryTeams(teams) {
+    const seen = new Set();
+    const results = [];
+    for (const team of safeArray(teams)) {
+      const name = cleanTeamName(team?.name);
+      if (!name) continue;
+      const key = normalizeSummaryLookupKey(name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ name, wins: toNumber(team?.wins), losses: toNumber(team?.losses) });
+    }
+    return results;
+  }
+
+  function dedupeTeamSummaryPlayers(players) {
+    const seen = new Set();
+    const results = [];
+    for (const player of safeArray(players)) {
+      const name = normalizeWhitespace(player?.name || '');
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      results.push({ name, ntrp: toNumber(player?.ntrp), teamName: cleanTeamName(player?.teamName || '') || null });
+    }
+    return results;
+  }
+
+  function extractTeamStandingsFromTables() {
+    const results = [];
+    for (const table of getTables()) {
+      if (!looksLikeTeamStandingsTable(table)) continue;
+      const rows = getRows(table);
+      if (rows.length < 2) continue;
+      const header = rowTexts(rows[0]).map((value) => lower(value));
+      const teamIndex = header.findIndex((value) => value.includes('team'));
+      const winsIndex = header.findIndex((value) => value === 'wins' || value === 'w' || value.includes('wins'));
+      const lossesIndex = header.findIndex((value) => value === 'losses' || value === 'l' || value.includes('losses'));
+      for (let i = 1; i < rows.length; i += 1) {
+        const texts = rowTexts(rows[i]);
+        const candidate = cleanTeamName(texts[teamIndex >= 0 ? teamIndex : 0]);
+        if (!candidate) continue;
+        results.push({
+          name: candidate,
+          wins: winsIndex >= 0 ? toNumber(texts[winsIndex]) : null,
+          losses: lossesIndex >= 0 ? toNumber(texts[lossesIndex]) : null,
+        });
+      }
+    }
+    return dedupeTeamSummaryTeams(results);
+  }
+
+  function extractPlayersFromTables() {
+    const results = [];
+    for (const table of getTables()) {
+      if (!looksLikePlayersTable(table)) continue;
+      const rows = getRows(table);
+      if (rows.length < 2) continue;
+      const header = rowTexts(rows[0]).map((value) => lower(value));
+      const playerIndex = header.findIndex((value) => value.includes('player') || value.includes('name'));
+      const ratingIndex = header.findIndex((value) => value.includes('ntrp') || value.includes('rating') || value.includes('level'));
+      const teamIndex = header.findIndex((value) => value.includes('team'));
+      for (let i = 1; i < rows.length; i += 1) {
+        const texts = rowTexts(rows[i]);
+        const name = normalizeWhitespace(texts[playerIndex >= 0 ? playerIndex : 0]);
+        if (!name || looksLikePureLabel(name) || isFooterishLine(name)) continue;
+        results.push({
+          name,
+          ntrp: ratingIndex >= 0 ? toNumber(texts[ratingIndex]) : null,
+          teamName: teamIndex >= 0 ? cleanTeamName(texts[teamIndex]) : null,
+        });
+      }
+    }
+    return dedupeTeamSummaryPlayers(results);
+  }
+
+  function extractTeamSummary() {
+    const text = document.body?.innerText || '';
+    const leagueMeta = extractLeagueMetadata(text);
+    const teams = extractTeamStandingsFromTables();
+    const players = extractPlayersFromTables();
+    const canonicalTeamMap = {};
+    const playerRatingSeeds = {};
+
+    for (const team of teams) {
+      if (!team?.name) continue;
+      canonicalTeamMap[normalizeSummaryLookupKey(team.name)] = team.name;
+    }
+
+    for (const player of players) {
+      if (!player?.name) continue;
+      const rating = toNumber(player?.ntrp);
+      if (rating !== null) playerRatingSeeds[player.name] = rating;
+    }
+
+    return {
+      ...leagueMeta,
+      teams,
+      players,
+      canonicalTeamMap,
+      playerRatingSeeds,
+      source: 'tennislink_team_summary',
     };
   }
 

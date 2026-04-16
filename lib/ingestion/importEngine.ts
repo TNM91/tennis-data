@@ -12,6 +12,31 @@ export type WinnerSource =
   | 'inferred_missing_third_set'
   | 'unknown'
 
+export type TeamSummaryTeamRow = {
+  name: string
+  wins?: number | null
+  losses?: number | null
+}
+
+export type TeamSummaryPlayerRow = {
+  name: string
+  ntrp?: number | null
+  teamName?: string | null
+}
+
+export type TeamSummaryImportRow = {
+  leagueName?: string | null
+  flight?: string | null
+  ustaSection?: string | null
+  districtArea?: string | null
+  source?: string | null
+  teams: TeamSummaryTeamRow[]
+  players: TeamSummaryPlayerRow[]
+  canonicalTeamMap?: Record<string, string>
+  playerRatingSeeds?: Record<string, number>
+  raw_capture_json?: unknown
+}
+
 export type ScheduleImportRow = {
   externalMatchId: string
   matchDate: string
@@ -91,6 +116,7 @@ export type ScorecardImportRow = {
   reviewer_note?: string | null
   reviewed_by?: string | null
   reviewed_at?: string | null
+  playerRatingSeeds?: Record<string, number>
 }
 
 export type ImportIssueCode =
@@ -151,6 +177,73 @@ export type ScorecardImportResult = {
   linkedPlayersCount: number
   rows: ScorecardRowResult[]
   errors: ImportRowError[]
+}
+
+function normalizeSummaryLookupKey(value: string): string {
+  return cleanString(value).replace(/\s*\/\s*/g, '/').toLowerCase()
+}
+
+export function buildCanonicalTeamMapFromTeamSummaryRows(rows: TeamSummaryImportRow[]): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(row.canonicalTeamMap ?? {})) {
+      const cleanKey = normalizeSummaryLookupKey(key)
+      const cleanValue = cleanString(value)
+      if (cleanKey && cleanValue) map[cleanKey] = cleanValue
+    }
+    for (const team of row.teams) {
+      const cleanName = cleanString(team.name)
+      const key = normalizeSummaryLookupKey(cleanName)
+      if (key && cleanName && !map[key]) map[key] = cleanName
+    }
+  }
+  return map
+}
+
+export function buildPlayerRatingSeedMapFromTeamSummaryRows(rows: TeamSummaryImportRow[]): Record<string, number> {
+  const map: Record<string, number> = {}
+  for (const row of rows) {
+    for (const [key, value] of Object.entries(row.playerRatingSeeds ?? {})) {
+      const rating = typeof value === 'number' && Number.isFinite(value) ? value : null
+      const cleanKey = cleanString(key)
+      if (cleanKey && rating !== null) map[cleanKey] = rating
+    }
+    for (const player of row.players) {
+      const cleanName = cleanString(player.name)
+      const rating = typeof player.ntrp === 'number' && Number.isFinite(player.ntrp) ? player.ntrp : null
+      if (cleanName && rating !== null && map[cleanName] === undefined) map[cleanName] = rating
+    }
+  }
+  return map
+}
+
+function canonicalizeTeamName(name: string, canonicalMap: Record<string, string>): string {
+  const cleanName = cleanString(name)
+  const key = normalizeSummaryLookupKey(cleanName)
+  return canonicalMap[key] ?? cleanName
+}
+
+export function applyTeamSummaryContextToScheduleRows(rows: ScheduleImportRow[], summaryRows: TeamSummaryImportRow[]): ScheduleImportRow[] {
+  const canonicalMap = buildCanonicalTeamMapFromTeamSummaryRows(summaryRows)
+  return rows.map((row) => ({
+    ...row,
+    homeTeam: canonicalizeTeamName(row.homeTeam, canonicalMap),
+    awayTeam: canonicalizeTeamName(row.awayTeam, canonicalMap),
+  }))
+}
+
+export function applyTeamSummaryContextToScorecardRows(rows: ScorecardImportRow[], summaryRows: TeamSummaryImportRow[]): ScorecardImportRow[] {
+  const canonicalMap = buildCanonicalTeamMapFromTeamSummaryRows(summaryRows)
+  const ratingSeeds = buildPlayerRatingSeedMapFromTeamSummaryRows(summaryRows)
+  return rows.map((row) => ({
+    ...row,
+    homeTeam: canonicalizeTeamName(row.homeTeam, canonicalMap),
+    awayTeam: canonicalizeTeamName(row.awayTeam, canonicalMap),
+    playerRatingSeeds: {
+      ...(ratingSeeds ?? {}),
+      ...(row.playerRatingSeeds ?? {}),
+    },
+  }))
 }
 
 export type MatchRecord = {
@@ -847,6 +940,7 @@ export class ImportEngine {
           const batch = await this.resolvePlayersBatch(
             uniquePlayerNames,
             inferPlayerBaselineFromRow(hydratedRow),
+            hydratedRow.playerRatingSeeds,
           )
           resolvedPlayers = batch.map
           createdPlayerNames = batch.created
@@ -1632,7 +1726,11 @@ export class ImportEngine {
     return existingIds
   }
 
-  private async resolvePlayersBatch(names: string[], baselineRating = DEFAULT_PLAYER_BASELINE): Promise<{
+  private async resolvePlayersBatch(
+    names: string[],
+    baselineRating = DEFAULT_PLAYER_BASELINE,
+    playerRatingSeeds?: Record<string, number>,
+  ): Promise<{
     map: Map<string, PlayerResolution>
     created: string[]
   }> {
@@ -1708,18 +1806,25 @@ export class ImportEngine {
 
     if (missing.length > 0) {
       const insertPayload: Record<string, unknown>[] = missing.map((name) => {
+        const cleanedName = cleanString(name)
+        const normalized = normalizeName(cleanedName)
+        const seededRating =
+          playerRatingSeeds?.[normalized] ??
+          playerRatingSeeds?.[cleanedName] ??
+          baselineRating
+
         const payload: Record<string, unknown> = {
-          name: cleanString(name),
-          singles_rating: baselineRating,
-          singles_dynamic_rating: baselineRating,
-          doubles_rating: baselineRating,
-          doubles_dynamic_rating: baselineRating,
-          overall_rating: baselineRating,
-          overall_dynamic_rating: baselineRating,
+          name: cleanedName,
+          singles_rating: seededRating,
+          singles_dynamic_rating: seededRating,
+          doubles_rating: seededRating,
+          doubles_dynamic_rating: seededRating,
+          overall_rating: seededRating,
+          overall_dynamic_rating: seededRating,
         }
 
         if (this.options.hasNormalizedPlayerNameColumn) {
-          payload.normalized_name = normalizeName(name)
+          payload.normalized_name = normalized
         }
 
         return payload
