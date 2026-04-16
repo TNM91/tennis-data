@@ -13,10 +13,14 @@ export default function AdminGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!authResolved || role === 'admin') return
 
+    // window.location.search already includes the leading "?" when non-empty,
+    // so append it directly — do NOT add another "?" or the redirect URL
+    // becomes /admin/import??kind=... which breaks URLSearchParams on the
+    // login page and causes the ?next= round-trip to land on /mylab instead.
     const search = typeof window !== 'undefined' ? window.location.search : ''
     const nextPath =
       pathname && pathname !== '/login'
-        ? `${pathname}${search ? `?${search}` : ''}`
+        ? `${pathname}${search}`
         : ''
     const next = nextPath ? `?next=${encodeURIComponent(nextPath)}` : ''
     router.replace(`/login${next}`)

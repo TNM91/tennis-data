@@ -5,7 +5,10 @@
       "Bash(node -e \"const fs = require\\('fs'\\); const buf = fs.readFileSync\\('public/primary_final.png'\\); const w = buf.readUInt32BE\\(16\\); const h = buf.readUInt32BE\\(20\\); console.log\\(w, h\\);\")",
       "Bash(npx next *)",
       "Bash(npx tsc *)",
-      "Bash(ls -la C:/Users/nmein/tennis-data/.env*)"
+      "Bash(ls -la C:/Users/nmein/tennis-data/.env*)",
+      "Bash(head -n 2437 app/admin/import/page.tsx)",
+      "Bash(tail -n +2728 app/admin/import/page.tsx)",
+      "Read(//tmp/**)"
     ]
   }
 }

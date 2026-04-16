@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ChangeEvent,
@@ -577,6 +578,8 @@ export default function AdminImportPage() {
   const [lineCommitTargetMatchId, setLineCommitTargetMatchId] = useState<string | null>(null)
   const [lineCommitFeedback, setLineCommitFeedback] = useState('')
   const [committedMatchIds, setCommittedMatchIds] = useState<string[]>([])
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const parsed = useMemo(() => parseJsonInput(jsonInput), [jsonInput])
   const effectivePayload = useMemo(() => {
@@ -623,6 +626,13 @@ export default function AdminImportPage() {
         : [],
     [importType, scorecardPreview.normalizedRows, scorecardReviewOverrides],
   )
+
+  const scorecardBatchStatus = useMemo(() => {
+    const clean = scorecardReviewPreviews.filter((p) => p.status === 'clean' || p.status === 'repaired').length
+    const flagged = scorecardReviewPreviews.filter((p) => p.status === 'needs_review').length
+    const blocked = scorecardReviewPreviews.filter((p) => p.status === 'blocked').length
+    return { clean, flagged, blocked }
+  }, [scorecardReviewPreviews])
 
   const previewWarnings =
     importType === 'schedule' ? schedulePreview.warnings : scorecardPreview.warnings
@@ -1192,8 +1202,7 @@ export default function AdminImportPage() {
     }
   }
 
-  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files
+  async function handleDropFiles(files: FileList | null) {
     if (!files || files.length === 0) return
 
     resetScorecardReviewState()
@@ -1213,7 +1222,6 @@ export default function AdminImportPage() {
         parsedFile = JSON.parse(text)
       } catch {
         setTopLevelError(`Could not parse JSON from ${file.name}.`)
-        event.target.value = ''
         return
       }
 
@@ -1229,7 +1237,6 @@ export default function AdminImportPage() {
         setTopLevelError(
           `Mixed import types detected. ${file.name} looks like ${fileKind}, but the batch is currently ${inferredType}. Upload schedules and scorecards separately.`,
         )
-        event.target.value = ''
         return
       }
 
@@ -1245,7 +1252,10 @@ export default function AdminImportPage() {
     setSelectedFileName(fileNames.join(', '))
     setUploadedFiles(nextUploadedFiles)
     setJsonInput(prettyJson(aggregatedPayloads.length === 1 ? aggregatedPayloads[0] : aggregatedPayloads))
+  }
 
+  async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    await handleDropFiles(event.target.files)
     event.target.value = ''
   }
 
@@ -1386,6 +1396,8 @@ export default function AdminImportPage() {
     <SiteShell active="/admin">
       <AdminGate>
         <section style={pageWrapStyle}>
+
+        {/* ── HEADER ── */}
         <section
           style={{
             ...glassCardStyle,
@@ -1422,261 +1434,472 @@ export default function AdminImportPage() {
             <h1 className="page-title" style={{ marginTop: 10 }}>
               Admin Import Center
             </h1>
-            <p className="page-subtitle" style={{ maxWidth: 920 }}>
-              One place for both schedule and scorecard imports. Upload a JSON file or paste captured
-              JSON, preview the normalized rows, review warnings, and commit through the same ingestion engine.
-            </p>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-                gap: 14,
-                marginTop: 18,
-              }}
-            >
-              <SummaryMetric
-                label="Import types"
-                value="2"
-                helper="Schedule and scorecard now live in one route."
-              />
-              <SummaryMetric
-                label="Input modes"
-                value="File + Paste"
-                helper="Upload JSON directly or paste from your capture tool."
-              />
-              <SummaryMetric
-                label="Preview"
-                value="Enabled"
-                helper="Validate row shapes and warnings before writing."
-              />
-              <SummaryMetric
-                label="Commit"
-                value="Unified"
-                helper="Both import kinds flow through the same runImport path."
-              />
+            <div style={{ marginTop: 14, fontSize: '1.06rem', fontWeight: 700 }}>
+              {importType === 'scorecard' && scorecardReviewPreviews.length > 0 ? (
+                <span>
+                  <span style={{ color: '#C8F56B' }}>{scorecardBatchStatus.clean} clean</span>
+                  {scorecardBatchStatus.flagged > 0 ? (
+                    <>{' · '}<span style={{ color: '#FDE68A' }}>{scorecardBatchStatus.flagged} needs review</span></>
+                  ) : null}
+                  {scorecardBatchStatus.blocked > 0 ? (
+                    <>{' · '}<span style={{ color: '#FCA5A5' }}>{scorecardBatchStatus.blocked} blocked</span></>
+                  ) : null}
+                </span>
+              ) : normalizedRowCount > 0 ? (
+                <span style={{ color: '#AFC3DB' }}>
+                  {normalizedRowCount} {importType === 'schedule' ? 'matches' : 'scorecards'} loaded · run Preview to check readiness
+                </span>
+              ) : (
+                <span style={{ color: '#7A96B5' }}>Drop or paste a JSON capture to get started</span>
+              )}
             </div>
           </div>
         </section>
 
+        {/* ── ACTION HERO ── */}
         {importType === 'scorecard' && scorecardReviewPreviews.length > 0 ? (
-          <ScorecardReviewPanel
-            previews={scorecardReviewPreviews}
-            reviewerName={reviewerName}
-            onReviewerNameChange={setReviewerName}
-            onMatchDecisionChange={handleMatchDecisionChange}
-            onApproveMatch={handleApproveMatch}
-            onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
-            onReviewerNoteChange={handleReviewerNoteChange}
-            onLineOverrideChange={handleLineOverrideChange}
-            onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}
-            onCommitApprovedItems={() => void handleScorecardCommit('approved_items')}
-            onReviewFlagged={handleReviewFlaggedMatches}
-            isRunningCommit={isRunningCommit}
-            defaultFilter={reviewDefaultFilter}
-            commitFeedbackMatchId={lineCommitTargetMatchId}
-            commitFeedbackMessage={lineCommitFeedback}
-            committedMatchIds={committedMatchIds}
-          />
+          <section style={{ ...glassCardStyle, padding: '24px', marginTop: 18 }}>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1.4rem', lineHeight: 1.2 }}>
+                {scorecardBatchStatus.clean} {scorecardBatchStatus.clean === 1 ? 'match' : 'matches'} ready
+                {scorecardBatchStatus.flagged > 0 ? ` · ${scorecardBatchStatus.flagged} flagged` : ''}
+                {scorecardBatchStatus.blocked > 0 ? ` · ${scorecardBatchStatus.blocked} blocked` : ''}
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap', alignItems: 'center' }}>
+                {scorecardBatchStatus.clean > 0 ? (
+                  <button
+                    type="button"
+                    style={{
+                      ...primaryButtonStyle,
+                      minHeight: 52,
+                      fontSize: '1.02rem',
+                      opacity: isRunningCommit ? 0.82 : 1,
+                      cursor: isRunningCommit ? 'wait' : 'pointer',
+                    }}
+                    disabled={isRunningPreview || isRunningCommit}
+                    onClick={() => void handleScorecardCommit('clean_only')}
+                  >
+                    {isRunningCommit ? 'Committing…' : `Commit ${scorecardBatchStatus.clean} clean`}
+                  </button>
+                ) : null}
+                {scorecardBatchStatus.flagged > 0 ? (
+                  <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    onClick={handleReviewFlaggedMatches}
+                  >
+                    Review {scorecardBatchStatus.flagged} flagged ↓
+                  </button>
+                ) : null}
+                {scorecardBatchStatus.blocked > 0 && scorecardBatchStatus.clean === 0 && scorecardBatchStatus.flagged === 0 ? (
+                  <span style={{ ...subtleTextStyle, fontSize: '0.92rem' }}>All matches are blocked and cannot be committed.</span>
+                ) : null}
+              </div>
+            </div>
+          </section>
+        ) : importType === 'schedule' && schedulePreview.rows.length > 0 ? (
+          <section style={{ ...glassCardStyle, padding: '24px', marginTop: 18 }}>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1.4rem', lineHeight: 1.2 }}>
+                {schedulePreview.rows.length} {schedulePreview.rows.length === 1 ? 'match' : 'matches'} ready to commit
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 18, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  style={{
+                    ...primaryButtonStyle,
+                    minHeight: 52,
+                    fontSize: '1.02rem',
+                    opacity: isRunningCommit ? 0.82 : 1,
+                    cursor: isRunningCommit ? 'wait' : 'pointer',
+                  }}
+                  disabled={isRunningPreview || isRunningCommit}
+                  onClick={() => void handleRun('commit')}
+                >
+                  {isRunningCommit ? 'Committing…' : 'Commit All'}
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...secondaryButtonStyle,
+                    opacity: isRunningPreview ? 0.8 : 1,
+                    cursor: isRunningPreview ? 'wait' : 'pointer',
+                  }}
+                  disabled={isRunningPreview || isRunningCommit}
+                  onClick={() => void handleRun('preview')}
+                >
+                  {isRunningPreview ? 'Previewing…' : 'Preview first'}
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : importType === 'scorecard' && scorecardPreview.rows.length > 0 ? (
+          <section style={{ ...glassCardStyle, padding: '24px', marginTop: 18 }}>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1.4rem', lineHeight: 1.2 }}>
+                {scorecardPreview.rows.length} {scorecardPreview.rows.length === 1 ? 'scorecard' : 'scorecards'} detected
+              </div>
+              <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                Preview to classify readiness, then commit clean matches in one shot.
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
+                <button
+                  type="button"
+                  style={{
+                    ...primaryButtonStyle,
+                    minHeight: 52,
+                    fontSize: '1.02rem',
+                    opacity: isRunningPreview ? 0.8 : 1,
+                    cursor: isRunningPreview ? 'wait' : 'pointer',
+                  }}
+                  disabled={isRunningPreview || isRunningCommit}
+                  onClick={() => void handleRun('preview')}
+                >
+                  {isRunningPreview ? 'Running preview…' : 'Preview import'}
+                </button>
+              </div>
+            </div>
+          </section>
         ) : null}
 
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.15fr 0.85fr',
-            gap: 18,
-            marginTop: 22,
-            alignItems: 'start',
-          }}
-        >
-          <div style={panelStyle}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 14,
-                flexWrap: 'wrap',
-              }}
-            >
-              <div>
-                <div style={labelStyle}>Input</div>
-                <div
-                  style={{
-                    color: '#F8FBFF',
-                    fontWeight: 800,
-                    fontSize: '1.06rem',
-                    marginTop: 8,
-                  }}
-                >
-                  Upload or paste captured import JSON
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <label style={{ ...secondaryButtonStyle, cursor: 'pointer' }}>
-                  <input
-                    type="file"
-                    accept=".json,text/plain,application/json"
-                    multiple
-                    onChange={handleFileChange}
-                    style={{ display: 'none' }}
-                  />
-                  Choose file
-                </label>
-                <button type="button" style={mutedButtonStyle} onClick={handleLoadSample}>
-                  Load sample
-                </button>
-                <button type="button" style={mutedButtonStyle} onClick={handleClearAll}>
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 12,
-                marginTop: 16,
-              }}
-            >
-              <TypeCard
-                active={importType === 'schedule'}
-                title="Schedule import"
-                subtitle="Use for season schedules and upcoming team match records."
-                onClick={() => {
-                  resetScorecardReviewState()
-                  setImportType('schedule')
-                }}
-              />
-              <TypeCard
-                active={importType === 'scorecard'}
-                title="Scorecard import"
-                subtitle="Use for completed line-by-line results with player detail."
-                onClick={() => {
-                  resetScorecardReviewState()
-                  setImportType('scorecard')
-                }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                gap: 14,
-                marginTop: 16,
-              }}
-            >
-              <div>
-                <label htmlFor="admin-import-type" style={labelStyle}>Import type</label>
-                <select
-                  id="admin-import-type"
-                  value={importType}
-                  onChange={(event) => {
-                    resetScorecardReviewState()
-                    setImportType(event.target.value as ImportKind)
-                  }}
-                  aria-describedby="admin-import-helper"
-                  style={selectStyle}
-                >
-                  <option value="schedule">Schedule</option>
-                  <option value="scorecard">Scorecard</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={labelStyle}>Loaded file</label>
-                <div
-                  style={{
-                    ...inputStyle,
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: selectedFileName ? '#F8FBFF' : '#AFC3DB',
-                  }}
-                >
-                  {selectedFileName
-                    ? `${selectedFileName}${selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}`
-                    : 'No file selected'}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              <label htmlFor="admin-import-league-override" style={labelStyle}>League name override</label>
-              <input
-                id="admin-import-league-override"
-                type="text"
-                value={leagueNameOverride}
-                onChange={(event) => {
-                  resetScorecardReviewState()
-                  setLeagueNameOverride(event.target.value)
-                }}
-                placeholder="Optional: force a season name like 2026 Adult 18 & Over Fall"
-                style={inputStyle}
-              />
-              <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.86rem' }}>
-                Use this when the captured file includes the right district and flight but misses the actual season name. The override applies to both preview and commit for the current batch.
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                flexWrap: 'wrap',
-                marginTop: 12,
-              }}
-            >
-              <span style={pillSlateStyle}>Detected rows: {normalizedRowCount}</span>
-              <span style={pillSlateStyle}>Warnings: {previewWarnings.length}</span>
-              <button type="button" style={mutedButtonStyle} onClick={() => void handlePasteFromClipboard()}>
-                Paste from clipboard
-              </button>
-              {parsed.value ? (
-                <button type="button" style={mutedButtonStyle} onClick={handleAutoDetectType}>
-                  Auto-detect type
-                </button>
-              ) : null}
-            </div>
-
-            <div style={{ ...subtleTextStyle, marginTop: 10, fontSize: '0.88rem' }}>
-              <span id="admin-import-helper">
-              Schedule accepts wrapped schedule payloads or arrays of rows. Scorecard accepts single
-              scorecard objects, wrapped payloads, or arrays.
-              </span>
-            </div>
-
-            <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.88rem' }}>
-              You can also select multiple JSON files at once. Duplicate completed scorecards are skipped and should be called out in the import response below.
-            </div>
-
-            {extensionStatusMessage ? (
-              <div
+        {/* ── SCORECARD REVIEW PANEL — progressive disclosure ── */}
+        {importType === 'scorecard' && scorecardReviewPreviews.length > 0 ? (
+          scorecardBatchStatus.flagged > 0 || scorecardBatchStatus.blocked > 0 ? (
+            <ScorecardReviewPanel
+              previews={scorecardReviewPreviews}
+              reviewerName={reviewerName}
+              onReviewerNameChange={setReviewerName}
+              onMatchDecisionChange={handleMatchDecisionChange}
+              onApproveMatch={handleApproveMatch}
+              onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
+              onReviewerNoteChange={handleReviewerNoteChange}
+              onLineOverrideChange={handleLineOverrideChange}
+              onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}
+              onCommitApprovedItems={() => void handleScorecardCommit('approved_items')}
+              onReviewFlagged={handleReviewFlaggedMatches}
+              isRunningCommit={isRunningCommit}
+              defaultFilter={reviewDefaultFilter}
+              commitFeedbackMatchId={lineCommitTargetMatchId}
+              commitFeedbackMessage={lineCommitFeedback}
+              committedMatchIds={committedMatchIds}
+            />
+          ) : (
+            <details style={{ marginTop: 22 }}>
+              <summary
                 style={{
-                  marginTop: 12,
-                  borderRadius: 16,
-                  border: '1px solid rgba(116,190,255,0.16)',
-                  background: 'rgba(17,34,63,0.48)',
-                  color: '#EAF4FF',
-                  padding: '12px 14px',
-                  fontWeight: 700,
+                  cursor: 'pointer',
+                  ...secondaryButtonStyle,
+                  display: 'inline-flex',
+                  userSelect: 'none',
                 }}
               >
-                {extensionStatusMessage}
+                Review {scorecardReviewPreviews.length} {scorecardReviewPreviews.length === 1 ? 'match' : 'matches'} before committing
+              </summary>
+              <div style={{ marginTop: 14 }}>
+                <ScorecardReviewPanel
+                  previews={scorecardReviewPreviews}
+                  reviewerName={reviewerName}
+                  onReviewerNameChange={setReviewerName}
+                  onMatchDecisionChange={handleMatchDecisionChange}
+                  onApproveMatch={handleApproveMatch}
+                  onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
+                  onReviewerNoteChange={handleReviewerNoteChange}
+                  onLineOverrideChange={handleLineOverrideChange}
+                  onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}
+                  onCommitApprovedItems={() => void handleScorecardCommit('approved_items')}
+                  onReviewFlagged={handleReviewFlaggedMatches}
+                  isRunningCommit={isRunningCommit}
+                  defaultFilter={reviewDefaultFilter}
+                  commitFeedbackMatchId={lineCommitTargetMatchId}
+                  commitFeedbackMessage={lineCommitFeedback}
+                  committedMatchIds={committedMatchIds}
+                />
               </div>
-            ) : null}
+            </details>
+          )
+        ) : null}
 
+        {/* ── INPUT PANEL ── */}
+        <section style={{ ...panelStyle, marginTop: 22 }}>
+          <div style={labelStyle}>Input</div>
+          <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1.06rem', marginTop: 8 }}>
+            Capture JSON
+          </div>
+
+          {/* Type switcher */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 12,
+              marginTop: 16,
+            }}
+          >
+            <TypeCard
+              active={importType === 'schedule'}
+              title="Schedule import"
+              subtitle="Season schedules and upcoming team match records."
+              onClick={() => {
+                resetScorecardReviewState()
+                setImportType('schedule')
+              }}
+            />
+            <TypeCard
+              active={importType === 'scorecard'}
+              title="Scorecard import"
+              subtitle="Completed line-by-line results with player detail."
+              onClick={() => {
+                resetScorecardReviewState()
+                setImportType('scorecard')
+              }}
+            />
+          </div>
+
+          {/* Drop zone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDraggingOver(true)
+            }}
+            onDragLeave={() => setIsDraggingOver(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setIsDraggingOver(false)
+              void handleDropFiles(e.dataTransfer.files)
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') fileInputRef.current?.click()
+            }}
+            style={{
+              marginTop: 16,
+              borderRadius: 20,
+              border: isDraggingOver
+                ? '2px dashed rgba(155,225,29,0.50)'
+                : '2px dashed rgba(116,190,255,0.20)',
+              background: isDraggingOver ? 'rgba(155,225,29,0.05)' : 'rgba(8,15,28,0.55)',
+              padding: '28px 24px',
+              textAlign: 'center' as const,
+              cursor: 'pointer',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,text/plain,application/json"
+              multiple
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
             {selectedFileName ? (
-              <div style={{ marginTop: 12 }}>
+              <div>
                 <span style={pillGreenStyle}>
-                  Loaded: {selectedFileName}{selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}
+                  {selectedFileName}
+                  {selectedFileCount > 1 ? ` (${selectedFileCount} files)` : ''}
+                  {normalizedRowCount > 0 ? ` · ${normalizedRowCount} rows` : ''}
                 </span>
+                <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.88rem' }}>
+                  Drop a new file or click to replace
+                </div>
               </div>
-            ) : null}
+            ) : (
+              <div>
+                <div style={{ color: '#AFC3DB', fontSize: '1rem', fontWeight: 700 }}>
+                  Drop JSON files here
+                </div>
+                <div style={{ ...subtleTextStyle, marginTop: 6, fontSize: '0.88rem' }}>
+                  or click to browse · .json only · multiple files supported
+                </div>
+              </div>
+            )}
+          </div>
 
-            <div style={{ marginTop: 16 }}>
-              <label htmlFor="admin-import-json" style={labelStyle}>Import JSON</label>
+          {/* Captured match preview strip */}
+          {importType === 'scorecard' && scorecardPreview.rows.length > 0 ? (
+            <div
+              style={{
+                marginTop: 12,
+                borderRadius: 16,
+                border: '1px solid rgba(116,190,255,0.10)',
+                background: 'rgba(8,15,28,0.50)',
+                overflow: 'hidden',
+              }}
+            >
+              {scorecardPreview.rows.map((match, index) => (
+                <div
+                  key={match.externalMatchId}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 14px',
+                    borderTop: index > 0 ? '1px solid rgba(116,190,255,0.07)' : 'none',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ color: '#F8FBFF', fontWeight: 700, fontSize: '0.92rem' }}>
+                    {match.homeTeam} vs {match.awayTeam}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ ...pillSlateStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                      {match.matchDate}
+                    </span>
+                    {match.flight ? (
+                      <span style={{ ...pillBlueStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                        {match.flight}
+                      </span>
+                    ) : null}
+                    <span style={{ ...pillSlateStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                      {match.lineCount} lines
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : importType === 'schedule' && schedulePreview.rows.length > 0 ? (
+            <div
+              style={{
+                marginTop: 12,
+                borderRadius: 16,
+                border: '1px solid rgba(116,190,255,0.10)',
+                background: 'rgba(8,15,28,0.50)',
+                overflow: 'hidden',
+              }}
+            >
+              {schedulePreview.rows.slice(0, 8).map((match, index) => (
+                <div
+                  key={match.externalMatchId}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 14px',
+                    borderTop: index > 0 ? '1px solid rgba(116,190,255,0.07)' : 'none',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ color: '#F8FBFF', fontWeight: 700, fontSize: '0.92rem' }}>
+                    {match.homeTeam} vs {match.awayTeam}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ ...pillSlateStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                      {match.matchDate}{match.matchTime ? ` · ${match.matchTime}` : ''}
+                    </span>
+                    {match.flight ? (
+                      <span style={{ ...pillBlueStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                        {match.flight}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              {schedulePreview.rows.length > 8 ? (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderTop: '1px solid rgba(116,190,255,0.07)',
+                    color: '#AFC3DB',
+                    fontSize: '0.86rem',
+                  }}
+                >
+                  {schedulePreview.rows.length - 8} more matches not shown
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Extension status message */}
+          {extensionStatusMessage ? (
+            <div
+              style={{
+                marginTop: 12,
+                borderRadius: 16,
+                border: '1px solid rgba(116,190,255,0.16)',
+                background: 'rgba(17,34,63,0.48)',
+                color: '#EAF4FF',
+                padding: '12px 14px',
+                fontWeight: 700,
+              }}
+            >
+              {extensionStatusMessage}
+            </div>
+          ) : null}
+
+          {/* League name override */}
+          <div style={{ marginTop: 16 }}>
+            <label htmlFor="admin-import-league-override" style={labelStyle}>
+              League name override
+            </label>
+            <input
+              id="admin-import-league-override"
+              type="text"
+              value={leagueNameOverride}
+              onChange={(event) => {
+                resetScorecardReviewState()
+                setLeagueNameOverride(event.target.value)
+              }}
+              placeholder="Optional: force a season name like 2026 Adult 18 & Over Fall"
+              style={inputStyle}
+            />
+          </div>
+
+          {/* Actions bar */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+            <button
+              type="button"
+              style={mutedButtonStyle}
+              onClick={() => void handlePasteFromClipboard()}
+            >
+              Paste from clipboard
+            </button>
+            <button type="button" style={mutedButtonStyle} onClick={handleLoadSample}>
+              Load sample
+            </button>
+            <button type="button" style={mutedButtonStyle} onClick={handleClearAll}>
+              Clear
+            </button>
+            {parsed.value ? (
+              <button type="button" style={mutedButtonStyle} onClick={handleAutoDetectType}>
+                Auto-detect type
+              </button>
+            ) : null}
+            {normalizedRowCount > 0 &&
+            !(importType === 'scorecard' && scorecardReviewPreviews.length > 0) ? (
+              <button
+                type="button"
+                style={{
+                  ...secondaryButtonStyle,
+                  opacity: isRunningPreview ? 0.8 : 1,
+                  cursor: isRunningPreview ? 'wait' : 'pointer',
+                }}
+                disabled={isRunningPreview || isRunningCommit}
+                onClick={() => void handleRun('preview')}
+              >
+                {isRunningPreview ? 'Running preview…' : 'Preview import'}
+              </button>
+            ) : null}
+          </div>
+
+          {/* Raw JSON — debug */}
+          <details style={{ marginTop: 16 }}>
+            <summary
+              style={{
+                cursor: 'pointer',
+                color: '#AFC3DB',
+                fontSize: '0.88rem',
+                userSelect: 'none' as const,
+                padding: '4px 0',
+              }}
+            >
+              Raw JSON{jsonInput ? ` · ${jsonInput.length.toLocaleString()} chars` : ''}
+            </summary>
+            <div style={{ marginTop: 8 }}>
               <textarea
                 id="admin-import-json"
                 value={jsonInput}
@@ -1689,350 +1912,273 @@ export default function AdminImportPage() {
                 aria-describedby="admin-import-helper"
                 spellCheck={false}
               />
+              <div
+                style={{ ...subtleTextStyle, marginTop: 6, fontSize: '0.86rem' }}
+                id="admin-import-helper"
+              >
+                Schedule accepts wrapped schedule payloads or arrays of rows. Scorecard accepts
+                single scorecard objects, wrapped payloads, or arrays.
+              </div>
             </div>
+          </details>
 
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                flexWrap: 'wrap',
-                marginTop: 16,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => handleRun('preview')}
-                style={{
-                  ...secondaryButtonStyle,
-                  opacity: isRunningPreview ? 0.8 : 1,
-                  cursor: isRunningPreview ? 'wait' : 'pointer',
-                }}
-                disabled={isRunningPreview || isRunningCommit}
-              >
-                {isRunningPreview ? 'Running preview…' : 'Preview import'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  importType === 'scorecard'
-                    ? void handleScorecardCommit('approved_items')
-                    : void handleRun('commit')
-                }
-                style={{
-                  ...primaryButtonStyle,
-                  opacity: isRunningCommit ? 0.82 : 1,
-                  cursor: isRunningCommit ? 'wait' : 'pointer',
-                }}
-                disabled={isRunningPreview || isRunningCommit}
-              >
-                {isRunningCommit
-                  ? 'Committing…'
-                  : importType === 'scorecard'
-                    ? 'Submit reviewed matches'
-                    : 'Commit import'}
-              </button>
-            </div>
-
-            {topLevelError ? (
-              <div
-                role="alert"
-                style={{
-                  marginTop: 14,
-                  borderRadius: 18,
-                  border: '1px solid rgba(255,99,132,0.18)',
-                  background:
-                    'linear-gradient(180deg, rgba(59,20,31,0.72) 0%, rgba(24,10,16,0.92) 100%)',
-                  color: '#FFD5DF',
-                  padding: '14px 16px',
-                  fontWeight: 700,
-                }}
-              >
-                {topLevelError}
-              </div>
-            ) : null}
-
-            {showCommitSuccess && importSummary ? (
-              <div
-                role="status"
-                aria-live="polite"
-                style={{
-                  marginTop: 14,
-                  borderRadius: 18,
-                  border: '1px solid rgba(155,225,29,0.22)',
-                  background:
-                    'linear-gradient(180deg, rgba(18,38,33,0.82) 0%, rgba(9,18,34,0.96) 100%)',
-                  color: '#DFFFC2',
-                  padding: '14px 16px',
-                  fontWeight: 800,
-                  boxShadow: '0 12px 28px rgba(155,225,29,0.08)',
-                }}
-              >
-                ✅ Commit completed successfully.
-                <div style={{ marginTop: 8, color: '#CFE8D0', fontWeight: 600, lineHeight: 1.6 }}>
-                  {importSummary.successCount} imported
-                  {importSummary.updatedCount > 0 ? ` • ${importSummary.updatedCount} updated` : ''}
-                  {importSummary.createdPlayersCount > 0
-                    ? ` • ${importSummary.createdPlayersCount} players created`
-                    : ''}
-                  {importSummary.linkedPlayersCount > 0
-                    ? ` • ${importSummary.linkedPlayersCount} players linked`
-                    : ''}
-                </div>
-              </div>
-            ) : null}
-
-            {showCommitPartialWarning && importSummary ? (
-              <div
-                style={{
-                  marginTop: 14,
-                  borderRadius: 18,
-                  border: '1px solid rgba(250,204,21,0.22)',
-                  background:
-                    'linear-gradient(180deg, rgba(58,44,12,0.82) 0%, rgba(24,18,10,0.96) 100%)',
-                  color: '#FDE68A',
-                  padding: '14px 16px',
-                  fontWeight: 800,
-                  boxShadow: '0 12px 28px rgba(250,204,21,0.06)',
-                }}
-              >
-                ⚠️ Commit finished with some failures.
-                <div style={{ marginTop: 8, color: '#FDE68A', fontWeight: 600, lineHeight: 1.6 }}>
-                  {importSummary.successCount} imported
-                  {importSummary.updatedCount > 0 ? ` • ${importSummary.updatedCount} updated` : ''}
-                  {importSummary.failedCount} failed
-                </div>
-              </div>
-            ) : null}
-
-            {showPreviewSuccess && importSummary ? (
-              <div
-                style={{
-                  marginTop: 14,
-                  borderRadius: 18,
-                  border: '1px solid rgba(116,190,255,0.18)',
-                  background:
-                    'linear-gradient(180deg, rgba(17,34,63,0.82) 0%, rgba(9,18,34,0.96) 100%)',
-                  color: '#DCEBFF',
-                  padding: '14px 16px',
-                  fontWeight: 800,
-                }}
-              >
-                👀 Preview completed successfully.
-                <div style={{ marginTop: 8, color: '#BFD8F7', fontWeight: 600, lineHeight: 1.6 }}>
-                  {importSummary.normalizedRowCount} normalized rows ready for commit
-                  {importSummary.failedCount > 0 ? ` • ${importSummary.failedCount} preview failures` : ''}
-                </div>
-              </div>
-            ) : null}
-
-            {lastRunMode === 'commit' &&
-            importResponse?.ok === true &&
-            importSummary != null &&
-            importSummary.successCount === 0 &&
-            importSummary.updatedCount === 0 &&
-            importSummary.failedCount === 0 ? (
-              <div
-                style={{
-                  marginTop: 14,
-                  borderRadius: 18,
-                  border: '1px solid rgba(148,163,184,0.20)',
-                  background:
-                    'linear-gradient(180deg, rgba(19,28,45,0.82) 0%, rgba(9,18,34,0.96) 100%)',
-                  color: '#D6E1EF',
-                  padding: '14px 16px',
-                  fontWeight: 800,
-                }}
-              >
-                ℹ️ No new rows were imported.
-                <div style={{ marginTop: 8, color: '#B8C7D9', fontWeight: 600, lineHeight: 1.6 }}>
-                  This usually means the selected scorecard was already completed and was skipped as a duplicate.
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <div style={panelStyle}>
-            <div style={labelStyle}>Readiness</div>
-            <div
-              style={{
-                color: '#F8FBFF',
-                fontWeight: 800,
-                fontSize: '1.06rem',
-                marginTop: 8,
-              }}
-            >
-              Normalization status
-            </div>
-
-            <div style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-              <StatusPanel title="Import type" tone="blue">
-                <div style={summaryValueStyle}>
-                  {importType === 'schedule' ? 'Schedule' : 'Scorecard'}
-                </div>
-                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  The current preview and commit path uses the selected import kind.
-                </div>
-              </StatusPanel>
-
-              <StatusPanel title="Detected rows" tone="green">
-                <div style={summaryValueStyle}>{normalizedRowCount}</div>
-                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  Normalized rows currently ready for preview or commit.
-                </div>
-              </StatusPanel>
-
-              <StatusPanel title="Warnings" tone="slate">
-                <div style={summaryValueStyle}>{previewWarnings.length}</div>
-                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  Non-fatal shaping issues found while normalizing the captured JSON.
-                </div>
-              </StatusPanel>
-
-              <StatusPanel title="Files loaded" tone="blue">
-                <div style={summaryValueStyle}>{uploadDiagnostics.files.length}</div>
-                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  File-by-file diagnostics are shown below when you upload a batch.
-                </div>
-              </StatusPanel>
-
-              <StatusPanel title="Duplicate match IDs" tone={uploadDiagnostics.duplicateMatchIds.length > 0 ? 'slate' : 'green'}>
-                <div style={summaryValueStyle}>{uploadDiagnostics.duplicateMatchIds.length}</div>
-                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  Duplicate external match ids across uploaded files should be reviewed before commit.
-                </div>
-              </StatusPanel>
-
-              <StatusPanel title="Past matches needing scorecards" tone={uploadLedgerSummary.pending.length > 0 ? 'slate' : 'green'}>
-                <div style={summaryValueStyle}>{uploadLedgerSummary.pending.length}</div>
-                <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                  Scheduled matches on or before today that still do not look completed.
-                </div>
-              </StatusPanel>
-            </div>
-          </div>
-        </section>
-
-        <section style={{ ...panelStyle, marginTop: 22 }}>
-          <div style={labelStyle}>Upload ledger</div>
-          <div
-            style={{
-              color: '#F8FBFF',
-              fontWeight: 800,
-              fontSize: '1.06rem',
-              marginTop: 8,
-            }}
-          >
-            Schedule-to-scorecard tracking
-          </div>
-          <div style={{ ...subtleTextStyle, marginTop: 10 }}>
-            Use this to see what has already been completed versus which scheduled matches still need a scorecard upload after match day.
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-            <button
-              type="button"
-              style={mutedButtonStyle}
-              onClick={() => void loadUploadLedger()}
-              disabled={ledgerLoading}
-            >
-              {ledgerLoading ? 'Refreshing ledger...' : 'Refresh upload ledger'}
-            </button>
-          </div>
-
-          {ledgerLoading ? (
-            <div style={{ ...subtleTextStyle, marginTop: 14 }}>Loading upload ledger…</div>
-          ) : ledgerError ? (
+          {/* Error / result banners */}
+          {topLevelError ? (
             <div
               role="alert"
               style={{
                 marginTop: 14,
                 borderRadius: 18,
-                border: '1px solid rgba(248,113,113,0.24)',
-                background: 'rgba(127,29,29,0.18)',
-                color: '#fecaca',
+                border: '1px solid rgba(255,99,132,0.18)',
+                background:
+                  'linear-gradient(180deg, rgba(59,20,31,0.72) 0%, rgba(24,10,16,0.92) 100%)',
+                color: '#FFD5DF',
                 padding: '14px 16px',
+                fontWeight: 700,
               }}
             >
-              {ledgerError}
+              {topLevelError}
             </div>
-          ) : (
-            <div style={{ display: 'grid', gap: 18, marginTop: 16 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
-                <SummaryMetric label="Needs upload" value={String(uploadLedgerSummary.pending.length)} helper="Past scheduled matches still missing scorecards." />
-                <SummaryMetric label="Upcoming" value={String(uploadLedgerSummary.upcoming.length)} helper="Future scheduled matches waiting on results." />
-                <SummaryMetric label="Completed" value={String(uploadLedgerSummary.completed.length)} helper="Parent matches that already look complete." />
-              </div>
+          ) : null}
 
-              {uploadLedgerSummary.pending.length > 0 ? (
-                <div>
-                  <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '0.98rem' }}>Past matches still needing scorecards</div>
-                  <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-                    {uploadLedgerSummary.pending.slice(0, 12).map((row) => (
-                      <div
-                        key={row.id}
-                        style={{
-                          borderRadius: 18,
-                          border: '1px solid rgba(250,204,21,0.18)',
-                          background: 'linear-gradient(180deg, rgba(58,44,12,0.52) 0%, rgba(24,18,10,0.90) 100%)',
-                          padding: '14px 16px',
-                        }}
-                      >
-                        <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
-                          {(row.home_team || 'TBD')} vs {(row.away_team || 'TBD')}
-                        </div>
-                        <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                          {cleanString(row.match_date) || 'No date'}
-                          {row.flight ? ` • ${row.flight}` : ''}
-                          {row.league_name ? ` • ${row.league_name}` : ''}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                          <span style={pillBlueStyle}>Match ID: {row.external_match_id || 'Missing'}</span>
-                          <span style={pillSlateStyle}>Status: {row.status || 'scheduled'}</span>
-                          <span style={pillGreenStyle}>
-                            Scorecard lines: {row.external_match_id ? (uploadLedgerSummary.importedLineCounts.get(cleanString(row.external_match_id)) || 0) : 0}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-                          <Link
-                            href={`/admin/missing-scorecards?status=pending&league=${encodeURIComponent([cleanString(row.league_name), cleanString(row.flight)].filter(Boolean).join(' - '))}&team=${encodeURIComponent(cleanString(row.home_team) || cleanString(row.away_team))}`}
-                            style={{ ...secondaryButtonStyle, minHeight: 40, textDecoration: 'none' }}
-                          >
-                            Open scorecard queue
-                          </Link>
-                          <Link
-                            href={`/admin/manage-matches?search=${encodeURIComponent(row.external_match_id || `${row.home_team || ''} ${row.away_team || ''}`.trim())}`}
-                            style={{ ...secondaryButtonStyle, minHeight: 40, textDecoration: 'none' }}
-                          >
-                            Review match record
-                          </Link>
-                          <span style={{ ...subtleTextStyle, fontSize: '0.86rem' }}>
-                            Open a filtered match review to confirm the parent record once a scorecard is uploaded.
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div style={{ ...subtleTextStyle }}>
-                  No past scheduled matches are currently waiting on scorecard uploads.
-                </div>
-              )}
+          {showCommitSuccess && importSummary ? (
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                marginTop: 14,
+                borderRadius: 18,
+                border: '1px solid rgba(155,225,29,0.22)',
+                background:
+                  'linear-gradient(180deg, rgba(18,38,33,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                color: '#DFFFC2',
+                padding: '14px 16px',
+                fontWeight: 800,
+                boxShadow: '0 12px 28px rgba(155,225,29,0.08)',
+              }}
+            >
+              Committed successfully.
+              <div style={{ marginTop: 8, color: '#CFE8D0', fontWeight: 600, lineHeight: 1.6 }}>
+                {importSummary.successCount} imported
+                {importSummary.updatedCount > 0 ? ` · ${importSummary.updatedCount} updated` : ''}
+                {importSummary.createdPlayersCount > 0
+                  ? ` · ${importSummary.createdPlayersCount} players created`
+                  : ''}
+                {importSummary.linkedPlayersCount > 0
+                  ? ` · ${importSummary.linkedPlayersCount} players linked`
+                  : ''}
+              </div>
             </div>
-          )}
+          ) : null}
+
+          {showCommitPartialWarning && importSummary ? (
+            <div
+              style={{
+                marginTop: 14,
+                borderRadius: 18,
+                border: '1px solid rgba(250,204,21,0.22)',
+                background:
+                  'linear-gradient(180deg, rgba(58,44,12,0.82) 0%, rgba(24,18,10,0.96) 100%)',
+                color: '#FDE68A',
+                padding: '14px 16px',
+                fontWeight: 800,
+                boxShadow: '0 12px 28px rgba(250,204,21,0.06)',
+              }}
+            >
+              Commit finished with some failures.
+              <div style={{ marginTop: 8, color: '#FDE68A', fontWeight: 600, lineHeight: 1.6 }}>
+                {importSummary.successCount} imported
+                {importSummary.updatedCount > 0 ? ` · ${importSummary.updatedCount} updated` : ''}
+                {` · ${importSummary.failedCount} failed`}
+              </div>
+            </div>
+          ) : null}
+
+          {showPreviewSuccess && importSummary ? (
+            <div
+              style={{
+                marginTop: 14,
+                borderRadius: 18,
+                border: '1px solid rgba(116,190,255,0.18)',
+                background:
+                  'linear-gradient(180deg, rgba(17,34,63,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                color: '#DCEBFF',
+                padding: '14px 16px',
+                fontWeight: 800,
+              }}
+            >
+              Preview completed.
+              <div style={{ marginTop: 8, color: '#BFD8F7', fontWeight: 600, lineHeight: 1.6 }}>
+                {importSummary.normalizedRowCount} normalized rows ready for commit
+                {importSummary.failedCount > 0
+                  ? ` · ${importSummary.failedCount} preview failures`
+                  : ''}
+              </div>
+            </div>
+          ) : null}
+
+          {lastRunMode === 'commit' &&
+          importResponse?.ok === true &&
+          importSummary != null &&
+          importSummary.successCount === 0 &&
+          importSummary.updatedCount === 0 &&
+          importSummary.failedCount === 0 ? (
+            <div
+              style={{
+                marginTop: 14,
+                borderRadius: 18,
+                border: '1px solid rgba(148,163,184,0.20)',
+                background:
+                  'linear-gradient(180deg, rgba(19,28,45,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                color: '#D6E1EF',
+                padding: '14px 16px',
+                fontWeight: 800,
+              }}
+            >
+              No new rows were imported.
+              <div style={{ marginTop: 8, color: '#B8C7D9', fontWeight: 600, lineHeight: 1.6 }}>
+                This usually means the selected scorecard was already completed and was skipped as
+                a duplicate.
+              </div>
+            </div>
+          ) : null}
         </section>
 
-        {uploadDiagnostics.files.length > 0 ? (
+        {/* ── WARNINGS — only shown when present ── */}
+        {previewWarnings.length > 0 ? (
+          <section style={{ ...panelStyle, marginTop: 22 }}>
+            <div style={labelStyle}>Warnings</div>
+            <div
+              style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1.06rem', marginTop: 8 }}
+            >
+              Normalization warnings
+            </div>
+            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+              {previewWarnings.map((warning, index) => (
+                <div
+                  key={`${warning.rowIndex}-${index}`}
+                  style={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(148,163,184,0.14)',
+                    background:
+                      'linear-gradient(180deg, rgba(19,28,45,0.72) 0%, rgba(9,18,34,0.92) 100%)',
+                    padding: '12px 14px',
+                    color: '#D6E1EF',
+                  }}
+                >
+                  Row {warning.rowIndex + 1}: {warning.message}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {/* ── IMPORT RESULT — only shown after running ── */}
+        {importResponse && importSummary ? (
+          <section style={{ ...panelStyle, marginTop: 22 }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 12,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <div style={labelStyle}>Import result</div>
+                <div
+                  style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1.06rem', marginTop: 8 }}
+                >
+                  Engine response
+                </div>
+              </div>
+              {importMessages.length > 0 ? (
+                <button type="button" style={mutedButtonStyle} onClick={handleCopyMessages}>
+                  {copied ? 'Copied' : 'Copy messages'}
+                </button>
+              ) : null}
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gap: 10,
+                marginTop: 14,
+              }}
+            >
+              <SummaryMetric
+                label="Normalized"
+                value={String(importSummary.normalizedRowCount)}
+                helper="Rows handed to the engine."
+              />
+              <SummaryMetric
+                label="Imported"
+                value={String(importSummary.successCount)}
+                helper="Fresh rows written."
+              />
+              <SummaryMetric
+                label="Updated"
+                value={String(importSummary.updatedCount)}
+                helper="Existing rows refreshed."
+              />
+              <SummaryMetric
+                label="Failed"
+                value={String(importSummary.failedCount)}
+                helper="Rows that did not complete."
+              />
+              <SummaryMetric
+                label="Players created"
+                value={String(importSummary.createdPlayersCount)}
+                helper="New player records inserted."
+              />
+              <SummaryMetric
+                label="Players linked"
+                value={String(importSummary.linkedPlayersCount)}
+                helper="match_players rows written."
+              />
+            </div>
+
+            <div
+              style={{
+                marginTop: 16,
+                borderRadius: 20,
+                border: '1px solid rgba(116,190,255,0.10)',
+                background: 'rgba(8,15,28,0.72)',
+                padding: '14px',
+                maxHeight: 360,
+                overflow: 'auto',
+              }}
+            >
+              <pre
+                style={{
+                  margin: 0,
+                  color: '#D8E8FB',
+                  fontSize: '0.8rem',
+                  lineHeight: 1.55,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {importMessages.length > 0
+                  ? importMessages.join('\n')
+                  : importSummary.successCount === 0 &&
+                      importSummary.updatedCount === 0 &&
+                      importSummary.failedCount === 0
+                    ? 'No rows imported. This scorecard was already completed and was skipped as a duplicate.'
+                    : 'No row-level messages returned.'}
+              </pre>
+            </div>
+          </section>
+        ) : null}
+
+        {/* ── BATCH DIAGNOSTICS — only for multi-file or duplicates ── */}
+        {uploadDiagnostics.files.length > 1 || uploadDiagnostics.duplicateMatchIds.length > 0 ? (
           <section style={{ ...panelStyle, marginTop: 22 }}>
             <div style={labelStyle}>Batch diagnostics</div>
             <div
-              style={{
-                color: '#F8FBFF',
-                fontWeight: 800,
-                fontSize: '1.06rem',
-                marginTop: 8,
-              }}
+              style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1.06rem', marginTop: 8 }}
             >
               Uploaded file breakdown
             </div>
@@ -2048,7 +2194,14 @@ export default function AdminImportPage() {
                     padding: '14px 16px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     <div style={{ color: '#F8FBFF', fontWeight: 800 }}>{file.fileName}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <span style={pillBlueStyle}>{file.kind}</span>
@@ -2066,24 +2219,31 @@ export default function AdminImportPage() {
                   marginTop: 16,
                   borderRadius: 18,
                   border: '1px solid rgba(250,204,21,0.22)',
-                  background: 'linear-gradient(180deg, rgba(58,44,12,0.82) 0%, rgba(24,18,10,0.96) 100%)',
+                  background:
+                    'linear-gradient(180deg, rgba(58,44,12,0.82) 0%, rgba(24,18,10,0.96) 100%)',
                   color: '#FDE68A',
                   padding: '14px 16px',
                 }}
               >
-                <div style={{ fontWeight: 800 }}>Duplicate external match IDs detected across files</div>
+                <div style={{ fontWeight: 800 }}>
+                  Duplicate external match IDs detected across files
+                </div>
                 <div style={{ ...subtleTextStyle, marginTop: 8, color: '#FDE68A' }}>
-                  Review these before commit. A duplicate id means one file may overwrite another match record if they are not truly the same match.
+                  Review these before commit. A duplicate id means one file may overwrite another
+                  match record.
                 </div>
                 <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
                   {uploadDiagnostics.duplicateMatchIds.slice(0, 12).map((item) => (
-                    <div key={item.externalMatchId} style={{ color: '#FDE68A', fontSize: '0.9rem' }}>
+                    <div
+                      key={item.externalMatchId}
+                      style={{ color: '#FDE68A', fontSize: '0.9rem' }}
+                    >
                       Match ID {item.externalMatchId}: {item.fileNames.join(', ')}
                     </div>
                   ))}
                   {uploadDiagnostics.duplicateMatchIds.length > 12 ? (
                     <div style={{ color: '#FDE68A', fontSize: '0.9rem' }}>
-                      {uploadDiagnostics.duplicateMatchIds.length - 12} more duplicate ids hidden for brevity.
+                      {uploadDiagnostics.duplicateMatchIds.length - 12} more duplicate ids hidden.
                     </div>
                   ) : null}
                 </div>
@@ -2092,396 +2252,181 @@ export default function AdminImportPage() {
           </section>
         ) : null}
 
-        <section style={{ ...panelStyle, marginTop: 22 }}>
-          <div style={labelStyle}>Preview</div>
-          <div
+        {/* ── UPLOAD LEDGER — collapsed ── */}
+        <details style={{ marginTop: 22 }}>
+          <summary
             style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              borderRadius: 22,
+              border: '1px solid rgba(116,190,255,0.14)',
+              background:
+                'linear-gradient(180deg, rgba(17,34,63,0.76) 0%, rgba(9,18,34,0.94) 100%)',
+              padding: '16px 20px',
+              userSelect: 'none' as const,
               color: '#F8FBFF',
               fontWeight: 800,
-              fontSize: '1.06rem',
-              marginTop: 8,
+              fontSize: '1rem',
+              listStyle: 'none',
+              flexWrap: 'wrap',
             }}
           >
-            {importType === 'schedule'
-              ? 'Normalized schedule matches'
-              : 'Normalized scorecard matches'}
-          </div>
-
-          {importType === 'schedule' ? (
-            schedulePreview.rows.length === 0 ? (
-              <div style={{ ...subtleTextStyle, marginTop: 14 }}>
-                Paste or upload schedule JSON to preview normalized schedule rows.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
-                {schedulePreview.rows.map((match) => (
-                  <div
-                    key={`${match.externalMatchId}-${match.matchDate}`}
-                    style={{
-                      borderRadius: 22,
-                      border: '1px solid rgba(116,190,255,0.10)',
-                      background:
-                        'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.92) 100%)',
-                      padding: '16px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 14,
-                        alignItems: 'flex-start',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      <div>
-                        <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1rem' }}>
-                          {match.homeTeam} vs {match.awayTeam}
-                        </div>
-                        <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                          {match.matchDate}
-                          {match.matchTime ? ` • ${match.matchTime}` : ''}
-                          {match.facility ? ` • ${match.facility}` : ''}
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={pillBlueStyle}>Match ID: {match.externalMatchId}</span>
-                        <span style={pillGreenStyle}>{match.flight || 'No flight'}</span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                      {match.leagueName ? <span style={pillSlateStyle}>{match.leagueName}</span> : null}
-                      {match.ustaSection ? <span style={pillSlateStyle}>{match.ustaSection}</span> : null}
-                      {match.districtArea ? <span style={pillSlateStyle}>{match.districtArea}</span> : null}
-                    </div>
-
-                    {match.source ? (
-                      <div style={{ ...subtleTextStyle, marginTop: 12, fontSize: '0.86rem' }}>
-                        Source: {match.source}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )
-          ) : scorecardReviewPreviews.length > 0 ? (
-            <div
-              style={{
-                marginTop: 16,
-                borderRadius: 20,
-                border: '1px solid rgba(116,190,255,0.10)',
-                background: 'rgba(8,15,28,0.62)',
-                padding: '16px',
-              }}
-            >
-              <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
-                Focused scorecard review is active above.
-              </div>
-              <div style={{ ...subtleTextStyle, marginTop: 8 }}>
-                The detailed review panel now replaces the large raw scorecard preview so you can go straight to flagged lines and approvals.
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                <span style={pillSlateStyle}>Matches: {scorecardReviewPreviews.length}</span>
-                <span style={pillSlateStyle}>
-                  Needs review: {scorecardReviewPreviews.filter((preview) => preview.status === 'needs_review').length}
-                </span>
-                <span style={pillSlateStyle}>
-                  Blocked: {scorecardReviewPreviews.filter((preview) => preview.status === 'blocked').length}
-                </span>
-              </div>
-            </div>
-          ) : scorecardPreview.rows.length === 0 ? (
-            <div style={{ ...subtleTextStyle, marginTop: 14 }}>
-              Paste or upload scorecard JSON to preview normalized scorecard rows.
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>
-              {scorecardPreview.rows.map((match) => (
-                <div
-                  key={`${match.externalMatchId}-${match.matchDate}`}
-                  style={{
-                    borderRadius: 22,
-                    border: '1px solid rgba(116,190,255,0.10)',
-                    background:
-                      'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.92) 100%)',
-                    padding: '16px',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: 14,
-                      alignItems: 'flex-start',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div>
-                      <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '1rem' }}>
-                        {match.homeTeam} vs {match.awayTeam}
-                      </div>
-                      <div style={{ ...subtleTextStyle, marginTop: 6 }}>
-                        {match.matchDate}
-                        {match.matchTime ? ` • ${match.matchTime}` : ''}
-                        {match.facility ? ` • ${match.facility}` : ''}
-                        {match.flight ? ` • ${match.flight}` : ''}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={pillBlueStyle}>Match ID: {match.externalMatchId}</span>
-                      <span style={pillGreenStyle}>{match.lineCount} lines</span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                    {match.leagueName ? <span style={pillSlateStyle}>{match.leagueName}</span> : null}
-                    {match.ustaSection ? <span style={pillSlateStyle}>{match.ustaSection}</span> : null}
-                    {match.districtArea ? <span style={pillSlateStyle}>{match.districtArea}</span> : null}
-                  </div>
-
-                  <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                    {match.lines.map((line) => (
-                      <div
-                        key={`${match.externalMatchId}-line-${line.lineNumber}`}
-                        style={{
-                          borderRadius: 18,
-                          border: '1px solid rgba(116,190,255,0.08)',
-                          background: 'rgba(8,15,28,0.55)',
-                          padding: '14px',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            gap: 12,
-                            flexWrap: 'wrap',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
-                            Line {line.lineNumber} • {line.matchType}
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <span style={pillGreenStyle}>
-                              Winner: {getScorecardWinnerLabel(match, line.winnerSide)}
-                            </span>
-                            <span style={pillBlueStyle}>Score: {cleanString(line.score) || '—'}</span>
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: 12,
-                            marginTop: 12,
-                          }}
-                        >
-                          <div
-                            style={{
-                              borderRadius: 16,
-                              border: '1px solid rgba(116,190,255,0.08)',
-                              background: 'rgba(12,22,40,0.72)',
-                              padding: '12px',
-                            }}
-                          >
-                            <div style={{ ...labelStyle, fontSize: '0.7rem' }}>Home side</div>
-                            <div style={{ ...subtleTextStyle, marginTop: 8 }}>
-                              {line.sideAPlayers.join(' / ') || '—'}
-                            </div>
-                          </div>
-
-                          <div
-                            style={{
-                              borderRadius: 16,
-                              border: '1px solid rgba(116,190,255,0.08)',
-                              background: 'rgba(12,22,40,0.72)',
-                              padding: '12px',
-                            }}
-                          >
-                            <div style={{ ...labelStyle, fontSize: '0.7rem' }}>Away side</div>
-                            <div style={{ ...subtleTextStyle, marginTop: 8 }}>
-                              {line.sideBPlayers.join(' / ') || '—'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {match.source ? (
-                    <div style={{ ...subtleTextStyle, marginTop: 12, fontSize: '0.86rem' }}>
-                      Source: {match.source}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 18,
-            marginTop: 22,
-            alignItems: 'start',
-          }}
-        >
-          <div style={panelStyle}>
-            <div style={labelStyle}>Warnings</div>
-            <div
-              style={{
-                color: '#F8FBFF',
-                fontWeight: 800,
-                fontSize: '1.06rem',
-                marginTop: 8,
-              }}
-            >
-              Normalization warnings
-            </div>
-
-            {previewWarnings.length === 0 ? (
-              <div style={{ ...subtleTextStyle, marginTop: 14 }}>
-                No normalization warnings yet.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-                {previewWarnings.map((warning, index) => (
-                  <div
-                    key={`${warning.rowIndex}-${index}`}
-                    style={{
-                      borderRadius: 18,
-                      border: '1px solid rgba(148,163,184,0.14)',
-                      background:
-                        'linear-gradient(180deg, rgba(19,28,45,0.72) 0%, rgba(9,18,34,0.92) 100%)',
-                      padding: '12px 14px',
-                      color: '#D6E1EF',
-                    }}
-                  >
-                    Row {warning.rowIndex + 1}: {warning.message}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div style={panelStyle}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 12,
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              }}
-            >
-              <div>
-                <div style={labelStyle}>Import result</div>
-                <div
-                  style={{
-                    color: '#F8FBFF',
-                    fontWeight: 800,
-                    fontSize: '1.06rem',
-                    marginTop: 8,
-                  }}
-                >
-                  Engine response
-                </div>
-              </div>
-
-              {importMessages.length > 0 ? (
-                <button type="button" style={mutedButtonStyle} onClick={handleCopyMessages}>
-                  {copied ? 'Copied' : 'Copy messages'}
-                </button>
-              ) : null}
-            </div>
-
-            {!importResponse || !importSummary ? (
-              <div style={{ ...subtleTextStyle, marginTop: 14 }}>
-                Run preview or commit to see the ingestion response here.
-              </div>
-            ) : (
+            <span>Upload ledger</span>
+            {!ledgerLoading ? (
               <>
+                {uploadLedgerSummary.pending.length > 0 ? (
+                  <span style={{ ...pillSlateStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                    {uploadLedgerSummary.pending.length} need upload
+                  </span>
+                ) : null}
+                <span style={{ ...pillSlateStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                  {uploadLedgerSummary.upcoming.length} upcoming
+                </span>
+                <span style={{ ...pillGreenStyle, fontSize: '0.75rem', minHeight: 26 }}>
+                  {uploadLedgerSummary.completed.length} completed
+                </span>
+              </>
+            ) : (
+              <span style={{ ...subtleTextStyle, fontSize: '0.88rem' }}>Loading…</span>
+            )}
+          </summary>
+
+          <section style={{ ...panelStyle, marginTop: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+              <button
+                type="button"
+                style={mutedButtonStyle}
+                onClick={() => void loadUploadLedger()}
+                disabled={ledgerLoading}
+              >
+                {ledgerLoading ? 'Refreshing ledger...' : 'Refresh upload ledger'}
+              </button>
+            </div>
+
+            {ledgerLoading ? (
+              <div style={{ ...subtleTextStyle }}>Loading upload ledger…</div>
+            ) : ledgerError ? (
+              <div
+                role="alert"
+                style={{
+                  borderRadius: 18,
+                  border: '1px solid rgba(248,113,113,0.24)',
+                  background: 'rgba(127,29,29,0.18)',
+                  color: '#fecaca',
+                  padding: '14px 16px',
+                }}
+              >
+                {ledgerError}
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 18 }}>
                 <div
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
                     gap: 10,
-                    marginTop: 14,
                   }}
                 >
                   <SummaryMetric
-                    label="Normalized"
-                    value={String(importSummary.normalizedRowCount)}
-                    helper="Rows handed to the engine."
+                    label="Needs upload"
+                    value={String(uploadLedgerSummary.pending.length)}
+                    helper="Past scheduled matches still missing scorecards."
                   />
                   <SummaryMetric
-                    label="Imported"
-                    value={String(importSummary.successCount)}
-                    helper="Fresh rows written."
+                    label="Upcoming"
+                    value={String(uploadLedgerSummary.upcoming.length)}
+                    helper="Future scheduled matches waiting on results."
                   />
                   <SummaryMetric
-                    label="Updated"
-                    value={String(importSummary.updatedCount)}
-                    helper="Existing rows refreshed."
-                  />
-                  <SummaryMetric
-                    label="Failed"
-                    value={String(importSummary.failedCount)}
-                    helper="Rows that did not complete."
-                  />
-                  <SummaryMetric
-                    label="Players created"
-                    value={String(importSummary.createdPlayersCount)}
-                    helper="New player records inserted."
-                  />
-                  <SummaryMetric
-                    label="Players linked"
-                    value={String(importSummary.linkedPlayersCount)}
-                    helper="match_players rows written."
+                    label="Completed"
+                    value={String(uploadLedgerSummary.completed.length)}
+                    helper="Parent matches that already look complete."
                   />
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 16,
-                    borderRadius: 20,
-                    border: '1px solid rgba(116,190,255,0.10)',
-                    background: 'rgba(8,15,28,0.72)',
-                    padding: '14px',
-                    maxHeight: 360,
-                    overflow: 'auto',
-                  }}
-                >
-                  <pre
-                    style={{
-                      margin: 0,
-                      color: '#D8E8FB',
-                      fontSize: '0.8rem',
-                      lineHeight: 1.55,
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {importMessages.length > 0
-                      ? importMessages.join('\n')
-                      : importSummary.successCount === 0 &&
-                          importSummary.updatedCount === 0 &&
-                          importSummary.failedCount === 0
-                        ? '⚠️ No rows imported. This scorecard was already completed and was skipped as a duplicate.'
-                        : 'No row-level messages returned.'}
-                  </pre>
-                </div>
-              </>
+                {uploadLedgerSummary.pending.length > 0 ? (
+                  <div>
+                    <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '0.98rem' }}>
+                      Past matches still needing scorecards
+                    </div>
+                    <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+                      {uploadLedgerSummary.pending.slice(0, 12).map((row) => (
+                        <div
+                          key={row.id}
+                          style={{
+                            borderRadius: 18,
+                            border: '1px solid rgba(250,204,21,0.18)',
+                            background:
+                              'linear-gradient(180deg, rgba(58,44,12,0.52) 0%, rgba(24,18,10,0.90) 100%)',
+                            padding: '14px 16px',
+                          }}
+                        >
+                          <div style={{ color: '#F8FBFF', fontWeight: 800 }}>
+                            {row.home_team || 'TBD'} vs {row.away_team || 'TBD'}
+                          </div>
+                          <div style={{ ...subtleTextStyle, marginTop: 6 }}>
+                            {cleanString(row.match_date) || 'No date'}
+                            {row.flight ? ` · ${row.flight}` : ''}
+                            {row.league_name ? ` · ${row.league_name}` : ''}
+                          </div>
+                          <div
+                            style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}
+                          >
+                            <span style={pillBlueStyle}>
+                              Match ID: {row.external_match_id || 'Missing'}
+                            </span>
+                            <span style={pillSlateStyle}>
+                              Status: {row.status || 'scheduled'}
+                            </span>
+                            <span style={pillGreenStyle}>
+                              Scorecard lines:{' '}
+                              {row.external_match_id
+                                ? uploadLedgerSummary.importedLineCounts.get(
+                                    cleanString(row.external_match_id),
+                                  ) || 0
+                                : 0}
+                            </span>
+                          </div>
+                          <div
+                            style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}
+                          >
+                            <Link
+                              href={`/admin/missing-scorecards?status=pending&league=${encodeURIComponent([cleanString(row.league_name), cleanString(row.flight)].filter(Boolean).join(' - '))}&team=${encodeURIComponent(cleanString(row.home_team) || cleanString(row.away_team))}`}
+                              style={{
+                                ...secondaryButtonStyle,
+                                minHeight: 40,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              Open scorecard queue
+                            </Link>
+                            <Link
+                              href={`/admin/manage-matches?search=${encodeURIComponent(row.external_match_id || `${row.home_team || ''} ${row.away_team || ''}`.trim())}`}
+                              style={{
+                                ...secondaryButtonStyle,
+                                minHeight: 40,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              Review match record
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ ...subtleTextStyle }}>
+                    No past scheduled matches are currently waiting on scorecard uploads.
+                  </div>
+                )}
+              </div>
             )}
-          </div>
-        </section>
+          </section>
+        </details>
+
         </section>
       </AdminGate>
     </SiteShell>

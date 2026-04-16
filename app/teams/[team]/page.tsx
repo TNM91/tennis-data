@@ -40,6 +40,7 @@ type MatchPlayer = {
   match_id: string
   side: 'A' | 'B'
   player_id: string
+  match_type: 'singles' | 'doubles' | null
   players: PlayerRelation
 }
 
@@ -229,6 +230,7 @@ export default function TeamPage() {
           match_id,
           side,
           player_id,
+          match_type,
           players (
             id,
             name,
@@ -315,8 +317,10 @@ export default function TeamPage() {
 
       current.appearances += 1
 
-      if (match.match_type === 'singles') current.singlesAppearances += 1
-      if (match.match_type === 'doubles') current.doublesAppearances += 1
+      // match_type lives on the match_players row (line level), not on the
+      // parent match — parent matches always have match_type: null.
+      if (entry.match_type === 'singles') current.singlesAppearances += 1
+      if (entry.match_type === 'doubles') current.doublesAppearances += 1
 
       const result = didTeamWin(match, team)
       if (result === true) current.wins += 1
