@@ -2,7 +2,8 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import type { CSSProperties, ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import SiteShell from '@/app/components/site-shell'
 import {
@@ -59,6 +60,20 @@ type TierSectionConfig = {
   featured?: boolean
   featuredNote?: string
 }
+
+type HeroSearchFilter = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
+
+const heroSearchFilters: Array<{
+  value: HeroSearchFilter
+  label: string
+  hint: string
+}> = [
+  { value: 'players', label: 'Player name', hint: 'Search player names and locations' },
+  { value: 'teams', label: 'Team', hint: 'Search by team, league, or flight' },
+  { value: 'leagues', label: 'League', hint: 'Search league name or season context' },
+  { value: 'flight', label: 'Flight', hint: 'Jump straight into league flight filtering' },
+  { value: 'area', label: 'Area', hint: 'Search district or area quickly' },
+]
 
 const tierSections: TierSectionConfig[] = [
   {
@@ -543,6 +558,41 @@ export default function PreviewHomepage() {
 }
 
 function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<HeroSearchFilter>('players')
+  const selectedFilter = useMemo(
+    () => heroSearchFilters.find((item) => item.value === filter) ?? heroSearchFilters[0],
+    [filter],
+  )
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const trimmedQuery = query.trim()
+    const params = new URLSearchParams()
+
+    if (trimmedQuery) {
+      params.set('q', trimmedQuery)
+    }
+
+    let pathname = '/explore/players'
+
+    if (filter === 'teams') {
+      pathname = '/explore/teams'
+    } else if (filter === 'leagues' || filter === 'flight' || filter === 'area') {
+      pathname = '/explore/leagues'
+      if (filter === 'flight') {
+        params.set('scope', 'flight')
+      } else if (filter === 'area') {
+        params.set('scope', 'area')
+      }
+    }
+
+    const nextHref = params.size > 0 ? `${pathname}?${params.toString()}` : pathname
+    router.push(nextHref)
+  }
+
   return (
     <div
       style={{
@@ -576,17 +626,66 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           Find what you need without digging through the product.
         </div>
         <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.65 }}>
-          Search the tennis layer first, then unlock the tools that solve the next problem in your week.
+          Start with a targeted search by player, team, league, flight, or area, then unlock the tools that
+          solve the next problem in your week.
         </div>
       </div>
 
-      <div
+      <form
+        onSubmit={handleSubmit}
         style={{
           display: 'grid',
-          gridTemplateColumns: compact ? '1fr' : 'minmax(0, 1fr) auto',
+          gridTemplateColumns: compact ? '1fr' : 'minmax(164px, 192px) minmax(0, 1fr) auto',
           gap: 10,
+          alignItems: 'end',
         }}
       >
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ color: 'var(--muted-strong)', fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Search by
+          </span>
+          <select
+            value={filter}
+            onChange={(event) => setFilter(event.target.value as HeroSearchFilter)}
+            style={{
+              ...surfaceCard,
+              minHeight: 56,
+              padding: '0 14px',
+              border: '1px solid rgba(116,190,255,0.16)',
+              background:
+                'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+              color: 'var(--foreground-strong)',
+              fontSize: 14,
+              fontWeight: 700,
+              outline: 'none',
+              colorScheme: 'dark',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              backgroundImage:
+                'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
+              backgroundPosition: 'calc(100% - 20px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px)',
+              backgroundSize: '6px 6px, 6px 6px',
+              backgroundRepeat: 'no-repeat',
+              paddingRight: 34,
+            }}
+            aria-label="Search focus"
+          >
+            {heroSearchFilters.map((option) => (
+              <option
+                key={option.value}
+                value={option.value}
+                style={{
+                  backgroundColor: '#13233b',
+                  color: '#f5f8ff',
+                }}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <div
           style={{
             ...surfaceCard,
@@ -601,20 +700,52 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           }}
         >
           <SearchIcon />
-          <span style={{ color: colors.mutedStrong, fontSize: 15 }}>
-            Search players, teams, leagues, or matchups...
-          </span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={`Search ${selectedFilter.label.toLowerCase()}...`}
+            aria-label={`Search ${selectedFilter.label.toLowerCase()}`}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--foreground-strong)',
+              fontSize: 15,
+              outline: 'none',
+            }}
+          />
         </div>
-        <Link
-          href="/explore/players"
+        <button
+          type="submit"
           style={{
             ...buttonPrimary,
             minHeight: 56,
-            minWidth: compact ? '100%' : 160,
+            minWidth: compact ? '100%' : 138,
+            paddingInline: compact ? 20 : 24,
+            border: 'none',
+            cursor: 'pointer',
           }}
         >
           Search now
-        </Link>
+        </button>
+      </form>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ color: colors.mutedStrong, fontSize: 12, lineHeight: 1.55 }}>
+          {selectedFilter.hint}
+        </div>
+        <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Routes into live Explore filters
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
@@ -622,7 +753,8 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           { href: '/explore/players', label: 'Players' },
           { href: '/explore/teams', label: 'Teams' },
           { href: '/explore/leagues', label: 'Leagues' },
-          { href: '/matchup', label: 'Matchups' },
+          { href: '/explore/leagues?scope=flight', label: 'Flights' },
+          { href: '/explore/leagues?scope=area', label: 'Areas' },
         ].map((item) => (
           <Link key={item.href} href={item.href} style={chipLinkStyle}>
             {item.label}
@@ -802,8 +934,9 @@ function HeroWorkspacePreview() {
                 fill
                 sizes="260px"
                 style={{
-                  objectFit: 'cover',
+                  objectFit: 'contain',
                   objectPosition: 'center center',
+                  padding: '12px 12px 10px',
                 }}
               />
             </div>

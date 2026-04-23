@@ -125,6 +125,24 @@ export default function PlayersPage() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const nextSearch = params.get('q')?.trim() || ''
+    const nextFlight = params.get('flight')?.trim() as FlightFilter | undefined
+
+    setSearch(nextSearch)
+    setFlightFilter(
+      nextFlight === '2.5' ||
+        nextFlight === '3.0' ||
+        nextFlight === '3.5' ||
+        nextFlight === '4.0' ||
+        nextFlight === '4.5+' ||
+        nextFlight === 'all'
+        ? nextFlight
+        : 'all',
+    )
+  }, [])
+
   async function loadPlayers() {
     setLoading(true)
     setError('')

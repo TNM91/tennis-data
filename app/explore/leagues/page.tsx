@@ -95,6 +95,15 @@ export default function ExploreLeaguesPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const nextSearch = params.get('q')?.trim() || ''
+    const nextLayer = params.get('layer')
+
+    setSearch(nextSearch)
+    setLayerFilter(nextLayer === 'usta' || nextLayer === 'tiq' ? nextLayer : 'all')
+  }, [])
+
   async function loadLeagueSummary() {
     setLoading(true)
     setError('')

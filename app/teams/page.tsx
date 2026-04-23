@@ -141,6 +141,13 @@ export default function TeamsPage() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSearch(params.get('q')?.trim() || '')
+    setLeagueFilter(params.get('league')?.trim() || '')
+    setFlightFilter(params.get('flight')?.trim() || '')
+  }, [])
+
   async function loadTeams() {
     setLoading(true)
     setError('')
