@@ -3002,8 +3002,8 @@ const heroTextStyle: CSSProperties = {
 }
 
 const heroButtonRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 12,
   marginTop: 18,
 }
@@ -3228,13 +3228,13 @@ const labelStyle: CSSProperties = {
 
 const filtersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 14,
 }
 
 const contextSummaryGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 12,
 }
 
@@ -3367,15 +3367,15 @@ const ghostButtonSmallButton: CSSProperties = {
 }
 
 const actionRowStyle: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 10,
-  flexWrap: 'wrap',
 }
 
 const actionRowStyleWrap: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 10,
-  flexWrap: 'wrap',
   marginTop: 14,
 }
 
@@ -3529,7 +3529,7 @@ const decisionCardLabelStyle: CSSProperties = {
 }
 
 const decisionCardValueStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground-strong)',
   fontSize: 24,
   lineHeight: 1.05,
   fontWeight: 900,
@@ -3537,7 +3537,7 @@ const decisionCardValueStyle: CSSProperties = {
 }
 
 const decisionCardTextStyle: CSSProperties = {
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.62,
 }
@@ -3552,8 +3552,8 @@ const actionPlanGridStyle: CSSProperties = {
 const actionPlanCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 16,
-  background: 'rgba(2, 6, 23, 0.58)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
 }
@@ -3567,7 +3567,7 @@ const actionPlanLabelStyle: CSSProperties = {
 }
 
 const actionPlanValueStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground-strong)',
   fontSize: 22,
   lineHeight: 1.08,
   fontWeight: 900,
@@ -3575,14 +3575,14 @@ const actionPlanValueStyle: CSSProperties = {
 }
 
 const actionPlanTextStyle: CSSProperties = {
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.62,
 }
 
 const actionPlanInsightStyle: CSSProperties = {
   marginTop: 14,
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.7,
 }
@@ -3597,8 +3597,8 @@ const scenarioDeckGridStyle: CSSProperties = {
 const scenarioDeckCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 16,
-  background: 'rgba(2, 6, 23, 0.58)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
 }
@@ -3612,7 +3612,7 @@ const scenarioDeckLabelStyle: CSSProperties = {
 }
 
 const scenarioDeckValueStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground-strong)',
   fontSize: 22,
   lineHeight: 1.08,
   fontWeight: 900,
@@ -3620,14 +3620,14 @@ const scenarioDeckValueStyle: CSSProperties = {
 }
 
 const scenarioDeckTextStyle: CSSProperties = {
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.62,
 }
 
 const scenarioDeckButtonRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 10,
   marginTop: 14,
 }
@@ -3642,14 +3642,14 @@ const projectionHeroStyle: CSSProperties = {
 }
 
 const projectionValueStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground-strong)',
   fontSize: 44,
   lineHeight: 1,
   fontWeight: 900,
 }
 
 const projectionTierStyle: CSSProperties = {
-  color: '#bfdbfe',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 800,
   marginTop: 8,
   fontSize: 15,
@@ -3667,16 +3667,16 @@ const miniPillStyle: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
 }
 
 const miniPillSlateStyle: CSSProperties = {
   ...miniPillStyle,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#e2e8f0',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }
 
 const miniPillBlueStyle: CSSProperties = {
@@ -3716,15 +3716,15 @@ const lockPanelStyle: CSSProperties = {
 
 const lockGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 12,
 }
 
 const lockSummaryCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 16,
-  background: 'rgba(2, 6, 23, 0.56)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
 }

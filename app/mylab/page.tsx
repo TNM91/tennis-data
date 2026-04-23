@@ -2,14 +2,12 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
-import { useTheme } from '@/app/components/theme-provider'
 import {
   inferCompetitionLayerFromValues,
   type CompetitionLayer,
@@ -381,7 +379,6 @@ export default function MyLabPage() {
 
 function MyLabPageInner() {
   const { userId, authResolved, role } = useAuth()
-  const { theme } = useTheme()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -407,9 +404,6 @@ function MyLabPageInner() {
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
   const access = useMemo(() => buildProductAccessState(role, null), [role])
 
   const refreshMyLab = useCallback(async () => {
@@ -1242,23 +1236,30 @@ function MyLabPageInner() {
     background: 'var(--shell-panel-bg)',
   }
 
-  const heroRailVisualStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-  }
-
-  const heroRailMaskStyle: CSSProperties = {
-    position: 'absolute',
-    inset: 0,
-    background: isTablet ? 'var(--shell-hero-mask-mobile)' : 'var(--shell-hero-mask)',
-    pointerEvents: 'none',
-    zIndex: 1,
-  }
-
   const heroRailContentStyle: CSSProperties = {
     position: 'relative',
     zIndex: 2,
   }
+
+  const heroRailHighlights = [
+    {
+      label: 'Tracked',
+      value: String(follows.length),
+      text: 'Players, teams, and leagues in your lab.',
+    },
+    {
+      label: 'Feed ready',
+      value: String(feed.length),
+      text: 'Personal updates already flowing into one stream.',
+    },
+    {
+      label: 'Best fit',
+      value: access.canUseAdvancedPlayerInsights ? 'Player+' : 'Free',
+      text: access.canUseAdvancedPlayerInsights
+        ? 'Insights unlocked for personal analysis.'
+        : 'Upgrade when you want deeper personal answers.',
+    },
+  ]
 
   return (
     <section style={pageStyle}>
@@ -1346,21 +1347,8 @@ function MyLabPageInner() {
         </div>
 
         <div style={dynamicHeroRailCardStyle}>
-          <div style={heroRailVisualStyle}>
-            <Image
-              src={heroArtworkSrc}
-              alt="TenAceIQ My Lab concept art"
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 34vw"
-              style={{
-                objectFit: 'cover',
-                objectPosition: isTablet ? 'center center' : '72% center',
-                opacity: theme === 'dark' ? 0.94 : 0.82,
-              }}
-            />
-            <div style={heroRailMaskStyle} />
-          </div>
+          <div style={labRailGlowStyle} />
+          <div style={labRailGridStyle} />
 
           <div style={heroRailContentStyle}>
             <p style={sectionKickerStyle}>What makes this elite</p>
@@ -1379,6 +1367,54 @@ function MyLabPageInner() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                gap: 12,
+                marginTop: 18,
+              }}
+            >
+              {heroRailHighlights.map((item) => (
+                <div key={item.label} style={labRailMiniCardStyle}>
+                  <div style={labRailMiniLabelStyle}>{item.label}</div>
+                  <div style={labRailMiniValueStyle}>{item.value}</div>
+                  <div style={labRailMiniTextStyle}>{item.text}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={labRailBoardStyle}>
+              <div style={labRailBoardHeaderStyle}>
+                <span style={pillSlateStyle}>Watchlist</span>
+                <span style={pillBlueStyle}>Feed</span>
+              </div>
+
+              <div style={labRailBoardRowsStyle}>
+                <div style={labRailBoardRowStyle}>
+                  <div>
+                    <div style={labRailBoardTitleStyle}>Tracked players</div>
+                    <div style={labRailBoardTextStyle}>Follow performance, movement, and match activity.</div>
+                  </div>
+                  <span style={pillGreenStyle}>{followedPlayers.length}</span>
+                </div>
+                <div style={labRailBoardRowStyle}>
+                  <div>
+                    <div style={labRailBoardTitleStyle}>Tracked teams</div>
+                    <div style={labRailBoardTextStyle}>Keep an eye on roster context and weekly motion.</div>
+                  </div>
+                  <span style={pillBlueStyle}>{followedTeams.length}</span>
+                </div>
+                <div style={labRailBoardRowStyle}>
+                  <div>
+                    <div style={labRailBoardTitleStyle}>Tracked leagues</div>
+                    <div style={labRailBoardTextStyle}>Separate official status from TIQ internal competition.</div>
+                  </div>
+                  <span style={pillSlateStyle}>{followedLeagues.length}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1870,6 +1906,101 @@ const heroRailCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   padding: 20,
+}
+
+const labRailGlowStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 78% 18%, rgba(155,225,29,0.18) 0%, rgba(155,225,29,0.06) 22%, rgba(155,225,29,0) 54%), radial-gradient(circle at 18% 78%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.06) 20%, rgba(116,190,255,0) 48%)',
+  pointerEvents: 'none',
+}
+
+const labRailGridStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+  opacity: 0.16,
+  pointerEvents: 'none',
+}
+
+const labRailMiniCardStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: '14px 14px 13px',
+  boxShadow: 'var(--shadow-soft)',
+  display: 'grid',
+  gap: 8,
+}
+
+const labRailMiniLabelStyle: CSSProperties = {
+  color: 'var(--muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const labRailMiniValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const labRailMiniTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.6,
+}
+
+const labRailBoardStyle: CSSProperties = {
+  marginTop: 18,
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 16,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const labRailBoardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const labRailBoardRowsStyle: CSSProperties = {
+  marginTop: 14,
+  display: 'grid',
+  gap: 10,
+}
+
+const labRailBoardRowStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: '14px 14px 13px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+}
+
+const labRailBoardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 800,
+  lineHeight: 1.3,
+}
+
+const labRailBoardTextStyle: CSSProperties = {
+  marginTop: 6,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.6,
 }
 
 const sideTitleStyle: CSSProperties = {

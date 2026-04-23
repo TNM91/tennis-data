@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { CSSProperties, FormEvent, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
+import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
@@ -241,41 +241,8 @@ export default function LoginPage() {
           <div style={loginPanelGlow} />
           <div style={loginPanelInner}>
             <div style={loginBrandWrap}>
-              <div
-                style={{
-                  ...logoOrbWrap,
-                  width: isSmallMobile ? '156px' : '188px',
-                  height: isSmallMobile ? '156px' : '188px',
-                }}
-              >
-                <div style={logoOrbOuter} />
-                <div style={{ ...logoOrbMiddle, inset: isSmallMobile ? '12px' : '14px' }} />
-                <div
-                  style={{
-                    ...logoOrbInner,
-                    width: isSmallMobile ? '120px' : '142px',
-                    height: isSmallMobile ? '120px' : '142px',
-                  }}
-                >
-                  <Image
-                    src="/logo-icon-current.png"
-                    alt="TenAceIQ"
-                    width={124}
-                    height={124}
-                    priority
-                    style={{
-                      width: isSmallMobile ? '92px' : isMobile ? '108px' : '124px',
-                      height: isSmallMobile ? '92px' : isMobile ? '108px' : '124px',
-                      display: 'block',
-                      objectFit: 'contain',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ ...loginBrandText, fontSize: isSmallMobile ? '30px' : '36px' }}>
-                <span style={{ color: '#F8FBFF' }}>TenAce</span>
-                <span style={brandIQ}>IQ</span>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
               </div>
             </div>
 

@@ -1,11 +1,9 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
-import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const FEATURE_CARDS = [
@@ -61,6 +59,38 @@ const GLOBAL_FEED = [
   },
 ]
 
+const DISCOVERY_STREAM = [
+  {
+    title: 'Players near your level',
+    detail: 'Search by name, area, or flight to narrow the field before you compare.',
+    badge: 'Players',
+    accent: 'blue' as const,
+  },
+  {
+    title: 'USTA leagues separated cleanly',
+    detail: 'Browse official context without blurring it into TIQ strategic surfaces.',
+    badge: 'USTA',
+    accent: 'green' as const,
+  },
+  {
+    title: 'TIQ leagues ready to browse',
+    detail: 'Move into internal team and individual competition when you want more than status.',
+    badge: 'TIQ',
+    accent: 'green' as const,
+  },
+]
+
+const DISCOVERY_CHANNELS = [
+  {
+    title: 'Search first',
+    text: 'Player names, teams, flights, and areas route into the right discovery surface fast.',
+  },
+  {
+    title: 'Compare second',
+    text: 'Use matchup and ranking views once you know who or what you want to pressure-test.',
+  },
+]
+
 const DISCOVERY_GUIDES = [
   {
     title: 'Start with a player',
@@ -104,11 +134,7 @@ const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLI
 
 export default function ExplorePage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
-  const { theme } = useTheme()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -126,7 +152,7 @@ export default function ExplorePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.98fr) minmax(420px, 1.02fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(0, 0.94fr)',
     gap: isMobile ? '20px' : '26px',
   }
 
@@ -154,10 +180,20 @@ export default function ExplorePage() {
     gap: isMobile ? '12px' : '14px',
   }
 
+  const dynamicDiscoveryStream: CSSProperties = {
+    ...discoveryStreamStyle,
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicDiscoveryChannels: CSSProperties = {
+    ...discoveryChannelGrid,
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  }
+
   const dynamicArtPanelStyle: CSSProperties = {
     ...featurePanel,
     position: 'relative',
-    minHeight: isSmallMobile ? '240px' : isMobile ? '300px' : '420px',
+    minHeight: isSmallMobile ? '360px' : isMobile ? '430px' : '540px',
     padding: 0,
     overflow: 'hidden',
     background: 'var(--shell-panel-bg)',
@@ -177,11 +213,13 @@ export default function ExplorePage() {
 
   const dynamicArtOverlayStyle: CSSProperties = {
     position: 'absolute',
+    top: isMobile ? '16px' : '20px',
     left: isMobile ? '16px' : '20px',
     right: isMobile ? '16px' : '20px',
     bottom: isMobile ? '16px' : '20px',
     display: 'grid',
     gap: '10px',
+    alignContent: 'start',
     zIndex: 2,
   }
 
@@ -226,18 +264,8 @@ export default function ExplorePage() {
             </div>
 
             <div style={dynamicArtPanelStyle}>
-              <Image
-                src={heroArtworkSrc}
-                alt="TenAceIQ explore concept art"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 44vw"
-                style={{
-                  objectFit: 'cover',
-                  objectPosition: isTablet ? 'center center' : '72% center',
-                  opacity: theme === 'dark' ? 0.94 : 0.82,
-                }}
-              />
+              <div style={discoveryBoardGlow} />
+              <div style={discoveryBoardGrid} />
               <div style={dynamicArtMaskStyle} />
 
               <div style={dynamicArtOverlayStyle}>
@@ -252,6 +280,25 @@ export default function ExplorePage() {
                       <div style={feedTag}>{item.tag}</div>
                       <div style={feedTitle}>{item.title}</div>
                       <div style={feedText}>{item.body}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={dynamicDiscoveryStream}>
+                  {DISCOVERY_STREAM.map((item) => (
+                    <div key={item.title} style={discoveryStreamCard}>
+                      <span style={item.accent === 'green' ? pillGreen : pillBlue}>{item.badge}</span>
+                      <div style={discoveryStreamTitle}>{item.title}</div>
+                      <div style={discoveryStreamText}>{item.detail}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={dynamicDiscoveryChannels}>
+                  {DISCOVERY_CHANNELS.map((item) => (
+                    <div key={item.title} style={discoveryChannelCard}>
+                      <div style={discoveryChannelTitle}>{item.title}</div>
+                      <div style={discoveryChannelText}>{item.text}</div>
                     </div>
                   ))}
                 </div>
@@ -744,6 +791,81 @@ const feedTitle: CSSProperties = {
 const feedText: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '14px',
+  lineHeight: 1.65,
+}
+
+const discoveryBoardGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 78% 22%, rgba(155,225,29,0.18) 0%, rgba(155,225,29,0.07) 22%, rgba(155,225,29,0) 52%), radial-gradient(circle at 20% 72%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.07) 20%, rgba(116,190,255,0) 48%)',
+  pointerEvents: 'none',
+}
+
+const discoveryBoardGrid: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+  opacity: 0.18,
+  pointerEvents: 'none',
+}
+
+const discoveryStreamStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '12px',
+}
+
+const discoveryStreamCard: CSSProperties = {
+  borderRadius: '20px',
+  padding: '16px 16px 15px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'var(--shadow-soft)',
+  display: 'grid',
+  gap: '10px',
+}
+
+const discoveryStreamTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  fontWeight: 800,
+  lineHeight: 1.25,
+}
+
+const discoveryStreamText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.65,
+}
+
+const discoveryChannelGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '12px',
+}
+
+const discoveryChannelCard: CSSProperties = {
+  borderRadius: '20px',
+  padding: '16px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const discoveryChannelTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 800,
+  lineHeight: 1.3,
+}
+
+const discoveryChannelText: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
   lineHeight: 1.65,
 }
 

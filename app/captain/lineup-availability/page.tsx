@@ -1252,33 +1252,35 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const width = compact ? 176 : top ? 276 : footer ? 288 : 236
+  const height = compact ? 30 : top ? 46 : footer ? 48 : 40
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+    <span
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        width: `${width}px`,
+        height: `${height}px`,
+        flexShrink: 0,
+        minWidth: 0,
+      }}
+    >
       <Image
-        src="/logo-icon-current.png"
+        src="/logo-header-dark.svg"
         alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
+        fill
         priority
-        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-      />
-      <div
+        sizes={`${width}px`}
         style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
+          objectFit: 'contain',
+          objectPosition: 'left center',
+          filter: footer
+            ? 'drop-shadow(0 6px 14px rgba(5, 14, 30, 0.08))'
+            : 'drop-shadow(0 6px 16px rgba(5, 14, 30, 0.10))',
         }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
+      />
+    </span>
   )
 }
 

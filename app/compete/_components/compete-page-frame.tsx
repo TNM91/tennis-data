@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
@@ -34,6 +33,24 @@ const HERO_SIGNALS = [
   },
 ]
 
+const WORKFLOW_PULSES = [
+  {
+    label: 'Now',
+    title: 'See active league context',
+    text: 'Start from your live leagues and teams before captain decisions begin.',
+  },
+  {
+    label: 'Next',
+    title: 'Move into schedule and results',
+    text: 'Stay inside one weekly path instead of bouncing across disconnected pages.',
+  },
+  {
+    label: 'Ready',
+    title: 'Hand off to Captain',
+    text: 'Availability, lineups, scenarios, and messaging stay one click away.',
+  },
+]
+
 export default function CompetePageFrame({
   title,
   eyebrow,
@@ -42,10 +59,6 @@ export default function CompetePageFrame({
 }: FrameProps) {
   const { theme } = useTheme()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const heroArtworkSrc =
-    theme === 'dark'
-      ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-      : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   return (
     <SiteShell active="/compete">
@@ -160,18 +173,8 @@ export default function CompetePageFrame({
                   background: 'var(--shell-panel-bg)',
                 }}
               >
-                <Image
-                  src={heroArtworkSrc}
-                  alt="TenAceIQ compete workflow visual"
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 42vw"
-                  style={{
-                    objectFit: 'cover',
-                    objectPosition: isTablet ? 'center center' : '72% center',
-                    opacity: theme === 'dark' ? 0.96 : 0.82,
-                  }}
-                />
+                <div style={workflowBoardGlow} />
+                <div style={workflowBoardGrid} />
                 <div
                   style={{
                     position: 'absolute',
@@ -222,6 +225,22 @@ export default function CompetePageFrame({
                       gap: '12px',
                     }}
                   >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                        gap: '10px',
+                      }}
+                    >
+                      {WORKFLOW_PULSES.map((item) => (
+                        <div key={item.title} style={workflowPulseCard}>
+                          <div style={workflowPulseLabel}>{item.label}</div>
+                          <div style={workflowPulseTitle}>{item.title}</div>
+                          <div style={workflowPulseText}>{item.text}</div>
+                        </div>
+                      ))}
+                    </div>
+
                     {COMPETE_NAV_ITEMS.map((item) => (
                       <SubnavLink key={item.href} href={item.href} label={item.label} />
                     ))}
@@ -385,6 +404,55 @@ const eyebrowChipStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+}
+
+const workflowBoardGlow: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 76% 22%, rgba(155,225,29,0.18) 0%, rgba(155,225,29,0.06) 22%, rgba(155,225,29,0) 56%), radial-gradient(circle at 18% 78%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.06) 20%, rgba(116,190,255,0) 50%)',
+  pointerEvents: 'none',
+}
+
+const workflowBoardGrid: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+  opacity: 0.16,
+  pointerEvents: 'none',
+}
+
+const workflowPulseCard: CSSProperties = {
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: '14px 14px 13px',
+  boxShadow: 'var(--shadow-soft)',
+  display: 'grid',
+  gap: '8px',
+}
+
+const workflowPulseLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const workflowPulseTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 800,
+  lineHeight: 1.3,
+}
+
+const workflowPulseText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.6,
 }
 
 const cardStyle: CSSProperties = {

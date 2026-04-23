@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
@@ -205,7 +204,7 @@ export default function PreviewHomepage() {
                 style={{
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: 10,
+                  gap: 12,
                   alignItems: 'center',
                 }}
               >
@@ -214,6 +213,8 @@ export default function PreviewHomepage() {
                   style={{
                     ...badgeBlue,
                     color: colors.textStrong,
+                    minHeight: 38,
+                    paddingInline: 16,
                   }}
                 >
                   Search first. Upgrade with purpose.
@@ -306,8 +307,8 @@ export default function PreviewHomepage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: 10,
+                  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+                  gap: 12,
                 }}
               >
                 {[
@@ -332,13 +333,14 @@ export default function PreviewHomepage() {
                     key={item.label}
                     style={{
                       position: 'relative',
-                      padding: 14,
+                      padding: isSmallMobile ? 14 : 16,
                       display: 'grid',
-                      gap: 6,
+                      gap: 8,
                       overflow: 'hidden',
                       border: '1px solid rgba(116,190,255,0.10)',
                       borderTop: `2px solid ${theme.priceColor}`,
                       background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                      minHeight: 130,
                     }}
                   >
                     <div
@@ -561,6 +563,7 @@ export default function PreviewHomepage() {
 function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
   const { theme } = useTheme()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<HeroSearchFilter>('players')
   const isLight = theme === 'light'
@@ -590,10 +593,10 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
     <div
       style={{
         ...glassCard,
-        padding: compact ? 15 : 18,
+        padding: isSmallMobile ? 14 : compact || isMobile ? 16 : 18,
         display: 'grid',
         gap: 12,
-        maxWidth: 760,
+        maxWidth: isMobile ? '100%' : 760,
         border: '1px solid var(--home-search-frame-border)',
         background: 'var(--home-search-frame-bg)',
         boxShadow: 'var(--home-search-frame-shadow)',
@@ -614,7 +617,15 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             Free entry
           </div>
         </div>
-        <div style={{ color: colors.textStrong, fontSize: compact ? 20 : 24, fontWeight: 900, letterSpacing: '-0.03em' }}>
+        <div
+          style={{
+            color: colors.textStrong,
+            fontSize: isSmallMobile ? 18 : compact || isMobile ? 20 : 24,
+            fontWeight: 900,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.12,
+          }}
+        >
           Find what you need without digging through the product.
         </div>
         <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.65 }}>
@@ -627,9 +638,9 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         onSubmit={handleSubmit}
         style={{
           display: 'grid',
-          gridTemplateColumns: compact ? '1fr' : 'minmax(164px, 192px) minmax(0, 1fr) auto',
+          gridTemplateColumns: compact || isMobile ? '1fr' : 'minmax(164px, 192px) minmax(0, 1fr) auto',
           gap: 10,
-          alignItems: 'end',
+          alignItems: compact || isMobile ? 'stretch' : 'end',
         }}
       >
         <label style={{ display: 'grid', gap: 6 }}>
@@ -641,7 +652,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             onChange={(event) => setFilter(event.target.value as HeroSearchFilter)}
             style={{
               ...surfaceCard,
-              minHeight: 56,
+              minHeight: isSmallMobile ? 52 : 56,
               padding: '0 14px',
               border: '1px solid var(--home-input-border)',
               background: 'var(--home-input-bg)',
@@ -683,7 +694,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         <div
           style={{
             ...surfaceCard,
-            minHeight: 56,
+            minHeight: isSmallMobile ? 52 : 56,
             padding: '0 16px',
             display: 'flex',
             alignItems: 'center',
@@ -714,9 +725,10 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           type="submit"
           style={{
             ...buttonPrimary,
-            minHeight: 56,
-            minWidth: compact ? '100%' : 138,
-            paddingInline: compact ? 20 : 24,
+            minHeight: isSmallMobile ? 52 : 56,
+            minWidth: compact || isMobile ? '100%' : 138,
+            width: compact || isMobile ? '100%' : undefined,
+            paddingInline: compact || isMobile ? 20 : 24,
             border: 'none',
             cursor: 'pointer',
           }}
@@ -876,63 +888,43 @@ function HeroWorkspacePreview() {
             style={{
               ...snapshotPanelStyle,
               gap: 10,
-              padding: 10,
+              padding: 12,
               overflow: 'hidden',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Matchup card</div>
+              <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Player+ insight board</div>
               <span style={{ ...badgeBlue, width: 'fit-content' }}>Player+</span>
             </div>
+
             <div
               style={{
-                position: 'relative',
-                width: '100%',
-                aspectRatio: '1.2 / 1',
-                borderRadius: 16,
-                overflow: 'hidden',
-                border: '1px solid rgba(116,190,255,0.16)',
+                display: 'grid',
+                gap: 10,
+                padding: 12,
+                borderRadius: 18,
+                border: '1px solid rgba(116,190,255,0.12)',
                 background:
-                  'radial-gradient(circle at 50% 52%, rgba(155,225,29,0.18) 0%, rgba(155,225,29,0.07) 18%, transparent 38%), radial-gradient(circle at 18% 20%, rgba(116,190,255,0.10) 0%, transparent 26%), radial-gradient(circle at 82% 18%, rgba(255,255,255,0.08) 0%, transparent 22%), linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 88%, var(--brand-blue-2) 12%) 0%, color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%) 100%)',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+                  'radial-gradient(circle at 78% 18%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.06) 24%, transparent 54%), radial-gradient(circle at 22% 80%, rgba(155,225,29,0.14) 0%, rgba(155,225,29,0.05) 20%, transparent 48%), linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%) 100%)',
               }}
             >
               <div
                 style={{
-                  position: 'absolute',
-                  inset: 0,
-                  pointerEvents: 'none',
-                  background:
-                    'linear-gradient(rgba(116,190,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(116,190,255,0.04) 1px, transparent 1px)',
-                  backgroundSize: '28px 28px',
-                  opacity: 0.34,
+                  display: 'grid',
+                  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                  gap: 8,
                 }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: '7%',
-                  width: '68%',
-                  height: '18%',
-                  transform: 'translateX(-50%)',
-                  borderRadius: 999,
-                  background: 'radial-gradient(circle, rgba(155,225,29,0.16) 0%, rgba(116,190,255,0.08) 42%, transparent 74%)',
-                  filter: 'blur(12px)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <Image
-                src="/matchup.png"
-                alt="TenAceIQ matchup preview"
-                fill
-                sizes="260px"
-                style={{
-                  objectFit: 'contain',
-                  objectPosition: 'center center',
-                  padding: '12px 12px 10px',
-                }}
-              />
+              >
+                <SnapshotCard title="Fit score" value="78" text="Best at S2 / D1" accent="blue" />
+                <SnapshotCard title="Projection" value="+6%" text="Versus recent baseline" accent="green" />
+                <SnapshotCard title="Trend" value="Up" text="Recent form is improving" accent="blue" />
+              </div>
+
+              <div style={listShellStyle}>
+                <ListRow title="Recommended role" meta="Best current slot based on results and lineup fit." trailing="S2 / D1" />
+                <ListRow title="Recent signal" meta="Stronger doubles results over the last three match windows." trailing="Doubles up" />
+                <ListRow title="Next question" meta="Compare player fit before locking the weekly lineup." trailing="Compare" />
+              </div>
             </div>
           </div>
         </div>
@@ -1346,7 +1338,7 @@ function CaptainSnapshot() {
             <span style={{ ...badgeGreen, width: 'fit-content' }}>Captain</span>
           </div>
           <div style={lineupShellStyle}>
-            <LineupRow label="S1" value="N. Meinert" status="Available" projection="66%" />
+            <LineupRow label="S1" value="J. Walker" status="Available" projection="66%" />
             <LineupRow label="S2" value="L. Carter" status="Available" projection="59%" />
             <LineupRow label="D1" value="Mei + Brooks" status="Available" projection="74%" />
             <LineupRow label="D2" value="Hart + Lyons" status="Tentative" projection="68%" />

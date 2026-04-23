@@ -321,9 +321,9 @@ export default function ExploreSearchPage() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isTablet ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) auto',
+              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) auto',
               gap: 10,
-              alignItems: 'end',
+              alignItems: isMobile ? 'stretch' : 'end',
             }}
           >
             <label style={{ display: 'grid', gap: 6 }}>
@@ -360,7 +360,16 @@ export default function ExploreSearchPage() {
               </div>
             </label>
 
-            <button type="submit" style={{ ...buttonPrimary, minHeight: 56, minWidth: isTablet ? '100%' : 142, border: 'none' }}>
+            <button
+              type="submit"
+              style={{
+                ...buttonPrimary,
+                minHeight: isSmallMobile ? 52 : 56,
+                minWidth: isTablet ? '100%' : 142,
+                width: isMobile ? '100%' : undefined,
+                border: 'none',
+              }}
+            >
               Search now
             </button>
           </form>

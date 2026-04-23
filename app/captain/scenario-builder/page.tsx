@@ -1754,8 +1754,8 @@ const heroTextStyle: CSSProperties = {
 }
 
 const heroButtonRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 12,
   marginTop: 22,
 }
@@ -1954,12 +1954,12 @@ const filtersGridStyle: CSSProperties = {
 }
 
 const filterFooterStyle: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   justifyContent: 'flex-start',
   alignItems: 'center',
   gap: '12px',
   marginTop: '16px',
-  flexWrap: 'wrap',
 }
 
 const compareGridStyle: CSSProperties = {
@@ -2013,9 +2013,9 @@ const metaValueStyle: CSSProperties = {
 }
 
 const actionRowStyle: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: '12px',
-  flexWrap: 'wrap',
   marginTop: '16px',
 }
 
@@ -2088,7 +2088,7 @@ const primaryButtonSmall: CSSProperties = {
 }
 
 const projectionValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '36px',
   lineHeight: 1,
@@ -2181,8 +2181,8 @@ const thStyle: CSSProperties = {
 
 const tdStyle: CSSProperties = {
   padding: '14px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
-  color: '#f8fbff',
+  borderTop: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   verticalAlign: 'top',
 }
 
@@ -2192,7 +2192,7 @@ const tdLabelStyle: CSSProperties = {
 }
 
 const mutedTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   margin: 0,
   lineHeight: 1.65,
 }
@@ -2205,7 +2205,7 @@ const errorTextStyle: CSSProperties = {
 
 const notesTextStyle: CSSProperties = {
   margin: 0,
-  color: '#e7eefb',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.7,
   whiteSpace: 'pre-wrap',
 }
@@ -2220,14 +2220,14 @@ const finalizeGridStyle: CSSProperties = {
 const finalizeCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const finalizeLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2235,7 +2235,7 @@ const finalizeLabelStyle: CSSProperties = {
 }
 
 const finalizeValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2243,7 +2243,7 @@ const finalizeValueStyle: CSSProperties = {
 }
 
 const finalizeTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
@@ -2257,14 +2257,14 @@ const takeawayGridStyle: CSSProperties = {
 const takeawayCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const takeawayLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2272,7 +2272,7 @@ const takeawayLabelStyle: CSSProperties = {
 }
 
 const takeawayValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2280,7 +2280,7 @@ const takeawayValueStyle: CSSProperties = {
 }
 
 const takeawayTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
@@ -2295,14 +2295,14 @@ const scenarioCommandGridStyle: CSSProperties = {
 const scenarioCommandCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const scenarioCommandLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2310,7 +2310,7 @@ const scenarioCommandLabelStyle: CSSProperties = {
 }
 
 const scenarioCommandValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2318,7 +2318,7 @@ const scenarioCommandValueStyle: CSSProperties = {
 }
 
 const scenarioCommandTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
@@ -2333,14 +2333,14 @@ const deltaSummaryGridStyle: CSSProperties = {
 const deltaSummaryCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const deltaSummaryLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2348,7 +2348,7 @@ const deltaSummaryLabelStyle: CSSProperties = {
 }
 
 const deltaSummaryValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2356,7 +2356,7 @@ const deltaSummaryValueStyle: CSSProperties = {
 }
 
 const deltaSummaryTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
@@ -2371,14 +2371,14 @@ const readinessGridStyle: CSSProperties = {
 const readinessCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const readinessLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2386,7 +2386,7 @@ const readinessLabelStyle: CSSProperties = {
 }
 
 const readinessValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2394,7 +2394,7 @@ const readinessValueStyle: CSSProperties = {
 }
 
 const readinessTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
@@ -2409,14 +2409,14 @@ const confidenceLadderGridStyle: CSSProperties = {
 const confidenceLadderCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const confidenceLadderLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2424,7 +2424,7 @@ const confidenceLadderLabelStyle: CSSProperties = {
 }
 
 const confidenceLadderValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2432,14 +2432,14 @@ const confidenceLadderValueStyle: CSSProperties = {
 }
 
 const confidenceLadderTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
 
 const confidenceLadderInsightStyle: CSSProperties = {
   marginTop: '14px',
-  color: '#e7eefb',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.7,
   fontSize: '14px',
 }
@@ -2454,14 +2454,14 @@ const scoreboardGridStyle: CSSProperties = {
 const scoreboardCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const scoreboardLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2469,7 +2469,7 @@ const scoreboardLabelStyle: CSSProperties = {
 }
 
 const scoreboardValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2477,14 +2477,14 @@ const scoreboardValueStyle: CSSProperties = {
 }
 
 const scoreboardTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }
 
 const scoreboardInsightStyle: CSSProperties = {
   marginTop: '14px',
-  color: '#e7eefb',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.7,
   fontSize: '14px',
 }
@@ -2499,14 +2499,14 @@ const changeDigestGridStyle: CSSProperties = {
 const changeDigestCardStyle: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '8px',
 }
 
 const changeDigestLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2514,7 +2514,7 @@ const changeDigestLabelStyle: CSSProperties = {
 }
 
 const changeDigestValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
@@ -2522,7 +2522,7 @@ const changeDigestValueStyle: CSSProperties = {
 }
 
 const changeDigestTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: '14px',
 }

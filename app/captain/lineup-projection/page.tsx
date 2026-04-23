@@ -1279,33 +1279,35 @@ function BrandWordmark({
   footer?: boolean
   top?: boolean
 }) {
-  const iconSize = compact ? 30 : top ? 38 : footer ? 36 : 34
-  const fontSize = compact ? 24 : top ? 30 : footer ? 27 : 27
+  const width = compact ? 176 : top ? 276 : footer ? 288 : 236
+  const height = compact ? 30 : top ? 46 : footer ? 48 : 40
 
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
+    <span
+      style={{
+        position: 'relative',
+        display: 'inline-flex',
+        width: `${width}px`,
+        height: `${height}px`,
+        flexShrink: 0,
+        minWidth: 0,
+      }}
+    >
       <Image
-        src="/logo-icon-current.png"
+        src="/logo-header-dark.svg"
         alt="TenAceIQ"
-        width={iconSize}
-        height={iconSize}
+        fill
         priority
-        style={{ width: `${iconSize}px`, height: `${iconSize}px`, display: 'block', objectFit: 'contain' }}
-      />
-      <div
+        sizes={`${width}px`}
         style={{
-          fontWeight: 900,
-          letterSpacing: '-0.045em',
-          fontSize: `${fontSize}px`,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'baseline',
+          objectFit: 'contain',
+          objectPosition: 'left center',
+          filter: footer
+            ? 'drop-shadow(0 6px 14px rgba(5, 14, 30, 0.08))'
+            : 'drop-shadow(0 6px 16px rgba(5, 14, 30, 0.10))',
         }}
-      >
-        <span style={{ color: footer ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span style={brandIQ}>IQ</span>
-      </div>
-    </div>
+      />
+    </span>
   )
 }
 
@@ -1591,8 +1593,8 @@ const heroTextStyle: CSSProperties = {
 }
 
 const heroButtonRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 12,
   marginTop: 22,
 }
@@ -1672,7 +1674,7 @@ const quickStartCard: CSSProperties = {
 }
 
 const quickStartLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -1691,7 +1693,7 @@ const quickStartValue: CSSProperties = {
 
 const quickStartText: CSSProperties = {
   marginTop: 10,
-  color: 'rgba(219, 234, 254, 0.88)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -1891,7 +1893,7 @@ const projectionCardAccentStyle: CSSProperties = {
 }
 
 const projectionValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '36px',
   lineHeight: 1,
@@ -1906,7 +1908,7 @@ const compareGridStyle: CSSProperties = {
 }
 
 const cardTitleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '1.15rem',
   lineHeight: 1.2,
   fontWeight: 900,
@@ -1915,22 +1917,22 @@ const cardTitleStyle: CSSProperties = {
 }
 
 const lineItemStyle: CSSProperties = {
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: '1rem',
   padding: '0.9rem 0.95rem',
   marginBottom: '0.75rem',
 }
 
 const lineMainStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '0.96rem',
   lineHeight: 1.55,
   fontWeight: 700,
 }
 
 const lineMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   lineHeight: 1.55,
   marginTop: '0.25rem',
@@ -1946,14 +1948,14 @@ const lineNoteStyle: CSSProperties = {
 }
 
 const emptyMiniStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.94rem',
   lineHeight: 1.6,
   fontWeight: 600,
 }
 
 const notesTitleStyle: CSSProperties = {
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '1rem',
   fontWeight: 800,
   marginBottom: '0.55rem',
@@ -1966,7 +1968,7 @@ const notesListStyle: CSSProperties = {
 }
 
 const noteRowStyle: CSSProperties = {
-  color: 'rgba(231, 240, 255, 0.9)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.92rem',
   lineHeight: 1.6,
   fontWeight: 600,
@@ -1978,7 +1980,7 @@ const rosterGridStyle: CSSProperties = {
 }
 
 const playerNameStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '1.22rem',
   lineHeight: 1.2,
   fontWeight: 900,
@@ -1986,7 +1988,7 @@ const playerNameStyle: CSSProperties = {
 }
 
 const playerMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.92rem',
   lineHeight: 1.6,
   marginTop: '0.35rem',
@@ -2010,19 +2012,19 @@ const miniStatStyle: CSSProperties = {
   padding: '0.8rem 0.85rem',
   minWidth: 0,
   borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const miniStatLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.76rem',
   marginBottom: '0.25rem',
   fontWeight: 700,
 }
 
 const miniStatValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: '0.98rem',
   lineHeight: 1.2,
@@ -2030,11 +2032,11 @@ const miniStatValueStyle: CSSProperties = {
 
 const noteBoxStyle: CSSProperties = {
   marginTop: '0.75rem',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: '0.9rem',
   padding: '0.75rem 0.8rem',
-  color: 'rgba(224,234,247,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.84rem',
   lineHeight: 1.55,
   fontWeight: 500,
@@ -2054,11 +2056,11 @@ const listRowStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: '0.85rem',
   padding: '0.95rem 1rem',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  borderBottom: '1px solid var(--shell-panel-border)',
 }
 
 const listMainStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '0.96rem',
   lineHeight: 1.55,
   fontWeight: 700,

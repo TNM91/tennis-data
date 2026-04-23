@@ -2,7 +2,6 @@
 
 export const dynamic = 'force-dynamic'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -111,6 +110,21 @@ type CaptainWorkspaceState = {
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
+
+const CAPTAIN_COMMAND_SURFACES = [
+  {
+    label: 'Availability',
+    text: 'See who is in, out, tentative, or still needs a response before lineup pressure starts.',
+  },
+  {
+    label: 'Best lineup',
+    text: 'Move from player pool to the strongest weekly shape without losing match context.',
+  },
+  {
+    label: 'Scenario delta',
+    text: 'Compare fallback options and understand what each move costs before you commit.',
+  },
+]
 
 
 type TeamPlayerSummary = {
@@ -242,10 +256,6 @@ export default function CaptainHubPage() {
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
-
-  const heroArtworkSrc = theme === 'dark'
-    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
-    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   const loadRole = useCallback(async (nextRole: UserRole) => {
     setRole(nextRole)
@@ -875,6 +885,56 @@ const dynamicHeroRightCard: CSSProperties = {
     alignItems: isSmallMobile ? 'stretch' : 'center',
   }
 
+  const dynamicNextActionShell: CSSProperties = {
+    ...nextActionShell,
+    gridTemplateColumns: isTablet ? '1fr' : nextActionShell.gridTemplateColumns,
+    padding: isSmallMobile ? 18 : isMobile ? 20 : nextActionShell.padding,
+  }
+
+  const dynamicStatusStrip: CSSProperties = {
+    ...statusStrip,
+    gridTemplateColumns: isSmallMobile ? '1fr' : statusStrip.gridTemplateColumns,
+  }
+
+  const dynamicNextActionButtonRow: CSSProperties = {
+    ...nextActionButtonRow,
+    display: isSmallMobile ? 'grid' : nextActionButtonRow.display,
+    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+  }
+
+  const dynamicGlanceActionRow: CSSProperties = {
+    ...glanceActionRow,
+    display: isSmallMobile ? 'grid' : glanceActionRow.display,
+    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+  }
+
+  const dynamicWeekStatusButtonRow: CSSProperties = {
+    ...weekStatusButtonRow,
+    display: isSmallMobile ? 'grid' : weekStatusButtonRow.display,
+    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+  }
+
+  const dynamicActionGrid: CSSProperties = {
+    ...actionGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : actionGrid.gridTemplateColumns,
+  }
+
+  const dynamicCommandGrid: CSSProperties = {
+    ...commandGrid,
+    gridTemplateColumns: isTablet ? '1fr' : commandGrid.gridTemplateColumns,
+  }
+
+  const dynamicCommandButtonRow: CSSProperties = {
+    ...commandButtonRow,
+    display: isSmallMobile ? 'grid' : commandButtonRow.display,
+    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+  }
+
+  const dynamicInsightGrid: CSSProperties = {
+    ...insightGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : insightGrid.gridTemplateColumns,
+  }
+
   const dynamicSelectStyle: CSSProperties = {
     ...selectStyle,
     minWidth: isSmallMobile ? '100%' : selectStyle.minWidth,
@@ -885,6 +945,16 @@ const dynamicHeroRightCard: CSSProperties = {
     position: 'absolute',
     inset: 0,
   }
+
+const captainHeroBoardGridStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  backgroundImage:
+    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
+  backgroundSize: '28px 28px',
+  opacity: 0.16,
+  pointerEvents: 'none',
+}
 
 const captainHeroVisualMaskStyle: CSSProperties = {
   position: 'absolute',
@@ -1202,18 +1272,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
           <div style={dynamicHeroRightCard}>
             <div style={captainHeroVisualStyle}>
-              <Image
-                src={heroArtworkSrc}
-                alt="TenAceIQ captain concept art"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 36vw"
-                style={{
-                  objectFit: 'cover',
-                  objectPosition: isTablet ? 'center center' : '72% center',
-                  opacity: theme === 'dark' ? 0.95 : 0.82,
-                }}
-              />
+              <div style={captainHeroBoardGridStyle} />
               <div style={captainHeroVisualGlowStyle} />
               <div style={captainHeroVisualMaskStyle} />
             </div>
@@ -1240,6 +1299,30 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                   </div>
                 ))}
               </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                  gap: 12,
+                }}
+              >
+                {CAPTAIN_COMMAND_SURFACES.map((item) => (
+                  <div key={item.label} style={captainQuickMetricCardStyle}>
+                    <div style={miniKicker}>{item.label}</div>
+                    <div style={captainQuickMetricValueStyle}>
+                      {item.label === 'Availability'
+                        ? `${quickStats.roster} ready`
+                        : item.label === 'Best lineup'
+                          ? `${quickStats.topPairWinPct} edge`
+                          : workspaceState.responseAlertCount > 0
+                            ? `+${workspaceState.responseAlertCount}`
+                            : 'Stable'}
+                    </div>
+                    <div style={captainQuickMetricTextStyle}>{item.text}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1260,7 +1343,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           </section>
         ) : null}
 
-        <section style={nextActionShell}>
+        <section style={dynamicNextActionShell}>
           <div style={nextActionIntro}>
             <div style={sectionKicker}>Captain memory</div>
             <h2 style={sectionTitle}>Resume your weekly workflow.</h2>
@@ -1287,7 +1370,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 : 'Once you open availability, lineup, scenarios, messaging, or analytics, the suite will remember where you left off.'}
             </div>
 
-            <div style={nextActionButtonRow}>
+            <div style={dynamicNextActionButtonRow}>
               <PrimaryLink href={resumeHref}>Resume workflow</PrimaryLink>
               <SecondarySmallLink href={availabilityHref}>Open availability</SecondarySmallLink>
               <SecondarySmallLink href={weeklyBriefHref}>Weekly brief</SecondarySmallLink>
@@ -1367,7 +1450,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           />
         )}
 
-        <section style={statusStrip}>
+        <section style={dynamicStatusStrip}>
           <StatusStripCard
             label="Lineup"
             value={workspaceState.lineupReady ? 'Built' : 'Not built'}
@@ -1394,7 +1477,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           />
         </section>
 
-        <section style={nextActionShell}>
+        <section style={dynamicNextActionShell}>
           <div style={nextActionIntro}>
             <div style={sectionKicker}>Next best action</div>
             <h2 style={sectionTitle}>What should you do right now?</h2>
@@ -1414,7 +1497,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             <div style={nextActionTitle}>{nextAction.title}</div>
             <div style={nextActionText}>{nextAction.detail}</div>
 
-            <div style={nextActionButtonRow}>
+            <div style={dynamicNextActionButtonRow}>
               <PrimaryBtn
                 disabled={!hasTeamScope}
                 onClick={() => handleCaptainNav(
@@ -1468,7 +1551,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
         <section
           style={{
-            ...nextActionShell,
+            ...dynamicNextActionShell,
             borderColor:
               weeklyOpsStatus.tone === 'warn'
                 ? 'rgba(251, 191, 36, 0.45)'
@@ -1480,7 +1563,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 ? '0 18px 45px rgba(120, 53, 15, 0.26)'
                 : weeklyOpsStatus.tone === 'good'
                   ? '0 18px 45px rgba(39, 84, 24, 0.22)'
-                  : nextActionShell.boxShadow,
+                  : dynamicNextActionShell.boxShadow,
           }}
         >
           <div style={nextActionIntro}>
@@ -1510,7 +1593,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               </div>
             </div>
 
-            <div style={nextActionButtonRow}>
+            <div style={dynamicNextActionButtonRow}>
               <PrimaryLink href={weeklyBriefHref}>Open weekly brief</PrimaryLink>
               <SecondarySmallLink href={teamBriefHref}>Open team brief</SecondarySmallLink>
               <SecondarySmallLink
@@ -1559,7 +1642,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             </div>
           </div>
 
-          <div style={glanceActionRow}>
+          <div style={dynamicGlanceActionRow}>
             <PrimaryLink href={weeklyBriefHref}>Open weekly brief</PrimaryLink>
             <SecondarySmallLink href={teamBriefHref}>Open team brief</SecondarySmallLink>
             <SecondarySmallLink href={lineupBuilderHref}>Edit lineup</SecondarySmallLink>
@@ -1573,7 +1656,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={glanceHint}>{weekStatusMeta.detail}</div>
             </div>
 
-            <div style={weekStatusButtonRow}>
+            <div style={dynamicWeekStatusButtonRow}>
               {(['draft-lineup', 'ready-to-send', 'finalized'] as CaptainWeekStatus[]).map((status) => {
                 const isActive = weekStatus === status
                 const label = status === 'draft-lineup' ? 'Draft lineup' : status === 'ready-to-send' ? 'Ready to send' : 'Finalized'
@@ -1600,7 +1683,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             </div>
           </div>
 
-          <div style={actionGrid}>
+          <div style={dynamicActionGrid}>
             <ActionCard
               badge="Briefing"
               title="Weekly Brief"
@@ -1697,7 +1780,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             </div>
           </div>
 
-          <div style={commandGrid}>
+          <div style={dynamicCommandGrid}>
             <div style={commandCard}>
               <div style={commandStep}>Step 1</div>
               <div style={commandTitle}>Lock the player pool</div>
@@ -1712,7 +1795,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={commandText}>
                 Use lineup builder and scenario tools together to create the best version before you communicate it.
               </div>
-              <div style={commandButtonRow}>
+              <div style={dynamicCommandButtonRow}>
                 <PrimarySmallBtn onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>Lineup Builder</PrimarySmallBtn>
                 <SecondarySmallBtn onClick={() => handleCaptainNav(scenarioHref, 'scenario')}>Compare Scenarios</SecondarySmallBtn>
               </div>
@@ -1723,7 +1806,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={commandText}>
                 Open messaging to send lineups, arrival time, directions, and reminders to the right group.
               </div>
-              <div style={commandButtonRow}>
+              <div style={dynamicCommandButtonRow}>
                 <PrimarySmallBtn onClick={() => handleCaptainNav(messagingHref, 'messaging')}>Open Messaging</PrimarySmallBtn>
                 <SecondarySmallBtn onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>Open Captain IQ</SecondarySmallBtn>
               </div>
@@ -1749,7 +1832,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           ) : loadingTeam ? (
             <div style={stateCard}>Loading captain insights...</div>
           ) : (
-            <div style={insightGrid}>
+            <div style={dynamicInsightGrid}>
               <div style={insightCard}>
                 <div style={insightLabel}>Top singles core</div>
                 <div style={insightSub}>
@@ -1884,6 +1967,7 @@ function ActionCard({
   lockedMessage?: string
   onAction?: () => void
 }) {
+  const { isSmallMobile } = useViewportBreakpoints()
   const locked = premium && !premiumEnabled
 
   return (
@@ -1903,15 +1987,15 @@ function ActionCard({
         <div style={lockedText}>{lockedMessage}</div>
       ) : onAction ? (
         accent ? (
-          <PrimarySmallBtn onClick={onAction}>{cta}</PrimarySmallBtn>
+          <PrimarySmallBtn onClick={onAction} fullWidth={isSmallMobile}>{cta}</PrimarySmallBtn>
         ) : (
-          <SecondarySmallBtn onClick={onAction}>{cta}</SecondarySmallBtn>
+          <SecondarySmallBtn onClick={onAction} fullWidth={isSmallMobile}>{cta}</SecondarySmallBtn>
         )
       ) : (
         accent ? (
-          <PrimarySmallLink href={href}>{cta}</PrimarySmallLink>
+          <PrimarySmallLink href={href} fullWidth={isSmallMobile}>{cta}</PrimarySmallLink>
         ) : (
-          <SecondarySmallLink href={href}>{cta}</SecondarySmallLink>
+          <SecondarySmallLink href={href} fullWidth={isSmallMobile}>{cta}</SecondarySmallLink>
         )
       )}
     </article>
@@ -1969,7 +2053,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+function PrimaryLink({ href, children, fullWidth = false }: { href: string; children: ReactNode; fullWidth?: boolean }) {
   const [hovered, setHovered] = useState(false)
   return (
     <Link
@@ -1978,6 +2062,7 @@ function PrimaryLink({ href, children }: { href: string; children: ReactNode }) 
       onMouseLeave={() => setHovered(false)}
       style={{
         ...primaryButton,
+        width: fullWidth ? '100%' : undefined,
         transform: hovered ? 'translateY(-2px)' : 'none',
         boxShadow: hovered ? '0 22px 44px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
         transition: 'transform 150ms ease, box-shadow 150ms ease',
@@ -1988,7 +2073,7 @@ function PrimaryLink({ href, children }: { href: string; children: ReactNode }) 
   )
 }
 
-function PrimarySmallLink({ href, children }: { href: string; children: ReactNode }) {
+function PrimarySmallLink({ href, children, fullWidth = false }: { href: string; children: ReactNode; fullWidth?: boolean }) {
   const [hovered, setHovered] = useState(false)
   return (
     <Link
@@ -1997,6 +2082,7 @@ function PrimarySmallLink({ href, children }: { href: string; children: ReactNod
       onMouseLeave={() => setHovered(false)}
       style={{
         ...primaryButtonSmall,
+        width: fullWidth ? '100%' : undefined,
         transform: hovered ? 'translateY(-2px)' : 'none',
         boxShadow: hovered ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
         transition: 'transform 150ms ease, box-shadow 150ms ease',
@@ -2007,7 +2093,7 @@ function PrimarySmallLink({ href, children }: { href: string; children: ReactNod
   )
 }
 
-function SecondarySmallLink({ href, children }: { href: string; children: ReactNode }) {
+function SecondarySmallLink({ href, children, fullWidth = false }: { href: string; children: ReactNode; fullWidth?: boolean }) {
   const [hovered, setHovered] = useState(false)
   return (
     <Link
@@ -2016,8 +2102,9 @@ function SecondarySmallLink({ href, children }: { href: string; children: ReactN
       onMouseLeave={() => setHovered(false)}
       style={{
         ...secondaryButtonSmall,
+        width: fullWidth ? '100%' : undefined,
         borderColor: hovered ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
-        background: hovered ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)',
+        background: hovered ? 'var(--surface-soft-strong)' : 'var(--shell-chip-bg)',
         transform: hovered ? 'translateY(-1px)' : 'none',
         transition: 'all 150ms ease',
       }}
@@ -2030,9 +2117,11 @@ function SecondarySmallLink({ href, children }: { href: string; children: ReactN
 function PrimarySmallBtn({
   onClick,
   children,
+  fullWidth = false,
 }: {
   onClick: () => void
   children: ReactNode
+  fullWidth?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -2043,6 +2132,7 @@ function PrimarySmallBtn({
       onClick={onClick}
       style={{
         ...primaryButtonSmallButton,
+        width: fullWidth ? '100%' : undefined,
         transform: hovered ? 'translateY(-2px)' : 'none',
         boxShadow: hovered ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
         transition: 'transform 150ms ease, box-shadow 150ms ease',
@@ -2057,10 +2147,12 @@ function SecondarySmallBtn({
   onClick,
   disabled,
   children,
+  fullWidth = false,
 }: {
   onClick: () => void
   disabled?: boolean
   children: ReactNode
+  fullWidth?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -2072,8 +2164,9 @@ function SecondarySmallBtn({
       onClick={onClick}
       style={{
         ...secondaryButtonSmallButton,
+        width: fullWidth ? '100%' : undefined,
         borderColor: hovered && !disabled ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
-        background: hovered && !disabled ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)',
+        background: hovered && !disabled ? 'var(--surface-soft-strong)' : 'var(--shell-chip-bg)',
         transform: hovered && !disabled ? 'translateY(-1px)' : 'none',
         transition: 'all 150ms ease',
         ...(disabled ? disabledButtonSecondary : {}),
@@ -2361,6 +2454,30 @@ const workflowText: CSSProperties = {
   lineHeight: 1.6,
 }
 
+const captainQuickMetricCardStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: '14px 14px 13px',
+  boxShadow: 'var(--shadow-soft)',
+  display: 'grid',
+  gap: 8,
+}
+
+const captainQuickMetricValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+  lineHeight: 1,
+}
+
+const captainQuickMetricTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.6,
+}
+
 const errorCard: CSSProperties = {
   padding: 16,
   borderRadius: 20,
@@ -2378,13 +2495,13 @@ const premiumStrip: CSSProperties = {
   flexWrap: 'wrap',
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.68) 0%, rgba(17,34,61,0.54) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
 }
 
 const premiumTitle: CSSProperties = {
   margin: '6px 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 22,
   lineHeight: 1.08,
   letterSpacing: '-0.03em',
@@ -2392,7 +2509,7 @@ const premiumTitle: CSSProperties = {
 
 const premiumText: CSSProperties = {
   marginTop: 8,
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.65,
 }
@@ -2413,8 +2530,8 @@ const statusStrip: CSSProperties = {
 const statusCard: CSSProperties = {
   padding: 16,
   borderRadius: 20,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   display: 'grid',
   gap: 10,
 }
@@ -2428,7 +2545,7 @@ const statusTopRow: CSSProperties = {
 }
 
 const statusDetail: CSSProperties = {
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.6,
 }
@@ -2439,8 +2556,8 @@ const nextActionShell: CSSProperties = {
   gap: 18,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
+  border: '1px solid rgba(74,222,128,0.14)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
 }
 
@@ -2460,14 +2577,14 @@ const nextActionCard: CSSProperties = {
   gap: 14,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
 }
 
 const nextActionCardAccent: CSSProperties = {
   ...nextActionCard,
   border: '1px solid rgba(163,230,53,0.2)',
-  background: 'linear-gradient(180deg, rgba(32,58,31,0.28) 0%, rgba(18,36,66,0.7) 100%)',
+  background: 'var(--shell-chip-bg-strong)',
 }
 
 const nextActionLabel: CSSProperties = {
@@ -2487,7 +2604,7 @@ const nextActionHeader: CSSProperties = {
 }
 
 const nextActionTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.08,
@@ -2495,7 +2612,7 @@ const nextActionTitle: CSSProperties = {
 }
 
 const nextActionText: CSSProperties = {
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.7,
 }
@@ -2516,10 +2633,9 @@ const warnBadge: CSSProperties = {
 const stateCard: CSSProperties = {
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background:
-    'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
-  color: '#dbeafe',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  color: 'var(--foreground)',
   fontWeight: 700,
 }
 
@@ -2551,9 +2667,8 @@ const metricGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background:
-    'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 10px 30px rgba(2,10,24,0.14)',
 }
 
@@ -2568,14 +2683,14 @@ const glanceCard: CSSProperties = {
   gap: 10,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
 }
 
 const glanceCardAccent: CSSProperties = {
   ...glanceCard,
   border: '1px solid rgba(163,230,53,0.22)',
-  background: 'linear-gradient(180deg, rgba(32,58,31,0.28) 0%, rgba(18,36,66,0.7) 100%)',
+  background: 'var(--shell-chip-bg-strong)',
 }
 
 const glanceLabel: CSSProperties = {
@@ -2587,7 +2702,7 @@ const glanceLabel: CSSProperties = {
 }
 
 const glanceValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.15,
@@ -2595,7 +2710,7 @@ const glanceValue: CSSProperties = {
 }
 
 const glanceHint: CSSProperties = {
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.6,
 }
@@ -2613,12 +2728,12 @@ const weekStatusShell: CSSProperties = {
   gap: 14,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
 }
 
 const weekStatusValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.1,
@@ -2659,9 +2774,8 @@ const sectionCard: CSSProperties = {
   gap: 18,
   padding: 22,
   borderRadius: 28,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background:
-    'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
 }
 
@@ -2675,7 +2789,7 @@ const sectionHead: CSSProperties = {
 
 const sectionKicker: CSSProperties = {
   fontSize: 12,
-  color: 'rgba(197,213,234,0.86)',
+  color: 'var(--shell-copy-muted)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontWeight: 800,
@@ -2683,7 +2797,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '6px 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 28,
   lineHeight: 1.06,
   letterSpacing: '-0.04em',
@@ -2691,7 +2805,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionSub: CSSProperties = {
   marginTop: 8,
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.7,
 }
@@ -2699,9 +2813,9 @@ const sectionSub: CSSProperties = {
 const notesScopeBanner: CSSProperties = {
   borderRadius: 18,
   padding: '12px 14px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#e7eefb',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   fontSize: 14,
   lineHeight: 1.6,
@@ -2719,13 +2833,13 @@ const notesField: CSSProperties = {
 }
 
 const notesLabel: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 14,
   fontWeight: 800,
 }
 
 const notesHint: CSSProperties = {
-  color: 'rgba(229,238,251,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.65,
 }
@@ -2734,9 +2848,9 @@ const notesTextarea: CSSProperties = {
   width: '100%',
   minHeight: 148,
   borderRadius: 18,
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  background: 'rgba(15, 23, 42, 0.92)',
-  color: '#f8fafc',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '14px 16px',
   outline: 'none',
   resize: 'vertical',
@@ -2756,9 +2870,8 @@ const actionCard: CSSProperties = {
   gap: 12,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background:
-    'linear-gradient(180deg, rgba(18,36,66,0.68) 0%, rgba(17,34,61,0.54) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   backdropFilter: 'blur(10px)',
   WebkitBackdropFilter: 'blur(10px)',
 }
@@ -2795,7 +2908,7 @@ const actionCardTopRow: CSSProperties = {
 const lockedText: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.6,
 }
@@ -2809,16 +2922,16 @@ const badgePill: CSSProperties = {
   borderRadius: 999,
   fontSize: 12,
   fontWeight: 800,
-  color: '#dbeafe',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const actionTitle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 20,
   lineHeight: 1.1,
   letterSpacing: '-0.03em',
@@ -2828,7 +2941,7 @@ const actionText: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   margin: 0,
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.7,
 }
@@ -2844,8 +2957,8 @@ const commandCard: CSSProperties = {
   gap: 12,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const commandCardAccent: CSSProperties = {
@@ -2867,7 +2980,7 @@ const commandStep: CSSProperties = {
 }
 
 const commandTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 20,
   fontWeight: 900,
   lineHeight: 1.1,
@@ -2875,7 +2988,7 @@ const commandTitle: CSSProperties = {
 }
 
 const commandText: CSSProperties = {
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.7,
 }
@@ -2897,21 +3010,20 @@ const insightCard: CSSProperties = {
   gap: 12,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background:
-    'linear-gradient(180deg, rgba(18,36,66,0.68) 0%, rgba(17,34,61,0.54) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   backdropFilter: 'blur(10px)',
   WebkitBackdropFilter: 'blur(10px)',
 }
 
 const insightLabel: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 18,
   fontWeight: 800,
 }
 
 const insightSub: CSSProperties = {
-  color: 'rgba(229,238,251,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.65,
 }
@@ -2928,19 +3040,19 @@ const listCard: CSSProperties = {
   alignItems: 'center',
   padding: 14,
   borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.1)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const listTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 15,
 }
 
 const listMeta: CSSProperties = {
   marginTop: 4,
-  color: 'rgba(197,213,234,0.86)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
 }
@@ -2962,7 +3074,7 @@ const pillHelper: CSSProperties = {
   marginTop: 6,
   fontSize: 12,
   textAlign: 'center',
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 700,
 }
 
@@ -2974,9 +3086,9 @@ const pairMetricWrap: CSSProperties = {
 const emptyLine: CSSProperties = {
   padding: 16,
   borderRadius: 16,
-  color: 'rgba(197,213,234,0.9)',
+  color: 'var(--shell-copy-muted)',
   border: '1px dashed rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.04)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const summaryGrid: CSSProperties = {
@@ -2988,13 +3100,13 @@ const summaryGrid: CSSProperties = {
 const miniStatCard: CSSProperties = {
   padding: 16,
   borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const miniStatLabel: CSSProperties = {
   fontSize: 12,
-  color: 'rgba(197,213,234,0.86)',
+  color: 'var(--shell-copy-muted)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontWeight: 800,
@@ -3002,7 +3114,7 @@ const miniStatLabel: CSSProperties = {
 
 const miniStatValue: CSSProperties = {
   marginTop: 8,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: 22,
   letterSpacing: '-0.03em',
@@ -3025,19 +3137,19 @@ const rosterRow: CSSProperties = {
   flexWrap: 'wrap',
   padding: 14,
   borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.1)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const rosterName: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 15,
 }
 
 const rosterMeta: CSSProperties = {
   marginTop: 4,
-  color: 'rgba(197,213,234,0.86)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
 }
 
@@ -3052,9 +3164,9 @@ const subtlePill: CSSProperties = {
   alignItems: 'center',
   padding: '8px 10px',
   borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.14)',
-  color: '#dbeafe',
-  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
+  background: 'var(--shell-chip-bg)',
   fontWeight: 700,
   fontSize: 12,
 }
