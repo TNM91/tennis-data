@@ -2253,6 +2253,19 @@ function sendCurrentScenarioToMessaging() {
                 />
               </Field>
 
+              {!isCaptainAccess ? (
+                <UpgradePrompt
+                  planId="captain"
+                  compact
+                  headline="Need to save versions and track lineup decisions?"
+                  body="Captain turns this from a draft board into a real weekly workflow with saved scenarios, prediction tracking, and a cleaner path into comparison and messaging."
+                  ctaLabel="Unlock Captain Tools"
+                  ctaHref="/pricing"
+                  secondaryLabel="See Captain plan"
+                  secondaryHref="/pricing"
+                />
+              ) : null}
+
               <div style={toggleRowStyle}>
                 <label style={checkLabelStyle}>
                   <input type="checkbox" checked={availabilityOnly} onChange={(e) => setAvailabilityOnly(e.target.checked)} />
@@ -2770,6 +2783,21 @@ function sendCurrentScenarioToMessaging() {
                 </PrimaryBtn>
                 <GhostLink href={compareHref}>Open Scenario Comparison</GhostLink>
               </div>
+
+              {!isCaptainAccess ? (
+                <div style={{ marginTop: 16 }}>
+                  <UpgradePrompt
+                    planId="captain"
+                    compact
+                    headline="Want this lineup to move cleanly from build to execution?"
+                    body="Captain is the unlock that connects save states, prediction history, scenario comparison, and team messaging so lineup work actually reduces weekly chaos."
+                    ctaLabel="Build Smarter Lineups"
+                    ctaHref="/pricing"
+                    secondaryLabel="Compare plans"
+                    secondaryHref="/pricing"
+                  />
+                </div>
+              ) : null}
             </section>
 
             <section style={surfaceCard}>

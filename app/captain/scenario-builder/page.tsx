@@ -1082,6 +1082,21 @@ export default function ScenarioComparisonPage() {
                         Next step: Send this lineup to your team
                       </div>
                     </div>
+
+                    {!premiumEnabled ? (
+                      <div style={{ marginTop: 16 }}>
+                        <UpgradePrompt
+                          planId="captain"
+                          compact
+                          headline="Ready to move the winning version into action?"
+                          body="Captain turns this comparison into a real weekly handoff by connecting the winning scenario to messaging, lineup execution, and the rest of the captain workflow."
+                          ctaLabel="Unlock Captain Tools"
+                          ctaHref="/pricing"
+                          secondaryLabel="See Captain plan"
+                          secondaryHref="/pricing"
+                        />
+                      </div>
+                    ) : null}
                   </section>
 
                   <section style={surfaceCard}>
@@ -1376,6 +1391,21 @@ export default function ScenarioComparisonPage() {
                         Open Messaging
                       </GhostSmallBtn>
                     </div>
+
+                    {!premiumEnabled ? (
+                      <div style={{ marginTop: 16 }}>
+                        <UpgradePrompt
+                          planId="captain"
+                          compact
+                          headline="Still copying the winning plan by hand?"
+                          body="Captain unlocks the clean path from scenario decision into team messaging so the best version does not get lost between tabs, notes, and group texts."
+                          ctaLabel="Send Smarter Team Updates"
+                          ctaHref="/pricing"
+                          secondaryLabel="Compare plans"
+                          secondaryHref="/pricing"
+                        />
+                      </div>
+                    ) : null}
                   </section>
 
                   <section style={notesGridResponsive(isTablet)}>

@@ -353,7 +353,7 @@ const planCardStyle: CSSProperties = {
 const featuredCardStyle: CSSProperties = {
   border: '1px solid rgba(155, 225, 29, 0.24)',
   background:
-    'linear-gradient(180deg, rgba(32, 58, 31, 0.14) 0%, rgba(18, 36, 66, 0.82) 100%)',
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)',
   boxShadow: '0 24px 54px rgba(155, 225, 29, 0.08)',
 }
 
@@ -402,7 +402,7 @@ const activeBadgeStyle: CSSProperties = {
   padding: '0 10px',
   borderRadius: 999,
   background: 'rgba(37, 91, 227, 0.12)',
-  color: '#dbeafe',
+  color: 'var(--foreground-strong)',
   border: '1px solid rgba(116, 190, 255, 0.16)',
   fontSize: 11,
   fontWeight: 900,
@@ -425,7 +425,7 @@ const altPriceStyle: CSSProperties = {
 }
 
 const cardSubtitleStyle: CSSProperties = {
-  color: '#d9f84a',
+  color: 'color-mix(in srgb, var(--brand-green) 78%, var(--foreground-strong) 22%)',
   fontSize: 13,
   fontWeight: 900,
   letterSpacing: '0.04em',
@@ -444,7 +444,7 @@ const problemBlockStyle: CSSProperties = {
 }
 
 const problemLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -577,7 +577,7 @@ const captainFocusSectionStyle: CSSProperties = {
   borderRadius: 28,
   border: '1px solid rgba(155, 225, 29, 0.22)',
   background:
-    'linear-gradient(180deg, rgba(32, 58, 31, 0.16) 0%, rgba(18, 36, 66, 0.82) 100%)',
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)',
   boxShadow: '0 24px 54px rgba(155, 225, 29, 0.08)',
 }
 
@@ -599,7 +599,7 @@ const captainFocusCardStyle: CSSProperties = {
   padding: 16,
   borderRadius: 20,
   border: '1px solid rgba(155, 225, 29, 0.16)',
-  background: 'rgba(255,255,255,0.05)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const captainFocusActionRowStyle: CSSProperties = {
@@ -640,7 +640,7 @@ const supportCardStyle: CSSProperties = {
 }
 
 const sectionEyebrowStyle: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: '0.12em',

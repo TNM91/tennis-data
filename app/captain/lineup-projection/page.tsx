@@ -971,6 +971,19 @@ export default function LineupProjectionPage() {
               />
             </section>
 
+            {!access.canUseCaptainWorkflow ? (
+              <UpgradePrompt
+                planId="captain"
+                compact
+                headline="Want to turn this estimate into a lineup you can actually use?"
+                body="Captain takes projection reads out of preview mode and moves them into saved lineup versions, scenario testing, and team communication."
+                ctaLabel="Unlock Captain Tools"
+                ctaHref="/pricing"
+                secondaryLabel="See Captain plan"
+                secondaryHref="/pricing"
+              />
+            ) : null}
+
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
@@ -1054,6 +1067,19 @@ export default function LineupProjectionPage() {
                 </div>
               ) : null}
             </section>
+
+            {!access.canUseCaptainWorkflow ? (
+              <UpgradePrompt
+                planId="captain"
+                compact
+                headline="Still hand-carrying projection notes into builder and scenarios?"
+                body="Captain keeps the same team context flowing from projection into lineup builder, scenario comparison, and match-week messaging so the next step is obvious."
+                ctaLabel="Build Smarter Lineups"
+                ctaHref="/pricing"
+                secondaryLabel="See how Captain works"
+                secondaryHref="/pricing"
+              />
+            ) : null}
 
             <section style={sectionCard}>
               <div style={sectionHeaderStyle}>

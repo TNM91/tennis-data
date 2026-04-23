@@ -144,15 +144,39 @@ export default function SiteHeader({ active }: { active?: string }) {
         position: 'sticky',
         top: 0,
         zIndex: 40,
+        overflow: 'clip',
         padding: `max(0px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left))`,
-        background: 'var(--header-bg)',
-        borderBottom: '1px solid var(--header-border)',
+        background: 'transparent',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
       }}
     >
       <div
+        aria-hidden="true"
         style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: 'var(--header-bg)',
+        }}
+      />
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          insetInline: 0,
+          bottom: -24,
+          height: 56,
+          pointerEvents: 'none',
+          background: 'var(--header-fade)',
+          filter: 'blur(18px)',
+          opacity: 0.9,
+        }}
+      />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
           width: '100%',
           maxWidth: '1280px',
           margin: '0 auto',
@@ -165,6 +189,7 @@ export default function SiteHeader({ active }: { active?: string }) {
             gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
             alignItems: 'center',
             gap: isMobile ? '10px' : isTablet ? '12px' : '16px',
+            padding: isMobile ? '4px 4px' : isTablet ? '5px 6px' : '6px 8px',
           }}
         >
           <Link
@@ -189,6 +214,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 justifyContent: 'center',
                 gap: '2px',
                 minWidth: 0,
+                paddingInline: '6px',
               }}
             >
               {PRIMARY_NAV_ITEMS.map((item) => {
@@ -433,8 +459,8 @@ const menuButtonStyle = {
   alignItems: 'center',
   justifyContent: 'center',
   borderRadius: '13px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'color-mix(in srgb, var(--header-bg) 80%, var(--surface) 20%)',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent 18%)',
   color: 'var(--foreground-strong)',
   cursor: 'pointer',
 } as const

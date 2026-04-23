@@ -2490,6 +2490,21 @@ function importScenarioToLineup() {
 
                           <GhostSmallBtn onClick={importScenarioToLineup} disabled={!captainAccess}>Sync to lineup editor</GhostSmallBtn>
                         </div>
+
+                        {!captainAccess ? (
+                          <div style={{ marginTop: 16 }}>
+                            <UpgradePrompt
+                              planId="captain"
+                              compact
+                              headline="Want the winning lineup to move straight into captain communication?"
+                              body="Captain connects saved scenarios, lineup sync, and message prep so you are not copying the plan across tabs before match day."
+                              ctaLabel="Unlock Captain Tools"
+                              ctaHref="/pricing"
+                              secondaryLabel="See messaging value"
+                              secondaryHref="/pricing"
+                            />
+                          </div>
+                        ) : null}
                       </>
                     ) : (
                       <p style={mutedTextStyle}>
@@ -2891,6 +2906,19 @@ function importScenarioToLineup() {
                     </div>
                   </section>
 
+                  {!captainAccess ? (
+                    <UpgradePrompt
+                      planId="captain"
+                      compact
+                      headline="Still deciding the next message manually every week?"
+                      body="Captain turns follow-up pressure, lineup readiness, and audience selection into one cleaner send strategy instead of guesswork and group-text cleanup."
+                      ctaLabel="Unlock Captain Tools"
+                      ctaHref="/pricing"
+                      secondaryLabel="See Captain plan"
+                      secondaryHref="/pricing"
+                    />
+                  ) : null}
+
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
@@ -3221,6 +3249,19 @@ function importScenarioToLineup() {
                       <GhostSmallBtn onClick={importScenarioToLineup}>Sync Scenario to Lineup</GhostSmallBtn>
                     </div>
                   </section>
+
+                  {!captainAccess ? (
+                    <UpgradePrompt
+                      planId="captain"
+                      compact
+                      headline="Need a cleaner path from hold-and-review to send-now?"
+                      body="Captain gives you live send execution, lineup sync, and one place to clear blockers before you launch the final team message."
+                      ctaLabel="Send Smarter with Captain"
+                      ctaHref="/pricing"
+                      secondaryLabel="Compare plans"
+                      secondaryHref="/pricing"
+                    />
+                  ) : null}
 
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>

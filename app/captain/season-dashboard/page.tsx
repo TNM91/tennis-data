@@ -432,6 +432,29 @@ export default function CaptainSeasonDashboardPage() {
               </PrimaryBtn>
               <GhostBtn onClick={resetDraft}>Clear form</GhostBtn>
             </div>
+
+            {!canSaveCurrentDraft ? (
+              <div style={{ marginTop: 18 }}>
+                <UpgradePrompt
+                  planId="league"
+                  compact
+                  headline={
+                    draft.leagueFormat === 'team'
+                      ? 'Need this draft to become a real TIQ season workspace?'
+                      : 'Want this draft to become a real player-vs-player TIQ league?'
+                  }
+                  body={
+                    draft.leagueFormat === 'team'
+                      ? 'League turns this setup into a usable organizer layer with season structure, scheduling, standings, and cleaner team coordination.'
+                      : 'League turns this setup into an organized ladder, round robin, or challenge workspace with standings, participant structure, and season visibility.'
+                  }
+                  ctaLabel="Run Your League on TIQ"
+                  ctaHref="/pricing"
+                  secondaryLabel="Compare plans"
+                  secondaryHref="/pricing"
+                />
+              </div>
+            ) : null}
           </section>
 
           <section style={panelCard}>
@@ -499,6 +522,21 @@ export default function CaptainSeasonDashboardPage() {
                   {leagueCards.length} TIQ league records are now available for browse and workflow layers.
                   This is the right foundation for later billing and league-admin entitlements without polluting USTA league discovery.
                 </div>
+              </div>
+            ) : null}
+
+            {!access.canUseLeagueTools ? (
+              <div style={{ marginTop: 18 }}>
+                <UpgradePrompt
+                  planId="league"
+                  compact
+                  headline="Ready to run the season without spreadsheet cleanup?"
+                  body="League is the organizer layer that turns TIQ league records into one cleaner system for scheduling, standings, team structure, and league-wide communication."
+                  ctaLabel="Run Your League on TIQ"
+                  ctaHref="/pricing"
+                  secondaryLabel="See league value"
+                  secondaryHref="/pricing"
+                />
               </div>
             ) : null}
           </section>

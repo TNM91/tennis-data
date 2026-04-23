@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import SiteShell from '@/app/components/site-shell'
+import { useTheme } from '@/app/components/theme-provider'
 import {
   badgeBlue,
   badgeGreen,
@@ -559,8 +560,10 @@ export default function PreviewHomepage() {
 
 function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
   const router = useRouter()
+  const { theme } = useTheme()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<HeroSearchFilter>('players')
+  const isLight = theme === 'light'
   const selectedFilter = useMemo(
     () => heroSearchFilters.find((item) => item.value === filter) ?? heroSearchFilters[0],
     [filter],
@@ -576,18 +579,8 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
       params.set('q', trimmedQuery)
     }
 
-    let pathname = '/explore/players'
-
-    if (filter === 'teams') {
-      pathname = '/explore/teams'
-    } else if (filter === 'leagues' || filter === 'flight' || filter === 'area') {
-      pathname = '/explore/leagues'
-      if (filter === 'flight') {
-        params.set('scope', 'flight')
-      } else if (filter === 'area') {
-        params.set('scope', 'area')
-      }
-    }
+    const pathname = '/explore/search'
+    params.set('scope', filter)
 
     const nextHref = params.size > 0 ? `${pathname}?${params.toString()}` : pathname
     router.push(nextHref)
@@ -601,10 +594,9 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         display: 'grid',
         gap: 12,
         maxWidth: 760,
-        border: '1px solid rgba(155,225,29,0.14)',
-        background:
-          'linear-gradient(180deg, color-mix(in srgb, var(--surface) 96%, var(--brand-green) 4%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--brand-blue) 2%) 100%)',
-        boxShadow: '0 18px 36px rgba(2,10,24,0.10)',
+        border: '1px solid var(--home-search-frame-border)',
+        background: 'var(--home-search-frame-bg)',
+        boxShadow: 'var(--home-search-frame-shadow)',
       }}
     >
       <div style={{ display: 'grid', gap: 8 }}>
@@ -651,19 +643,21 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
               ...surfaceCard,
               minHeight: 56,
               padding: '0 14px',
-              border: '1px solid rgba(116,190,255,0.16)',
-              background:
-                'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+              border: '1px solid var(--home-input-border)',
+              background: 'var(--home-input-bg)',
               color: 'var(--foreground-strong)',
               fontSize: 14,
               fontWeight: 700,
               outline: 'none',
-              colorScheme: 'dark',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+              colorScheme: theme,
               appearance: 'none',
               WebkitAppearance: 'none',
               MozAppearance: 'none',
               backgroundImage:
-                'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
+                isLight
+                  ? 'linear-gradient(45deg, transparent 50%, rgba(17,32,56,0.72) 50%), linear-gradient(135deg, rgba(17,32,56,0.72) 50%, transparent 50%)'
+                  : 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
               backgroundPosition: 'calc(100% - 20px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px)',
               backgroundSize: '6px 6px, 6px 6px',
               backgroundRepeat: 'no-repeat',
@@ -676,8 +670,8 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
                 key={option.value}
                 value={option.value}
                 style={{
-                  backgroundColor: '#13233b',
-                  color: '#f5f8ff',
+                  backgroundColor: isLight ? '#f4f7fb' : '#13233b',
+                  color: isLight ? '#112038' : '#f5f8ff',
                 }}
               >
                 {option.label}
@@ -694,9 +688,9 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            border: '1px solid rgba(116,190,255,0.16)',
-            background:
-              'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+            border: '1px solid var(--home-input-border)',
+            background: 'var(--home-input-bg)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
           }}
         >
           <SearchIcon />
@@ -744,7 +738,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           {selectedFilter.hint}
         </div>
         <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          Routes into live Explore filters
+          Opens unified Explore results
         </div>
       </div>
 
@@ -1010,8 +1004,8 @@ function TierSection({
         position: 'relative',
         padding: 0,
         overflow: 'hidden',
-        border: '1px solid rgba(116,190,255,0.10)',
-        boxShadow: '0 20px 40px rgba(2,10,24,0.10)',
+        border: theme.shellBorder,
+        boxShadow: theme.shellShadow,
         background: theme.shellBackground,
       }}
     >
