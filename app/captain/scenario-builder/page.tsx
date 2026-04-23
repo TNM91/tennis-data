@@ -2,15 +2,20 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { uniqueSorted } from '@/lib/captain-formatters'
+import { formatDate, uniqueSorted } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
-import { isCaptain, type UserRole } from '@/lib/roles'
+import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ScenarioRow = {
@@ -30,8 +35,11 @@ type PlayerRow = {
   id: string
   name: string
   singles_dynamic_rating: number | null
+  singles_usta_dynamic_rating: number | null
   doubles_dynamic_rating: number | null
+  doubles_usta_dynamic_rating: number | null
   overall_dynamic_rating: number | null
+  overall_usta_dynamic_rating: number | null
 }
 
 type NormalizedSlot = {
@@ -40,13 +48,6 @@ type NormalizedSlot = {
   slotType: 'singles' | 'doubles'
   players: string[]
   playerIds: string[]
-}
-
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString()
 }
 
 function cleanText(value: unknown) {
@@ -277,7 +278,7 @@ async function writeScenarioFeedEvents({
     entity_type: 'team',
     entity_id: teamId,
     entity_name: cleanTeam,
-    subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+    subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' - ') || null,
     title: 'Scenario decision made',
     body: `Projection: ${Math.round(projection * 100)}%`,
   })
@@ -288,7 +289,7 @@ async function writeScenarioFeedEvents({
       entity_type: 'team',
       entity_id: teamId,
       entity_name: cleanTeam,
-      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' - ') || null,
       title: 'Low confidence scenario',
       body: 'Scenarios are very close and still need captain judgment.',
     })
@@ -300,7 +301,7 @@ async function writeScenarioFeedEvents({
       entity_type: 'team',
       entity_id: teamId,
       entity_name: cleanTeam,
-      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' - ') || null,
       title: `Swing match: ${biggestSwing.label}`,
       body:
         typeof biggestSwing.diff === 'number'
@@ -315,7 +316,7 @@ async function writeScenarioFeedEvents({
       entity_type: 'team',
       entity_id: teamId,
       entity_name: cleanTeam,
-      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' · ') || null,
+      subtitle: [cleanLeague, cleanFlight].filter(Boolean).join(' - ') || null,
       title: 'High lineup volatility',
       body: `${changedCount} comparison changes detected across the two saved scenarios.`,
     })
@@ -332,8 +333,10 @@ async function writeScenarioFeedEvents({
 
 export default function ScenarioComparisonPage() {
   const router = useRouter()
+  const { theme } = useTheme()
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
@@ -341,6 +344,7 @@ export default function ScenarioComparisonPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [competitionLayer, setCompetitionLayer] = useState('')
   const [leagueFilter, setLeagueFilter] = useState('')
   const [flightFilter, setFlightFilter] = useState('')
   const [teamFilter, setTeamFilter] = useState('')
@@ -349,6 +353,9 @@ export default function ScenarioComparisonPage() {
   const [rightId, setRightId] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   useEffect(() => {
     let mounted = true
@@ -369,6 +376,7 @@ export default function ScenarioComparisonPage() {
 
         if (!mounted) return
         setRole(authState.role)
+        setEntitlements(authState.entitlements)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -393,6 +401,7 @@ export default function ScenarioComparisonPage() {
 
     const params = new URLSearchParams(window.location.search)
     const resumeState = readCaptainResumeState()
+    setCompetitionLayer(params.get('layer') ?? resumeState?.competitionLayer ?? '')
     setLeagueFilter(params.get('league') ?? resumeState?.league ?? '')
     setFlightFilter(params.get('flight') ?? resumeState?.flight ?? '')
     setTeamFilter(params.get('team') ?? resumeState?.team ?? '')
@@ -403,6 +412,7 @@ export default function ScenarioComparisonPage() {
 
   useEffect(() => {
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: teamFilter || undefined,
       league: leagueFilter || undefined,
       flight: flightFilter || undefined,
@@ -410,7 +420,7 @@ export default function ScenarioComparisonPage() {
       lastTool: 'scenario-builder',
       lastToolLabel: 'Scenario Builder',
     })
-  }, [teamFilter, leagueFilter, flightFilter, dateFilter])
+  }, [competitionLayer, dateFilter, flightFilter, leagueFilter, teamFilter])
 
   const refreshScenarioData = useCallback(async () => {
     setLoading(true)
@@ -439,8 +449,11 @@ export default function ScenarioComparisonPage() {
           id,
           name,
           singles_dynamic_rating,
+          singles_usta_dynamic_rating,
           doubles_dynamic_rating,
-          overall_dynamic_rating
+          doubles_usta_dynamic_rating,
+          overall_dynamic_rating,
+          overall_usta_dynamic_rating
         `)
         .order('name', { ascending: true }),
     ])
@@ -522,7 +535,71 @@ export default function ScenarioComparisonPage() {
     return 1 / (1 + Math.exp(-combinedDiff * 3.2))
   }, [yourComparison.avgDiff, opponentComparison.avgDiff])
 
-  const premiumEnabled = isCaptain(role)
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const premiumEnabled = access.canUseCaptainWorkflow
+  const scenarioSignals = [
+    {
+      label: 'Comparison scope',
+      value: `${filteredScenarios.length} saved scenarios`,
+      note: 'This page works best after you narrow the comparison set to one real team and one real weekly situation.',
+    },
+    {
+      label: 'Decision status',
+      value:
+        leftScenario && rightScenario
+          ? `${yourComparison.changedCount + opponentComparison.changedCount} total deltas`
+          : 'Choose A and B',
+      note: 'Use the comparison only to isolate real differences, not to re-read the same lineup twice.',
+    },
+    {
+      label: 'Best next move',
+      value: leftScenario && rightScenario ? 'Pick a winner' : 'Filter first',
+      note:
+        leftScenario && rightScenario
+          ? 'Once the better version is clear, push it back into the builder or messaging workflow.'
+          : 'Start by narrowing the saved set until only the real decision remains.',
+    },
+  ]
+
+  const dynamicQuickStartCard: CSSProperties = {
+    ...quickStartCard,
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: isTablet ? 320 : 360,
+    background:
+      theme === 'dark'
+        ? 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.98))',
+    border:
+      theme === 'dark'
+        ? '1px solid rgba(116,190,255,0.12)'
+        : '1px solid rgba(148,163,184,0.18)',
+    boxShadow:
+      theme === 'dark'
+        ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+        : '0 16px 38px rgba(15,23,42,0.08)',
+  }
+
+  const scenarioVisualStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+  }
+
+  const scenarioVisualMaskStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background:
+      theme === 'dark'
+        ? 'linear-gradient(135deg, rgba(8,18,38,0.24) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)'
+        : 'linear-gradient(135deg, rgba(255,255,255,0.18) 8%, rgba(255,255,255,0.78) 52%, rgba(248,250,252,0.94) 100%)',
+  }
+
+  const scenarioVisualContentStyle: CSSProperties = {
+    position: 'relative',
+    zIndex: 1,
+    display: 'grid',
+    gap: 14,
+  }
 
   const builderHref = (scenarioId: string) => {
     const params = new URLSearchParams()
@@ -562,19 +639,9 @@ export default function ScenarioComparisonPage() {
             </p>
 
             <div style={heroButtonRowStyle}>
-              <Link href="/captain/lineup-builder" style={primaryButton}>
-                Open Lineup Builder
-              </Link>
-              <button
-                type="button"
-                style={ghostButtonSmallButton}
-                onClick={() => setRefreshTick((current) => current + 1)}
-              >
-                Refresh data
-              </button>
-              <Link href="/captain" style={ghostButton}>
-                Back to Captain Console
-              </Link>
+              <PrimaryLink href="/captain/lineup-builder">Open Lineup Builder</PrimaryLink>
+              <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Refresh data</GhostSmallBtn>
+              <GhostLink href="/captain">Back to Captain Console</GhostLink>
             </div>
 
             <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -590,34 +657,77 @@ export default function ScenarioComparisonPage() {
             </div>
           </div>
 
-          <div style={quickStartCard}>
-            <p style={sectionKicker}>Decision support</p>
-            <h2 style={quickStartTitle}>Find the version you actually want to field</h2>
-            <div style={workflowListStyle}>
-              {[
-                ['1', 'Filter the saved set', 'Narrow by league, flight, team, and date so only relevant versions remain.'],
-                ['2', 'Compare A vs B', 'Line-by-line changes, strength differences, and notes all in one view.'],
-                ['3', 'Send the winner back', 'Jump back to the builder with the scenario you want to keep iterating.'],
-              ].map(([step, title, text]) => (
-                <div key={step} style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>{step}</div>
-                  <div>
-                    <div style={workflowTitleStyle}>{title}</div>
-                    <div style={workflowTextStyle}>{text}</div>
-                  </div>
-                </div>
-              ))}
+          <div style={dynamicQuickStartCard}>
+            <div style={scenarioVisualStyle}>
+              <Image
+                src={heroArtworkSrc}
+                alt="TenAceIQ scenario comparison concept art"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 34vw"
+                style={{ objectFit: 'cover', objectPosition: isTablet ? 'center center' : '72% center' }}
+              />
+              <div style={scenarioVisualMaskStyle} />
             </div>
 
-            {!premiumEnabled ? (
-              <div style={{ marginTop: 18 }}>
-                <span style={warnPill}>Preview mode</span>
+            <div style={scenarioVisualContentStyle}>
+              <p style={sectionKicker}>Decision support</p>
+              <h2 style={quickStartTitle}>Find the version you actually want to field</h2>
+              <div style={workflowListStyle}>
+                {[
+                  ['1', 'Filter the saved set', 'Narrow by league, flight, team, and date so only relevant versions remain.'],
+                  ['2', 'Compare A vs B', 'Line-by-line changes, strength differences, and notes all in one view.'],
+                  ['3', 'Send the winner back', 'Jump back to the builder with the scenario you want to keep iterating.'],
+                ].map(([step, title, text]) => (
+                  <div key={step} style={workflowRowStyle}>
+                    <div style={workflowNumberStyle}>{step}</div>
+                    <div>
+                      <div style={workflowTitleStyle}>{title}</div>
+                      <div style={workflowTextStyle}>{text}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : null}
+
+              {!premiumEnabled ? (
+                <div style={{ marginTop: 18 }}>
+                  <span style={warnPill}>Preview mode</span>
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
 
+        <CaptainSubnav
+          title="Scenario Builder inside the captain command center"
+          description="Compare options without losing the surrounding workflow for availability, messaging, lineup decisions, and season management."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
+
+        {!premiumEnabled ? (
+          <UpgradePrompt
+            planId="captain"
+            headline="Need a clearer answer than guess-and-check?"
+            body="Captain helps you compare real lineup versions, spot the swing lines faster, and move the winning plan into team communication without bouncing across tools."
+            ctaLabel="Unlock Captain Tools"
+            ctaHref="/pricing"
+            secondaryLabel="Keep comparing"
+            compact
+          />
+        ) : null}
+
         <section style={contentWrap}>
+          <section style={signalGridStyle(isSmallMobile)}>
+            {scenarioSignals.map((signal) => (
+              <article key={signal.label} style={signalCardStyle}>
+                <div style={signalLabelStyle}>{signal.label}</div>
+                <div style={signalValueStyle}>{signal.value}</div>
+                <div style={signalNoteStyle}>{signal.note}</div>
+              </article>
+            ))}
+          </section>
+
           <section style={surfaceCardStrong}>
             <div style={sectionHeaderStyle}>
               <div>
@@ -628,20 +738,9 @@ export default function ScenarioComparisonPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                style={ghostButtonSmallButton}
-                onClick={() => {
-                  setLeagueFilter('')
-                  setFlightFilter('')
-                  setTeamFilter('')
-                  setDateFilter('')
-                  setLeftId('')
-                  setRightId('')
-                }}
-              >
+              <GhostSmallBtn onClick={() => { setLeagueFilter(''); setFlightFilter(''); setTeamFilter(''); setDateFilter(''); setLeftId(''); setRightId('') }}>
                 Clear Filters
-              </button>
+              </GhostSmallBtn>
             </div>
 
             <div style={filtersGridStyle}>
@@ -708,13 +807,9 @@ export default function ScenarioComparisonPage() {
             <section style={surfaceCard}>
               <p style={errorTextStyle}>Unable to load scenarios: {error}</p>
               <div style={{ marginTop: 14 }}>
-                <button
-                  type="button"
-                  style={ghostButtonSmallButton}
-                  onClick={() => setRefreshTick((current) => current + 1)}
-                >
+                <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>
                   Retry scenario load
-                </button>
+                </GhostSmallBtn>
               </div>
             </section>
           ) : filteredScenarios.length === 0 ? (
@@ -727,12 +822,8 @@ export default function ScenarioComparisonPage() {
                 If you already saved one, clear the filters above or reopen the builder with the same team and match context before comparing.
               </p>
               <div style={heroButtonRowStyle}>
-                <Link href="/captain/lineup-builder" style={primaryButtonSmall}>
-                  Start in lineup builder
-                </Link>
-                <Link href="/captain" style={ghostButtonSmall}>
-                  Return to captain console
-                </Link>
+                <PrimarySmallLink href="/captain/lineup-builder">Start in lineup builder</PrimarySmallLink>
+                <GhostSmallLink href="/captain">Return to captain console</GhostSmallLink>
               </div>
             </section>
           ) : (
@@ -1041,18 +1132,14 @@ export default function ScenarioComparisonPage() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <Link
+                      <PrimarySmallLink
                         href={overallProjection >= 0.5
                           ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
                           : (rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder')}
-                        style={primaryButtonSmall}
                       >
                         Edit Winning Scenario
-                      </Link>
-                      <button
-                        type="button"
-                        style={ghostButtonSmall}
-                        onClick={async () => {
+                      </PrimarySmallLink>
+                      <GhostSmallBtn onClick={async () => {
                           if (!premiumEnabled) {
                             setError('Captain tier required to send the winning scenario to messaging.')
                             return
@@ -1063,15 +1150,8 @@ export default function ScenarioComparisonPage() {
 
                           if (!winningScenario) return
 
-                          localStorage.setItem(
-                            'tenace_selected_scenario',
-                            JSON.stringify(winningScenario)
-                          )
-
-                          localStorage.setItem(
-                            'tenace_flow_source',
-                            'scenario_builder'
-                          )
+                          localStorage.setItem('tenace_selected_scenario', JSON.stringify(winningScenario))
+                          localStorage.setItem('tenace_flow_source', 'scenario_builder')
 
                           const team = winningScenario.team_name || ''
                           const league = winningScenario.league_name || ''
@@ -1091,13 +1171,10 @@ export default function ScenarioComparisonPage() {
                           }
 
                           window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
-                        }}
-                      >
+                        }}>
                         Send Winning Scenario
-                      </button>
-                      <Link href="/captain" style={ghostButtonSmall}>
-                        Back to Captain Console
-                      </Link>
+                      </GhostSmallBtn>
+                      <GhostSmallLink href="/captain">Back to Captain Console</GhostSmallLink>
                     </div>
                   </section>
 
@@ -1256,18 +1333,14 @@ export default function ScenarioComparisonPage() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <Link
+                      <PrimarySmallLink
                         href={overallProjection >= 0.5
                           ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
                           : (rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder')}
-                        style={primaryButtonSmall}
                       >
                         Open Winning Scenario in Builder
-                      </Link>
-                      <button
-                        type="button"
-                        style={ghostButtonSmall}
-                        onClick={async () => {
+                      </PrimarySmallLink>
+                      <GhostSmallBtn onClick={async () => {
                           if (!premiumEnabled) {
                             setError('Captain tier required to open messaging from scenario builder.')
                             return
@@ -1278,15 +1351,8 @@ export default function ScenarioComparisonPage() {
 
                           if (!winningScenario) return
 
-                          localStorage.setItem(
-                            'tenace_selected_scenario',
-                            JSON.stringify(winningScenario)
-                          )
-
-                          localStorage.setItem(
-                            'tenace_flow_source',
-                            'scenario_builder'
-                          )
+                          localStorage.setItem('tenace_selected_scenario', JSON.stringify(winningScenario))
+                          localStorage.setItem('tenace_flow_source', 'scenario_builder')
 
                           const team = winningScenario.team_name || ''
                           const league = winningScenario.league_name || ''
@@ -1306,10 +1372,9 @@ export default function ScenarioComparisonPage() {
                           }
 
                           window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
-                        }}
-                      >
+                        }}>
                         Open Messaging
-                      </button>
+                      </GhostSmallBtn>
                     </div>
                   </section>
 
@@ -1365,7 +1430,7 @@ function ScenarioPanel({
         <select id={selectorId} aria-describedby={helperId} value={selectedId} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
           {scenarios.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.scenario_name} • {item.team_name || '—'} • {formatDate(item.match_date)}
+              {item.scenario_name} - {item.team_name || '—'} - {formatDate(item.match_date)}
             </option>
           ))}
         </select>
@@ -1383,9 +1448,7 @@ function ScenarioPanel({
           </div>
 
           <div style={actionRowStyle}>
-            <Link href={builderHref} style={primaryButtonSmall}>
-              Edit in Builder
-            </Link>
+            <PrimarySmallLink href={builderHref}>Edit in Builder</PrimarySmallLink>
           </div>
         </>
       ) : null}
@@ -1618,10 +1681,9 @@ const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background:
-    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 52%, rgba(8,27,56,0.92) 100%)',
-  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.30)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.16)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
 }
@@ -1634,8 +1696,8 @@ const eyebrow: CSSProperties = {
   padding: '8px 14px',
   borderRadius: '999px',
   border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
-  color: '#d9e7ef',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '14px',
   textTransform: 'uppercase',
@@ -1645,7 +1707,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
-  color: '#f7fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -1656,7 +1718,7 @@ const heroTextStyle: CSSProperties = {
   marginTop: 16,
   marginBottom: 0,
   maxWidth: 820,
-  color: 'rgba(231,239,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.72,
 }
@@ -1674,22 +1736,59 @@ const heroMetricGridBaseStyle: CSSProperties = {
   gap: '14px',
 }
 
+const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+})
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--foreground)',
+  fontSize: '1.24rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  fontSize: '.94rem',
+}
+
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: '22px',
   padding: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.16) 0%, rgba(20,43,86,0.34) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(225,236,250,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
 }
 
 const metricValueStyleHero: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontSize: '1.05rem',
   fontWeight: 800,
   lineHeight: 1.4,
@@ -1697,8 +1796,8 @@ const metricValueStyleHero: CSSProperties = {
 
 const quickStartCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(29,56,105,0.62), rgba(14,30,59,0.78))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: '20px',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
@@ -1708,7 +1807,7 @@ const quickStartTitle: CSSProperties = {
   marginBottom: 14,
   fontSize: '1.35rem',
   lineHeight: 1.14,
-  color: '#ffffff',
+  color: 'var(--foreground)',
 }
 
 const workflowListStyle: CSSProperties = {
@@ -1738,12 +1837,12 @@ const workflowNumberStyle: CSSProperties = {
 
 const workflowTitleStyle: CSSProperties = {
   fontWeight: 700,
-  color: '#ffffff',
+  color: 'var(--foreground)',
   marginBottom: 4,
 }
 
 const workflowTextStyle: CSSProperties = {
-  color: 'rgba(231,239,251,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: '.95rem',
 }
@@ -1758,10 +1857,9 @@ const contentWrap: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
-  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.24)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.14)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
 }
@@ -1769,9 +1867,9 @@ const surfaceCardStrong: CSSProperties = {
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
 }
@@ -1796,7 +1894,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -1805,7 +1903,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionTitleSmall: CSSProperties = {
   margin: '8px 0 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
   letterSpacing: '-0.03em',
@@ -1814,7 +1912,7 @@ const sectionTitleSmall: CSSProperties = {
 
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   maxWidth: 780,
 }
@@ -1867,19 +1965,19 @@ const metaGridStylePanel: CSSProperties = {
 const metaCardStyle: CSSProperties = {
   borderRadius: '16px',
   padding: '12px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const metaLabelStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: '6px',
 }
 
 const metaValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 800,
   lineHeight: 1.45,
 }
@@ -1894,7 +1992,7 @@ const actionRowStyle: CSSProperties = {
 const labelStyle: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -1905,9 +2003,9 @@ const inputStyle: CSSProperties = {
   width: '100%',
   height: '48px',
   borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '0 14px',
   fontSize: '14px',
   outline: 'none',
@@ -1937,9 +2035,9 @@ const ghostButton: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
@@ -1988,20 +2086,20 @@ const badgeBase: CSSProperties = {
 
 const miniPillSlate: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }
 
 const miniPillBlue: CSSProperties = {
   ...badgeBase,
   background: 'rgba(37, 91, 227, 0.16)',
-  color: '#c7dbff',
+  color: 'var(--foreground)',
 }
 
 const miniPillGreen: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }
 
 const warnPill: CSSProperties = {
@@ -2023,14 +2121,15 @@ const tableWrapStyle: CSSProperties = {
   width: '100%',
   overflowX: 'auto',
   borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const tableCaptionStyle: CSSProperties = {
   captionSide: 'top',
   textAlign: 'left',
   padding: '0 0 12px',
-  color: '#94a3b8',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
 }
@@ -2043,7 +2142,7 @@ const tableStyle: CSSProperties = {
 const thStyle: CSSProperties = {
   textAlign: 'left',
   padding: '14px',
-  background: 'rgba(255,255,255,0.06)',
+  background: 'var(--shell-chip-bg-strong)',
   color: '#c7dbff',
   fontSize: '12px',
   textTransform: 'uppercase',
@@ -2397,3 +2496,86 @@ const changeDigestTextStyle: CSSProperties = {
   lineHeight: 1.65,
   fontSize: '14px',
 }
+
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 22px 40px rgba(155,225,29,0.26)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function PrimarySmallLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButtonSmall,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 20px 36px rgba(155,225,29,0.26)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...ghostButton, ...(hovered ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(37,91,227,0.22)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostSmallLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...ghostButtonSmall, ...(hovered ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.22)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.22)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+

@@ -5,6 +5,7 @@ import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
 import { recalculateDynamicRatings } from '../../../lib/recalculateRatings'
+import { formatRating } from '@/lib/captain-formatters'
 
 type PlayerRow = {
   id: string
@@ -12,10 +13,13 @@ type PlayerRow = {
   location: string | null
   singles_rating: number | null
   singles_dynamic_rating: number | null
+  singles_usta_dynamic_rating: number | null
   doubles_rating: number | null
   doubles_dynamic_rating: number | null
+  doubles_usta_dynamic_rating: number | null
   overall_rating: number | null
   overall_dynamic_rating: number | null
+  overall_usta_dynamic_rating: number | null
 }
 export default function ManagePlayersPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
@@ -31,10 +35,13 @@ export default function ManagePlayersPage() {
     | 'location'
     | 'singles_rating'
     | 'singles_dynamic_rating'
+    | 'singles_usta_dynamic_rating'
     | 'doubles_rating'
     | 'doubles_dynamic_rating'
+    | 'doubles_usta_dynamic_rating'
     | 'overall_rating'
     | 'overall_dynamic_rating'
+    | 'overall_usta_dynamic_rating'
   >('overall_dynamic_rating')
 
   const [message, setMessage] = useState('')
@@ -65,10 +72,13 @@ export default function ManagePlayersPage() {
           location,
           singles_rating,
           singles_dynamic_rating,
+          singles_usta_dynamic_rating,
           doubles_rating,
           doubles_dynamic_rating,
+          doubles_usta_dynamic_rating,
           overall_rating,
-          overall_dynamic_rating
+          overall_dynamic_rating,
+          overall_usta_dynamic_rating
         `)
         .limit(1200)
 
@@ -386,11 +396,14 @@ export default function ManagePlayersPage() {
                     <option value="name">Name</option>
                     <option value="location">Location</option>
                     <option value="singles_rating">Singles Rating</option>
-                    <option value="singles_dynamic_rating">Singles Dynamic</option>
+                    <option value="singles_dynamic_rating">Singles TIQ Dynamic</option>
+                    <option value="singles_usta_dynamic_rating">Singles USTA Dynamic</option>
                     <option value="doubles_rating">Doubles Rating</option>
-                    <option value="doubles_dynamic_rating">Doubles Dynamic</option>
+                    <option value="doubles_dynamic_rating">Doubles TIQ Dynamic</option>
+                    <option value="doubles_usta_dynamic_rating">Doubles USTA Dynamic</option>
                     <option value="overall_rating">Overall Rating</option>
-                    <option value="overall_dynamic_rating">Overall Dynamic</option>
+                    <option value="overall_dynamic_rating">Overall TIQ Dynamic</option>
+                    <option value="overall_usta_dynamic_rating">Overall USTA Dynamic</option>
                   </select>
                 </Field>
               </div>
@@ -406,9 +419,9 @@ export default function ManagePlayersPage() {
                   onClick={() => loadPlayers(true)}
                   className="button-ghost"
                   style={{
-                    background: 'rgba(15,23,42,0.24)',
-                    color: '#dbeafe',
-                    border: '1px solid rgba(116,190,255,0.12)',
+                    background: 'var(--shell-chip-bg)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--shell-panel-border)',
                     opacity: refreshing ? 0.7 : 1,
                     cursor: refreshing ? 'not-allowed' : 'pointer',
                   }}
@@ -435,9 +448,9 @@ export default function ManagePlayersPage() {
                     onClick={resetFilters}
                     className="button-ghost"
                     style={{
-                      background: 'rgba(15,23,42,0.24)',
-                      color: '#dbeafe',
-                      border: '1px solid rgba(148,163,184,0.18)',
+                      background: 'var(--shell-chip-bg)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--shell-panel-border)',
                     }}
                     disabled={loading || refreshing}
                   >
@@ -478,7 +491,7 @@ export default function ManagePlayersPage() {
                   width: '100%',
                   justifyContent: 'flex-start',
                   padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.12)',
+                  background: 'rgba(220,38,38,0.10)',
                   color: '#fca5a5',
                   border: '1px solid rgba(220,38,38,0.18)',
                 }}
@@ -490,9 +503,9 @@ export default function ManagePlayersPage() {
                     onClick={() => void loadPlayers(true)}
                     className="button-ghost"
                     style={{
-                      background: 'rgba(15,23,42,0.24)',
-                      color: '#dbeafe',
-                      border: '1px solid rgba(116,190,255,0.12)',
+                      background: 'var(--shell-chip-bg)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--shell-panel-border)',
                     }}
                   >
                     Retry player load
@@ -524,8 +537,8 @@ export default function ManagePlayersPage() {
                 style={{
                   marginTop: '20px',
                   borderRadius: 20,
-                  border: '1px solid rgba(148,163,184,0.16)',
-                  background: 'rgba(15,23,42,0.28)',
+                  border: '1px solid var(--shell-panel-border)',
+                  background: 'var(--shell-chip-bg)',
                   padding: '18px 20px',
                 }}
               >
@@ -544,9 +557,9 @@ export default function ManagePlayersPage() {
                     className="button-ghost"
                     style={{
                       marginTop: 12,
-                      background: 'rgba(15,23,42,0.24)',
-                      color: '#dbeafe',
-                      border: '1px solid rgba(116,190,255,0.12)',
+                      background: 'var(--shell-chip-bg)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--shell-panel-border)',
                     }}
                   >
                     Reset Filters
@@ -561,11 +574,14 @@ export default function ManagePlayersPage() {
                       <th>Name</th>
                       <th>Location</th>
                       <th>Singles</th>
-                      <th>Singles Dynamic</th>
+                      <th>Singles TIQ</th>
+                      <th>Singles USTA</th>
                       <th>Doubles</th>
-                      <th>Doubles Dynamic</th>
+                      <th>Doubles TIQ</th>
+                      <th>Doubles USTA</th>
                       <th>Overall</th>
-                      <th>Overall Dynamic</th>
+                      <th>Overall TIQ</th>
+                      <th>Overall USTA</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -606,7 +622,8 @@ export default function ManagePlayersPage() {
                           />
                         </td>
 
-                        <td>{formatRating(player.singles_dynamic_rating)}</td>
+                        <td>{formatRating(player.singles_dynamic_rating, 3)}</td>
+                        <td>{formatRating(player.singles_usta_dynamic_rating, 3)}</td>
 
                         <td>
                           <input
@@ -622,7 +639,8 @@ export default function ManagePlayersPage() {
                           />
                         </td>
 
-                        <td>{formatRating(player.doubles_dynamic_rating)}</td>
+                        <td>{formatRating(player.doubles_dynamic_rating, 3)}</td>
+                        <td>{formatRating(player.doubles_usta_dynamic_rating, 3)}</td>
 
                         <td>
                           <input
@@ -638,7 +656,8 @@ export default function ManagePlayersPage() {
                           />
                         </td>
 
-                        <td>{formatRating(player.overall_dynamic_rating)}</td>
+                        <td>{formatRating(player.overall_dynamic_rating, 3)}</td>
+                        <td>{formatRating(player.overall_usta_dynamic_rating, 3)}</td>
 
                         <td>
                           <div
@@ -743,7 +762,3 @@ function normalizeNullableText(value: string | null | undefined) {
   return normalized ? normalized : null
 }
 
-function formatRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
-  return value.toFixed(3)
-}

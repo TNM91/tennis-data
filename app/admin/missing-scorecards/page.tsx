@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { type ReactNode, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
+import { formatDate } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
 
 type MatchLedgerRow = {
@@ -24,17 +25,6 @@ type FocusFilter = 'all' | 'due-this-week' | 'missing-id' | 'missing-league'
 
 function cleanText(value: string | null | undefined) {
   return (value || '').trim()
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return 'Unscheduled'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function startOfTodayKey() {
@@ -315,7 +305,7 @@ export default function MissingScorecardsPage() {
       const externalMatchId = cleanText(row.external_match_id) || 'missing-id'
       const league = leagueScopeLabel(row.league_name, row.flight)
       const teams = `${cleanText(row.home_team) || 'Unknown home'} vs ${cleanText(row.away_team) || 'Unknown away'}`
-      return `${formatDate(row.match_date)} | ${league} | ${teams} | Match ID: ${externalMatchId}`
+      return `${formatDate(row.match_date, 'Unscheduled')} | ${league} | ${teams} | Match ID: ${externalMatchId}`
     })
 
     if (lines.length === 0) return
@@ -608,7 +598,7 @@ export default function MissingScorecardsPage() {
                   width: '100%',
                   justifyContent: 'flex-start',
                   padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.12)',
+                  background: 'rgba(220,38,38,0.10)',
                   color: '#991b1b',
                   border: '1px solid rgba(220,38,38,0.18)',
                 }}
@@ -621,9 +611,9 @@ export default function MissingScorecardsPage() {
                   marginTop: 18,
                   padding: 18,
                   borderRadius: 16,
-                  background: '#f8fafc',
-                  border: '1px dashed #cbd5e1',
-                  color: '#475569',
+                  background: 'var(--shell-chip-bg)',
+                  border: '1px dashed var(--shell-panel-border)',
+                  color: 'var(--shell-copy-muted)',
                 }}
               >
                 No matches are currently visible for this filter set. Try widening the status, league, team, or search scope.
@@ -643,13 +633,13 @@ export default function MissingScorecardsPage() {
                       className="surface-card"
                       style={{
                         padding: 18,
-                        border: '1px solid rgba(116,190,255,0.12)',
+                        border: '1px solid var(--shell-panel-border)',
                         background:
                           status === 'pending'
-                            ? 'linear-gradient(180deg, rgba(45,22,12,0.72) 0%, rgba(15,23,42,0.96) 100%)'
+                            ? 'var(--shell-panel-bg-strong)'
                             : status === 'completed'
-                              ? 'linear-gradient(180deg, rgba(18,48,29,0.68) 0%, rgba(9,18,34,0.94) 100%)'
-                              : 'linear-gradient(180deg, rgba(17,34,63,0.70) 0%, rgba(9,18,34,0.94) 100%)',
+                              ? 'var(--shell-panel-bg)'
+                              : 'var(--shell-panel-bg)',
                       }}
                     >
                       <div
@@ -662,11 +652,11 @@ export default function MissingScorecardsPage() {
                         }}
                       >
                         <div style={{ maxWidth: 760 }}>
-                          <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1rem' }}>
+                          <div style={{ color: 'var(--foreground)', fontWeight: 800, fontSize: '1rem' }}>
                             {cleanText(row.home_team) || 'Unknown home'} vs {cleanText(row.away_team) || 'Unknown away'}
                           </div>
                           <div className="subtle-text" style={{ marginTop: 6 }}>
-                            {formatDate(row.match_date)} | {leagueScopeLabel(row.league_name, row.flight)}
+                            {formatDate(row.match_date, 'Unscheduled')} | {leagueScopeLabel(row.league_name, row.flight)}
                           </div>
                           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
                             <span className={status === 'pending' ? 'badge badge-green' : status === 'completed' ? 'badge badge-slate' : 'badge badge-blue'}>

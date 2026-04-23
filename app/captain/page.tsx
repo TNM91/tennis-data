@@ -2,10 +2,15 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
-import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
+import { useTheme } from '@/app/components/theme-provider'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
 import {
   buildCaptainScopedHref,
@@ -25,7 +30,9 @@ import {
   type CaptainWeekStatus,
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
-import { isCaptain, isMember, type UserRole } from '@/lib/roles'
+import { isMember, type UserRole } from '@/lib/roles'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
   id: string
@@ -44,15 +51,21 @@ type PlayerRelation =
       id: string
       name: string
       overall_dynamic_rating: number | null
+      overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
+      singles_usta_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      doubles_usta_dynamic_rating: number | null
     }
   | {
       id: string
       name: string
       overall_dynamic_rating: number | null
+      overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
+      singles_usta_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      doubles_usta_dynamic_rating: number | null
     }[]
   | null
 
@@ -170,21 +183,6 @@ function normalizePlayerRelation(player: PlayerRelation) {
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
-function formatDate(value: string | null) {
-  if (!value) return 'Unknown'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function formatRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
-  return value.toFixed(2)
-}
 
 function average(values: number[]) {
   if (!values.length) return null
@@ -203,11 +201,15 @@ function formatPercent(value: number) {
 
 export default function CaptainHubPage() {
   const router = useRouter()
+  const { theme } = useTheme()
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
+  const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
   const [selectedTeam, setSelectedTeam] = useState('')
   const [selectedLeague, setSelectedLeague] = useState('')
   const [selectedFlight, setSelectedFlight] = useState('')
@@ -237,9 +239,13 @@ export default function CaptainHubPage() {
   })
   const [weeklyPrepNotes, setWeeklyPrepNotes] = useState('')
   const [opponentScoutNotes, setOpponentScoutNotes] = useState('')
-  const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('No notes saved yet')
+  const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
   const [loadedNotesScopeKey, setLoadedNotesScopeKey] = useState('')
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
+
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   const loadRole = useCallback(async (nextRole: UserRole) => {
     setRole(nextRole)
@@ -351,27 +357,6 @@ export default function CaptainHubPage() {
         return
       }
 
-      const { data: participantData, error: participantError } = await supabase
-        .from('match_players')
-        .select(`
-          match_id,
-          side,
-          seat,
-          player_id,
-          players (
-            id,
-            name,
-            overall_dynamic_rating,
-            singles_dynamic_rating,
-            doubles_dynamic_rating
-          )
-        `)
-        .in('match_id', matchIds)
-
-      if (participantError) throw new Error(participantError.message)
-
-      setParticipants((participantData || []) as MatchPlayer[])
-
       let scenarioQuery = supabase
         .from('lineup_scenarios')
         .select('id, scenario_name, match_date')
@@ -382,8 +367,36 @@ export default function CaptainHubPage() {
       if (selectedLeague) scenarioQuery = scenarioQuery.eq('league_name', selectedLeague)
       if (selectedFlight) scenarioQuery = scenarioQuery.eq('flight', selectedFlight)
 
-      const { data: scenarioData, error: scenarioError } = await scenarioQuery
+      const [
+        { data: participantData, error: participantError },
+        { data: scenarioData, error: scenarioError },
+      ] = await Promise.all([
+        supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            side,
+            seat,
+            player_id,
+            players (
+              id,
+              name,
+              overall_dynamic_rating,
+              overall_usta_dynamic_rating,
+              singles_dynamic_rating,
+              singles_usta_dynamic_rating,
+              doubles_dynamic_rating,
+              doubles_usta_dynamic_rating
+            )
+          `)
+          .in('match_id', matchIds),
+        scenarioQuery,
+      ])
+
+      if (participantError) throw new Error(participantError.message)
       if (scenarioError) throw new Error(scenarioError.message)
+
+      setParticipants((participantData || []) as MatchPlayer[])
 
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
       setScenarioCount(typedScenarios.length)
@@ -398,6 +411,7 @@ export default function CaptainHubPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const resumeState = readCaptainResumeState()
+    setSelectedCompetitionLayer(params.get('layer') || resumeState?.competitionLayer || '')
     setSelectedTeam(params.get('team') || resumeState?.team || '')
     setSelectedLeague(params.get('league') || resumeState?.league || '')
     setSelectedFlight(params.get('flight') || resumeState?.flight || '')
@@ -409,6 +423,7 @@ export default function CaptainHubPage() {
     async function loadAuth() {
       const authState = await getClientAuthState()
       if (!active) return
+      setEntitlements(authState.entitlements)
       await loadRole(authState.role)
     }
 
@@ -419,6 +434,7 @@ export default function CaptainHubPage() {
     } = supabase.auth.onAuthStateChange(async () => {
       if (!active) return
       const authState = await getClientAuthState()
+      setEntitlements(authState.entitlements)
       void loadRole(authState.role)
     })
 
@@ -504,11 +520,12 @@ export default function CaptainHubPage() {
     if (!selectedTeam && !selectedLeague && !selectedFlight) return
 
     writeCaptainResumeState({
+      competitionLayer: selectedCompetitionLayer || undefined,
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
     })
-  }, [selectedFlight, selectedLeague, selectedTeam])
+  }, [selectedCompetitionLayer, selectedFlight, selectedLeague, selectedTeam])
 
   const teamSideByMatchId = useMemo(() => {
     const map = new Map<string, 'A' | 'B'>()
@@ -523,6 +540,7 @@ export default function CaptainHubPage() {
 
   const roster = useMemo<TeamPlayerSummary[]>(() => {
     const map = new Map<string, TeamPlayerSummary>()
+    const matchById = new Map(matches.map((m) => [m.id, m]))
 
     for (const row of participants) {
       const side = teamSideByMatchId.get(row.match_id)
@@ -531,7 +549,7 @@ export default function CaptainHubPage() {
       const player = normalizePlayerRelation(row.players)
       if (!player) continue
 
-      const match = matches.find((item) => item.id === row.match_id)
+      const match = matchById.get(row.match_id)
       if (!match) continue
 
       if (!map.has(player.id)) {
@@ -561,14 +579,21 @@ export default function CaptainHubPage() {
   const pairings = useMemo<PairingSummary[]>(() => {
     const map = new Map<string, PairingSummary>()
 
+    const participantsByMatchId = new Map<string, typeof participants>()
+    for (const row of participants) {
+      const existing = participantsByMatchId.get(row.match_id) ?? []
+      existing.push(row)
+      participantsByMatchId.set(row.match_id, existing)
+    }
+
     for (const match of matches) {
       if (match.match_type !== 'doubles') continue
 
       const side = teamSideByMatchId.get(match.id)
       if (!side) continue
 
-      const teamPlayers = participants
-        .filter((row) => row.match_id === match.id && row.side === side)
+      const teamPlayers = (participantsByMatchId.get(match.id) ?? [])
+        .filter((row) => row.side === side)
         .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
         .map((row) => normalizePlayerRelation(row.players))
         .filter(Boolean) as NonNullable<ReturnType<typeof normalizePlayerRelation>>[]
@@ -648,34 +673,43 @@ export default function CaptainHubPage() {
   }, [matches, teamSideByMatchId, roster.length, pairings, recommendedSingles.length])
 
   const currentTeamHref = selectedTeam
-    ? `/teams/${encodeURIComponent(selectedTeam)}?league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/teams'
+    ? `/team/${encodeURIComponent(selectedTeam)}?${new URLSearchParams({
+        ...(selectedCompetitionLayer ? { layer: selectedCompetitionLayer } : {}),
+        league: selectedLeague,
+        flight: selectedFlight,
+      }).toString()}`
+    : '/explore/teams'
 
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
+    competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
   })
 
   const availabilityHref = buildCaptainScopedHref('/captain/availability', {
+    competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
   })
 
   const scenarioHref = buildCaptainScopedHref('/captain/scenario-builder', {
+    competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
   })
 
   const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+    competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
   })
 
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
+    competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
@@ -683,6 +717,7 @@ export default function CaptainHubPage() {
 
   const captainResume = readCaptainResumeState()
   const weeklyBriefHref = buildCaptainScopedHref('/captain/weekly-brief', {
+    competitionLayer: selectedCompetitionLayer || captainResume?.competitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
@@ -690,12 +725,15 @@ export default function CaptainHubPage() {
     opponent: captainResume?.opponentTeam,
   })
   const teamBriefHref = buildCaptainScopedHref('/captain/team-brief', {
+    competitionLayer: selectedCompetitionLayer || captainResume?.competitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
     date: captainResume?.eventDate,
     opponent: captainResume?.opponentTeam,
   })
+  const seasonDashboardHref = '/captain/season-dashboard'
+  const tiqTeamMatchesHref = '/captain/tiq-team-matches'
   const captainNotesScope = useMemo(
     () => ({
       team: selectedTeam || captainResume?.team,
@@ -737,7 +775,7 @@ export default function CaptainHubPage() {
     const savedNotes = readCaptainWeekNotes(captainNotesScope)
     setWeeklyPrepNotes(savedNotes?.weeklyNotes || '')
     setOpponentScoutNotes(savedNotes?.opponentNotes || '')
-    setNotesUpdatedLabel(savedNotes?.updatedAt ? formatDateTimeShort(savedNotes.updatedAt) : 'No notes saved yet')
+    setNotesUpdatedLabel(savedNotes?.updatedAt ? formatDateTimeShort(savedNotes.updatedAt) : 'Weekly notes not saved yet')
     setLoadedNotesScopeKey(captainNotesScopeKey)
   }, [captainNotesScope, captainNotesScopeKey])
 
@@ -779,8 +817,11 @@ export default function CaptainHubPage() {
                   ? '/captain/weekly-brief'
                 : captainResume?.lastTool === 'team-brief'
                   ? '/captain/team-brief'
+                  : captainResume?.lastTool === 'season-dashboard'
+                    ? '/captain/season-dashboard'
                   : '/captain',
     {
+      competitionLayer: captainResume?.competitionLayer || selectedCompetitionLayer,
       team: captainResume?.team || selectedTeam,
       league: captainResume?.league || selectedLeague,
       flight: captainResume?.flight || selectedFlight,
@@ -789,15 +830,88 @@ export default function CaptainHubPage() {
     },
   )
 
-  const premiumEnabled = isCaptain(role)
+  const productAccess = buildProductAccessState(role, entitlements)
+  const premiumEnabled = productAccess.canUseCaptainWorkflow
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
     : !filteredTeamOptions.length
-      ? 'No team history is available yet. Add match data to unlock the weekly captain workflow.'
+      ? 'Team history is not ready yet. Add match data to unlock the weekly captain workflow.'
       : hasTeamScope
-        ? `Active scope: ${selectedTeam} · ${selectedLeague} · ${selectedFlight}`
+        ? `Active scope: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
         : 'Choose a team, league, and flight to activate the weekly workflow.'
+
+  const dynamicHeroCard: CSSProperties = {
+    ...heroCard,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.02fr) minmax(380px, 0.98fr)',
+    gap: isMobile ? 18 : 22,
+    padding: isSmallMobile ? 18 : isMobile ? 20 : 24,
+  }
+
+const dynamicHeroRightCard: CSSProperties = {
+  ...heroRightCard,
+  position: 'relative',
+  padding: isSmallMobile ? 16 : isMobile ? 18 : 20,
+  minHeight: isTablet ? 320 : 100,
+  overflow: 'hidden',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+  const dynamicHeroTitle: CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '2.5rem' : isMobile ? '3rem' : heroTitle.fontSize,
+  }
+
+  const dynamicHeroText: CSSProperties = {
+    ...heroText,
+    fontSize: isMobile ? 15 : 16,
+  }
+
+  const dynamicHeroControlRow: CSSProperties = {
+    ...heroControlRow,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicSelectStyle: CSSProperties = {
+    ...selectStyle,
+    minWidth: isSmallMobile ? '100%' : selectStyle.minWidth,
+    width: isSmallMobile ? '100%' : undefined,
+  }
+
+  const captainHeroVisualStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+  }
+
+const captainHeroVisualMaskStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background: isTablet ? 'var(--shell-hero-mask-mobile)' : 'var(--shell-hero-mask)',
+  pointerEvents: 'none',
+  zIndex: 1,
+}
+
+  const captainHeroVisualGlowStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: theme === 'dark'
+      ? 'radial-gradient(circle at 68% 62%, rgba(155,225,29,0.14) 0%, rgba(155,225,29,0.04) 26%, rgba(155,225,29,0) 58%)'
+      : 'radial-gradient(circle at 68% 62%, rgba(155,225,29,0.16) 0%, rgba(155,225,29,0.05) 26%, rgba(155,225,29,0) 58%)',
+    pointerEvents: 'none',
+    zIndex: 1,
+  }
+
+  const captainHeroVisualContentStyle: CSSProperties = {
+    position: 'relative',
+    zIndex: 2,
+    display: 'grid',
+    alignContent: 'space-between',
+    gap: 16,
+    minHeight: '100%',
+  }
 
   const nextAction = useMemo(() => {
     if (!selectedTeam) {
@@ -911,14 +1025,14 @@ export default function CaptainHubPage() {
       captainResume?.opponentTeam ||
       (currentMatch
         ? safeText(currentMatch.home_team) === selectedTeam
-          ? safeText(currentMatch.away_team, 'Opponent TBD')
-          : safeText(currentMatch.home_team, 'Opponent TBD')
-        : 'Opponent TBD')
+          ? safeText(currentMatch.away_team, 'Opponent not set')
+          : safeText(currentMatch.home_team, 'Opponent not set')
+        : 'Opponent not set')
 
     return {
       eventDateLabel: formatDate(eventDate),
-      opponentLabel: opponent || 'Opponent TBD',
-      scopeLabel: hasTeamScope ? `${selectedLeague} · ${selectedFlight}` : 'Choose team scope',
+      opponentLabel: opponent || 'Opponent not set',
+      scopeLabel: hasTeamScope ? `${selectedLeague} - ${selectedFlight}` : 'Choose team scope',
       lineupLabel: workspaceState.lineupReady ? `${workspaceState.lineupCount} slots ready` : 'Lineup not saved',
       messagingLabel: workspaceState.messagingReady ? 'Ready to send' : 'Needs event details',
       briefLabel: workspaceState.briefReady ? 'Briefing ready' : 'Brief building',
@@ -937,8 +1051,9 @@ export default function CaptainHubPage() {
     workspaceState.messagingReady,
   ])
 
-  function rememberCaptainResume(stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief') {
+  function rememberCaptainResume(stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief' | 'season-dashboard' | 'tiq-team-matches') {
     writeCaptainResumeState({
+      competitionLayer: selectedCompetitionLayer || undefined,
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
@@ -955,7 +1070,11 @@ export default function CaptainHubPage() {
                   ? 'availability'
                   : stage === 'brief'
                     ? 'weekly-brief'
-                  : 'hub',
+                    : stage === 'season-dashboard'
+                      ? 'season-dashboard'
+                      : stage === 'tiq-team-matches'
+                        ? 'tiq-team-matches'
+                        : 'hub',
       lastToolLabel:
         stage === 'lineup'
           ? 'Lineup Builder'
@@ -969,13 +1088,17 @@ export default function CaptainHubPage() {
                   ? 'Availability'
                   : stage === 'brief'
                     ? 'Weekly Brief'
-                  : 'Captain Console',
+                    : stage === 'season-dashboard'
+                      ? 'Season Dashboard'
+                      : stage === 'tiq-team-matches'
+                        ? 'Team Match Results'
+                        : 'Captain Console',
     })
   }
 
   function handleCaptainNav(
     href: string,
-    stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief',
+    stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief' | 'season-dashboard' | 'tiq-team-matches',
   ) {
     rememberCaptainResume(stage)
     router.push(href)
@@ -1001,17 +1124,17 @@ export default function CaptainHubPage() {
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
-        <section style={heroCard}>
+        <section style={dynamicHeroCard}>
           <div style={heroLeft}>
             <div style={eyebrow}>Premium captain workflow</div>
-            <h1 style={heroTitle}>Captain Console</h1>
-            <p style={heroText}>
+            <h1 style={dynamicHeroTitle}>Captain Console</h1>
+            <p style={dynamicHeroText}>
               A strategic command center for captains. Choose your team, review lineup intelligence,
               track availability, build match-day options, compare scenarios, communicate with your
               roster, and manage weekly decisions with real team context.
             </p>
 
-            <div style={heroControlRow}>
+            <div style={dynamicHeroControlRow}>
               <select
                 value={selectedTeam}
                 onChange={(e) => {
@@ -1022,7 +1145,7 @@ export default function CaptainHubPage() {
                     setSelectedFlight(option.flight)
                   }
                 }}
-                style={selectStyle}
+                style={dynamicSelectStyle}
               >
                 {loadingOptions && !filteredTeamOptions.length ? (
                   <option>Loading teams...</option>
@@ -1032,19 +1155,15 @@ export default function CaptainHubPage() {
                       key={`${option.team}__${option.league}__${option.flight}`}
                       value={option.team}
                     >
-                      {option.team} · {option.league} · {option.flight}
+                      {option.team} - {option.league} - {option.flight}
                     </option>
                   ))
                 )}
               </select>
 
-              <button
-                type="button"
-                style={secondaryButtonSmallButton}
-                onClick={() => setRefreshTick((current) => current + 1)}
-              >
+              <SecondarySmallBtn onClick={() => setRefreshTick((current) => current + 1)}>
                 {loadingOptions || loadingTeam ? 'Refreshing...' : 'Refresh data'}
-              </button>
+              </SecondarySmallBtn>
 
               <button
                 type="button"
@@ -1081,40 +1200,62 @@ export default function CaptainHubPage() {
             </div>
           </div>
 
-          <div style={heroRightCard}>
-            <div style={miniKicker}>Captain quick start</div>
-            <h2 style={quickStartTitle}>Run the full weekly workflow in one place</h2>
+          <div style={dynamicHeroRightCard}>
+            <div style={captainHeroVisualStyle}>
+              <Image
+                src={heroArtworkSrc}
+                alt="TenAceIQ captain concept art"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 36vw"
+                style={{
+                  objectFit: 'cover',
+                  objectPosition: isTablet ? 'center center' : '72% center',
+                  opacity: theme === 'dark' ? 0.95 : 0.82,
+                }}
+              />
+              <div style={captainHeroVisualGlowStyle} />
+              <div style={captainHeroVisualMaskStyle} />
+            </div>
 
-            <div style={workflowStack}>
-              {[
-                ['1', 'Check availability', 'Start with the right player pool before building anything.'],
-                ['2', 'Build and compare', 'Use lineup builder and scenario tools to pressure-test options.'],
-                ['3', 'Communicate and confirm', 'Send lineup, directions, and reminders from the weekly messaging console.'],
-                ['4', 'Review captain IQ', 'Use analytics to spot dependable players, pairings, and weekly risks.'],
-              ].map(([step, title, text]) => (
-                <div key={step} style={workflowRow}>
-                  <div style={workflowStep}>{step}</div>
-                  <div>
-                    <div style={workflowTitle}>{title}</div>
-                    <div style={workflowText}>{text}</div>
+            <div style={captainHeroVisualContentStyle}>
+              <div>
+                <div style={miniKicker}>Captain quick start</div>
+                <h2 style={quickStartTitle}>Run the full weekly workflow in one place</h2>
+              </div>
+
+              <div style={workflowStack}>
+                {[
+                  ['1', 'Check availability', 'Start with the right player pool before building anything.'],
+                  ['2', 'Build and compare', 'Use lineup builder and scenario tools to pressure-test options.'],
+                  ['3', 'Communicate and confirm', 'Send lineup, directions, and reminders from the weekly messaging console.'],
+                  ['4', 'Review captain IQ', 'Use analytics to spot dependable players, pairings, and weekly risks.'],
+                ].map(([step, title, text]) => (
+                  <div key={step} style={workflowRow}>
+                    <div style={workflowStep}>{step}</div>
+                    <div>
+                      <div style={workflowTitle}>{title}</div>
+                      <div style={workflowText}>{text}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
+
+        <CaptainSubnav
+          title="Move across the captain workflow"
+          description="Keep availability, lineup, scenarios, messaging, and season management inside one cleaner command layer."
+        />
 
         {error ? (
           <section style={errorCard}>
             <div>{error}</div>
             <div style={{ marginTop: 14 }}>
-              <button
-                type="button"
-                style={secondaryButtonSmallButton}
-                onClick={() => setRefreshTick((current) => current + 1)}
-              >
+              <SecondarySmallBtn onClick={() => setRefreshTick((current) => current + 1)}>
                 Retry captain hub load
-              </button>
+              </SecondarySmallBtn>
             </div>
           </section>
         ) : null}
@@ -1131,7 +1272,7 @@ export default function CaptainHubPage() {
           <div style={nextActionCard}>
             <div style={nextActionHeader}>
               <span style={badgeBlue}>{captainResume?.lastToolLabel || 'Captain Console'}</span>
-              <span style={badgeSlate}>{captainResume?.lastVisitedAt ? formatDateTimeShort(captainResume.lastVisitedAt) : 'No saved session yet'}</span>
+              <span style={badgeSlate}>{captainResume?.lastVisitedAt ? formatDateTimeShort(captainResume.lastVisitedAt) : 'No saved workflow yet'}</span>
             </div>
 
             <div style={nextActionTitle}>
@@ -1147,15 +1288,9 @@ export default function CaptainHubPage() {
             </div>
 
             <div style={nextActionButtonRow}>
-              <Link href={resumeHref} style={primaryButton}>
-                Resume workflow
-              </Link>
-              <Link href={availabilityHref} style={secondaryButtonSmall}>
-                Open availability
-              </Link>
-              <Link href={weeklyBriefHref} style={secondaryButtonSmall}>
-                Weekly brief
-              </Link>
+              <PrimaryLink href={resumeHref}>Resume workflow</PrimaryLink>
+              <SecondarySmallLink href={availabilityHref}>Open availability</SecondarySmallLink>
+              <SecondarySmallLink href={weeklyBriefHref}>Weekly brief</SecondarySmallLink>
             </div>
           </div>
         </section>
@@ -1174,7 +1309,7 @@ export default function CaptainHubPage() {
 
           <div style={notesScopeBanner}>
             {captainNotesScope.team
-              ? `Saving notes for ${captainNotesScope.team}${captainNotesScope.league ? ` · ${captainNotesScope.league}` : ''}${captainNotesScope.flight ? ` · ${captainNotesScope.flight}` : ''}${captainNotesScope.eventDate ? ` · ${formatDateShort(captainNotesScope.eventDate)}` : ''}${captainNotesScope.opponentTeam ? ` · vs ${captainNotesScope.opponentTeam}` : ''}`
+              ? `Saving notes for ${captainNotesScope.team}${captainNotesScope.league ? ` - ${captainNotesScope.league}` : ''}${captainNotesScope.flight ? ` - ${captainNotesScope.flight}` : ''}${captainNotesScope.eventDate ? ` - ${formatDateShort(captainNotesScope.eventDate)}` : ''}${captainNotesScope.opponentTeam ? ` - vs ${captainNotesScope.opponentTeam}` : ''}`
               : 'Pick a team scope above to start a saved weekly notes thread.'}
           </div>
 
@@ -1205,23 +1340,32 @@ export default function CaptainHubPage() {
           </div>
         </section>
 
-        <section style={premiumStrip}>
-          <div>
-            <div style={sectionKicker}>Captain tier</div>
-            <h2 style={premiumTitle}>
-              {premiumEnabled ? 'Premium workflow unlocked' : 'Premium workflow preview'}
-            </h2>
-            <div style={premiumText}>
-              Lineup Builder, Scenario Comparison, Messaging, and Captain Analytics make up the premium captain loop.
+        {premiumEnabled ? (
+          <section style={premiumStrip}>
+            <div>
+              <div style={sectionKicker}>Captain tier</div>
+              <h2 style={premiumTitle}>Captain is the command layer for this team.</h2>
+              <div style={premiumText}>
+                Save time, build smarter lineups, keep availability visible, and move the full week from planning to team communication in one place.
+              </div>
             </div>
-          </div>
-          <div style={pillGroupWrap}>
-            <span style={premiumEnabled ? badgeGreen : badgeSlate}>
-              {premiumEnabled ? 'Captain tier active' : role === 'member' ? 'Member preview only' : 'Upgrade to unlock'}
-            </span>
-            <span style={badgeBlue}>{role === 'admin' ? 'Admin access' : role === 'captain' ? 'Captain access' : role === 'member' ? 'Member preview' : 'Login required'}</span>
-          </div>
-        </section>
+            <div style={pillGroupWrap}>
+              <span style={badgeGreen}>{productAccess.captainTierLabel}</span>
+              <span style={badgeBlue}>{role === 'admin' ? 'Admin access' : 'Captain access'}</span>
+              <PrimarySmallLink href="/pricing">Review plans</PrimarySmallLink>
+            </div>
+          </section>
+        ) : (
+          <UpgradePrompt
+            planId="captain"
+            headline="Still juggling lineups in group texts?"
+            body="Captain brings availability, lineup builder, scenario testing, projections, and team messaging into one weekly workflow."
+            result="Spend less time chasing players and more time sending a lineup you actually trust."
+            ctaLabel="Build Smarter Lineups"
+            ctaHref="/pricing"
+            compact
+          />
+        )}
 
         <section style={statusStrip}>
           <StatusStripCard
@@ -1233,7 +1377,7 @@ export default function CaptainHubPage() {
           <StatusStripCard
             label="Scenario"
             value={workspaceState.scenarioReady ? 'Chosen' : 'Not chosen'}
-            detail={workspaceState.scenarioReady ? `${workspaceState.scenarioCount} saved scenario${workspaceState.scenarioCount === 1 ? '' : 's'} available${latestScenarioName ? ` · latest: ${latestScenarioName}` : ''}` : 'No saved scenarios tied to this team yet'}
+            detail={workspaceState.scenarioReady ? `${workspaceState.scenarioCount} saved scenario${workspaceState.scenarioCount === 1 ? '' : 's'} available${latestScenarioName ? ` - latest: ${latestScenarioName}` : ''}` : 'No saved scenarios tied to this team yet'}
             tone={workspaceState.scenarioReady ? 'good' : 'info'}
           />
           <StatusStripCard
@@ -1271,12 +1415,8 @@ export default function CaptainHubPage() {
             <div style={nextActionText}>{nextAction.detail}</div>
 
             <div style={nextActionButtonRow}>
-              <button
-                type="button"
-                style={{
-                  ...primaryButtonButton,
-                  ...(!hasTeamScope ? disabledButton : {}),
-                }}
+              <PrimaryBtn
+                disabled={!hasTeamScope}
                 onClick={() => handleCaptainNav(
                   nextAction.href,
                   nextAction.href === lineupBuilderHref
@@ -1289,24 +1429,18 @@ export default function CaptainHubPage() {
                           ? 'analytics'
                           : 'team',
                 )}
-                disabled={!hasTeamScope}
               >
                 {nextAction.cta}
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...secondaryButtonSmallButton,
-                  ...(!hasTeamScope ? disabledButtonSecondary : {}),
-                }}
+              </PrimaryBtn>
+              <SecondarySmallBtn
+                disabled={!hasTeamScope}
                 onClick={() => {
                   if (!hasTeamScope) return
                   handleCaptainNav(messagingHref, 'messaging')
                 }}
-                disabled={!hasTeamScope}
               >
                 Continue Messaging
-              </button>
+              </SecondarySmallBtn>
             </div>
           </div>
         </section>
@@ -1377,18 +1511,13 @@ export default function CaptainHubPage() {
             </div>
 
             <div style={nextActionButtonRow}>
-              <Link href={weeklyBriefHref} style={primaryButton}>
-                Open weekly brief
-              </Link>
-              <Link href={teamBriefHref} style={secondaryButtonSmall}>
-                Open team brief
-              </Link>
-              <Link
+              <PrimaryLink href={weeklyBriefHref}>Open weekly brief</PrimaryLink>
+              <SecondarySmallLink href={teamBriefHref}>Open team brief</SecondarySmallLink>
+              <SecondarySmallLink
                 href={workspaceState.pendingResponseCount > 0 ? availabilityHref : messagingHref}
-                style={secondaryButtonSmall}
               >
                 {workspaceState.pendingResponseCount > 0 ? 'Follow up responses' : 'Open messaging'}
-              </Link>
+              </SecondarySmallLink>
             </div>
           </div>
         </section>
@@ -1431,18 +1560,10 @@ export default function CaptainHubPage() {
           </div>
 
           <div style={glanceActionRow}>
-            <Link href={weeklyBriefHref} style={primaryButton}>
-              Open weekly brief
-            </Link>
-            <Link href={teamBriefHref} style={secondaryButtonSmall}>
-              Open team brief
-            </Link>
-            <Link href={lineupBuilderHref} style={secondaryButtonSmall}>
-              Edit lineup
-            </Link>
-            <Link href={messagingHref} style={secondaryButtonSmall}>
-              Send update
-            </Link>
+            <PrimaryLink href={weeklyBriefHref}>Open weekly brief</PrimaryLink>
+            <SecondarySmallLink href={teamBriefHref}>Open team brief</SecondarySmallLink>
+            <SecondarySmallLink href={lineupBuilderHref}>Edit lineup</SecondarySmallLink>
+            <SecondarySmallLink href={messagingHref}>Send update</SecondarySmallLink>
           </div>
 
           <div style={weekStatusShell}>
@@ -1453,27 +1574,19 @@ export default function CaptainHubPage() {
             </div>
 
             <div style={weekStatusButtonRow}>
-              <button
-                type="button"
-                style={weekStatus === 'draft-lineup' ? primaryButtonButton : secondaryButtonSmallButton}
-                onClick={() => handleWeekStatusUpdate('draft-lineup')}
-              >
-                Draft lineup
-              </button>
-              <button
-                type="button"
-                style={weekStatus === 'ready-to-send' ? primaryButtonButton : secondaryButtonSmallButton}
-                onClick={() => handleWeekStatusUpdate('ready-to-send')}
-              >
-                Ready to send
-              </button>
-              <button
-                type="button"
-                style={weekStatus === 'finalized' ? primaryButtonButton : secondaryButtonSmallButton}
-                onClick={() => handleWeekStatusUpdate('finalized')}
-              >
-                Finalized
-              </button>
+              {(['draft-lineup', 'ready-to-send', 'finalized'] as CaptainWeekStatus[]).map((status) => {
+                const isActive = weekStatus === status
+                const label = status === 'draft-lineup' ? 'Draft lineup' : status === 'ready-to-send' ? 'Ready to send' : 'Finalized'
+                return isActive ? (
+                  <PrimaryBtn key={status} onClick={() => handleWeekStatusUpdate(status)}>
+                    {label}
+                  </PrimaryBtn>
+                ) : (
+                  <SecondarySmallBtn key={status} onClick={() => handleWeekStatusUpdate(status)}>
+                    {label}
+                  </SecondarySmallBtn>
+                )
+              })}
             </div>
           </div>
         </section>
@@ -1554,6 +1667,22 @@ export default function CaptainHubPage() {
               cta="Open Team Page"
               onAction={() => handleCaptainNav(currentTeamHref, 'team')}
             />
+            <ActionCard
+              badge="TIQ Seasons"
+              title="Season Dashboard"
+              description={productAccess.teamLeagueMessage}
+              href={seasonDashboardHref}
+              cta="Open Season Dashboard"
+              onAction={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}
+            />
+            <ActionCard
+              badge="TIQ Results"
+              title="Team Match Results"
+              description="Record team match events and enter line results. Completed lines automatically update TIQ dynamic ratings."
+              href={tiqTeamMatchesHref}
+              cta="Enter Match Results"
+              onAction={() => handleCaptainNav(tiqTeamMatchesHref, 'tiq-team-matches')}
+            />
           </div>
         </section>
 
@@ -1575,7 +1704,7 @@ export default function CaptainHubPage() {
               <div style={commandText}>
                 Check availability first so every later decision is based on the players who can actually play.
               </div>
-              <button type="button" style={secondaryButtonSmallButton} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>Go to Availability</button>
+              <SecondarySmallBtn onClick={() => handleCaptainNav(availabilityHref, 'availability')}>Go to Availability</SecondarySmallBtn>
             </div>
             <div style={commandCard}>
               <div style={commandStep}>Step 2</div>
@@ -1584,8 +1713,8 @@ export default function CaptainHubPage() {
                 Use lineup builder and scenario tools together to create the best version before you communicate it.
               </div>
               <div style={commandButtonRow}>
-                <button type="button" style={primaryButtonSmallButton} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>Lineup Builder</button>
-                <button type="button" style={secondaryButtonSmallButton} onClick={() => handleCaptainNav(scenarioHref, 'scenario')}>Compare Scenarios</button>
+                <PrimarySmallBtn onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>Lineup Builder</PrimarySmallBtn>
+                <SecondarySmallBtn onClick={() => handleCaptainNav(scenarioHref, 'scenario')}>Compare Scenarios</SecondarySmallBtn>
               </div>
             </div>
             <div style={commandCardAccent}>
@@ -1595,8 +1724,8 @@ export default function CaptainHubPage() {
                 Open messaging to send lineups, arrival time, directions, and reminders to the right group.
               </div>
               <div style={commandButtonRow}>
-                <button type="button" style={primaryButtonSmallButton} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>Open Messaging</button>
-                <button type="button" style={secondaryButtonSmallButton} onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>Open Captain IQ</button>
+                <PrimarySmallBtn onClick={() => handleCaptainNav(messagingHref, 'messaging')}>Open Messaging</PrimarySmallBtn>
+                <SecondarySmallBtn onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>Open Captain IQ</SecondarySmallBtn>
               </div>
             </div>
           </div>
@@ -1638,7 +1767,7 @@ export default function CaptainHubPage() {
                             #{index + 1} {player.name}
                           </div>
                           <div style={listMeta}>
-                            {player.appearances} appearances · {player.wins}-{player.losses} when used
+                            {player.appearances} appearances - {player.wins}-{player.losses} when used
                           </div>
                         </div>
                         <div style={pillStrong}>{formatRating(player.singlesDynamic)}</div>
@@ -1666,7 +1795,7 @@ export default function CaptainHubPage() {
                             #{index + 1} {pair.names.join(' / ')}
                           </div>
                           <div style={listMeta}>
-                            {pair.wins}-{pair.losses} together · {pair.appearances} doubles lines
+                            {pair.wins}-{pair.losses} together - {pair.appearances} doubles lines
                           </div>
                         </div>
 
@@ -1713,7 +1842,7 @@ export default function CaptainHubPage() {
                     <div>
                       <div style={rosterName}>{player.name}</div>
                       <div style={rosterMeta}>
-                        {player.appearances} appearances · {player.wins}-{player.losses} record
+                        {player.appearances} appearances - {player.wins}-{player.losses} record
                       </div>
                     </div>
 
@@ -1741,6 +1870,7 @@ function ActionCard({
   accent = false,
   premium = false,
   premiumEnabled = true,
+  lockedMessage = 'Still building lineups manually? Unlock Captain to save time, reduce stress, and build smarter weekly plans.',
   onAction,
 }: {
   badge: string
@@ -1751,6 +1881,7 @@ function ActionCard({
   accent?: boolean
   premium?: boolean
   premiumEnabled?: boolean
+  lockedMessage?: string
   onAction?: () => void
 }) {
   const locked = premium && !premiumEnabled
@@ -1769,15 +1900,19 @@ function ActionCard({
       <h3 style={actionTitle}>{title}</h3>
       <p style={actionText}>{description}</p>
       {locked ? (
-        <div style={lockedText}>Upgrade to Captain Tier to unlock this workflow.</div>
+        <div style={lockedText}>{lockedMessage}</div>
       ) : onAction ? (
-        <button type="button" style={accent ? primaryButtonSmallButton : secondaryButtonSmallButton} onClick={onAction}>
-          {cta}
-        </button>
+        accent ? (
+          <PrimarySmallBtn onClick={onAction}>{cta}</PrimarySmallBtn>
+        ) : (
+          <SecondarySmallBtn onClick={onAction}>{cta}</SecondarySmallBtn>
+        )
       ) : (
-        <Link href={href} style={accent ? primaryButtonSmall : secondaryButtonSmall}>
-          {cta}
-        </Link>
+        accent ? (
+          <PrimarySmallLink href={href}>{cta}</PrimarySmallLink>
+        ) : (
+          <SecondarySmallLink href={href}>{cta}</SecondarySmallLink>
+        )
       )}
     </article>
   )
@@ -1834,6 +1969,151 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   )
 }
 
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 22px 44px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function PrimarySmallLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButtonSmall,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function SecondarySmallLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...secondaryButtonSmall,
+        borderColor: hovered ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
+        background: hovered ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function PrimarySmallBtn({
+  onClick,
+  children,
+}: {
+  onClick: () => void
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButtonSmallButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondarySmallBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...secondaryButtonSmallButton,
+        borderColor: hovered && !disabled ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
+        background: hovered && !disabled ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.06)',
+        transform: hovered && !disabled ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+        ...(disabled ? disabledButtonSecondary : {}),
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PrimaryBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButtonButton,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled ? '0 22px 44px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+        ...(disabled ? disabledButton : {}),
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
 const pageWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - 48px))',
   margin: '0 auto',
@@ -1856,11 +2136,9 @@ const heroCard: CSSProperties = {
   gap: 22,
   padding: 24,
   borderRadius: 32,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background:
-    'linear-gradient(180deg, rgba(12,24,48,0.88) 0%, rgba(15,39,71,0.82) 100%)',
-  boxShadow:
-    '0 24px 70px rgba(2,6,23,0.22), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const heroLeft: CSSProperties = {
@@ -1875,9 +2153,8 @@ const heroRightCard: CSSProperties = {
   alignContent: 'start',
   padding: 20,
   borderRadius: 24,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background:
-    'linear-gradient(180deg, rgba(18,36,66,0.68) 0%, rgba(17,34,61,0.54) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   backdropFilter: 'blur(10px)',
   WebkitBackdropFilter: 'blur(10px)',
 }
@@ -1887,9 +2164,9 @@ const eyebrow: CSSProperties = {
   width: 'fit-content',
   padding: '8px 12px',
   borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.2)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#dbeafe',
+  border: '1px solid var(--card-border-soft)',
+  background: 'var(--surface-soft)',
+  color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: '0.08em',
@@ -1901,7 +2178,7 @@ const heroTitle: CSSProperties = {
   fontSize: 'clamp(2.2rem, 4vw, 4rem)',
   lineHeight: 0.98,
   letterSpacing: '-0.05em',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
 }
 
 const heroText: CSSProperties = {
@@ -1909,7 +2186,7 @@ const heroText: CSSProperties = {
   maxWidth: 760,
   fontSize: 16,
   lineHeight: 1.7,
-  color: 'rgba(229,238,251,0.84)',
+  color: 'var(--foreground)',
 }
 
 const heroControlRow: CSSProperties = {
@@ -1923,9 +2200,9 @@ const selectStyle: CSSProperties = {
   minWidth: 280,
   flex: '1 1 320px',
   borderRadius: 16,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(10,24,47,0.94) 0%, rgba(8,19,38,0.98) 100%)',
-  color: '#e5eefc',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '13px 14px',
   outline: 'none',
   fontSize: 14,
@@ -1961,9 +2238,9 @@ const secondaryButtonSmall: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: 13,
-  color: '#dbeafe',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.06)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const primaryButtonButton: CSSProperties = {
@@ -2013,30 +2290,30 @@ const badgeBase: CSSProperties = {
 
 const badgeBlue: CSSProperties = {
   ...badgeBase,
-  color: '#dbeafe',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(40,88,164,0.24)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(37,91,227,0.12)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
-  color: '#dcfce7',
+  color: 'var(--foreground-strong)',
   border: '1px solid rgba(74,222,128,0.2)',
-  background: 'rgba(17, 39, 27, 0.88)',
+  background: 'rgba(155,225,29,0.14)',
 }
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
-  color: '#e2e8f0',
-  border: '1px solid rgba(148,163,184,0.18)',
-  background: 'rgba(15, 23, 42, 0.78)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const miniKicker: CSSProperties = {
   fontSize: 12,
-  color: 'rgba(197,213,234,0.86)',
+  color: 'var(--brand-blue-2)',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: '0.12em',
   fontWeight: 800,
 }
 
@@ -2045,7 +2322,7 @@ const quickStartTitle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1.1,
   letterSpacing: '-0.04em',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
 }
 
 const workflowStack: CSSProperties = {
@@ -2072,14 +2349,14 @@ const workflowStep: CSSProperties = {
 }
 
 const workflowTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: 15,
   marginBottom: 4,
 }
 
 const workflowText: CSSProperties = {
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--foreground)',
   fontSize: 14,
   lineHeight: 1.6,
 }
@@ -2250,9 +2527,9 @@ const scopeBanner: CSSProperties = {
   marginTop: '12px',
   borderRadius: '18px',
   padding: '12px 14px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#e7eefb',
+  background: 'var(--surface-soft)',
+  border: '1px solid var(--card-border-soft)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   fontSize: '14px',
   lineHeight: 1.55,
@@ -2362,7 +2639,7 @@ const metricCardAccent: CSSProperties = {
 
 const metricLabel: CSSProperties = {
   fontSize: 12,
-  color: 'rgba(197,213,234,0.86)',
+  color: 'var(--foreground)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontWeight: 800,
@@ -2370,7 +2647,7 @@ const metricLabel: CSSProperties = {
 
 const metricValue: CSSProperties = {
   marginTop: 10,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.05,

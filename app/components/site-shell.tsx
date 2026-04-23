@@ -9,14 +9,19 @@ import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/des
 export default function SiteShell({ children, active }: { children: ReactNode; active?: string }) {
   return (
     <AuthProvider>
-      <main style={pageBackground}>
+      <main
+        style={{
+          ...pageBackground,
+          paddingBottom: 'max(0px, env(safe-area-inset-bottom))',
+        }}
+      >
         <div style={orbOne} />
         <div style={orbTwo} />
         <div style={gridGlow} />
         <div style={topBlueWash} />
 
         <SiteHeader active={active} />
-        {children}
+        <div className="page-reveal">{children}</div>
         <SiteFooter />
       </main>
     </AuthProvider>

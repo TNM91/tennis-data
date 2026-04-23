@@ -14,12 +14,15 @@ type PlayerRow = {
   overall_dynamic_rating: number | null
 }
 
+type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual'
+
 type MatchRow = {
   id: string
   match_date: string
   match_type: MatchType
   score: string
   winner_side: MatchSide
+  match_source: MatchSource
   created_at?: string | null
 }
 
@@ -35,10 +38,13 @@ type WorkingPlayer = {
   name: string
   singlesBase: number
   singlesDynamic: number
+  singlesUstaDynamic: number
   doublesBase: number
   doublesDynamic: number
+  doublesUstaDynamic: number
   overallBase: number
   overallDynamic: number
+  overallUstaDynamic: number
   matchesProcessed: number
   recentDeltas: number[]
 }
@@ -49,6 +55,7 @@ type RatingSnapshotInsert = {
   snapshot_date: string
   rating_type: 'singles' | 'doubles' | 'overall'
   dynamic_rating: number
+  track: 'usta' | 'tiq'
 }
 
 type ParsedSetScore = {
@@ -121,11 +128,14 @@ export async function recalculateDynamicRatings() {
           id: player.id,
           name: player.name,
           singlesBase,
-          singlesDynamic: safeNumber(player.singles_dynamic_rating, singlesBase),
+          singlesDynamic: singlesBase,
+          singlesUstaDynamic: singlesBase,
           doublesBase,
-          doublesDynamic: safeNumber(player.doubles_dynamic_rating, doublesBase),
+          doublesDynamic: doublesBase,
+          doublesUstaDynamic: doublesBase,
           overallBase,
-          overallDynamic: safeNumber(player.overall_dynamic_rating, overallBase),
+          overallDynamic: overallBase,
+          overallUstaDynamic: overallBase,
           matchesProcessed: 0,
           recentDeltas: [],
         },
@@ -284,6 +294,7 @@ async function fetchMatches(): Promise<MatchRow[]> {
       match_type,
       score,
       winner_side,
+      match_source,
       created_at
     `)
     .not('match_type', 'is', null)
@@ -322,39 +333,56 @@ function processSinglesMatch(
   snapshotRows: RatingSnapshotInsert[],
   recencyWeight: number,
 ) {
-  const ratingA = playerA.singlesDynamic
-  const ratingB = playerB.singlesDynamic
-
-  const expectedA = expectedScore(ratingA, ratingB)
-  const expectedB = 1 - expectedA
-
   const actualA = match.winner_side === 'A' ? 1 : 0
   const actualB = match.winner_side === 'B' ? 1 : 0
-
   const scoreMetrics = parseScoreMetrics(match.score, match.winner_side)
-  const multiplier = buildMatchMultiplier(scoreMetrics, ratingA, ratingB, actualA, actualB, recencyWeight)
 
-  const deltaSinglesA = K_SINGLES * (actualA - expectedA) * multiplier.a
-  const deltaSinglesB = K_SINGLES * (actualB - expectedB) * multiplier.b
+  // TIQ track — all matches
+  const tiqExpectedA = expectedScore(playerA.singlesDynamic, playerB.singlesDynamic)
+  const tiqMultiplier = buildMatchMultiplier(scoreMetrics, playerA.singlesDynamic, playerB.singlesDynamic, actualA, actualB, recencyWeight)
 
-  const deltaOverallA = K_OVERALL * (actualA - expectedA) * multiplier.a
-  const deltaOverallB = K_OVERALL * (actualB - expectedB) * multiplier.b
+  const deltaTiqSinglesA = K_SINGLES * (actualA - tiqExpectedA) * tiqMultiplier.a
+  const deltaTiqSinglesB = K_SINGLES * (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
+  const deltaTiqOverallA = K_OVERALL * (actualA - tiqExpectedA) * tiqMultiplier.a
+  const deltaTiqOverallB = K_OVERALL * (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
 
-  playerA.singlesDynamic = clampAndRoundRating(playerA.singlesDynamic + deltaSinglesA)
-  playerB.singlesDynamic = clampAndRoundRating(playerB.singlesDynamic + deltaSinglesB)
+  playerA.singlesDynamic = clampAndRoundRating(playerA.singlesDynamic + deltaTiqSinglesA)
+  playerB.singlesDynamic = clampAndRoundRating(playerB.singlesDynamic + deltaTiqSinglesB)
+  playerA.overallDynamic = clampAndRoundRating(playerA.overallDynamic + deltaTiqOverallA)
+  playerB.overallDynamic = clampAndRoundRating(playerB.overallDynamic + deltaTiqOverallB)
 
-  playerA.overallDynamic = clampAndRoundRating(playerA.overallDynamic + deltaOverallA)
-  playerB.overallDynamic = clampAndRoundRating(playerB.overallDynamic + deltaOverallB)
-
-  registerDelta(playerA, deltaSinglesA)
-  registerDelta(playerB, deltaSinglesB)
+  registerDelta(playerA, deltaTiqSinglesA)
+  registerDelta(playerB, deltaTiqSinglesB)
 
   snapshotRows.push(
-    buildSnapshot(playerA.id, match.id, match.match_date, 'singles', playerA.singlesDynamic),
-    buildSnapshot(playerB.id, match.id, match.match_date, 'singles', playerB.singlesDynamic),
-    buildSnapshot(playerA.id, match.id, match.match_date, 'overall', playerA.overallDynamic),
-    buildSnapshot(playerB.id, match.id, match.match_date, 'overall', playerB.overallDynamic),
+    buildSnapshot(playerA.id, match.id, match.match_date, 'singles', playerA.singlesDynamic, 'tiq'),
+    buildSnapshot(playerB.id, match.id, match.match_date, 'singles', playerB.singlesDynamic, 'tiq'),
+    buildSnapshot(playerA.id, match.id, match.match_date, 'overall', playerA.overallDynamic, 'tiq'),
+    buildSnapshot(playerB.id, match.id, match.match_date, 'overall', playerB.overallDynamic, 'tiq'),
   )
+
+  // USTA track — USTA matches only
+  if (match.match_source === 'usta') {
+    const ustaExpectedA = expectedScore(playerA.singlesUstaDynamic, playerB.singlesUstaDynamic)
+    const ustaMultiplier = buildMatchMultiplier(scoreMetrics, playerA.singlesUstaDynamic, playerB.singlesUstaDynamic, actualA, actualB, recencyWeight)
+
+    const deltaUstaSinglesA = K_SINGLES * (actualA - ustaExpectedA) * ustaMultiplier.a
+    const deltaUstaSinglesB = K_SINGLES * (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
+    const deltaUstaOverallA = K_OVERALL * (actualA - ustaExpectedA) * ustaMultiplier.a
+    const deltaUstaOverallB = K_OVERALL * (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
+
+    playerA.singlesUstaDynamic = clampAndRoundRating(playerA.singlesUstaDynamic + deltaUstaSinglesA)
+    playerB.singlesUstaDynamic = clampAndRoundRating(playerB.singlesUstaDynamic + deltaUstaSinglesB)
+    playerA.overallUstaDynamic = clampAndRoundRating(playerA.overallUstaDynamic + deltaUstaOverallA)
+    playerB.overallUstaDynamic = clampAndRoundRating(playerB.overallUstaDynamic + deltaUstaOverallB)
+
+    snapshotRows.push(
+      buildSnapshot(playerA.id, match.id, match.match_date, 'singles', playerA.singlesUstaDynamic, 'usta'),
+      buildSnapshot(playerB.id, match.id, match.match_date, 'singles', playerB.singlesUstaDynamic, 'usta'),
+      buildSnapshot(playerA.id, match.id, match.match_date, 'overall', playerA.overallUstaDynamic, 'usta'),
+      buildSnapshot(playerB.id, match.id, match.match_date, 'overall', playerB.overallUstaDynamic, 'usta'),
+    )
+  }
 }
 
 function processDoublesMatch(
@@ -364,44 +392,70 @@ function processDoublesMatch(
   snapshotRows: RatingSnapshotInsert[],
   recencyWeight: number,
 ) {
-  const teamARating = average(teamA.map((player) => player.doublesDynamic))
-  const teamBRating = average(teamB.map((player) => player.doublesDynamic))
-
-  const expectedA = expectedScore(teamARating, teamBRating)
-  const expectedB = 1 - expectedA
-
   const actualA = match.winner_side === 'A' ? 1 : 0
   const actualB = match.winner_side === 'B' ? 1 : 0
-
   const scoreMetrics = parseScoreMetrics(match.score, match.winner_side)
-  const multiplier = buildMatchMultiplier(scoreMetrics, teamARating, teamBRating, actualA, actualB, recencyWeight)
 
-  const deltaDoublesA = K_DOUBLES * (actualA - expectedA) * multiplier.a
-  const deltaDoublesB = K_DOUBLES * (actualB - expectedB) * multiplier.b
+  // TIQ track — all matches
+  const tiqTeamARating = average(teamA.map((p) => p.doublesDynamic))
+  const tiqTeamBRating = average(teamB.map((p) => p.doublesDynamic))
+  const tiqExpectedA = expectedScore(tiqTeamARating, tiqTeamBRating)
+  const tiqMultiplier = buildMatchMultiplier(scoreMetrics, tiqTeamARating, tiqTeamBRating, actualA, actualB, recencyWeight)
 
-  const deltaOverallA = K_OVERALL * (actualA - expectedA) * multiplier.a
-  const deltaOverallB = K_OVERALL * (actualB - expectedB) * multiplier.b
+  const deltaTiqDoublesA = K_DOUBLES * (actualA - tiqExpectedA) * tiqMultiplier.a
+  const deltaTiqDoublesB = K_DOUBLES * (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
+  const deltaTiqOverallA = K_OVERALL * (actualA - tiqExpectedA) * tiqMultiplier.a
+  const deltaTiqOverallB = K_OVERALL * (actualB - (1 - tiqExpectedA)) * tiqMultiplier.b
 
   for (const player of teamA) {
-    player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + deltaDoublesA)
-    player.overallDynamic = clampAndRoundRating(player.overallDynamic + deltaOverallA)
-    registerDelta(player, deltaDoublesA)
-
+    player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + deltaTiqDoublesA)
+    player.overallDynamic = clampAndRoundRating(player.overallDynamic + deltaTiqOverallA)
+    registerDelta(player, deltaTiqDoublesA)
     snapshotRows.push(
-      buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
-      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic),
+      buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic, 'tiq'),
+      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic, 'tiq'),
     )
   }
 
   for (const player of teamB) {
-    player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + deltaDoublesB)
-    player.overallDynamic = clampAndRoundRating(player.overallDynamic + deltaOverallB)
-    registerDelta(player, deltaDoublesB)
-
+    player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + deltaTiqDoublesB)
+    player.overallDynamic = clampAndRoundRating(player.overallDynamic + deltaTiqOverallB)
+    registerDelta(player, deltaTiqDoublesB)
     snapshotRows.push(
-      buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic),
-      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic),
+      buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic, 'tiq'),
+      buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic, 'tiq'),
     )
+  }
+
+  // USTA track — USTA matches only
+  if (match.match_source === 'usta') {
+    const ustaTeamARating = average(teamA.map((p) => p.doublesUstaDynamic))
+    const ustaTeamBRating = average(teamB.map((p) => p.doublesUstaDynamic))
+    const ustaExpectedA = expectedScore(ustaTeamARating, ustaTeamBRating)
+    const ustaMultiplier = buildMatchMultiplier(scoreMetrics, ustaTeamARating, ustaTeamBRating, actualA, actualB, recencyWeight)
+
+    const deltaUstaDoublesA = K_DOUBLES * (actualA - ustaExpectedA) * ustaMultiplier.a
+    const deltaUstaDoublesB = K_DOUBLES * (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
+    const deltaUstaOverallA = K_OVERALL * (actualA - ustaExpectedA) * ustaMultiplier.a
+    const deltaUstaOverallB = K_OVERALL * (actualB - (1 - ustaExpectedA)) * ustaMultiplier.b
+
+    for (const player of teamA) {
+      player.doublesUstaDynamic = clampAndRoundRating(player.doublesUstaDynamic + deltaUstaDoublesA)
+      player.overallUstaDynamic = clampAndRoundRating(player.overallUstaDynamic + deltaUstaOverallA)
+      snapshotRows.push(
+        buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesUstaDynamic, 'usta'),
+        buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallUstaDynamic, 'usta'),
+      )
+    }
+
+    for (const player of teamB) {
+      player.doublesUstaDynamic = clampAndRoundRating(player.doublesUstaDynamic + deltaUstaDoublesB)
+      player.overallUstaDynamic = clampAndRoundRating(player.overallUstaDynamic + deltaUstaOverallB)
+      snapshotRows.push(
+        buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesUstaDynamic, 'usta'),
+        buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallUstaDynamic, 'usta'),
+      )
+    }
   }
 }
 
@@ -411,6 +465,7 @@ function buildSnapshot(
   snapshotDate: string,
   ratingType: 'singles' | 'doubles' | 'overall',
   dynamicRating: number,
+  track: 'usta' | 'tiq',
 ): RatingSnapshotInsert {
   return {
     player_id: playerId,
@@ -418,6 +473,7 @@ function buildSnapshot(
     snapshot_date: snapshotDate,
     rating_type: ratingType,
     dynamic_rating: roundRating(dynamicRating),
+    track,
   }
 }
 
@@ -430,6 +486,9 @@ async function persistPlayerRatings(players: WorkingPlayer[]) {
           singles_dynamic_rating: roundRating(player.singlesDynamic),
           doubles_dynamic_rating: roundRating(player.doublesDynamic),
           overall_dynamic_rating: roundRating(player.overallDynamic),
+          singles_usta_dynamic_rating: roundRating(player.singlesUstaDynamic),
+          doubles_usta_dynamic_rating: roundRating(player.doublesUstaDynamic),
+          overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
         })
         .eq('id', player.id)
 
@@ -692,7 +751,7 @@ function getRecencyWeight(matchIndex: number, totalMatches: number) {
   if (totalMatches <= 1) return 1
 
   const progress = matchIndex / Math.max(totalMatches - 1, 1)
-  return roundRating(clampNumber(0.97 + progress * 0.09, 0.97, 1.06))
+  return roundRating(clampNumber(0.88 + progress * 0.24, 0.88, 1.12))
 }
 
 function registerDelta(player: WorkingPlayer, delta: number) {

@@ -1,15 +1,22 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import FollowButton from '@/app/components/follow-button'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { getClientAuthState } from '@/lib/auth'
+import { type UserRole } from '@/lib/roles'
+import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
+import { formatRating } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated'
+type FlightFilter = 'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
 type ConfidenceLevel = 'Low' | 'Medium' | 'High'
@@ -30,6 +37,9 @@ type PlayerRow = {
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
+  overall_usta_dynamic_rating?: number | null
+  singles_usta_dynamic_rating?: number | null
+  doubles_usta_dynamic_rating?: number | null
 }
 
 type SnapshotRow = {
@@ -54,18 +64,65 @@ type PlayerCard = PlayerRow & {
 const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null
 
 export default function PlayersPage() {
+  const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [players, setPlayers] = useState<PlayerCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('overall')
   const [filterBy, setFilterBy] = useState<FilterKey>('all')
+  const [flightFilter, setFlightFilter] = useState<FlightFilter>('all')
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   useEffect(() => {
     void loadPlayers()
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadAuth() {
+      try {
+        const authState = await getClientAuthState()
+        if (!active) return
+        setRole(authState.role)
+        setEntitlements(authState.entitlements)
+      } catch {
+        if (!active) return
+        setRole('public')
+        setEntitlements(null)
+      }
+    }
+
+    void loadAuth()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (
+        event.key === '/' &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLTextAreaElement)
+      ) {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+      } else if (event.key === 'Escape') {
+        setSearch('')
+        setSortBy('overall')
+        setFlightFilter('all')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   async function loadPlayers() {
@@ -84,7 +141,10 @@ export default function PlayersPage() {
           doubles_rating,
           overall_dynamic_rating,
           singles_dynamic_rating,
-          doubles_dynamic_rating
+          doubles_dynamic_rating,
+          overall_usta_dynamic_rating,
+          singles_usta_dynamic_rating,
+          doubles_usta_dynamic_rating
         `)
         .order('name', { ascending: true })
 
@@ -147,10 +207,11 @@ export default function PlayersPage() {
           const baseSingles = getBaseRating(player, 'singles')
           const baseDoubles = getBaseRating(player, 'doubles')
           const overallDynamic = getRating(player, 'overall')
+          const overallUstaDynamic = getUstaDynamicRating(player, 'overall')
           const overallSnapshots = snapshotsByPlayer.get(`${player.id}:overall`) ?? []
           const overallTrend = getTrendDirection(overallSnapshots)
           const overallTrendDelta = getRecentTrendDelta(overallSnapshots)
-          const overallStatus = getRatingStatus(baseOverall, overallDynamic)
+          const overallStatus = getRatingStatus(baseOverall, overallUstaDynamic)
           const confidence = getConfidence(matches)
           const overallDiff = roundToTwo(overallDynamic - baseOverall)
 
@@ -188,6 +249,16 @@ export default function PlayersPage() {
 
       if (filterBy === 'with-matches') return player.matches > 0
       if (filterBy === 'high-rated') return getRating(player, 'overall') >= 4.0
+
+      if (flightFilter !== 'all') {
+        const base = player.baseOverall
+        if (flightFilter === '2.5' && !(base >= 2.0 && base < 2.75)) return false
+        if (flightFilter === '3.0' && !(base >= 2.75 && base < 3.25)) return false
+        if (flightFilter === '3.5' && !(base >= 3.25 && base < 3.75)) return false
+        if (flightFilter === '4.0' && !(base >= 3.75 && base < 4.25)) return false
+        if (flightFilter === '4.5+' && !(base >= 4.25)) return false
+      }
+
       return true
     })
 
@@ -197,8 +268,8 @@ export default function PlayersPage() {
     })
 
     return next
-  }, [filterBy, players, search, sortBy])
-  const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall'
+  }, [filterBy, flightFilter, players, search, sortBy])
+  const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
 
   const topOverall = useMemo(() => {
     if (players.length === 0) return 0
@@ -290,6 +361,24 @@ export default function PlayersPage() {
     minWidth: isTablet ? 0 : '150px',
   }
 
+  const dynamicSortSelect: CSSProperties = {
+    ...dynamicSelectStyle,
+    borderColor: sortBy !== 'overall' ? 'rgba(155,225,29,0.42)' : undefined,
+    boxShadow: sortBy !== 'overall' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+  }
+
+  const dynamicFilterSelect: CSSProperties = {
+    ...dynamicSelectStyle,
+    borderColor: filterBy !== 'all' ? 'rgba(155,225,29,0.42)' : undefined,
+    boxShadow: filterBy !== 'all' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+  }
+
+  const dynamicFlightSelect: CSSProperties = {
+    ...dynamicSelectStyle,
+    borderColor: flightFilter !== 'all' ? 'rgba(155,225,29,0.42)' : undefined,
+    boxShadow: flightFilter !== 'all' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+  }
+
   const dynamicHeroStatsGrid: CSSProperties = {
     ...heroStatsGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
@@ -329,8 +418,8 @@ export default function PlayersPage() {
               </h1>
 
               <p style={dynamicHeroText}>
-                Search by name or location, sort by overall, singles, or doubles strength,
-                and move directly into each player profile for trends, history, and matchup prep.
+                Search by name or location, sort by TIQ overall, singles, or doubles strength,
+                and move directly into each player profile for separated USTA status, TIQ trend, history, and matchup prep.
               </p>
 
               <div style={heroHintRow}>
@@ -338,6 +427,22 @@ export default function PlayersPage() {
                 <span style={heroHintPill}>Compare stronger</span>
                 <span style={heroHintPill}>Plan smarter</span>
               </div>
+
+              {!access.canUseAdvancedPlayerInsights ? (
+                <div style={{ marginTop: 18, maxWidth: 560 }}>
+                  <UpgradePrompt
+                    planId="player_plus"
+                    compact
+                    headline="Want to know where you should play?"
+                    body="Unlock Player+ to turn player discovery into lineup-fit guidance, opponent context, projections, and strengths-vs-weaknesses reads."
+                    ctaLabel="Unlock Player+"
+                    ctaHref="/pricing"
+                    secondaryLabel="See Player+ value"
+                    secondaryHref="/pricing"
+                    footnote="Best for players who want more than basic stats and want clearer direction from their numbers."
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div style={heroRight}>
@@ -356,6 +461,7 @@ export default function PlayersPage() {
                       id="players-directory-search"
                       aria-label="Search players by name or location"
                       aria-describedby="players-directory-helper"
+                      ref={searchInputRef}
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       onFocus={() => setSearchFocused(true)}
@@ -370,7 +476,7 @@ export default function PlayersPage() {
                     aria-label="Sort player directory"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as SortKey)}
-                    style={dynamicSelectStyle}
+                    style={dynamicSortSelect}
                   >
                     <option value="overall">Sort: Overall</option>
                     <option value="singles">Sort: Singles</option>
@@ -383,16 +489,31 @@ export default function PlayersPage() {
                     aria-label="Filter player directory"
                     value={filterBy}
                     onChange={(e) => setFilterBy(e.target.value as FilterKey)}
-                    style={dynamicSelectStyle}
+                    style={dynamicFilterSelect}
                   >
                     <option value="all">All players</option>
                     <option value="with-matches">With matches</option>
                     <option value="high-rated">4.0+ overall</option>
                   </select>
+
+                  <select
+                    id="players-directory-flight"
+                    aria-label="Filter by league flight / NTRP level"
+                    value={flightFilter}
+                    onChange={(e) => setFlightFilter(e.target.value as FlightFilter)}
+                    style={dynamicFlightSelect}
+                  >
+                    <option value="all">All levels</option>
+                    <option value="2.5">2.5</option>
+                    <option value="3.0">3.0</option>
+                    <option value="3.5">3.5</option>
+                    <option value="4.0">4.0</option>
+                    <option value="4.5+">4.5+</option>
+                  </select>
                 </div>
 
                 <div id="players-directory-helper" style={controlsHelperText}>
-                  Use the directory to move from a broad search into exact player profiles in one step.
+                  Use the directory to move from broad discovery into exact player profiles with clear USTA vs TIQ context.
                 </div>
                 {hasActiveFilters ? (
                   <div style={controlsActionRow}>
@@ -402,6 +523,7 @@ export default function PlayersPage() {
                         setSearch('')
                         setSortBy('overall')
                         setFilterBy('all')
+                        setFlightFilter('all')
                       }}
                       style={clearFilterButton}
                     >
@@ -456,8 +578,8 @@ export default function PlayersPage() {
             <h2 style={sectionTitle}>Use the directory to shortlist, then open full profiles for the real read.</h2>
             <p style={editorialText}>
               The player directory is best used as a fast scouting layer. Search by name or location,
-              sort by the rating lens you care about, and then open the full profile before making
-              decisions off a single number alone.
+              sort by the TIQ lens you care about, and then open the full profile before making
+              decisions off a single blended rating alone.
             </p>
             <div style={editorialGrid}>
               <div style={editorialCard}>
@@ -490,9 +612,29 @@ export default function PlayersPage() {
         </div>
 
         {loading ? (
-          <div style={loadingCard}>Loading player directory...</div>
+          <div style={loadingCard}>
+            <div style={sectionKicker}>Directory loading</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 800, color: '#f8fbff' }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  border: '2px solid rgba(155,225,29,0.2)',
+                  borderTopColor: '#9be11d',
+                  animation: 'tenaceiq-spin 0.7s linear infinite',
+                }}
+              />
+              Loading player directory...
+            </div>
+            <p style={emptyStateText}>
+              Building a cleaner scouting board from current player, rating, and match data.
+            </p>
+          </div>
         ) : filteredPlayers.length === 0 ? (
           <div style={loadingCard}>
+            <div style={sectionKicker}>Directory reset</div>
             <div style={emptyStateTitle}>No players matched the current directory view.</div>
             <p style={emptyStateText}>
               Try a broader name or location search, or reset the sort and filter controls to reopen the full player board.
@@ -567,18 +709,18 @@ export default function PlayersPage() {
                   </div>
 
                   <div style={dynamicRatingRow}>
-                    <RatingPill label="Overall" value={getRating(player, 'overall')} accent />
-                    <RatingPill label="Singles" value={getRating(player, 'singles')} />
-                    <RatingPill label="Doubles" value={getRating(player, 'doubles')} />
+                    <RatingPill label="TIQ Overall" value={getRating(player, 'overall')} accent />
+                    <RatingPill label="TIQ Singles" value={getRating(player, 'singles')} />
+                    <RatingPill label="TIQ Doubles" value={getRating(player, 'doubles')} />
                   </div>
 
                   <div style={deltaRow}>
                     <div style={deltaStat}>
-                      <span style={deltaLabel}>Base</span>
+                      <span style={deltaLabel}>USTA</span>
                       <span style={deltaValue}>{player.baseOverall.toFixed(2)}</span>
                     </div>
                     <div style={deltaStat}>
-                      <span style={deltaLabel}>Vs base</span>
+                      <span style={deltaLabel}>TIQ vs USTA</span>
                       <span style={deltaValue}>
                         {player.overallDiff >= 0 ? '+' : ''}
                         {player.overallDiff.toFixed(2)}
@@ -657,23 +799,15 @@ function SearchIcon() {
 }
 
 function getRating(player: PlayerRow, view: Exclude<SortKey, 'name'>) {
-  if (view === 'singles') return toNumber(player.singles_dynamic_rating)
-  if (view === 'doubles') return toNumber(player.doubles_dynamic_rating)
-  return toNumber(player.overall_dynamic_rating)
+  return getTiqRating(player, view)
 }
 
 function getBaseRating(player: PlayerRow, view: RatingView) {
-  if (view === 'singles') return toNumber(player.singles_rating ?? player.overall_rating) || 3.5
-  if (view === 'doubles') return toNumber(player.doubles_rating ?? player.overall_rating) || 3.5
-  return toNumber(player.overall_rating) || 3.5
+  return getUstaRating(player, view)
 }
 
 function toNumber(value?: number | null) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0
-}
-
-function formatRating(value: number) {
-  return value > 0 ? value.toFixed(2) : '—'
 }
 
 function roundToTwo(value: number) {

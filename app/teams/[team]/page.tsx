@@ -3,15 +3,29 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import {
+  getCompetitionLayerLabel,
+  inferCompetitionLayerFromValues,
+} from '@/lib/competition-layers'
+import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import {
+  listTiqTeamParticipations,
+  type TiqLeagueStorageSource,
+  type TiqTeamParticipationRecord,
+} from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
   id: string
+  external_match_id?: string | null
   home_team: string | null
   away_team: string | null
   match_date: string | null
@@ -25,12 +39,23 @@ type TeamMatch = {
   line_number?: string | null
 }
 
+type LineMatch = {
+  id: string
+  external_match_id: string | null
+  winner_side: 'A' | 'B' | null
+  match_type: 'singles' | 'doubles' | null
+  line_number: string | null
+}
+
 type Player = {
   id: string
   name: string
   singles_dynamic_rating: number | null
   doubles_dynamic_rating: number | null
   overall_dynamic_rating?: number | null
+  singles_usta_dynamic_rating?: number | null
+  doubles_usta_dynamic_rating?: number | null
+  overall_usta_dynamic_rating?: number | null
   location?: string | null
 }
 
@@ -77,23 +102,6 @@ function normalizePlayer(player: PlayerRelation): Player | null {
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function formatRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
-  return value.toFixed(2)
-}
-
 function teamSideForMatch(match: TeamMatch, teamName: string): 'A' | 'B' | null {
   const home = cleanText(match.home_team)
   const away = cleanText(match.away_team)
@@ -132,10 +140,6 @@ function safeOverallRating(player: Player) {
   return Math.max(singles ?? Number.NEGATIVE_INFINITY, doubles ?? Number.NEGATIVE_INFINITY)
 }
 
-function buildStableTeamFollowId(team: string, league: string | null, flight: string | null) {
-  return `${team}__${league || ''}__${flight || ''}`
-}
-
 function getParamValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) return value[0] || ''
   return value || ''
@@ -148,13 +152,19 @@ export default function TeamPage() {
   const rawTeam = getParamValue(params.team as string | string[] | undefined)
   const team = decodeURIComponent(rawTeam).trim()
 
+  const layerFilter = cleanText(searchParams.get('layer'))
   const leagueFilter = cleanText(searchParams.get('league'))
   const flightFilter = cleanText(searchParams.get('flight'))
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
+  const [lineMatches, setLineMatches] = useState<LineMatch[]>([])
+  const [linePlayers, setLinePlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
+  const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
+  const [tiqParticipationWarning, setTiqParticipationWarning] = useState('')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const loadTeamPage = useCallback(async () => {
@@ -173,6 +183,7 @@ export default function TeamPage() {
         .from('matches')
         .select(`
           id,
+          external_match_id,
           home_team,
           away_team,
           match_date,
@@ -219,12 +230,27 @@ export default function TeamPage() {
 
       if (!scopedMatches.length) {
         setPlayers([])
+        setLineMatches([])
+        setLinePlayers([])
         return
       }
 
+      // ── Line matches: fetch individual court results for player records ──
+      const parentExternalIds = scopedMatches
+        .map((m) => cleanText(m.external_match_id))
+        .filter((id): id is string => id !== null)
+
+      const matchDates = scopedMatches
+        .map((m) => m.match_date)
+        .filter((d): d is string => Boolean(d))
+        .sort()
+
+      let fetchedLineMatches: LineMatch[] = []
+      let fetchedLinePlayers: MatchPlayer[] = []
+
       const ids = scopedMatches.map((match) => match.id)
 
-      const { data: playerData, error: playerError } = await supabase
+      const playerDataPromise = supabase
         .from('match_players')
         .select(`
           match_id,
@@ -237,14 +263,74 @@ export default function TeamPage() {
             singles_dynamic_rating,
             doubles_dynamic_rating,
             overall_dynamic_rating,
+            singles_usta_dynamic_rating,
+            doubles_usta_dynamic_rating,
+            overall_usta_dynamic_rating,
             location
           )
         `)
         .in('match_id', ids)
 
-      if (playerError) throw playerError
+      type LineResult = { data: LineMatch[] | null; error: { message: string } | null }
+      let lineDataPromise: Promise<LineResult> = Promise.resolve({ data: null, error: null })
 
+      if (parentExternalIds.length > 0 && matchDates.length > 0) {
+        let lineQuery = supabase
+          .from('matches')
+          .select('id, external_match_id, winner_side, match_type, line_number')
+          .not('line_number', 'is', null)
+          .gte('match_date', matchDates[0])
+          .lte('match_date', matchDates[matchDates.length - 1])
+
+        if (leagueFilter) lineQuery = lineQuery.eq('league_name', leagueFilter)
+        if (flightFilter) lineQuery = lineQuery.eq('flight', flightFilter)
+
+        lineDataPromise = lineQuery as unknown as Promise<LineResult>
+      }
+
+      const [{ data: playerData, error: playerError }, lineResult] = await Promise.all([
+        playerDataPromise,
+        lineDataPromise,
+      ])
+
+      if (playerError) throw playerError
       setPlayers((playerData || []) as MatchPlayer[])
+
+      if (lineResult.data !== null) {
+        const parentIdSet = new Set(parentExternalIds)
+        fetchedLineMatches = ((lineResult.data || []) as LineMatch[]).filter((lm) => {
+          const extId = cleanText(lm.external_match_id)
+          if (!extId) return false
+          const prefix = extId.split('::line:')[0] ?? ''
+          return parentIdSet.has(prefix)
+        })
+
+        setLineMatches(fetchedLineMatches)
+
+        if (fetchedLineMatches.length > 0) {
+          const lineIds = fetchedLineMatches.map((lm) => lm.id)
+          const { data: linePlayerData } = await supabase
+            .from('match_players')
+            .select(`
+              match_id,
+              side,
+              player_id,
+              match_type,
+              players (
+                id,
+                name,
+                singles_dynamic_rating,
+                doubles_dynamic_rating,
+                overall_dynamic_rating,
+                location
+              )
+            `)
+            .in('match_id', lineIds)
+
+          fetchedLinePlayers = (linePlayerData || []) as MatchPlayer[]
+          setLinePlayers(fetchedLinePlayers)
+        }
+      }
     } catch (err) {
       console.error(err)
       setMatches([])
@@ -258,6 +344,36 @@ export default function TeamPage() {
   useEffect(() => {
     void loadTeamPage()
   }, [loadTeamPage])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadTiqParticipations() {
+      const result = await listTiqTeamParticipations({
+        teamName: team,
+        sourceLeagueName: leagueFilter || undefined,
+        sourceFlight: flightFilter || undefined,
+      })
+
+      if (!active) return
+
+      setTiqParticipations(result.entries)
+      setTiqParticipationSource(result.source)
+      setTiqParticipationWarning(result.warning || '')
+    }
+
+    if (team) {
+      void loadTiqParticipations()
+    } else {
+      setTiqParticipations([])
+      setTiqParticipationSource('local')
+      setTiqParticipationWarning('')
+    }
+
+    return () => {
+      active = false
+    }
+  }, [flightFilter, leagueFilter, team])
 
   const teamMeta = useMemo(() => {
     const firstWithLeague = matches.find(
@@ -273,6 +389,12 @@ export default function TeamPage() {
   }, [matches, leagueFilter, flightFilter])
 
   const recentMatch = matches[0] || null
+  const competitionLayer = inferCompetitionLayerFromValues({
+    layerHint: layerFilter,
+    leagueName: teamMeta.league,
+    ustaSection: teamMeta.section,
+    districtArea: teamMeta.district,
+  })
 
   const record = useMemo(() => {
     let wins = 0
@@ -289,43 +411,94 @@ export default function TeamPage() {
 
   const roster = useMemo<RosterPlayer[]>(() => {
     const map = new Map<string, RosterPlayer>()
-    const matchLookup = new Map(matches.map((match) => [match.id, match]))
 
-    players.forEach((entry) => {
-      const player = normalizePlayer(entry.players)
-      if (!player) return
+    const useLineData = linePlayers.length > 0
 
-      const match = matchLookup.get(entry.match_id)
-      if (!match) return
+    if (useLineData) {
+      // ── New data path: individual court outcomes from line matches ──
+      const lineMatchLookup = new Map(lineMatches.map((lm) => [lm.id, lm]))
+      // Map parent external_match_id prefix → parent TeamMatch for team-side lookup
+      const parentByExternalId = new Map(
+        matches.map((m) => [cleanText(m.external_match_id) ?? '', m]),
+      )
 
-      const teamSide = teamSideForMatch(match, team)
-      if (!teamSide || entry.side !== teamSide) return
+      linePlayers.forEach((entry) => {
+        const player = normalizePlayer(entry.players)
+        if (!player) return
 
-      if (!map.has(player.id)) {
-        map.set(player.id, {
-          ...player,
-          appearances: 0,
-          singlesAppearances: 0,
-          doublesAppearances: 0,
-          wins: 0,
-          losses: 0,
-        })
-      }
+        const lineMatch = lineMatchLookup.get(entry.match_id)
+        if (!lineMatch) return
 
-      const current = map.get(player.id)
-      if (!current) return
+        const extId = cleanText(lineMatch.external_match_id)
+        if (!extId) return
+        const parentPrefix = extId.split('::line:')[0] ?? ''
+        const parentMatch = parentByExternalId.get(parentPrefix)
+        if (!parentMatch) return
 
-      current.appearances += 1
+        // Only include players on our team's side
+        const teamSide = teamSideForMatch(parentMatch, team)
+        if (!teamSide || entry.side !== teamSide) return
 
-      // match_type lives on the match_players row (line level), not on the
-      // parent match — parent matches always have match_type: null.
-      if (entry.match_type === 'singles') current.singlesAppearances += 1
-      if (entry.match_type === 'doubles') current.doublesAppearances += 1
+        if (!map.has(player.id)) {
+          map.set(player.id, {
+            ...player,
+            appearances: 0,
+            singlesAppearances: 0,
+            doublesAppearances: 0,
+            wins: 0,
+            losses: 0,
+          })
+        }
 
-      const result = didTeamWin(match, team)
-      if (result === true) current.wins += 1
-      if (result === false) current.losses += 1
-    })
+        const current = map.get(player.id)
+        if (!current) return
+
+        current.appearances += 1
+        if (entry.match_type === 'singles') current.singlesAppearances += 1
+        if (entry.match_type === 'doubles') current.doublesAppearances += 1
+
+        // Individual win: player's side matches THIS line's winner_side
+        if (lineMatch.winner_side === entry.side) current.wins += 1
+        else if (lineMatch.winner_side !== null) current.losses += 1
+      })
+    } else {
+      // ── Legacy data path: match_players linked directly to parent matches ──
+      const matchLookup = new Map(matches.map((match) => [match.id, match]))
+
+      players.forEach((entry) => {
+        const player = normalizePlayer(entry.players)
+        if (!player) return
+
+        const match = matchLookup.get(entry.match_id)
+        if (!match) return
+
+        const teamSide = teamSideForMatch(match, team)
+        if (!teamSide || entry.side !== teamSide) return
+
+        if (!map.has(player.id)) {
+          map.set(player.id, {
+            ...player,
+            appearances: 0,
+            singlesAppearances: 0,
+            doublesAppearances: 0,
+            wins: 0,
+            losses: 0,
+          })
+        }
+
+        const current = map.get(player.id)
+        if (!current) return
+
+        current.appearances += 1
+        if (entry.match_type === 'singles') current.singlesAppearances += 1
+        if (entry.match_type === 'doubles') current.doublesAppearances += 1
+
+        // Legacy: use team-level outcome (best available without line data)
+        const result = didTeamWin(match, team)
+        if (result === true) current.wins += 1
+        if (result === false) current.losses += 1
+      })
+    }
 
     return Array.from(map.values()).sort((a, b) => {
       const aOverall = safeOverallRating(a)
@@ -337,7 +510,7 @@ export default function TeamPage() {
       if (bOverall !== aOverall) return bOverall - aOverall
       return a.name.localeCompare(b.name)
     })
-  }, [matches, players, team])
+  }, [lineMatches, linePlayers, matches, players, team])
 
   const bestSingles = useMemo(() => {
     return [...roster]
@@ -452,17 +625,32 @@ export default function TeamPage() {
     {
       title: 'Availability',
       description: 'Track who is in, out, and on the bubble before lineup lock.',
-      href: `/captain/availability?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
+      href: buildCaptainScopedHref('/captain/availability', {
+        competitionLayer,
+        team,
+        league: leagueFilter || teamMeta.league || undefined,
+        flight: flightFilter || teamMeta.flight || undefined,
+      }),
     },
     {
       title: 'Lineup Builder',
       description: 'Build stronger singles and doubles combinations around your core.',
-      href: `/captain/lineup-builder?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
+      href: buildCaptainScopedHref('/captain/lineup-builder', {
+        competitionLayer,
+        team,
+        league: leagueFilter || teamMeta.league || undefined,
+        flight: flightFilter || teamMeta.flight || undefined,
+      }),
     },
     {
       title: 'Scenario Compare',
       description: 'Stress-test alternate lineups and compare projected outcomes.',
-      href: `/captain/scenario-builder?team=${encodeURIComponent(team)}${leagueFilter ? `&league=${encodeURIComponent(leagueFilter)}` : ''}${flightFilter ? `&flight=${encodeURIComponent(flightFilter)}` : ''}`,
+      href: buildCaptainScopedHref('/captain/scenario-builder', {
+        competitionLayer,
+        team,
+        league: leagueFilter || teamMeta.league || undefined,
+        flight: flightFilter || teamMeta.flight || undefined,
+      }),
     },
   ]
 
@@ -492,8 +680,42 @@ export default function TeamPage() {
     gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   }
 
+  const dynamicHeroActions: CSSProperties = {
+    ...heroActions,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicListRow: CSSProperties = {
+    ...listRow,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'flex-start',
+  }
+
   const heroMetaParts = [teamMeta.league, teamMeta.flight, teamMeta.section].filter(Boolean)
-  const stableFollowId = buildStableTeamFollowId(team, teamMeta.league, teamMeta.flight)
+  const stableFollowId = buildScopedTeamEntityId({
+    competitionLayer,
+    teamName: team,
+    leagueName: teamMeta.league,
+    flight: teamMeta.flight,
+  })
+  const teamSignals = [
+    {
+      label: 'Competition layer',
+      value: getCompetitionLayerLabel(competitionLayer),
+      note: 'Keep team identity tied to its current league context without blurring USTA and TIQ.',
+    },
+    {
+      label: 'Weekly workflow',
+      value: `${matches.length} matches tracked`,
+      note: 'Use this page to move from roster context into availability, lineup planning, and scenarios.',
+    },
+    {
+      label: 'TIQ season state',
+      value: tiqParticipations.length > 0 ? `${tiqParticipations.length} TIQ entries` : 'No TIQ entries yet',
+      note: 'TIQ team leagues are where captain workflow turns into seasonal action and monetizable value.',
+    },
+  ]
 
   if (loading) {
     return (
@@ -502,7 +724,22 @@ export default function TeamPage() {
           <section style={dynamicHeroShell}>
             <div>
               <p style={eyebrow}>Team Intelligence</p>
-              <h1 style={dynamicHeroTitle}>Loading team page...</h1>
+              <h1 style={dynamicHeroTitle}>
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(155,225,29,0.2)',
+                    borderTopColor: '#9be11d',
+                    animation: 'tenaceiq-spin 0.7s linear infinite',
+                    verticalAlign: 'middle',
+                    marginRight: '12px',
+                  }}
+                />
+                Loading team page...
+              </h1>
               <p style={heroText}>Pulling roster, matches, and lineup context.</p>
             </div>
           </section>
@@ -523,30 +760,26 @@ export default function TeamPage() {
             </p>
 
             <div style={heroBadgeRow}>
+              <span style={badgeSlate}>{getCompetitionLayerLabel(competitionLayer)}</span>
               {teamMeta.league ? <span style={badgeBlue}>{teamMeta.league}</span> : null}
               {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
               {teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
               <span style={badgeSlate}>{matches.length} matches tracked</span>
+              {tiqParticipations.length > 0 ? <span style={badgeGreen}>{tiqParticipations.length} TIQ leagues entered</span> : null}
             </div>
 
-            <div style={heroActions}>
-              <Link style={buttonPrimary} href={captainLinks[1].href}>
-                Open lineup builder
-              </Link>
-              <Link style={buttonSecondary} href={captainLinks[0].href}>
-                Check availability
-              </Link>
+            <div style={dynamicHeroActions}>
+              <PrimaryLink href={captainLinks[1].href}>Open lineup builder</PrimaryLink>
+              <SecondaryLink href={captainLinks[0].href}>Check availability</SecondaryLink>
               <div style={followButtonWrap}>
                 <FollowButton
                   entityType="team"
                   entityId={stableFollowId}
                   entityName={team}
-                  subtitle={heroMetaParts.join(' · ') || undefined}
+                  subtitle={heroMetaParts.join(' - ') || undefined}
                 />
               </div>
-              <Link style={buttonGhost} href="/teams">
-                Back to teams
-              </Link>
+              <GhostLink href="/teams">Back to teams</GhostLink>
             </div>
           </div>
 
@@ -560,45 +793,38 @@ export default function TeamPage() {
               <MetricCard
                 label="Latest match"
                 value={formatDate(recentMatch?.match_date)}
-                subtle={recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '—'}` : 'No recent match yet'}
+                subtle={recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '--'}` : 'No recent match yet'}
               />
             </div>
 
             {teamMeta.district ? <div style={summaryHint}>{teamMeta.district}</div> : null}
+            {tiqParticipations.length > 0 ? (
+              <div style={summaryHint}>
+                Entered in {tiqParticipations.length} TIQ {tiqParticipations.length === 1 ? 'league' : 'leagues'}.
+              </div>
+            ) : null}
           </div>
         </section>
 
         {error ? (
           <section style={surfaceCard}>
-            <h2 style={sectionTitle}>Something went wrong</h2>
+            <h2 style={sectionTitle}>Team page unavailable</h2>
             <p style={bodyText}>{error}</p>
             <div style={{ marginTop: 14 }}>
-              <button type="button" onClick={() => void loadTeamPage()} style={buttonSecondary}>
-                Retry team page
-              </button>
+              <RetryButton onClick={() => void loadTeamPage()}>Retry team page</RetryButton>
             </div>
           </section>
         ) : null}
 
         {!error && !matches.length ? (
           <section style={surfaceCard}>
-            <h2 style={sectionTitle}>No team matches found</h2>
+            <h2 style={sectionTitle}>Match history is not available yet</h2>
             <p style={bodyText}>
-              We could not find any valid matches for this team with the current league and flight filters.
+              No match history is available for this team. Try browsing the full team directory, adjusting your league or flight filters, or opening the captain tools to start planning now.
             </p>
-            <p style={bodyText}>
-              Try opening the broader team directory, removing the active league or flight filter from the URL, or jumping straight into the captain tools to start planning before match history is complete.
-            </p>
-            <div style={helperCallout}>
-              Current scope: {[teamMeta.league, teamMeta.flight].filter(Boolean).join(' | ') || 'All leagues'}
-            </div>
-            <div style={heroActions}>
-              <Link href="/teams" style={buttonSecondary}>
-                Browse all teams
-              </Link>
-              <Link href={captainLinks[0].href} style={buttonGhost}>
-                Open captain availability
-              </Link>
+            <div style={dynamicHeroActions}>
+              <SecondaryLink href="/teams">Browse all teams</SecondaryLink>
+              <GhostLink href={captainLinks[0].href}>Open captain availability</GhostLink>
             </div>
           </section>
         ) : null}
@@ -621,15 +847,21 @@ export default function TeamPage() {
               most helpful when you use it to see where a team is strong, where lineup flexibility exists,
               and which captain tools should come next.
             </p>
-            <div style={heroActions}>
-              <Link href="/teams" style={buttonSecondary}>
-                Back to teams
-              </Link>
-              <Link href="/advertising-disclosure" style={buttonGhost}>
-                Advertising disclosure
-              </Link>
+            <div style={dynamicHeroActions}>
+              <SecondaryLink href="/teams">Back to teams</SecondaryLink>
+              <GhostLink href="/advertising-disclosure">Advertising disclosure</GhostLink>
             </div>
           </article>
+
+          <section style={signalGridStyle(isSmallMobile)}>
+            {teamSignals.map((signal) => (
+              <article key={signal.label} style={signalCardStyle}>
+                <div style={signalLabelStyle}>{signal.label}</div>
+                <div style={signalValueStyle}>{signal.value}</div>
+                <div style={signalNoteStyle}>{signal.note}</div>
+              </article>
+            ))}
+          </section>
 
           <article style={metricCard}>
             <span style={metricLabel}>Record</span>
@@ -653,9 +885,66 @@ export default function TeamPage() {
             <span style={metricLabel}>Latest Match</span>
             <strong style={metricValue}>{formatDate(recentMatch?.match_date)}</strong>
             <span style={metricSubtle}>
-              {recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '—'}` : 'No recent match yet'}
+              {recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '--'}` : 'No recent match yet'}
             </span>
           </article>
+        </section>
+
+        <section style={surfaceCard}>
+          <div style={sectionHeadingRow}>
+            <div>
+              <p style={sectionKicker}>TIQ Seasons</p>
+              <h2 style={sectionTitle}>Entered TIQ Leagues</h2>
+            </div>
+          </div>
+
+          {tiqParticipations.length ? (
+            <div style={stackList}>
+              {tiqParticipations.map((entry) => (
+                <div key={`${entry.leagueId}-${entry.teamName}`} style={dynamicListRow}>
+                  <div>
+                    <strong>{entry.leagueName || 'TIQ League'}</strong>
+                    <div style={mutedText}>
+                      {[entry.seasonLabel, entry.leagueFlight || entry.sourceFlight, entry.locationLabel]
+                        .filter(Boolean)
+                        .join(' - ')}
+                    </div>
+                    {entry.sourceLeagueName || entry.sourceFlight ? (
+                      <div style={mutedText}>
+                        Source team context: {[entry.sourceLeagueName, entry.sourceFlight].filter(Boolean).join(' - ')}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div style={dynamicHeroActions}>
+                    <GhostLink href={`/explore/leagues/tiq/${encodeURIComponent(entry.leagueId)}?league_id=${encodeURIComponent(entry.leagueId)}`}>
+                      TIQ League
+                    </GhostLink>
+                    <SecondaryLink href={buildCaptainScopedHref('/captain/lineup-builder', {
+                      competitionLayer: 'tiq',
+                      team,
+                      league: entry.leagueName || undefined,
+                      flight: entry.leagueFlight || undefined,
+                    })}>
+                      Lineup Builder
+                    </SecondaryLink>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={emptyStateBlock}>
+              <p style={emptyState}>This team is not entered in a TIQ league yet.</p>
+              <p style={mutedText}>
+                Enter the team from a TIQ league detail page to connect this roster with TIQ seasonal workflow.
+              </p>
+            </div>
+          )}
+
+          {tiqParticipationWarning ? (
+            <div style={helperCallout}>
+              {tiqParticipationSource === 'supabase' ? tiqParticipationWarning : `Local TIQ participation fallback: ${tiqParticipationWarning}`}
+            </div>
+          ) : null}
         </section>
 
         <section style={dynamicCardGrid}>
@@ -676,7 +965,7 @@ export default function TeamPage() {
                         {index + 1}. {player.name}
                       </strong>
                       <div style={mutedText}>
-                        {player.singlesAppearances} singles starts · {player.wins}-{player.losses} record
+                        {player.singlesAppearances} singles starts - {player.wins}-{player.losses} record
                       </div>
                     </div>
                     <span style={badgeBlue}>{formatRating(player.singles_dynamic_rating)}</span>
@@ -685,7 +974,7 @@ export default function TeamPage() {
               </div>
             ) : (
               <div style={emptyStateBlock}>
-                <p style={emptyState}>No singles data available yet.</p>
+                <p style={emptyState}>Singles data is not available yet.</p>
                 <p style={mutedText}>Once this team logs singles courts, the strongest options will surface here.</p>
               </div>
             )}
@@ -706,7 +995,7 @@ export default function TeamPage() {
                     <div>
                       <strong>{pair.names.join(' / ')}</strong>
                       <div style={mutedText}>
-                        {pair.appearances} matches together · {pair.wins}-{pair.losses} record
+                        {pair.appearances} matches together - {pair.wins}-{pair.losses} record
                       </div>
                     </div>
                     <span style={badgeGreen}>{formatRating(pair.avgRating)}</span>
@@ -715,7 +1004,7 @@ export default function TeamPage() {
               </div>
             ) : (
               <div style={emptyStateBlock}>
-                <p style={emptyState}>No doubles pairings available yet.</p>
+                <p style={emptyState}>Doubles pairings are not available yet.</p>
                 <p style={mutedText}>As soon as this roster logs repeat partnerships, chemistry trends will appear here.</p>
               </div>
             )}
@@ -733,10 +1022,7 @@ export default function TeamPage() {
 
             <div style={stackList}>
               {captainLinks.map((item) => (
-                <Link key={item.title} href={item.href} style={listLinkCard}>
-                  <strong>{item.title}</strong>
-                  <span>{item.description}</span>
-                </Link>
+                <CaptainListCard key={item.title} href={item.href} title={item.title} description={item.description} />
               ))}
             </div>
           </article>
@@ -758,7 +1044,7 @@ export default function TeamPage() {
                         {index + 1}. {player.name}
                       </strong>
                       <div style={mutedText}>
-                        {player.doublesAppearances} doubles starts · {player.wins}-{player.losses} record
+                        {player.doublesAppearances} doubles starts - {player.wins}-{player.losses} record
                       </div>
                     </div>
                     <span style={badgeSlate}>{formatRating(player.doubles_dynamic_rating)}</span>
@@ -767,7 +1053,7 @@ export default function TeamPage() {
               </div>
             ) : (
               <div style={emptyStateBlock}>
-                <p style={emptyState}>No doubles depth data available yet.</p>
+                <p style={emptyState}>Doubles depth data is not available yet.</p>
                 <p style={mutedText}>Match results will fill in this ladder once players start appearing in doubles lines.</p>
               </div>
             )}
@@ -817,7 +1103,7 @@ export default function TeamPage() {
             </div>
           ) : (
             <div style={emptyStateBlock}>
-              <p style={emptyState}>No team matches found yet.</p>
+              <p style={emptyState}>Team match history is not available yet.</p>
               <p style={mutedText}>Return to the team directory or use the captain tools above while the season history catches up.</p>
             </div>
           )}
@@ -837,8 +1123,10 @@ export default function TeamPage() {
                 <thead>
                   <tr>
                     <th style={tableHeaderCell}>Player</th>
-                    <th style={tableHeaderCell}>Singles</th>
-                    <th style={tableHeaderCell}>Doubles</th>
+                    <th style={tableHeaderCell}>S TIQ</th>
+                    <th style={tableHeaderCell}>S USTA</th>
+                    <th style={tableHeaderCell}>D TIQ</th>
+                    <th style={tableHeaderCell}>D USTA</th>
                     <th style={tableHeaderCell}>Appearances</th>
                     <th style={tableHeaderCell}>Record</th>
                   </tr>
@@ -855,7 +1143,9 @@ export default function TeamPage() {
                         </div>
                       </td>
                       <td style={tableCell}>{formatRating(player.singles_dynamic_rating)}</td>
+                      <td style={tableCell}>{formatRating(player.singles_usta_dynamic_rating)}</td>
                       <td style={tableCell}>{formatRating(player.doubles_dynamic_rating)}</td>
+                      <td style={tableCell}>{formatRating(player.doubles_usta_dynamic_rating)}</td>
                       <td style={tableCell}>{player.appearances}</td>
                       <td style={tableCell}>
                         {player.wins}-{player.losses}
@@ -874,6 +1164,114 @@ export default function TeamPage() {
         </section>
       </section>
     </SiteShell>
+  )
+}
+
+function RetryButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...buttonSecondary,
+        borderColor: hovered ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
+        background: hovered
+          ? 'linear-gradient(180deg, rgba(68,130,230,0.24) 0%, rgba(35,75,148,0.20) 100%)'
+          : buttonSecondary.background,
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 140ms ease',
+        cursor: 'pointer',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PrimaryLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...buttonPrimary,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered
+          ? '0 20px 40px rgba(74,222,128,0.24)'
+          : '0 16px 32px rgba(74,222,128,0.14)',
+        transition: 'transform 140ms ease, box-shadow 140ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function SecondaryLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...buttonSecondary,
+        borderColor: hovered ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.18)',
+        background: hovered
+          ? 'linear-gradient(180deg, rgba(68,130,230,0.24) 0%, rgba(35,75,148,0.20) 100%)'
+          : buttonSecondary.background,
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 140ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...buttonGhost,
+        borderColor: hovered ? 'rgba(116,190,255,0.26)' : 'rgba(116,190,255,0.18)',
+        background: hovered ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.06)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 140ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function CaptainListCard({ href, title, description }: { href: string; title: string; description: string }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...listLinkCard,
+        borderColor: hovered ? 'rgba(116,190,255,0.20)' : 'rgba(255,255,255,0.08)',
+        background: hovered ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.04)',
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      <strong style={{ color: hovered ? '#f8fbff' : '#f0f6ff' }}>{title}</strong>
+      <span style={{ color: 'rgba(214,228,246,0.70)', fontSize: '14px' }}>{description}</span>
+    </Link>
   )
 }
 
@@ -910,10 +1308,9 @@ const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background:
-    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 56%, rgba(12,46,62,0.84) 100%)',
-  boxShadow: '0 28px 80px rgba(3,10,24,0.30)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 28px 80px rgba(3,10,24,0.18)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
 }
@@ -925,8 +1322,8 @@ const eyebrow: CSSProperties = {
   padding: '8px 14px',
   borderRadius: '999px',
   border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
-  color: '#d9e7ef',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '14px',
   marginBottom: '18px',
@@ -936,7 +1333,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: '0 0 12px',
-  color: '#f7fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -945,7 +1342,7 @@ const heroTitle: CSSProperties = {
 
 const heroText: CSSProperties = {
   margin: '0 0 20px',
-  color: 'rgba(224, 234, 247, 0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '720px',
@@ -989,14 +1386,14 @@ const buttonSecondary: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'var(--shell-chip-bg-strong)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const buttonGhost: CSSProperties = {
   ...buttonSecondary,
-  background: 'rgba(255,255,255,0.06)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const followButtonWrap: CSSProperties = {
@@ -1016,36 +1413,36 @@ const badgeBase: CSSProperties = {
 
 const badgeBlue: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(37, 91, 227, 0.16)',
-  color: '#c7dbff',
+  background: 'rgba(37, 91, 227, 0.12)',
+  color: 'var(--foreground)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }
 
 const summaryCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.72), rgba(21,37,64,0.76))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: '18px',
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'space-between',
   minHeight: '100%',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
 }
 
 const summaryTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
@@ -1061,19 +1458,19 @@ const summaryMetricGrid: CSSProperties = {
 const summaryMetricCard: CSSProperties = {
   borderRadius: '20px',
   padding: '14px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const summaryMetricLabel: CSSProperties = {
-  color: 'rgba(220,231,244,0.7)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 700,
   fontSize: '13px',
   marginBottom: '8px',
 }
 
 const summaryMetricValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.05em',
@@ -1082,16 +1479,54 @@ const summaryMetricValue: CSSProperties = {
 
 const summaryHint: CSSProperties = {
   marginTop: '14px',
-  color: 'rgba(224, 234, 247, 0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '14px',
 }
 
 const summaryHintSmall: CSSProperties = {
   marginTop: '8px',
-  color: 'rgba(224, 234, 247, 0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
   fontSize: '13px',
+}
+
+const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+  gridColumn: '1 / -1',
+})
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--foreground)',
+  fontSize: '1.28rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  fontSize: '.94rem',
 }
 
 const metricGridStyle: CSSProperties = {
@@ -1102,13 +1537,13 @@ const metricGridStyle: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(225,236,250,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
@@ -1116,7 +1551,7 @@ const metricLabel: CSSProperties = {
 }
 
 const metricValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontSize: '1.8rem',
   fontWeight: 900,
   lineHeight: 1.1,
@@ -1125,7 +1560,7 @@ const metricValue: CSSProperties = {
 
 const metricSubtle: CSSProperties = {
   marginTop: '8px',
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: '0.9rem',
   display: 'block',
@@ -1139,17 +1574,16 @@ const cardGridStyle: CSSProperties = {
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
 }
 
 const surfaceCardStrong: CSSProperties = {
   ...surfaceCard,
-  background:
-    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
+  background: 'var(--shell-panel-bg-strong)',
 }
 
 const sectionHeadingRow: CSSProperties = {
@@ -1171,7 +1605,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -1179,7 +1613,7 @@ const sectionTitle: CSSProperties = {
 
 const bodyText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(232, 239, 248, 0.84)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
 }
 
@@ -1195,19 +1629,19 @@ const listRow: CSSProperties = {
   gap: '14px',
   padding: '14px',
   borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const mutedText: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: '0.92rem',
   marginTop: '4px',
 }
 
 const emptyState: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   margin: 0,
   lineHeight: 1.65,
 }
@@ -1224,9 +1658,9 @@ const helperCallout: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  color: '#e6eefb',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
 }
@@ -1235,18 +1669,19 @@ const listLinkCard: CSSProperties = {
   display: 'grid',
   gap: '8px',
   textDecoration: 'none',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const tableWrap: CSSProperties = {
   width: '100%',
   overflowX: 'auto',
   borderRadius: '18px',
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const dataTable: CSSProperties = {
@@ -1257,7 +1692,7 @@ const dataTable: CSSProperties = {
 const tableHeaderCell: CSSProperties = {
   textAlign: 'left',
   padding: '14px',
-  background: 'rgba(255,255,255,0.06)',
+  background: 'var(--shell-chip-bg-strong)',
   color: '#c7dbff',
   fontSize: '12px',
   textTransform: 'uppercase',
@@ -1266,12 +1701,13 @@ const tableHeaderCell: CSSProperties = {
 
 const tableCell: CSSProperties = {
   padding: '14px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
-  color: '#f8fbff',
+  borderTop: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   verticalAlign: 'top',
 }
 
 const playerLink: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   textDecoration: 'none',
 }
+

@@ -1,14 +1,16 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const FEATURE_CARDS = [
   {
-    href: '/players',
+    href: '/explore/players',
     eyebrow: 'Discover',
     title: 'Players',
     text: 'Search player profiles, ratings, and performance context across the platform.',
@@ -16,7 +18,7 @@ const FEATURE_CARDS = [
     icon: 'player',
   },
   {
-    href: '/rankings',
+    href: '/explore/rankings',
     eyebrow: 'Track',
     title: 'Rankings',
     text: 'See leaderboard movement, compare tiers, and monitor top performers.',
@@ -24,18 +26,18 @@ const FEATURE_CARDS = [
     icon: 'chart',
   },
   {
-    href: '/leagues',
+    href: '/explore/leagues',
     eyebrow: 'Browse',
     title: 'Leagues',
-    text: 'Navigate leagues, teams, and seasonal structure with better context.',
+    text: 'Separate official USTA context from TIQ competition surfaces without losing discovery speed.',
     accent: 'blue' as const,
     icon: 'trophy',
   },
   {
-    href: '/matchup',
+    href: '/explore/matchups',
     eyebrow: 'Prepare',
     title: 'Matchups',
-    text: 'Run quick public matchup analysis and compare projected edges.',
+    text: 'Run quick public matchup analysis and compare projected edges before the week gets tactical.',
     accent: 'green' as const,
     icon: 'matchup',
   },
@@ -63,20 +65,38 @@ const DISCOVERY_GUIDES = [
   {
     title: 'Start with a player',
     text: 'Open the player directory when you already know a name and want profile context, rating movement, and recent match history.',
-    href: '/players',
+    href: '/explore/players',
     cta: 'Open players',
   },
   {
     title: 'Scan the field first',
     text: 'Use rankings when you want a wider leaderboard view before drilling into a specific player, team, or flight.',
-    href: '/rankings',
+    href: '/explore/rankings',
     cta: 'View rankings',
   },
   {
     title: 'Prepare a comparison',
     text: 'Jump into matchup prep once you have two players or doubles teams in mind and want a quick prediction readout.',
-    href: '/matchup',
+    href: '/explore/matchups',
     cta: 'Compare now',
+  },
+]
+
+const DISCOVERY_SIGNALS = [
+  {
+    label: 'Public layer',
+    value: 'Explore',
+    text: 'This is the fastest way into discovery when you are not yet in execution mode.',
+  },
+  {
+    label: 'Official truth',
+    value: 'USTA',
+    text: 'Use official-style league and rating context to understand status, movement, and comparison.',
+  },
+  {
+    label: 'Internal edge',
+    value: 'TIQ',
+    text: 'Move from browse to strategy without blending TIQ decision support into official USTA meaning.',
   },
 ]
 
@@ -84,35 +104,48 @@ const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLI
 
 export default function ExplorePage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  const { theme } = useTheme()
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
-    padding: isMobile ? '18px 16px 24px' : '14px 22px 28px',
+    padding: isMobile ? '14px 14px 24px' : '16px 16px 26px',
   }
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isMobile ? '28px 18px 24px' : '38px 30px 28px',
+    padding: isSmallMobile ? '24px 18px 22px' : isMobile ? '28px 20px 24px' : '38px 30px 30px',
+    borderRadius: isMobile ? '28px' : '30px',
+    background: 'var(--shell-panel-bg-strong)',
+    border: '1px solid var(--shell-panel-border)',
+    boxShadow: 'var(--shadow-card)',
   }
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.98fr) minmax(420px, 1.02fr)',
     gap: isMobile ? '20px' : '26px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '48px' : '62px',
-    lineHeight: isMobile ? 1.04 : 0.98,
+    fontSize: isSmallMobile ? '38px' : isMobile ? '50px' : '62px',
+    lineHeight: isMobile ? 1.02 : 0.98,
     maxWidth: '760px',
   }
 
   const dynamicHeroText: CSSProperties = {
     ...heroText,
-    fontSize: isMobile ? '16px' : '18px',
+    fontSize: isMobile ? '15px' : '18px',
     maxWidth: '640px',
+  }
+
+  const dynamicSignalGrid: CSSProperties = {
+    ...signalGrid,
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
   const dynamicFeedGrid: CSSProperties = {
@@ -121,9 +154,40 @@ export default function ExplorePage() {
     gap: isMobile ? '12px' : '14px',
   }
 
+  const dynamicArtPanelStyle: CSSProperties = {
+    ...featurePanel,
+    position: 'relative',
+    minHeight: isSmallMobile ? '240px' : isMobile ? '300px' : '420px',
+    padding: 0,
+    overflow: 'hidden',
+    background: 'var(--shell-panel-bg)',
+    border: '1px solid var(--shell-panel-border)',
+    boxShadow: 'var(--shadow-soft)',
+  }
+
+  const dynamicArtMaskStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: isTablet
+      ? 'var(--shell-hero-mask-mobile)'
+      : 'var(--shell-hero-mask)',
+    pointerEvents: 'none',
+    zIndex: 1,
+  }
+
+  const dynamicArtOverlayStyle: CSSProperties = {
+    position: 'absolute',
+    left: isMobile ? '16px' : '20px',
+    right: isMobile ? '16px' : '20px',
+    bottom: isMobile ? '16px' : '20px',
+    display: 'grid',
+    gap: '10px',
+    zIndex: 2,
+  }
+
   const dynamicActionGrid: CSSProperties = {
     ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(4, minmax(220px, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(220px, 1fr))',
     gap: isMobile ? '14px' : '16px',
   }
 
@@ -137,44 +201,68 @@ export default function ExplorePage() {
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
+          <div style={heroMesh} />
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
-              <div style={eyebrow}>Explore the tennis landscape</div>
+              <div style={eyebrow}>Public discovery</div>
 
               <h1 style={dynamicHeroTitle}>
-                Public discovery for players, rankings, leagues, teams, and matchups.
+                Explore the tennis landscape with cleaner separation between status, competition, and strategy.
               </h1>
 
               <p style={dynamicHeroText}>
-                This is the open layer of TA-IQ. Browse player intelligence, monitor
-                movement, explore leagues, and jump into matchup prep without friction.
+                Browse players, teams, rankings, matchups, and league context from one premium public layer.
+                Start with broad discovery, then move into USTA truth or TIQ competition surfaces without losing clarity.
               </p>
 
               <div style={explorePills}>
                 <span style={pillBlue}>Players</span>
-                <span style={pillBlue}>Rankings</span>
-                <span style={pillGreen}>Leagues</span>
+                <span style={pillBlue}>Teams</span>
+                <span style={pillGreen}>USTA Leagues</span>
+                <span style={pillGreen}>TIQ Leagues</span>
                 <span style={pillGreen}>Matchups</span>
               </div>
             </div>
 
-            <div style={featurePanel}>
-              <div style={featurePanelHeader}>
-                <div style={featurePanelLabel}>Global activity</div>
-                <div style={featurePanelHint}>Public feed</div>
-              </div>
+            <div style={dynamicArtPanelStyle}>
+              <Image
+                src={heroArtworkSrc}
+                alt="TenAceIQ explore concept art"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 44vw"
+                style={{
+                  objectFit: 'cover',
+                  objectPosition: isTablet ? 'center center' : '72% center',
+                  opacity: theme === 'dark' ? 0.94 : 0.82,
+                }}
+              />
+              <div style={dynamicArtMaskStyle} />
 
-              <div style={dynamicFeedGrid}>
-                {GLOBAL_FEED.map((item) => (
-                  <div key={item.title} style={feedCard}>
-                    <div style={feedTag}>{item.tag}</div>
-                    <div style={feedTitle}>{item.title}</div>
-                    <div style={feedText}>{item.body}</div>
-                  </div>
-                ))}
+              <div style={dynamicArtOverlayStyle}>
+                <div style={featurePanelHeader}>
+                  <div style={featurePanelLabel}>Global activity</div>
+                  <div style={featurePanelHint}>Public feed</div>
+                </div>
+
+                <div style={dynamicFeedGrid}>
+                  {GLOBAL_FEED.map((item) => (
+                    <div key={item.title} style={feedCard}>
+                      <div style={feedTag}>{item.tag}</div>
+                      <div style={feedTitle}>{item.title}</div>
+                      <div style={feedText}>{item.body}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
+
+          <div style={dynamicSignalGrid}>
+            {DISCOVERY_SIGNALS.map((signal) => (
+              <DiscoverySignal key={signal.label} label={signal.label} value={signal.value} text={signal.text} />
+            ))}
           </div>
 
           <div style={dynamicActionGrid}>
@@ -201,18 +289,14 @@ export default function ExplorePage() {
                 <h2 style={guideTitle}>Choose the shortest path for the question you have.</h2>
               </div>
               <p style={guideIntro}>
-                The public side is strongest when you move from broad discovery into a focused profile
-                or comparison. These are the fastest starting points.
+                Explore works best when the first click is obvious. These entry points keep the public side clean,
+                efficient, and mobile-friendly before you move deeper into the product.
               </p>
             </div>
 
             <div style={dynamicGuideGrid}>
               {DISCOVERY_GUIDES.map((guide) => (
-                <Link key={guide.href} href={guide.href} style={guideCard}>
-                  <div style={guideCardTitle}>{guide.title}</div>
-                  <div style={guideCardText}>{guide.text}</div>
-                  <div style={guideCardCta}>{guide.cta} -&gt;</div>
-                </Link>
+                <GuideCard key={guide.href} href={guide.href} title={guide.title} text={guide.text} cta={guide.cta} />
               ))}
             </div>
           </div>
@@ -225,11 +309,62 @@ export default function ExplorePage() {
   )
 }
 
+function DiscoverySignal({
+  label,
+  value,
+  text,
+}: {
+  label: string
+  value: string
+  text: string
+}) {
+  return (
+    <div style={signalCard}>
+      <div style={signalLabel}>{label}</div>
+      <div style={signalValue}>{value}</div>
+      <div style={signalText}>{text}</div>
+    </div>
+  )
+}
+
 function getCardIcon(icon: string) {
   if (icon === 'player') return <PlayerIcon />
   if (icon === 'chart') return <ChartIcon />
   if (icon === 'trophy') return <TrophyIcon />
   return <MatchupIcon />
+}
+
+function GuideCard({ href, title, text, cta }: { href: string; title: string; text: string; cta: string }) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...guideCard,
+        borderColor: hovered ? 'rgba(116,190,255,0.28)' : 'rgba(116,190,255,0.14)',
+        transform: hovered ? 'translateY(-3px)' : 'none',
+        boxShadow: hovered
+          ? '0 22px 50px rgba(7,18,40,0.24), inset 0 1px 0 rgba(255,255,255,0.05)'
+          : '0 16px 36px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+        transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+      }}
+    >
+      <div style={guideCardTitle}>{title}</div>
+      <div style={guideCardText}>{text}</div>
+      <div
+        style={{
+          ...guideCardCta,
+          color: hovered ? '#9be11d' : '#d5e8ff',
+          transition: 'color 160ms ease',
+        }}
+      >
+        {cta} {'->'}
+      </div>
+    </Link>
+  )
 }
 
 function ActionCard({
@@ -286,7 +421,7 @@ function ActionCard({
 
       <div style={actionFooterRow}>
         <span style={ctaStyle}>Open</span>
-        <span style={actionFooterArrow}>→</span>
+        <span style={actionFooterArrow}>{'->'}</span>
       </div>
     </Link>
   )
@@ -396,12 +531,9 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background: `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -416,6 +548,16 @@ const heroNoise: CSSProperties = {
     linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
   `,
   pointerEvents: 'none',
+}
+
+const heroMesh: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  pointerEvents: 'none',
+  background: `
+    linear-gradient(135deg, rgba(255,255,255,0.02) 0%, transparent 22%),
+    radial-gradient(circle at 18% 100%, rgba(155,225,29,0.10) 0%, transparent 24%)
+  `,
 }
 
 const heroContent: CSSProperties = {
@@ -439,9 +581,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '8px 14px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(37,91,227,0.18)',
-  border: '1px solid rgba(116,190,255,0.22)',
+  color: 'var(--foreground)',
+  background: 'rgba(37,91,227,0.12)',
+  border: '1px solid var(--card-border-soft)',
   fontSize: '12px',
   fontWeight: 900,
   letterSpacing: '0.12em',
@@ -450,14 +592,14 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: '-0.05em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--foreground)',
   lineHeight: 1.7,
   fontWeight: 500,
 }
@@ -495,13 +637,51 @@ const pillGreen: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.24)',
 }
 
+const signalGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '18px',
+  position: 'relative',
+  zIndex: 1,
+}
+
+const signalCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '18px',
+  borderRadius: '22px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const signalLabel: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: '11px',
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const signalValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '24px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const signalText: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: '13px',
+  lineHeight: 1.65,
+}
+
 const featurePanel: CSSProperties = {
   borderRadius: '24px',
-  background:
-    'linear-gradient(180deg, rgba(68, 132, 229, 0.20) 0%, rgba(40, 83, 158, 0.18) 28%, rgba(16, 36, 70, 0.72) 100%)',
-  border: '1px solid rgba(116,190,255,0.24)',
-  boxShadow:
-    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 40px rgba(116,190,255,0.05)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
   padding: '20px',
 }
 
@@ -514,14 +694,14 @@ const featurePanelHeader: CSSProperties = {
 }
 
 const featurePanelLabel: CSSProperties = {
-  color: '#f6fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 800,
   letterSpacing: '-0.02em',
 }
 
 const featurePanelHint: CSSProperties = {
-  color: 'rgba(204,220,241,0.76)',
+  color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
 }
@@ -533,8 +713,8 @@ const feedGrid: CSSProperties = {
 const feedCard: CSSProperties = {
   borderRadius: '20px',
   padding: '16px 15px',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minHeight: '150px',
 }
 
@@ -554,7 +734,7 @@ const feedTag: CSSProperties = {
 }
 
 const feedTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 800,
   letterSpacing: '-0.02em',
@@ -562,7 +742,7 @@ const feedTitle: CSSProperties = {
 }
 
 const feedText: CSSProperties = {
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--foreground)',
   fontSize: '14px',
   lineHeight: 1.65,
 }
@@ -666,11 +846,10 @@ const actionCard: CSSProperties = {
   borderRadius: '24px',
   padding: '22px',
   textDecoration: 'none',
-  color: '#eff6ff',
-  background:
-    'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
-  border: '1px solid rgba(116,190,255,0.16)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  color: 'var(--foreground)',
+  background: 'var(--surface-strong)',
+  border: '1px solid var(--card-border-soft)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
 }
 
@@ -715,7 +894,7 @@ const actionBody: CSSProperties = {
 }
 
 const actionEyebrow: CSSProperties = {
-  color: 'rgba(188,208,232,0.8)',
+  color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
@@ -727,13 +906,13 @@ const actionTitle: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: '-0.04em',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
 }
 
 const actionText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.7,
-  color: 'rgba(215,229,247,0.78)',
+  color: 'var(--foreground)',
 }
 
 const actionFooterRow: CSSProperties = {
@@ -744,19 +923,19 @@ const actionFooterRow: CSSProperties = {
 }
 
 const actionFooterCtaBlue: CSSProperties = {
-  color: '#d5e8ff',
+  color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 800,
 }
 
 const actionFooterCtaGreen: CSSProperties = {
-  color: '#e7ffd0',
+  color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 800,
 }
 
 const actionFooterArrow: CSSProperties = {
-  color: 'rgba(216,230,246,0.78)',
+  color: 'var(--foreground)',
   fontSize: '18px',
   fontWeight: 800,
 }

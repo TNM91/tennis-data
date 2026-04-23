@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
 import { type UserRole } from '@/lib/roles'
 
@@ -26,8 +27,11 @@ type PlayerRelation =
       preferred_role: string | null
       lineup_notes: string | null
       overall_dynamic_rating: number | null
+      overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
+      singles_usta_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      doubles_usta_dynamic_rating: number | null
     }
   | {
       id: string
@@ -36,8 +40,11 @@ type PlayerRelation =
       preferred_role: string | null
       lineup_notes: string | null
       overall_dynamic_rating: number | null
+      overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
+      singles_usta_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      doubles_usta_dynamic_rating: number | null
     }[]
   | null
 
@@ -56,8 +63,11 @@ type RosterPlayer = {
   lineupNotes: string | null
   appearances: number
   overallDynamic: number | null
+  overallUstaDynamic: number | null
   singlesDynamic: number | null
+  singlesUstaDynamic: number | null
   doublesDynamic: number | null
+  doublesUstaDynamic: number | null
 }
 
 type AvailabilityStatus =
@@ -93,29 +103,12 @@ function normalizePlayerRelation(player: PlayerRelation) {
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
-function formatDate(value: string | null) {
-  if (!value) return 'Unknown'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 function buildLeagueKey(leagueName: string, flight: string) {
   return `${leagueName}___${flight}`
 }
 
 function formatLeagueScopeLabel(leagueName: string, flight: string) {
   return [leagueName, flight].filter(Boolean).join(' - ')
-}
-
-function formatRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
-  return value.toFixed(2)
 }
 
 const statusOptions: AvailabilityStatus[] = [
@@ -265,8 +258,11 @@ export default function LineupAvailabilityPage() {
             preferred_role,
             lineup_notes,
             overall_dynamic_rating,
+            overall_usta_dynamic_rating,
             singles_dynamic_rating,
-            doubles_dynamic_rating
+            singles_usta_dynamic_rating,
+            doubles_dynamic_rating,
+            doubles_usta_dynamic_rating
           )
         `)
         .in('match_id', matchIds)
@@ -293,8 +289,11 @@ export default function LineupAvailabilityPage() {
             lineupNotes: player.lineup_notes,
             appearances: 0,
             overallDynamic: player.overall_dynamic_rating,
+            overallUstaDynamic: player.overall_usta_dynamic_rating,
             singlesDynamic: player.singles_dynamic_rating,
+            singlesUstaDynamic: player.singles_usta_dynamic_rating,
             doublesDynamic: player.doubles_dynamic_rating,
+            doublesUstaDynamic: player.doubles_usta_dynamic_rating,
           })
         }
 
@@ -585,9 +584,9 @@ export default function LineupAvailabilityPage() {
             onClick={() => setRefreshTick((current) => current + 1)}
             className="button-ghost"
             style={{
-              background: 'rgba(15,23,42,0.24)',
-              color: '#dbeafe',
-              border: '1px solid rgba(116,190,255,0.12)',
+              background: 'var(--shell-chip-bg)',
+              color: 'var(--foreground)',
+              border: '1px solid var(--shell-panel-border)',
               opacity: loading || rosterLoading ? 0.7 : 1,
               cursor: loading || rosterLoading ? 'not-allowed' : 'pointer',
             }}
@@ -619,7 +618,7 @@ export default function LineupAvailabilityPage() {
               width: '100%',
               justifyContent: 'flex-start',
               padding: '10px 14px',
-              background: 'rgba(220,38,38,0.12)',
+              background: 'rgba(220,38,38,0.10)',
               color: '#991b1b',
               border: '1px solid rgba(220,38,38,0.18)',
             }}
@@ -631,9 +630,9 @@ export default function LineupAvailabilityPage() {
                 onClick={() => setRefreshTick((current) => current + 1)}
                 className="button-ghost"
                 style={{
-                  background: 'rgba(15,23,42,0.24)',
-                  color: '#dbeafe',
-                  border: '1px solid rgba(116,190,255,0.12)',
+                  background: 'var(--shell-chip-bg)',
+                  color: 'var(--foreground)',
+                  border: '1px solid var(--shell-panel-border)',
                 }}
               >
                 Retry availability load
@@ -770,7 +769,7 @@ export default function LineupAvailabilityPage() {
                       </div>
 
                       <div className="badge badge-blue" style={{ whiteSpace: 'nowrap' }}>
-                        S {formatRating(player.singlesDynamic)} · D {formatRating(player.doublesDynamic)}
+                        TIQ S {formatRating(player.singlesDynamic)} · D {formatRating(player.doublesDynamic)} | USTA S {formatRating(player.singlesUstaDynamic)} · D {formatRating(player.doublesUstaDynamic)}
                       </div>
                     </div>
 

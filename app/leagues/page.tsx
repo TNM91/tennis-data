@@ -7,7 +7,12 @@ import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import FollowButton from '@/app/components/follow-button'
 import SiteShell from '@/app/components/site-shell'
+import {
+  getCompetitionLayerLabel,
+  getLeagueFormatLabel,
+} from '@/lib/competition-layers'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
+import { formatDate } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
@@ -15,18 +20,6 @@ const LEAGUES_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEAGUES_INLI
 
 function safeText(value: string | null | undefined) {
   return (value || '').trim()
-}
-
-function formatDate(value: string | null) {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function buildLeagueHref(league: LeagueCard) {
@@ -37,6 +30,8 @@ function buildLeagueHref(league: LeagueCard) {
   if (safeText(league.flight)) params.set('flight', league.flight)
   if (safeText(league.ustaSection)) params.set('section', league.ustaSection)
   if (safeText(league.districtArea)) params.set('district', league.districtArea)
+  params.set('layer', league.competitionLayer)
+  params.set('format', league.leagueFormat)
 
   const query = params.toString()
   return `/leagues/${encodeURIComponent(slugBase)}${query ? `?${query}` : ''}`
@@ -355,9 +350,16 @@ export default function LeaguesPage() {
           </div>
 
           {loading ? (
-            <div style={stateBox}>Loading leagues...</div>
+            <div style={stateBox}>
+              <div style={sectionKicker}>Directory loading</div>
+              <div>Loading leagues...</div>
+              <div style={stateHelperTextStyle}>
+                Rebuilding the browse layer from current league summary data.
+              </div>
+            </div>
           ) : error ? (
             <div style={errorBox}>
+              <div style={sectionKicker}>Directory error</div>
               <div>{error}</div>
               <div style={stateHelperTextStyle}>
                 Refresh the league summary to try again without leaving the page.
@@ -370,9 +372,10 @@ export default function LeaguesPage() {
             </div>
           ) : filteredLeagues.length === 0 ? (
             <div style={stateBox}>
+              <div style={sectionKicker}>Directory reset</div>
               {hasActiveFilters
-                ? 'No leagues matched the current search or flight filter.'
-                : 'No named league records found yet.'}
+                ? 'No leagues matched the current search or flight filters.'
+                : 'League records are not available yet.'}
               <div style={stateHelperTextStyle}>
                 {hasActiveFilters
                   ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
@@ -397,7 +400,7 @@ export default function LeaguesPage() {
                       {diagnostics.sampleMissingLeagueRows.map((row) => (
                         <div key={row.externalMatchId} style={diagnosticSampleCard}>
                           <div style={diagnosticSampleTitle}>
-                            {row.homeTeam || 'Unknown home'} vs {row.awayTeam || 'Unknown away'}
+                            {row.homeTeam || 'Home team not set'} vs {row.awayTeam || 'Away team not set'}
                           </div>
                           <div style={diagnosticSampleMeta}>
                             Match ID: {row.externalMatchId}
@@ -430,50 +433,15 @@ export default function LeaguesPage() {
               </div>
 
               <div style={dynamicCardGrid}>
-                {filteredLeagues.map((league) => {
-                  const subtitle = buildLeagueSubtitle(league)
-
-                  return (
-                    <div key={league.key} style={leagueCard}>
-                      <div style={cardGlow} />
-
-                      <div style={dynamicLeagueTop}>
-                        <div style={leagueHeading}>
-                          <div style={leagueTitle}>{league.leagueName}</div>
-                          {subtitle ? <div style={leagueFlight}>{subtitle}</div> : null}
-                        </div>
-
-                        <div style={leagueActionStack}>
-                          <div onClick={(e) => e.stopPropagation()} style={followWrap}>
-                            <FollowButton
-                              entityType="league"
-                              entityId={league.key}
-                              entityName={league.leagueName}
-                              subtitle={subtitle}
-                            />
-                          </div>
-
-                          <Link href={buildLeagueHref(league)} style={primaryButton}>
-                            View Season
-                          </Link>
-                        </div>
-                      </div>
-
-                      <div style={dynamicLeagueDetailGrid}>
-                        <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
-                        <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
-                        <DetailCard label="Matches" value={String(league.matchCount)} />
-                        <DetailCard label="Teams Seen" value={String(league.teamCount)} />
-                      </div>
-
-                      <div style={leagueBottom}>
-                        <span style={leagueBottomMeta}>
-                          Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
+                {filteredLeagues.map((league) => (
+                  <LeagueCardItem
+                    key={league.key}
+                    league={league}
+                    isMobile={isMobile}
+                    dynamicLeagueTop={dynamicLeagueTop}
+                    dynamicLeagueDetailGrid={dynamicLeagueDetailGrid}
+                  />
+                ))}
               </div>
             </>
           )}
@@ -483,6 +451,100 @@ export default function LeaguesPage() {
         <AdsenseSlot slot={LEAGUES_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
       </div>
     </SiteShell>
+  )
+}
+
+function LeagueCardItem({
+  league,
+  dynamicLeagueTop,
+  dynamicLeagueDetailGrid,
+}: {
+  league: LeagueCard
+  isMobile: boolean
+  dynamicLeagueTop: CSSProperties
+  dynamicLeagueDetailGrid: CSSProperties
+}) {
+  const [hovered, setHovered] = useState(false)
+  const subtitle = buildLeagueSubtitle(league)
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...leagueCard,
+        borderColor: hovered ? 'rgba(140,184,255,0.34)' : 'rgba(140,184,255,0.18)',
+        transform: hovered ? 'translateY(-3px)' : 'none',
+        boxShadow: hovered
+          ? '0 22px 50px rgba(9,25,54,0.22), inset 0 1px 0 rgba(255,255,255,0.07)'
+          : '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+        transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+      }}
+    >
+      <div style={cardGlow} />
+
+      <div style={dynamicLeagueTop}>
+        <div style={leagueHeading}>
+          <div style={leagueMetaRow}>
+            <span style={league.competitionLayer === 'usta' ? leagueMetaBluePill : leagueMetaGreenPill}>
+              {getCompetitionLayerLabel(league.competitionLayer)}
+            </span>
+            <span style={leagueMetaSlatePill}>
+              {getLeagueFormatLabel(league.leagueFormat)}
+            </span>
+          </div>
+          <div style={leagueTitle}>{league.leagueName}</div>
+          {subtitle ? <div style={leagueFlight}>{subtitle}</div> : null}
+        </div>
+
+        <div style={leagueActionStack}>
+          <div onClick={(e) => e.stopPropagation()} style={followWrap}>
+            <FollowButton
+              entityType="league"
+              entityId={league.key}
+              entityName={league.leagueName}
+              subtitle={subtitle}
+            />
+          </div>
+
+          <ViewSeasonButton href={buildLeagueHref(league)} />
+        </div>
+      </div>
+
+      <div style={dynamicLeagueDetailGrid}>
+        <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
+        <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
+        <DetailCard label="Matches" value={String(league.matchCount)} />
+        <DetailCard label="Teams Seen" value={String(league.teamCount)} />
+      </div>
+
+      <div style={leagueBottom}>
+        <span style={leagueBottomMeta}>
+          Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function ViewSeasonButton({ href }: { href: string }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        boxShadow: hovered
+          ? '0 16px 36px rgba(43,195,104,0.28), inset 0 1px 0 rgba(255,255,255,0.30)'
+          : '0 12px 30px rgba(43,195,104,0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
+        transition: 'transform 140ms ease, box-shadow 140ms ease',
+      }}
+    >
+      View Season
+    </Link>
   )
 }
 
@@ -1037,6 +1099,43 @@ const leagueTop: CSSProperties = {
 
 const leagueHeading: CSSProperties = {
   minWidth: 0,
+}
+
+const leagueMetaRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginBottom: '10px',
+}
+
+const leagueMetaPillBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '28px',
+  padding: '0 10px',
+  borderRadius: '999px',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const leagueMetaBluePill: CSSProperties = {
+  ...leagueMetaPillBase,
+  background: 'rgba(74,163,255,0.14)',
+  color: '#dfeeff',
+}
+
+const leagueMetaGreenPill: CSSProperties = {
+  ...leagueMetaPillBase,
+  background: 'rgba(155,225,29,0.14)',
+  color: '#e7ffd1',
+}
+
+const leagueMetaSlatePill: CSSProperties = {
+  ...leagueMetaPillBase,
+  background: 'rgba(142, 161, 189, 0.14)',
+  color: '#dfe8f8',
 }
 
 const leagueTitle: CSSProperties = {

@@ -13,8 +13,11 @@ export type CaptainToolKey =
   | 'lineup-availability'
   | 'weekly-brief'
   | 'team-brief'
+  | 'season-dashboard'
+  | 'tiq-team-matches'
 
 export type CaptainResumeState = {
+  competitionLayer?: string
   team?: string
   league?: string
   flight?: string
@@ -57,10 +60,18 @@ export function writeCaptainResumeState(nextState: CaptainResumeState) {
 
 export function buildCaptainScopedHref(
   path: string,
-  scope: { team?: string; league?: string; flight?: string; date?: string; opponent?: string },
+  scope: {
+    competitionLayer?: string
+    team?: string
+    league?: string
+    flight?: string
+    date?: string
+    opponent?: string
+  },
 ) {
   const params = new URLSearchParams()
 
+  if (scope.competitionLayer) params.set('layer', scope.competitionLayer)
   if (scope.team) params.set('team', scope.team)
   if (scope.league) params.set('league', scope.league)
   if (scope.flight) params.set('flight', scope.flight)

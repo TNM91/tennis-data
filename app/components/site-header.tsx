@@ -5,29 +5,69 @@ import { useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
-import {
-  transitionBase,
-  hoverLift,
-  hoverGlowGreen,
-  hoverBrighten,
-} from '@/lib/interaction-styles'
+import { useTheme } from '@/app/components/theme-provider'
+import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY = 'tenaceiq-last-admin-import-route-v1'
 
-const PRIMARY_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchups' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/leagues', label: 'Leagues' },
-]
+function HamburgerIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+      <path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+      <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="3.6" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M10 2.2v2M10 15.8v2M17.8 10h-2M4.2 10h-2M15.6 4.4l-1.5 1.5M5.9 14.1l-1.5 1.5M15.6 15.6l-1.5-1.5M5.9 5.9 4.4 4.4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden="true">
+      <path
+        d="M14.9 12.9A6.5 6.5 0 0 1 7.1 5.1a7 7 0 1 0 7.8 7.8Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function normalizeRouteKey(value: string | undefined) {
+  if (!value) return ''
+  if (value === '/') return value
+  return value.startsWith('/') ? value : `/${value}`
+}
 
 function isActiveLink(active: string | undefined, pathname: string, href: string) {
-  if (active) {
-    if (active === href) return true
-    if (href !== '/' && active.startsWith(href)) return true
+  const normalizedActive = normalizeRouteKey(active)
+
+  if (normalizedActive) {
+    if (normalizedActive === href) return true
+    if (href !== '/' && normalizedActive.startsWith(href)) return true
   }
 
   if (pathname === href) return true
@@ -35,256 +75,43 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   return false
 }
 
-const baseTextLink = {
-  position: 'relative' as const,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '38px',
-  padding: '6px 4px',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '14px',
-  lineHeight: 1,
-  color: 'rgba(214,228,246,0.88)',
-  whiteSpace: 'nowrap' as const,
-  ...transitionBase,
-}
-
-const activeTextLink = {
-  ...baseTextLink,
-  color: '#f4f9ff',
-}
-
-const quietActionLink = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 2px',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '14px',
-  lineHeight: 1,
-  color: 'rgba(222,233,247,0.76)',
-  background: 'transparent',
-  border: 'none',
-  whiteSpace: 'nowrap' as const,
-  ...transitionBase,
-} as const
-
-const ctaNavLink = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 16px',
-  borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.30)',
-  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-  color: '#08111d',
-  textDecoration: 'none',
-  fontWeight: 900,
-  fontSize: '14px',
-  lineHeight: 1,
-  letterSpacing: '-0.01em',
-  boxShadow: '0 6px 14px rgba(155,225,29,0.10)',
-  whiteSpace: 'nowrap' as const,
-  ...transitionBase,
-} as const
-
-const mobilePanelLink = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  width: '100%',
-  minHeight: '50px',
-  padding: '0 14px',
-  borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'linear-gradient(180deg, rgba(14,31,60,0.56) 0%, rgba(8,19,38,0.76) 100%)',
-  color: '#e7eefb',
-  textDecoration: 'none',
-  fontWeight: 700,
-  fontSize: '14px',
-  lineHeight: 1,
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-  ...transitionBase,
-} as const
-
-const mobilePanelLinkActive = {
-  ...mobilePanelLink,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(180deg, rgba(155,225,29,0.08) 0%, rgba(20,39,74,0.78) 100%)',
-  color: '#f4f9ff',
-} as const
-
-function HeaderLink({
-  href,
-  label,
-  variant = 'nav',
-  active = false,
+function ThemeToggle({
+  compact = false,
   onClick,
+  theme,
 }: {
-  href: string
-  label: string
-  variant?: 'nav' | 'quiet' | 'cta'
-  active?: boolean
-  onClick?: () => void
-}) {
-  const [hovered, setHovered] = useState(false)
-
-  if (variant === 'cta') {
-    return (
-      <Link
-        href={href}
-        onClick={onClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          ...ctaNavLink,
-          ...(hovered ? { ...hoverLift, ...hoverGlowGreen, ...hoverBrighten } : {}),
-        }}
-      >
-        {label}
-      </Link>
-    )
-  }
-
-  if (variant === 'quiet') {
-    return (
-      <Link
-        href={href}
-        onClick={onClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          ...quietActionLink,
-          color: hovered ? '#f4f9ff' : quietActionLink.color,
-          transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-        }}
-      >
-        <span
-          style={{
-            position: 'relative',
-            display: 'inline-flex',
-            alignItems: 'center',
-            paddingBottom: '3px',
-          }}
-        >
-          <span
-            style={{
-              position: 'absolute',
-              left: 0,
-              bottom: 0,
-              width: '100%',
-              height: '2px',
-              background:
-                'linear-gradient(90deg, rgba(74,163,255,0.88) 0%, rgba(155,225,29,0.88) 100%)',
-              transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
-              transformOrigin: 'left center',
-              transition: 'transform 180ms ease',
-              opacity: hovered ? 0.9 : 0,
-            }}
-          />
-          {label}
-        </span>
-      </Link>
-    )
-  }
-
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...(active ? activeTextLink : baseTextLink),
-        color: hovered || active ? '#f4f9ff' : 'rgba(214,228,246,0.88)',
-        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          left: 0,
-          bottom: '3px',
-          width: '100%',
-          height: '2px',
-          background:
-            'linear-gradient(90deg, rgba(74,163,255,0.9) 0%, rgba(155,225,29,0.9) 100%)',
-          transform: active || hovered ? 'scaleX(1)' : 'scaleX(0)',
-          transformOrigin: 'left center',
-          transition: 'transform 180ms ease',
-          opacity: active || hovered ? 0.9 : 0,
-        }}
-      />
-      {label}
-    </Link>
-  )
-}
-
-function HeaderButton({
-  label,
-  onClick,
-}: {
-  label: string
+  compact?: boolean
   onClick: () => void
+  theme: 'dark' | 'light'
 }) {
-  const [hovered, setHovered] = useState(false)
-
   return (
     <button
       type="button"
       onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
       style={{
-        appearance: 'none',
-        fontFamily: 'inherit',
-        cursor: 'pointer',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '38px',
-        padding: '0 2px',
-        background: 'transparent',
-        border: 'none',
-        color: hovered ? '#f4f9ff' : 'rgba(222,233,247,0.76)',
-        fontWeight: 700,
-        fontSize: '14px',
-        lineHeight: 1,
-        transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
-        whiteSpace: 'nowrap',
-        ...transitionBase,
+        gap: compact ? '0' : '8px',
+        minWidth: compact ? '40px' : 'auto',
+        minHeight: compact ? '40px' : '38px',
+        padding: compact ? '0' : '0 11px',
+        borderRadius: compact ? '13px' : '999px',
+        border: '1px solid rgba(116,190,255,0.10)',
+        background: 'color-mix(in srgb, var(--header-bg) 78%, var(--surface) 22%)',
+        color: 'var(--foreground-strong)',
+        fontWeight: 750,
+        fontSize: '12px',
+        letterSpacing: '-0.01em',
+        cursor: 'pointer',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+        transition: 'transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease',
       }}
     >
-      <span
-        style={{
-          position: 'relative',
-          display: 'inline-flex',
-          alignItems: 'center',
-          paddingBottom: '3px',
-        }}
-      >
-        <span
-          style={{
-            position: 'absolute',
-            left: 0,
-            bottom: 0,
-            width: '100%',
-            height: '2px',
-            background:
-              'linear-gradient(90deg, rgba(74,163,255,0.88) 0%, rgba(155,225,29,0.88) 100%)',
-            transform: hovered ? 'scaleX(1)' : 'scaleX(0)',
-            transformOrigin: 'left center',
-            transition: 'transform 180ms ease',
-            opacity: hovered ? 0.9 : 0,
-          }}
-        />
-        {label}
-      </span>
+      {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+      {compact ? null : <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
     </button>
   )
 }
@@ -293,9 +120,9 @@ export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
   const { role } = useAuth()
-
-  const [menuOpen, setMenuOpen] = useState(false)
+  const { theme, toggleTheme } = useTheme()
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const resumeImportHref = useMemo(() => {
     if (typeof window === 'undefined' || role !== 'admin') return '/admin/import'
@@ -308,263 +135,329 @@ export default function SiteHeader({ active }: { active?: string }) {
     router.refresh()
   }
 
-  const headerPadding = isMobile ? '0 12px' : '0 16px'
-
-  const headerInner = useMemo(
-    () => ({
-      width: '100%',
-      maxWidth: '1280px',
-      margin: '0 auto',
-      border: 'none',
-      background: 'transparent',
-      boxShadow: 'none',
-      borderRadius: '0px',
-      overflow: 'visible',
-      position: 'relative' as const,
-    }),
-    [],
-  )
-
-  const topRow = useMemo(
-    () => ({
-      display: 'grid',
-      gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
-      alignItems: 'center',
-      gap: isMobile ? '10px' : '18px',
-      padding: isMobile ? '12px 6px' : '14px 4px',
-      minHeight: isMobile ? '64px' : '70px',
-      position: 'relative' as const,
-      zIndex: 1,
-    }),
-    [isMobile, isTablet],
-  )
-
-  const navShell = useMemo(
-    () => ({
-      display: isTablet ? 'none' : 'flex',
-      justifyContent: 'center' as const,
-      minWidth: 0,
-    }),
-    [isTablet],
-  )
-
-  const navCluster = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '18px',
-    flexWrap: 'wrap' as const,
-    justifyContent: 'center' as const,
-    minWidth: 0,
-  }
-
-  const actionCluster = useMemo(
-    () => ({
-      display: isTablet ? 'none' : 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'flex-end' as const,
-      gap: '16px',
-      minWidth: '182px',
-    }),
-    [isTablet],
-  )
-
-  const mobileToggleStyle = {
-    width: '42px',
-    height: '42px',
-    borderRadius: '14px',
-    border: '1px solid rgba(116,190,255,0.12)',
-    background: 'linear-gradient(180deg, rgba(14,31,60,0.46) 0%, rgba(8,19,38,0.72) 100%)',
-    color: '#F1F7FF',
-    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-    display: isTablet ? 'inline-flex' : 'none',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    flexShrink: 0,
-    fontSize: '18px',
-    ...transitionBase,
-  } as const
-
-  const mobilePanelStyle = {
-    display: isTablet ? 'block' : 'none',
-    maxHeight: menuOpen ? '760px' : '0px',
-    opacity: menuOpen ? 1 : 0,
-    overflow: 'hidden',
-    transition: 'max-height 220ms ease, opacity 160ms ease',
-    borderTop: menuOpen ? '1px solid rgba(116,190,255,0.08)' : '1px solid transparent',
-    padding: menuOpen ? '0 0 12px' : '0',
-    position: 'relative' as const,
-    zIndex: 1,
-  } as const
-
-  const showAuthenticatedActions = role !== 'public'
-  const showPublicActions = role === 'public'
+  const authenticated = role !== 'public'
+  const useCompactBrand = isTablet
 
   return (
     <header
       style={{
-        position: 'relative',
-        zIndex: 3,
-        padding: headerPadding,
-        borderBottom: '1px solid rgba(116,190,255,0.04)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 40,
+        padding: `max(0px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left))`,
+        background: 'var(--header-bg)',
+        borderBottom: '1px solid var(--header-border)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
       }}
     >
-      <div style={headerInner}>
-        <div style={topRow}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1280px',
+          margin: '0 auto',
+          padding: isMobile ? '8px 2px' : isTablet ? '10px 4px' : '11px 8px',
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
+            alignItems: 'center',
+            gap: isMobile ? '10px' : isTablet ? '12px' : '16px',
+          }}
+        >
           <Link
             href="/"
+            aria-label="TenAceIQ home"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              textDecoration: 'none',
-              minWidth: 0,
-              flexShrink: 0,
               width: 'fit-content',
+              minWidth: 0,
             }}
-            aria-label="TenAceIQ home"
           >
-            <BrandWordmark top />
+            <BrandWordmark top={!useCompactBrand} compact={useCompactBrand} />
           </Link>
 
-          <div style={navShell}>
-            <nav style={navCluster} aria-label="Primary">
-              {PRIMARY_LINKS.map((link) => {
-                const activeNow = isActiveLink(active, pathname, link.href)
+          {isTablet ? null : (
+            <nav
+              aria-label="Primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                minWidth: 0,
+              }}
+            >
+              {PRIMARY_NAV_ITEMS.map((item) => {
+                const activeNow = isActiveLink(active, pathname, item.href)
                 return (
-                  <HeaderLink
-                    key={link.href}
-                    href={link.href}
-                    label={link.label}
-                    active={activeNow}
-                  />
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    style={{
+                      position: 'relative',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: '36px',
+                      padding: '0 11px',
+                      borderRadius: 0,
+                      borderBottom: activeNow ? '2px solid var(--brand-green)' : '2px solid transparent',
+                      color: activeNow ? 'var(--foreground-strong)' : 'var(--header-link)',
+                      fontSize: '13px',
+                      fontWeight: activeNow ? 800 : 700,
+                      letterSpacing: '-0.015em',
+                      textDecoration: 'none',
+                      background: 'transparent',
+                      transition: 'border-color 160ms ease, color 160ms ease',
+                    }}
+                  >
+                    <span>{item.label}</span>
+                  </Link>
                 )
               })}
             </nav>
-          </div>
+          )}
 
-          <div style={actionCluster}>
-            {showPublicActions ? (
-              <>
-                <HeaderLink href="/login" label="Login" variant="quiet" />
-                <HeaderLink href="/join" label="Join" variant="cta" />
-              </>
-            ) : null}
-
-            {showAuthenticatedActions ? (
-              <>
-                <HeaderLink href="/mylab" label="My Lab" variant="cta" />
-                {role === 'admin' ? (
-                  <>
-                    <HeaderLink href={resumeImportHref} label="Resume import" variant="quiet" />
-                    <HeaderLink href="/admin" label="Admin" variant="quiet" />
-                  </>
-                ) : null}
-                <HeaderButton label="Logout" onClick={handleLogout} />
-              </>
-            ) : null}
-          </div>
-
-          <button
-            type="button"
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((prev) => !prev)}
-            style={mobileToggleStyle}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: isMobile ? '7px' : isTablet ? '8px' : '9px',
+            }}
           >
-            {menuOpen ? '×' : '☰'}
-          </button>
-        </div>
+            {isTablet ? null : <ThemeToggle onClick={toggleTheme} theme={theme} />}
 
-        <div style={mobilePanelStyle}>
-          <nav style={{ display: 'grid', gap: '8px' }} aria-label="Mobile primary">
-            {PRIMARY_LINKS.map((link) => {
-              const activeNow = isActiveLink(active, pathname, link.href)
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  style={activeNow ? mobilePanelLinkActive : mobilePanelLink}
-                >
-                  <span>{link.label}</span>
-                  <span style={{ opacity: activeNow ? 0.7 : 0.38 }}>→</span>
-                </Link>
-              )
-            })}
-
-            {showPublicActions ? (
+            {isTablet ? null : authenticated ? (
               <>
-                <Link href="/login" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
-                  <span>Login</span>
-                  <span style={{ opacity: 0.38 }}>→</span>
-                </Link>
-                <Link
-                  href="/join"
-                  onClick={() => setMenuOpen(false)}
-                  style={{
-                    ...mobilePanelLink,
-                    ...ctaNavLink,
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    minHeight: '50px',
-                    padding: '0 14px',
-                    borderRadius: '16px',
-                  }}
-                >
-                  <span>Join</span>
-                  <span style={{ opacity: 0.62 }}>→</span>
-                </Link>
-              </>
-            ) : null}
-
-            {showAuthenticatedActions ? (
-              <>
-                <Link
-                  href="/mylab"
-                  onClick={() => setMenuOpen(false)}
-                  style={{
-                    ...mobilePanelLink,
-                    ...ctaNavLink,
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    minHeight: '50px',
-                    padding: '0 14px',
-                    borderRadius: '16px',
-                  }}
-                >
-                  <span>My Lab</span>
-                  <span style={{ opacity: 0.62 }}>→</span>
-                </Link>
                 {role === 'admin' ? (
                   <>
-                    <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
-                      <span>Resume import</span>
-                      <span style={{ opacity: 0.38 }}>→</span>
+                    <Link href={resumeImportHref} style={utilityLinkStyle}>
+                      Resume import
                     </Link>
-                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobilePanelLink}>
-                      <span>Admin</span>
-                      <span style={{ opacity: 0.38 }}>→</span>
+                    <Link href="/admin" style={utilityLinkStyle}>
+                      Admin
                     </Link>
                   </>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  style={{
-                    appearance: 'none',
-                    fontFamily: 'inherit',
-                    cursor: 'pointer',
-                    ...mobilePanelLink,
-                  }}
-                >
-                  <span>Logout</span>
-                  <span style={{ opacity: 0.38 }}>→</span>
+                <button type="button" onClick={handleLogout} style={utilityButtonStyle}>
+                  Logout
                 </button>
               </>
+            ) : (
+              <>
+                <Link href="/login" style={utilityLinkStyle}>
+                  Sign in
+                </Link>
+                <Link href="/join" style={primaryCtaStyle}>
+                  Start Free
+                </Link>
+              </>
+            )}
+
+            {isTablet ? (
+              <button
+                type="button"
+                aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((prev) => !prev)}
+                style={menuButtonStyle}
+              >
+                {menuOpen ? <CloseIcon /> : <HamburgerIcon />}
+              </button>
             ) : null}
-          </nav>
+          </div>
         </div>
+
+        {isTablet ? (
+          <div
+            style={{
+              maxHeight: menuOpen ? '760px' : '0px',
+              opacity: menuOpen ? 1 : 0,
+              overflow: 'hidden',
+              transition: 'max-height 220ms ease, opacity 180ms ease',
+            }}
+          >
+            <div
+              style={{
+                marginTop: '10px',
+                border: '1px solid color-mix(in srgb, var(--shell-panel-border) 78%, rgba(116,190,255,0.16) 22%)',
+                background:
+                  'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--surface) 4%) 0%, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--surface-soft) 8%) 100%)',
+                borderRadius: '20px',
+                padding: '12px',
+                boxShadow: 'var(--shadow-card)',
+                display: 'grid',
+                gap: '8px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingBottom: '2px' }}>
+                <div style={mobileSectionLabelStyle}>Navigation</div>
+                <ThemeToggle compact onClick={toggleTheme} theme={theme} />
+              </div>
+
+              {PRIMARY_NAV_ITEMS.map((item) => {
+                const activeNow = isActiveLink(active, pathname, item.href)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      ...mobileItemStyle,
+                      borderColor: activeNow ? 'rgba(155, 225, 29, 0.30)' : 'var(--shell-panel-border)',
+                      background: activeNow
+                        ? 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg-strong) 72%, var(--surface) 28%) 0%, var(--shell-chip-bg-strong) 100%)'
+                        : 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 90%, var(--surface) 10%) 0%, var(--shell-chip-bg) 100%)',
+                    }}
+                  >
+                    <span>{item.label}</span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </Link>
+                )
+              })}
+
+              {authenticated ? (
+                <>
+                  {role === 'admin' ? (
+                    <>
+                      <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                        <span>Resume import</span>
+                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                      </Link>
+                      <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                        <span>Admin</span>
+                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                      </Link>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    style={{
+                      ...mobileItemStyle,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>Logout</span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <span>Sign in</span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </Link>
+                  <Link
+                    href="/join"
+                    onClick={() => setMenuOpen(false)}
+                    style={{
+                      ...mobileItemStyle,
+                      ...primaryCtaStyle,
+                      minHeight: '52px',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>Start Free</span>
+                    <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     </header>
   )
 }
+
+const utilityLinkStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 8px',
+  borderRadius: '999px',
+  border: 'none',
+  color: 'var(--header-link)',
+  fontSize: '13px',
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
+  textDecoration: 'none',
+  background: 'transparent',
+} as const
+
+const utilityButtonStyle = {
+  appearance: 'none',
+  border: 'none',
+  background: 'transparent',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 8px',
+  borderRadius: '999px',
+  color: 'var(--header-link)',
+  fontSize: '13px',
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
+  cursor: 'pointer',
+} as const
+
+const primaryCtaStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155, 225, 29, 0.32)',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
+  color: 'var(--text-dark)',
+  fontSize: '13px',
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
+  textDecoration: 'none',
+  boxShadow: '0 10px 20px rgba(155, 225, 29, 0.14)',
+} as const
+
+const menuButtonStyle = {
+  width: '40px',
+  height: '40px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '13px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--header-bg) 80%, var(--surface) 20%)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+} as const
+
+const mobileItemStyle = {
+  minHeight: '48px',
+  padding: '0 14px',
+  borderRadius: '15px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  fontSize: '14px',
+  fontWeight: 700,
+  textDecoration: 'none',
+} as const
+
+const mobileSectionLabelStyle = {
+  color: 'var(--muted-strong)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase' as const,
+} as const

@@ -133,9 +133,9 @@ const glassCardStyle: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(17,34,63,0.76) 0%, rgba(9,18,34,0.94) 100%)',
-  boxShadow: '0 24px 70px rgba(5,12,26,0.26), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 24px 70px rgba(5,12,26,0.14), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
 const panelStyle: CSSProperties = {
@@ -144,7 +144,7 @@ const panelStyle: CSSProperties = {
 }
 
 const labelStyle: CSSProperties = {
-  color: '#DCEBFF',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.8rem',
   fontWeight: 800,
   letterSpacing: '0.03em',
@@ -155,9 +155,9 @@ const inputStyle: CSSProperties = {
   width: '100%',
   minHeight: 48,
   borderRadius: 16,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(8,15,28,0.78)',
-  color: '#F8FBFF',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '12px 14px',
   outline: 'none',
   fontSize: '0.95rem',
@@ -203,9 +203,9 @@ const secondaryButtonStyle: CSSProperties = {
   minHeight: 48,
   borderRadius: 999,
   padding: '0 18px',
-  border: '1px solid rgba(116,190,255,0.20)',
-  background: 'linear-gradient(180deg, rgba(21,42,77,0.82) 0%, rgba(11,20,36,0.96) 100%)',
-  color: '#EAF4FF',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '0.95rem',
   cursor: 'pointer',
@@ -214,8 +214,8 @@ const secondaryButtonStyle: CSSProperties = {
 
 const mutedButtonStyle: CSSProperties = {
   ...secondaryButtonStyle,
-  border: '1px solid rgba(148,163,184,0.18)',
-  color: '#D6E1EF',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
 }
 
 const pillBlueStyle: CSSProperties = {
@@ -224,9 +224,9 @@ const pillBlueStyle: CSSProperties = {
   minHeight: 32,
   padding: '6px 12px',
   borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(74,163,255,0.10)',
-  color: '#BFE1FF',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '0.77rem',
 }
@@ -238,8 +238,8 @@ const pillGreenStyle: CSSProperties = {
   padding: '6px 12px',
   borderRadius: 999,
   border: '1px solid rgba(155,225,29,0.16)',
-  background: 'rgba(155,225,29,0.10)',
-  color: '#C8F56B',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '0.77rem',
 }
@@ -250,15 +250,15 @@ const pillSlateStyle: CSSProperties = {
   minHeight: 32,
   padding: '6px 12px',
   borderRadius: 999,
-  border: '1px solid rgba(148,163,184,0.18)',
-  background: 'rgba(148,163,184,0.10)',
-  color: '#D6E1EF',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '0.77rem',
 }
 
 const subtleTextStyle: CSSProperties = {
-  color: '#AFC3DB',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
 }
 
@@ -898,6 +898,17 @@ export default function AdminImportPage() {
     lastRunMode === 'commit' &&
     importResponse?.ok === true &&
     (importSummary?.failedCount ?? 0) > 0
+
+  // Auto-clear after a successful non-scorecard bulk commit so the form is
+  // ready for the next entry without tempting a resubmit.
+  useEffect(() => {
+    if (!showCommitSuccess || importType === 'scorecard') return
+    const timer = window.setTimeout(() => {
+      handleClearAll()
+    }, 3000)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCommitSuccess, importType])
 
   const showPreviewSuccess =
     lastRunMode === 'preview' &&
@@ -2049,17 +2060,18 @@ export default function AdminImportPage() {
               style={{
                 marginTop: 14,
                 borderRadius: 18,
-                border: '1px solid rgba(155,225,29,0.22)',
+                border: '1px solid rgba(155,225,29,0.32)',
                 background:
-                  'linear-gradient(180deg, rgba(18,38,33,0.82) 0%, rgba(9,18,34,0.96) 100%)',
+                  'linear-gradient(180deg, rgba(18,48,33,0.92) 0%, rgba(9,18,34,0.98) 100%)',
                 color: '#DFFFC2',
-                padding: '14px 16px',
-                fontWeight: 800,
-                boxShadow: '0 12px 28px rgba(155,225,29,0.08)',
+                padding: '18px 20px',
+                fontWeight: 900,
+                fontSize: '1.06rem',
+                boxShadow: '0 12px 36px rgba(155,225,29,0.14)',
               }}
             >
-              Committed successfully.
-              <div style={{ marginTop: 8, color: '#CFE8D0', fontWeight: 600, lineHeight: 1.6 }}>
+              ✓ All done — committed successfully.
+              <div style={{ marginTop: 8, color: '#CFE8D0', fontWeight: 600, lineHeight: 1.6, fontSize: '0.95rem' }}>
                 {importSummary.successCount} imported
                 {importSummary.updatedCount > 0 ? ` · ${importSummary.updatedCount} updated` : ''}
                 {importSummary.createdPlayersCount > 0
@@ -2069,6 +2081,11 @@ export default function AdminImportPage() {
                   ? ` · ${importSummary.linkedPlayersCount} players linked`
                   : ''}
               </div>
+              {importType !== 'scorecard' ? (
+                <div style={{ marginTop: 8, color: 'rgba(180,230,170,0.72)', fontWeight: 700, fontSize: '0.88rem' }}>
+                  Form clearing in a moment — ready for the next capture.
+                </div>
+              ) : null}
             </div>
           ) : null}
 

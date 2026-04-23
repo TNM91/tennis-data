@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
+import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 
 type Accent = 'blue' | 'green' | 'slate'
 
@@ -75,6 +76,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Match hygiene',
   },
   {
+    title: 'Access Control',
+    href: '/admin/access',
+    description:
+      'Manage captain subscriptions and TIQ league entitlement flags so monetization and league access stay explicit instead of being inferred only from role names.',
+    badge: 'Access',
+    accent: 'blue',
+    highlights: ['Captain subscription', 'Team entry', 'Individual creation', 'Profile entitlements'],
+    statLabel: 'Best for',
+    statValue: 'Access control',
+  },
+  {
     title: 'Manage Players',
     href: '/admin/manage-players',
     description:
@@ -85,6 +97,17 @@ const adminTools: AdminTool[] = [
     statLabel: 'Best for',
     statValue: 'Player upkeep',
   },
+  {
+    title: 'TIQ Team Matches',
+    href: '/admin/tiq-team-matches',
+    description:
+      'Create team match events, enter line-by-line results, and watch completed lines feed the TIQ rating engine automatically.',
+    badge: 'TIQ',
+    accent: 'green',
+    highlights: ['Team events', 'Line entry', 'Auto rating sync', 'Singles + doubles'],
+    statLabel: 'Best for',
+    statValue: 'Team leagues',
+  },
 ]
 
 const importTools = adminTools.filter((tool) =>
@@ -92,7 +115,7 @@ const importTools = adminTools.filter((tool) =>
 )
 
 const managementTools = adminTools.filter((tool) =>
-  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players'].includes(tool.href)
+  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/tiq-team-matches'].includes(tool.href)
 )
 
 function accentStyles(accent: Accent) {
@@ -174,9 +197,9 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="6" helper="Unified and cleaned up" />
+              <MetricCard label="Admin Tools" value="7" helper="Includes access control" />
               <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
-              <MetricCard label="Data Control" value="4" helper="Imports, availability, player and match ops" />
+              <MetricCard label="Data Control" value="5" helper="Imports, availability, match, player, and access ops" />
               <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
             </div>
 
@@ -195,6 +218,11 @@ export default function AdminDashboardPage() {
                 title="Data Stewardship"
                 text="Use the management tools when you need to clean records, fix metadata, or refine ratings inputs."
                 tone="blue"
+              />
+              <MiniPanel
+                title="Access + Monetization"
+                text="Use Access Control when captain subscriptions and TIQ league permissions need explicit profile-level updates."
+                tone="slate"
               />
             </div>
           </div>
@@ -313,6 +341,11 @@ export default function AdminDashboardPage() {
                     <td>Player editing and maintenance</td>
                     <td>Best for ratings and metadata</td>
                   </tr>
+                  <tr>
+                    <td>/admin/access</td>
+                    <td>Captain and TIQ entitlement control</td>
+                    <td>Best for subscription and league-access operations</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -324,9 +357,8 @@ export default function AdminDashboardPage() {
           style={{
             marginTop: 30,
             padding: 18,
-            background:
-              'linear-gradient(180deg, rgba(17,34,63,0.70) 0%, rgba(9,18,34,0.94) 100%)',
-            border: '1px solid rgba(116,190,255,0.12)',
+            background: 'var(--shell-panel-bg-strong)',
+            border: '1px solid var(--shell-panel-border)',
           }}
         >
           <div
@@ -368,6 +400,11 @@ export default function AdminDashboardPage() {
                   title="Clean up records"
                   text="Use Manage Matches and Manage Players to tighten data quality after imports or manual entry."
                 />
+                <WorkflowStep
+                  number="05"
+                  title="Update access explicitly"
+                  text="Use Access Control when captain subscriptions or TIQ league permissions need to be granted, adjusted, or revoked."
+                />
               </div>
             </div>
 
@@ -375,14 +412,13 @@ export default function AdminDashboardPage() {
               className="surface-card"
               style={{
                 padding: 18,
-                background:
-                  'linear-gradient(180deg, rgba(13,23,42,0.72) 0%, rgba(8,14,28,0.96) 100%)',
-                border: '1px solid rgba(155,225,29,0.12)',
+                background: 'var(--shell-panel-bg)',
+                border: '1px solid var(--shell-panel-border)',
               }}
             >
               <div
                 style={{
-                  color: '#F8FBFF',
+                  color: 'var(--foreground)',
                   fontWeight: 800,
                   fontSize: '1rem',
                 }}
@@ -403,6 +439,8 @@ export default function AdminDashboardPage() {
                 <QuickAction href="/admin/add-match" label="Open Add Match" />
                 <QuickAction href="/admin/manage-matches" label="Open Manage Matches" />
                 <QuickAction href="/admin/manage-players" label="Open Manage Players" />
+                <QuickAction href="/admin/access" label="Open Access Control" />
+                <RecalculateRatingsAction />
               </div>
             </div>
           </div>
@@ -495,8 +533,8 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
         textDecoration: 'none',
         background:
           hovered
-            ? 'linear-gradient(180deg, rgba(20,39,70,0.88) 0%, rgba(10,19,35,0.98) 100%)'
-            : 'linear-gradient(180deg, rgba(17,34,63,0.76) 0%, rgba(9,18,34,0.94) 100%)',
+            ? 'var(--shell-panel-bg-strong)'
+            : 'var(--shell-panel-bg)',
         border: `1px solid ${hovered ? accent.border : accent.softBorder}`,
         transform: hovered ? 'translateY(-6px)' : 'translateY(0)',
         transition:
@@ -532,7 +570,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
           <span className={accent.badgeClass}>{tool.badge}</span>
           <span
             style={{
-              color: '#DCEBFF',
+            color: 'var(--foreground)',
               fontWeight: 800,
               fontSize: '1rem',
               opacity: hovered ? 1 : 0.72,
@@ -546,7 +584,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
         <div
           style={{
             marginTop: 16,
-            color: '#F8FBFF',
+            color: 'var(--foreground)',
             fontWeight: 800,
             fontSize: '1.08rem',
             lineHeight: 1.2,
@@ -582,7 +620,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
           </div>
           <div
             style={{
-              color: '#F8FBFF',
+              color: 'var(--foreground)',
               fontWeight: 800,
               fontSize: '0.88rem',
             }}
@@ -674,32 +712,29 @@ function MiniPanel({
     tone === 'green'
       ? {
           border: '1px solid rgba(155,225,29,0.14)',
-          background:
-            'linear-gradient(180deg, rgba(18,38,33,0.62) 0%, rgba(9,18,34,0.92) 100%)',
+          background: 'var(--shell-panel-bg)',
         }
       : tone === 'slate'
         ? {
             border: '1px solid rgba(148,163,184,0.14)',
-            background:
-              'linear-gradient(180deg, rgba(19,28,45,0.70) 0%, rgba(9,18,34,0.92) 100%)',
+            background: 'var(--shell-panel-bg)',
           }
         : {
             border: '1px solid rgba(116,190,255,0.14)',
-            background:
-              'linear-gradient(180deg, rgba(17,34,63,0.72) 0%, rgba(9,18,34,0.92) 100%)',
+            background: 'var(--shell-panel-bg)',
           }
 
   return (
     <div
       className="surface-card"
-      style={{
-        padding: 18,
-        ...toneStyles,
-      }}
-    >
-      <div
         style={{
-          color: '#F8FBFF',
+          padding: 18,
+          ...toneStyles,
+        }}
+      >
+        <div
+          style={{
+          color: 'var(--foreground)',
           fontWeight: 800,
           fontSize: '1rem',
           marginBottom: 8,
@@ -726,8 +761,8 @@ function WorkflowStep({
       className="surface-card"
       style={{
         padding: 16,
-        background: 'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.90) 100%)',
-        border: '1px solid rgba(116,190,255,0.10)',
+        background: 'var(--shell-panel-bg)',
+        border: '1px solid var(--shell-panel-border)',
       }}
     >
       <div
@@ -757,7 +792,7 @@ function WorkflowStep({
         <div>
           <div
             style={{
-              color: '#F8FBFF',
+              color: 'var(--foreground)',
               fontWeight: 800,
               fontSize: '0.98rem',
             }}
@@ -769,6 +804,45 @@ function WorkflowStep({
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function RecalculateRatingsAction() {
+  const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [message, setMessage] = useState('')
+
+  async function handleRun() {
+    if (status === 'running') return
+    setStatus('running')
+    setMessage('')
+    try {
+      await recalculateDynamicRatings()
+      setStatus('done')
+      setMessage('All dynamic ratings recalculated.')
+    } catch (err) {
+      setStatus('error')
+      setMessage(err instanceof Error ? err.message : 'Recalculation failed.')
+    }
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => void handleRun()}
+        disabled={status === 'running'}
+        className="button-secondary"
+        style={{ width: '100%', justifyContent: 'space-between', opacity: status === 'running' ? 0.7 : 1 }}
+      >
+        <span>{status === 'running' ? 'Recalculating…' : 'Recalculate All Ratings'}</span>
+        <span aria-hidden="true">⟳</span>
+      </button>
+      {message ? (
+        <div style={{ marginTop: 6, fontSize: 12, color: status === 'error' ? '#f87171' : '#9be11d' }}>
+          {message}
+        </div>
+      ) : null}
     </div>
   )
 }

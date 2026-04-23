@@ -1,26 +1,26 @@
 import { CSSProperties } from 'react'
 
 export const colors = {
-  bgTop: '#0b1830',
-  bgMid: '#102347',
-  bgMidAlt: '#0f2243',
-  bgBottom: '#0c1a33',
-  navyPanel: 'rgba(8,26,49,0.72)',
-  navyPanelStrong: 'rgba(8,26,49,0.92)',
-  surface: 'linear-gradient(180deg, rgba(10,24,47,0.92) 0%, rgba(8,19,38,0.96) 100%)',
-  surfaceStrong: 'linear-gradient(180deg, rgba(10,28,54,0.96) 0%, rgba(8,20,39,0.99) 100%)',
-  surfaceSoft: 'rgba(255,255,255,0.06)',
-  border: 'rgba(116,190,255,0.16)',
-  borderStrong: 'rgba(116,190,255,0.22)',
-  borderSoft: 'rgba(255,255,255,0.10)',
-  text: '#e5eefb',
-  textStrong: '#ffffff',
-  muted: '#9fb0c7',
-  mutedStrong: '#c5d5ea',
-  brandBlue: '#255be3',
-  brandBlueLight: '#4aa3ff',
-  brandGreen: '#9be11d',
-  brandGreenLight: '#4ade80',
+  bgTop: 'var(--background)',
+  bgMid: 'var(--background)',
+  bgMidAlt: 'var(--background)',
+  bgBottom: 'var(--background)',
+  navyPanel: 'var(--surface-soft)',
+  navyPanelStrong: 'var(--surface-soft-strong)',
+  surface: 'var(--surface)',
+  surfaceStrong: 'var(--surface-strong)',
+  surfaceSoft: 'var(--surface-soft)',
+  border: 'var(--card-border-soft)',
+  borderStrong: 'var(--card-border-strong)',
+  borderSoft: 'var(--card-border)',
+  text: 'var(--foreground)',
+  textStrong: 'var(--foreground-strong)',
+  muted: 'var(--muted)',
+  mutedStrong: 'var(--muted-strong)',
+  brandBlue: 'var(--brand-blue)',
+  brandBlueLight: 'var(--brand-blue-2)',
+  brandGreen: 'var(--brand-green)',
+  brandGreenLight: 'var(--brand-green-2)',
 } as const
 
 export const radii = {
@@ -31,25 +31,18 @@ export const radii = {
 } as const
 
 export const shadows = {
-  soft: '0 10px 30px rgba(2, 10, 24, 0.18)',
-  card: '0 18px 60px rgba(2, 10, 24, 0.2)',
-  header: '0 14px 40px rgba(2, 10, 24, 0.18)',
-  glowBlue:
-    '0 0 0 1px rgba(74,163,255,0.18), 0 10px 40px rgba(37,91,227,0.22)',
-  glowGreen:
-    '0 0 0 1px rgba(155,225,29,0.2), 0 10px 40px rgba(74,222,128,0.14)',
+  soft: 'var(--shadow-soft)',
+  card: 'var(--shadow-card)',
+  header: 'var(--shadow-soft)',
+  glowBlue: 'var(--shadow-glow-blue)',
+  glowGreen: 'var(--shadow-glow-green)',
 } as const
 
 export const pageBackground: CSSProperties = {
   position: 'relative',
   minHeight: '100vh',
   overflow: 'hidden',
-  background: `
-    radial-gradient(circle at 14% 2%, rgba(120, 190, 255, 0.22) 0%, rgba(120, 190, 255, 0) 24%),
-    radial-gradient(circle at 82% 10%, rgba(88, 170, 255, 0.18) 0%, rgba(88, 170, 255, 0) 26%),
-    radial-gradient(circle at 50% -8%, rgba(150, 210, 255, 0.14) 0%, rgba(150, 210, 255, 0) 28%),
-    linear-gradient(180deg, #0b1830 0%, #102347 34%, #0f2243 68%, #0c1a33 100%)
-  `,
+  background: 'var(--page-background)',
 }
 
 export const orbOne: CSSProperties = {
@@ -59,8 +52,7 @@ export const orbOne: CSSProperties = {
   width: '420px',
   height: '420px',
   borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.28) 0%, rgba(116,190,255,0.12) 40%, rgba(116,190,255,0) 74%)',
+  background: 'var(--theme-orb-one)',
   filter: 'blur(8px)',
   pointerEvents: 'none',
 }
@@ -72,8 +64,7 @@ export const orbTwo: CSSProperties = {
   width: '420px',
   height: '420px',
   borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(155,225,29,0.13) 0%, rgba(155,225,29,0.05) 36%, rgba(155,225,29,0) 72%)',
+  background: 'var(--theme-orb-two)',
   filter: 'blur(8px)',
   pointerEvents: 'none',
 }
@@ -84,16 +75,14 @@ export const topBlueWash: CSSProperties = {
   left: 0,
   right: 0,
   height: '420px',
-  background:
-    'linear-gradient(180deg, rgba(114,186,255,0.10) 0%, rgba(114,186,255,0.05) 38%, rgba(114,186,255,0) 100%)',
+  background: 'var(--theme-top-blue-wash)',
   pointerEvents: 'none',
 }
 
 export const gridGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
-  backgroundImage:
-    'linear-gradient(rgba(255,255,255,0.024) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.024) 1px, transparent 1px)',
+  backgroundImage: 'var(--theme-grid-glow)',
   backgroundRepeat: 'repeat, repeat',
   backgroundSize: '34px 34px, 34px 34px',
   maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.55), transparent 88%)',
@@ -130,9 +119,8 @@ export const heroPanel: CSSProperties = {
   overflow: 'hidden',
   borderRadius: radii.xl,
   border: `1px solid ${colors.borderStrong}`,
-  background:
-    'linear-gradient(135deg, rgba(8, 26, 49, 0.96), rgba(15, 39, 71, 0.92))',
-  color: '#ffffff',
+  background: 'var(--surface-strong)',
+  color: 'var(--foreground-strong)',
   boxShadow: shadows.card,
 }
 
@@ -196,9 +184,9 @@ export const sectionKicker: CSSProperties = {
   marginBottom: 12,
   padding: '8px 12px',
   borderRadius: 999,
-  border: '1px solid rgba(155, 225, 29, 0.24)',
-  background: 'rgba(155, 225, 29, 0.10)',
-  color: '#d8f7a4',
+  border: '1px solid var(--home-eyebrow-border)',
+  background: 'var(--home-eyebrow-bg)',
+  color: 'var(--home-eyebrow-color)',
   fontSize: '0.82rem',
   fontWeight: 700,
   letterSpacing: '0.04em',
@@ -216,7 +204,7 @@ export const heroTitle: CSSProperties = {
 export const heroSubtitle: CSSProperties = {
   marginTop: 16,
   maxWidth: 720,
-  color: 'rgba(229, 238, 251, 0.84)',
+  color: 'var(--muted-strong)',
   fontSize: 'clamp(1rem, 1.35vw, 1.12rem)',
   lineHeight: 1.7,
 }
@@ -233,7 +221,7 @@ export const pageTitle: CSSProperties = {
 export const pageSubtitle: CSSProperties = {
   marginTop: 14,
   maxWidth: 760,
-  color: 'rgba(229, 238, 251, 0.8)',
+  color: 'var(--muted-strong)',
   fontSize: '1.02rem',
   lineHeight: 1.7,
 }
@@ -266,31 +254,31 @@ export const buttonBase: CSSProperties = {
 export const buttonPrimary: CSSProperties = {
   ...buttonBase,
   border: '1px solid rgba(155, 225, 29, 0.34)',
-  background: 'linear-gradient(135deg, #9be11d, #c7f36b)',
-  color: '#08111d',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
+  color: 'var(--text-dark)',
   boxShadow: shadows.glowGreen,
 }
 
 export const buttonSecondary: CSSProperties = {
   ...buttonBase,
   border: '1px solid rgba(74, 163, 255, 0.22)',
-  background: 'linear-gradient(135deg, #255be3, #4aa3ff)',
-  color: '#ffffff',
+  background: 'linear-gradient(135deg, var(--brand-blue), var(--brand-blue-2))',
+  color: 'var(--foreground-strong)',
   boxShadow: shadows.glowBlue,
 }
 
 export const buttonGhost: CSSProperties = {
   ...buttonBase,
-  border: '1px solid rgba(255, 255, 255, 0.16)',
-  background: 'rgba(255, 255, 255, 0.06)',
-  color: '#ffffff',
+  border: '1px solid var(--card-border)',
+  background: 'var(--surface-soft)',
+  color: 'var(--foreground-strong)',
 }
 
 export const inputBase: CSSProperties = {
   width: '100%',
   borderRadius: 16,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(10,24,47,0.94) 0%, rgba(8,19,38,0.98) 100%)',
+  border: '1px solid var(--card-border-soft)',
+  background: 'var(--surface)',
   color: colors.text,
   padding: '14px 16px',
   outline: 'none',
@@ -310,21 +298,21 @@ export const badgeBase: CSSProperties = {
 
 export const badgeBlue: CSSProperties = {
   ...badgeBase,
-  color: '#dbeafe',
+  color: 'var(--foreground)',
   border: '1px solid rgba(96,165,250,0.18)',
-  background: 'rgba(10, 28, 52, 0.92)',
+  background: 'var(--surface-soft)',
 }
 
 export const badgeGreen: CSSProperties = {
   ...badgeBase,
-  color: '#dcfce7',
+  color: 'var(--foreground)',
   border: '1px solid rgba(74,222,128,0.20)',
-  background: 'rgba(17, 39, 27, 0.92)',
+  background: 'var(--surface-soft)',
 }
 
 export const badgeSlate: CSSProperties = {
   ...badgeBase,
-  color: '#e2e8f0',
+  color: 'var(--foreground)',
   border: '1px solid rgba(148,163,184,0.18)',
-  background: 'rgba(15, 23, 42, 0.88)',
+  background: 'var(--surface-soft)',
 }

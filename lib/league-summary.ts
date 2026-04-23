@@ -1,4 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import {
+  inferCompetitionLayerFromValues,
+  inferLeagueFormatFromValues,
+  type CompetitionLayer,
+  type LeagueFormat,
+} from '@/lib/competition-layers'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 const LEAGUE_SUMMARY_PAGE_SIZE = 2000
@@ -21,10 +27,13 @@ type MatchLeagueRow = {
 
 export type LeagueCard = {
   key: string
+  leagueId?: string
   leagueName: string
   flight: string
   ustaSection: string
   districtArea: string
+  competitionLayer: CompetitionLayer
+  leagueFormat: LeagueFormat
   matchCount: number
   teamCount: number
   latestMatchDate: string | null
@@ -69,7 +78,14 @@ function chooseBetterText(current: string, incoming: string) {
 }
 
 function buildLeagueKey(row: MatchLeagueRow) {
+  const competitionLayer = inferCompetitionLayerFromValues({
+    leagueName: row.league_name,
+    ustaSection: row.usta_section,
+    districtArea: row.district_area,
+  })
+
   return [
+    competitionLayer,
     normalizeKeyPart(row.league_name),
     normalizeKeyPart(row.flight),
     normalizeKeyPart(row.usta_section),
@@ -172,6 +188,11 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         const flight = safeText(row.flight)
         const ustaSection = safeText(row.usta_section)
         const districtArea = safeText(row.district_area)
+        const competitionLayer = inferCompetitionLayerFromValues({
+          leagueName,
+          ustaSection,
+          districtArea,
+        })
 
         if (!leagueMap.has(key)) {
           leagueMap.set(key, {
@@ -180,6 +201,11 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
             flight,
             ustaSection,
             districtArea,
+            competitionLayer,
+            leagueFormat: inferLeagueFormatFromValues({
+              competitionLayer,
+              leagueName,
+            }),
             matchCount: 0,
             teamCount: 0,
             latestMatchDate: row.match_date || null,
@@ -228,6 +254,12 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
       flight: league.flight,
       ustaSection: league.ustaSection,
       districtArea: league.districtArea,
+      competitionLayer: league.competitionLayer,
+      leagueFormat: inferLeagueFormatFromValues({
+        competitionLayer: league.competitionLayer,
+        leagueName: league.leagueName,
+        teamCount: league.teamSet.size,
+      }),
       matchCount: league.matchCount,
       teamCount: league.teamSet.size,
       latestMatchDate: league.latestMatchDate,

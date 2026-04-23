@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   CSSProperties,
@@ -12,10 +13,18 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
+import { useTheme } from '@/app/components/theme-provider'
 import { getClientAuthState } from '@/lib/auth'
-import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import {
+  buildCaptainScopedHref,
+  readCaptainResumeState,
+  writeCaptainResumeState,
+} from '@/lib/captain-memory'
 import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamOption = {
@@ -75,12 +84,15 @@ function safeText(value: string | null | undefined, fallback = 'Unknown') {
 
 export default function CaptainAvailabilityPage() {
   const router = useRouter()
+  const { theme } = useTheme()
 
   const [teamParam, setTeamParam] = useState('')
+  const [competitionLayerParam, setCompetitionLayerParam] = useState('')
   const [leagueParam, setLeagueParam] = useState('')
   const [flightParam, setFlightParam] = useState('')
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
@@ -93,10 +105,13 @@ export default function CaptainAvailabilityPage() {
   const [error, setError] = useState('')
 
   const [players, setPlayers] = useState<AvailabilityPlayer[]>([])
-  const [weekLabel, setWeekLabel] = useState('Wednesday · 8:30 PM')
+  const [weekLabel, setWeekLabel] = useState('Wednesday - 8:30 PM')
   const [requestSent, setRequestSent] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
@@ -231,6 +246,7 @@ export default function CaptainAvailabilityPage() {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
     const resumeState = readCaptainResumeState()
+    setCompetitionLayerParam(params.get('layer') || resumeState?.competitionLayer || '')
     setTeamParam(params.get('team') || resumeState?.team || '')
     setLeagueParam(params.get('league') || resumeState?.league || '')
     setFlightParam(params.get('flight') || resumeState?.flight || '')
@@ -240,13 +256,14 @@ export default function CaptainAvailabilityPage() {
     if (!selectedTeam && !selectedLeague && !selectedFlight) return
 
     writeCaptainResumeState({
+      competitionLayer: competitionLayerParam || undefined,
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
       lastTool: 'availability',
       lastToolLabel: 'Availability',
     })
-  }, [selectedFlight, selectedLeague, selectedTeam])
+  }, [competitionLayerParam, selectedFlight, selectedLeague, selectedTeam])
 
   useEffect(() => {
     let mounted = true
@@ -268,6 +285,7 @@ export default function CaptainAvailabilityPage() {
 
         if (!mounted) return
         setRole(nextRole)
+        setEntitlements(authState.entitlements)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -304,16 +322,24 @@ export default function CaptainAvailabilityPage() {
     )
   }
 
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
   }, [teamOptions])
   const hasScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
-  const lineupBuilderHref = hasScope
-    ? `/captain/lineup-builder?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/lineup-builder'
-  const messagingHref = hasScope
-    ? `/captain/messaging?team=${encodeURIComponent(selectedTeam)}&league=${encodeURIComponent(selectedLeague)}&flight=${encodeURIComponent(selectedFlight)}`
-    : '/captain/messaging'
+  const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
+    competitionLayer: hasScope ? competitionLayerParam : undefined,
+    team: hasScope ? selectedTeam : undefined,
+    league: hasScope ? selectedLeague : undefined,
+    flight: hasScope ? selectedFlight : undefined,
+  })
+  const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+    competitionLayer: hasScope ? competitionLayerParam : undefined,
+    team: hasScope ? selectedTeam : undefined,
+    league: hasScope ? selectedLeague : undefined,
+    flight: hasScope ? selectedFlight : undefined,
+  })
 
   const counts = useMemo(() => {
     return {
@@ -329,6 +355,50 @@ export default function CaptainAvailabilityPage() {
       : counts.in === 0 && counts.out === 0 && counts.maybe === 0
         ? 'Start by picking a team to load the weekly roster.'
         : 'The roster is fully answered, so you can move straight into lineup planning.'
+  const availabilitySignals = [
+    {
+      label: 'Roster clarity',
+      value: counts.unanswered > 0 ? `${counts.unanswered} waiting` : 'Fully answered',
+      note: 'Availability is the checkpoint that tells you whether the week is still uncertain or ready for lineup decisions.',
+    },
+    {
+      label: 'Weekly scope',
+      value: hasScope ? `${selectedTeam} - ${selectedFlight}` : 'Choose a team',
+      note: 'Keep this page scoped to one real team and one weekly context before sending requests or building lineups.',
+    },
+    {
+      label: 'Best next move',
+      value: counts.unanswered > 0 ? 'Follow up first' : 'Build lineup',
+      note: counts.unanswered > 0
+        ? 'Clear blockers here, then hand off into messaging or lineup building.'
+        : 'The roster is clear enough to move directly into lineup construction.',
+    },
+  ]
+
+  const dynamicQuickStartCard: CSSProperties = {
+    ...quickStartCard,
+    position: 'relative',
+    overflow: 'hidden',
+    background: 'var(--shell-panel-bg)',
+  }
+
+  const availabilityVisualStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+  }
+
+  const availabilityVisualMaskStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: isTablet ? 'var(--shell-hero-mask-mobile)' : 'var(--shell-hero-mask)',
+    pointerEvents: 'none',
+    zIndex: 1,
+  }
+
+  const availabilityVisualContentStyle: CSSProperties = {
+    position: 'relative',
+    zIndex: 2,
+  }
 
   if (authLoading) {
     return (
@@ -374,7 +444,7 @@ export default function CaptainAvailabilityPage() {
                 ) : (
                   filteredTeamOptions.map((option) => (
                     <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
-                      {option.team} · {option.league} · {option.flight}
+                      {option.team} - {option.league} - {option.flight}
                     </option>
                   ))
                 )}
@@ -384,7 +454,7 @@ export default function CaptainAvailabilityPage() {
                 value={weekLabel}
                 onChange={(e) => setWeekLabel(e.target.value)}
                 style={textInputStyle}
-                placeholder="Wednesday · 8:30 PM"
+                placeholder="Wednesday - 8:30 PM"
               />
 
               <button
@@ -419,35 +489,74 @@ export default function CaptainAvailabilityPage() {
             </div>
           </div>
 
-          <div style={quickStartCard}>
-            <div style={quickStartLabel}>Availability snapshot</div>
-            <h2 style={quickStartTitle}>{selectedTeam || 'Select a team'}</h2>
-            <div style={quickStartMeta}>
-              {selectedLeague || 'League'} · {selectedFlight || 'Flight'}
+          <div style={dynamicQuickStartCard}>
+            <div style={availabilityVisualStyle}>
+              <Image
+                src={heroArtworkSrc}
+                alt="TenAceIQ availability concept art"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 34vw"
+                style={{
+                  objectFit: 'cover',
+                  objectPosition: isTablet ? 'center center' : '72% center',
+                  opacity: theme === 'dark' ? 0.94 : 0.82,
+                }}
+              />
+              <div style={availabilityVisualMaskStyle} />
             </div>
 
-            <div style={statusGrid}>
-              <div style={statusCard}>
-                <div style={statusLabelGreen}>In</div>
-                <div style={statusValue}>{counts.in}</div>
+            <div style={availabilityVisualContentStyle}>
+              <div style={quickStartLabel}>Availability snapshot</div>
+              <h2 style={quickStartTitle}>{selectedTeam || 'Select a team'}</h2>
+              <div style={quickStartMeta}>
+                {selectedLeague || 'League'} - {selectedFlight || 'Flight'}
               </div>
-              <div style={statusCard}>
-                <div style={statusLabelBlue}>Out</div>
-                <div style={statusValue}>{counts.out}</div>
-              </div>
-              <div style={statusCard}>
-                <div style={statusLabelSlate}>No reply</div>
-                <div style={statusValue}>{counts.unanswered}</div>
-              </div>
-            </div>
 
-            {requestSent ? (
-              <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
-            ) : (
-              <div style={helperBanner}>{responseSummary}</div>
-            )}
+              <div style={statusGrid}>
+                <div style={statusCard}>
+                  <div style={statusLabelGreen}>In</div>
+                  <div style={statusValue}>{counts.in}</div>
+                </div>
+                <div style={statusCard}>
+                  <div style={statusLabelBlue}>Out</div>
+                  <div style={statusValue}>{counts.out}</div>
+                </div>
+                <div style={statusCard}>
+                  <div style={statusLabelSlate}>No reply</div>
+                  <div style={statusValue}>{counts.unanswered}</div>
+                </div>
+              </div>
+
+              {requestSent ? (
+                <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
+              ) : (
+                <div style={helperBanner}>{responseSummary}</div>
+              )}
+            </div>
           </div>
         </section>
+
+        <CaptainSubnav
+          title="Availability sits inside the full captain workflow"
+          description="Clear the roster first, then move directly into lineups, messaging, scenarios, and season management."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
+
+        {!access.canUseCaptainWorkflow ? (
+          <UpgradePrompt
+            planId="captain"
+            compact
+            headline="Still chasing availability one player at a time?"
+            body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication in one workflow instead of rebuilding the process every week."
+            ctaLabel="Unlock Captain Tools"
+            ctaHref="/pricing"
+            secondaryLabel="See Captain value"
+            secondaryHref="/pricing"
+            footnote="Best for captains who want less back-and-forth, clearer roster reads, and a faster path into lineup decisions."
+          />
+        ) : null}
 
         {error ? (
           <section style={errorCard}>
@@ -476,6 +585,16 @@ export default function CaptainAvailabilityPage() {
             <MetricCard label="Unanswered" value={String(counts.unanswered)} accent="slate" />
           </div>
 
+          <section style={signalGridStyle(isSmallMobile)}>
+            {availabilitySignals.map((signal) => (
+              <article key={signal.label} style={signalCardStyle}>
+                <div style={signalLabelStyle}>{signal.label}</div>
+                <div style={signalValueStyle}>{signal.value}</div>
+                <div style={signalNoteStyle}>{signal.note}</div>
+              </article>
+            ))}
+          </section>
+
           <section style={sectionCard}>
             <div style={sectionHeadResponsive(isTablet)}>
               <div>
@@ -498,7 +617,7 @@ export default function CaptainAvailabilityPage() {
 
             {!filteredTeamOptions.length && !loadingOptions ? (
               <div style={stateBox}>
-                No team history is available yet. Import match data first, then return here to track responses.
+                Team history is not ready yet. Import match data first, then return here to track responses.
               </div>
             ) : loadingRoster ? (
               <div style={stateBox}>Loading roster...</div>
@@ -513,7 +632,7 @@ export default function CaptainAvailabilityPage() {
                     <div>
                       <div style={playerName}>{player.name}</div>
                       <div style={playerMeta}>
-                        {selectedTeam || 'Team'} · {weekLabel}
+                        {selectedTeam || 'Team'} - {weekLabel}
                       </div>
                     </div>
 
@@ -655,9 +774,9 @@ const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const eyebrow: CSSProperties = {
@@ -669,7 +788,7 @@ const eyebrow: CSSProperties = {
   borderRadius: '999px',
   border: '1px solid rgba(130,244,118,0.28)',
   background: 'rgba(89,145,73,0.14)',
-  color: '#d9e7ef',
+  color: 'var(--home-eyebrow-color)',
   fontWeight: 800,
   fontSize: '14px',
   textTransform: 'uppercase',
@@ -679,7 +798,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: '0 0 12px',
-  color: '#f7fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -688,7 +807,7 @@ const heroTitle: CSSProperties = {
 
 const heroText: CSSProperties = {
   margin: '0 0 20px',
-  color: 'rgba(224,234,247,0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '760px',
@@ -699,8 +818,8 @@ const selectorPanel: CSSProperties = {
   gap: '12px',
   padding: '14px',
   borderRadius: '24px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(10,20,37,0.64)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   maxWidth: '940px',
 }
 
@@ -709,9 +828,9 @@ const selectStyle: CSSProperties = {
   minWidth: '220px',
   height: '52px',
   borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.04)',
-  color: '#f5f8ff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 16px',
   fontSize: '15px',
   outline: 'none',
@@ -780,22 +899,22 @@ const badgeGreen: CSSProperties = {
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#ecf4ff',
-  borderColor: 'rgba(255,255,255,0.1)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  borderColor: 'var(--shell-panel-border)',
 }
 
 const quickStartCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
-  boxShadow: '0 22px 52px rgba(7,18,40,0.24)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   padding: '22px',
   minHeight: '100%',
 }
 
 const quickStartLabel: CSSProperties = {
-  color: '#e7ffd0',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -804,7 +923,7 @@ const quickStartLabel: CSSProperties = {
 
 const quickStartTitle: CSSProperties = {
   margin: '8px 0 10px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.04,
   fontWeight: 900,
@@ -812,7 +931,7 @@ const quickStartTitle: CSSProperties = {
 }
 
 const quickStartMeta: CSSProperties = {
-  color: 'rgba(224,236,249,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.55,
   marginBottom: '14px',
@@ -827,8 +946,8 @@ const statusGrid: CSSProperties = {
 const statusCard: CSSProperties = {
   borderRadius: '18px',
   padding: '14px 12px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   textAlign: 'center',
 }
 
@@ -849,7 +968,7 @@ const statusLabelBlue: CSSProperties = {
 }
 
 const statusLabelSlate: CSSProperties = {
-  color: '#ecf4ff',
+  color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -858,7 +977,7 @@ const statusLabelSlate: CSSProperties = {
 
 const statusValue: CSSProperties = {
   marginTop: '8px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   fontWeight: 900,
   lineHeight: 1,
@@ -879,9 +998,9 @@ const helperBanner: CSSProperties = {
   marginTop: '14px',
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#e7eefb',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   fontSize: '14px',
 }
@@ -896,12 +1015,49 @@ const metricGrid: CSSProperties = {
   gap: '14px',
 }
 
+const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+})
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.24rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  fontSize: '.94rem',
+}
+
 const metricCard: CSSProperties = {
   borderRadius: '20px',
   padding: '18px',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  border: '1px solid rgba(116,190,255,0.16)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const metricCardGreen: CSSProperties = {
@@ -914,12 +1070,12 @@ const metricCardBlue: CSSProperties = {
 }
 
 const metricCardSlate: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(31,38,56,0.82) 0%, rgba(17,22,34,0.94) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(188,208,232,0.8)',
+  color: 'var(--muted)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -928,7 +1084,7 @@ const metricLabel: CSSProperties = {
 
 const metricValue: CSSProperties = {
   marginTop: '8px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.1,
   fontWeight: 900,
@@ -938,9 +1094,9 @@ const metricValue: CSSProperties = {
 const sectionCard: CSSProperties = {
   borderRadius: '28px',
   padding: '24px',
-  background: 'linear-gradient(180deg, rgba(20,42,80,0.42) 0%, rgba(11,23,44,0.76) 100%)',
-  border: '1px solid rgba(116,190,255,0.16)',
-  boxShadow: '0 20px 48px rgba(7,18,40,0.18)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const sectionHead: CSSProperties = {
@@ -948,7 +1104,7 @@ const sectionHead: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: 'rgba(188,208,232,0.8)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -958,7 +1114,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
@@ -967,7 +1123,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionSub: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
 }
@@ -994,9 +1150,9 @@ const sectionCtaSecondary: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
-  color: '#e7eefb',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  border: '1px solid rgba(116,190,255,0.22)',
+  color: 'var(--foreground-strong)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const playerList: CSSProperties = {
@@ -1010,12 +1166,12 @@ const playerRow: CSSProperties = {
   gap: '14px',
   borderRadius: '20px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const playerName: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 800,
   lineHeight: 1.4,
@@ -1023,7 +1179,7 @@ const playerName: CSSProperties = {
 
 const playerMeta: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(224,236,249,0.7)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
 }
@@ -1039,9 +1195,9 @@ const statusButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '12px',
   cursor: 'pointer',
@@ -1060,23 +1216,23 @@ const statusButtonOut: CSSProperties = {
 }
 
 const statusButtonMaybe: CSSProperties = {
-  background: 'rgba(255,255,255,0.10)',
-  borderColor: 'rgba(255,255,255,0.14)',
-  color: '#ffffff',
+  background: 'var(--shell-chip-bg)',
+  borderColor: 'var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
 }
 
 const statusButtonUnanswered: CSSProperties = {
-  background: 'rgba(31,38,56,0.82)',
-  borderColor: 'rgba(255,255,255,0.08)',
-  color: '#ecf4ff',
+  background: 'var(--shell-chip-bg)',
+  borderColor: 'var(--shell-panel-border)',
+  color: 'var(--foreground)',
 }
 
 const stateBox: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.07)',
-  color: '#e7eefb',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontWeight: 700,
 }
 

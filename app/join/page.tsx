@@ -27,6 +27,7 @@ export default function JoinPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -191,7 +192,7 @@ export default function JoinPage() {
                 <div style={logoOrbMiddle} />
                 <div style={logoOrbInner}>
                   <Image
-                    src="/logo-icon.png"
+                    src="/logo-icon-current.png"
                     alt="TenAceIQ"
                     width={124}
                     height={124}
@@ -298,7 +299,20 @@ export default function JoinPage() {
                 {showPassword ? 'Hide passwords' : 'Show passwords'}
               </button>
 
-              <button type="submit" disabled={submitting} style={submitButton}>
+              <button
+                type="submit"
+                disabled={submitting}
+                onMouseEnter={() => setSubmitHovered(true)}
+                onMouseLeave={() => setSubmitHovered(false)}
+                style={{
+                  ...submitButton,
+                  transform: submitHovered && !submitting ? 'translateY(-1px)' : 'none',
+                  boxShadow: submitHovered && !submitting
+                    ? '0 14px 34px rgba(155,225,29,0.26)'
+                    : '0 10px 28px rgba(155,225,29,0.18)',
+                  transition: 'transform 140ms ease, box-shadow 140ms ease',
+                }}
+              >
                 {submitting ? 'Creating account...' : 'Create account'}
               </button>
 

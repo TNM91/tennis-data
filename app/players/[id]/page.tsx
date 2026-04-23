@@ -1,11 +1,29 @@
 'use client'
 
 import Link from 'next/link'
+import React from 'react'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
+import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import {
+  formatRatingValue,
+  getRatingViewLabel,
+  getTiqRating,
+  getUstaDynamicRating,
+  getUstaRating,
+} from '@/lib/player-rating-display'
+import {
+  listTiqPlayerParticipations,
+  type TiqLeagueStorageSource,
+  type TiqPlayerParticipationRecord,
+} from '@/lib/tiq-league-service'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -26,10 +44,13 @@ type Player = {
   location?: string | null
   overall_rating?: number | string | null
   overall_dynamic_rating?: number | null
+  overall_usta_dynamic_rating?: number | null
   singles_rating?: number | string | null
   singles_dynamic_rating?: number | null
+  singles_usta_dynamic_rating?: number | null
   doubles_rating?: number | string | null
   doubles_dynamic_rating?: number | null
+  doubles_usta_dynamic_rating?: number | null
 }
 
 type MatchRecord = {
@@ -79,40 +100,72 @@ export default function PlayerProfilePage() {
   const [player, setPlayer] = useState<Player | null>(null)
   const [matches, setMatches] = useState<MatchRecord[]>([])
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
+  const [tiqParticipations, setTiqParticipations] = useState<TiqPlayerParticipationRecord[]>([])
+  const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
+  const [tiqParticipationWarning, setTiqParticipationWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const authState = await getClientAuthState()
+      if (!active) return
+      setRole(authState.role)
+      setEntitlements(authState.entitlements)
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const loadPlayerProfile = useCallback(async () => {
     setLoading(true)
     setError('')
 
     try {
-      const { data: playerData, error: playerError } = await supabase
-        .from('players')
-        .select(`
-          id,
-          name,
-          location,
-          overall_rating,
-          overall_dynamic_rating,
-          singles_rating,
-          singles_dynamic_rating,
-          doubles_rating,
-          doubles_dynamic_rating
-        `)
-        .eq('id', playerId)
-        .single()
+      const [
+        { data: playerData, error: playerError },
+        { data: playerMatchRefs, error: playerMatchRefsError },
+        { data: snapshotsData, error: snapshotsError },
+      ] = await Promise.all([
+        supabase
+          .from('players')
+          .select(`
+            id,
+            name,
+            location,
+            overall_rating,
+            overall_dynamic_rating,
+            overall_usta_dynamic_rating,
+            singles_rating,
+            singles_dynamic_rating,
+            singles_usta_dynamic_rating,
+            doubles_rating,
+            doubles_dynamic_rating,
+            doubles_usta_dynamic_rating
+          `)
+          .eq('id', playerId)
+          .single(),
+        supabase.from('match_players').select('match_id').eq('player_id', playerId),
+        supabase
+          .from('rating_snapshots')
+          .select('id, player_id, match_id, snapshot_date, rating_type, dynamic_rating, track')
+          .eq('player_id', playerId)
+          .eq('track', 'tiq')
+          .order('snapshot_date', { ascending: true })
+          .order('id', { ascending: true }),
+      ])
 
       if (playerError) throw new Error(playerError.message)
-
-      const { data: playerMatchRefs, error: playerMatchRefsError } = await supabase
-        .from('match_players')
-        .select('match_id')
-        .eq('player_id', playerId)
-
       if (playerMatchRefsError) throw new Error(playerMatchRefsError.message)
+      if (snapshotsError) throw new Error(snapshotsError.message)
 
       const matchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id))]
 
@@ -120,39 +173,41 @@ export default function PlayerProfilePage() {
       let participantRows: MatchPlayerRow[] = []
 
       if (matchIds.length > 0) {
-        const { data: matchesData, error: matchesError } = await supabase
-          .from('matches')
-          .select(`
-            id,
-            match_date,
-            match_type,
-            score,
-            winner_side
-          `)
-          .in('id', matchIds)
-          .order('match_date', { ascending: false })
-          .order('id', { ascending: false })
+        const [
+          { data: matchesData, error: matchesError },
+          { data: participantsData, error: participantsError },
+        ] = await Promise.all([
+          supabase
+            .from('matches')
+            .select(`
+              id,
+              match_date,
+              match_type,
+              score,
+              winner_side
+            `)
+            .in('id', matchIds)
+            .order('match_date', { ascending: false })
+            .order('id', { ascending: false }),
+          supabase
+            .from('match_players')
+            .select(`
+              match_id,
+              player_id,
+              side,
+              seat,
+              players (
+                id,
+                name
+              )
+            `)
+            .in('match_id', matchIds),
+        ])
 
         if (matchesError) throw new Error(matchesError.message)
-
-        matchRows = (matchesData || []) as MatchRow[]
-
-        const { data: participantsData, error: participantsError } = await supabase
-          .from('match_players')
-          .select(`
-            match_id,
-            player_id,
-            side,
-            seat,
-            players (
-              id,
-              name
-            )
-          `)
-          .in('match_id', matchIds)
-
         if (participantsError) throw new Error(participantsError.message)
 
+        matchRows = (matchesData || []) as MatchRow[]
         participantRows = (participantsData || []) as unknown as MatchPlayerRow[]
       }
 
@@ -180,10 +235,10 @@ export default function PlayerProfilePage() {
         const opponentSide: MatchSide = playerSide === 'A' ? 'B' : 'A'
 
         const playerTeam = (playerSide === 'A' ? sideA : sideB).map(
-          (p) => p.players?.name || 'Unknown Player',
+          (p) => p.players?.name || 'Player not linked',
         )
         const opponentTeam = (opponentSide === 'A' ? sideA : sideB).map(
-          (p) => p.players?.name || 'Unknown Player',
+          (p) => p.players?.name || 'Player not linked',
         )
 
         const partnerNames = playerTeam.filter(
@@ -204,19 +259,10 @@ export default function PlayerProfilePage() {
           result: isWin ? 'W' : 'L',
           opponent: opponentTeam.join(' / '),
           partner: partnerNames.length > 0 ? partnerNames.join(' / ') : null,
-          sideA: sideA.map((p) => p.players?.name || 'Unknown Player'),
-          sideB: sideB.map((p) => p.players?.name || 'Unknown Player'),
+          sideA: sideA.map((p) => p.players?.name || 'Player not linked'),
+          sideB: sideB.map((p) => p.players?.name || 'Player not linked'),
         }
       })
-
-      const { data: snapshotsData, error: snapshotsError } = await supabase
-        .from('rating_snapshots')
-        .select('id, player_id, match_id, snapshot_date, rating_type, dynamic_rating')
-        .eq('player_id', playerId)
-        .order('snapshot_date', { ascending: true })
-        .order('id', { ascending: true })
-
-      if (snapshotsError) throw new Error(snapshotsError.message)
 
       setPlayer(playerData as Player)
       setMatches(groupedMatches)
@@ -233,6 +279,32 @@ export default function PlayerProfilePage() {
       void loadPlayerProfile()
     }
   }, [playerId, loadPlayerProfile])
+
+  useEffect(() => {
+    if (!player?.name) {
+      setTiqParticipations([])
+      setTiqParticipationSource('local')
+      setTiqParticipationWarning(null)
+      return
+    }
+
+    let isActive = true
+
+    void (async () => {
+      const result = await listTiqPlayerParticipations({
+        playerName: player.name,
+      })
+
+      if (!isActive) return
+      setTiqParticipations(result.entries)
+      setTiqParticipationSource(result.source)
+      setTiqParticipationWarning(result.warning)
+    })()
+
+    return () => {
+      isActive = false
+    }
+  }, [player?.name])
 
   const filteredMatches = useMemo(() => {
     if (ratingView === 'overall') return matches
@@ -251,7 +323,13 @@ export default function PlayerProfilePage() {
 
   const totalMatches = filteredMatches.length
   const winPct = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0'
-  const mostRecentMatches = useMemo(() => filteredMatches.slice(0, 10), [filteredMatches])
+  const [showAllMatches, setShowAllMatches] = useState(false)
+  const [showAllHovered, setShowAllHovered] = useState(false)
+  const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
+  const mostRecentMatches = useMemo(
+    () => showAllMatches ? filteredMatches : filteredMatches.slice(0, 10),
+    [filteredMatches, showAllMatches],
+  )
 
   const chartPoints = useMemo(() => {
     const relevantSnapshots =
@@ -268,35 +346,12 @@ export default function PlayerProfilePage() {
     }))
   }, [snapshots, ratingView])
 
-  const selectedDynamicRating = useMemo(() => {
-    if (!player) return 3.5
+  const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
+  const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
 
-    if (ratingView === 'singles') {
-      return toRatingNumber(
-        player.singles_dynamic_rating ?? player.overall_dynamic_rating,
-        3.5,
-      )
-    }
-
-    if (ratingView === 'doubles') {
-      return toRatingNumber(
-        player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
-        3.5,
-      )
-    }
-
-    return toRatingNumber(player.overall_dynamic_rating, 3.5)
-  }, [player, ratingView])
-
-  const staticOverall = useMemo(() => toRatingNumber(player?.overall_rating, 3.5), [player])
-  const staticSingles = useMemo(
-    () => toRatingNumber(player?.singles_rating ?? player?.overall_rating, 3.5),
-    [player],
-  )
-  const staticDoubles = useMemo(
-    () => toRatingNumber(player?.doubles_rating ?? player?.overall_rating, 3.5),
-    [player],
-  )
+  const staticOverall = useMemo(() => getUstaRating(player, 'overall'), [player])
+  const staticSingles = useMemo(() => getUstaRating(player, 'singles'), [player])
+  const staticDoubles = useMemo(() => getUstaRating(player, 'doubles'), [player])
 
   const baseRating = useMemo(() => {
     if (ratingView === 'singles') return staticSingles
@@ -313,9 +368,10 @@ export default function PlayerProfilePage() {
     [selectedDynamicRating, nextThreshold],
   )
 
+  // Status uses USTA dynamic — that's what USTA measures for bump/knockdown decisions.
   const ratingStatus = useMemo(
-    () => getRatingStatus(baseRating, selectedDynamicRating),
-    [baseRating, selectedDynamicRating],
+    () => getRatingStatus(baseRating, ustaDynamicRating),
+    [baseRating, ustaDynamicRating],
   )
 
   const trendDirection = useMemo<TrendDirection>(
@@ -390,6 +446,12 @@ export default function PlayerProfilePage() {
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   }
 
+  const dynamicFollowRow: CSSProperties = {
+    ...followRow,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'center',
+  }
+
   const dynamicStatsGrid: CSSProperties = {
     ...statsGrid,
     gridTemplateColumns: isSmallMobile
@@ -424,6 +486,26 @@ export default function PlayerProfilePage() {
     color: meterTheme.trendColor,
     border: `1px solid ${meterTheme.trendBorder}`,
   }
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const ratingViewLabel = getRatingViewLabel(ratingView)
+  const tiqParticipationCount = tiqParticipations.length
+  const playerSignals = [
+    {
+      label: 'Official baseline',
+      value: `USTA ${baseRating.toFixed(2)}`,
+      note: 'Use USTA to understand official standing, bump pressure, and baseline comparison.',
+    },
+    {
+      label: 'Strategy signal',
+      value: `TIQ ${selectedDynamicRating.toFixed(2)}`,
+      note: `Use the ${ratingViewLabel.toLowerCase()} TIQ read to understand current form and decision support.`,
+    },
+    {
+      label: 'Competition context',
+      value: tiqParticipationCount > 0 ? `${tiqParticipationCount} TIQ entries` : 'No TIQ entries yet',
+      note: 'TIQ individual leagues show where this player is actively competing inside TenAceIQ.',
+    },
+  ]
 
   if (loading) {
     return (
@@ -449,15 +531,9 @@ export default function PlayerProfilePage() {
               <h2 style={sectionTitle}>Unable to load player</h2>
               <p style={sectionText}>{error || 'Player not found.'}</p>
               <div style={errorActionRow}>
-                <button type="button" onClick={() => void loadPlayerProfile()} style={secondaryMiniButton}>
-                  Retry profile load
-                </button>
-                <Link href="/players" style={secondaryMiniLink}>
-                  Back to players
-                </Link>
-                <Link href="/rankings" style={secondaryMiniLink}>
-                  Browse rankings
-                </Link>
+                <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
+                <MiniLink href="/players">Back to players</MiniLink>
+                <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
             </div>
           </div>
@@ -474,31 +550,31 @@ export default function PlayerProfilePage() {
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
+              <BreadcrumbLink href="/players" label="Back to players" />
               <div style={eyebrow}>Player profile preview</div>
 
               <h1 style={dynamicHeroTitle}>{player.name}</h1>
 
               <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
 
-              <div style={followRow}>
+              <div style={dynamicFollowRow}>
                 <FollowButton
                   entityType="player"
                   entityId={player.id}
                   entityName={player.name}
                   subtitle={player.location || ''}
                 />
-                <Link href="/matchup" style={secondaryMiniLink}>
-                  Compare in matchup
-                </Link>
-                <Link href="/rankings" style={secondaryMiniLink}>
-                  Browse rankings
-                </Link>
+                <MiniLink href={`/matchup?playerA=${player.id}`}>Compare in matchup</MiniLink>
+                <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
 
               <div style={heroHintRow}>
                 <span style={heroHintPill}>{totalMatches} matches</span>
                 <span style={heroHintPill}>{winPct}% win rate</span>
-                <span style={heroHintPill}>{capitalize(ratingView)} view</span>
+                <span style={heroHintPill}>{ratingViewLabel} view</span>
+                {tiqParticipationCount > 0 ? (
+                  <span style={heroHintPill}>{tiqParticipationCount} TIQ individual leagues</span>
+                ) : null}
               </div>
 
               <div style={meterCard}>
@@ -512,8 +588,8 @@ export default function PlayerProfilePage() {
                     </div>
 
                     <div style={meterSubtext}>
-                      Base {baseRating.toFixed(2)} • Current {ratingView} dynamic rating{' '}
-                      {selectedDynamicRating.toFixed(2)}
+                      USTA {formatRatingValue(baseRating)} - TIQ {ratingViewLabel.toLowerCase()} rating{' '}
+                      {formatRatingValue(selectedDynamicRating)}
                     </div>
 
                     <div style={dynamicTrendPill}>
@@ -528,9 +604,9 @@ export default function PlayerProfilePage() {
 
                   <div style={meterValueGroup}>
                     <div style={meterCurrent}>{selectedDynamicRating.toFixed(2)}</div>
-                    <div style={meterTarget}>Next: {nextThreshold.toFixed(1)}</div>
+                    <div style={meterTarget}>USTA {baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
                     <div style={meterDelta}>
-                      vs base {ratingDiff >= 0 ? '+' : ''}
+                      TIQ vs USTA {ratingDiff >= 0 ? '+' : ''}
                       {ratingDiff.toFixed(2)}
                     </div>
                   </div>
@@ -554,13 +630,11 @@ export default function PlayerProfilePage() {
                   <div>
                     <div style={focusLabel}>Rating focus</div>
                     <div style={focusSubtitle}>
-                      Previewing the shared home/matchup shell on player profiles.
+                      Keep official USTA status separate from TIQ strategy signal.
                     </div>
                   </div>
 
-                  <Link href="/players" style={secondaryMiniLink}>
-                    Back to players
-                  </Link>
+                  <MiniLink href="/players">Back to players</MiniLink>
                 </div>
 
                 <div style={dynamicSegmentWrap}>
@@ -597,8 +671,9 @@ export default function PlayerProfilePage() {
                 </div>
 
                 <div style={dynamicFocusMetrics}>
-                  <StatChip label="Dynamic" value={selectedDynamicRating.toFixed(2)} accent />
-                  <StatChip label="Static" value={baseRating.toFixed(2)} />
+                  <StatChip label="TIQ" value={selectedDynamicRating.toFixed(2)} accent />
+                  <StatChip label="USTA Dynamic" value={ustaDynamicRating.toFixed(2)} />
+                  <StatChip label="USTA Base" value={baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
                   <StatChip label="Confidence" value={confidence} />
                 </div>
@@ -608,31 +683,11 @@ export default function PlayerProfilePage() {
                 <div style={summaryTitle}>Quick profile view</div>
 
                 <div style={summaryStatsGrid}>
-                  <StatChip
-                    label="Overall"
-                    value={formatRating(
-                      toRatingNumber(player.overall_dynamic_rating, 3.5),
-                    )}
-                  />
-                  <StatChip
-                    label="Singles"
-                    value={formatRating(
-                      toRatingNumber(
-                        player.singles_dynamic_rating ?? player.overall_dynamic_rating,
-                        3.5,
-                      ),
-                    )}
-                  />
-                  <StatChip
-                    label="Doubles"
-                    value={formatRating(
-                      toRatingNumber(
-                        player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
-                        3.5,
-                      ),
-                    )}
-                  />
-                  <StatChip label="Tracked" value={String(totalMatches)} />
+                  <StatChip label="USTA Base" value={formatRatingValue(player.overall_rating)} />
+                  <StatChip label="USTA Dynamic" value={formatRatingValue(player.overall_usta_dynamic_rating ?? player.overall_rating)} />
+                  <StatChip label="TIQ Overall" value={formatRatingValue(player.overall_dynamic_rating)} />
+                  <StatChip label="TIQ Singles" value={formatRatingValue(player.singles_dynamic_rating ?? player.overall_dynamic_rating)} />
+                  <StatChip label="TIQ Doubles" value={formatRatingValue(player.doubles_dynamic_rating ?? player.overall_dynamic_rating)} />
                 </div>
               </div>
             </div>
@@ -654,34 +709,55 @@ export default function PlayerProfilePage() {
           }}
         >
           <div style={sectionKicker}>Profile context</div>
-          <h2 style={sectionTitle}>Read the full signal, not just one rating.</h2>
+          <h2 style={sectionTitle}>Read status and strategy separately, not as one blended rating.</h2>
           <p style={sectionText}>
-            This profile is designed to combine current level, trend direction, match volume, and recent
-            results in one place. The most useful read usually comes from comparing the current dynamic
-            rating against the player&apos;s base level and recent match history rather than relying on a
-            single number by itself.
+            This profile is designed to keep official USTA baseline status separate from TIQ decision
+            support. The most useful read usually comes from comparing the TIQ signal against the
+            player&apos;s USTA baseline and recent match history rather than relying on a single number.
           </p>
-          <div style={followRow}>
-            <Link href="/rankings" style={secondaryMiniLink}>
-              Compare on rankings
-            </Link>
-            <Link href="/matchup" style={secondaryMiniLink}>
-              Use matchup tool
-            </Link>
-            <Link href="/advertising-disclosure" style={secondaryMiniLink}>
-              Advertising disclosure
-            </Link>
+          <div style={dynamicFollowRow}>
+            <MiniLink href="/rankings">Compare on rankings</MiniLink>
+            <MiniLink href="/matchup">Use matchup tool</MiniLink>
+            <MiniLink href="/advertising-disclosure">Advertising disclosure</MiniLink>
           </div>
         </article>
 
+        {access.canUseAdvancedPlayerInsights ? (
+          <section style={signalGridStyle(isMobile)}>
+            {playerSignals.map((signal) => (
+              <article key={signal.label} style={signalCardStyle}>
+                <div style={signalLabelStyle}>{signal.label}</div>
+                <div style={signalValueStyle}>{signal.value}</div>
+                <div style={signalNoteStyle}>{signal.note}</div>
+              </article>
+            ))}
+          </section>
+        ) : (
+          <UpgradePrompt
+            planId="player_plus"
+            headline="Want to know where you should play?"
+            body="Player+ turns raw match history into clearer personal insight with lineup-fit guidance, strengths and weaknesses, projections, and opponent context when it is available."
+            ctaLabel="Unlock Player+"
+            ctaHref="/pricing"
+            secondaryLabel="Keep browsing free"
+            footnote={access.playerPlusMessage}
+            compact
+          />
+        )}
+
         <div style={dynamicStatsGrid}>
           <article style={{ ...statCard, ...statCardAccentGreen }}>
-            <div style={statLabel}>Current {capitalize(ratingView)} dynamic</div>
+            <div style={statLabel}>TIQ {ratingViewLabel}</div>
             <div style={statValue}>{selectedDynamicRating.toFixed(2)}</div>
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>Base {capitalize(ratingView)}</div>
+            <div style={statLabel}>USTA Dynamic {ratingViewLabel}</div>
+            <div style={statValue}>{ustaDynamicRating.toFixed(2)}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>USTA Base {ratingViewLabel}</div>
             <div style={statValue}>{baseRating.toFixed(2)}</div>
           </article>
 
@@ -696,32 +772,26 @@ export default function PlayerProfilePage() {
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>Overall</div>
+            <div style={statLabel}>TIQ Overall</div>
             <div style={statValue}>
-              {formatRating(toRatingNumber(player.overall_dynamic_rating, 3.5))}
+              {formatRatingValue(player.overall_dynamic_rating)}
             </div>
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>Singles</div>
+            <div style={statLabel}>TIQ Singles</div>
             <div style={statValue}>
-              {formatRating(
-                toRatingNumber(
-                  player.singles_dynamic_rating ?? player.overall_dynamic_rating,
-                  3.5,
-                ),
+              {formatRatingValue(
+                player.singles_dynamic_rating ?? player.overall_dynamic_rating,
               )}
             </div>
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>Doubles</div>
+            <div style={statLabel}>TIQ Doubles</div>
             <div style={statValue}>
-              {formatRating(
-                toRatingNumber(
-                  player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
-                  3.5,
-                ),
+              {formatRatingValue(
+                player.doubles_dynamic_rating ?? player.overall_dynamic_rating,
               )}
             </div>
           </article>
@@ -729,6 +799,11 @@ export default function PlayerProfilePage() {
           <article style={statCard}>
             <div style={statLabel}>Tracked matches</div>
             <div style={statValue}>{totalMatches}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>TIQ Individual Leagues</div>
+            <div style={statValue}>{tiqParticipationCount}</div>
           </article>
 
           <article style={statCard}>
@@ -747,13 +822,94 @@ export default function PlayerProfilePage() {
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>Vs base</div>
+            <div style={statLabel}>TIQ vs USTA</div>
             <div style={statValue}>
               {ratingDiff >= 0 ? '+' : ''}
               {ratingDiff.toFixed(2)}
             </div>
           </article>
         </div>
+
+        <article style={panelCard}>
+          <div style={panelHead}>
+            <div>
+              <div style={sectionKicker}>TIQ competition context</div>
+              <h2 style={panelTitle}>Active TIQ individual leagues</h2>
+            </div>
+            <span style={panelChip}>
+              {tiqParticipationCount} active {tiqParticipationCount === 1 ? 'entry' : 'entries'}
+            </span>
+          </div>
+
+          <p style={sectionText}>
+            USTA tells you where this player stands officially. TIQ individual leagues show where
+            they are actively competing inside TenAceIQ&apos;s strategic competition layer.
+          </p>
+
+          {tiqParticipationWarning ? (
+            <div
+              style={{
+                ...emptyStateStack,
+                marginTop: 16,
+                padding: '14px 16px',
+                borderRadius: 18,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <p style={emptyText}>
+                {tiqParticipationSource === 'local' ? 'Local TIQ participation fallback' : 'TIQ participation note'}
+              </p>
+              <p style={sectionText}>{tiqParticipationWarning}</p>
+            </div>
+          ) : null}
+
+          {tiqParticipationCount === 0 ? (
+            <div style={{ ...emptyStateStack, marginTop: 20 }}>
+              <p style={emptyText}>No TIQ individual league entries yet.</p>
+              <p style={sectionText}>
+                This player has strong USTA and TIQ rating context already, but they have not joined
+                an active TIQ individual competition season yet.
+              </p>
+              <div style={dynamicFollowRow}>
+                <MiniLink href="/explore/leagues">Browse TIQ leagues</MiniLink>
+                <MiniLink href="/compete/leagues">Open compete hub</MiniLink>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 12, marginTop: 20 }}>
+              {tiqParticipations.map((entry) => (
+                <div
+                  key={`${entry.leagueId}-${entry.playerName}`}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 14,
+                    flexWrap: 'wrap',
+                    padding: '16px 18px',
+                    borderRadius: 18,
+                    border: '1px solid rgba(116,190,255,0.14)',
+                    background: 'linear-gradient(180deg, rgba(30,58,104,0.28) 0%, rgba(10,18,36,0.66) 100%)',
+                  }}
+                >
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 17 }}>{entry.leagueName}</div>
+                    <div style={{ color: 'rgba(224,234,247,0.74)', fontSize: 13 }}>
+                      {[entry.seasonLabel, entry.leagueFlight, entry.locationLabel].filter(Boolean).join(' - ') || 'TIQ Individual League'}
+                    </div>
+                  </div>
+                  <div style={dynamicFollowRow}>
+                    <MiniLink href={`/explore/leagues/tiq/${encodeURIComponent(entry.leagueId)}?league_id=${encodeURIComponent(entry.leagueId)}`}>
+                      Open league
+                    </MiniLink>
+                    <MiniLink href="/compete/leagues">Compete</MiniLink>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
 
         <div style={dynamicContentGrid}>
           <article style={panelCard}>
@@ -771,13 +927,9 @@ export default function PlayerProfilePage() {
                 <p style={sectionText}>
                   This profile has not built enough snapshot history for a trendline yet. Check recent matches below or switch rating views to see if singles, doubles, or overall has more signal.
                 </p>
-                <div style={followRow}>
-                  <Link href="/rankings" style={secondaryMiniLink}>
-                    Compare on rankings
-                  </Link>
-                  <Link href="/matchup" style={secondaryMiniLink}>
-                    Open matchup tool
-                  </Link>
+                <div style={dynamicFollowRow}>
+                  <MiniLink href="/rankings">Compare on rankings</MiniLink>
+                  <MiniLink href="/matchup">Open matchup tool</MiniLink>
                 </div>
               </div>
             ) : (
@@ -791,7 +943,26 @@ export default function PlayerProfilePage() {
                 <div style={sectionKicker}>Recent results</div>
                 <h2 style={panelTitle}>Latest match history</h2>
               </div>
-              <span style={panelChip}>Latest 10</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {filteredMatches.length > 10 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllMatches((prev) => !prev)}
+                    onMouseEnter={() => setShowAllHovered(true)}
+                    onMouseLeave={() => setShowAllHovered(false)}
+                    style={{
+                      ...showAllButton,
+                      borderColor: showAllHovered ? 'rgba(155,225,29,0.45)' : 'rgba(155,225,29,0.25)',
+                      background: showAllHovered ? 'rgba(155,225,29,0.12)' : 'rgba(155,225,29,0.06)',
+                      color: showAllHovered ? 'rgba(155,225,29,1)' : 'rgba(155,225,29,0.85)',
+                      transform: showAllHovered ? 'translateY(-1px)' : 'none',
+                    }}
+                  >
+                    {showAllMatches ? 'Show less' : `Show all ${filteredMatches.length}`}
+                  </button>
+                ) : null}
+                <span style={panelChip}>{showAllMatches ? filteredMatches.length : Math.min(10, filteredMatches.length)} shown</span>
+              </div>
             </div>
 
             {mostRecentMatches.length === 0 ? (
@@ -800,13 +971,9 @@ export default function PlayerProfilePage() {
                 <p style={sectionText}>
                   Try another rating view or head back to the player directory to compare against teammates and nearby-rated players.
                 </p>
-                <div style={followRow}>
-                  <Link href="/players" style={secondaryMiniLink}>
-                    Back to players
-                  </Link>
-                  <Link href="/matchup" style={secondaryMiniLink}>
-                    Open matchup tool
-                  </Link>
+                <div style={dynamicFollowRow}>
+                  <MiniLink href="/players">Back to players</MiniLink>
+                  <MiniLink href="/matchup">Open matchup tool</MiniLink>
                 </div>
               </div>
             ) : (
@@ -824,7 +991,15 @@ export default function PlayerProfilePage() {
                   </thead>
                   <tbody>
                     {mostRecentMatches.map((match) => (
-                      <tr key={match.id}>
+                      <tr
+                        key={match.id}
+                        onMouseEnter={() => setHoveredMatchRow(match.id)}
+                        onMouseLeave={() => setHoveredMatchRow(null)}
+                        style={{
+                          background: hoveredMatchRow === match.id ? 'rgba(116,190,255,0.05)' : undefined,
+                          transition: 'background 120ms ease',
+                        }}
+                      >
                         <td style={tableCell}>{formatDate(match.date)}</td>
                         <td style={tableCell}>{capitalize(match.matchType)}</td>
                         <td style={tableCell}>{match.partner || '—'}</td>
@@ -850,6 +1025,66 @@ export default function PlayerProfilePage() {
         </div>
       </section>
     </SiteShell>
+  )
+}
+
+function MiniLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...secondaryMiniLink,
+        background: hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
+        borderColor: hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 140ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function MiniButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...secondaryMiniButton,
+        background: hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
+        borderColor: hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 140ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function BreadcrumbLink({ href, label }: { href: string; label: string }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...breadcrumbLink,
+        color: hovered ? 'rgba(190,210,240,0.92)' : 'rgba(190,210,240,0.60)',
+        transform: hovered ? 'translateX(-2px)' : 'none',
+        transition: 'color 140ms ease, transform 140ms ease',
+      }}
+    >
+      {label}
+    </Link>
   )
 }
 
@@ -964,7 +1199,7 @@ function SimpleLineChart({
       </svg>
 
       <div style={chartMeta}>
-        {points.length} data point{points.length === 1 ? '' : 's'} • Latest rating{' '}
+        {points.length} data point{points.length === 1 ? '' : 's'} - Latest rating{' '}
         {points[points.length - 1]?.rating.toFixed(2)}
       </div>
     </div>
@@ -984,25 +1219,8 @@ function toRatingNumber(value: number | string | null | undefined, fallback = 3.
   return Number.isFinite(num) ? num : fallback
 }
 
-function formatRating(value: number) {
-  return value.toFixed(2)
-}
-
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-function formatDate(value: string) {
-  if (!value) return '—'
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-
-  return parsed.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 function getNextThreshold(rating: number) {
@@ -1146,11 +1364,10 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background:
-    'linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)',
-  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
   boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+    '0 26px 80px rgba(7,18,42,0.16), inset 0 1px 0 rgba(255,255,255,0.05), inset 0 0 80px rgba(88,170,255,0.03)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -1191,9 +1408,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  color: 'var(--foreground)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -1202,14 +1419,14 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -1229,9 +1446,9 @@ const heroHintRow: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
-  color: '#e2efff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
@@ -1241,9 +1458,9 @@ const heroHintPill: CSSProperties = {
 const meterCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.88) 0%, rgba(10,22,44,0.96) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   maxWidth: '560px',
 }
 
@@ -1264,7 +1481,7 @@ const meterLeftGroup: CSSProperties = {
 }
 
 const meterLabel: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
   letterSpacing: '-0.03em',
@@ -1297,16 +1514,16 @@ const confidencePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#e2efff',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.03em',
 }
 
 const meterSubtext: CSSProperties = {
-  color: 'rgba(220,231,244,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
@@ -1333,7 +1550,7 @@ const meterValueGroup: CSSProperties = {
 }
 
 const meterCurrent: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '32px',
   lineHeight: 1,
@@ -1351,7 +1568,7 @@ const meterTarget: CSSProperties = {
 
 const meterDelta: CSSProperties = {
   marginTop: '8px',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 800,
   fontSize: '13px',
 }
@@ -1360,8 +1577,8 @@ const meterTrack: CSSProperties = {
   width: '100%',
   height: '14px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.06)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   overflow: 'hidden',
 }
 
@@ -1375,7 +1592,7 @@ const meterFooter: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   marginTop: '10px',
-  color: 'rgba(214,228,248,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 700,
 }
@@ -1383,9 +1600,9 @@ const meterFooter: CSSProperties = {
 const focusCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,38,74,0.88) 0%, rgba(10,22,44,0.94) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
 }
 
 const focusHead: CSSProperties = {
@@ -1398,7 +1615,7 @@ const focusHead: CSSProperties = {
 }
 
 const focusLabel: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
@@ -1406,7 +1623,7 @@ const focusLabel: CSSProperties = {
 
 const focusSubtitle: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(220,231,244,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
@@ -1419,9 +1636,9 @@ const secondaryMiniLink: CSSProperties = {
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.07)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
@@ -1440,10 +1657,10 @@ const segmentWrap: CSSProperties = {
 }
 
 const segmentButton: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.10)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: '16px',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f7fbff',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   minHeight: '52px',
   padding: '0 14px',
   fontSize: '14px',
@@ -1466,14 +1683,14 @@ const focusMetrics: CSSProperties = {
 const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(17,36,72,0.88) 0%, rgba(10,22,44,0.94) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
 const summaryTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
@@ -1489,8 +1706,8 @@ const summaryStatsGrid: CSSProperties = {
 const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'rgba(19,34,62,0.92)',
-  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
@@ -1500,7 +1717,7 @@ const chipStatAccent: CSSProperties = {
 }
 
 const chipStatLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -1509,7 +1726,7 @@ const chipStatLabel: CSSProperties = {
 }
 
 const chipStatValue: CSSProperties = {
-  color: '#ffffff',
+  color: 'var(--foreground)',
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
@@ -1524,9 +1741,9 @@ const statsGrid: CSSProperties = {
 const statCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,38,74,0.88) 0%, rgba(10,22,44,0.94) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
@@ -1535,8 +1752,46 @@ const statCardAccentGreen: CSSProperties = {
   boxShadow: '0 10px 30px rgba(155,225,29,0.12), inset 0 0 0 1px rgba(155,225,29,0.06)',
 }
 
+const signalGridStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+  marginBottom: '18px',
+})
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--foreground)',
+  fontSize: '1.32rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '.94rem',
+  lineHeight: 1.6,
+}
+
 const statLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 750,
@@ -1546,7 +1801,7 @@ const statLabel: CSSProperties = {
 
 const statValue: CSSProperties = {
   marginTop: '8px',
-  color: '#ffffff',
+  color: 'var(--foreground)',
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
@@ -1555,7 +1810,7 @@ const statValue: CSSProperties = {
 
 const statValueSmall: CSSProperties = {
   marginTop: '8px',
-  color: '#ffffff',
+  color: 'var(--foreground)',
   fontSize: '24px',
   lineHeight: 1.15,
   fontWeight: 900,
@@ -1578,9 +1833,9 @@ const contentGrid: CSSProperties = {
 const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '22px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,38,74,0.88) 0%, rgba(10,22,44,0.94) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.22), inset 0 1px 0 rgba(255,255,255,0.03)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
 }
 
@@ -1604,7 +1859,7 @@ const sectionKicker: CSSProperties = {
 
 const panelTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -1616,7 +1871,7 @@ const panelChip: CSSProperties = {
   minHeight: '38px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(155,225,29,0.12)',
+  background: 'var(--shell-chip-bg)',
   color: '#d9f84a',
   border: '1px solid rgba(155,225,29,0.25)',
   fontWeight: 800,
@@ -1625,7 +1880,7 @@ const panelChip: CSSProperties = {
 
 const emptyText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 550,
@@ -1639,8 +1894,8 @@ const emptyStateStack: CSSProperties = {
 const tableWrap: CSSProperties = {
   overflowX: 'auto',
   borderRadius: '20px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(15,28,54,0.92)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const dataTable: CSSProperties = {
@@ -1652,23 +1907,23 @@ const dataTable: CSSProperties = {
 const tableHead: CSSProperties = {
   padding: '15px 16px',
   textAlign: 'left',
-  color: 'rgba(217, 231, 255, 0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
   fontWeight: 800,
-  borderBottom: '1px solid rgba(255,255,255,0.06)',
-  background: 'rgba(255,255,255,0.02)',
+  borderBottom: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg-strong)',
   whiteSpace: 'nowrap',
 }
 
 const tableCell: CSSProperties = {
   padding: '16px',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 600,
-  borderTop: '1px solid rgba(255,255,255,0.06)',
+  borderTop: '1px solid var(--shell-panel-border)',
   verticalAlign: 'top',
 }
 
@@ -1699,9 +1954,9 @@ const resultLoss: CSSProperties = {
 const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(19,30,54,0.92)',
-  color: '#dfe8f8',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   position: 'relative',
   zIndex: 1,
@@ -1711,7 +1966,7 @@ const errorCard: CSSProperties = {
   padding: '22px',
   borderRadius: '28px',
   border: '1px solid rgba(255, 60, 40, 0.18)',
-  background: 'rgba(19,30,54,0.92)',
+  background: 'var(--shell-panel-bg)',
   position: 'relative',
   zIndex: 1,
 }
@@ -1725,7 +1980,7 @@ const errorActionRow: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '30px',
   letterSpacing: '-0.04em',
@@ -1733,7 +1988,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
 }
 
@@ -1754,3 +2009,31 @@ const chartMeta: CSSProperties = {
   fontSize: '0.9rem',
   fontWeight: 600,
 }
+
+const breadcrumbLink: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
+  color: 'rgba(190,210,240,0.60)',
+  fontSize: '13px',
+  fontWeight: 700,
+  textDecoration: 'none',
+  letterSpacing: '0.01em',
+  transition: 'color 140ms ease',
+}
+
+const showAllButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '4px 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.25)',
+  background: 'rgba(155,225,29,0.06)',
+  color: 'rgba(155,225,29,0.85)',
+  fontSize: '12px',
+  fontWeight: 700,
+  cursor: 'pointer',
+  transition: 'all 140ms ease',
+  whiteSpace: 'nowrap' as const,
+}
+

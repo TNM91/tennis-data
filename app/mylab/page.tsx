@@ -2,13 +2,43 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
+import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
-import { buildLeagueEntityId, buildTeamEntityId } from '@/lib/entity-ids'
+import { useTheme } from '@/app/components/theme-provider'
+import {
+  inferCompetitionLayerFromValues,
+  type CompetitionLayer,
+} from '@/lib/competition-layers'
+import {
+  buildScopedLeagueEntityId,
+  buildScopedTeamEntityId,
+} from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import { listTiqIndividualLeagueResults, type TiqIndividualLeagueResultRecord } from '@/lib/tiq-individual-results-service'
+import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
+import {
+  listTiqIndividualSuggestions,
+  type TiqIndividualSuggestionRecord,
+} from '@/lib/tiq-individual-suggestions-service'
+import {
+  getTiqIndividualCompetitionFormatLabel,
+  getTiqIndividualCompetitionFormatNextAction,
+} from '@/lib/tiq-individual-format'
+import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import {
+  listTiqLeagues,
+  listTiqPlayerParticipations,
+  type TiqLeagueStorageSource,
+  type TiqPlayerParticipationRecord,
+} from '@/lib/tiq-league-service'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { formatRating } from '@/lib/captain-formatters'
 
 type EntityType = 'player' | 'team' | 'league'
 type FeedType = 'match' | 'rating' | 'achievement' | 'community' | 'team' | 'league'
@@ -44,6 +74,9 @@ type PlayerRow = {
   singles_dynamic_rating: number | null
   doubles_dynamic_rating: number | null
   overall_dynamic_rating: number | null
+  singles_usta_dynamic_rating: number | null
+  doubles_usta_dynamic_rating: number | null
+  overall_usta_dynamic_rating: number | null
 }
 
 type MatchRow = {
@@ -52,6 +85,8 @@ type MatchRow = {
   score: string | null
   flight: string | null
   league_name: string | null
+  usta_section?: string | null
+  district_area?: string | null
   home_team: string | null
   away_team: string | null
   winner_side: string | null
@@ -100,6 +135,12 @@ type SearchOption = {
   subtitle: string | null
 }
 
+type LabSignal = {
+  label: string
+  value: string
+  note: string
+}
+
 type MyLabFeedRow = {
   id: string
   event_type: string
@@ -113,6 +154,24 @@ type MyLabFeedRow = {
 }
 
 const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
+
+const LAB_SIGNALS: LabSignal[] = [
+  {
+    label: 'What happened',
+    value: 'Feed',
+    note: 'Recent match, rating, TIQ prompt, and follow activity stays in one personal stream.',
+  },
+  {
+    label: 'What to watch',
+    value: 'Collections',
+    note: 'Tracked players, teams, leagues, and TIQ individual entries stay easy to revisit.',
+  },
+  {
+    label: 'What to do next',
+    value: 'Insight',
+    note: 'My Lab turns followed activity into clearer next-step awareness instead of just more data.',
+  },
+]
 
 function cleanText(value: string | null | undefined): string | null {
   const text = (value || '').trim()
@@ -159,9 +218,6 @@ function writeLocalFollows(items: FollowItem[]) {
   window.localStorage.setItem(LOCAL_FOLLOW_KEY, JSON.stringify(items))
 }
 
-function formatRating(value: number | null | undefined) {
-  return typeof value === 'number' ? value.toFixed(2) : '—'
-}
 
 function accentForType(type: FeedType): FeedItem['accent'] {
   if (type === 'achievement' || type === 'rating') return 'green'
@@ -169,18 +225,43 @@ function accentForType(type: FeedType): FeedItem['accent'] {
   return 'blue'
 }
 
-function parseTeamEntityId(entityId: string) {
-  const [teamName = '', leagueName = '', flight = ''] = entityId.split('__')
-  return {
-    teamName,
-    leagueName: leagueName || '',
-    flight: flight || '',
-  }
-}
+function parseScopedEntityId(entityId: string, expectedType: EntityType) {
+  const parts = entityId.split('__')
 
-function parseLeagueEntityId(entityId: string) {
-  const [leagueName = '', flight = '', section = '', district = ''] = entityId.split('__')
+  if (expectedType === 'team') {
+    if (parts.length >= 4) {
+      const [competitionLayer = '', teamName = '', leagueName = '', flight = ''] = parts
+      return {
+        competitionLayer,
+        teamName,
+        leagueName,
+        flight,
+      }
+    }
+
+    const [teamName = '', leagueName = '', flight = ''] = parts
+    return {
+      competitionLayer: '',
+      teamName,
+      leagueName,
+      flight,
+    }
+  }
+
+  if (parts.length >= 5) {
+    const [competitionLayer = '', leagueName = '', flight = '', section = '', district = ''] = parts
+    return {
+      competitionLayer,
+      leagueName,
+      flight,
+      section,
+      district,
+    }
+  }
+
+  const [leagueName = '', flight = '', section = '', district = ''] = parts
   return {
+    competitionLayer: '',
     leagueName,
     flight,
     section,
@@ -188,9 +269,31 @@ function parseLeagueEntityId(entityId: string) {
   }
 }
 
+function parseTeamEntityId(entityId: string) {
+  const parsed = parseScopedEntityId(entityId, 'team')
+  return {
+    competitionLayer: parsed.competitionLayer || '',
+    teamName: parsed.teamName || '',
+    leagueName: parsed.leagueName || '',
+    flight: parsed.flight || '',
+  }
+}
+
+function parseLeagueEntityId(entityId: string) {
+  const parsed = parseScopedEntityId(entityId, 'league')
+  return {
+    competitionLayer: parsed.competitionLayer || '',
+    leagueName: parsed.leagueName || '',
+    flight: parsed.flight || '',
+    section: parsed.section || '',
+    district: parsed.district || '',
+  }
+}
+
 function buildTeamHrefFromEntityId(entityId: string) {
-  const { teamName, leagueName, flight } = parseTeamEntityId(entityId)
+  const { competitionLayer, teamName, leagueName, flight } = parseTeamEntityId(entityId)
   const params = new URLSearchParams()
+  if (competitionLayer) params.set('layer', competitionLayer)
   if (leagueName) params.set('league', leagueName)
   if (flight) params.set('flight', flight)
   const query = params.toString()
@@ -198,13 +301,74 @@ function buildTeamHrefFromEntityId(entityId: string) {
 }
 
 function buildLeagueHrefFromEntityId(entityId: string) {
-  const { leagueName, flight, section, district } = parseLeagueEntityId(entityId)
+  const { competitionLayer, leagueName, flight, section, district } = parseLeagueEntityId(entityId)
   const params = new URLSearchParams()
   if (flight) params.set('flight', flight)
   if (section) params.set('section', section)
   if (district) params.set('district', district)
   const query = params.toString()
+  if (competitionLayer === 'usta' || competitionLayer === 'tiq') {
+    return `/explore/leagues/${competitionLayer}/${encodeURIComponent(leagueName)}${query ? `?${query}` : ''}`
+  }
   return `/leagues/${encodeURIComponent(leagueName)}${query ? `?${query}` : ''}`
+}
+
+function inferCompetitionLayerForContext({
+  leagueName,
+  section,
+  district,
+}: {
+  leagueName?: string | null
+  section?: string | null
+  district?: string | null
+}): CompetitionLayer {
+  return inferCompetitionLayerFromValues({
+    leagueName,
+    ustaSection: section,
+    districtArea: district,
+  })
+}
+
+function entityIdsMatch(entityType: EntityType, left: string, right: string) {
+  if (left === right) return true
+  if (entityType === 'player') return left === right
+
+  if (entityType === 'team') {
+    const a = parseTeamEntityId(left)
+    const b = parseTeamEntityId(right)
+    return (
+      a.teamName === b.teamName &&
+      a.leagueName === b.leagueName &&
+      a.flight === b.flight
+    )
+  }
+
+  const a = parseLeagueEntityId(left)
+  const b = parseLeagueEntityId(right)
+  return (
+    a.leagueName === b.leagueName &&
+    a.flight === b.flight &&
+    a.section === b.section &&
+    a.district === b.district
+  )
+}
+
+function followContainsEntity(follows: FollowItem[], entityType: EntityType, entityId: string | null) {
+  if (!entityId) return false
+  return follows.some(
+    (follow) => follow.entity_type === entityType && entityIdsMatch(entityType, follow.entity_id, entityId),
+  )
+}
+
+function getFollowedEntityId(follows: FollowItem[], entityType: EntityType, candidates: Array<string | null>) {
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const match = follows.find(
+      (follow) => follow.entity_type === entityType && entityIdsMatch(entityType, follow.entity_id, candidate),
+    )
+    if (match) return match.entity_id
+  }
+  return candidates.find(Boolean) ?? null
 }
 
 export default function MyLabPage() {
@@ -216,7 +380,8 @@ export default function MyLabPage() {
 }
 
 function MyLabPageInner() {
-  const { userId, authResolved } = useAuth()
+  const { userId, authResolved, role } = useAuth()
+  const { theme } = useTheme()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -224,15 +389,28 @@ function MyLabPageInner() {
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
+  const [tiqIndividualResults, setTiqIndividualResults] = useState<TiqIndividualLeagueResultRecord[]>([])
+  const [tiqIndividualSuggestions, setTiqIndividualSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
+  const [tiqLeagues, setTiqLeagues] = useState<TiqLeagueRecord[]>([])
+  const [tiqPlayerParticipations, setTiqPlayerParticipations] = useState<TiqPlayerParticipationRecord[]>([])
+  const [tiqPlayerParticipationSource, setTiqPlayerParticipationSource] = useState<TiqLeagueStorageSource>('local')
+  const [tiqPlayerParticipationWarning, setTiqPlayerParticipationWarning] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
   const [feedFilter, setFeedFilter] = useState<'all' | FeedType>('all')
   const [selectedTab, setSelectedTab] = useState<'feed' | 'players' | 'teams' | 'leagues'>('feed')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [playersHovered, setPlayersHovered] = useState(false)
+  const [teamsHovered, setTeamsHovered] = useState(false)
+  const [leaguesHovered, setLeaguesHovered] = useState(false)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const access = useMemo(() => buildProductAccessState(role, null), [role])
 
   const refreshMyLab = useCallback(async () => {
     setLoading(true)
@@ -241,16 +419,16 @@ function MyLabPageInner() {
     const local = readLocalFollows()
     setFollows(local)
 
-    const [playersRes, matchesRes, scenariosRes, followsRes, cloudFeedRes] = await Promise.all([
+    const [playersRes, matchesRes, scenariosRes, followsRes, cloudFeedRes, tiqLeaguesRes, tiqParticipationRes, tiqResultsRes, tiqSuggestionsRes] = await Promise.all([
       supabase
         .from('players')
         .select(
-          'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating',
+          'id,name,location,flight,singles_dynamic_rating,doubles_dynamic_rating,overall_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,overall_usta_dynamic_rating',
         )
         .order('name', { ascending: true }),
       supabase
         .from('matches')
-        .select('id,match_date,score,flight,league_name,home_team,away_team,winner_side,line_number')
+        .select('id,match_date,score,flight,league_name,usta_section,district_area,home_team,away_team,winner_side,line_number')
         .is('line_number', null)
         .order('match_date', { ascending: false })
         .limit(160),
@@ -273,6 +451,10 @@ function MyLabPageInner() {
         )
         .order('created_at', { ascending: false })
         .limit(160),
+      listTiqLeagues(),
+      listTiqPlayerParticipations(),
+      listTiqIndividualLeagueResults(),
+      listTiqIndividualSuggestions(),
     ])
 
     const matchIds = ((matchesRes.data ?? []) as MatchRow[]).map((match) => match.id)
@@ -305,6 +487,12 @@ function MyLabPageInner() {
     setMatchPlayers((matchPlayersRes.data ?? []) as MatchPlayerRow[])
     setScenarios((scenariosRes.data ?? []) as ScenarioRow[])
     setCloudFeedRows((cloudFeedRes.data ?? []) as MyLabFeedRow[])
+    setTiqLeagues(tiqLeaguesRes.records)
+    setTiqIndividualResults(tiqResultsRes.results)
+    setTiqIndividualSuggestions(tiqSuggestionsRes.suggestions)
+    setTiqPlayerParticipations(tiqParticipationRes.entries)
+    setTiqPlayerParticipationSource(tiqParticipationRes.source)
+    setTiqPlayerParticipationWarning(tiqParticipationRes.warning)
 
     if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
       const cloudFollows = followsRes.data as FollowItem[]
@@ -346,10 +534,23 @@ function MyLabPageInner() {
       const away = cleanText(match.away_team)
       const league = cleanText(match.league_name)
       const flight = cleanText(match.flight)
+      const competitionLayer = inferCompetitionLayerForContext({
+        leagueName: league,
+      })
       if (!home || !away) continue
 
-      const homeKey = buildTeamEntityId(home, league, flight)
-      const awayKey = buildTeamEntityId(away, league, flight)
+      const homeKey = buildScopedTeamEntityId({
+        competitionLayer,
+        teamName: home,
+        leagueName: league,
+        flight,
+      })
+      const awayKey = buildScopedTeamEntityId({
+        competitionLayer,
+        teamName: away,
+        leagueName: league,
+        flight,
+      })
 
       if (!map.has(homeKey)) {
         map.set(homeKey, {
@@ -404,16 +605,29 @@ function MyLabPageInner() {
     for (const match of matches) {
       const leagueName = cleanText(match.league_name)
       const flight = cleanText(match.flight)
+      const section = cleanText((match as MatchRow & { usta_section?: string | null }).usta_section)
+      const district = cleanText((match as MatchRow & { district_area?: string | null }).district_area)
       if (!leagueName) continue
 
-      const id = buildLeagueEntityId(leagueName, flight, null, null)
+      const competitionLayer = inferCompetitionLayerForContext({
+        leagueName,
+        section,
+        district,
+      })
+      const id = buildScopedLeagueEntityId({
+        competitionLayer,
+        leagueName,
+        flight,
+        section,
+        district,
+      })
       if (!map.has(id)) {
         map.set(id, {
           id,
           name: leagueName,
           flight,
-          section: null,
-          district: null,
+          section,
+          district,
           teams: new Set(),
           players: new Set(),
         })
@@ -447,21 +661,21 @@ function MyLabPageInner() {
       type: 'player' as const,
       name: player.name,
       subtitle:
-        [cleanText(player.location), cleanText(player.flight)].filter(Boolean).join(' • ') || null,
+        [cleanText(player.location), cleanText(player.flight)].filter(Boolean).join(' - ') || null,
     }))
 
     const teamOptions = teamSummaries.slice(0, 200).map((team) => ({
       id: team.id,
       type: 'team' as const,
       name: team.name,
-      subtitle: [team.league, team.flight].filter(Boolean).join(' • ') || null,
+      subtitle: [team.league, team.flight].filter(Boolean).join(' - ') || null,
     }))
 
     const leagueOptions = leagueSummaries.slice(0, 120).map((league) => ({
       id: league.id,
       type: 'league' as const,
       name: league.name,
-      subtitle: [league.flight, league.section, league.district].filter(Boolean).join(' • ') || null,
+      subtitle: [league.flight, league.section, league.district].filter(Boolean).join(' - ') || null,
     }))
 
     return [...playerOptions, ...teamOptions, ...leagueOptions]
@@ -481,6 +695,86 @@ function MyLabPageInner() {
   const followedIds = useMemo(
     () => new Set(follows.map((item) => `${item.entity_type}:${item.entity_id}`)),
     [follows],
+  )
+
+  const followedPlayerNameSet = useMemo(() => {
+    const names = new Set<string>()
+    for (const follow of follows) {
+      if (follow.entity_type !== 'player') continue
+      const player = playerMap.get(follow.entity_id)
+      if (!player) continue
+      const playerName = cleanText(player.name)
+      if (playerName) names.add(playerName.toLowerCase())
+    }
+    return names
+  }, [follows, playerMap])
+
+  const followedTiqIndividualParticipations = useMemo(
+    () =>
+      tiqPlayerParticipations.filter((entry) => followedPlayerNameSet.has(entry.playerName.toLowerCase())),
+    [tiqPlayerParticipations, followedPlayerNameSet],
+  )
+
+  const followedLeagueIds = useMemo(() => {
+    return new Set(
+      follows
+        .filter((item) => item.entity_type === 'league')
+        .map((league) => parseLeagueEntityId(league.entity_id))
+        .filter((league) => league.competitionLayer === 'tiq')
+        .map((league) => league.leagueName.toLowerCase()),
+    )
+  }, [follows])
+
+  const tiqLeagueContextById = useMemo(() => {
+    const map = new Map<string, { leagueName: string; leagueFlight: string }>()
+    for (const entry of followedTiqIndividualParticipations) {
+      if (!map.has(entry.leagueId)) {
+        map.set(entry.leagueId, {
+          leagueName: entry.leagueName,
+          leagueFlight: entry.leagueFlight,
+        })
+      }
+    }
+    return map
+  }, [followedTiqIndividualParticipations])
+
+  const followedTiqIndividualLeagueInsights = useMemo(() => {
+    const summaries = buildTiqIndividualLeagueSummaries(tiqIndividualResults)
+
+    return tiqLeagues
+      .filter(
+        (league) =>
+          league.leagueFormat === 'individual' &&
+          (followedLeagueIds.has(league.leagueName.toLowerCase()) ||
+            followedTiqIndividualParticipations.some((entry) => entry.leagueId === league.id)),
+      )
+      .map((league) => {
+        const summary = summaries.get(league.id)
+        return {
+          league,
+          summary,
+          nextAction: getTiqIndividualCompetitionFormatNextAction(
+            league.individualCompetitionFormat,
+            league.leagueName,
+          ),
+          formatLabel: getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat),
+        }
+      })
+      .sort((left, right) => (right.summary?.resultCount || 0) - (left.summary?.resultCount || 0))
+  }, [followedLeagueIds, followedTiqIndividualParticipations, tiqIndividualResults, tiqLeagues])
+
+  const followedTiqSuggestionItems = useMemo(
+    () =>
+      tiqIndividualSuggestions.filter((suggestion) => {
+        const league = tiqLeagues.find((item) => item.id === suggestion.leagueId)
+        const suggestionLeagueName = league?.leagueName.toLowerCase() || ''
+        return (
+          followedLeagueIds.has(suggestion.leagueId.toLowerCase()) ||
+          (suggestionLeagueName ? followedLeagueIds.has(suggestionLeagueName) : false) ||
+          followedTiqIndividualParticipations.some((entry) => entry.leagueId === suggestion.leagueId)
+        )
+      }),
+    [followedLeagueIds, followedTiqIndividualParticipations, tiqIndividualSuggestions, tiqLeagues],
   )
 
   const feed = useMemo<FeedItem[]>(() => {
@@ -529,7 +823,7 @@ function MyLabPageInner() {
         id: `rating-${player.id}`,
         type: 'rating',
         title: `${player.name} rating snapshot`,
-        body: `Current overall dynamic rating: ${formatRating(player.overall_dynamic_rating)}. Singles: ${formatRating(player.singles_dynamic_rating)}. Doubles: ${formatRating(player.doubles_dynamic_rating)}.`,
+        body: `TIQ overall: ${formatRating(player.overall_dynamic_rating)} (USTA: ${formatRating(player.overall_usta_dynamic_rating)}). Singles TIQ: ${formatRating(player.singles_dynamic_rating)}. Doubles TIQ: ${formatRating(player.doubles_dynamic_rating)}.`,
         entityType: 'player',
         entityId: player.id,
         entityName: player.name,
@@ -547,17 +841,46 @@ function MyLabPageInner() {
 
       const leagueName = cleanText(match.league_name)
       const flight = cleanText(match.flight)
+      const section = cleanText(match.usta_section)
+      const district = cleanText(match.district_area)
       const homeTeam = cleanText(match.home_team)
       const awayTeam = cleanText(match.away_team)
+      const competitionLayer = inferCompetitionLayerForContext({
+        leagueName,
+        section,
+        district,
+      })
 
-      const homeTeamId = homeTeam ? buildTeamEntityId(homeTeam, leagueName, flight) : null
-      const awayTeamId = awayTeam ? buildTeamEntityId(awayTeam, leagueName, flight) : null
-      const leagueId = leagueName ? buildLeagueEntityId(leagueName, flight, null, null) : null
+      const homeTeamId = homeTeam
+        ? buildScopedTeamEntityId({
+            competitionLayer,
+            teamName: homeTeam,
+            leagueName,
+            flight,
+          })
+        : null
+      const awayTeamId = awayTeam
+        ? buildScopedTeamEntityId({
+            competitionLayer,
+            teamName: awayTeam,
+            leagueName,
+            flight,
+          })
+        : null
+      const leagueId = leagueName
+        ? buildScopedLeagueEntityId({
+            competitionLayer,
+            leagueName,
+            flight,
+            section,
+            district,
+          })
+        : null
 
-      const containsFollowedTeam = followTeams.some(
-        (f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId,
-      )
-      const containsFollowedLeague = followLeagues.some((f) => f.entity_id === leagueId)
+      const containsFollowedTeam =
+        followContainsEntity(followTeams, 'team', homeTeamId) ||
+        followContainsEntity(followTeams, 'team', awayTeamId)
+      const containsFollowedLeague = followContainsEntity(followLeagues, 'league', leagueId)
 
       if (!containsFollowedPlayer && !containsFollowedTeam && !containsFollowedLeague) continue
 
@@ -570,13 +893,12 @@ function MyLabPageInner() {
         id: `match-${match.id}`,
         type: 'match',
         title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
-        body: `${leagueName || 'League match'}${flight ? ` • ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
+        body: `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
         entityId: containsFollowedLeague
-          ? leagueId
+          ? getFollowedEntityId(followLeagues, 'league', [leagueId])
           : containsFollowedTeam
-            ? (followTeams.find((f) => f.entity_id === homeTeamId || f.entity_id === awayTeamId)
-                ?.entity_id ?? null)
+            ? getFollowedEntityId(followTeams, 'team', [homeTeamId, awayTeamId])
             : (playersInMatch[0]?.player_id ?? null),
         entityName: leagueName || homeTeam || 'Watched match',
         createdAt: match.match_date || new Date().toISOString(),
@@ -590,16 +912,30 @@ function MyLabPageInner() {
       const scenarioLeagueName = cleanText(scenario.league_name)
       const scenarioFlight = cleanText(scenario.flight)
       const scenarioTeamName = cleanText(scenario.team_name)
+      const competitionLayer = inferCompetitionLayerForContext({
+        leagueName: scenarioLeagueName,
+      })
       const scenarioTeamId = scenarioTeamName
-        ? buildTeamEntityId(scenarioTeamName, scenarioLeagueName, scenarioFlight)
+        ? buildScopedTeamEntityId({
+            competitionLayer,
+            teamName: scenarioTeamName,
+            leagueName: scenarioLeagueName,
+            flight: scenarioFlight,
+          })
         : null
       const scenarioLeagueId = scenarioLeagueName
-        ? buildLeagueEntityId(scenarioLeagueName, scenarioFlight, null, null)
+        ? buildScopedLeagueEntityId({
+            competitionLayer,
+            leagueName: scenarioLeagueName,
+            flight: scenarioFlight,
+            section: null,
+            district: null,
+          })
         : null
 
       if (
-        !followTeams.some((f) => f.entity_id === scenarioTeamId) &&
-        !followLeagues.some((f) => f.entity_id === scenarioLeagueId)
+        !followContainsEntity(followTeams, 'team', scenarioTeamId) &&
+        !followContainsEntity(followLeagues, 'league', scenarioLeagueId)
       ) {
         continue
       }
@@ -641,6 +977,122 @@ function MyLabPageInner() {
       })
     })
 
+    followedTiqIndividualParticipations.slice(0, 24).forEach((entry, index) => {
+      const leagueEntityId = buildScopedLeagueEntityId({
+        competitionLayer: 'tiq',
+        leagueName: entry.leagueName,
+        flight: entry.leagueFlight,
+        section: null,
+        district: null,
+      })
+
+      items.push({
+        id: `tiq-individual-${entry.leagueId}-${entry.playerName}`,
+        type: 'league',
+        title: `${entry.playerName} is active in ${entry.leagueName}`,
+        body: `${entry.playerName} is competing in a TIQ individual league${entry.seasonLabel ? ` for ${entry.seasonLabel}` : ''}${entry.leagueFlight ? ` at ${entry.leagueFlight}` : ''}${entry.locationLabel ? ` in ${entry.locationLabel}` : ''}.`,
+        entityType: 'league',
+        entityId: leagueEntityId,
+        entityName: entry.leagueName,
+        createdAt: new Date(Date.now() - index * 2700 * 1000).toISOString(),
+        score: 89 - index,
+        badge: 'TIQ League',
+        accent: accentForType('league'),
+      })
+    })
+
+    const tiqLeagueSummaries = buildTiqIndividualLeagueSummaries(tiqIndividualResults)
+
+    tiqIndividualResults.slice(0, 30).forEach((result, index) => {
+      const playerAName = result.playerAName.toLowerCase()
+      const playerBName = result.playerBName.toLowerCase()
+      const winnerName = result.winnerPlayerName
+      const loserName = winnerName === result.playerAName ? result.playerBName : result.playerAName
+      const shouldInclude =
+        followedPlayerNameSet.has(playerAName) ||
+        followedPlayerNameSet.has(playerBName) ||
+        followedLeagueIds.has(result.leagueId.toLowerCase())
+
+      if (!shouldInclude) return
+
+      const summary = tiqLeagueSummaries.get(result.leagueId)
+      const leagueContext = tiqLeagueContextById.get(result.leagueId)
+      items.push({
+        id: `tiq-result-${result.id}`,
+        type: 'league',
+        title: `${winnerName} won a TIQ match in ${leagueContext?.leagueName || 'TIQ Individual League'}`,
+        body: `${winnerName} defeated ${loserName}${result.score ? ` ${result.score}` : ''}${summary?.leaderName ? `. Current leader: ${summary.leaderName} (${summary.leaderRecord})` : ''}.`,
+        entityType: 'league',
+        entityId: buildScopedLeagueEntityId({
+          competitionLayer: 'tiq',
+          leagueName: leagueContext?.leagueName || result.leagueId,
+          flight: leagueContext?.leagueFlight || null,
+          section: null,
+          district: null,
+        }),
+        entityName: leagueContext?.leagueName || 'TIQ Individual League',
+        createdAt: result.resultDate || result.createdAt,
+        score: 97 - index,
+        badge: 'TIQ Result',
+        accent: accentForType('league'),
+      })
+    })
+
+    followedTiqIndividualLeagueInsights.slice(0, 12).forEach((item, index) => {
+      items.push({
+        id: `tiq-opportunity-${item.league.id}`,
+        type: 'league',
+        title: `${item.formatLabel} next step in ${item.league.leagueName}`,
+        body: `${item.nextAction}${item.summary?.leaderName ? ` Current leader: ${item.summary.leaderName} (${item.summary.leaderRecord}).` : ''}`,
+        entityType: 'league',
+        entityId: buildScopedLeagueEntityId({
+          competitionLayer: 'tiq',
+          leagueName: item.league.leagueName,
+          flight: item.league.flight,
+          section: null,
+          district: null,
+        }),
+        entityName: item.league.leagueName,
+        createdAt: item.summary?.latestResult?.resultDate || item.summary?.latestResult?.createdAt || item.league.updatedAt,
+        score: 82 - index,
+        badge: 'TIQ Next',
+        accent: accentForType('league'),
+      })
+    })
+
+    followedTiqSuggestionItems.slice(0, 18).forEach((suggestion, index) => {
+      const league = tiqLeagues.find((item) => item.id === suggestion.leagueId)
+      items.push({
+        id: `tiq-suggestion-${suggestion.id}`,
+        type: 'league',
+        title:
+          suggestion.status === 'completed'
+            ? `Completed TIQ prompt in ${league?.leagueName || 'TIQ League'}`
+            : suggestion.claimedByLabel
+              ? `Claimed TIQ prompt in ${league?.leagueName || 'TIQ League'}`
+              : `Open TIQ prompt in ${league?.leagueName || 'TIQ League'}`,
+        body: `${suggestion.title}. ${suggestion.body || getTiqIndividualCompetitionFormatNextAction(suggestion.individualCompetitionFormat, league?.leagueName || 'This TIQ league')}${suggestion.claimedByLabel ? ` Claimed by ${suggestion.claimedByLabel}.` : ''}`,
+        entityType: 'league',
+        entityId: buildScopedLeagueEntityId({
+          competitionLayer: 'tiq',
+          leagueName: league?.leagueName || suggestion.leagueId,
+          flight: league?.flight || null,
+          section: null,
+          district: null,
+        }),
+        entityName: league?.leagueName || 'TIQ Individual League',
+        createdAt: suggestion.updatedAt || suggestion.createdAt,
+        score: 78 - index,
+        badge:
+          suggestion.status === 'completed'
+            ? 'TIQ Done'
+            : suggestion.claimedByLabel
+              ? 'TIQ Claimed'
+              : 'TIQ Prompt',
+        accent: accentForType('league'),
+      })
+    })
+
     if (!items.length) {
       items.push({
         id: 'community-welcome',
@@ -669,7 +1121,24 @@ function MyLabPageInner() {
           b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
       .slice(0, 30)
-  }, [follows, players, matches, matchPlayersByMatch, scenarios, playerMap, feedFilter, cloudFeedRows])
+  }, [
+    follows,
+    players,
+    matches,
+    matchPlayersByMatch,
+    scenarios,
+    playerMap,
+    feedFilter,
+    cloudFeedRows,
+    tiqIndividualResults,
+    tiqIndividualSuggestions,
+    tiqLeagues,
+    followedTiqSuggestionItems,
+    followedTiqIndividualLeagueInsights,
+    followedTiqIndividualParticipations,
+    followedLeagueIds,
+    tiqLeagueContextById,
+  ])
 
   async function persistFollows(next: FollowItem[]) {
     setFollows(next)
@@ -712,8 +1181,7 @@ function MyLabPageInner() {
   }
 
   async function addFollow(option: SearchOption) {
-    const key = `${option.type}:${option.id}`
-    if (followedIds.has(key)) return
+    if (followContainsEntity(follows, option.type, option.id)) return
     const next: FollowItem[] = [
       {
         id: `${option.type}-${option.id}`,
@@ -731,7 +1199,11 @@ function MyLabPageInner() {
 
   async function removeFollow(item: FollowItem) {
     const next = follows.filter(
-      (follow) => !(follow.entity_type === item.entity_type && follow.entity_id === item.entity_id),
+      (follow) =>
+        !(
+          follow.entity_type === item.entity_type &&
+          entityIdsMatch(item.entity_type, follow.entity_id, item.entity_id)
+        ),
     )
     await persistFollows(next)
   }
@@ -756,7 +1228,37 @@ function MyLabPageInner() {
       value: savedToCloud ? 'On' : 'Local',
       note: savedToCloud ? 'Persisting to Supabase' : 'Fallback storage active',
     },
+    {
+      label: 'TIQ individual',
+      value: String(followedTiqIndividualParticipations.length),
+      note: 'Tracked TIQ player-league entries',
+    },
   ]
+
+  const dynamicHeroRailCardStyle: CSSProperties = {
+    ...heroRailCardStyle,
+    position: 'relative',
+    overflow: 'hidden',
+    background: 'var(--shell-panel-bg)',
+  }
+
+  const heroRailVisualStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+  }
+
+  const heroRailMaskStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background: isTablet ? 'var(--shell-hero-mask-mobile)' : 'var(--shell-hero-mask)',
+    pointerEvents: 'none',
+    zIndex: 1,
+  }
+
+  const heroRailContentStyle: CSSProperties = {
+    position: 'relative',
+    zIndex: 2,
+  }
 
   return (
     <section style={pageStyle}>
@@ -771,13 +1273,45 @@ function MyLabPageInner() {
           </p>
 
           <div style={heroButtonRowStyle}>
-            <Link href="/players" style={primaryButtonStyle}>
+            <Link
+              href="/explore/players"
+              onMouseEnter={() => setPlayersHovered(true)}
+              onMouseLeave={() => setPlayersHovered(false)}
+              style={{
+                ...primaryButtonStyle,
+                transform: playersHovered ? 'translateY(-2px)' : 'none',
+                boxShadow: playersHovered
+                  ? '0 20px 40px rgba(74,222,128,0.22)'
+                  : '0 16px 32px rgba(74,222,128,0.14)',
+                transition: 'transform 140ms ease, box-shadow 140ms ease',
+              }}
+            >
               Find players
             </Link>
-            <Link href="/teams" style={secondaryButtonStyle}>
+            <Link
+              href="/explore/teams"
+              onMouseEnter={() => setTeamsHovered(true)}
+              onMouseLeave={() => setTeamsHovered(false)}
+              style={{
+                ...secondaryButtonStyle,
+                borderColor: teamsHovered ? 'rgba(116,190,255,0.30)' : undefined,
+                transform: teamsHovered ? 'translateY(-2px)' : 'none',
+                transition: 'all 140ms ease',
+              }}
+            >
               Browse teams
             </Link>
-            <Link href="/leagues" style={secondaryButtonStyle}>
+            <Link
+              href="/explore/leagues"
+              onMouseEnter={() => setLeaguesHovered(true)}
+              onMouseLeave={() => setLeaguesHovered(false)}
+              style={{
+                ...secondaryButtonStyle,
+                borderColor: leaguesHovered ? 'rgba(116,190,255,0.30)' : undefined,
+                transform: leaguesHovered ? 'translateY(-2px)' : 'none',
+                transition: 'all 140ms ease',
+              }}
+            >
               Explore leagues
             </Link>
           </div>
@@ -789,29 +1323,75 @@ function MyLabPageInner() {
                 <div style={metricValueStyle}>{stat.value}</div>
                 <div style={metricNoteStyle}>{stat.note}</div>
               </div>
-            ))}
+              ))}
           </div>
+
+          {tiqPlayerParticipationWarning ? (
+            <div
+              style={{
+                marginTop: 18,
+                padding: '14px 16px',
+                borderRadius: 16,
+                border: '1px solid rgba(255,255,255,0.08)',
+                background: 'rgba(255,255,255,0.04)',
+                color: 'rgba(224,234,247,0.76)',
+                lineHeight: 1.6,
+                fontSize: 13,
+              }}
+            >
+              {tiqPlayerParticipationSource === 'local' ? 'Local TIQ participation fallback: ' : 'TIQ participation note: '}
+              {tiqPlayerParticipationWarning}
+            </div>
+          ) : null}
         </div>
 
-        <div style={heroRailCardStyle}>
-          <p style={sectionKickerStyle}>What makes this elite</p>
-          <h2 style={sideTitleStyle}>A community layer on top of your analytics</h2>
-          <div style={workflowListStyle}>
-            {[
-              ['Follow smarter', 'Track players, teams, and leagues in one place.'],
-              ['See momentum', 'Recent matches, rating movement, lineup activity, and achievements.'],
-              ['Stay connected', 'Build the foundation for future community and member engagement.'],
-            ].map(([title, text]) => (
-              <div key={title} style={workflowRowStyle}>
-                <div style={workflowDotStyle} />
-                <div>
-                  <div style={workflowTitleStyle}>{title}</div>
-                  <div style={workflowTextStyle}>{text}</div>
+        <div style={dynamicHeroRailCardStyle}>
+          <div style={heroRailVisualStyle}>
+            <Image
+              src={heroArtworkSrc}
+              alt="TenAceIQ My Lab concept art"
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 34vw"
+              style={{
+                objectFit: 'cover',
+                objectPosition: isTablet ? 'center center' : '72% center',
+                opacity: theme === 'dark' ? 0.94 : 0.82,
+              }}
+            />
+            <div style={heroRailMaskStyle} />
+          </div>
+
+          <div style={heroRailContentStyle}>
+            <p style={sectionKickerStyle}>What makes this elite</p>
+            <h2 style={sideTitleStyle}>A community layer on top of your analytics</h2>
+            <div style={workflowListStyle}>
+              {[
+                ['Follow smarter', 'Track players, teams, and leagues in one place.'],
+                ['See momentum', 'Recent matches, rating movement, lineup activity, and achievements.'],
+                ['Stay connected', 'Build the foundation for future community and member engagement.'],
+              ].map(([title, text]) => (
+                <div key={title} style={workflowRowStyle}>
+                  <div style={workflowDotStyle} />
+                  <div>
+                    <div style={workflowTitleStyle}>{title}</div>
+                    <div style={workflowTextStyle}>{text}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
+      </section>
+
+      <section style={labSignalGridStyle(isMobile)}>
+        {LAB_SIGNALS.map((signal) => (
+          <div key={signal.label} style={labSignalCardStyle}>
+            <div style={labSignalLabelStyle}>{signal.label}</div>
+            <div style={labSignalValueStyle}>{signal.value}</div>
+            <div style={labSignalNoteStyle}>{signal.note}</div>
+          </div>
+        ))}
       </section>
 
       <section style={contentGridStyle(isTablet)}>
@@ -857,13 +1437,13 @@ function MyLabPageInner() {
                 <div style={searchResultsStyle}>
                   {filteredSearchOptions.length ? (
                     filteredSearchOptions.map((option) => {
-                      const followed = followedIds.has(`${option.type}:${option.id}`)
+                      const followed = followContainsEntity(follows, option.type, option.id)
                       return (
                         <div key={`${option.type}-${option.id}`} style={searchResultItemStyle}>
                           <div>
                             <div style={searchResultTitleStyle}>{option.name}</div>
                             <div style={searchResultMetaStyle}>
-                              {option.type.toUpperCase()} {option.subtitle ? `• ${option.subtitle}` : ''}
+                              {option.type.toUpperCase()} {option.subtitle ? ` - ${option.subtitle}` : ''}
                             </div>
                           </div>
                           <button
@@ -890,16 +1470,12 @@ function MyLabPageInner() {
             <div style={sectionHeaderStyle}>
               <div>
                 <p style={sectionKickerStyle}>Personal feed</p>
-                <h2 style={sectionTitleStyle}>What’s happening around your network</h2>
+                <h2 style={sectionTitleStyle}>What's happening around your network</h2>
               </div>
               <div style={filterRowStyle}>
-                <button
-                  type="button"
-                  onClick={() => setRefreshTick((current) => current + 1)}
-                  style={ghostMiniButtonStyle}
-                >
+                <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
                   {loading ? 'Refreshing...' : 'Refresh lab'}
-                </button>
+                </GhostButton>
                 {(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(
                   (value) => (
                     <button
@@ -921,13 +1497,9 @@ function MyLabPageInner() {
               <div style={errorStateStyle}>
                 <div>Some data could not be loaded: {error}</div>
                 <div style={errorActionRowStyle}>
-                  <button
-                    type="button"
-                    onClick={() => setRefreshTick((current) => current + 1)}
-                    style={ghostMiniButtonStyle}
-                  >
+                  <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
                     Retry lab load
-                  </button>
+                  </GhostButton>
                 </div>
               </div>
             ) : (
@@ -1001,6 +1573,11 @@ function MyLabPageInner() {
                   value={String(followedLeagues.length)}
                   note="Competition groups"
                 />
+                <SummaryCard
+                  label="TIQ Individual"
+                  value={String(followedTiqIndividualParticipations.length)}
+                  note="Active player league entries"
+                />
               </div>
             ) : null}
 
@@ -1010,13 +1587,38 @@ function MyLabPageInner() {
 
             {selectedTab === 'feed' ? (
               <div style={insightStackStyle}>
+                {!access.canUseAdvancedPlayerInsights ? (
+                  <UpgradePrompt
+                    planId="player_plus"
+                    compact
+                    headline="Want to know where you should play?"
+                    body="Unlock Player+ to turn your feed and tracked activity into clearer lineup-fit reads, opponent context, and personal performance direction."
+                    ctaLabel="Unlock Player+"
+                    ctaHref="/pricing"
+                    secondaryLabel="See Player+ plan"
+                    secondaryHref="/pricing"
+                    footnote="Best for players who want more than match history and want clearer direction from their data."
+                  />
+                ) : null}
                 <InsightCard
                   title="Community direction"
                   text="My Lab gives members a reason to come back even when they are not actively searching. This is the surface that can later support alerts, achievements, reactions, and player-to-player community momentum."
                 />
                 <InsightCard
                   title="Best next upgrade"
-                  text="Add a simple event writer into imports and rating recalculation so match results and rating moves automatically populate my_lab_feed for followed entities."
+                  text="The next strongest upgrade is deeper event coverage from imports and rating recalculation, so followed entities populate the personal feed more automatically and more completely."
+                />
+                <InsightCard
+                  title="Individual competition pulse"
+                  text={`You are currently tracking ${followedTiqIndividualParticipations.length} TIQ individual league ${followedTiqIndividualParticipations.length === 1 ? 'entry' : 'entries'} across your followed players, which gives My Lab a direct view into internal TIQ competition momentum instead of only official match history.`}
+                />
+                <InsightCard
+                  title="Best TIQ next action"
+                  text={
+                    followedTiqIndividualLeagueInsights[0]
+                      ? `${followedTiqIndividualLeagueInsights[0].formatLabel}: ${followedTiqIndividualLeagueInsights[0].nextAction}${followedTiqIndividualLeagueInsights[0].summary?.leaderName ? ` ${followedTiqIndividualLeagueInsights[0].summary.leaderName} currently leads at ${followedTiqIndividualLeagueInsights[0].summary.leaderRecord}.` : ''}`
+                      : 'Follow a TIQ individual league or player to let My Lab surface the next useful action for ladder, round robin, challenge, or standard TIQ competition.'
+                  }
                 />
               </div>
             ) : null}
@@ -1024,6 +1626,27 @@ function MyLabPageInner() {
         </div>
       </section>
     </section>
+  )
+}
+
+function GhostButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...ghostMiniButtonStyle,
+        background: hovered ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.05)',
+        borderColor: hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 130ms ease',
+      }}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -1045,12 +1668,10 @@ function FollowList({
           <div>
             <div style={followNameStyle}>{item.entity_name}</div>
             <div style={followMetaStyle}>
-              {item.entity_type.toUpperCase()} {item.subtitle ? `• ${item.subtitle}` : ''}
+              {item.entity_type.toUpperCase()} {item.subtitle ? ` - ${item.subtitle}` : ''}
             </div>
           </div>
-          <button type="button" onClick={() => onRemove(item)} style={ghostMiniButtonStyle}>
-            Remove
-          </button>
+          <GhostButton onClick={() => onRemove(item)}>Remove</GhostButton>
         </div>
       ))}
     </div>
@@ -1092,10 +1713,9 @@ const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   gap: isMobile ? 18 : 24,
   padding: isMobile ? '26px 18px' : '34px 26px',
   borderRadius: 34,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background:
-    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 52%, rgba(8,27,56,0.92) 100%)',
-  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.30)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
 })
@@ -1108,7 +1728,7 @@ const eyebrowStyle: CSSProperties = {
   borderRadius: 999,
   border: '1px solid rgba(155,225,29,0.28)',
   background: 'rgba(155,225,29,0.12)',
-  color: '#d9e7ef',
+  color: 'var(--home-eyebrow-color)',
   fontWeight: 800,
   fontSize: 14,
   textTransform: 'uppercase',
@@ -1118,7 +1738,7 @@ const eyebrowStyle: CSSProperties = {
 
 const heroTitleStyle = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
   margin: 0,
-  color: '#f7fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -1130,7 +1750,7 @@ const heroTextStyle: CSSProperties = {
   marginTop: 16,
   marginBottom: 0,
   maxWidth: 840,
-  color: 'rgba(231,239,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.72,
 }
@@ -1152,7 +1772,7 @@ const primaryButtonStyle: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  color: '#071622',
+  color: 'var(--text-dark)',
   border: '1px solid rgba(155,225,29,0.34)',
   boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)',
 }
@@ -1166,9 +1786,9 @@ const secondaryButtonStyle: CSSProperties = {
   borderRadius: 999,
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const metricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
@@ -1178,29 +1798,68 @@ const metricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   gap: 14,
 })
 
+const labSignalGridStyle = (isMobile: boolean): CSSProperties => ({
+  marginTop: 18,
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 14,
+})
+
+const labSignalCardStyle: CSSProperties = {
+  borderRadius: 24,
+  padding: '18px 18px 16px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const labSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const labSignalValueStyle: CSSProperties = {
+  marginTop: 10,
+  color: 'var(--foreground-strong)',
+  fontSize: '1.35rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+  lineHeight: 1.1,
+}
+
+const labSignalNoteStyle: CSSProperties = {
+  marginTop: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '.94rem',
+  lineHeight: 1.6,
+}
+
 const metricCardStyle: CSSProperties = {
   borderRadius: 22,
   padding: 16,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.16) 0%, rgba(20,43,86,0.34) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(225,236,250,0.72)',
+  color: 'var(--muted)',
   fontSize: '0.82rem',
   marginBottom: 6,
   fontWeight: 700,
 }
 
 const metricValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '1.55rem',
   fontWeight: 900,
   lineHeight: 1.1,
 }
 
 const metricNoteStyle: CSSProperties = {
-  color: 'rgba(231,239,251,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
   fontSize: '.92rem',
   marginTop: 6,
@@ -1208,8 +1867,8 @@ const metricNoteStyle: CSSProperties = {
 
 const heroRailCardStyle: CSSProperties = {
   borderRadius: 28,
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(29,56,105,0.62), rgba(14,30,59,0.78))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: 20,
 }
 
@@ -1218,7 +1877,7 @@ const sideTitleStyle: CSSProperties = {
   marginBottom: 14,
   fontSize: '1.35rem',
   lineHeight: 1.14,
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
 }
 
 const workflowListStyle: CSSProperties = {
@@ -1243,12 +1902,12 @@ const workflowDotStyle: CSSProperties = {
 
 const workflowTitleStyle: CSSProperties = {
   fontWeight: 700,
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   marginBottom: 4,
 }
 
 const workflowTextStyle: CSSProperties = {
-  color: 'rgba(231,239,251,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: '.95rem',
 }
@@ -1620,3 +2279,4 @@ const followMetaStyle: CSSProperties = {
   fontSize: 13,
   marginTop: 4,
 }
+

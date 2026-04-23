@@ -152,6 +152,7 @@ export default function AddMatchPage() {
           source: preparedRow.source,
           external_match_id: preparedRow.externalMatchId,
           dedupe_key: dedupeKey,
+          match_source: 'usta',
         })
         .select('id')
         .single()
@@ -322,9 +323,9 @@ export default function AddMatchPage() {
                 type="button"
                 className="button-ghost"
                 style={{
-                  background: 'rgba(15,23,42,0.24)',
-                  color: '#dbeafe',
-                  border: '1px solid rgba(116,190,255,0.12)',
+                  background: 'var(--shell-chip-bg)',
+                  color: 'var(--foreground)',
+                  border: '1px solid var(--shell-panel-border)',
                   opacity: playersLoading ? 0.7 : 1,
                   cursor: playersLoading ? 'not-allowed' : 'pointer',
                 }}
@@ -428,9 +429,8 @@ export default function AddMatchPage() {
                 className="surface-card"
                 style={{
                   padding: 20,
-                  background:
-                    'linear-gradient(180deg, rgba(17,34,63,0.74) 0%, rgba(9,18,34,0.92) 100%)',
-                  border: '1px solid rgba(116,190,255,0.14)',
+                  background: 'var(--shell-panel-bg)',
+                  border: '1px solid var(--shell-panel-border)',
                 }}
               >
                 <div className="section-kicker" style={{ marginBottom: 14 }}>
@@ -441,7 +441,7 @@ export default function AddMatchPage() {
                     margin: 0,
                     fontSize: '1.2rem',
                     fontWeight: 800,
-                    color: '#F8FBFF',
+                    color: 'var(--foreground)',
                     letterSpacing: '-0.03em',
                   }}
                 >
@@ -482,9 +482,8 @@ export default function AddMatchPage() {
                 className="surface-card"
                 style={{
                   padding: 20,
-                  background:
-                    'linear-gradient(180deg, rgba(17,34,63,0.74) 0%, rgba(9,18,34,0.92) 100%)',
-                  border: '1px solid rgba(116,190,255,0.14)',
+                  background: 'var(--shell-panel-bg)',
+                  border: '1px solid var(--shell-panel-border)',
                 }}
               >
                 <div className="section-kicker" style={{ marginBottom: 14 }}>
@@ -495,7 +494,7 @@ export default function AddMatchPage() {
                     margin: 0,
                     fontSize: '1.2rem',
                     fontWeight: 800,
-                    color: '#F8FBFF',
+                    color: 'var(--foreground)',
                     letterSpacing: '-0.03em',
                   }}
                 >
@@ -544,9 +543,8 @@ export default function AddMatchPage() {
               style={{
                 padding: 20,
                 borderStyle: 'dashed',
-                background:
-                  'linear-gradient(180deg, rgba(17,34,63,0.58) 0%, rgba(9,18,34,0.86) 100%)',
-                borderColor: 'rgba(155,225,29,0.18)',
+                background: 'var(--shell-chip-bg)',
+                borderColor: 'var(--shell-panel-border)',
               }}
             >
               <h3
@@ -554,7 +552,7 @@ export default function AddMatchPage() {
                   margin: 0,
                   fontSize: '1.05rem',
                   fontWeight: 800,
-                  color: '#F8FBFF',
+                  color: 'var(--foreground)',
                   letterSpacing: '-0.02em',
                 }}
               >
@@ -568,7 +566,7 @@ export default function AddMatchPage() {
                   alignItems: 'center',
                   gap: 12,
                   marginTop: 16,
-                  color: '#D8E9FF',
+                  color: 'var(--foreground)',
                   fontWeight: 600,
                   cursor: loading ? 'not-allowed' : 'pointer',
                 }}
@@ -613,7 +611,7 @@ export default function AddMatchPage() {
                   padding: '10px 14px',
                   justifyContent: 'flex-start',
                   width: '100%',
-                  background: 'rgba(220,38,38,0.12)',
+                  background: 'rgba(220,38,38,0.10)',
                   color: '#fca5a5',
                   border: '1px solid rgba(248,113,113,0.18)',
                   display: 'grid',
@@ -627,9 +625,9 @@ export default function AddMatchPage() {
                   onClick={() => void loadPlayers()}
                   className="button-ghost"
                   style={{
-                    background: 'rgba(15,23,42,0.24)',
-                    color: '#dbeafe',
-                    border: '1px solid rgba(116,190,255,0.12)',
+                    background: 'var(--shell-chip-bg)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--shell-panel-border)',
                     opacity: playersLoading ? 0.7 : 1,
                     cursor: playersLoading ? 'not-allowed' : 'pointer',
                   }}

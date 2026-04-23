@@ -3,11 +3,16 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { getClientAuthState } from '@/lib/auth'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { type UserRole } from '@/lib/roles'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -21,6 +26,9 @@ type Player = {
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
+  overall_usta_dynamic_rating?: number | null
+  singles_usta_dynamic_rating?: number | null
+  doubles_usta_dynamic_rating?: number | null
 }
 
 type MatchRow = {
@@ -79,6 +87,16 @@ type ComparisonState = {
     singles: number | null
     doubles: number | null
   }
+  leftUstaRatings: {
+    overall: number | null
+    singles: number | null
+    doubles: number | null
+  }
+  rightUstaRatings: {
+    overall: number | null
+    singles: number | null
+    doubles: number | null
+  }
   leftSelected: number
   rightSelected: number
   gap: number
@@ -114,7 +132,7 @@ type AccuracyState = {
   sampleSize: number
 }
 
-const RATING_DIVISOR = 0.35
+const RATING_DIVISOR = 0.45
 const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
 
 function hasValidRating(value: number | null | undefined): value is number {
@@ -122,6 +140,8 @@ function hasValidRating(value: number | null | undefined): value is number {
 }
 
 export default function MatchupPage() {
+  const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -141,6 +161,7 @@ export default function MatchupPage() {
 
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [headToHead, setHeadToHead] = useState<HeadToHeadState | null>(null)
+  const urlReadyRef = useRef(false)
   const [accuracy, setAccuracy] = useState<AccuracyState>({
     overall: null,
     high: null,
@@ -148,21 +169,75 @@ export default function MatchupPage() {
     low: null,
     sampleSize: 0,
   })
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   useEffect(() => {
     void loadPlayers()
   }, [])
 
   useEffect(() => {
+    let active = true
+
+    async function loadAuth() {
+      try {
+        const authState = await getClientAuthState()
+        if (!active) return
+        setRole(authState.role)
+        setEntitlements(authState.entitlements)
+      } catch {
+        if (!active) return
+        setRole('public')
+        setEntitlements(null)
+      }
+    }
+
+    void loadAuth()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
 
     const params = new URLSearchParams(window.location.search)
+    const typeFromUrl = params.get('type')
+    if (typeFromUrl === 'doubles') setMatchType('doubles')
+
     const playerAFromUrl = params.get('playerA') || ''
     const playerBFromUrl = params.get('playerB') || ''
-
     if (playerAFromUrl) setPlayerAId(playerAFromUrl)
     if (playerBFromUrl) setPlayerBId(playerBFromUrl)
+
+    const a1 = params.get('a1') || ''
+    const a2 = params.get('a2') || ''
+    const b1 = params.get('b1') || ''
+    const b2 = params.get('b2') || ''
+    if (a1) setTeamA1Id(a1)
+    if (a2) setTeamA2Id(a2)
+    if (b1) setTeamB1Id(b1)
+    if (b2) setTeamB2Id(b2)
+
+    urlReadyRef.current = true
   }, [])
+
+  useEffect(() => {
+    if (!urlReadyRef.current || typeof window === 'undefined') return
+    const params = new URLSearchParams()
+    params.set('type', matchType)
+    if (matchType === 'singles') {
+      if (playerAId) params.set('playerA', playerAId)
+      if (playerBId) params.set('playerB', playerBId)
+    } else {
+      if (teamA1Id) params.set('a1', teamA1Id)
+      if (teamA2Id) params.set('a2', teamA2Id)
+      if (teamB1Id) params.set('b1', teamB1Id)
+      if (teamB2Id) params.set('b2', teamB2Id)
+    }
+    const search = params.toString()
+    window.history.replaceState(null, '', search ? `?${search}` : window.location.pathname)
+  }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
   useEffect(() => {
     if (matchType === 'singles') {
@@ -220,7 +295,10 @@ export default function MatchupPage() {
           location,
           overall_dynamic_rating,
           singles_dynamic_rating,
-          doubles_dynamic_rating
+          doubles_dynamic_rating,
+          overall_usta_dynamic_rating,
+          singles_usta_dynamic_rating,
+          doubles_usta_dynamic_rating
         `)
         .order('name', { ascending: true })
 
@@ -252,33 +330,36 @@ export default function MatchupPage() {
         return
       }
 
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select(`
-          id,
-          match_date,
-          match_type,
-          score,
-          winner_side
-        `)
-        .in('id', matchIds)
+      const [
+        { data: matchesData, error: matchesError },
+        { data: participantsData, error: participantsError },
+      ] = await Promise.all([
+        supabase
+          .from('matches')
+          .select(`
+            id,
+            match_date,
+            match_type,
+            score,
+            winner_side
+          `)
+          .in('id', matchIds),
+        supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            player_id,
+            side,
+            seat,
+            players (
+              id,
+              name
+            )
+          `)
+          .in('match_id', matchIds),
+      ])
 
       if (matchesError) throw new Error(matchesError.message)
-
-      const { data: participantsData, error: participantsError } = await supabase
-        .from('match_players')
-        .select(`
-          match_id,
-          player_id,
-          side,
-          seat,
-          players (
-            id,
-            name
-          )
-        `)
-        .in('match_id', matchIds)
-
       if (participantsError) throw new Error(participantsError.message)
 
       const typedMatches = (matchesData || []) as MatchRow[]
@@ -809,6 +890,16 @@ export default function MatchupPage() {
           singles: rightSingles,
           doubles: rightDoubles,
         },
+        leftUstaRatings: {
+          overall: playerA.overall_usta_dynamic_rating ?? null,
+          singles: playerA.singles_usta_dynamic_rating ?? null,
+          doubles: playerA.doubles_usta_dynamic_rating ?? null,
+        },
+        rightUstaRatings: {
+          overall: playerB.overall_usta_dynamic_rating ?? null,
+          singles: playerB.singles_usta_dynamic_rating ?? null,
+          doubles: playerB.doubles_usta_dynamic_rating ?? null,
+        },
         leftSelected: left,
         rightSelected: right,
         gap,
@@ -871,6 +962,16 @@ export default function MatchupPage() {
       rightLocation: 'Team B',
       leftRatings: teamARatings,
       rightRatings: teamBRatings,
+      leftUstaRatings: {
+        overall: [teamA1.overall_usta_dynamic_rating ?? null, teamA2.overall_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.overall_usta_dynamic_rating!, teamA2.overall_usta_dynamic_rating!]) : null,
+        singles: [teamA1.singles_usta_dynamic_rating ?? null, teamA2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.singles_usta_dynamic_rating!, teamA2.singles_usta_dynamic_rating!]) : null,
+        doubles: [teamA1.doubles_usta_dynamic_rating ?? null, teamA2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.doubles_usta_dynamic_rating!, teamA2.doubles_usta_dynamic_rating!]) : null,
+      },
+      rightUstaRatings: {
+        overall: [teamB1.overall_usta_dynamic_rating ?? null, teamB2.overall_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.overall_usta_dynamic_rating!, teamB2.overall_usta_dynamic_rating!]) : null,
+        singles: [teamB1.singles_usta_dynamic_rating ?? null, teamB2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.singles_usta_dynamic_rating!, teamB2.singles_usta_dynamic_rating!]) : null,
+        doubles: [teamB1.doubles_usta_dynamic_rating ?? null, teamB2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.doubles_usta_dynamic_rating!, teamB2.doubles_usta_dynamic_rating!]) : null,
+      },
       leftSelected: left,
       rightSelected: right,
       gap,
@@ -1088,7 +1189,24 @@ export default function MatchupPage() {
                 <span style={heroHintPill}>{capitalize(matchType)} mode</span>
                 <span style={heroHintPill}>{capitalize(ratingView)} display</span>
                 <span style={heroHintPill}>{capitalize(getEngineRatingView(matchType))} engine</span>
+                <CopyLinkButton />
               </div>
+
+              {!access.canUseAdvancedPlayerInsights ? (
+                <div style={{ marginTop: 18, maxWidth: 560 }}>
+                  <UpgradePrompt
+                    planId="player_plus"
+                    compact
+                    headline="Want clearer matchup answers before match day?"
+                    body="Unlock Player+ to go beyond raw comparison and use deeper projections, opponent context, and where-you-should-play guidance."
+                    ctaLabel="Unlock Player+"
+                    ctaHref="/pricing"
+                    secondaryLabel="See Player+ value"
+                    secondaryHref="/pricing"
+                    footnote="Best for players who want matchup comparisons to turn into better decisions, not just interesting numbers."
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div style={dynamicEngineCard}>
@@ -1188,36 +1306,51 @@ export default function MatchupPage() {
               />
             </div>
           ) : (
-            <div style={dynamicSelectorGrid}>
-              <SelectField
-                label="Team A · Player 1"
-                value={teamA1Id}
-                onChange={setTeamA1Id}
-                options={availableTeamA1}
-                disabled={loading}
-              />
-              <SelectField
-                label="Team A · Player 2"
-                value={teamA2Id}
-                onChange={setTeamA2Id}
-                options={availableTeamA2}
-                disabled={loading}
-              />
-              <SelectField
-                label="Team B · Player 1"
-                value={teamB1Id}
-                onChange={setTeamB1Id}
-                options={availableTeamB1}
-                disabled={loading}
-              />
-              <SelectField
-                label="Team B · Player 2"
-                value={teamB2Id}
-                onChange={setTeamB2Id}
-                options={availableTeamB2}
-                disabled={loading}
-              />
-            </div>
+            <>
+              <div style={dynamicSelectorGrid}>
+                <SelectField
+                  label="Team A · Player 1"
+                  value={teamA1Id}
+                  onChange={setTeamA1Id}
+                  options={availableTeamA1}
+                  disabled={loading}
+                />
+                <SelectField
+                  label="Team A · Player 2"
+                  value={teamA2Id}
+                  onChange={setTeamA2Id}
+                  options={availableTeamA2}
+                  disabled={loading}
+                />
+                <SelectField
+                  label="Team B · Player 1"
+                  value={teamB1Id}
+                  onChange={setTeamB1Id}
+                  options={availableTeamB1}
+                  disabled={loading}
+                />
+                <SelectField
+                  label="Team B · Player 2"
+                  value={teamB2Id}
+                  onChange={setTeamB2Id}
+                  options={availableTeamB2}
+                  disabled={loading}
+                />
+              </div>
+              {(teamA1Id || teamA2Id || teamB1Id || teamB2Id) ? (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                  <SwapSidesButton
+                    onClick={() => {
+                      const [a1, a2, b1, b2] = [teamA1Id, teamA2Id, teamB1Id, teamB2Id]
+                      setTeamA1Id(b1)
+                      setTeamA2Id(b2)
+                      setTeamB1Id(a1)
+                      setTeamB2Id(a2)
+                    }}
+                  />
+                </div>
+              ) : null}
+            </>
           )}
 
           {error ? (
@@ -1293,6 +1426,7 @@ export default function MatchupPage() {
                   title={comparison.leftLabel}
                   subtitle={comparison.leftLocation}
                   ratings={comparison.leftRatings}
+                  ustaRatings={comparison.leftUstaRatings}
                   projectionRating={comparison.leftSelected}
                   ratingView={ratingView}
                   projectionView={comparison.engineRatingView}
@@ -1315,6 +1449,7 @@ export default function MatchupPage() {
                   title={comparison.rightLabel}
                   subtitle={comparison.rightLocation}
                   ratings={comparison.rightRatings}
+                  ustaRatings={comparison.rightUstaRatings}
                   projectionRating={comparison.rightSelected}
                   ratingView={ratingView}
                   projectionView={comparison.engineRatingView}
@@ -1508,6 +1643,7 @@ function CompareCard({
   title,
   subtitle,
   ratings,
+  ustaRatings,
   projectionRating,
   ratingView,
   projectionView,
@@ -1518,6 +1654,7 @@ function CompareCard({
   title: string
   subtitle: string
   ratings: { overall: number | null; singles: number | null; doubles: number | null }
+  ustaRatings: { overall: number | null; singles: number | null; doubles: number | null }
   projectionRating: number | null
   ratingView: RatingView
   projectionView: RatingView
@@ -1545,10 +1682,18 @@ function CompareCard({
         ) : null}
       </div>
 
+      <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.04em' }}>TIQ DYNAMIC</div>
       <div style={dynamicRatingGrid}>
         <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} />
         <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} />
         <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} />
+      </div>
+
+      <div style={{ marginTop: 10, marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.04em' }}>USTA DYNAMIC</div>
+      <div style={dynamicRatingGrid}>
+        <RatingPill label="Overall" value={ustaRatings.overall} active={ratingView === 'overall'} />
+        <RatingPill label="Singles" value={ustaRatings.singles} active={ratingView === 'singles'} />
+        <RatingPill label="Doubles" value={ustaRatings.doubles} active={ratingView === 'doubles'} />
       </div>
 
       <div style={highlightBox}>
@@ -1598,6 +1743,75 @@ function MetricCard({
       <div style={metricValue}>{value}</div>
       {sub ? <div style={metricSub}>{sub}</div> : null}
     </div>
+  )
+}
+
+function CopyLinkButton() {
+  const [hovered, setHovered] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    void navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 14px',
+        borderRadius: '999px',
+        border: `1px solid ${copied ? 'rgba(155,225,29,0.35)' : hovered ? 'rgba(116,190,255,0.30)' : 'rgba(116,190,255,0.14)'}`,
+        background: copied ? 'rgba(155,225,29,0.08)' : hovered ? 'rgba(116,190,255,0.07)' : 'rgba(255,255,255,0.03)',
+        color: copied ? '#d8ffa8' : hovered ? '#cde1ff' : 'rgba(210,226,244,0.68)',
+        fontSize: '13px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        transition: 'all 160ms ease',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        whiteSpace: 'nowrap' as const,
+      }}
+    >
+      {copied ? '✓ Copied' : '⎘ Copy link'}
+    </button>
+  )
+}
+
+function SwapSidesButton({ onClick }: { onClick: () => void }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '7px',
+        padding: '10px 20px',
+        borderRadius: '999px',
+        border: `1px solid ${hovered ? 'rgba(155,225,29,0.38)' : 'rgba(116,190,255,0.18)'}`,
+        background: hovered ? 'rgba(155,225,29,0.08)' : 'rgba(255,255,255,0.04)',
+        color: hovered ? '#d8ffa8' : 'rgba(214,228,246,0.82)',
+        fontSize: '13px',
+        fontWeight: 800,
+        cursor: 'pointer',
+        transition: 'all 160ms ease',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        letterSpacing: '-0.01em',
+      }}
+    >
+      ↕ Swap sides
+    </button>
   )
 }
 
@@ -1761,22 +1975,6 @@ function formatPercent(value: number) {
 function formatNullablePercent(value: number | null) {
   if (value === null) return '—'
   return formatPercent(value)
-}
-
-function formatRating(value: number | null) {
-  if (!hasValidRating(value)) return '—'
-  return value.toFixed(2)
-}
-
-function formatDate(value: string) {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 const heroWrap: CSSProperties = {

@@ -1,11 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { getClientAuthState } from '@/lib/auth'
+import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { formatShortDate, uniqueSorted } from '@/lib/captain-formatters'
 
 type MatchRow = {
   id: string
@@ -72,18 +77,6 @@ function compareNullableDatesDesc(left: string | null, right: string | null) {
   return rightTime - leftTime
 }
 
-function formatMatchDate(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString()
-}
-
-function uniqueSorted(values: Array<string | null | undefined>) {
-  return Array.from(new Set(values.map((value) => cleanText(value) ?? '').filter(Boolean))).sort((a, b) =>
-    a.localeCompare(b),
-  )
-}
 
 function chunkArray<T>(rows: T[], size: number) {
   const chunks: T[][] = []
@@ -94,6 +87,8 @@ function chunkArray<T>(rows: T[], size: number) {
 }
 
 export default function TeamsPage() {
+  const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TeamDirectoryEntry[]>([])
@@ -104,9 +99,46 @@ export default function TeamsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('matches')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   useEffect(() => {
     void loadTeams()
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadAuth() {
+      try {
+        const authState = await getClientAuthState()
+        if (!active) return
+        setRole(authState.role)
+        setEntitlements(authState.entitlements)
+      } catch {
+        if (!active) return
+        setRole('public')
+        setEntitlements(null)
+      }
+    }
+
+    void loadAuth()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setSearch('')
+        setLeagueFilter('')
+        setFlightFilter('')
+        setSortBy('matches')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   async function loadTeams() {
@@ -363,6 +395,35 @@ export default function TeamsPage() {
                 <StatPill label="Flights" value={String(totals.flights)} />
                 <StatPill label="Players" value={String(totals.players)} />
               </div>
+
+              {(!access.canUseCaptainWorkflow || !access.canUseLeagueTools) ? (
+                <div style={{ marginTop: 18, display: 'grid', gap: 14 }}>
+                  {!access.canUseCaptainWorkflow ? (
+                    <UpgradePrompt
+                      planId="captain"
+                      compact
+                      headline="Need team context to turn into smarter lineups?"
+                      body="Unlock Captain to move from the team directory into availability, lineup building, messaging, and weekly execution without guesswork."
+                      ctaLabel="Unlock Captain Tools"
+                      ctaHref="/pricing"
+                      secondaryLabel="See Captain value"
+                      secondaryHref="/pricing"
+                    />
+                  ) : null}
+                  {!access.canUseLeagueTools ? (
+                    <UpgradePrompt
+                      planId="league"
+                      compact
+                      headline="Organizing team seasons outside the app?"
+                      body="League tools give you one place for scheduling, standings, structure, and league-wide coordination instead of spreadsheet cleanup."
+                      ctaLabel="Run Your League on TIQ"
+                      ctaHref="/pricing"
+                      secondaryLabel="See league plan"
+                      secondaryHref="/pricing"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         </section>
@@ -428,7 +489,11 @@ export default function TeamsPage() {
                     setLeagueFilter(event.target.value)
                     setFlightFilter('')
                   }}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    borderColor: leagueFilter ? 'rgba(155,225,29,0.42)' : undefined,
+                    boxShadow: leagueFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                  }}
                 >
                   <option value="">All leagues</option>
                   {leagueOptions.map((option) => (
@@ -441,7 +506,15 @@ export default function TeamsPage() {
 
               <div>
                 <label style={labelStyle}>Flight</label>
-                <select value={flightFilter} onChange={(event) => setFlightFilter(event.target.value)} style={inputStyle}>
+                <select
+                  value={flightFilter}
+                  onChange={(event) => setFlightFilter(event.target.value)}
+                  style={{
+                    ...inputStyle,
+                    borderColor: flightFilter ? 'rgba(155,225,29,0.42)' : undefined,
+                    boxShadow: flightFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                  }}
+                >
                   <option value="">All flights</option>
                   {flightOptions.map((option) => (
                     <option key={option} value={option}>
@@ -453,7 +526,15 @@ export default function TeamsPage() {
 
               <div>
                 <label style={labelStyle}>Sort</label>
-                <select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortKey)} style={inputStyle}>
+                <select
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as SortKey)}
+                  style={{
+                    ...inputStyle,
+                    borderColor: sortBy !== 'matches' ? 'rgba(155,225,29,0.42)' : undefined,
+                    boxShadow: sortBy !== 'matches' ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                  }}
+                >
                   <option value="matches">Most matches</option>
                   <option value="players">Most players</option>
                   <option value="recent">Most recent</option>
@@ -481,26 +562,21 @@ export default function TeamsPage() {
 
           {loading ? (
             <section style={surfaceCard}>
+              <div style={sectionKicker}>Directory loading</div>
               <div style={emptyTitle}>Loading teams...</div>
               <p style={emptyText}>Building the directory from valid match rows only.</p>
             </section>
           ) : error ? (
             <section style={surfaceCard}>
+              <div style={sectionKicker}>Directory error</div>
               <div style={errorTitle}>Unable to load teams</div>
               <p style={emptyText}>{error}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  void loadTeams()
-                }}
-                style={ghostButton}
-              >
-                Retry team load
-              </button>
+              <GhostBtn onClick={() => { void loadTeams() }}>Retry team load</GhostBtn>
             </section>
           ) : filteredRows.length === 0 ? (
             <section style={surfaceCard}>
-              <div style={emptyTitle}>No teams found</div>
+              <div style={sectionKicker}>Directory reset</div>
+              <div style={emptyTitle}>Teams are not available yet</div>
               <p style={emptyText}>
                 Try widening your filters, clearing the search box, or importing more season data if this league and flight should already exist.
               </p>
@@ -517,30 +593,7 @@ export default function TeamsPage() {
                 }
 
                 return (
-                  <Link key={row.key} href={teamHref} style={teamCardLink}>
-                    <article style={teamCard}>
-                      <div style={teamCardTop}>
-                        <div>
-                          <div style={teamName}>{row.team}</div>
-
-                          {(row.league || row.flight) ? (
-                            <div style={metaRow}>
-                              {row.league ? <span style={metaPillBlue}>{row.league}</span> : null}
-                              {row.flight ? <span style={metaPillGreen}>{row.flight}</span> : null}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <span style={viewPill}>View team</span>
-                      </div>
-
-                      <div style={metricsGrid}>
-                        <Metric label="Matches" value={String(row.matchCount)} />
-                        <Metric label="Players" value={String(row.playerIds.size)} />
-                        <Metric label="Last match" value={formatMatchDate(row.mostRecentMatchDate)} />
-                      </div>
-                    </article>
-                  </Link>
+                  <TeamCard key={row.key} href={teamHref} row={row} />
                 )
               })}
             </section>
@@ -551,6 +604,59 @@ export default function TeamsPage() {
         <AdsenseSlot slot={TEAMS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
       </div>
     </SiteShell>
+  )
+}
+
+function TeamCard({ href, row }: { href: object; row: TeamDirectoryEntry }) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <Link
+      href={href as Parameters<typeof Link>[0]['href']}
+      style={teamCardLink}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <article
+        style={{
+          ...teamCard,
+          transform: hovered ? 'translateY(-3px)' : 'none',
+          borderColor: hovered ? 'rgba(116,190,255,0.34)' : 'rgba(116,190,255,0.14)',
+          boxShadow: hovered
+            ? '0 28px 70px rgba(0,0,0,0.32), 0 0 0 1px rgba(116,190,255,0.12)'
+            : '0 20px 55px rgba(0,0,0,0.22)',
+        }}
+      >
+        <div style={teamCardTop}>
+          <div>
+            <div style={teamName}>{row.team}</div>
+
+            {(row.league || row.flight) ? (
+              <div style={metaRow}>
+                {row.league ? <span style={metaPillBlue}>{row.league}</span> : null}
+                {row.flight ? <span style={metaPillGreen}>{row.flight}</span> : null}
+              </div>
+            ) : null}
+          </div>
+
+          <span
+            style={{
+              ...viewPill,
+              borderColor: hovered ? 'rgba(116,190,255,0.30)' : 'rgba(116,190,255,0.14)',
+              color: hovered ? '#e8f2ff' : '#d6e5f5',
+            }}
+          >
+            View team
+          </span>
+        </div>
+
+        <div style={metricsGrid}>
+          <Metric label="Matches" value={String(row.matchCount)} />
+          <Metric label="Players" value={String(row.playerIds.size)} />
+          <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '—')} />
+        </div>
+      </article>
+    </Link>
   )
 }
 
@@ -762,6 +868,21 @@ const ghostButton: CSSProperties = {
   fontWeight: 800,
   fontSize: '13px',
   cursor: 'pointer',
+}
+
+function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ ...ghostButton, ...(hovered ? { background: 'rgba(255,255,255,0.12)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
 }
 
 const filtersGrid = (isMobile: boolean): CSSProperties => ({

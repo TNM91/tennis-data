@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useTheme } from '@/app/components/theme-provider'
 
 type BrandWordmarkProps = {
   compact?: boolean
@@ -13,87 +14,36 @@ export default function BrandWordmark({
   footer = false,
   top = false,
 }: BrandWordmarkProps) {
-  const isHeader = top
-  const isFooter = footer
-
-  const iconSize = isHeader ? (compact ? 52 : 58) : isFooter ? 48 : compact ? 42 : 46
-  const fontSize = isHeader ? (compact ? 28 : 32) : isFooter ? 27 : compact ? 22 : 24
-  const gap = isHeader ? (compact ? 6 : 7) : isFooter ? 6 : 5
+  const { theme } = useTheme()
+  const width = compact ? 176 : top ? 276 : footer ? 288 : 236
+  const height = compact ? 30 : top ? 46 : footer ? 48 : 40
+  const logoSrc = theme === 'dark' ? '/logo-header-dark.svg' : '/logo-header-light.svg'
 
   return (
-    <div
+    <span
       style={{
+        position: 'relative',
         display: 'inline-flex',
-        alignItems: 'center',
-        gap: `${gap}px`,
-        lineHeight: 1,
+        width: `${width}px`,
+        height: `${height}px`,
+        flexShrink: 0,
         minWidth: 0,
-        overflow: 'visible',
-        whiteSpace: 'nowrap',
       }}
     >
-      <span
+      <Image
+        src={logoSrc}
+        alt="TenAceIQ"
+        fill
+        priority={top}
+        sizes={`${width}px`}
         style={{
-          width: `${iconSize}px`,
-          height: `${iconSize}px`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          transform: isHeader ? 'translateY(0.5px)' : 'translateY(0.25px)',
-          overflow: 'visible',
+          objectFit: 'contain',
+          objectPosition: 'left center',
+          filter: footer
+            ? 'drop-shadow(0 6px 14px rgba(5, 14, 30, 0.08))'
+            : 'drop-shadow(0 6px 16px rgba(5, 14, 30, 0.10))',
         }}
-      >
-        <Image
-          src="/logo-icon.png"
-          alt="TenAceIQ"
-          width={iconSize}
-          height={iconSize}
-          priority={top}
-          style={{
-            width: `${iconSize}px`,
-            height: `${iconSize}px`,
-            objectFit: 'contain',
-            objectPosition: 'center',
-            display: 'block',
-            flexShrink: 0,
-            filter: isHeader
-              ? 'drop-shadow(0 10px 22px rgba(37,91,227,0.16))'
-              : isFooter
-                ? 'drop-shadow(0 8px 16px rgba(8,17,29,0.14))'
-                : 'drop-shadow(0 8px 16px rgba(37,91,227,0.10))',
-          }}
-        />
-      </span>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          minWidth: 0,
-          fontWeight: 900,
-          fontSize: `${fontSize}px`,
-          letterSpacing: isHeader ? '-0.055em' : '-0.05em',
-          lineHeight: 0.92,
-          whiteSpace: 'nowrap',
-          paddingRight: '2px',
-          textRendering: 'geometricPrecision',
-        }}
-      >
-        <span style={{ color: isFooter ? '#FFFFFF' : '#F8FBFF' }}>TenAce</span>
-        <span
-          style={{
-            marginLeft: isHeader ? '1.5px' : '1px',
-            background: 'linear-gradient(135deg, #9BE11D 0%, #7ED321 45%, #C7F36B 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            filter: isFooter ? 'brightness(1.03)' : 'none',
-          }}
-        >
-          IQ
-        </span>
-      </div>
-    </div>
+      />
+    </span>
   )
 }

@@ -435,9 +435,9 @@ export default function ManageMatchesPage() {
                   onClick={() => void loadMatches(true)}
                   className="button-ghost"
                   style={{
-                    background: 'rgba(15,23,42,0.24)',
-                    color: '#dbeafe',
-                    border: '1px solid rgba(116,190,255,0.12)',
+                    background: 'var(--shell-chip-bg)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--shell-panel-border)',
                     opacity: refreshing ? 0.7 : 1,
                     cursor: refreshing ? 'not-allowed' : 'pointer',
                   }}
@@ -464,9 +464,9 @@ export default function ManageMatchesPage() {
                     onClick={resetFilters}
                     className="button-ghost"
                     style={{
-                      background: 'rgba(15,23,42,0.24)',
-                      color: '#dbeafe',
-                      border: '1px solid rgba(148,163,184,0.18)',
+                      background: 'var(--shell-chip-bg)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--shell-panel-border)',
                     }}
                     disabled={loading || refreshing}
                   >
@@ -489,9 +489,9 @@ export default function ManageMatchesPage() {
                   href="/admin/manage-matches"
                   className="button-ghost"
                   style={{
-                    background: 'rgba(15,23,42,0.24)',
-                    color: '#dbeafe',
-                    border: '1px solid rgba(116,190,255,0.12)',
+                    background: 'var(--shell-chip-bg)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--shell-panel-border)',
                     textDecoration: 'none',
                   }}
                 >
@@ -501,9 +501,9 @@ export default function ManageMatchesPage() {
                   href={`/admin/missing-scorecards?search=${encodeURIComponent(searchParam)}`}
                   className="button-ghost"
                   style={{
-                    background: 'rgba(15,23,42,0.24)',
-                    color: '#dbeafe',
-                    border: '1px solid rgba(116,190,255,0.12)',
+                    background: 'var(--shell-chip-bg)',
+                    color: 'var(--foreground)',
+                    border: '1px solid var(--shell-panel-border)',
                     textDecoration: 'none',
                   }}
                 >
@@ -539,7 +539,7 @@ export default function ManageMatchesPage() {
                   width: '100%',
                   justifyContent: 'flex-start',
                   padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.12)',
+                  background: 'rgba(220,38,38,0.10)',
                   color: '#fca5a5',
                   border: '1px solid rgba(220,38,38,0.18)',
                 }}
@@ -551,9 +551,9 @@ export default function ManageMatchesPage() {
                     onClick={() => void loadMatches(true)}
                     className="button-ghost"
                     style={{
-                      background: 'rgba(15,23,42,0.24)',
-                      color: '#dbeafe',
-                      border: '1px solid rgba(116,190,255,0.12)',
+                      background: 'var(--shell-chip-bg)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--shell-panel-border)',
                     }}
                   >
                     Retry match load
@@ -585,8 +585,8 @@ export default function ManageMatchesPage() {
                 style={{
                   marginTop: 20,
                   borderRadius: 20,
-                  border: '1px solid rgba(148,163,184,0.16)',
-                  background: 'rgba(15,23,42,0.28)',
+                  border: '1px solid var(--shell-panel-border)',
+                  background: 'var(--shell-chip-bg)',
                   padding: '18px 20px',
                 }}
               >
@@ -605,9 +605,9 @@ export default function ManageMatchesPage() {
                     className="button-ghost"
                     style={{
                       marginTop: 12,
-                      background: 'rgba(15,23,42,0.24)',
-                      color: '#dbeafe',
-                      border: '1px solid rgba(116,190,255,0.12)',
+                      background: 'var(--shell-chip-bg)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--shell-panel-border)',
                     }}
                   >
                     Reset Filters

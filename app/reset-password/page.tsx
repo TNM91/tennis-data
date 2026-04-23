@@ -145,7 +145,7 @@ export default function ResetPasswordPage() {
                 <div style={logoOrbMiddle} />
                 <div style={logoOrbInner}>
                   <Image
-                    src="/logo-icon.png"
+                    src="/logo-icon-current.png"
                     alt="TenAceIQ"
                     width={124}
                     height={124}

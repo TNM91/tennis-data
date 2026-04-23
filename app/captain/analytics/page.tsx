@@ -3,13 +3,16 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
-import { uniqueSorted } from '@/lib/captain-formatters'
-import { isCaptain, type UserRole } from '@/lib/roles'
+import { formatDate, uniqueSorted } from '@/lib/captain-formatters'
+import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
@@ -21,10 +24,13 @@ type PlayerRow = {
   lineup_notes: string | null
   singles_rating: number | null
   singles_dynamic_rating: number | null
+  singles_usta_dynamic_rating: number | null
   doubles_rating: number | null
   doubles_dynamic_rating: number | null
+  doubles_usta_dynamic_rating: number | null
   overall_rating: number | null
   overall_dynamic_rating: number | null
+  overall_usta_dynamic_rating: number | null
 }
 
 type AvailabilityRow = {
@@ -112,12 +118,6 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString()
-}
 
 function cleanText(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
@@ -267,6 +267,7 @@ function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlo
 function readInitialCaptainAnalyticsContext() {
   if (typeof window === 'undefined') {
     return {
+      competitionLayer: '',
       leagueName: '',
       flight: '',
       teamName: '',
@@ -279,6 +280,7 @@ function readInitialCaptainAnalyticsContext() {
   const resumeState = readCaptainResumeState()
 
   return {
+    competitionLayer: params.get('layer') ?? resumeState?.competitionLayer ?? '',
     leagueName: params.get('league') ?? resumeState?.league ?? '',
     flight: params.get('flight') ?? resumeState?.flight ?? '',
     teamName: params.get('team') ?? resumeState?.team ?? '',
@@ -297,6 +299,7 @@ export default function LineupBuilderPage() {
   const [saving, setSaving] = useState(false)
   const [authLoading, setAuthLoading] = useState(true)
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
   const [currentScenarioId, setCurrentScenarioId] = useState('')
@@ -304,6 +307,7 @@ export default function LineupBuilderPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
+  const [competitionLayer] = useState(initialCaptainContext.competitionLayer)
   const [leagueName, setLeagueName] = useState(initialCaptainContext.leagueName)
   const [flight, setFlight] = useState(initialCaptainContext.flight)
   const [teamName, setTeamName] = useState(initialCaptainContext.teamName)
@@ -319,7 +323,8 @@ export default function LineupBuilderPage() {
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const isCaptainAccess = isCaptain(role)
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const isCaptainAccess = access.canUseCaptainWorkflow
   const isMemberPreview = !authLoading && role === 'member'
 
   useEffect(() => {
@@ -330,6 +335,7 @@ export default function LineupBuilderPage() {
       if (!mounted) return
 
       setRole(authState.role)
+      setEntitlements(authState.entitlements)
       setAuthLoading(false)
 
       if (authState.role === 'public' && typeof window !== 'undefined') {
@@ -354,6 +360,7 @@ export default function LineupBuilderPage() {
 
   useEffect(() => {
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: teamName || undefined,
       league: leagueName || undefined,
       flight: flight || undefined,
@@ -362,7 +369,7 @@ export default function LineupBuilderPage() {
       lastTool: 'analytics',
       lastToolLabel: 'Captain IQ',
     })
-  }, [teamName, leagueName, flight, matchDate, opponentTeam])
+  }, [competitionLayer, teamName, leagueName, flight, matchDate, opponentTeam])
 
   const refreshAnalyticsData = useCallback(async () => {
     setLoading(true)
@@ -381,10 +388,13 @@ export default function LineupBuilderPage() {
           lineup_notes,
           singles_rating,
           singles_dynamic_rating,
+          singles_usta_dynamic_rating,
           doubles_rating,
           doubles_dynamic_rating,
+          doubles_usta_dynamic_rating,
           overall_rating,
-          overall_dynamic_rating
+          overall_dynamic_rating,
+          overall_usta_dynamic_rating
         `)
         .order('name', { ascending: true }),
       supabase
@@ -453,10 +463,13 @@ export default function LineupBuilderPage() {
             lineup_notes,
             singles_rating,
             singles_dynamic_rating,
+            singles_usta_dynamic_rating,
             doubles_rating,
             doubles_dynamic_rating,
+            doubles_usta_dynamic_rating,
             overall_rating,
-            overall_dynamic_rating
+            overall_dynamic_rating,
+            overall_usta_dynamic_rating
           `)
           .order('name', { ascending: true }),
         supabase
@@ -615,12 +628,12 @@ export default function LineupBuilderPage() {
     const overall = player.overall_dynamic_rating ?? player.overall_rating
     const singles = player.singles_dynamic_rating
     const doubles = player.doubles_dynamic_rating
-    const status = player.availabilityStatus ? ` • ${player.availabilityStatus}` : ''
+    const status = player.availabilityStatus ? ` - ${player.availabilityStatus}` : ''
 
     return `${player.name}${
-      overall !== null ? ` • OVR ${overall.toFixed(2)}` : ''
-    }${singles !== null ? ` • S ${singles.toFixed(2)}` : ''}${
-      doubles !== null ? ` • D ${doubles.toFixed(2)}` : ''
+      overall !== null ? ` - OVR ${overall.toFixed(2)}` : ''
+    }${singles !== null ? ` - S ${singles.toFixed(2)}` : ''}${
+      doubles !== null ? ` - D ${doubles.toFixed(2)}` : ''
     }${status}`
   }
 
@@ -904,6 +917,47 @@ export default function LineupBuilderPage() {
     return scored[0] ?? null
   }, [analysis.lines])
 
+  const analyticsSignals = useMemo(
+    () => [
+      {
+        label: 'Comparison scope',
+        value:
+          teamName && opponentTeam
+            ? `${teamName} vs ${opponentTeam}`
+            : leagueName
+              ? `${leagueName}${flight ? ` - ${flight}` : ''}`
+              : 'Set match context',
+        note: currentScenario
+          ? 'Loaded scenario is ready to refine or compare.'
+          : 'Start by naming the version and setting the match frame.',
+      },
+      {
+        label: 'Leverage line',
+        value:
+          bestLine && typeof bestLine.diff === 'number'
+            ? `${bestLine.label} ${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}`
+            : 'No line edge yet',
+        note: bestLine
+          ? 'Current strongest edge based on selected dynamic ratings.'
+          : 'Add players to both sides to reveal line-by-line leverage.',
+      },
+      {
+        label: 'Best next move',
+        value: !scenarioName.trim()
+          ? 'Name the scenario'
+          : !teamName || !opponentTeam
+            ? 'Finish match context'
+            : analysis.lines.some((line) => typeof line.diff === 'number')
+              ? 'Compare or save this version'
+              : 'Build both sides',
+        note: weakestLine
+          ? `Keep an eye on ${weakestLine.label} before you lock the scenario.`
+          : 'Use opponent slots to pressure-test the full lineup.',
+      },
+    ],
+    [analysis.lines, bestLine, currentScenario, flight, leagueName, opponentTeam, scenarioName, teamName, weakestLine]
+  )
+
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
@@ -923,6 +977,20 @@ export default function LineupBuilderPage() {
           </section>
         ) : null}
 
+        {!isCaptainAccess && !authLoading ? (
+          <UpgradePrompt
+            planId="captain"
+            compact
+            headline="Still guessing which lineup gives you the best chance?"
+            body="Unlock Captain to compare scenarios faster, spot stronger combinations, and save the versions you actually want to use on match day."
+            ctaLabel="Build Smarter Lineups"
+            ctaHref="/pricing"
+            secondaryLabel="See Captain plan"
+            secondaryHref="/pricing"
+            footnote="Best for captains who want clearer lineup decisions, less second-guessing, and better match-day prep."
+          />
+        ) : null}
+
         <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
@@ -932,18 +1000,24 @@ export default function LineupBuilderPage() {
           </p>
 
           <div style={heroButtonRowStyle}>
-            <Link href={compareHref} style={primaryButton}>
-              Compare Saved Scenarios
-            </Link>
-            <button type="button" onClick={resetBuilder} style={ghostButton}>
-              Reset Builder
-            </button>
+            <PrimaryLink href={compareHref}>Compare Saved Scenarios</PrimaryLink>
+            <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
           </div>
 
           <div style={heroMetricGridStyle(isSmallMobile)}>
             <MetricStat label="Scenario Mode" value={currentScenarioId ? 'Editing saved scenario' : 'New scenario'} />
             <MetricStat label="Player Pool" value={`${availablePlayerPool.length} available`} />
             <MetricStat label="Saved Versions" value={`${scenarioOptions.length} scenarios`} />
+          </div>
+
+          <div style={signalGridStyle(isSmallMobile)}>
+            {analyticsSignals.map((signal) => (
+              <div key={signal.label} style={signalCardStyle}>
+                <div style={signalLabelStyle}>{signal.label}</div>
+                <div style={signalValueStyle}>{signal.value}</div>
+                <div style={signalNoteStyle}>{signal.note}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -991,7 +1065,7 @@ export default function LineupBuilderPage() {
                   <div style={bannerTitleStyle}>Editing saved scenario: {currentScenario.scenario_name}</div>
                   <div style={bannerMetaStyle}>
                     {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
-                    {currentScenario.match_date ? ` • ${formatDate(currentScenario.match_date)}` : ''}
+                    {currentScenario.match_date ? ` - ${formatDate(currentScenario.match_date)}` : ''}
                   </div>
                 </div>
               ) : (
@@ -1058,16 +1132,14 @@ export default function LineupBuilderPage() {
               </div>
 
               <div style={actionRowStyle}>
-                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving || !isCaptainAccess}>
+                <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving || !isCaptainAccess}>
                   {saving ? 'Saving...' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
-                </button>
-                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving || !isCaptainAccess}>
-                  Save as New
-                </button>
-                <Link href={compareHref} style={secondaryLinkButton}>Open Comparison</Link>
-                <button type="button" onClick={() => void refreshAnalyticsData()} style={ghostButton} disabled={loading}>
+                </PrimaryBtn>
+                <GhostBtn onClick={() => saveScenario(true)} disabled={saving || !isCaptainAccess}>Save as New</GhostBtn>
+                <SecondaryLink href={compareHref}>Open Comparison</SecondaryLink>
+                <GhostBtn onClick={() => void refreshAnalyticsData()} disabled={loading}>
                   {loading ? 'Refreshing...' : 'Refresh Data'}
-                </button>
+                </GhostBtn>
               </div>
 
               {currentScenarioId ? <p style={infoTextStyle}>Loaded scenario is ready for update and comparison.</p> : null}
@@ -1106,8 +1178,8 @@ export default function LineupBuilderPage() {
                 </div>
 
                 <div style={miniActionRowStyle}>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'singles')}>+ Singles Slot</button>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('team', 'doubles')}>+ Doubles Slot</button>
+                  <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles Slot</GhostSmallBtn>
+                  <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles Slot</GhostSmallBtn>
                 </div>
               </div>
 
@@ -1137,8 +1209,8 @@ export default function LineupBuilderPage() {
                 </div>
 
                 <div style={miniActionRowStyle}>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'singles')}>+ Singles Slot</button>
-                  <button type="button" style={ghostButtonSmall} onClick={() => addSlot('opponent', 'doubles')}>+ Doubles Slot</button>
+                  <GhostSmallBtn onClick={() => addSlot('opponent', 'singles')}>+ Singles Slot</GhostSmallBtn>
+                  <GhostSmallBtn onClick={() => addSlot('opponent', 'doubles')}>+ Doubles Slot</GhostSmallBtn>
                 </div>
               </div>
 
@@ -1238,8 +1310,8 @@ export default function LineupBuilderPage() {
                             <div style={playerNameStyle}>{player.name}</div>
                             <div style={playerMetaStyle}>
                               {player.preferred_role || 'No role set'}
-                              {player.location ? ` • ${player.location}` : ''}
-                              {player.flight ? ` • ${player.flight}` : ''}
+                              {player.location ? ` - ${player.location}` : ''}
+                              {player.flight ? ` - ${player.flight}` : ''}
                             </div>
                           </div>
 
@@ -1249,7 +1321,8 @@ export default function LineupBuilderPage() {
                         </div>
 
                         <div style={pillRowStyle}>
-                          <span style={miniPillStyle}>OVR {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>TIQ {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>USTA {(player.overall_usta_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
                           <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}</span>
                           <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}</span>
                           {assigned ? <span style={assignedPillStyle}>Assigned</span> : null}
@@ -1293,8 +1366,8 @@ export default function LineupBuilderPage() {
                             </div>
                             <div style={savedScenarioMetaStyle}>
                               {scenario.league_name || '—'}
-                              {scenario.flight ? ` • ${scenario.flight}` : ''}
-                              {scenario.match_date ? ` • ${formatDate(scenario.match_date)}` : ''}
+                              {scenario.flight ? ` - ${scenario.flight}` : ''}
+                              {scenario.match_date ? ` - ${formatDate(scenario.match_date)}` : ''}
                             </div>
                             {isCurrent ? (
                               <div style={{ marginTop: 8 }}>
@@ -1304,13 +1377,12 @@ export default function LineupBuilderPage() {
                           </div>
 
                           <div style={savedScenarioActionsStyle}>
-                            <button type="button" style={ghostButtonSmall} onClick={() => loadScenario(scenario.id)} disabled={isLoading || isDeleting}>
+                            <GhostSmallBtn onClick={() => loadScenario(scenario.id)} disabled={isLoading || isDeleting}>
                               {isLoading ? 'Loading...' : 'Load'}
-                            </button>
-
-                            <button type="button" onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading || !isCaptainAccess} style={dangerButtonStyle}>
+                            </GhostSmallBtn>
+                            <DangerBtn onClick={() => deleteScenario(scenario.id)} disabled={isDeleting || isLoading || !isCaptainAccess}>
                               {isDeleting ? 'Deleting...' : 'Delete'}
-                            </button>
+                            </DangerBtn>
                           </div>
                         </div>
 
@@ -1324,6 +1396,13 @@ export default function LineupBuilderPage() {
           </div>
         </div>
       </section>
+
+        <CaptainSubnav
+          title="Analytics inside the captain command center"
+          description="Move between matchup planning, availability, lineups, scenarios, and messaging without losing the team context you've built."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
 
       </div>
     </SiteShell>
@@ -1368,9 +1447,7 @@ function SlotEditor({
           </span>
         </div>
 
-        <button type="button" onClick={() => removeSlot(side, slot.id)} style={dangerButtonStyle}>
-          Remove
-        </button>
+        <DangerBtn onClick={() => removeSlot(side, slot.id)}>Remove</DangerBtn>
       </div>
 
       <div style={slotPlayersGridStyle}>
@@ -1393,7 +1470,7 @@ function SlotEditor({
                 return (
                   <option key={player.id} value={player.id} disabled={isTakenElsewhere}>
                     {playerLabel(player)}
-                    {isTakenElsewhere ? ' • already assigned' : ''}
+                    {isTakenElsewhere ? ' - already assigned' : ''}
                   </option>
                 )
               })}
@@ -1486,23 +1563,23 @@ const heroShell: CSSProperties = {
   margin: '0 auto 18px',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background: 'linear-gradient(135deg, rgba(7,29,61,0.96), rgba(7,20,39,0.96) 56%, rgba(18,58,50,0.9) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 34px 80px rgba(0,0,0,0.16)',
 }
 
 const heroTextStyle: CSSProperties = {
   marginTop: 16,
   marginBottom: 0,
   maxWidth: 820,
-  color: 'rgba(255,255,255,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.72,
 }
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
-  color: '#f7fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -1526,12 +1603,52 @@ const heroMetricGridBaseStyle: CSSProperties = {
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: '22px',
   padding: '16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+function signalGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    marginTop: 16,
+    display: 'grid',
+    gap: '12px',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '20px',
+  padding: '16px 18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '0.72rem',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '0.45rem',
+  color: 'var(--foreground)',
+  fontSize: '1rem',
+  fontWeight: 800,
+  lineHeight: 1.35,
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '0.45rem',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '0.88rem',
+  lineHeight: 1.5,
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
@@ -1546,8 +1663,8 @@ const metricValueStyle: CSSProperties = {
 
 const quickStartCard: CSSProperties = {
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'linear-gradient(180deg, rgba(37,56,84,0.88), rgba(21,37,64,0.88))',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: '20px',
 }
 
@@ -1556,7 +1673,7 @@ const quickStartTitle: CSSProperties = {
   marginBottom: 14,
   fontSize: '1.35rem',
   lineHeight: 1.14,
-  color: '#ffffff',
+  color: 'var(--foreground)',
 }
 
 const workflowListStyle: CSSProperties = {
@@ -1586,12 +1703,12 @@ const workflowNumberStyle: CSSProperties = {
 
 const workflowTitleStyle: CSSProperties = {
   fontWeight: 700,
-  color: '#ffffff',
+  color: 'var(--foreground)',
   marginBottom: 4,
 }
 
 const workflowTextStyle: CSSProperties = {
-  color: 'rgba(255,255,255,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.55,
   fontSize: '.95rem',
 }
@@ -1618,18 +1735,17 @@ const columnStyle: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.14)',
 }
 
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -1652,7 +1768,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -1661,7 +1777,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
 }
 
@@ -1677,9 +1793,9 @@ const bannerSlateStyle: CSSProperties = {
   marginBottom: '16px',
   padding: '14px 16px',
   borderRadius: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  color: '#dbeafe',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontWeight: 700,
 }
 
@@ -1690,7 +1806,7 @@ const bannerTitleStyle: CSSProperties = {
 }
 
 const bannerMetaStyle: CSSProperties = {
-  color: '#cbd5e1',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
 }
 
@@ -1713,19 +1829,19 @@ const toggleCardStyle: CSSProperties = {
   gap: '14px',
   padding: '14px 16px',
   borderRadius: '16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  color: '#e7eefb',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
 }
 
 const toggleTitleStyle: CSSProperties = {
   fontWeight: 800,
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   marginBottom: 4,
 }
 
 const toggleTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
   fontSize: '.94rem',
 }
@@ -1747,14 +1863,14 @@ const readinessGridStyle: CSSProperties = {
 const readinessCardStyle: CSSProperties = {
   borderRadius: '16px',
   padding: '14px 16px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '6px',
 }
 
 const readinessValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontSize: '20px',
   lineHeight: 1.1,
   fontWeight: 900,
@@ -1791,9 +1907,9 @@ const ghostButton: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'rgba(14, 27, 49, 0.9)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
   cursor: 'pointer',
 }
 
@@ -1811,9 +1927,9 @@ const inputStyle: CSSProperties = {
   width: '100%',
   height: '48px',
   borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '0 14px',
   fontSize: '14px',
   outline: 'none',
@@ -2140,5 +2256,118 @@ const dangerButtonStyle: CSSProperties = {
   border: '1px solid rgba(255, 93, 93, 0.18)',
   fontWeight: 700,
   cursor: 'pointer',
+}
+
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 22px 40px rgba(39,205,110,0.30)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButton, cursor: disabled ? 'not-allowed' : 'pointer', ...(hovered && !disabled ? { background: 'rgba(30,50,80,0.95)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}), ...(disabled ? { opacity: 0.55 } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+
+function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButtonSmall, cursor: disabled ? 'not-allowed' : 'pointer', ...(hovered && !disabled ? { background: 'rgba(30,50,80,0.95)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,10,24,0.28)' } : {}), ...(disabled ? { opacity: 0.55 } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...secondaryLinkButton, ...(hovered ? { background: 'rgba(30,50,80,0.95)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function DangerBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...dangerButtonStyle, ...(hovered && !disabled ? { background: 'rgba(80,20,24,0.90)', transform: 'translateY(-2px)', boxShadow: '0 4px 14px rgba(255,93,93,0.22)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PrimaryBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButton,
+        border: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled ? '0 22px 40px rgba(39,205,110,0.30)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
 }
 

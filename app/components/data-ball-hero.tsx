@@ -276,7 +276,7 @@ export default function DataBallHero() {
           />
 
           <Image
-            src="/logo-icon.png"
+            src="/logo-icon-current.png"
             alt="TenAceIQ Data Ball"
             width={ballSize}
             height={ballSize}

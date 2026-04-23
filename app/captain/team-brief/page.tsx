@@ -3,7 +3,9 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
@@ -16,7 +18,9 @@ import {
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { formatWeekdayDate as formatDate } from '@/lib/captain-formatters'
 
 type MatchRow = {
   id: string
@@ -65,16 +69,6 @@ function safeKey(...parts: Array<string | null | undefined>) {
   return parts.map((part) => (part || '').trim().toLowerCase() || '—').join('|')
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return 'Not scheduled'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return 'Not updated'
@@ -102,13 +96,14 @@ function readLocalArray<T>(key: string): T[] {
 
 function readInitialContext() {
   if (typeof window === 'undefined') {
-    return { team: '', league: '', flight: '', eventDate: '', opponentTeam: '' }
+    return { competitionLayer: '', team: '', league: '', flight: '', eventDate: '', opponentTeam: '' }
   }
 
   const params = new URLSearchParams(window.location.search)
   const resumeState = readCaptainResumeState()
 
   return {
+    competitionLayer: params.get('layer') ?? resumeState?.competitionLayer ?? '',
     team: params.get('team') ?? resumeState?.team ?? '',
     league: params.get('league') ?? resumeState?.league ?? '',
     flight: params.get('flight') ?? resumeState?.flight ?? '',
@@ -122,6 +117,7 @@ export default function CaptainTeamBriefPage() {
   const initialContext = readInitialContext()
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -134,6 +130,7 @@ export default function CaptainTeamBriefPage() {
     status: 'draft-lineup',
   })
 
+  const [competitionLayer] = useState(initialContext.competitionLayer)
   const [team] = useState(initialContext.team)
   const [league] = useState(initialContext.league)
   const [flight] = useState(initialContext.flight)
@@ -149,6 +146,7 @@ export default function CaptainTeamBriefPage() {
       if (!mounted) return
 
       setRole(authState.role)
+      setEntitlements(authState.entitlements)
       setAuthLoading(false)
 
       if (authState.role === 'public' && typeof window !== 'undefined') {
@@ -228,6 +226,8 @@ export default function CaptainTeamBriefPage() {
     }
   }, [authLoading, eventDate, flight, league, opponentTeam, role, team])
 
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+
   const currentMatch = useMemo(
     () =>
       matches.find((match) => safeText(match.match_date).slice(0, 10) === safeText(eventDate).slice(0, 10)) ??
@@ -263,6 +263,7 @@ export default function CaptainTeamBriefPage() {
   useEffect(() => {
     if (!team && !league && !flight) return
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: team || undefined,
       league: league || undefined,
       flight: flight || undefined,
@@ -271,7 +272,7 @@ export default function CaptainTeamBriefPage() {
       lastTool: 'team-brief',
       lastToolLabel: 'Team Brief',
     })
-  }, [eventDate, flight, league, resolvedOpponent, team])
+  }, [competitionLayer, eventDate, flight, league, resolvedOpponent, team])
 
   const eventKey = useMemo(
     () => safeKey(team, league, flight, eventDate || currentMatch?.match_date || null),
@@ -330,6 +331,7 @@ export default function CaptainTeamBriefPage() {
     .join('\n')
 
   const weeklyBriefHref = buildCaptainScopedHref('/captain/weekly-brief', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -337,6 +339,7 @@ export default function CaptainTeamBriefPage() {
     opponent: resolvedOpponent,
   })
   const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -344,6 +347,7 @@ export default function CaptainTeamBriefPage() {
     opponent: resolvedOpponent,
   })
   const availabilityHref = buildCaptainScopedHref('/captain/availability', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -351,6 +355,7 @@ export default function CaptainTeamBriefPage() {
     opponent: resolvedOpponent,
   })
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -373,6 +378,27 @@ export default function CaptainTeamBriefPage() {
   const lineupUpdatedLabel = lineupRows.length ? `${lineupRows.length} assignments ready` : 'No lineup saved yet'
   const eventUpdatedLabel = eventDetail ? 'Event details saved' : 'No event details saved'
   const responseUpdatedLabel = latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
+  const teamBriefSignals = [
+    {
+      label: 'Weekly status',
+      value: weekStatusMeta.label,
+      note: 'This version is meant for players and parents, so it should stay clean, current, and easy to act on.',
+    },
+    {
+      label: 'Share readiness',
+      value: lineupRows.length ? 'Lineup loaded' : 'Lineup still open',
+      note: lineupRows.length
+        ? 'Assignments are present, so this brief can work as a clear outward-facing summary.'
+        : 'Wait until the lineup is more stable before treating this as the final player-facing brief.',
+    },
+    {
+      label: 'Best next move',
+      value: alertLines.length ? 'Clear team alerts' : 'Share the brief',
+      note: alertLines.length
+        ? 'Late arrivals, no-responses, or sub issues should be handled before broad sharing.'
+        : 'The player-facing version is clean enough to print, copy, or send.',
+    },
+  ]
 
   function handlePrint() {
     if (typeof window === 'undefined') return
@@ -415,20 +441,14 @@ export default function CaptainTeamBriefPage() {
                 <p style={sectionKicker}>Team Brief</p>
                 <h1 style={heroTitle}>A clean player-facing weekly summary.</h1>
                 <p style={heroText}>
-                  Use this version when you want to share or print the week’s essentials without exposing private scouting notes.
+                  Use this version when you want to share or print the week's essentials without exposing private scouting notes.
                 </p>
               </div>
 
               <div style={heroButtonRow}>
-                <button type="button" onClick={handlePrint} style={primaryButton}>
-                  Print team brief
-                </button>
-                <button type="button" onClick={() => void handleCopyMessage()} style={secondaryButton}>
-                  Copy team message
-                </button>
-                <Link href={weeklyBriefHref} style={secondaryButton}>
-                  Open captain brief
-                </Link>
+                <PrimaryBtn onClick={handlePrint}>Print team brief</PrimaryBtn>
+                <SecondaryBtn onClick={() => void handleCopyMessage()}>Copy team message</SecondaryBtn>
+                <SecondaryLink href={weeklyBriefHref}>Open captain brief</SecondaryLink>
               </div>
             </div>
 
@@ -452,11 +472,21 @@ export default function CaptainTeamBriefPage() {
             </div>
 
             <div style={metricGrid}>
-              <MetricCard label="Team" value={team || 'Not set'} detail={league && flight ? `${league} · ${flight}` : 'Scope incomplete'} />
+              <MetricCard label="Team" value={team || 'Not set'} detail={league && flight ? `${league} - ${flight}` : 'Scope incomplete'} />
               <MetricCard label="Match day" value={formatDate(eventDate || currentMatch?.match_date)} detail={resolvedOpponent ? `vs ${resolvedOpponent}` : 'Opponent not set'} />
-              <MetricCard label="Arrival" value={eventDetail?.arrivalTime || 'TBD'} detail={eventDetail?.location || 'Location pending'} accent />
+              <MetricCard label="Arrival" value={eventDetail?.arrivalTime || 'Not set'} detail={eventDetail?.location || 'Location not set'} accent />
               <MetricCard label="Alerts" value={alertLines.length ? String(alertLines.length) : 'Clear'} detail={alertLines.length ? 'Open team issues still need follow-up' : 'No saved late/sub/response alerts'} />
             </div>
+
+            <section style={signalGridStyle}>
+              {teamBriefSignals.map((signal) => (
+                <article key={signal.label} style={signalCardStyle}>
+                  <div style={signalLabelStyle}>{signal.label}</div>
+                  <div style={signalValueStyle}>{signal.value}</div>
+                  <div style={signalNoteStyle}>{signal.note}</div>
+                </article>
+              ))}
+            </section>
           </section>
 
           {error ? <section style={errorCard}>{error}</section> : null}
@@ -555,9 +585,7 @@ export default function CaptainTeamBriefPage() {
                 <p style={sectionKicker}>Send-ready message</p>
                 <h2 style={sectionTitle}>Copy and send this to the team</h2>
               </div>
-              <button type="button" onClick={() => void handleCopyMessage()} style={secondaryButton}>
-                Copy message
-              </button>
+              <SecondaryBtn onClick={() => void handleCopyMessage()}>Copy message</SecondaryBtn>
             </div>
 
             {copyStatus ? <div style={statusPill}>{copyStatus}</div> : null}
@@ -588,12 +616,33 @@ export default function CaptainTeamBriefPage() {
             )}
 
             <div style={quickActionRow}>
-              <Link href={messagingHref} style={secondaryButton}>Open messaging</Link>
-              <Link href={availabilityHref} style={secondaryButton}>Open availability</Link>
-              <Link href={lineupBuilderHref} style={secondaryButton}>Open lineup builder</Link>
+              <SecondaryLink href={messagingHref}>Open messaging</SecondaryLink>
+              <SecondaryLink href={availabilityHref}>Open availability</SecondaryLink>
+              <SecondaryLink href={lineupBuilderHref}>Open lineup builder</SecondaryLink>
             </div>
           </section>
         </div>
+
+        <CaptainSubnav
+          title="Team Brief inside the captain command center"
+          description="Move from team intelligence into lineup building, scenario planning, messaging, and availability without breaking the pre-match workflow."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
+
+        {!access.canUseCaptainWorkflow ? (
+          <UpgradePrompt
+            planId="captain"
+            compact
+            headline="Need one place to prep your team for the week?"
+            body="Unlock Captain to connect team brief context, availability, lineup planning, and match-day communication instead of managing each step separately."
+            ctaLabel="Unlock Captain Tools"
+            ctaHref="/pricing"
+            secondaryLabel="See Captain plan"
+            secondaryHref="/pricing"
+            footnote="Best for captains who want cleaner weekly prep, less scrambling, and clearer decisions before match day."
+          />
+        ) : null}
       </SiteShell>
     </main>
   )
@@ -665,6 +714,11 @@ const heroText: CSSProperties = {
 }
 const heroButtonRow: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' }
 const metricGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }
+const signalGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }
+const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)', boxShadow: '0 14px 34px rgba(7,18,40,0.16)' }
+const signalLabelStyle: CSSProperties = { color: '#8fb7ff', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
+const signalValueStyle: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: '1.24rem', fontWeight: 900, letterSpacing: '-0.03em' }
+const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6 }
 const metricCard: CSSProperties = { padding: 16, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(15,23,42,0.52)' }
 const metricCardAccent: CSSProperties = { ...metricCard, border: '1px solid rgba(74,222,128,0.18)', boxShadow: '0 10px 24px rgba(74,222,128,0.08)' }
 const metricLabel: CSSProperties = { color: 'rgba(197,213,234,0.86)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }
@@ -709,3 +763,64 @@ const secondaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'ce
 const mutedTextStyle: CSSProperties = { color: 'rgba(224,234,247,0.72)', margin: 0, lineHeight: 1.65 }
 const mutedCallout: CSSProperties = { padding: 16, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'rgba(229,238,251,0.78)', lineHeight: 1.7 }
 const errorCard: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(248,113,113,0.22)', background: 'rgba(60,16,24,0.76)', color: '#fecaca', fontWeight: 700 }
+
+function PrimaryBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 20px 40px rgba(155,225,29,0.26)' : undefined,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...secondaryButton,
+        borderColor: hovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
+        background: hovered ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.06)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...secondaryButton,
+        borderColor: hovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
+        background: hovered ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.06)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}

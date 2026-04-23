@@ -3,11 +3,20 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import {
+  getCompetitionLayerLabel,
+  getLeagueFormatLabel,
+  inferCompetitionLayerFromValues,
+  inferLeagueFormatFromValues,
+  type LeagueFormat,
+} from '@/lib/competition-layers'
+import { formatDate } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type LeagueMatchRow = {
@@ -49,21 +58,10 @@ function normalizeCompareText(value: string | null | undefined): string {
   return (value || '').trim().toLowerCase()
 }
 
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-
-  return parsed.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-function buildTeamHref(teamName: string, leagueName: string, flight: string) {
+function buildTeamHref(teamName: string, leagueName: string, flight: string, competitionLayer: string) {
   const params = new URLSearchParams()
 
+  if (competitionLayer) params.set('layer', competitionLayer)
   if (leagueName) params.set('league', leagueName)
   if (flight) params.set('flight', flight)
 
@@ -83,14 +81,21 @@ function buildLeagueScopeHref(leagueName: string, flight: string, section: strin
   return `/leagues/${encodeURIComponent(leagueName || 'league')}${query ? `?${query}` : ''}`
 }
 
+function getParamValue(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] || ''
+  return value || ''
+}
+
 export default function LeagueDetailPage() {
   const params = useParams()
   const searchParams = useSearchParams()
 
-  const leagueFromRoute = decodeURIComponent(String(params.league || ''))
+  const routeLayer = getParamValue(params.layer as string | string[] | undefined)
+  const leagueFromRoute = decodeURIComponent(getParamValue(params.league as string | string[] | undefined))
   const flight = searchParams.get('flight') || ''
   const section = searchParams.get('section') || ''
   const district = searchParams.get('district') || ''
+  const formatHint = searchParams.get('format') || ''
 
   const [rows, setRows] = useState<LeagueMatchRow[]>([])
   const [nearbyRows, setNearbyRows] = useState<LeagueMatchRow[]>([])
@@ -385,6 +390,23 @@ export default function LeagueDetailPage() {
     alignItems: isMobile ? 'stretch' : 'flex-start',
   }
 
+  const dynamicHeroActions: CSSProperties = {
+    ...heroActions,
+    flexDirection: isSmallMobile ? 'column' : 'row',
+    alignItems: isSmallMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicStateActionRow: CSSProperties = {
+    ...stateActionRow,
+    justifyContent: isMobile ? 'flex-start' : 'center',
+    alignItems: isMobile ? 'stretch' : 'center',
+  }
+
+  const dynamicFilterWrap: CSSProperties = {
+    ...filterWrap,
+    width: isMobile ? '100%' : '260px',
+  }
+
   const dynamicMatchBottom: CSSProperties = {
     ...matchBottom,
     flexDirection: isMobile ? 'column' : 'row',
@@ -392,9 +414,88 @@ export default function LeagueDetailPage() {
   }
 
   const subtitleParts = [leagueInfo.flight, leagueInfo.section, leagueInfo.district].filter(Boolean)
+  const competitionLayer = inferCompetitionLayerFromValues({
+    layerHint: routeLayer,
+    leagueName: leagueInfo.leagueName,
+    ustaSection: leagueInfo.section,
+    districtArea: leagueInfo.district,
+  })
+  const leagueFormat: LeagueFormat =
+    formatHint === 'team' || formatHint === 'individual'
+      ? formatHint
+      : inferLeagueFormatFromValues({
+          competitionLayer,
+          leagueName: leagueInfo.leagueName,
+          teamCount: teamSummaries.length,
+        })
   const stableLeagueFollowId = [leagueInfo.leagueName || leagueFromRoute, leagueInfo.flight, leagueInfo.section, leagueInfo.district]
     .map((value) => cleanText(value) || '')
     .join('__')
+  const leagueSignals = [
+    {
+      label: competitionLayer === 'usta' ? 'Official layer' : 'Strategic layer',
+      value: getCompetitionLayerLabel(competitionLayer),
+      note:
+        competitionLayer === 'usta'
+          ? 'USTA league pages should read as official season context first, without blending into TIQ strategy.'
+          : 'TIQ league pages should connect season structure to lineup, scenario, and messaging workflow.',
+    },
+    {
+      label: 'League format',
+      value: getLeagueFormatLabel(leagueFormat),
+      note:
+        leagueFormat === 'team'
+          ? 'This season is organized around teams as the participant unit.'
+          : 'This season is organized around players competing directly, not roster-based teams.',
+    },
+    {
+      label: 'Season activity',
+      value: `${stats.matchCount} matches`,
+      note: `Track ${stats.teams} active ${leagueFormat === 'team' ? 'teams' : 'participants'} and use match history to understand momentum.`,
+    },
+  ]
+  const competeHref = buildCaptainScopedHref('/compete/leagues', {
+    competitionLayer,
+    league: leagueInfo.leagueName,
+    flight: leagueInfo.flight,
+  })
+  const captainActionLinks =
+    leagueFormat === 'team'
+      ? [
+          {
+            href: buildCaptainScopedHref('/captain/availability', {
+              competitionLayer,
+              league: leagueInfo.leagueName,
+              flight: leagueInfo.flight,
+            }),
+            label: 'Availability',
+          },
+          {
+            href: buildCaptainScopedHref('/captain/lineup-builder', {
+              competitionLayer,
+              league: leagueInfo.leagueName,
+              flight: leagueInfo.flight,
+            }),
+            label: 'Lineup Builder',
+          },
+          {
+            href: buildCaptainScopedHref('/captain/scenario-builder', {
+              competitionLayer,
+              league: leagueInfo.leagueName,
+              flight: leagueInfo.flight,
+            }),
+            label: 'Scenario Builder',
+          },
+          {
+            href: buildCaptainScopedHref('/captain/messaging', {
+              competitionLayer,
+              league: leagueInfo.leagueName,
+              flight: leagueInfo.flight,
+            }),
+            label: 'Messaging',
+          },
+        ]
+      : []
 
   return (
     <SiteShell active="/leagues">
@@ -403,8 +504,14 @@ export default function LeagueDetailPage() {
           <div>
             <div style={eyebrow}>League Season</div>
             <h1 style={dynamicHeroTitle}>{leagueInfo.leagueName || 'League Season'}</h1>
+            <div style={heroMetaRow}>
+              <span style={competitionLayer === 'usta' ? heroMetaBluePill : heroMetaGreenPill}>
+                {getCompetitionLayerLabel(competitionLayer)}
+              </span>
+              <span style={heroMetaSlatePill}>{getLeagueFormatLabel(leagueFormat)}</span>
+            </div>
             {subtitleParts.length > 0 ? (
-              <p style={dynamicHeroText}>{subtitleParts.join(' · ')}</p>
+              <p style={dynamicHeroText}>{subtitleParts.join(' | ')}</p>
             ) : null}
 
             <div style={heroHintRow}>
@@ -413,30 +520,42 @@ export default function LeagueDetailPage() {
               <span style={heroHintPill}>Latest: {formatDate(stats.latest)}</span>
             </div>
 
-            <div style={heroActions}>
+            <div style={dynamicHeroActions}>
               <FollowButton
                 entityType="league"
                 entityId={stableLeagueFollowId}
                 entityName={leagueInfo.leagueName || leagueFromRoute || 'League'}
                 subtitle={subtitleParts.join(' · ')}
               />
-              <Link href="/leagues" style={ghostButton}>
-                Back to Leagues
-              </Link>
+              <GhostLink href="/leagues">Back to Leagues</GhostLink>
+              <GhostLink href={competeHref}>Open Compete</GhostLink>
             </div>
           </div>
 
           <div style={dynamicSeasonToolsCard}>
             <div style={seasonToolsLabel}>Season tools</div>
-            <div style={seasonToolsValue}>{leagueInfo.flight || 'League'}</div>
+            <div style={seasonToolsValue}>
+              {leagueInfo.flight || getCompetitionLayerLabel(competitionLayer)}
+            </div>
             <div style={seasonToolsText}>
-              Review team performance, standings-style summaries, and match history for this league segment.
+              {competitionLayer === 'usta'
+                ? 'Review official season structure, team movement, and match history without blending it into TIQ strategy signals.'
+                : 'Use this TIQ league context as the bridge between competition structure and captain-facing strategic execution.'}
             </div>
 
             <div style={seasonToolsActions}>
               {leagueInfo.section ? <span style={miniPillSlate}>{leagueInfo.section}</span> : null}
               {leagueInfo.district ? <span style={miniPillGreen}>{leagueInfo.district}</span> : null}
             </div>
+            {captainActionLinks.length > 0 ? (
+              <div style={seasonToolsQuickActionGrid}>
+                {captainActionLinks.map((action) => (
+                  <Link key={action.href} href={action.href} style={seasonQuickActionButton}>
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -447,6 +566,16 @@ export default function LeagueDetailPage() {
           <MetricCard label="Doubles Lines" value={String(stats.doubles)} />
           <MetricCard label="Latest Match" value={formatDate(stats.latest)} accent />
         </div>
+
+        <section style={signalGridStyle(isSmallMobile)}>
+          {leagueSignals.map((signal) => (
+            <article key={signal.label} style={signalCardStyle}>
+              <div style={signalLabelStyle}>{signal.label}</div>
+              <div style={signalValueStyle}>{signal.value}</div>
+              <div style={signalNoteStyle}>{signal.note}</div>
+            </article>
+          ))}
+        </section>
 
         <article
           style={{
@@ -461,13 +590,9 @@ export default function LeagueDetailPage() {
             Use it to understand how a league segment is shaped, which teams are active, and where to
             drill down next across teams, match history, and season scope.
           </div>
-          <div style={stateActionRow}>
-            <Link href="/leagues" style={ghostButton}>
-              Back to leagues
-            </Link>
-            <Link href="/advertising-disclosure" style={ghostButton}>
-              Advertising disclosure
-            </Link>
+          <div style={dynamicStateActionRow}>
+            <GhostLink href="/leagues">Back to leagues</GhostLink>
+            <GhostLink href="/advertising-disclosure">Advertising disclosure</GhostLink>
           </div>
         </article>
 
@@ -478,7 +603,7 @@ export default function LeagueDetailPage() {
             <div style={errorBox}>{error}</div>
           ) : validRows.length === 0 ? (
             <div style={stateBox}>
-              No valid matches were found for this league segment yet.
+              Match data is not available for this league segment yet.
               <div style={stateHelperText}>
                 This usually means the season scope exists, but imported match rows do not yet include both team names
                 for this exact league, flight, or district slice.
@@ -494,23 +619,18 @@ export default function LeagueDetailPage() {
               {nearbyScopeDiagnostic && nearbyScopeDiagnostic.leagueNames.length > 0 ? (
                 <div style={{ ...stateActionRow, marginTop: 12 }}>
                   {nearbyScopeDiagnostic.leagueNames.slice(0, 3).map((name) => (
-                    <Link
+                    <GhostLink
                       key={name}
                       href={buildLeagueScopeHref(name, leagueInfo.flight, leagueInfo.section, leagueInfo.district)}
-                      style={ghostButton}
                     >
                       Try {name}
-                    </Link>
+                    </GhostLink>
                   ))}
                 </div>
               ) : null}
-              <div style={stateActionRow}>
-                <Link href="/leagues" style={ghostButton}>
-                  Back to leagues
-                </Link>
-                <Link href="/teams" style={ghostButton}>
-                  Browse teams
-                </Link>
+              <div style={dynamicStateActionRow}>
+                <GhostLink href="/leagues">Back to leagues</GhostLink>
+                <GhostLink href="/teams">Browse teams</GhostLink>
               </div>
             </div>
           ) : (
@@ -541,12 +661,9 @@ export default function LeagueDetailPage() {
                           </div>
                         </div>
 
-                        <Link
-                          href={buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight)}
-                          style={primaryButton}
-                        >
+                        <PrimaryLink href={buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)}>
                           Team Page
-                        </Link>
+                        </PrimaryLink>
                       </div>
 
                       <div style={dynamicMiniGrid}>
@@ -570,7 +687,7 @@ export default function LeagueDetailPage() {
                     </div>
                   </div>
 
-                  <div style={filterWrap}>
+                  <div style={dynamicFilterWrap}>
                     <label htmlFor="teamFilter" style={inputLabel}>
                       Filter by team
                     </label>
@@ -709,10 +826,9 @@ const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(107, 162, 255, 0.18)',
-  background:
-    'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 56%, rgba(12,46,62,0.84) 100%)',
-  boxShadow: '0 28px 80px rgba(3,10,24,0.30)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
 }
@@ -734,14 +850,14 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: '16px 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
   margin: '14px 0 0',
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -753,10 +869,41 @@ const heroHintRow: CSSProperties = {
   marginTop: '16px',
 }
 
-const heroHintPill: CSSProperties = {
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
+const heroMetaRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginTop: '14px',
+}
+
+const heroMetaBluePill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  background: 'rgba(74,163,255,0.14)',
   color: '#e2efff',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const heroMetaGreenPill: CSSProperties = {
+  ...heroMetaBluePill,
+  background: 'rgba(155,225,29,0.14)',
+}
+
+const heroMetaSlatePill: CSSProperties = {
+  ...heroMetaBluePill,
+  background: 'rgba(142, 161, 189, 0.14)',
+}
+
+const heroHintPill: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
@@ -773,13 +920,13 @@ const heroActions: CSSProperties = {
 const seasonToolsCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const seasonToolsLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -789,7 +936,7 @@ const seasonToolsLabel: CSSProperties = {
 
 const seasonToolsValue: CSSProperties = {
   marginTop: '8px',
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
@@ -798,7 +945,7 @@ const seasonToolsValue: CSSProperties = {
 
 const seasonToolsText: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(219, 234, 254, 0.88)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -811,6 +958,28 @@ const seasonToolsActions: CSSProperties = {
   gap: '10px',
 }
 
+const seasonToolsQuickActionGrid: CSSProperties = {
+  marginTop: '18px',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '10px',
+}
+
+const seasonQuickActionButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '42px',
+  padding: '0 12px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontWeight: 700,
+  fontSize: '13px',
+}
+
 const ghostButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -818,9 +987,9 @@ const ghostButton: CSSProperties = {
   minHeight: '42px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
@@ -838,8 +1007,8 @@ const miniPillBase: CSSProperties = {
 
 const miniPillSlate: CSSProperties = {
   ...miniPillBase,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }
 
 const miniPillGreen: CSSProperties = {
@@ -853,12 +1022,50 @@ const metricGrid: CSSProperties = {
   gap: '16px',
 }
 
+const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+  marginTop: '18px',
+})
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.28rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  fontSize: '.94rem',
+}
+
 const metricCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -868,7 +1075,7 @@ const metricCardAccent: CSSProperties = {
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(198,216,248,0.78)',
+  color: 'var(--muted)',
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 750,
@@ -878,7 +1085,7 @@ const metricLabel: CSSProperties = {
 
 const metricValue: CSSProperties = {
   marginTop: '8px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
@@ -888,19 +1095,18 @@ const metricValue: CSSProperties = {
 const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
 const stateBox: CSSProperties = {
   borderRadius: '18px',
   padding: '18px',
-  background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
-  border: '1px solid rgba(128,174,255,0.14)',
-  color: '#dbeafe',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 600,
@@ -920,7 +1126,7 @@ const errorBox: CSSProperties = {
 
 const stateHelperText: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(219, 234, 254, 0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -943,7 +1149,7 @@ const sectionHead: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
@@ -953,7 +1159,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -961,7 +1167,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionSub: CSSProperties = {
   marginTop: '8px',
-  color: '#c0d5f5',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
@@ -1082,7 +1288,7 @@ const filterWrap: CSSProperties = {
 const inputLabel: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--muted)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -1093,9 +1299,9 @@ const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
@@ -1193,4 +1399,32 @@ const subMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
+}
+
+function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...ghostButton, ...(hovered ? { background: 'rgba(255,255,255,0.12)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...primaryButton, ...(hovered ? { transform: 'translateY(-2px)', boxShadow: '0 18px 36px rgba(43,195,104,0.30)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
 }

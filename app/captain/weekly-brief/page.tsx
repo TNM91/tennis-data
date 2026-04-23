@@ -3,8 +3,10 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
@@ -18,7 +20,9 @@ import {
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { formatWeekdayDate as formatDate } from '@/lib/captain-formatters'
 
 type MatchRow = {
   id: string
@@ -89,16 +93,6 @@ function safeKey(...parts: Array<string | null | undefined>) {
   return parts.map((part) => (part || '').trim().toLowerCase() || '—').join('|')
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return 'Not scheduled'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-}
 
 function readLocalArray<T>(key: string): T[] {
   if (typeof window === 'undefined') return []
@@ -125,6 +119,7 @@ function readLocalObject<T>(key: string): T | null {
 function readInitialBriefContext() {
   if (typeof window === 'undefined') {
     return {
+      competitionLayer: '',
       team: '',
       league: '',
       flight: '',
@@ -137,6 +132,7 @@ function readInitialBriefContext() {
   const resumeState = readCaptainResumeState()
 
   return {
+    competitionLayer: params.get('layer') ?? resumeState?.competitionLayer ?? '',
     team: params.get('team') ?? resumeState?.team ?? '',
     league: params.get('league') ?? resumeState?.league ?? '',
     flight: params.get('flight') ?? resumeState?.flight ?? '',
@@ -151,6 +147,7 @@ export default function CaptainWeeklyBriefPage() {
   const initialContext = readInitialBriefContext()
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -162,6 +159,7 @@ export default function CaptainWeeklyBriefPage() {
     status: 'draft-lineup',
   })
 
+  const [competitionLayer] = useState(initialContext.competitionLayer)
   const [team] = useState(initialContext.team)
   const [league] = useState(initialContext.league)
   const [flight] = useState(initialContext.flight)
@@ -177,6 +175,7 @@ export default function CaptainWeeklyBriefPage() {
       if (!mounted) return
 
       setRole(authState.role)
+      setEntitlements(authState.entitlements)
       setAuthLoading(false)
 
       if (authState.role === 'public' && typeof window !== 'undefined') {
@@ -264,6 +263,7 @@ export default function CaptainWeeklyBriefPage() {
     if (!team && !league && !flight) return
 
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: team || undefined,
       league: league || undefined,
       flight: flight || undefined,
@@ -272,7 +272,9 @@ export default function CaptainWeeklyBriefPage() {
       lastTool: 'weekly-brief',
       lastToolLabel: 'Weekly Brief',
     })
-  }, [eventDate, flight, league, opponentTeam, team])
+  }, [competitionLayer, eventDate, flight, league, opponentTeam, team])
+
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   const currentMatch = useMemo(
     () =>
@@ -375,7 +377,7 @@ export default function CaptainWeeklyBriefPage() {
     {
       label: 'Team scope',
       done: !!team && !!league && !!flight,
-      detail: team && league && flight ? `${team} · ${league} · ${flight}` : 'Choose a team, league, and flight scope first.',
+      detail: team && league && flight ? `${team} - ${league} - ${flight}` : 'Choose a team, league, and flight scope first.',
     },
     {
       label: 'Event context',
@@ -398,6 +400,7 @@ export default function CaptainWeeklyBriefPage() {
   ]
 
   const lineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -405,6 +408,7 @@ export default function CaptainWeeklyBriefPage() {
     opponent: resolvedOpponent,
   })
   const messagingHref = buildCaptainScopedHref('/captain/messaging', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -412,6 +416,7 @@ export default function CaptainWeeklyBriefPage() {
     opponent: resolvedOpponent,
   })
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
+    competitionLayer,
     team,
     league,
     flight,
@@ -419,12 +424,34 @@ export default function CaptainWeeklyBriefPage() {
     opponent: resolvedOpponent,
   })
   const teamBriefHref = buildCaptainScopedHref('/captain/team-brief', {
+    competitionLayer,
     team,
     league,
     flight,
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const weeklySignals = [
+    {
+      label: 'Weekly status',
+      value: weekStatusMeta.label,
+      note: 'Use this brief as the captain-facing command sheet that pulls lineup, logistics, and readiness into one read.',
+    },
+    {
+      label: 'Scope health',
+      value: team && league && flight ? 'Context loaded' : 'Scope incomplete',
+      note: team && league && flight
+        ? `${team} - ${league} - ${flight}`
+        : 'The weekly brief is only useful once the correct team, league, and flight are in scope.',
+    },
+    {
+      label: 'Best next move',
+      value: readinessItems.every((item) => item.done) ? 'Move to execution' : 'Close open checks',
+      note: readinessItems.every((item) => item.done)
+        ? 'The week has enough structure to move into messaging and final execution.'
+        : 'Use the missing checks below to see what still needs captain attention first.',
+    },
+  ]
 
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
@@ -466,18 +493,10 @@ export default function CaptainWeeklyBriefPage() {
               </div>
 
               <div style={heroButtonRow}>
-                <button type="button" onClick={handlePrint} style={primaryButton}>
-                  Print brief
-                </button>
-                <Link href={teamBriefHref} style={secondaryButton}>
-                  Team-facing brief
-                </Link>
-                <Link href={messagingHref} style={secondaryButton}>
-                  Open messaging
-                </Link>
-                <Link href={lineupBuilderHref} style={secondaryButton}>
-                  Open lineup builder
-                </Link>
+                <PrimaryBtn onClick={handlePrint}>Print brief</PrimaryBtn>
+                <SecondaryLink href={teamBriefHref}>Team-facing brief</SecondaryLink>
+                <SecondaryLink href={messagingHref}>Open messaging</SecondaryLink>
+                <SecondaryLink href={lineupBuilderHref}>Open lineup builder</SecondaryLink>
               </div>
             </div>
 
@@ -501,11 +520,21 @@ export default function CaptainWeeklyBriefPage() {
             </div>
 
             <div style={metricGrid}>
-              <MetricCard label="Team scope" value={team || 'Not set'} detail={league && flight ? `${league} · ${flight}` : 'Scope incomplete'} />
+              <MetricCard label="Team scope" value={team || 'Not set'} detail={league && flight ? `${league} - ${flight}` : 'Scope incomplete'} />
               <MetricCard label="Match day" value={formatDate(eventDate || currentMatch?.match_date)} detail={resolvedOpponent ? `vs ${resolvedOpponent}` : 'Opponent not set'} />
               <MetricCard label="Lineup" value={lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'} detail={selectedScenario?.scenario_name || 'No active saved scenario'} />
               <MetricCard label="Messaging" value={eventDetail?.arrivalTime || 'Pending'} detail={eventDetail?.location || 'Location not set yet'} accent />
             </div>
+
+            <section style={signalGridStyle}>
+              {weeklySignals.map((signal) => (
+                <article key={signal.label} style={signalCardStyle}>
+                  <div style={signalLabelStyle}>{signal.label}</div>
+                  <div style={signalValueStyle}>{signal.value}</div>
+                  <div style={signalNoteStyle}>{signal.note}</div>
+                </article>
+              ))}
+            </section>
           </section>
 
           {error ? <section style={errorCard}>{error}</section> : null}
@@ -552,7 +581,7 @@ export default function CaptainWeeklyBriefPage() {
                   <p style={sectionKicker}>Event setup</p>
                   <h2 style={sectionTitle}>Arrival, location, and captain ops</h2>
                 </div>
-                <span style={pillStyle}>{eventDetail?.arrivalTime || 'Arrival TBD'}</span>
+                <span style={pillStyle}>{eventDetail?.arrivalTime || 'Arrival not set'}</span>
               </div>
 
               <div style={eventGrid}>
@@ -640,7 +669,7 @@ export default function CaptainWeeklyBriefPage() {
               <MetricCard label="Available" value={String(availabilitySummary.available)} detail="Players marked available" accent />
               <MetricCard label="Tentative" value={String(availabilitySummary.tentative)} detail="Still needs follow-up" />
               <MetricCard label="Unavailable" value={String(availabilitySummary.unavailable)} detail="Out for this match" />
-              <MetricCard label="Confirmed" value={String(responseSummary.confirmed)} detail={`${responseSummary.late} running late · ${responseSummary.noResponse} no response`} />
+              <MetricCard label="Confirmed" value={String(responseSummary.confirmed)} detail={`${responseSummary.late} running late - ${responseSummary.noResponse} no response`} />
             </div>
           </section>
 
@@ -653,15 +682,34 @@ export default function CaptainWeeklyBriefPage() {
             </div>
 
             <div style={actionRow}>
-              <Link href={lineupBuilderHref} style={primaryButton}>Refine lineup</Link>
-              <Link href={messagingHref} style={secondaryButton}>Prepare messaging</Link>
-              <Link href={analyticsHref} style={secondaryButton}>Review analytics</Link>
-              <button type="button" onClick={() => router.push('/captain')} style={secondaryButton}>
-                Back to hub
-              </button>
+              <PrimaryBtn onClick={() => router.push(lineupBuilderHref)}>Refine lineup</PrimaryBtn>
+              <SecondaryLink href={messagingHref}>Prepare messaging</SecondaryLink>
+              <SecondaryLink href={analyticsHref}>Review analytics</SecondaryLink>
+              <SecondaryBtn onClick={() => router.push('/captain')}>Back to hub</SecondaryBtn>
             </div>
           </section>
         </div>
+
+        <CaptainSubnav
+          title="Weekly Brief inside the captain command center"
+          description="Continue from your weekly overview directly into availability tracking, lineup building, scenario planning, or team messaging."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
+
+        {!access.canUseCaptainWorkflow ? (
+          <UpgradePrompt
+            planId="captain"
+            compact
+            headline="Still piecing together your week from scattered notes?"
+            body="Unlock Captain to turn your weekly brief into a real command center for availability, lineups, scenarios, and team communication."
+            ctaLabel="Build Smarter Lineups"
+            ctaHref="/pricing"
+            secondaryLabel="See Captain value"
+            secondaryHref="/pricing"
+            footnote="Best for captains who want one weekly view, faster decisions, and less lineup stress."
+          />
+        ) : null}
       </SiteShell>
     </main>
   )
@@ -775,6 +823,43 @@ const metricGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: 14,
+}
+
+const signalGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 14,
+}
+
+const signalCardStyle: CSSProperties = {
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)',
+  boxShadow: '0 14px 34px rgba(7,18,40,0.16)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: 10,
+  color: '#f8fbff',
+  fontSize: '1.24rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: 8,
+  color: 'rgba(224,234,247,0.74)',
+  fontSize: '.94rem',
+  lineHeight: 1.6,
 }
 
 const metricCard: CSSProperties = {
@@ -1059,4 +1144,65 @@ const errorCard: CSSProperties = {
   background: 'rgba(60,16,24,0.76)',
   color: '#fecaca',
   fontWeight: 700,
+}
+
+function PrimaryBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 20px 40px rgba(155,225,29,0.26)' : undefined,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...secondaryButton,
+        borderColor: hovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
+        background: hovered ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.06)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...secondaryButton,
+        borderColor: hovered ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)',
+        background: hovered ? 'rgba(255,255,255,0.11)' : 'rgba(255,255,255,0.06)',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        transition: 'all 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
 }

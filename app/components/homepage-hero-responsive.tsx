@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -38,6 +38,9 @@ const actionLinkBase = {
 
 export default function HomePageHeroResponsive() {
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const [explorHovered, setExplorHovered] = useState(false)
+  const [matchupHovered, setMatchupHovered] = useState(false)
+  const [captainHovered, setCaptainHovered] = useState(false)
 
   const shellPadding = isMobile ? '16px' : '24px'
   const heroPadding = isMobile ? '18px' : isTablet ? '22px' : '30px'
@@ -202,12 +205,18 @@ export default function HomePageHeroResponsive() {
             >
               <Link
                 href="/explore"
+                onMouseEnter={() => setExplorHovered(true)}
+                onMouseLeave={() => setExplorHovered(false)}
                 style={{
                   ...actionLinkBase,
                   color: '#08111d',
                   background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
                   border: '1px solid rgba(155,225,29,0.34)',
-                  boxShadow: '0 16px 34px rgba(155,225,29,0.18)',
+                  boxShadow: explorHovered
+                    ? '0 20px 42px rgba(155,225,29,0.28)'
+                    : '0 16px 34px rgba(155,225,29,0.18)',
+                  transform: explorHovered ? 'translateY(-2px)' : 'none',
+                  transition: 'transform 150ms ease, box-shadow 150ms ease',
                 }}
               >
                 Explore the platform
@@ -215,13 +224,20 @@ export default function HomePageHeroResponsive() {
 
               <Link
                 href="/matchup"
+                onMouseEnter={() => setMatchupHovered(true)}
+                onMouseLeave={() => setMatchupHovered(false)}
                 style={{
                   ...actionLinkBase,
                   color: '#e9f2ff',
-                  background:
-                    'linear-gradient(180deg, rgba(41,78,140,0.48) 0%, rgba(17,36,69,0.72) 100%)',
-                  border: '1px solid rgba(116,190,255,0.22)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                  background: matchupHovered
+                    ? 'linear-gradient(180deg, rgba(55,102,180,0.58) 0%, rgba(24,50,98,0.82) 100%)'
+                    : 'linear-gradient(180deg, rgba(41,78,140,0.48) 0%, rgba(17,36,69,0.72) 100%)',
+                  border: matchupHovered ? '1px solid rgba(116,190,255,0.38)' : '1px solid rgba(116,190,255,0.22)',
+                  boxShadow: matchupHovered
+                    ? '0 14px 32px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07)'
+                    : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                  transform: matchupHovered ? 'translateY(-2px)' : 'none',
+                  transition: 'all 150ms ease',
                 }}
               >
                 Run a matchup
@@ -229,15 +245,20 @@ export default function HomePageHeroResponsive() {
 
               <Link
                 href="/captain"
+                onMouseEnter={() => setCaptainHovered(true)}
+                onMouseLeave={() => setCaptainHovered(false)}
                 style={{
                   ...actionLinkBase,
-                  color: '#dbe9ff',
-                  background:
-                    'linear-gradient(180deg, rgba(20,40,76,0.56) 0%, rgba(11,22,42,0.86) 100%)',
-                  border: '1px solid rgba(116,190,255,0.14)',
+                  color: captainHovered ? '#eef5ff' : '#dbe9ff',
+                  background: captainHovered
+                    ? 'linear-gradient(180deg, rgba(26,50,96,0.68) 0%, rgba(15,30,58,0.92) 100%)'
+                    : 'linear-gradient(180deg, rgba(20,40,76,0.56) 0%, rgba(11,22,42,0.86) 100%)',
+                  border: captainHovered ? '1px solid rgba(116,190,255,0.24)' : '1px solid rgba(116,190,255,0.14)',
+                  transform: captainHovered ? 'translateY(-2px)' : 'none',
+                  transition: 'all 150ms ease',
                 }}
               >
-                Open Captain’s Corner
+                Open Captain's Corner
               </Link>
             </div>
 
@@ -407,7 +428,7 @@ export default function HomePageHeroResponsive() {
               }}
             >
               <Image
-                src="/logo-icon.png"
+                src="/logo-icon-current.png"
                 alt="TenAceIQ Data Ball"
                 fill
                 priority

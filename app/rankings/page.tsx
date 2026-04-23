@@ -4,7 +4,18 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { getClientAuthState } from '@/lib/auth'
+import { type UserRole } from '@/lib/roles'
+import {
+  formatRatingValue,
+  getRatingViewLabel,
+  getTiqRating,
+  getUstaDynamicRating,
+  getUstaRating,
+} from '@/lib/player-rating-display'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -27,6 +38,9 @@ type Player = {
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
+  overall_usta_dynamic_rating?: number | null
+  singles_usta_dynamic_rating?: number | null
+  doubles_usta_dynamic_rating?: number | null
 }
 
 type SnapshotRow = {
@@ -34,10 +48,12 @@ type SnapshotRow = {
   rating_type?: RatingView | null
   dynamic_rating: number
   snapshot_date: string
+  track?: string | null
 }
 
 type RankedPlayer = Player & {
   selectedRating: number
+  ustaSelectedRating: number
   baseRating: number
   ratingDiff: number
   matches: number
@@ -50,6 +66,8 @@ type RankedPlayer = Player & {
 const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
 
 export default function RankingsPage() {
+  const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
   const [matchCounts, setMatchCounts] = useState<Record<string, number>>({})
@@ -58,10 +76,48 @@ export default function RankingsPage() {
   const [searchText, setSearchText] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
   const [ratingView, setRatingView] = useState<RatingView>('overall')
+  const [hoveredPodium, setHoveredPodium] = useState<string | null>(null)
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const ratingViewLabel = getRatingViewLabel(ratingView)
 
   useEffect(() => {
     void loadPlayers()
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadAuth() {
+      try {
+        const authState = await getClientAuthState()
+        if (!active) return
+        setRole(authState.role)
+        setEntitlements(authState.entitlements)
+      } catch {
+        if (!active) return
+        setRole('public')
+        setEntitlements(null)
+      }
+    }
+
+    void loadAuth()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setSearchText('')
+        setLocationFilter('')
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   async function loadPlayers() {
@@ -80,7 +136,10 @@ export default function RankingsPage() {
           doubles_rating,
           overall_dynamic_rating,
           singles_dynamic_rating,
-          doubles_dynamic_rating
+          doubles_dynamic_rating,
+          overall_usta_dynamic_rating,
+          singles_usta_dynamic_rating,
+          doubles_usta_dynamic_rating
         `)
 
       if (error) throw new Error(error.message)
@@ -98,8 +157,9 @@ export default function RankingsPage() {
 
       const { data: snapshotData, error: snapshotError } = await supabase
         .from('rating_snapshots')
-        .select('player_id, rating_type, dynamic_rating, snapshot_date')
+        .select('player_id, rating_type, dynamic_rating, snapshot_date, track')
         .in('player_id', playerIds)
+        .eq('track', 'tiq')
         .order('snapshot_date', { ascending: true })
 
       if (snapshotError) throw new Error(snapshotError.message)
@@ -162,6 +222,7 @@ export default function RankingsPage() {
     return [...filteredPlayers]
       .map((player) => {
         const selectedRating = getSelectedRating(player, ratingView)
+        const ustaSelectedRating = getUstaDynamicRating(player, ratingView)
         const baseRating = getBaseRating(player, ratingView)
         const ratingDiff = roundToTwo(selectedRating - baseRating)
         const matches = matchCounts[player.id] || 0
@@ -170,11 +231,13 @@ export default function RankingsPage() {
         const trendPoints = getTrendPointsForPlayer(snapshotMap, player.id, ratingView)
         const trendDirection = getTrendDirection(trendPoints)
         const trendDelta = getRecentTrendDelta(trendPoints)
-        const status = getRatingStatus(baseRating, selectedRating)
+        // Signal uses USTA dynamic vs USTA base — mirrors what USTA measures for bump/knockdown.
+        const status = getRatingStatus(baseRating, ustaSelectedRating)
 
         return {
           ...player,
           selectedRating,
+          ustaSelectedRating,
           baseRating,
           ratingDiff,
           matches,
@@ -273,6 +336,22 @@ export default function RankingsPage() {
                 <span style={heroHintPill}>{locations.length} locations</span>
                 <span style={heroHintPill}>{capitalize(ratingView)} mode</span>
               </div>
+
+              {!access.canUseAdvancedPlayerInsights ? (
+                <div style={{ marginTop: 18, maxWidth: 560 }}>
+                  <UpgradePrompt
+                    planId="player_plus"
+                    compact
+                    headline="Want more than a leaderboard?"
+                    body="Unlock Player+ to turn rankings into personal guidance with clearer projections, matchup context, and where-you-should-play insight."
+                    ctaLabel="Unlock Player+"
+                    ctaHref="/pricing"
+                    secondaryLabel="See Player+ value"
+                    secondaryHref="/pricing"
+                    footnote="Best for players who want rankings to turn into better match decisions, not just browsing."
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div style={dynamicControlsCard}>
@@ -344,7 +423,11 @@ export default function RankingsPage() {
                       aria-describedby="rankings-filter-helper"
                       value={locationFilter}
                       onChange={(e) => setLocationFilter(e.target.value)}
-                      style={selectStyle}
+                      style={{
+                        ...selectStyle,
+                        borderColor: locationFilter ? 'rgba(155,225,29,0.42)' : undefined,
+                        boxShadow: locationFilter ? '0 0 0 1px rgba(155,225,29,0.12)' : undefined,
+                      }}
                   >
                     <option value="">All locations</option>
                     {locations.map((location) => (
@@ -377,14 +460,14 @@ export default function RankingsPage() {
               ) : null}
 
               <div id="rankings-filter-helper" style={controlsHelperText}>
-                Search by player or location, then use the rating basis buttons to shift the board between overall, singles, and doubles.
+                Search by player or location, then use the TIQ rating basis buttons to shift the board between overall, singles, and doubles.
               </div>
 
               <div style={summaryStatsGrid}>
                 <StatChip label="Players shown" value={String(rankedPlayers.length)} />
-                <StatChip label="Top rating" value={formatRating(topThree[0]?.selectedRating)} accent />
-                <StatChip label="Average" value={formatRating(avgSelected)} />
-                <StatChip label="Basis" value={capitalize(ratingView)} />
+                <StatChip label="Top TIQ" value={formatRating(topThree[0]?.selectedRating)} accent />
+                <StatChip label="Average TIQ" value={formatRating(avgSelected)} />
+                <StatChip label="Basis" value={ratingViewLabel} />
               </div>
             </div>
           </div>
@@ -396,21 +479,29 @@ export default function RankingsPage() {
           <div style={dynamicPodiumGrid}>
             {topThree.map((player, index) => {
               const theme = getMeterTheme(player.status)
+              const isHovered = hoveredPodium === player.id
 
               return (
                 <Link
                   key={player.id}
                   href={`/players/${player.id}`}
+                  onMouseEnter={() => setHoveredPodium(player.id)}
+                  onMouseLeave={() => setHoveredPodium(null)}
                   style={{
                     ...podiumCard,
                     ...(index === 0 ? podiumFirst : index === 1 ? podiumSecond : podiumThird),
+                    transform: isHovered ? 'translateY(-4px)' : 'none',
+                    boxShadow: isHovered
+                      ? '0 24px 50px rgba(9,25,54,0.24), inset 0 1px 0 rgba(255,255,255,0.08)'
+                      : '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+                    transition: 'transform 160ms ease, box-shadow 160ms ease',
                   }}
                 >
                   <div style={podiumRank}>#{index + 1}</div>
                   <div style={podiumName}>{player.name}</div>
                   <div style={podiumLocation}>{player.location || 'No location'}</div>
                   <div style={podiumRating}>{formatRating(player.selectedRating)}</div>
-                  <div style={podiumSubtext}>{capitalize(ratingView)} dynamic rating</div>
+                  <div style={podiumSubtext}>TIQ {ratingViewLabel.toLowerCase()} rating</div>
 
                   <div
                     style={{
@@ -454,13 +545,13 @@ export default function RankingsPage() {
             <h2 style={panelTitle}>Use this board to spot movement, not just order.</h2>
             <p style={editorialText}>
               A strong leaderboard helps you separate stable top-tier players from fast risers and
-              thin-sample noise. Use the public board to find tiers, momentum, and recent confidence,
-              then open individual player pages for deeper match and trend context.
+              thin-sample noise. Use the public board to find TIQ tiers, momentum, and recent confidence,
+              then open individual player pages for deeper USTA baseline and TIQ trend context.
             </p>
 
             <div style={editorialGrid}>
               <div style={editorialCard}>
-                <div style={editorialCardLabel}>Average selected rating</div>
+                <div style={editorialCardLabel}>Average TIQ rating</div>
                 <div style={editorialCardValue}>{avgSelected.toFixed(2)}</div>
                 <div style={editorialCardText}>A quick snapshot of the current filtered board strength.</div>
               </div>
@@ -489,7 +580,7 @@ export default function RankingsPage() {
 
             <div style={panelChipWrap}>
               <span style={panelChip}>Showing {rankedPlayers.length}</span>
-              <span style={panelChip}>{capitalize(ratingView)} rating</span>
+              <span style={panelChip}>TIQ {ratingViewLabel}</span>
             </div>
           </div>
 
@@ -503,30 +594,42 @@ export default function RankingsPage() {
                   <th style={tableHead}>Signal</th>
                   <th style={tableHead}>Trend</th>
                   <th style={tableHead}>Confidence</th>
-                  <th style={{ ...tableHead, ...(ratingView === 'overall' ? activeTableHead : {}) }}>Overall</th>
-                  <th style={{ ...tableHead, ...(ratingView === 'singles' ? activeTableHead : {}) }}>Singles</th>
-                  <th style={{ ...tableHead, ...(ratingView === 'doubles' ? activeTableHead : {}) }}>Doubles</th>
+                  <th style={tableHead}>USTA Base</th>
+                  <th style={{ ...tableHead, ...(ratingView === 'overall' ? activeTableHead : {}) }}>USTA Dynamic</th>
+                  <th style={{ ...tableHead, ...(ratingView === 'overall' ? activeTableHead : {}) }}>TIQ Overall</th>
+                  <th style={{ ...tableHead, ...(ratingView === 'singles' ? activeTableHead : {}) }}>TIQ Singles</th>
+                  <th style={{ ...tableHead, ...(ratingView === 'doubles' ? activeTableHead : {}) }}>TIQ Doubles</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} style={emptyCell}>Loading rankings...</td>
+                    <td colSpan={11} style={emptyCell}>Loading rankings...</td>
                   </tr>
                 ) : rankedPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={emptyCell}>
+                    <td colSpan={11} style={emptyCell}>
                       {hasActiveFilters
                         ? 'No players matched the current search or location filter. Clear filters to widen the board.'
-                        : 'No players found yet.'}
+                        : 'Player rankings are not available yet.'}
                     </td>
                   </tr>
                 ) : (
                   rankedPlayers.map((player, index) => {
                     const theme = getMeterTheme(player.status)
+                    const isRowHovered = hoveredRow === player.id
 
                     return (
-                      <tr key={player.id}>
+                      <tr
+                        key={player.id}
+                        onMouseEnter={() => setHoveredRow(player.id)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        style={{
+                          background: isRowHovered ? 'rgba(116,190,255,0.05)' : undefined,
+                          transition: 'background 120ms ease',
+                          cursor: 'default',
+                        }}
+                      >
                         <td style={tableCell}>
                           <span style={rankBadge}>{index + 1}</span>
                         </td>
@@ -569,6 +672,14 @@ export default function RankingsPage() {
 
                         <td style={tableCell}>
                           <span style={confidencePill}>{player.confidence}</span>
+                        </td>
+
+                        <td style={tableCell}>
+                          {formatRatingValue(player.overall_rating)}
+                        </td>
+
+                        <td style={{ ...tableCell, ...(ratingView === 'overall' ? activeRatingCell : {}) }}>
+                          {formatRating(player.ustaSelectedRating)}
                         </td>
 
                         <td style={{ ...tableCell, ...(ratingView === 'overall' ? activeRatingCell : {}) }}>
@@ -630,21 +741,11 @@ function SearchIcon() {
 }
 
 function getSelectedRating(player: Player, view: RatingView) {
-  if (view === 'singles') return toRatingNumber(player.singles_dynamic_rating, 3.5)
-  if (view === 'doubles') return toRatingNumber(player.doubles_dynamic_rating, 3.5)
-  return toRatingNumber(player.overall_dynamic_rating, 3.5)
+  return getTiqRating(player, view)
 }
 
 function getBaseRating(player: Player, view: RatingView) {
-  if (view === 'singles') {
-    return toRatingNumber(player.singles_rating ?? player.overall_rating, 3.5)
-  }
-
-  if (view === 'doubles') {
-    return toRatingNumber(player.doubles_rating ?? player.overall_rating, 3.5)
-  }
-
-  return toRatingNumber(player.overall_rating, 3.5)
+  return getUstaRating(player, view)
 }
 
 function getTrendPointsForPlayer(

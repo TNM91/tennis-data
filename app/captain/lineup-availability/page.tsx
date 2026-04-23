@@ -4,14 +4,17 @@ export const dynamic = 'force-dynamic'
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { buildTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '../../../lib/supabase'
-import { formatLongDate as formatDate } from '@/lib/captain-formatters'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
@@ -32,8 +35,11 @@ type PlayerRelation =
       preferred_role: string | null
       lineup_notes: string | null
       overall_dynamic_rating: number | null
+      overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
+      singles_usta_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      doubles_usta_dynamic_rating: number | null
     }
   | {
       id: string
@@ -42,8 +48,11 @@ type PlayerRelation =
       preferred_role: string | null
       lineup_notes: string | null
       overall_dynamic_rating: number | null
+      overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
+      singles_usta_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
+      doubles_usta_dynamic_rating: number | null
     }[]
   | null
 
@@ -62,8 +71,11 @@ type RosterPlayer = {
   lineupNotes: string | null
   appearances: number
   overallDynamic: number | null
+  overallUstaDynamic: number | null
   singlesDynamic: number | null
+  singlesUstaDynamic: number | null
   doublesDynamic: number | null
+  doublesUstaDynamic: number | null
 }
 
 type AvailabilityStatus =
@@ -115,11 +127,6 @@ function normalizePlayerRelation(player: PlayerRelation) {
 
 function buildLeagueKey(leagueName: string, flight: string) {
   return `${leagueName}___${flight}`
-}
-
-function formatRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
-  return value.toFixed(2)
 }
 
 function statusLabel(status: AvailabilityStatus) {
@@ -179,6 +186,7 @@ export default function LineupAvailabilityPage() {
   const router = useRouter()
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -186,6 +194,7 @@ export default function LineupAvailabilityPage() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
 
+  const [competitionLayer, setCompetitionLayer] = useState('')
   const [selectedLeagueKey, setSelectedLeagueKey] = useState('')
   const [selectedTeam, setSelectedTeam] = useState('')
   const [selectedDate, setSelectedDate] = useState('')
@@ -217,6 +226,7 @@ export default function LineupAvailabilityPage() {
 
         if (mounted) {
           setRole(authState.role)
+          setEntitlements(authState.entitlements)
           setAuthLoading(false)
         }
       } catch {
@@ -247,11 +257,13 @@ export default function LineupAvailabilityPage() {
 
     const params = new URLSearchParams(window.location.search)
     const resumeState = readCaptainResumeState()
+    const initialCompetitionLayer = params.get('layer') ?? resumeState?.competitionLayer ?? ''
     const initialLeague = params.get('league') ?? resumeState?.league ?? ''
     const initialFlight = params.get('flight') ?? resumeState?.flight ?? ''
     const initialTeam = params.get('team') ?? resumeState?.team ?? ''
     const initialDate = params.get('date') ?? resumeState?.eventDate ?? ''
 
+    setCompetitionLayer(initialCompetitionLayer)
     if (initialLeague || initialFlight) {
       setSelectedLeagueKey(buildLeagueKey(initialLeague, initialFlight))
     }
@@ -349,8 +361,11 @@ export default function LineupAvailabilityPage() {
             preferred_role,
             lineup_notes,
             overall_dynamic_rating,
+            overall_usta_dynamic_rating,
             singles_dynamic_rating,
-            doubles_dynamic_rating
+            singles_usta_dynamic_rating,
+            doubles_dynamic_rating,
+            doubles_usta_dynamic_rating
           )
         `)
         .in('match_id', matchIds)
@@ -376,8 +391,11 @@ export default function LineupAvailabilityPage() {
             lineupNotes: player.lineup_notes,
             appearances: 0,
             overallDynamic: player.overall_dynamic_rating,
+            overallUstaDynamic: player.overall_usta_dynamic_rating,
             singlesDynamic: player.singles_dynamic_rating,
+            singlesUstaDynamic: player.singles_usta_dynamic_rating,
             doublesDynamic: player.doubles_dynamic_rating,
+            doublesUstaDynamic: player.doubles_usta_dynamic_rating,
           })
         }
 
@@ -450,6 +468,7 @@ export default function LineupAvailabilityPage() {
   useEffect(() => {
     const [leagueName = '', flight = ''] = selectedLeagueKey.split('___')
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: selectedTeam || undefined,
       league: leagueName || undefined,
       flight: flight || undefined,
@@ -457,7 +476,7 @@ export default function LineupAvailabilityPage() {
       lastTool: 'lineup-availability',
       lastToolLabel: 'Lineup Availability',
     })
-  }, [selectedDate, selectedLeagueKey, selectedTeam])
+  }, [competitionLayer, selectedDate, selectedLeagueKey, selectedTeam])
 
   async function writeCaptainAlerts(
     leagueName: string,
@@ -495,7 +514,7 @@ export default function LineupAvailabilityPage() {
     }).length
 
     const teamEntityId = buildTeamEntityId(team, leagueName, flight)
-    const subtitle = [leagueName, flight, formatDate(matchDate)].filter(Boolean).join(' · ')
+    const subtitle = [leagueName, flight, formatDate(matchDate)].filter(Boolean).join(' - ')
 
     const events = []
 
@@ -637,6 +656,8 @@ export default function LineupAvailabilityPage() {
     }
   }
 
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+
   const leagueOptions = useMemo<LeagueOption[]>(() => {
     const map = new Map<string, LeagueOption>()
 
@@ -694,7 +715,7 @@ export default function LineupAvailabilityPage() {
   const selectedLeagueLabel = useMemo(() => {
     if (!selectedLeagueKey) return ''
     const [leagueName, flight] = selectedLeagueKey.split('___')
-    return `${leagueName} · ${flight}`
+    return `${leagueName} - ${flight}`
   }, [selectedLeagueKey])
 
   const availabilitySummary = useMemo(() => {
@@ -717,6 +738,44 @@ export default function LineupAvailabilityPage() {
   const viability = useMemo(
     () => viabilityLabel(availabilitySummary.available, availabilitySummary.unavailable, availabilitySummary.limited),
     [availabilitySummary]
+  )
+
+  const availabilitySignals = useMemo(
+    () => [
+      {
+        label: 'Match scope',
+        value: selectedDate ? formatDate(selectedDate) : 'Select match date',
+        note: selectedTeam
+          ? `${selectedTeam}${selectedLeagueLabel ? ` - ${selectedLeagueLabel}` : ''}`
+          : 'Choose a team context before setting statuses.',
+      },
+      {
+        label: 'Roster read',
+        value: roster.length ? `${availabilitySummary.available} available / ${roster.length} total` : 'Roster pending',
+        note:
+          viability === 'Strong'
+            ? 'You have enough playable options to build with flexibility.'
+            : viability === 'Playable'
+              ? 'Lineup decisions are workable, but the margin is tighter.'
+              : 'This roster needs quick follow-up before lineup lock.',
+      },
+      {
+        label: 'Best next move',
+        value: !selectedLeagueKey
+          ? 'Choose league context'
+          : !selectedTeam
+            ? 'Choose team'
+            : !selectedDate
+              ? 'Choose match date'
+              : saving
+                ? 'Saving availability'
+                : 'Save and move to builder',
+        note: selectedDate
+          ? 'Saved availability feeds lineup projection and lineup builder.'
+          : 'Lock the date so every status is tied to the right match.',
+      },
+    ],
+    [availabilitySummary.available, roster.length, saving, selectedDate, selectedLeagueKey, selectedLeagueLabel, selectedTeam, viability]
   )
 
   function updatePlayerStatus(playerId: string, status: AvailabilityStatus) {
@@ -813,19 +872,29 @@ export default function LineupAvailabilityPage() {
           </p>
 
           <div style={heroButtonRowStyle}>
-            <button type="button" onClick={saveAvailability} style={primaryButton} disabled={saving || !selectedDate}>
+            <PrimaryBtn onClick={saveAvailability} disabled={saving || !selectedDate}>
               {saving ? 'Saving...' : 'Save Availability'}
-            </button>
-            <Link href="/captain/lineup-builder" style={ghostButton}>Open Lineup Builder</Link>
-            <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButton}>
+            </PrimaryBtn>
+            <GhostLink href="/captain/lineup-builder">Open Lineup Builder</GhostLink>
+            <GhostBtn onClick={() => setRefreshTick((current) => current + 1)}>
               {loading || rosterLoading ? 'Refreshing...' : 'Refresh data'}
-            </button>
+            </GhostBtn>
           </div>
 
           <div style={heroMetricGridStyle(isSmallMobile)}>
             <MetricStat label="League / Flight" value={selectedLeagueLabel || 'Not selected'} />
             <MetricStat label="Team" value={selectedTeam || 'Not selected'} />
             <MetricStat label="Viability" value={viability} />
+          </div>
+
+          <div style={signalGridStyle(isSmallMobile)}>
+            {availabilitySignals.map((signal) => (
+              <div key={signal.label} style={signalCardStyle}>
+                <div style={signalLabelStyle}>{signal.label}</div>
+                <div style={signalValueStyle}>{signal.value}</div>
+                <div style={signalNoteStyle}>{signal.note}</div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -854,6 +923,22 @@ export default function LineupAvailabilityPage() {
           </div>
         </div>
       </section>
+
+      {!access.canUseCaptainWorkflow ? (
+        <section style={{ padding: '0 24px 24px' }}>
+          <UpgradePrompt
+            planId="captain"
+            compact
+            headline="Need lineup decisions that start from real availability?"
+            body="Unlock Captain to save match-date availability, carry it into the builder, and stop guessing who is actually usable before you set the lineup."
+            ctaLabel="Build Smarter Lineups"
+            ctaHref="/pricing"
+            secondaryLabel="See Captain plan"
+            secondaryHref="/pricing"
+            footnote="Best for captains who want one reliable workflow from roster status to final lineup."
+          />
+        </section>
+      ) : null}
 
       <section style={contentWrap}>
         <section style={surfaceCardStrong}>
@@ -886,7 +971,7 @@ export default function LineupAvailabilityPage() {
                   const key = buildLeagueKey(option.leagueName, option.flight)
                   return (
                     <option key={key} value={key}>
-                      {option.leagueName} · {option.flight}
+                      {option.leagueName} - {option.flight}
                     </option>
                   )
                 })}
@@ -946,9 +1031,7 @@ export default function LineupAvailabilityPage() {
           <section style={surfaceCard}>
             <p style={errorTextStyle}>{error}</p>
             <div style={{ marginTop: 12 }}>
-              <button type="button" style={ghostButtonSmall} onClick={() => setRefreshTick((current) => current + 1)}>
-                Retry availability load
-              </button>
+              <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry availability load</GhostSmallBtn>
             </div>
           </section>
         ) : !selectedLeagueKey || !selectedTeam ? (
@@ -964,7 +1047,7 @@ export default function LineupAvailabilityPage() {
           </section>
         ) : roster.length === 0 ? (
           <section style={surfaceCard}>
-            <h3 style={sectionTitleSmall}>No roster usage found yet</h3>
+            <h3 style={sectionTitleSmall}>Roster usage is not ready yet</h3>
             <p style={mutedTextStyle}>
               This team does not have enough prior match player history yet to build an availability roster.
             </p>
@@ -992,9 +1075,9 @@ export default function LineupAvailabilityPage() {
               </div>
 
               <div style={bulkActionsWrapStyle}>
-                <button type="button" style={ghostButtonSmall} onClick={() => applyBulkStatus('available')}>All Available</button>
-                <button type="button" style={ghostButtonSmall} onClick={() => applyBulkStatus('unavailable')}>All Unavailable</button>
-                <button type="button" style={ghostButtonSmall} onClick={resetStatuses}>Reset</button>
+                <GhostSmallBtn onClick={() => applyBulkStatus('available')}>All Available</GhostSmallBtn>
+                <GhostSmallBtn onClick={() => applyBulkStatus('unavailable')}>All Unavailable</GhostSmallBtn>
+                <GhostSmallBtn onClick={resetStatuses}>Reset</GhostSmallBtn>
               </div>
 
               {!selectedDate ? (
@@ -1016,9 +1099,9 @@ export default function LineupAvailabilityPage() {
                   </p>
                 </div>
 
-                <button type="button" onClick={saveAvailability} disabled={saving || !selectedDate} style={primaryButton}>
+                <PrimaryBtn onClick={saveAvailability} disabled={saving || !selectedDate}>
                   {saving ? 'Saving...' : 'Save Availability'}
-                </button>
+                </PrimaryBtn>
               </div>
 
               <div style={rosterGridResponsive(isSmallMobile, isTablet)}>
@@ -1035,15 +1118,16 @@ export default function LineupAvailabilityPage() {
                           <div style={playerNameStyle}>{player.name}</div>
                           <div style={playerMetaStyle}>
                             {player.appearances} appearance{player.appearances === 1 ? '' : 's'}
-                            {' · '}
+                            {' - '}
                             Preferred: <strong>{safeText(player.preferredRole, 'either')}</strong>
-                            {player.flight ? ` · ${player.flight}` : ''}
+                            {player.flight ? ` - ${player.flight}` : ''}
                           </div>
                         </div>
 
                         <div style={ratingsStackStyle}>
                           <span style={statusPillFor(current.status)}>{statusLabel(current.status)}</span>
-                          <div style={miniPillSlate}>OVR {formatRating(player.overallDynamic)}</div>
+                          <div style={miniPillSlate}>TIQ {formatRating(player.overallDynamic)}</div>
+                          <div style={miniPillSlate}>USTA {formatRating(player.overallUstaDynamic)}</div>
                         </div>
                       </div>
 
@@ -1097,13 +1181,22 @@ export default function LineupAvailabilityPage() {
               </div>
 
               <div style={saveFooterStyle}>
-                <button type="button" onClick={saveAvailability} disabled={saving || !selectedDate} style={primaryButton}>
+                <PrimaryBtn onClick={saveAvailability} disabled={saving || !selectedDate}>
                   {saving ? 'Saving...' : 'Save Availability'}
-                </button>
+                </PrimaryBtn>
               </div>
             </section>
           </>
         )}
+      </section>
+
+      <section style={{ padding: '0 24px 32px' }}>
+        <CaptainSubnav
+          title="Lineup Availability inside the captain command center"
+          description="Jump between availability, lineup building, projection, messaging, and season management from any point in the captain workflow."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
       </section>
 
       <footer style={footerStyle}>
@@ -1165,7 +1258,7 @@ function BrandWordmark({
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center', gap: compact ? '8px' : '10px', lineHeight: 1 }}>
       <Image
-        src="/logo-icon.png"
+        src="/logo-icon-current.png"
         alt="TenAceIQ"
         width={iconSize}
         height={iconSize}
@@ -1438,6 +1531,46 @@ const heroMetricCardStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
 }
 
+function signalGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    marginTop: 16,
+    display: 'grid',
+    gap: '12px',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+}
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '20px',
+  padding: '16px 18px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.7)',
+  fontSize: '0.72rem',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '0.45rem',
+  color: '#f8fbff',
+  fontSize: '1rem',
+  fontWeight: 800,
+  lineHeight: 1.35,
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '0.45rem',
+  color: 'rgba(217, 231, 255, 0.72)',
+  fontSize: '0.88rem',
+  lineHeight: 1.5,
+}
+
 const metricLabelStyle: CSSProperties = {
   color: 'rgba(255,255,255,0.72)',
   fontSize: '0.82rem',
@@ -1536,18 +1669,17 @@ const contentWrap: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.14)',
 }
 
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.20) 0%, rgba(28,49,95,0.38) 100%)',
-  boxShadow: '0 18px 40px rgba(0,0,0,0.22)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
 }
 
 const sectionCard: CSSProperties = {
@@ -1574,7 +1706,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -1583,7 +1715,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionTitleSmall: CSSProperties = {
   margin: '8px 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
   letterSpacing: '-0.03em',
@@ -1592,7 +1724,7 @@ const sectionTitleSmall: CSSProperties = {
 
 const sectionBodyTextStyle: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   maxWidth: 760,
 }
@@ -1616,9 +1748,9 @@ const miniPillSlate: CSSProperties = {
   gap: '6px',
   padding: '7px 10px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
-  color: '#dbe7fb',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
   lineHeight: 1,
@@ -1632,7 +1764,7 @@ const miniPillBlue: CSSProperties = {
   borderRadius: '999px',
   background: 'rgba(37, 91, 227, 0.16)',
   border: '1px solid rgba(143, 183, 255, 0.24)',
-  color: '#cfe0ff',
+  color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
   lineHeight: 1,
@@ -1781,9 +1913,9 @@ const ghostButton: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'rgba(14, 27, 49, 0.9)',
-  color: '#ebf1fd',
-  border: '1px solid rgba(255, 255, 255, 0.12)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const ghostButtonSmall: CSSProperties = {
@@ -1794,7 +1926,7 @@ const ghostButtonSmall: CSSProperties = {
 const labelStyle: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -1805,16 +1937,16 @@ const inputStyle: CSSProperties = {
   width: '100%',
   height: '48px',
   borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '0 14px',
   fontSize: '14px',
   outline: 'none',
 }
 
 const mutedTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   margin: 0,
   lineHeight: 1.65,
 }
@@ -1870,4 +2002,81 @@ const footerBottom: CSSProperties = {
   fontSize: '13px',
   fontWeight: 600,
   whiteSpace: 'nowrap',
+}
+
+function PrimaryBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButton,
+        border: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled ? '0 22px 40px rgba(39,205,110,0.30)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...ghostButton, textDecoration: 'none', ...(hovered ? { background: 'rgba(30,50,80,0.95)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButton, cursor: disabled ? 'not-allowed' : 'pointer', ...(hovered && !disabled ? { background: 'rgba(30,50,80,0.95)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}), ...(disabled ? { opacity: 0.55 } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+
+function GhostSmallBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ ...ghostButtonSmall, cursor: 'pointer', ...(hovered ? { background: 'rgba(30,50,80,0.95)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,10,24,0.28)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
 }

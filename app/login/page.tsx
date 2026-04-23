@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { CSSProperties, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { CSSProperties, FormEvent, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
@@ -32,19 +32,23 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
 
   const hasRedirectedRef = useRef(false)
 
-  const postLoginRoute = useMemo(() => {
+  // Read fresh at redirect time rather than once at mount — avoids stale value when
+  // Next.js serves a cached page instance for a navigation with a different ?next= param.
+  function getPostLoginRoute() {
     if (typeof window === 'undefined') return DEFAULT_POST_LOGIN_ROUTE
     return resolvePostLoginRoute(new URLSearchParams(window.location.search).get('next'))
-  }, [])
+  }
+
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
-    router.prefetch(postLoginRoute)
-  }, [postLoginRoute, router])
+    router.prefetch(getPostLoginRoute())
+  }, [router])
 
   useEffect(() => {
     let mounted = true
@@ -60,7 +64,7 @@ export default function LoginPage() {
         setAuthLoading(false)
       }
 
-      router.replace(postLoginRoute)
+      router.replace(getPostLoginRoute())
     }
 
     async function loadAuth() {
@@ -110,7 +114,7 @@ export default function LoginPage() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [postLoginRoute, router])
+  }, [router])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -143,7 +147,7 @@ export default function LoginPage() {
       setRedirecting(true)
       setRole('member')
       setAuthLoading(false)
-      router.replace(postLoginRoute)
+      router.replace(getPostLoginRoute())
     } catch (err) {
       hasRedirectedRef.current = false
       setRedirecting(false)
@@ -169,7 +173,10 @@ export default function LoginPage() {
     return (
       <SiteShell active="login">
         <section style={loadingShell}>
-          <div style={loadingCard}>Checking sign-in status...</div>
+          <div style={loadingCard}>
+            <span style={spinnerStyle} />
+            Checking sign-in status...
+          </div>
         </section>
       </SiteShell>
     )
@@ -179,7 +186,10 @@ export default function LoginPage() {
     return (
       <SiteShell active="login">
         <section style={loadingShell}>
-          <div style={loadingCard}>{submitting ? 'Signing you in...' : 'Redirecting to your workspace...'}</div>
+          <div style={loadingCard}>
+            <span style={spinnerStyle} />
+            {submitting ? 'Signing you in...' : 'Redirecting to your workspace...'}
+          </div>
         </section>
       </SiteShell>
     )
@@ -248,7 +258,7 @@ export default function LoginPage() {
                   }}
                 >
                   <Image
-                    src="/logo-icon.png"
+                    src="/logo-icon-current.png"
                     alt="TenAceIQ"
                     width={124}
                     height={124}
@@ -314,7 +324,20 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              <button type="submit" disabled={submitting} style={submitting ? submitButtonDisabled : submitButton}>
+              <button
+                type="submit"
+                disabled={submitting}
+                onMouseEnter={() => setSubmitHovered(true)}
+                onMouseLeave={() => setSubmitHovered(false)}
+                style={{
+                  ...(submitting ? submitButtonDisabled : submitButton),
+                  transform: submitHovered && !submitting ? 'translateY(-1px)' : 'none',
+                  boxShadow: submitHovered && !submitting
+                    ? '0 14px 34px rgba(155,225,29,0.26)'
+                    : undefined,
+                  transition: 'transform 140ms ease, box-shadow 140ms ease',
+                }}
+              >
                 {submitting ? 'Signing in...' : 'Sign in'}
               </button>
 
@@ -723,4 +746,18 @@ const loadingCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.18)',
   fontSize: '15px',
   fontWeight: 700,
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+}
+
+const spinnerStyle: CSSProperties = {
+  display: 'inline-block',
+  width: '18px',
+  height: '18px',
+  borderRadius: '50%',
+  border: '2px solid rgba(155,225,29,0.2)',
+  borderTopColor: '#9be11d',
+  animation: 'tenaceiq-spin 0.7s linear infinite',
+  flexShrink: 0,
 }

@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import {
   useCallback,
@@ -13,13 +14,21 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
-import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
+import {
+  buildCaptainScopedHref,
+  readCaptainResumeState,
+  writeCaptainResumeState,
+} from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import { uniqueSorted } from '@/lib/captain-formatters'
-import { isCaptain, type UserRole } from '@/lib/roles'
+import { useTheme } from '@/app/components/theme-provider'
+import { formatDate, formatRating, uniqueSorted } from '@/lib/captain-formatters'
+import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
@@ -31,10 +40,13 @@ type PlayerRow = {
   lineup_notes: string | null
   singles_rating: number | null
   singles_dynamic_rating: number | null
+  singles_usta_dynamic_rating: number | null
   doubles_rating: number | null
   doubles_dynamic_rating: number | null
+  doubles_usta_dynamic_rating: number | null
   overall_rating: number | null
   overall_dynamic_rating: number | null
+  overall_usta_dynamic_rating: number | null
 }
 
 type AvailabilityRow = {
@@ -256,17 +268,6 @@ function filterPlayerPoolByRoster(playerPool: PoolPlayer[], rosterIds: Set<strin
   return playerPool.filter((player) => rosterIds.has(player.id))
 }
 
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString()
-}
-
-function formatRating(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
-  return value.toFixed(2)
-}
 
 function formatPercent(value: number | null | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—'
@@ -822,8 +823,10 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
 
 export default function LineupBuilderPage() {
   const router = useRouter()
+  const { theme } = useTheme()
 
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
@@ -842,6 +845,7 @@ export default function LineupBuilderPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
+  const [competitionLayer, setCompetitionLayer] = useState('')
   const [leagueName, setLeagueName] = useState('')
   const [flight, setFlight] = useState('')
   const [teamName, setTeamName] = useState('')
@@ -864,7 +868,11 @@ export default function LineupBuilderPage() {
   const [prefillApplied, setPrefillApplied] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const isCaptainAccess = isCaptain(role)
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
 
   useEffect(() => {
@@ -885,6 +893,7 @@ export default function LineupBuilderPage() {
         if (!mounted) return
 
         setRole(authState.role)
+        setEntitlements(authState.entitlements)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -909,6 +918,7 @@ export default function LineupBuilderPage() {
     const params = new URLSearchParams(window.location.search)
     const resumeState = readCaptainResumeState()
     const scenario = params.get('scenario') || params.get('left') || ''
+    const nextCompetitionLayer = params.get('layer') || resumeState?.competitionLayer || ''
     const team = params.get('team') || resumeState?.team || ''
     const league = params.get('league') || resumeState?.league || ''
     const nextFlight = params.get('flight') || resumeState?.flight || ''
@@ -918,6 +928,7 @@ export default function LineupBuilderPage() {
     const single = params.get('single') || ''
 
     if (scenario) setPrefillScenarioId(scenario)
+    if (nextCompetitionLayer) setCompetitionLayer(nextCompetitionLayer)
     if (team) setTeamName(team)
     if (league) setLeagueName(league)
     if (nextFlight) setFlight(nextFlight)
@@ -931,6 +942,7 @@ export default function LineupBuilderPage() {
     if (!teamName && !leagueName && !flight) return
 
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: teamName,
       league: leagueName,
       flight,
@@ -939,7 +951,7 @@ export default function LineupBuilderPage() {
       eventDate: matchDate || undefined,
       opponentTeam: opponentTeam || undefined,
     })
-  }, [flight, leagueName, matchDate, opponentTeam, teamName])
+  }, [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
 
   const sharedCaptainNotes = useMemo(
     () =>
@@ -982,10 +994,13 @@ export default function LineupBuilderPage() {
           lineup_notes,
           singles_rating,
           singles_dynamic_rating,
+          singles_usta_dynamic_rating,
           doubles_rating,
           doubles_dynamic_rating,
+          doubles_usta_dynamic_rating,
           overall_rating,
-          overall_dynamic_rating
+          overall_dynamic_rating,
+          overall_usta_dynamic_rating
         `)
         .order('name', { ascending: true }),
       supabase
@@ -1219,15 +1234,20 @@ export default function LineupBuilderPage() {
   const lockedPlayerIdSet = useMemo(() => new Set(lockedPlayerIds), [lockedPlayerIds])
 
   const compareHref = useMemo(() => {
-    const params = new URLSearchParams()
-    if (leagueName) params.set('league', leagueName)
-    if (flight) params.set('flight', flight)
-    if (teamName) params.set('team', teamName)
-    if (matchDate) params.set('date', matchDate)
-    if (currentScenarioId) params.set('left', currentScenarioId)
-    const query = params.toString()
-    return query ? `/captain/scenario-builder?${query}` : '/captain/scenario-builder'
-  }, [leagueName, flight, teamName, matchDate, currentScenarioId])
+    const baseHref = buildCaptainScopedHref('/captain/scenario-builder', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    })
+
+    if (!currentScenarioId) return baseHref
+
+    const separator = baseHref.includes('?') ? '&' : '?'
+    return `${baseHref}${separator}left=${encodeURIComponent(currentScenarioId)}`
+  }, [competitionLayer, currentScenarioId, flight, leagueName, matchDate, opponentTeam, teamName])
 
   function toggleLockedSlot(slotId: string) {
     setLockedSlotIds((current) =>
@@ -1303,6 +1323,7 @@ export default function LineupBuilderPage() {
 
   function resetBuilder() {
     setCurrentScenarioId('')
+    setCompetitionLayer('')
     setScenarioName('')
     setLeagueName('')
     setFlight('')
@@ -1338,12 +1359,18 @@ function sendCurrentScenarioToMessaging() {
   }
 
   const params = new URLSearchParams()
-  if (teamName) params.set('team', teamName)
-  if (leagueName) params.set('league', leagueName)
-  if (flight) params.set('flight', flight)
   params.set('source', 'lineup_builder')
 
-  router.push(`/captain/messaging?${params.toString()}`)
+  const baseHref = buildCaptainScopedHref('/captain/messaging', {
+    competitionLayer,
+    team: teamName,
+    league: leagueName,
+    flight,
+    date: matchDate,
+    opponent: opponentTeam,
+  })
+
+  router.push(`${baseHref}${baseHref.includes('?') ? '&' : '?'}${params.toString()}`)
 }
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
@@ -1870,6 +1897,65 @@ function sendCurrentScenarioToMessaging() {
     },
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
+  const lineupSignals = [
+    {
+      label: 'Builder state',
+      value: currentScenarioId ? 'Editing saved version' : 'New build',
+      note: 'Treat this page as the place where the real match version gets shaped before you compare or send it.',
+    },
+    {
+      label: 'Readiness',
+      value: `${readinessCompleteCount}/${builderReadiness.length} checks`,
+      note: 'Good lineup work starts with real context, then moves into assignments, saving, and comparison.',
+    },
+    {
+      label: 'Best next move',
+      value: hasComparisonCandidates ? 'Build or compare' : 'Save a second version',
+      note: hasComparisonCandidates
+        ? 'Once the build is real, compare versions before you message the team.'
+        : 'Save another version in the same scope so the scenario workflow becomes useful.',
+    },
+  ]
+
+  const dynamicQuickStartCard: CSSProperties = {
+    ...quickStartCard,
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: isTablet ? 320 : 360,
+    background:
+      theme === 'dark'
+        ? 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.98))',
+    border:
+      theme === 'dark'
+        ? '1px solid rgba(116,190,255,0.12)'
+        : '1px solid rgba(148,163,184,0.18)',
+    boxShadow:
+      theme === 'dark'
+        ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+        : '0 16px 38px rgba(15,23,42,0.08)',
+  }
+
+  const lineupVisualStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+  }
+
+  const lineupVisualMaskStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background:
+      theme === 'dark'
+        ? 'linear-gradient(135deg, rgba(8,18,38,0.26) 8%, rgba(8,18,38,0.76) 50%, rgba(8,18,38,0.94) 100%)'
+        : 'linear-gradient(135deg, rgba(255,255,255,0.18) 8%, rgba(255,255,255,0.78) 52%, rgba(248,250,252,0.94) 100%)',
+  }
+
+  const lineupVisualContentStyle: CSSProperties = {
+    position: 'relative',
+    zIndex: 1,
+    display: 'grid',
+    gap: 14,
+  }
 
   if (authLoading) {
     return (
@@ -1900,10 +1986,10 @@ function sendCurrentScenarioToMessaging() {
 
             <div style={heroButtonRowStyle}>
               <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare Saved Scenarios</Link>
-              <button type="button" onClick={resetBuilder} style={ghostButton}>Reset Builder</button>
-              <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButton}>
+              <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
+              <GhostBtn onClick={() => setRefreshTick((current) => current + 1)}>
                 {loading ? 'Refreshing...' : 'Refresh data'}
-              </button>
+              </GhostBtn>
             </div>
 
             <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -1911,50 +1997,85 @@ function sendCurrentScenarioToMessaging() {
                 <MetricStat key={stat.label} label={stat.label} value={stat.value} />
               ))}
             </div>
+
+            <section style={signalGridStyle(isSmallMobile)}>
+              {lineupSignals.map((signal) => (
+                <article key={signal.label} style={signalCardStyle}>
+                  <div style={signalLabelStyle}>{signal.label}</div>
+                  <div style={signalValueStyle}>{signal.value}</div>
+                  <div style={signalNoteStyle}>{signal.note}</div>
+                </article>
+              ))}
+            </section>
           </div>
 
-          <div style={quickStartCard}>
-            <p style={sectionKicker}>Builder workflow</p>
-            <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
-            <div style={workflowListStyle}>
-              {[
-                ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
-                ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
-                ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
-              ].map(([step, title, text]) => (
-                <div key={step} style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>{step}</div>
-                  <div>
-                    <div style={workflowTitleStyle}>{title}</div>
-                    <div style={workflowTextStyle}>{text}</div>
-                  </div>
-                </div>
-              ))}
+          <div style={dynamicQuickStartCard}>
+            <div style={lineupVisualStyle}>
+              <Image
+                src={heroArtworkSrc}
+                alt="TenAceIQ lineup builder concept art"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 34vw"
+                style={{ objectFit: 'cover', objectPosition: isTablet ? 'center center' : '72% center' }}
+              />
+              <div style={lineupVisualMaskStyle} />
             </div>
 
-            <div style={{ marginTop: 18 }}>
-              <span style={miniPillSlateStyle}>
-                {currentScenario ? `Loaded: ${currentScenario.scenario_name}` : 'No scenario loaded'}
-              </span>
+            <div style={lineupVisualContentStyle}>
+              <p style={sectionKicker}>Builder workflow</p>
+              <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
+              <div style={workflowListStyle}>
+                {[
+                  ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
+                  ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
+                  ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
+                ].map(([step, title, text]) => (
+                  <div key={step} style={workflowRowStyle}>
+                    <div style={workflowNumberStyle}>{step}</div>
+                    <div>
+                      <div style={workflowTitleStyle}>{title}</div>
+                      <div style={workflowTextStyle}>{text}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 18 }}>
+                <span style={miniPillSlateStyle}>
+                  {currentScenario ? `Loaded: ${currentScenario.scenario_name}` : 'No scenario loaded'}
+                </span>
+              </div>
             </div>
           </div>
         </section>
+
+        <CaptainSubnav
+          title="Lineup Builder inside the captain command center"
+          description="Stay anchored to availability, scenarios, messaging, and season management while you build the strongest team sheet."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
         {!!error && (
           <div role="alert" style={warningCardStyle}>
             <div>{error}</div>
             <div style={{ marginTop: 12 }}>
-              <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={ghostButtonSmallButton}>
-                Retry builder load
-              </button>
+              <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry builder load</GhostSmallBtn>
             </div>
           </div>
         )}
         {isPreviewMode ? (
-          <div style={bannerBlueStyle}>
-            Preview mode: members can explore the lineup builder, but saving scenarios, deleting scenarios, and tracking prediction snapshots require Captain tier.
-          </div>
+          <UpgradePrompt
+            planId="captain"
+            headline="Still building lineups manually?"
+            body="Captain unlocks saved scenarios, smarter lineup iterations, and prediction tracking so you can move from availability chaos to a clearer match-day plan."
+            ctaLabel="Build Smarter Lineups"
+            ctaHref="/pricing"
+            secondaryLabel="Keep exploring"
+            compact
+          />
         ) : null}
         {teamName && !myPlayerPool.length ? (
           <div style={warningCardStyle}>
@@ -2023,9 +2144,7 @@ function sendCurrentScenarioToMessaging() {
                 <div style={sharedNotesBlockStyle}>
                   <div style={sharedNotesLabelStyle}>Weekly prep notes</div>
                   <div style={sharedNotesTextStyle}>{sharedCaptainNotes.weeklyNotes}</div>
-                  <button type="button" style={ghostButtonSmallButton} onClick={() => appendSharedScenarioNotes(sharedCaptainNotes.weeklyNotes)}>
-                    Add to scenario notes
-                  </button>
+                  <GhostSmallBtn onClick={() => appendSharedScenarioNotes(sharedCaptainNotes.weeklyNotes)}>Add to scenario notes</GhostSmallBtn>
                 </div>
               ) : null}
 
@@ -2033,9 +2152,7 @@ function sendCurrentScenarioToMessaging() {
                 <div style={sharedNotesBlockStyle}>
                   <div style={sharedNotesLabelStyle}>Opponent scouting notes</div>
                   <div style={sharedNotesTextStyle}>{sharedCaptainNotes.opponentNotes}</div>
-                  <button type="button" style={ghostButtonSmallButton} onClick={() => appendSharedScenarioNotes(sharedCaptainNotes.opponentNotes)}>
-                    Add scouting notes
-                  </button>
+                  <GhostSmallBtn onClick={() => appendSharedScenarioNotes(sharedCaptainNotes.opponentNotes)}>Add scouting notes</GhostSmallBtn>
                 </div>
               ) : null}
             </div>
@@ -2081,15 +2198,13 @@ function sendCurrentScenarioToMessaging() {
                 </div>
 
                 <div style={actionRowStyle}>
-                  <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                  <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
                     {saving ? 'Saving…' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
-                  </button>
-                  <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
-                    Save as New
-                  </button>
-                  <button type="button" onClick={() => void trackPredictionSnapshot('manual-track')} style={ghostButton} disabled={trackingSnapshot}>
+                  </PrimaryBtn>
+                  <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as New</GhostBtn>
+                  <GhostBtn onClick={() => void trackPredictionSnapshot('manual-track')} disabled={trackingSnapshot}>
                     {trackingSnapshot ? 'Tracking…' : 'Track Snapshot'}
-                  </button>
+                  </GhostBtn>
                 </div>
               </div>
 
@@ -2165,17 +2280,17 @@ function sendCurrentScenarioToMessaging() {
                     <div>
                       <div style={listTitleStyle}>{scenario.scenario_name}</div>
                       <div style={listMetaStyle}>
-                        {scenario.team_name || 'No team'} • {scenario.opponent_team || 'No opponent'} • {formatDate(scenario.match_date)}
+                        {scenario.team_name || 'No team'} - {scenario.opponent_team || 'No opponent'} - {formatDate(scenario.match_date)}
                       </div>
                     </div>
 
                     <div style={actionRowStyle}>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => void loadScenario(scenario.id)} disabled={loadingScenarioId === scenario.id}>
+                      <GhostSmallBtn onClick={() => void loadScenario(scenario.id)} disabled={loadingScenarioId === scenario.id}>
                         {loadingScenarioId === scenario.id ? 'Loading…' : 'Load'}
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => void deleteScenario(scenario.id)} disabled={deletingScenarioId === scenario.id}>
+                      </GhostSmallBtn>
+                      <GhostSmallBtn onClick={() => void deleteScenario(scenario.id)} disabled={deletingScenarioId === scenario.id}>
                         {deletingScenarioId === scenario.id ? 'Deleting…' : 'Delete'}
-                      </button>
+                      </GhostSmallBtn>
                     </div>
                   </div>
                 )) : (
@@ -2196,8 +2311,8 @@ function sendCurrentScenarioToMessaging() {
                   <h2 style={sectionTitle}>Build your team courts</h2>
                 </div>
                 <div style={actionRowStyle}>
-                  <button type="button" onClick={() => addSlot('team', 'singles')} style={ghostButtonSmallButton}>+ Singles</button>
-                  <button type="button" onClick={() => addSlot('team', 'doubles')} style={ghostButtonSmallButton}>+ Doubles</button>
+                  <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles</GhostSmallBtn>
+                  <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles</GhostSmallBtn>
                 </div>
               </div>
 
@@ -2230,8 +2345,8 @@ function sendCurrentScenarioToMessaging() {
                   <h2 style={sectionTitle}>Project the other side</h2>
                 </div>
                 <div style={actionRowStyle}>
-                  <button type="button" onClick={() => addSlot('opponent', 'singles')} style={ghostButtonSmallButton}>+ Singles</button>
-                  <button type="button" onClick={() => addSlot('opponent', 'doubles')} style={ghostButtonSmallButton}>+ Doubles</button>
+                  <GhostSmallBtn onClick={() => addSlot('opponent', 'singles')}>+ Singles</GhostSmallBtn>
+                  <GhostSmallBtn onClick={() => addSlot('opponent', 'doubles')}>+ Doubles</GhostSmallBtn>
                 </div>
               </div>
 
@@ -2264,10 +2379,10 @@ function sendCurrentScenarioToMessaging() {
               </p>
 
               <div style={actionRowStyleWrap}>
-                <button type="button" onClick={applyRecommendedTeamLineup} style={primaryButton}>Apply Balanced Build</button>
-                <button type="button" onClick={applyRecommendedOpponentLineup} style={ghostButton}>Auto-Fill Opponent</button>
-                <button type="button" onClick={rebuildAroundLocks} style={ghostButton}>Rebuild Around Locks</button>
-                <button type="button" onClick={clearLocks} style={ghostButton}>Clear Locks</button>
+                <PrimaryBtn onClick={applyRecommendedTeamLineup}>Apply Balanced Build</PrimaryBtn>
+                <GhostBtn onClick={applyRecommendedOpponentLineup}>Auto-Fill Opponent</GhostBtn>
+                <GhostBtn onClick={rebuildAroundLocks}>Rebuild Around Locks</GhostBtn>
+                <GhostBtn onClick={clearLocks}>Clear Locks</GhostBtn>
               </div>
 
               <div style={heroBadgeRowStyleCompact}>
@@ -2315,7 +2430,7 @@ function sendCurrentScenarioToMessaging() {
                             {teamSlots
                               .filter((slot) => lockedSlotIdSet.has(slot.id))
                               .map((slot) => slot.label)
-                              .join(' • ')}
+                              .join(' - ')}
                           </div>
                         </div>
                         <span style={miniPillBlueStyle}>line locks</span>
@@ -2330,7 +2445,7 @@ function sendCurrentScenarioToMessaging() {
                             {players
                               .filter((player) => lockedPlayerIdSet.has(player.id))
                               .map((player) => player.name)
-                              .join(' • ')}
+                              .join(' - ')}
                           </div>
                         </div>
                         <span style={miniPillGreenStyle}>player locks</span>
@@ -2366,7 +2481,7 @@ function sendCurrentScenarioToMessaging() {
                       <div>
                         <div style={listTitleStyle}>{player.name}</div>
                         <div style={listMetaStyle}>
-                          OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} • S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} • D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
+                          TIQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
                         </div>
                       </div>
                       <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
@@ -2409,17 +2524,12 @@ function sendCurrentScenarioToMessaging() {
               </div>
 
               <div style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => applyOptimizedPlan('best')} style={primaryButton}>
+                <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>
                   Apply Best Strategy
-                </button>
+                </PrimaryBtn>
 
-                <button type="button" onClick={() => applyOptimizedPlan('safe')} style={ghostButton}>
-                  Play It Safe
-                </button>
-
-                <button type="button" onClick={() => applyOptimizedPlan('upside')} style={ghostButton}>
-                  Max Upside
-                </button>
+                <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Play It Safe</GhostBtn>
+                <GhostBtn onClick={() => applyOptimizedPlan('upside')}>Max Upside</GhostBtn>
               </div>
             </section>
 
@@ -2444,9 +2554,7 @@ function sendCurrentScenarioToMessaging() {
                         <span style={miniPillSlateStyle}>{plan.bench.length} bench</span>
                       </div>
                     </div>
-                    <button type="button" onClick={() => applyOptimizedPlan(plan.mode)} style={ghostButtonSmallButton}>
-                      Apply
-                    </button>
+                    <GhostSmallBtn onClick={() => applyOptimizedPlan(plan.mode)}>Apply</GhostSmallBtn>
                   </div>
                 ))}
               </div>
@@ -2514,7 +2622,7 @@ function sendCurrentScenarioToMessaging() {
                     <div>
                       <div style={listTitleStyle}>{line.label}</div>
                       <div style={listMetaStyle}>
-                        Your {formatRating(line.yourRating)} • Opp {formatRating(line.opponentRating)} • Diff {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                        Your {formatRating(line.yourRating)} - Opp {formatRating(line.opponentRating)} - Diff {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
                       </div>
                     </div>
                     <span style={typeof line.projection === 'number' && line.projection >= 0.5 ? miniPillGreenStyle : miniPillSlateStyle}>
@@ -2650,25 +2758,17 @@ function sendCurrentScenarioToMessaging() {
               </div>
 
               <div style={scenarioDeckButtonRowStyle}>
-                <button type="button" onClick={() => saveScenario(false)} style={primaryButton} disabled={saving}>
+                <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
                   {saving ? 'Saving…' : currentScenarioId ? 'Update Current Scenario' : 'Save Current Scenario'}
-                </button>
-                <button type="button" onClick={() => saveScenario(true)} style={ghostButton} disabled={saving}>
-                  Save as New Version
-                </button>
-                <button type="button" onClick={() => void trackPredictionSnapshot('command-deck-track')} style={ghostButton} disabled={trackingSnapshot}>
+                </PrimaryBtn>
+                <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as New Version</GhostBtn>
+                <GhostBtn onClick={() => void trackPredictionSnapshot('command-deck-track')} disabled={trackingSnapshot}>
                   {trackingSnapshot ? 'Tracking…' : 'Track Prediction Snapshot'}
-                </button>
-                <button
-  type="button"
-  onClick={sendCurrentScenarioToMessaging}
-  style={primaryButton}
->
-  Send to Messaging
-</button>
-<Link href={compareHref} style={ghostButton}>
-                  Open Scenario Comparison
-                </Link>
+                </GhostBtn>
+                <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>
+                  Send to Messaging
+                </PrimaryBtn>
+                <GhostLink href={compareHref}>Open Scenario Comparison</GhostLink>
               </div>
             </section>
 
@@ -2687,7 +2787,7 @@ function sendCurrentScenarioToMessaging() {
                     <div>
                       <div style={listTitleStyle}>{player.name}</div>
                       <div style={listMetaStyle}>
-                        OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} • S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} • D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}{player.location ? ` • ${player.location}` : ''}
+                        OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}{player.location ? ` - ${player.location}` : ''}
                       </div>
                       {player.lineup_notes ? <div style={tinyNoteStyle}>{player.lineup_notes}</div> : null}
                     </div>
@@ -2786,9 +2886,7 @@ function SlotEditor({
           ) : null}
         </div>
 
-        <button type="button" style={ghostButtonSmallButton} onClick={() => onRemove(side, slot.id)}>
-          Remove
-        </button>
+        <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn>
       </div>
 
       <div style={slotPlayersGridStyle}>
@@ -2809,7 +2907,7 @@ function SlotEditor({
 
                 return (
                   <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
-                    {poolPlayer.name} • OVR {formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}
+                    {poolPlayer.name} - OVR {formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}
                   </option>
                 )
               })}
@@ -2844,10 +2942,9 @@ const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSPropertie
   gap: isMobile ? 16 : 22,
   padding: isMobile ? 18 : 26,
   borderRadius: 28,
-  border: '1px solid rgba(96, 165, 250, 0.18)',
-  background:
-    'radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 34%), linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98))',
-  boxShadow: '0 30px 70px rgba(2, 6, 23, 0.34)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 30px 70px rgba(2, 6, 23, 0.18)',
 })
 
 const eyebrow: CSSProperties = {
@@ -2861,7 +2958,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitleResponsive = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
   margin: 0,
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontSize: isSmallMobile ? 32 : isMobile ? 40 : 52,
   lineHeight: 1.02,
   letterSpacing: '-0.04em',
@@ -2869,7 +2966,7 @@ const heroTitleResponsive = (isSmallMobile: boolean, isMobile: boolean): CSSProp
 })
 
 const heroTextStyle: CSSProperties = {
-  color: '#bfdbfe',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontSize: 16,
   maxWidth: 760,
@@ -2890,16 +2987,54 @@ const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   marginTop: 22,
 })
 
+const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 14,
+  marginTop: 18,
+})
+
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: 22,
   padding: '16px 16px 14px',
-  background: 'rgba(15, 23, 42, 0.7)',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minHeight: 96,
 }
 
+const signalCardStyle: CSSProperties = {
+  borderRadius: 22,
+  padding: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: 10,
+  color: 'var(--foreground)',
+  fontSize: '1.24rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: 8,
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  fontSize: '.94rem',
+}
+
 const metricLabelStyle: CSSProperties = {
-  color: '#93c5fd',
+  color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2907,7 +3042,7 @@ const metricLabelStyle: CSSProperties = {
 }
 
 const metricValueStyleHero: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontSize: 28,
   fontWeight: 900,
   marginTop: 10,
@@ -2916,13 +3051,13 @@ const metricValueStyleHero: CSSProperties = {
 const quickStartCard: CSSProperties = {
   borderRadius: 24,
   padding: 22,
-  background: 'rgba(15, 23, 42, 0.74)',
-  border: '1px solid rgba(148, 163, 184, 0.18)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const quickStartTitle: CSSProperties = {
   margin: '6px 0 0',
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontSize: 28,
   lineHeight: 1.1,
   fontWeight: 900,
@@ -2953,13 +3088,13 @@ const workflowNumberStyle: CSSProperties = {
 }
 
 const workflowTitleStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: 15,
 }
 
 const workflowTextStyle: CSSProperties = {
-  color: '#cbd5e1',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.55,
   marginTop: 4,
@@ -2980,17 +3115,17 @@ const columnStyle: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   borderRadius: 26,
   padding: 22,
-  border: '1px solid rgba(96, 165, 250, 0.16)',
-  background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98))',
-  boxShadow: '0 18px 50px rgba(2, 6, 23, 0.26)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 18px 50px rgba(2, 6, 23, 0.14)',
 }
 
 const surfaceCard: CSSProperties = {
   borderRadius: 24,
   padding: 20,
-  border: '1px solid rgba(148, 163, 184, 0.16)',
-  background: 'rgba(15, 23, 42, 0.92)',
-  boxShadow: '0 16px 42px rgba(2, 6, 23, 0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 16px 42px rgba(2, 6, 23, 0.12)',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -3012,7 +3147,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0 0',
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontSize: 26,
   lineHeight: 1.08,
   fontWeight: 900,
@@ -3020,7 +3155,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionTitleSmall: CSSProperties = {
   margin: '6px 0 0',
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontSize: 20,
   lineHeight: 1.1,
   fontWeight: 800,
@@ -3028,7 +3163,7 @@ const sectionTitleSmall: CSSProperties = {
 
 const sectionBodyTextStyle: CSSProperties = {
   marginTop: 10,
-  color: '#cbd5e1',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.6,
 }
@@ -3037,9 +3172,9 @@ const inputStyle: CSSProperties = {
   width: '100%',
   height: 46,
   borderRadius: 14,
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  background: 'rgba(15, 23, 42, 0.92)',
-  color: '#f8fafc',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '0 14px',
   outline: 'none',
 }
@@ -3047,9 +3182,9 @@ const inputStyle: CSSProperties = {
 const textareaStyle: CSSProperties = {
   width: '100%',
   borderRadius: 16,
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  background: 'rgba(15, 23, 42, 0.92)',
-  color: '#f8fafc',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   padding: '14px',
   outline: 'none',
   resize: 'vertical',
@@ -3057,7 +3192,7 @@ const textareaStyle: CSSProperties = {
 
 const labelStyle: CSSProperties = {
   display: 'block',
-  color: '#cbd5e1',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontWeight: 700,
   marginBottom: 8,
@@ -3078,8 +3213,8 @@ const contextSummaryGridStyle: CSSProperties = {
 const contextSummaryCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 16,
-  background: 'rgba(2, 6, 23, 0.56)',
-  border: '1px solid rgba(148, 163, 184, 0.14)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
 }
@@ -3093,7 +3228,7 @@ const contextSummaryLabelStyle: CSSProperties = {
 }
 
 const contextSummaryValueStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontSize: 18,
   lineHeight: 1.2,
   fontWeight: 800,
@@ -3102,7 +3237,7 @@ const contextSummaryValueStyle: CSSProperties = {
 
 const contextSummaryInsightStyle: CSSProperties = {
   marginTop: 14,
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.65,
 }
@@ -3114,7 +3249,7 @@ const sharedNotesCardStyle: CSSProperties = {
   padding: '16px 18px',
   borderRadius: 20,
   border: '1px solid rgba(74, 222, 128, 0.16)',
-  background: 'linear-gradient(180deg, rgba(16, 38, 70, 0.72) 0%, rgba(15, 31, 58, 0.62) 100%)',
+  background: 'var(--shell-panel-bg)',
 }
 
 const sharedNotesBlockStyle: CSSProperties = {
@@ -3131,7 +3266,7 @@ const sharedNotesLabelStyle: CSSProperties = {
 }
 
 const sharedNotesTextStyle: CSSProperties = {
-  color: 'rgba(229, 238, 251, 0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.7,
   whiteSpace: 'pre-wrap',
@@ -3148,7 +3283,7 @@ const checkLabelStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 8,
-  color: '#cbd5e1',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
 }
 
@@ -3174,9 +3309,9 @@ const ghostButton: CSSProperties = {
   height: 46,
   padding: '0 18px',
   borderRadius: 14,
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  background: 'rgba(15, 23, 42, 0.9)',
-  color: '#e2e8f0',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   textDecoration: 'none',
   cursor: 'pointer',
@@ -3196,9 +3331,9 @@ const ghostButtonSmallButton: CSSProperties = {
   height: 36,
   padding: '0 12px',
   borderRadius: 12,
-  border: '1px solid rgba(148, 163, 184, 0.22)',
-  background: 'rgba(15, 23, 42, 0.9)',
-  color: '#e2e8f0',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
 }
@@ -3228,8 +3363,8 @@ const stackStyleCompact: CSSProperties = {
 
 const listCardStyle: CSSProperties = {
   borderRadius: 18,
-  border: '1px solid rgba(148, 163, 184, 0.16)',
-  background: 'rgba(2, 6, 23, 0.7)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   padding: 16,
   display: 'flex',
   justifyContent: 'space-between',
@@ -3239,8 +3374,8 @@ const listCardStyle: CSSProperties = {
 
 const listCardStyleCompact: CSSProperties = {
   borderRadius: 16,
-  border: '1px solid rgba(148, 163, 184, 0.14)',
-  background: 'rgba(2, 6, 23, 0.56)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   padding: 14,
   display: 'flex',
   justifyContent: 'space-between',
@@ -3249,27 +3384,27 @@ const listCardStyleCompact: CSSProperties = {
 }
 
 const listTitleStyle: CSSProperties = {
-  color: '#f8fafc',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: 15,
 }
 
 const listMetaStyle: CSSProperties = {
-  color: '#94a3b8',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
   marginTop: 4,
 }
 
 const listMetaStyleStrong: CSSProperties = {
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.6,
   marginTop: 4,
 }
 
 const tinyNoteStyle: CSSProperties = {
-  color: '#bfdbfe',
+  color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.5,
   marginTop: 6,
@@ -3277,8 +3412,8 @@ const tinyNoteStyle: CSSProperties = {
 
 const slotCardStyle: CSSProperties = {
   borderRadius: 18,
-  border: '1px solid rgba(148, 163, 184, 0.16)',
-  background: 'rgba(2, 6, 23, 0.66)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   padding: 16,
 }
 
@@ -3299,9 +3434,9 @@ const slotHeaderLeftStyle: CSSProperties = {
 
 const slotLabelInputStyle: CSSProperties = {
   borderRadius: 12,
-  border: '1px solid rgba(148, 163, 184, 0.2)',
-  background: 'rgba(15, 23, 42, 0.88)',
-  color: '#f8fafc',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg-strong)',
+  color: 'var(--foreground)',
   padding: '8px 12px',
   minWidth: 140,
   outline: 'none',
@@ -3337,7 +3472,7 @@ const decisionCardBaseStyle: CSSProperties = {
   padding: 18,
   display: 'grid',
   gap: 8,
-  border: '1px solid rgba(148, 163, 184, 0.16)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const decisionCardGoodStyle: CSSProperties = {
@@ -3645,3 +3780,83 @@ const pillButtonActive: CSSProperties = {
   ...miniPillGreenStyle,
   cursor: 'pointer',
 }
+
+function PrimaryBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButton,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled
+          ? '0 20px 40px rgba(37,99,235,0.32)'
+          : '0 12px 28px rgba(37,99,235,0.20)',
+        transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...ghostButton, ...(hovered ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,8,28,0.32)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButton, ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+
+function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+

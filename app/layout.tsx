@@ -1,17 +1,31 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { JetBrains_Mono, Manrope } from 'next/font/google'
 import Script from 'next/script'
+import { ThemeProvider } from '@/app/components/theme-provider'
 import './globals.css'
 
-const geistSans = Geist({
+const appSans = Manrope({
   variable: '--font-geist-sans',
   subsets: ['latin'],
+  display: 'swap',
 })
 
-const geistMono = Geist_Mono({
+const appMono = JetBrains_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+  display: 'swap',
 })
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#081a31' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f7fb' },
+  ],
+  colorScheme: 'dark light',
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://tenaceiq.com'),
@@ -37,8 +51,19 @@ export const metadata: Metadata = {
   authors: [{ name: 'TenAceIQ' }],
   creator: 'TenAceIQ',
   publisher: 'TenAceIQ',
+  category: 'sports',
   alternates: {
     canonical: '/',
+  },
+  formatDetection: {
+    telephone: false,
+    address: false,
+    email: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'TenAceIQ',
   },
   other: {
     'google-adsense-account': 'ca-pub-1351888380884789',
@@ -56,10 +81,10 @@ export const metadata: Metadata = {
     description: 'Know more. Plan better. Compete smarter.',
     images: [
       {
-        url: '/hero-tenaceiq-final.png',
+        url: '/df190aef-4a8e-4587-bce8-7e2e22655646.png',
         width: 1200,
         height: 630,
-        alt: 'TenAceIQ',
+        alt: 'TenAceIQ premium tennis intelligence platform',
       },
     ],
   },
@@ -67,8 +92,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'TenAceIQ',
     description: 'Know more. Plan better. Compete smarter.',
-    images: ['/hero-tenaceiq-final.png'],
+    images: ['/df190aef-4a8e-4587-bce8-7e2e22655646.png'],
   },
+  manifest: '/manifest.webmanifest',
 }
 
 export default function RootLayout({
@@ -79,10 +105,26 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${appSans.variable} ${appMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[#061120] text-white">
-        {children}
+      <body className="min-h-full">
+        <Script id="theme-init" strategy="beforeInteractive">{`
+          (function () {
+            try {
+              var storedTheme = window.localStorage.getItem('tenaceiq-theme-mode');
+              var resolvedTheme = storedTheme === 'light' || storedTheme === 'dark'
+                ? storedTheme
+                : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+              document.documentElement.dataset.theme = resolvedTheme;
+              document.documentElement.style.colorScheme = resolvedTheme;
+            } catch (error) {
+              document.documentElement.dataset.theme = 'dark';
+              document.documentElement.style.colorScheme = 'dark';
+            }
+          })();
+        `}</Script>
+        <ThemeProvider>{children}</ThemeProvider>
         <Script
           id="google-adsense-loader"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"

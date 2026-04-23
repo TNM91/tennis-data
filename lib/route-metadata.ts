@@ -13,7 +13,7 @@ const supabase = createClient(
   },
 )
 
-const DEFAULT_IMAGE = '/hero-tenaceiq-final.png'
+const DEFAULT_IMAGE = '/og-image.png'
 
 function joinParts(parts: Array<string | null | undefined>, separator: string) {
   return parts.filter(Boolean).join(separator)

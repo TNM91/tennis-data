@@ -1,12 +1,16 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
+import CaptainSubnav from '@/app/components/captain-subnav'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
+import { useTheme } from '@/app/components/theme-provider'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
@@ -18,8 +22,9 @@ import {
   type CaptainWeekStatus,
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
-import { uniqueSorted } from '@/lib/captain-formatters'
-import { isCaptain, type UserRole } from '@/lib/roles'
+import { formatDate, uniqueSorted } from '@/lib/captain-formatters'
+import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -167,13 +172,6 @@ function formatPhone(phone: string) {
 
 function safeKey(...parts: Array<string | null | undefined>) {
   return parts.map((part) => normalizeText(part).toLowerCase() || '—').join('|')
-}
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString()
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -393,16 +391,16 @@ function eventDefaultMessage(kind: MessageKind, params: {
 }) {
   const { teamName, opponent, dateText, location, arrivalTime, lineupText } = params
   if (kind === 'availability') {
-    return `Hey ${teamName || 'team'} — please reply YES, NO, or MAYBE for ${dateText}. I am locking the lineup soon.`
+    return `Hey ${teamName || 'team'} - please reply YES, NO, or MAYBE for ${dateText}. I am locking the lineup soon.`
   }
   if (kind === 'lineup') {
-    return `Lineup is set for ${dateText} vs ${opponent || 'our opponent'}:\n${lineupText || 'Line assignments coming shortly.'}\nPlease arrive by ${arrivalTime || 'match time'}.`
+    return `Lineup is set for ${dateText} vs ${opponent || 'the opponent'}:\n${lineupText || 'Line assignments are being finalized.'}\nPlease arrive by ${arrivalTime || 'match time'}.`
   }
   if (kind === 'directions') {
     return `Match details for ${dateText}: ${location || 'facility details coming shortly.'} Please plan to arrive by ${arrivalTime || 'match time'}. Reply if you have any issues getting there.`
   }
   if (kind === 'reminder') {
-    return `Reminder for ${dateText} vs ${opponent || 'our opponent'} — please arrive by ${arrivalTime || 'match time'}. Let me know immediately if your status changes.`
+    return `Reminder for ${dateText} vs ${opponent || 'the opponent'} - please arrive by ${arrivalTime || 'match time'}. Let me know immediately if your status changes.`
   }
   return `Following up for ${dateText}. I still need your response. Please reply ASAP so I can finalize the lineup.`
 }
@@ -520,7 +518,9 @@ function buildDemoLineupRows(): LineupAssignment[] {
 
 export default function CaptainMessagingPage() {
   const router = useRouter()
+  const { theme } = useTheme()
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -528,6 +528,7 @@ export default function CaptainMessagingPage() {
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
   const [refreshTick, setRefreshTick] = useState(0)
+  const [competitionLayer, setCompetitionLayer] = useState('')
 
   const [contacts, setContacts] = useState<ContactRow[]>([])
   const [templates, setTemplates] = useState<TemplateRow[]>([])
@@ -576,7 +577,11 @@ export default function CaptainMessagingPage() {
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const captainAccess = isCaptain(role)
+  const heroArtworkSrc = theme === 'dark'
+    ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
+    : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const captainAccess = access.canUseCaptainWorkflow
 
   function requireCaptainAccess(message = 'Captain tier required to use Messaging.') {
     if (captainAccess) return true
@@ -602,6 +607,7 @@ export default function CaptainMessagingPage() {
         if (!mounted) return
 
         setRole(authState.role)
+        setEntitlements(authState.entitlements)
       } finally {
         if (mounted) setAuthLoading(false)
       }
@@ -647,10 +653,12 @@ export default function CaptainMessagingPage() {
         setPrefillFlowSource(sourceFromUrl || rawFlowSource)
       }
 
+      const competitionLayerFromUrl = params.get('layer') || resumeState?.competitionLayer || ''
       const teamFromUrl = params.get('team') || resumeState?.team || ''
       const leagueFromUrl = params.get('league') || resumeState?.league || ''
       const flightFromUrl = params.get('flight') || resumeState?.flight || ''
 
+      if (competitionLayerFromUrl) setCompetitionLayer(competitionLayerFromUrl)
       if (teamFromUrl) setTeamFilter(teamFromUrl)
       if (leagueFromUrl) setLeagueFilter(leagueFromUrl)
       if (flightFromUrl) setFlightFilter(flightFromUrl)
@@ -749,7 +757,7 @@ export default function CaptainMessagingPage() {
           setSelectedScenarioId((current) => current || demoScenario.id)
           if (!eventArrivalTime) setEventArrivalTime('7:15 PM')
           if (!eventLocation) setEventLocation('Demo Tennis Club')
-          if (!eventNotes) setEventNotes('Demo mode active — seeded workflow for testing.')
+          if (!eventNotes) setEventNotes('Sample weekly workflow loaded for review.')
         }
 
         type EventDetail = {
@@ -788,8 +796,12 @@ export default function CaptainMessagingPage() {
         setSelectedScenarioId((current) => current || demoScenario.id)
         if (!eventArrivalTime) setEventArrivalTime('7:15 PM')
         if (!eventLocation) setEventLocation('Demo Tennis Club')
-        if (!eventNotes) setEventNotes('Demo mode active — seeded workflow for testing.')
-        setError(err instanceof Error ? `${err.message} — demo mode loaded.` : 'Unable to load captain messaging data. Demo mode loaded.')
+        if (!eventNotes) setEventNotes('Sample weekly workflow loaded for review.')
+        setError(
+          err instanceof Error
+            ? `${err.message} - sample workflow loaded for review.`
+            : 'Unable to load captain messaging data. A sample workflow was loaded for review.',
+        )
       } finally {
         if (mounted) setLoading(false)
       }
@@ -919,6 +931,7 @@ export default function CaptainMessagingPage() {
     if (!teamFilter && !leagueFilter && !flightFilter) return
 
     writeCaptainResumeState({
+      competitionLayer: competitionLayer || undefined,
       team: teamFilter,
       league: leagueFilter,
       flight: flightFilter,
@@ -927,7 +940,7 @@ export default function CaptainMessagingPage() {
       eventDate: selectedMatch?.match_date || undefined,
       opponentTeam: inferredOpponent || undefined,
     })
-  }, [flightFilter, inferredOpponent, leagueFilter, selectedMatch, teamFilter])
+  }, [competitionLayer, flightFilter, inferredOpponent, leagueFilter, selectedMatch, teamFilter])
   const eventKey = safeKey(inferredTeamName, selectedMatch?.league_name, selectedMatch?.flight, selectedMatch?.match_date)
   const weekStatusScope = useMemo(
     () => ({
@@ -1778,15 +1791,15 @@ function buildWinningLineupMessage() {
   const lineupText = slots.length
     ? slots
         .map((slot) => {
-          const players = slot.players.join(' / ') || 'TBD'
+          const players = slot.players.join(' / ') || 'Open slot'
           return `${slot.label}: ${players}`
         })
         .join('\n')
-    : 'Lineup coming soon.'
+    : 'Lineup not finalized yet.'
 
   const scenarioDateText = formatDate(selectedScenario.match_date)
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
-  const opponentText = inferredOpponent || selectedScenario.opponent_team || 'our opponent'
+  const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
 
   return `Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`
 }
@@ -1872,7 +1885,7 @@ function importScenarioToLineup() {
 
   function loadAutoFollowUpMessage() {
     const names = followUpTargets.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
-    const nameText = names.length ? `${names.join(', ')} — ` : ''
+    const nameText = names.length ? `${names.join(', ')} - ` : ''
 
     setRecipientMode('non-responders')
     setMessageKind('follow-up')
@@ -1885,19 +1898,19 @@ function importScenarioToLineup() {
 
   function loadNeedSubMessage() {
     const names = needSubContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
-    const nameText = names.length ? `${names.join(', ')} — ` : ''
+    const nameText = names.length ? `${names.join(', ')} - ` : ''
 
     setRecipientMode('captains')
     setMessageKind('follow-up')
     setMessageTitle('Sub Needed')
     setMessageBody(
-      `${nameText}just checking in — we need a substitution update for ${formatDate(selectedMatch?.match_date)}. Please confirm replacement options as soon as you can so I can finalize the lineup.`
+      `${nameText}just checking in - we need a substitution update for ${formatDate(selectedMatch?.match_date)}. Please confirm replacement options as soon as you can so I can finalize the lineup.`
     )
   }
 
   function loadRunningLateMessage() {
     const names = runningLateContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
-    const nameText = names.length ? `${names.join(', ')} — ` : ''
+    const nameText = names.length ? `${names.join(', ')} - ` : ''
 
     setRecipientMode('captains')
     setMessageKind('follow-up')
@@ -1909,14 +1922,14 @@ function importScenarioToLineup() {
 
   function loadTentativeMessage() {
     const names = tentativeContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
-    const nameText = names.length ? `${names.join(', ')} — ` : ''
+    const nameText = names.length ? `${names.join(', ')} - ` : ''
 
     setRecipientMode('custom')
     setSelectedRecipientIds(tentativeContacts.map((contact) => contact.id))
     setMessageKind('follow-up')
     setMessageTitle('Tentative Status Check')
     setMessageBody(
-      `${nameText}just checking in — I still need a final yes or no for ${formatDate(selectedMatch?.match_date)} so I can lock the lineup. Please reply when you can.`
+      `${nameText}just checking in - I still need a final yes or no for ${formatDate(selectedMatch?.match_date)} so I can lock the lineup. Please reply when you can.`
     )
   }
 
@@ -1977,6 +1990,70 @@ function importScenarioToLineup() {
     )
   }
 
+  const messagingSignals = [
+    {
+      label: 'Weekly status',
+      value: weekStatusMeta.label,
+      note: 'Use this console to keep communication tied to the actual stage of the week, not just the next text you want to send.',
+    },
+    {
+      label: 'Audience pressure',
+      value:
+        responseSummary.noResponseCount > 0
+          ? `${responseSummary.noResponseCount} still waiting`
+          : 'Replies are moving',
+      note: 'Non-responders, need-sub replies, and late updates should shape the next send before you broadcast broadly.',
+    },
+    {
+      label: 'Best next move',
+      value: sendStrategy.label,
+      note:
+        finalizationReadiness.ready
+          ? 'The workflow is stable enough to move from planning into execution.'
+          : 'Use the recommendation engine to clear blockers before sending the final plan.',
+    },
+  ]
+
+  const dynamicQuickStartCard: CSSProperties = {
+    ...quickStartCard,
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: isTablet ? 320 : 360,
+    background:
+      theme === 'dark'
+        ? 'linear-gradient(180deg, rgba(16,31,63,0.82), rgba(9,21,43,0.92))'
+        : 'linear-gradient(180deg, rgba(255,255,255,0.94), rgba(239,246,255,0.98))',
+    border:
+      theme === 'dark'
+        ? '1px solid rgba(116,190,255,0.12)'
+        : '1px solid rgba(148,163,184,0.18)',
+    boxShadow:
+      theme === 'dark'
+        ? 'inset 0 1px 0 rgba(255,255,255,0.04)'
+        : '0 16px 38px rgba(15,23,42,0.08)',
+  }
+
+  const messagingVisualStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+  }
+
+  const messagingVisualMaskStyle: CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    background:
+      theme === 'dark'
+        ? 'linear-gradient(135deg, rgba(8,18,38,0.22) 8%, rgba(8,18,38,0.74) 50%, rgba(8,18,38,0.94) 100%)'
+        : 'linear-gradient(135deg, rgba(255,255,255,0.16) 8%, rgba(255,255,255,0.78) 52%, rgba(248,250,252,0.94) 100%)',
+  }
+
+  const messagingVisualContentStyle: CSSProperties = {
+    position: 'relative',
+    zIndex: 1,
+    display: 'grid',
+    gap: 14,
+  }
+
   async function copyBody() {
     try {
       await navigator.clipboard.writeText(messageBody)
@@ -2022,8 +2099,8 @@ function importScenarioToLineup() {
               track who has confirmed, declined, or still needs follow-up.
             </p>
             <div style={heroButtonRowStyle}>
-              <Link href="/captain/lineup-builder" style={primaryButton}>Open Lineup Builder</Link>
-              <Link href="/captain" style={ghostButton}>Back to Captain Console</Link>
+              <PrimaryLink href="/captain/lineup-builder">Open Lineup Builder</PrimaryLink>
+              <GhostLink href="/captain">Back to Captain Console</GhostLink>
             </div>
             <div style={heroStatusShell}>
               <div>
@@ -2048,28 +2125,59 @@ function importScenarioToLineup() {
               <MetricStat label="Available this week" value={String(availabilitySummary.availableCount)} />
               <MetricStat label="No response" value={String(responseSummary.noResponseCount)} />
             </div>
+
+            <section style={signalGridStyle(isSmallMobile)}>
+              {messagingSignals.map((signal) => (
+                <article key={signal.label} style={signalCardStyle}>
+                  <div style={signalLabelStyle}>{signal.label}</div>
+                  <div style={signalValueStyle}>{signal.value}</div>
+                  <div style={signalNoteStyle}>{signal.note}</div>
+                </article>
+              ))}
+            </section>
           </div>
 
-          <div style={quickStartCard}>
-            <p style={sectionKicker}>Weekly flow</p>
-            <h2 style={quickStartTitle}>Built around how captains actually run a week</h2>
-            <div style={workflowListStyle}>
-              {[
-                ['1', 'Pick the roster scope', 'League, flight, season, session, and team keep the correct contact list loaded.'],
-                ['2', 'Track availability', 'Mark players available, unavailable, tentative, or no response for the upcoming week.'],
-                ['3', 'Communicate lineup + details', 'Send lineup, arrival time, directions, and reminders only to the right group.'],
-              ].map(([step, title, text]) => (
-                <div key={step} style={workflowRowStyle}>
-                  <div style={workflowNumberStyle}>{step}</div>
-                  <div>
-                    <div style={workflowTitleStyle}>{title}</div>
-                    <div style={workflowTextStyle}>{text}</div>
+          <div style={dynamicQuickStartCard}>
+            <div style={messagingVisualStyle}>
+              <Image
+                src={heroArtworkSrc}
+                alt="TenAceIQ captain messaging concept art"
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 34vw"
+                style={{ objectFit: 'cover', objectPosition: isTablet ? 'center center' : '72% center' }}
+              />
+              <div style={messagingVisualMaskStyle} />
+            </div>
+
+            <div style={messagingVisualContentStyle}>
+              <p style={sectionKicker}>Weekly flow</p>
+              <h2 style={quickStartTitle}>Built around how captains actually run a week</h2>
+              <div style={workflowListStyle}>
+                {[
+                  ['1', 'Pick the roster scope', 'League, flight, season, session, and team keep the correct contact list loaded.'],
+                  ['2', 'Track availability', 'Mark players available, unavailable, tentative, or no response for the upcoming week.'],
+                  ['3', 'Communicate lineup + details', 'Send lineup, arrival time, directions, and reminders only to the right group.'],
+                ].map(([step, title, text]) => (
+                  <div key={step} style={workflowRowStyle}>
+                    <div style={workflowNumberStyle}>{step}</div>
+                    <div>
+                      <div style={workflowTitleStyle}>{title}</div>
+                      <div style={workflowTextStyle}>{text}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </section>
+
+        <CaptainSubnav
+          title="Messaging inside the captain command center"
+          description="Keep lineup communication, confirmations, logistics, and follow-up tied to the same captain workflow instead of treating messaging like a separate tool."
+          tierLabel={access.captainTierLabel}
+          tierActive={access.captainSubscriptionActive}
+        />
 
         <section style={surfaceCard}>
           <div style={tableHeaderStyle}>
@@ -2087,6 +2195,20 @@ function importScenarioToLineup() {
           </p>
         </section>
 
+        {!captainAccess ? (
+          <UpgradePrompt
+            planId="captain"
+            compact
+            headline="Still chasing confirmations in group texts?"
+            body="Unlock Captain to keep availability, lineup context, reminders, and match-day messaging in one place instead of piecing it together manually."
+            ctaLabel="Unlock Captain Tools"
+            ctaHref="/pricing"
+            secondaryLabel="See messaging value"
+            secondaryHref="/pricing"
+            footnote="Best for captains who want faster replies, fewer misses, and one cleaner communication flow each week."
+          />
+        ) : null}
+
         <section style={contentWrap}>
           <section style={surfaceCardStrong}>
             <div style={sectionHeaderStyle}>
@@ -2096,14 +2218,9 @@ function importScenarioToLineup() {
                 <p style={sectionBodyTextStyle}>Load the correct contact list for the right league team and session before sending anything.</p>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  style={ghostButtonSmallButton}
-                  onClick={() => setRefreshTick((current) => current + 1)}
-                  disabled={loading}
-                >
+                <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
                   {loading ? 'Refreshing...' : 'Refresh data'}
-                </button>
+                </GhostSmallBtn>
                 <span style={storageMode === 'supabase' ? miniPillGreen : miniPillSlate}>
                   {storageMode === 'supabase' ? 'Supabase-backed' : 'Local fallback mode'}
                 </span>
@@ -2146,7 +2263,7 @@ function importScenarioToLineup() {
                   <option value="">Select match</option>
                   {filteredMatches.map((match) => (
                     <option key={match.id} value={match.id}>
-                      {formatDate(match.match_date)} • {match.home_team || 'TBD'} vs {match.away_team || 'TBD'}
+                      {formatDate(match.match_date)} - {(match.home_team || 'Home team not set')} vs {(match.away_team || 'Away team not set')}
                     </option>
                   ))}
                 </select>
@@ -2170,9 +2287,7 @@ function importScenarioToLineup() {
                 <section style={surfaceCard}>
                   <p role="alert" style={errorTextStyle}>{error}</p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-                    <button type="button" style={ghostButtonSmallButton} onClick={() => setRefreshTick((current) => current + 1)}>
-                      Retry console load
-                    </button>
+                    <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry console load</GhostSmallBtn>
                   </div>
                 </section>
               ) : null}
@@ -2301,8 +2416,8 @@ function importScenarioToLineup() {
                       <h3 style={sectionTitleSmall}>Import or build the weekly lineup</h3>
                     </div>
                     <div style={pillRowStyle}>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => addLineAssignment('singles')}>Add singles</button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => addLineAssignment('doubles')}>Add doubles</button>
+                      <GhostSmallBtn onClick={() => addLineAssignment('singles')}>Add singles</GhostSmallBtn>
+                      <GhostSmallBtn onClick={() => addLineAssignment('doubles')}>Add doubles</GhostSmallBtn>
                       {selectedScenario ? <span style={miniPillSlate}>Auto-seeded from {selectedScenario.scenario_name}</span> : null}
                     </div>
                   </div>
@@ -2317,7 +2432,7 @@ function importScenarioToLineup() {
                       </select>
                     </Field>
                     <Field label="Import to weekly lineup">
-                      <button type="button" style={primaryButtonBlock} onClick={importScenarioToLineup} disabled={!selectedScenario || !captainAccess}>Import scenario</button>
+                      <PrimaryBlockBtn onClick={importScenarioToLineup} disabled={!selectedScenario || !captainAccess}>Import scenario</PrimaryBlockBtn>
                     </Field>
                   </div>
 
@@ -2369,22 +2484,11 @@ function importScenarioToLineup() {
                         </div>
 
                         <div style={actionRowStyle}>
-                          <button
-                            type="button"
-                            style={primaryButton}
-                            onClick={applyWinningLineupToComposer}
-                          >
+                          <PrimaryBtn onClick={applyWinningLineupToComposer}>
                             Load Winning Lineup Message
-                          </button>
+                          </PrimaryBtn>
 
-                          <button
-                            type="button"
-                            style={ghostButtonSmallButton}
-                            onClick={importScenarioToLineup}
-                            disabled={!captainAccess}
-                          >
-                            Sync to lineup editor
-                          </button>
+                          <GhostSmallBtn onClick={importScenarioToLineup} disabled={!captainAccess}>Sync to lineup editor</GhostSmallBtn>
                         </div>
                       </>
                     ) : (
@@ -2461,7 +2565,7 @@ function importScenarioToLineup() {
                               <div>
                                 <div style={blockingNameStyle}>{contact.full_name}</div>
                                 <div style={blockingMetaStyle}>
-                                  Availability: {availabilityStatus.replace('-', ' ')} • Response: {responseStatus.replace('-', ' ')}
+                                  Availability: {availabilityStatus.replace('-', ' ')} - Response: {responseStatus.replace('-', ' ')}
                                 </div>
                               </div>
                               <span
@@ -2534,18 +2638,10 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <button type="button" style={primaryButton} onClick={applyFollowUpEngine}>
-                        Apply Best Follow-Up Action
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
-                        Message Non-Responders
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={loadTentativeMessage}>
-                        Message Tentative Players
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={loadNeedSubMessage}>
-                        Escalate Need Sub
-                      </button>
+                      <PrimaryBtn onClick={applyFollowUpEngine}>Apply Best Follow-Up Action</PrimaryBtn>
+                      <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Message Non-Responders</GhostSmallBtn>
+                      <GhostSmallBtn onClick={loadTentativeMessage}>Message Tentative Players</GhostSmallBtn>
+                      <GhostSmallBtn onClick={loadNeedSubMessage}>Escalate Need Sub</GhostSmallBtn>
                     </div>
                   </section>
 
@@ -2585,15 +2681,9 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <button type="button" style={primaryButton} onClick={loadAutoFollowUpMessage}>
-                        Load Auto Follow-Up
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => setRecipientMode('non-responders')}>
-                        Target Non-Responders
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => setMessageKind('lineup')}>
-                        Switch to Lineup Message
-                      </button>
+                      <PrimaryBtn onClick={loadAutoFollowUpMessage}>Load Auto Follow-Up</PrimaryBtn>
+                      <GhostSmallBtn onClick={() => setRecipientMode('non-responders')}>Target Non-Responders</GhostSmallBtn>
+                      <GhostSmallBtn onClick={() => setMessageKind('lineup')}>Switch to Lineup Message</GhostSmallBtn>
                     </div>
                   </section>
 
@@ -2633,18 +2723,10 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('lineup-only', 'lineup')}>
-                        Target lineup only
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('available-only', 'reminder')}>
-                        Target available only
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => loadRecipientMode('captains', 'follow-up')}>
-                        Target captains
-                      </button>
-                      <button type="button" style={primaryButton} onClick={() => loadRecipientMode('non-responders', 'follow-up')}>
-                        Target blockers
-                      </button>
+                      <GhostSmallBtn onClick={() => loadRecipientMode('lineup-only', 'lineup')}>Target lineup only</GhostSmallBtn>
+                      <GhostSmallBtn onClick={() => loadRecipientMode('available-only', 'reminder')}>Target available only</GhostSmallBtn>
+                      <GhostSmallBtn onClick={() => loadRecipientMode('captains', 'follow-up')}>Target captains</GhostSmallBtn>
+                      <PrimaryBtn onClick={() => loadRecipientMode('non-responders', 'follow-up')}>Target blockers</PrimaryBtn>
                     </div>
                   </section>
 
@@ -2803,15 +2885,9 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <button type="button" style={primaryButton} onClick={applyRecommendedSendStrategy}>
-                        Apply Recommended Send Strategy
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => applyWinningLineupToComposer()}>
-                        Load Lineup Message
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
-                        Load Follow-Up
-                      </button>
+                      <PrimaryBtn onClick={applyRecommendedSendStrategy}>Apply Recommended Send Strategy</PrimaryBtn>
+                      <GhostSmallBtn onClick={() => applyWinningLineupToComposer()}>Load Lineup Message</GhostSmallBtn>
+                      <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Load Follow-Up</GhostSmallBtn>
                     </div>
                   </section>
 
@@ -2971,7 +3047,7 @@ function importScenarioToLineup() {
                         </div>
                         <div style={launchSnapshotTextStyle}>
                           {selectedMatch
-                            ? `${selectedMatch.home_team || 'TBD'} vs ${selectedMatch.away_team || 'TBD'}`
+                            ? `${selectedMatch.home_team || 'Home team not set'} vs ${selectedMatch.away_team || 'Away team not set'}`
                             : 'Select a match to tighten the weekly communication context.'}
                         </div>
                       </div>
@@ -3134,21 +3210,15 @@ function importScenarioToLineup() {
                                 ? 'Let the console load the next best message automatically.'
                                 : !selectedRecipients.length
                                   ? 'Use recipient intelligence to target the correct group.'
-                                  : 'Your send path is ready — launch from the composer when comfortable.'}
+                                  : 'Your send path is ready - launch from the composer when comfortable.'}
                         </div>
                       </div>
                     </div>
 
                     <div style={actionRowStyle}>
-                      <button type="button" style={primaryButton} onClick={applyRecommendedSendStrategy}>
-                        Apply Best Next Action
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={loadAutoFollowUpMessage}>
-                        Load Follow-Up
-                      </button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={importScenarioToLineup}>
-                        Sync Scenario to Lineup
-                      </button>
+                      <PrimaryBtn onClick={applyRecommendedSendStrategy}>Apply Best Next Action</PrimaryBtn>
+                      <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Load Follow-Up</GhostSmallBtn>
+                      <GhostSmallBtn onClick={importScenarioToLineup}>Sync Scenario to Lineup</GhostSmallBtn>
                     </div>
                   </section>
 
@@ -3391,9 +3461,9 @@ function importScenarioToLineup() {
 
                     <div style={actionRowStyle}>
                       <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.') } }}>Open texts</a>
-                      <button type="button" style={ghostButtonSmallButton} onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</button>
-                      <button type="button" style={ghostButtonSmallButton} onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</button>
+                      <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
+                      <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
+                      <GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</GhostSmallBtn>
                     </div>
                   </section>
                 </div>
@@ -3416,8 +3486,8 @@ function importScenarioToLineup() {
                     <MetricMini label="Still waiting" value={String(responseSummary.noResponseCount)} pill={miniPillSlate} />
                   </div>
                   <div style={actionRowStyle}>
-                    <button type="button" style={ghostButtonSmallButton} onClick={() => setRecipientMode('non-responders')}>Target non-responders</button>
-                    <button type="button" style={ghostButtonSmallButton} onClick={() => setMessageKind('follow-up')}>Load follow-up message</button>
+                    <GhostSmallBtn onClick={() => setRecipientMode('non-responders')}>Target non-responders</GhostSmallBtn>
+                    <GhostSmallBtn onClick={() => setMessageKind('follow-up')}>Load follow-up message</GhostSmallBtn>
                   </div>
                 </section>
 
@@ -3427,7 +3497,7 @@ function importScenarioToLineup() {
                       <p style={sectionKicker}>Contact roster manager</p>
                       <h3 style={sectionTitleSmall}>Add or edit team cell numbers</h3>
                     </div>
-                    {saving ? <span style={miniPillSlate}>Saving…</span> : null}
+                    {saving ? <span style={miniPillSlate}>Saving...</span> : null}
                   </div>
 
                   <div style={filtersGridStyle}>
@@ -3453,10 +3523,7 @@ function importScenarioToLineup() {
 
                   <div style={actionRowStyle}>
                     <button type="button" style={{ ...primaryButton, ...(!captainAccess ? disabledButtonStyle : {}) }} onClick={() => void handleSaveContact()} disabled={!captainAccess}>{editingId ? 'Update contact' : 'Save contact'}</button>
-                    {editingId ? <button type="button" style={ghostButtonSmallButton} onClick={() => {
-                      setEditingId(null)
-                      setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
-                    }}>Cancel edit</button> : null}
+                    {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
                   </div>
 
                   <Field
@@ -3466,7 +3533,7 @@ function importScenarioToLineup() {
                   >
                     <textarea id="bulk-import" value={bulkImportText} onChange={(e) => setBulkImportText(e.target.value)} style={textareaStyle} placeholder={'Jane Smith, 314-555-1111, Player, captain, early arrival\nJohn Doe, 314-555-2222, Player, , doubles only'} />
                   </Field>
-                  <button type="button" style={ghostButtonSmallButton} onClick={handleBulkImport} disabled={!captainAccess}>Import contacts</button>
+                  <GhostSmallBtn onClick={handleBulkImport} disabled={!captainAccess}>Import contacts</GhostSmallBtn>
                 </section>
               </section>
 
@@ -3492,7 +3559,7 @@ function importScenarioToLineup() {
                         <tr key={contact.id}>
                           <td style={tdLabelStyle}>{contact.full_name}</td>
                           <td style={tdStyle}>{formatPhone(contact.phone)}</td>
-                          <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' • ') || '—'}</td>
+                          <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
                           <td style={tdStyle}>
                             <div style={actionRowStyleCompact}>
                               <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
@@ -3591,6 +3658,15 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   }
 }
 
+function signalGridStyle(isSmallMobile: boolean): CSSProperties {
+  return {
+    display: 'grid',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gap: 14,
+    marginTop: 18,
+  }
+}
+
 function twoColumnGridResponsive(isTablet: boolean): CSSProperties {
   return {
     display: 'grid',
@@ -3626,9 +3702,9 @@ const heroShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(135deg, rgba(14,39,82,0.88) 0%, rgba(11,30,64,0.90) 52%, rgba(8,27,56,0.92) 100%)',
-  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.30)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 28px 80px rgba(3, 10, 24, 0.16)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
 }
@@ -3640,8 +3716,8 @@ const eyebrow: CSSProperties = {
   padding: '8px 14px',
   borderRadius: '999px',
   border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
-  color: '#d9e7ef',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '14px',
   textTransform: 'uppercase',
@@ -3651,7 +3727,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitleStyle: CSSProperties = {
   margin: 0,
-  color: '#f7fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -3662,7 +3738,7 @@ const heroTextStyle: CSSProperties = {
   marginTop: 16,
   marginBottom: 0,
   maxWidth: 820,
-  color: 'rgba(231,239,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '1.02rem',
   lineHeight: 1.72,
 }
@@ -3679,13 +3755,13 @@ const heroStatusShell: CSSProperties = {
   gap: 14,
   padding: 18,
   borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   marginTop: 18,
 }
 
 const heroStatusValue: CSSProperties = {
-  color: '#f7fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: 26,
   lineHeight: 1.08,
@@ -3694,7 +3770,7 @@ const heroStatusValue: CSSProperties = {
 }
 
 const heroStatusText: CSSProperties = {
-  color: 'rgba(229,238,251,0.8)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.7,
   marginTop: 6,
@@ -3715,19 +3791,50 @@ const heroMetricGridBaseStyle: CSSProperties = {
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: '22px',
   padding: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.16) 0%, rgba(20,43,86,0.34) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const signalCardStyle: CSSProperties = {
+  borderRadius: '22px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+}
+
+const signalLabelStyle: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const signalValueStyle: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--foreground)',
+  fontSize: '1.24rem',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const signalNoteStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  fontSize: '.94rem',
 }
 
 const metricLabelStyle: CSSProperties = {
-  color: 'rgba(225,236,250,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
   marginBottom: '0.42rem',
   fontWeight: 700,
 }
 
 const metricValueStyleHero: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontSize: '1.05rem',
   fontWeight: 800,
   lineHeight: 1.4,
@@ -3764,17 +3871,17 @@ const workflowNumberStyle: CSSProperties = {
   background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
   flexShrink: 0,
 }
-const workflowTitleStyle: CSSProperties = { fontWeight: 700, color: '#ffffff', marginBottom: 4 }
-const workflowTextStyle: CSSProperties = { color: 'rgba(231,239,251,0.72)', lineHeight: 1.55, fontSize: '.95rem' }
+const workflowTitleStyle: CSSProperties = { fontWeight: 700, color: 'var(--foreground)', marginBottom: 4 }
+const workflowTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.55, fontSize: '.95rem' }
 
 const contentWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 18, marginTop: 18 }
 
 const surfaceCardStrong: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
-  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.24)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.14)',
   backdropFilter: 'blur(16px)',
   WebkitBackdropFilter: 'blur(16px)',
 }
@@ -3782,9 +3889,9 @@ const surfaceCardStrong: CSSProperties = {
 const surfaceCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
 }
@@ -3809,7 +3916,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -3818,55 +3925,55 @@ const sectionTitle: CSSProperties = {
 
 const sectionTitleSmall: CSSProperties = {
   margin: '8px 0 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
   letterSpacing: '-0.03em',
   lineHeight: 1.15,
 }
 
-const sectionBodyTextStyle: CSSProperties = { margin: 0, color: 'rgba(224,234,247,0.76)', lineHeight: 1.65, maxWidth: 780 }
+const sectionBodyTextStyle: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.65, maxWidth: 780 }
 
 const filtersGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }
 const statsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }
-const miniMetricCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }
-const miniMetricValueStyle: CSSProperties = { color: '#f8fbff', fontSize: '1.15rem', fontWeight: 900, marginBottom: 10 }
+const miniMetricCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+const miniMetricValueStyle: CSSProperties = { color: 'var(--foreground)', fontSize: '1.15rem', fontWeight: 900, marginBottom: 10 }
 
-const labelStyle: CSSProperties = { display: 'block', marginBottom: 8, color: 'rgba(198,216,248,0.84)', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }
-const fieldHintStyle: CSSProperties = { margin: '0 0 8px', color: 'rgba(224,234,247,0.62)', fontSize: '12px', lineHeight: 1.55 }
-const inputStyle: CSSProperties = { width: '100%', height: '48px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f8fbff', padding: '0 14px', fontSize: '14px', outline: 'none' }
+const labelStyle: CSSProperties = { display: 'block', marginBottom: 8, color: 'var(--shell-copy-muted)', fontSize: '13px', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }
+const fieldHintStyle: CSSProperties = { margin: '0 0 8px', color: 'var(--shell-copy-muted)', fontSize: '12px', lineHeight: 1.55 }
+const inputStyle: CSSProperties = { width: '100%', height: '48px', borderRadius: '14px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '0 14px', fontSize: '14px', outline: 'none' }
 const inputStyleMuted: CSSProperties = { ...inputStyle, opacity: 0.78 }
 const textareaStyle: CSSProperties = { width: '100%', minHeight: '100px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f8fbff', padding: '12px 14px', fontSize: '14px', outline: 'none', resize: 'vertical' }
 const textareaStyleLarge: CSSProperties = { ...textareaStyle, minHeight: 180 }
 
 const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)', color: '#071622', border: '1px solid rgba(155,225,29,0.34)', boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)' }
 const primaryButtonBlock: CSSProperties = { ...primaryButton, width: '100%', appearance: 'none', cursor: 'pointer' }
-const ghostButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(180deg, rgba(58,115,212,0.18) 0%, rgba(27,62,120,0.14) 100%)', color: '#ebf1fd', border: '1px solid rgba(116,190,255,0.18)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }
+const ghostButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'var(--shell-chip-bg)', color: 'var(--foreground)', border: '1px solid var(--shell-panel-border)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }
 const ghostButtonSmallButton: CSSProperties = { ...ghostButton, minHeight: 42, cursor: 'pointer', appearance: 'none' }
 const disabledButtonStyle: CSSProperties = { opacity: 0.55, cursor: 'not-allowed' }
 
 const badgeBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 12px', borderRadius: 999, fontSize: 12, fontWeight: 800 }
-const miniPillSlate: CSSProperties = { ...badgeBase, background: 'rgba(255,255,255,0.08)', color: '#dfe8f8' }
-const miniPillBlue: CSSProperties = { ...badgeBase, background: 'rgba(37, 91, 227, 0.16)', color: '#c7dbff' }
-const miniPillGreen: CSSProperties = { ...badgeBase, background: 'rgba(155,225,29,0.14)', color: '#e7ffd1' }
+const miniPillSlate: CSSProperties = { ...badgeBase, background: 'var(--shell-chip-bg)', color: 'var(--foreground)' }
+const miniPillBlue: CSSProperties = { ...badgeBase, background: 'rgba(37, 91, 227, 0.16)', color: 'var(--foreground)' }
+const miniPillGreen: CSSProperties = { ...badgeBase, background: 'var(--shell-chip-bg)', color: 'var(--foreground)' }
 const warnPill: CSSProperties = { ...badgeBase, background: 'rgba(255, 93, 93, 0.10)', color: '#fecaca' }
 const pillRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }
 
 const tableHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14 }
-const tableWrapStyle: CSSProperties = { width: '100%', overflowX: 'auto', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.08)' }
+const tableWrapStyle: CSSProperties = { width: '100%', overflowX: 'auto', borderRadius: '18px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
 const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' }
-const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'rgba(255,255,255,0.06)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em' }
-const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid rgba(255,255,255,0.08)', color: '#f8fbff', verticalAlign: 'top' }
+const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em' }
+const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top' }
 const tdLabelStyle: CSSProperties = { ...tdStyle, fontWeight: 800 }
-const mutedTextStyle: CSSProperties = { color: 'rgba(224,234,247,0.72)', margin: 0, lineHeight: 1.65 }
+const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65 }
 const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65 }
-const rowSubtleText: CSSProperties = { color: 'rgba(224,234,247,0.62)', fontSize: 12, fontWeight: 600, marginTop: 4 }
+const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }
 
 const rowControlWrapStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6 }
-const statusButtonStyle: CSSProperties = { borderRadius: 999, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: '#dfe8f8', padding: '6px 10px', fontSize: 12, fontWeight: 800, cursor: 'pointer', textTransform: 'capitalize' }
+const statusButtonStyle: CSSProperties = { borderRadius: 999, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '6px 10px', fontSize: 12, fontWeight: 800, cursor: 'pointer', textTransform: 'capitalize' }
 
 const lineupStackStyle: CSSProperties = { display: 'grid', gap: 12, marginTop: 14 }
-const lineupCardStyle: CSSProperties = { borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', padding: 14 }
+const lineupCardStyle: CSSProperties = { borderRadius: 18, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: 14 }
 const lineupHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12 }
 const lineupPlayersGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
 const singlePlayerGrid: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr', gap: 10 }
@@ -4433,3 +4540,118 @@ const deliveryReadinessTextStyle: CSSProperties = {
   lineHeight: 1.65,
   fontSize: '14px',
 }
+
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 22px 40px rgba(155,225,29,0.26)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function PrimaryBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButton,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled ? '0 22px 40px rgba(155,225,29,0.26)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function PrimaryBlockBtn({
+  onClick,
+  disabled,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onClick}
+      style={{
+        ...primaryButtonBlock,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled ? '0 22px 40px rgba(155,225,29,0.26)' : primaryButton.boxShadow,
+        transition: 'transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      style={{ ...ghostButton, ...(hovered ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(37,91,227,0.22)' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'linear-gradient(180deg, rgba(80,140,230,0.26) 0%, rgba(40,80,160,0.22) 100%)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(37,91,227,0.22)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </button>
+  )
+}
+
+
+
+
