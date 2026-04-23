@@ -183,6 +183,10 @@ export default function ResetPasswordPage() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
+                required
+                aria-required="true"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'reset-pw-error' : undefined}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
@@ -200,6 +204,10 @@ export default function ResetPasswordPage() {
                 id="confirmPassword"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
+                required
+                aria-required="true"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'reset-pw-error' : undefined}
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value)
@@ -226,8 +234,8 @@ export default function ResetPasswordPage() {
                 {submitting ? 'Updating...' : 'Update password'}
               </button>
 
-              {message ? <div style={successBanner}>{message}</div> : null}
-              {error ? <div style={errorBanner}>{error}</div> : null}
+              {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
+              {error ? <div id="reset-pw-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
               <div style={helperRow}>
                 <Link href="/forget-password" style={inlineLink}>

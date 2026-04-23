@@ -1,42 +1,17 @@
- 'use client'
+'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState } from '@/lib/access-model'
+import { useAuth } from '@/app/components/auth-provider'
 import CompetePageFrame, {
   CompeteCard,
   CompeteGrid,
 } from '@/app/compete/_components/compete-page-frame'
-import { type UserRole } from '@/lib/roles'
 
 export default function CompeteSchedulePage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  const { role, entitlements } = useAuth()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
-  }, [])
 
   return (
     <CompetePageFrame

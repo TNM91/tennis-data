@@ -7,9 +7,8 @@ import CompetePageFrame, {
   CompeteCard,
   CompeteGrid,
 } from '@/app/compete/_components/compete-page-frame'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
-import { type UserRole } from '@/lib/roles'
+import { buildProductAccessState } from '@/lib/access-model'
+import { useAuth } from '@/app/components/auth-provider'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import {
   listTiqTeamParticipations,
@@ -37,36 +36,12 @@ function GhostSmallLink({ href, children }: { href: string; children: ReactNode 
 }
 
 export default function CompeteTeamsPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  const { role, entitlements } = useAuth()
   const [participations, setParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
   const [loading, setLoading] = useState(true)
   const [storageWarning, setStorageWarning] = useState('')
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
-  }, [])
 
   useEffect(() => {
     let active = true

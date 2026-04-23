@@ -257,6 +257,10 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
+                required
+                aria-required="true"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'login-error' : undefined}
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value)
@@ -274,6 +278,10 @@ export default function LoginPage() {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
+                  required
+                  aria-required="true"
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'login-error' : undefined}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value)
@@ -284,6 +292,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPassword((v) => !v)}
                   style={togglePasswordButton}
                 >
@@ -308,7 +317,7 @@ export default function LoginPage() {
                 {submitting ? 'Signing in...' : 'Sign in'}
               </button>
 
-              {error ? <div style={errorBanner}>{error}</div> : null}
+              {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
               <div style={helperRow}>
                 <Link href="/join" style={inlineLink}>

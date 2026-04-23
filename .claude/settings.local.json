@@ -8,7 +8,11 @@
       "Bash(ls -la C:/Users/nmein/tennis-data/.env*)",
       "Bash(head -n 2437 app/admin/import/page.tsx)",
       "Bash(tail -n +2728 app/admin/import/page.tsx)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(grep -E \"^[^/]*\\\\.\\(json|ts|tsx|js|jsx\\)$|/\\(app|pages|components|lib|styles|public\\)/\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(grep -E \"\\\\.tsx$\")",
+      "Bash(xargs wc *)"
     ]
   }
 }

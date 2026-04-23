@@ -8,6 +8,8 @@ import { supabase } from '../../../lib/supabase'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
 import { type UserRole } from '@/lib/roles'
+import AdminGate from '@/app/components/admin-gate'
+import SiteShell from '@/app/components/site-shell'
 
 type MatchRow = {
   id: string
@@ -485,17 +487,9 @@ export default function LineupAvailabilityPage() {
   }
 
   return (
-    <main className="page-shell">
-      {!authResolved ? (
-        <section className="surface-card panel-pad section">
-          <div className="subtle-text">Checking admin access...</div>
-        </section>
-      ) : role !== 'admin' ? (
-        <section className="surface-card panel-pad section">
-          <div className="subtle-text">Admin access is required. Redirecting to login...</div>
-        </section>
-      ) : (
-        <>
+    <SiteShell active="/admin">
+      <AdminGate>
+        <main className="page-shell">
       <section className="hero-panel">
         <div className="hero-inner">
           <div className="section-kicker">Admin Tool</div>
@@ -854,9 +848,9 @@ export default function LineupAvailabilityPage() {
           </>
         )}
       </section>
-        </>
-      )}
-    </main>
+        </main>
+      </AdminGate>
+    </SiteShell>
   )
 }
 

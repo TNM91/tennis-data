@@ -203,6 +203,10 @@ export default function JoinPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
+                required
+                aria-required="true"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'join-error' : undefined}
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value)
@@ -220,6 +224,10 @@ export default function JoinPage() {
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
+                required
+                aria-required="true"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'join-error' : undefined}
                 value={password}
                 onChange={(e) => {
                   setPassword(e.target.value)
@@ -237,6 +245,10 @@ export default function JoinPage() {
                 id="confirmPassword"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="new-password"
+                required
+                aria-required="true"
+                aria-invalid={!!error}
+                aria-describedby={error ? 'join-error' : undefined}
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value)
@@ -251,6 +263,7 @@ export default function JoinPage() {
                 <input
                   type="checkbox"
                   checked={acceptedTerms}
+                  aria-required="true"
                   onChange={(e) => {
                     setAcceptedTerms(e.target.checked)
                     setError('')
@@ -295,8 +308,8 @@ export default function JoinPage() {
                 {submitting ? 'Creating account...' : 'Create account'}
               </button>
 
-              {message ? <div style={successBanner}>{message}</div> : null}
-              {error ? <div style={errorBanner}>{error}</div> : null}
+              {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
+              {error ? <div id="join-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
               <div style={helperRow}>
                 <span style={helperText}>Already have an account?</span>

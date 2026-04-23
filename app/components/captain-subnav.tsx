@@ -19,9 +19,9 @@ export default function CaptainSubnav({
   const pathname = usePathname()
 
   return (
-    <section style={shellStyle}>
+    <section style={shellStyle} aria-label="Captain tools">
       <div style={headerStyle}>
-        <div style={eyebrowStyle}>Command center</div>
+        <div style={eyebrowStyle} aria-hidden="true">Command center</div>
         <div style={titleStyle}>{title}</div>
         <div style={descriptionStyle}>{description}</div>
         {tierLabel ? (
@@ -31,7 +31,7 @@ export default function CaptainSubnav({
         ) : null}
       </div>
 
-      <div style={gridStyle}>
+      <nav aria-label="Captain navigation" style={gridStyle}>
         {CAPTAIN_NAV_ITEMS.map((item) => {
           const active = pathname === item.href
           return (
@@ -45,11 +45,11 @@ export default function CaptainSubnav({
               }}
             >
               <span style={linkLabelStyle}>{item.label}</span>
-              <span style={linkArrowStyle}>{active ? 'Live' : 'Open'}</span>
+              <span aria-hidden="true" style={linkArrowStyle}>{active ? 'Live' : 'Open'}</span>
             </Link>
           )
         })}
-      </div>
+      </nav>
     </section>
   )
 }

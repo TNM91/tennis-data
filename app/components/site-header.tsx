@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
@@ -124,6 +124,11 @@ export default function SiteHeader({ active }: { active?: string }) {
   const { isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // Close mobile menu whenever the route changes (back/forward navigation)
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
   const resumeImportHref = useMemo(() => {
     if (typeof window === 'undefined' || role !== 'admin') return '/admin/import'
     return window.localStorage.getItem(LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY) ?? '/admin/import'
@@ -223,6 +228,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={activeNow ? 'page' : undefined}
                     style={{
                       position: 'relative',
                       display: 'inline-flex',
@@ -332,6 +338,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={activeNow ? 'page' : undefined}
                     onClick={() => setMenuOpen(false)}
                     style={{
                       ...mobileItemStyle,

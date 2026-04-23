@@ -7,15 +7,14 @@ import CompetePageFrame, {
   CompeteGrid,
 } from '@/app/compete/_components/compete-page-frame'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState } from '@/lib/access-model'
+import { useAuth } from '@/app/components/auth-provider'
 import {
   listTiqIndividualLeagueResults,
   type TiqIndividualLeagueResultRecord,
 } from '@/lib/tiq-individual-results-service'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
 
 function RowLink({ href, children }: { href: string; children: ReactNode }) {
   const [hovered, setHovered] = useState(false)
@@ -37,8 +36,7 @@ function RowLink({ href, children }: { href: string; children: ReactNode }) {
 }
 
 export default function CompeteResultsPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  const { role, entitlements } = useAuth()
   const [results, setResults] = useState<TiqIndividualLeagueResultRecord[]>([])
   const [leagueNames, setLeagueNames] = useState<Record<string, string>>({})
   const [storageWarning, setStorageWarning] = useState('')
@@ -59,29 +57,6 @@ export default function CompeteResultsPage() {
     }
 
     void load()
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
   }, [])
 
   return (

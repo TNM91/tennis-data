@@ -5,6 +5,17 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
+      disallow: [
+        '/admin/',
+        '/captain/',
+        '/compete/',
+        '/mylab',
+        '/api/',
+        '/login',
+        '/join',
+        '/forget-password',
+        '/reset-password',
+      ],
     },
     sitemap: 'https://tenaceiq.com/sitemap.xml',
     host: 'https://tenaceiq.com',

@@ -195,6 +195,10 @@ export default function ForgotPasswordPage() {
                   id="email"
                   type="email"
                   autoComplete="email"
+                  required
+                  aria-required="true"
+                  aria-invalid={!!error}
+                  aria-describedby={error ? 'reset-error' : message ? 'reset-message' : undefined}
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value)
@@ -209,8 +213,8 @@ export default function ForgotPasswordPage() {
                   {submitting ? 'Sending...' : 'Send reset link'}
                 </button>
 
-                {message ? <div style={successBanner}>{message}</div> : null}
-                {error ? <div style={errorBanner}>{error}</div> : null}
+                {message ? <div id="reset-message" role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
+                {error ? <div id="reset-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
                 <div style={helperRowResponsive}>
                   <Link href="/login" style={inlineLink}>

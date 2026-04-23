@@ -13,12 +13,14 @@ import {
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { getClientAuthState } from '@/lib/auth'
+import { getClientEntitlementSnapshot, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
 type AuthContextValue = {
   session: Session | null
   userId: string | null
   role: UserRole
+  entitlements: ProductEntitlementSnapshot | null
   authResolved: boolean
   refreshAuth: () => Promise<void>
 }
@@ -55,6 +57,7 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<UserRole>('public')
+  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authResolved, setAuthResolved] = useState(false)
 
   const mountedRef = useRef(true)
@@ -76,10 +79,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setSession(nextSession ?? null)
       setRole(authState.role)
+      setEntitlements(authState.entitlements)
     } catch {
       if (!mountedRef.current) return
       setSession(null)
       setRole('public')
+      setEntitlements(null)
     } finally {
       if (mountedRef.current) {
         setAuthResolved(true)
@@ -100,18 +105,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!nextSession?.user?.id) {
         setRole('public')
+        setEntitlements(null)
         setAuthResolved(true)
         return
       }
 
-      const nextRole = await withTimeout(
-        fetchProfileRole(nextSession.user.id),
-        AUTH_PROVIDER_TIMEOUT_MS,
-        'member' as UserRole,
-      )
+      const [nextRole, nextEntitlements] = await Promise.all([
+        withTimeout(
+          fetchProfileRole(nextSession.user.id),
+          AUTH_PROVIDER_TIMEOUT_MS,
+          'member' as UserRole,
+        ),
+        withTimeout(
+          getClientEntitlementSnapshot(nextSession.user.id),
+          AUTH_PROVIDER_TIMEOUT_MS,
+          null,
+        ),
+      ])
 
       if (!mountedRef.current) return
       setRole(nextRole)
+      setEntitlements(nextEntitlements)
       setAuthResolved(true)
     })
 
@@ -126,10 +140,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       userId: session?.user?.id ?? null,
       role,
+      entitlements,
       authResolved,
       refreshAuth: loadAuth,
     }),
-    [authResolved, loadAuth, role, session],
+    [authResolved, entitlements, loadAuth, role, session],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
