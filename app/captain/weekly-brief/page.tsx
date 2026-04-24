@@ -22,7 +22,13 @@ import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { formatWeekdayDate as formatDate } from '@/lib/captain-formatters'
+import {
+  formatWeekdayDate as formatDate,
+  cleanText as safeText,
+  safeKey,
+  readLocalArray,
+  readLocalItem as readLocalObject,
+} from '@/lib/captain-formatters'
 
 type MatchRow = {
   id: string
@@ -84,37 +90,6 @@ const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_AVAILABILITY_STORAGE_KEY = 'tenaceiq_weekly_availability'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 const SELECTED_SCENARIO_STORAGE_KEY = 'tenace_selected_scenario'
-
-function safeText(value: string | null | undefined, fallback = '') {
-  return (value || '').trim() || fallback
-}
-
-function safeKey(...parts: Array<string | null | undefined>) {
-  return parts.map((part) => (part || '').trim().toLowerCase() || '—').join('|')
-}
-
-
-function readLocalArray<T>(key: string): T[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as T[]) : []
-  } catch {
-    return []
-  }
-}
-
-function readLocalObject<T>(key: string): T | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : null
-  } catch {
-    return null
-  }
-}
 
 function readInitialBriefContext() {
   if (typeof window === 'undefined') {

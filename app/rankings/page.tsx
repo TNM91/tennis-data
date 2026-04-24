@@ -883,13 +883,9 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background:
-    `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -898,7 +894,7 @@ const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
   background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+    'radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, transparent 26%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-lime) 8%, transparent) 0%, transparent 30%)',
   pointerEvents: 'none',
 }
 
@@ -919,14 +915,14 @@ const heroLeft: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -937,9 +933,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  color: 'var(--foreground-strong)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -954,9 +950,9 @@ const heroHintRow: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
-  color: '#e2efff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
@@ -966,9 +962,9 @@ const heroHintPill: CSSProperties = {
 const controlsCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const controlsTopRow: CSSProperties = {
@@ -979,7 +975,7 @@ const controlsTopRow: CSSProperties = {
 }
 
 const controlsLabel: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
@@ -987,7 +983,7 @@ const controlsLabel: CSSProperties = {
 
 const controlsHint: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(220,231,244,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
@@ -1000,10 +996,10 @@ const segmentWrap: CSSProperties = {
 }
 
 const segmentButton: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.10)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: '16px',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f7fbff',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   minHeight: '48px',
   padding: '0 14px',
   fontSize: '14px',
@@ -1012,10 +1008,10 @@ const segmentButton: CSSProperties = {
 }
 
 const segmentButtonActive: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(103, 241, 154, 1), rgba(40, 205, 110, 0.94))',
-  color: '#071622',
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-  boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
+  background: 'linear-gradient(135deg, var(--brand-lime), #4ade80 90%)',
+  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  boxShadow: '0 12px 30px color-mix(in srgb, var(--brand-lime) 20%, transparent), inset 0 1px 0 rgba(255,255,255,0.26)',
 }
 
 const controlsGrid: CSSProperties = {
@@ -1027,7 +1023,7 @@ const controlsGrid: CSSProperties = {
 const inputLabel: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--brand-blue-2)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -1036,7 +1032,7 @@ const inputLabel: CSSProperties = {
 
 const controlsHelperText: CSSProperties = {
   marginTop: '14px',
-  color: 'rgba(220,231,244,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 500,
@@ -1051,41 +1047,43 @@ const searchIconWrap: CSSProperties = {
   left: '14px',
   top: '50%',
   transform: 'translateY(-50%)',
-  color: 'rgba(210,226,244,0.82)',
+  color: 'var(--foreground)',
   pointerEvents: 'none',
 }
 
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
   outline: 'none',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const errorBanner: CSSProperties = {
   marginBottom: '14px',
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'rgba(239, 68, 68, 0.08)',
-  border: '1px solid rgba(239, 68, 68, 0.18)',
-  color: '#fecaca',
+  background: 'color-mix(in srgb, #7f1d1d 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, #f87171 26%, var(--shell-panel-border) 74%)',
+  color: 'color-mix(in srgb, #f87171 72%, var(--foreground-strong) 28%)',
   fontWeight: 700,
   fontSize: '14px',
 }
@@ -1099,18 +1097,18 @@ const summaryStatsGrid: CSSProperties = {
 const chipStat: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'rgba(26,42,71,0.58)',
-  border: '1px solid rgba(74,123,211,0.24)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
 const chipStatAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(31,102,74,0.92) 0%, rgba(42,162,96,0.84) 100%)',
-  border: '1px solid rgba(134,239,172,0.24)',
+  background: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
 }
 
 const chipStatLabel: CSSProperties = {
-  color: 'rgba(198,214,230,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -1119,7 +1117,7 @@ const chipStatLabel: CSSProperties = {
 }
 
 const chipStatValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
@@ -1143,9 +1141,9 @@ const podiumCard: CSSProperties = {
   textDecoration: 'none',
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const podiumFirst: CSSProperties = {
@@ -1158,7 +1156,7 @@ const podiumSecond: CSSProperties = {}
 const podiumThird: CSSProperties = {}
 
 const podiumRank: CSSProperties = {
-  color: '#bbf7d0',
+  color: 'var(--home-eyebrow-color)',
   fontSize: '13px',
   fontWeight: 900,
   letterSpacing: '0.08em',
@@ -1167,7 +1165,7 @@ const podiumRank: CSSProperties = {
 
 const podiumName: CSSProperties = {
   marginTop: '8px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.05,
   fontWeight: 900,
@@ -1176,14 +1174,14 @@ const podiumName: CSSProperties = {
 
 const podiumLocation: CSSProperties = {
   marginTop: '8px',
-  color: 'rgba(223,232,248,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   fontWeight: 700,
 }
 
 const podiumRating: CSSProperties = {
   marginTop: '16px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
@@ -1192,7 +1190,7 @@ const podiumRating: CSSProperties = {
 
 const podiumSubtext: CSSProperties = {
   marginTop: '6px',
-  color: 'rgba(198,216,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 700,
 }
@@ -1208,10 +1206,9 @@ const podiumMetaRow: CSSProperties = {
 const tableCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133, 168, 229, 0.16)',
-  background:
-    'radial-gradient(circle at top right, rgba(184, 230, 26, 0.12), transparent 34%), linear-gradient(135deg, rgba(8, 34, 75, 0.98) 0%, rgba(4, 18, 45, 0.98) 58%, rgba(7, 36, 46, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 10%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   marginBottom: '16px',
 }
@@ -1226,7 +1223,7 @@ const panelHead: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
@@ -1236,7 +1233,7 @@ const sectionKicker: CSSProperties = {
 
 const panelTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -1254,9 +1251,9 @@ const panelChip: CSSProperties = {
   minHeight: '38px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(16, 39, 77, 0.84)',
-  color: 'rgba(220, 232, 255, 0.92)',
-  border: '1px solid rgba(82, 127, 201, 0.2)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
   fontWeight: 800,
   fontSize: '13px',
 }
@@ -1268,9 +1265,9 @@ const clearFilterButton: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e6eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
 }
@@ -1278,8 +1275,8 @@ const clearFilterButton: CSSProperties = {
 const tableWrap: CSSProperties = {
   overflowX: 'auto',
   borderRadius: '20px',
-  border: '1px solid rgba(160, 185, 234, 0.12)',
-  background: 'rgba(7, 20, 45, 0.62)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const dataTable: CSSProperties = {
@@ -1291,33 +1288,33 @@ const dataTable: CSSProperties = {
 const tableHead: CSSProperties = {
   padding: '15px 16px',
   textAlign: 'left',
-  color: 'rgba(190, 210, 245, 0.8)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
   fontWeight: 800,
-  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-  background: 'rgba(10, 27, 58, 0.78)',
+  borderBottom: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   whiteSpace: 'nowrap',
 }
 
 const activeTableHead: CSSProperties = {
-  color: '#bbf7d0',
+  color: 'var(--home-eyebrow-color)',
 }
 
 const tableCell: CSSProperties = {
   padding: '16px',
-  color: '#e9f2ff',
+  color: 'var(--foreground)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 600,
-  borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+  borderTop: '1px solid var(--shell-panel-border)',
   verticalAlign: 'top',
 }
 
 const emptyCell: CSSProperties = {
   textAlign: 'center',
-  color: 'rgba(220,231,244,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 700,
   padding: '24px',
 }
@@ -1329,21 +1326,21 @@ const rankBadge: CSSProperties = {
   minWidth: '2.2rem',
   padding: '0.45rem 0.7rem',
   borderRadius: '999px',
-  background: 'rgba(37,91,227,0.18)',
-  color: '#dbeafe',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   lineHeight: 1,
   fontWeight: 900,
 }
 
 const playerLink: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   textDecoration: 'none',
 }
 
 const activeRatingCell: CSSProperties = {
-  color: '#bbf7d0',
+  color: 'var(--home-eyebrow-color)',
   fontWeight: 900,
 }
 
@@ -1357,14 +1354,14 @@ const editorialPanel: CSSProperties = {
   gap: '14px',
   padding: '24px',
   borderRadius: '26px',
-  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const editorialText: CSSProperties = {
   margin: 0,
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
@@ -1381,12 +1378,12 @@ const editorialCard: CSSProperties = {
   gap: '8px',
   padding: '18px',
   borderRadius: '20px',
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const editorialCardLabel: CSSProperties = {
-  color: 'rgba(188,208,232,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
@@ -1394,7 +1391,7 @@ const editorialCardLabel: CSSProperties = {
 }
 
 const editorialCardValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
@@ -1402,7 +1399,7 @@ const editorialCardValue: CSSProperties = {
 }
 
 const editorialCardText: CSSProperties = {
-  color: 'rgba(215,229,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.65,
 }
@@ -1440,9 +1437,9 @@ const confidencePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#e2efff',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
   whiteSpace: 'nowrap',

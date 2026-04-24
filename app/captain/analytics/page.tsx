@@ -10,7 +10,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
-import { formatDate, uniqueSorted } from '@/lib/captain-formatters'
+import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -118,10 +118,6 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
-
-function cleanText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
-}
 
 function availabilityRank(status: string | null | undefined) {
   const normalized = (status ?? '').trim().toLowerCase()

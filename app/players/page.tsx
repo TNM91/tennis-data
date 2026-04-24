@@ -938,13 +938,9 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background:
-    `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -953,7 +949,7 @@ const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
   background:
-    'radial-gradient(circle at 10% 0%, rgba(88,161,255,0.16), transparent 26%), radial-gradient(circle at 100% 0%, rgba(74,222,128,0.08), transparent 30%)',
+    'radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, transparent 26%), radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-lime) 8%, transparent) 0%, transparent 30%)',
   pointerEvents: 'none',
 }
 
@@ -985,9 +981,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  color: 'var(--foreground-strong)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -996,14 +992,14 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -1016,9 +1012,9 @@ const heroHintRow: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
-  color: '#e2efff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
@@ -1027,11 +1023,9 @@ const heroHintPill: CSSProperties = {
 
 const controlsShell: CSSProperties = {
   borderRadius: '24px',
-  background:
-    'linear-gradient(180deg, rgba(43,78,138,0.42) 0%, rgba(20,37,73,0.56) 100%)',
-  border: '1px solid rgba(142,184,255,0.18)',
-  boxShadow:
-    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
   zIndex: 3,
 }
@@ -1045,14 +1039,14 @@ const controlsTopRow: CSSProperties = {
 }
 
 const controlsLabel: CSSProperties = {
-  color: '#f6fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '15px',
   fontWeight: 800,
   letterSpacing: '-0.02em',
 }
 
 const controlsHint: CSSProperties = {
-  color: 'rgba(204,220,241,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   whiteSpace: 'nowrap',
@@ -1075,36 +1069,38 @@ const searchIconWrap: CSSProperties = {
   left: '14px',
   top: '50%',
   transform: 'translateY(-50%)',
-  color: 'rgba(210,226,244,0.82)',
+  color: 'var(--foreground)',
   pointerEvents: 'none',
 }
 
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
   outline: 'none',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const selectStyle: CSSProperties = {
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const controlsHelperText: CSSProperties = {
   marginTop: '12px',
-  color: 'rgba(216,230,246,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
 }
@@ -1123,9 +1119,9 @@ const clearFilterButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e6eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
 }
@@ -1133,14 +1129,14 @@ const clearFilterButton: CSSProperties = {
 const summaryCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(128,174,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(45,79,137,0.42) 0%, rgba(24,45,84,0.5) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
 const summaryTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: '-0.03em',
@@ -1155,18 +1151,18 @@ const heroStatsGrid: CSSProperties = {
 const statChip: CSSProperties = {
   borderRadius: '18px',
   padding: '12px 12px 11px',
-  background: 'rgba(26,42,71,0.58)',
-  border: '1px solid rgba(74,123,211,0.24)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
 }
 
 const statChipAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(31,102,74,0.92) 0%, rgba(42,162,96,0.84) 100%)',
-  border: '1px solid rgba(134,239,172,0.24)',
+  background: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
 }
 
 const statChipLabel: CSSProperties = {
-  color: 'rgba(198,214,230,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   textTransform: 'uppercase',
@@ -1175,7 +1171,7 @@ const statChipLabel: CSSProperties = {
 }
 
 const statChipValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '20px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
@@ -1194,12 +1190,12 @@ const summaryInlineStat: CSSProperties = {
   gap: '12px',
   padding: '14px 16px',
   borderRadius: '20px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const summaryInlineLabel: CSSProperties = {
-  color: 'rgba(220,231,244,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontWeight: 700,
   fontSize: '14px',
 }
@@ -1214,7 +1210,7 @@ const summaryInlineValue: CSSProperties = {
 }
 
 const summaryHint: CSSProperties = {
-  color: 'rgba(224, 234, 247, 0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '14px',
 }
@@ -1243,15 +1239,15 @@ const editorialPanel: CSSProperties = {
   gap: '14px',
   padding: '24px',
   borderRadius: '26px',
-  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
   marginBottom: '18px',
 }
 
 const editorialText: CSSProperties = {
   margin: 0,
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
@@ -1268,12 +1264,12 @@ const editorialCard: CSSProperties = {
   gap: '8px',
   padding: '18px',
   borderRadius: '20px',
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const editorialCardLabel: CSSProperties = {
-  color: 'rgba(188,208,232,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
@@ -1281,7 +1277,7 @@ const editorialCardLabel: CSSProperties = {
 }
 
 const editorialCardValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
@@ -1289,7 +1285,7 @@ const editorialCardValue: CSSProperties = {
 }
 
 const editorialCardText: CSSProperties = {
-  color: 'rgba(215,229,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.65,
 }
@@ -1303,7 +1299,7 @@ const sectionHeader: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
@@ -1313,7 +1309,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '30px',
   letterSpacing: '-0.04em',
@@ -1321,7 +1317,7 @@ const sectionTitle: CSSProperties = {
 
 const sectionText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(232, 239, 248, 0.84)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
 }
 
@@ -1332,9 +1328,9 @@ const secondaryLink: CSSProperties = {
   minHeight: '48px',
   padding: '0 18px',
   borderRadius: '999px',
-  border: '1px solid rgba(109, 239, 171, 0.34)',
-  background: 'linear-gradient(135deg, rgba(88, 224, 135, 0.98), rgba(40, 205, 110, 0.92))',
-  color: '#071622',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, var(--brand-lime), #4ade80 90%)',
+  color: 'var(--text-dark)',
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: '0 14px 34px rgba(45, 196, 106, 0.24), inset 0 1px 0 rgba(255,255,255,0.26)',
@@ -1343,14 +1339,14 @@ const secondaryLink: CSSProperties = {
 const loadingCard: CSSProperties = {
   padding: '26px',
   borderRadius: '28px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(11, 22, 39, 0.82)',
-  color: '#dfe8f8',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
 }
 
 const emptyStateTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.2,
@@ -1358,7 +1354,7 @@ const emptyStateTitle: CSSProperties = {
 
 const emptyStateText: CSSProperties = {
   margin: '10px 0 0',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -1373,17 +1369,17 @@ const playerCard: CSSProperties = {
   overflow: 'hidden',
   textDecoration: 'none',
   borderRadius: '28px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: '20px',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  boxShadow: 'var(--shadow-soft)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
 }
 
 const playerCardHover: CSSProperties = {
   transform: 'translateY(-3px)',
-  boxShadow: '0 22px 48px rgba(10,28,58,0.2)',
-  border: '1px solid rgba(158,197,255,0.28)',
+  boxShadow: 'var(--shadow-card)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
 }
 
 const cardAccentGlow: CSSProperties = {
@@ -1407,7 +1403,7 @@ const playerCardTopRow: CSSProperties = {
 }
 
 const miniKicker: CSSProperties = {
-  color: '#bad7ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -1420,16 +1416,16 @@ const matchCountPill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.12)',
-  color: '#d6e6ff',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
-  border: '1px solid rgba(255,255,255,0.10)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const playerName: CSSProperties = {
   position: 'relative',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   fontWeight: 900,
   letterSpacing: '-0.04em',
@@ -1439,7 +1435,7 @@ const playerName: CSSProperties = {
 
 const playerLocation: CSSProperties = {
   position: 'relative',
-  color: 'rgba(223,232,248,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   fontWeight: 700,
   marginBottom: '16px',
@@ -1454,15 +1450,15 @@ const ratingRow: CSSProperties = {
 const ratingPill: CSSProperties = {
   borderRadius: '18px',
   padding: '12px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const ratingPillAccent: CSSProperties = {
-  background: 'linear-gradient(135deg, rgba(88, 224, 135, 0.30), rgba(32, 200, 109, 0.18))',
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 28px rgba(38, 196, 102, 0.12)',
+  background: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const ratingPillLabel: CSSProperties = {

@@ -38,6 +38,7 @@ import {
   type ScorecardMatchReviewOverride,
   type ScorecardPreviewModel,
 } from '@/lib/ingestion/scorecardReview'
+import { cleanText as cleanString } from '@/lib/captain-formatters'
 
 type ImportKind = 'schedule' | 'scorecard' | 'team_summary'
 type ImportMode = 'preview' | 'commit'
@@ -267,10 +268,6 @@ const summaryValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '1.1rem',
   lineHeight: 1.1,
-}
-
-function cleanString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function prettyJson(value: unknown) {

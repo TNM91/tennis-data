@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { safeText } from '@/lib/captain-formatters'
 
 type TeamOption = {
   team: string
@@ -75,11 +76,6 @@ type MatchPlayerRosterRow = {
   match_id: string
   side: 'A' | 'B'
   players: RosterPlayerRelation
-}
-
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
-  const text = (value || '').trim()
-  return text || fallback
 }
 
 export default function CaptainAvailabilityPage() {

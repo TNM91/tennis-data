@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
-import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { formatDate, formatRating, safeText } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -119,10 +119,6 @@ const NAV_LINKS = [
   { href: '/captain', label: 'Captain Console' },
 ]
 
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
-  const text = (value || '').trim()
-  return text || fallback
-}
 
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null

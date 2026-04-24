@@ -193,7 +193,7 @@ export default function ExplorePage() {
   const dynamicArtPanelStyle: CSSProperties = {
     ...featurePanel,
     position: 'relative',
-    minHeight: isSmallMobile ? '360px' : isMobile ? '430px' : '540px',
+    minHeight: isSmallMobile ? '380px' : isMobile ? '470px' : isTablet ? '620px' : '680px',
     padding: 0,
     overflow: 'hidden',
     background: 'var(--shell-panel-bg)',
@@ -854,6 +854,8 @@ const discoveryChannelCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minHeight: '112px',
+  alignContent: 'start',
 }
 
 const discoveryChannelTitle: CSSProperties = {

@@ -22,7 +22,21 @@ import {
   type CaptainWeekStatus,
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
-import { formatDate, uniqueSorted } from '@/lib/captain-formatters'
+import {
+  formatDate,
+  uniqueSorted,
+  inferSeasonLabel,
+  inferSessionLabel,
+  parseBooleanLike,
+  pickFirstString,
+  pickNullableString,
+  cleanPhone,
+  formatPhone,
+  buildSmsHref,
+  cleanText,
+  safeKey,
+  readLocalArray as readLocal,
+} from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
@@ -157,84 +171,9 @@ function normalizeText(value: string | null | undefined) {
   return (value ?? '').trim()
 }
 
-function cleanPhone(phone: string) {
-  return phone.replace(/[^\d+]/g, '')
-}
-
-function formatPhone(phone: string) {
-  const digits = phone.replace(/\D/g, '')
-  if (digits.length === 10) return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
-  }
-  return phone
-}
-
-function safeKey(...parts: Array<string | null | undefined>) {
-  return parts.map((part) => normalizeText(part).toLowerCase() || '—').join('|')
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString()
-}
-
-function inferSeasonLabel(matchDate: string | null) {
-  if (!matchDate) return null
-  const date = new Date(matchDate)
-  if (Number.isNaN(date.getTime())) return null
-  return String(date.getFullYear())
-}
-
-function inferSessionLabel(matchDate: string | null) {
-  if (!matchDate) return null
-  const date = new Date(matchDate)
-  if (Number.isNaN(date.getTime())) return null
-  const month = date.getMonth()
-  if (month <= 2) return 'Winter'
-  if (month <= 5) return 'Spring'
-  if (month <= 7) return 'Summer'
-  return 'Fall'
-}
-
-function buildSmsHref(recipients: string[], body: string) {
-  const cleaned = recipients.map(cleanPhone).filter(Boolean)
-  const address = cleaned.join(',')
-  const query = body.trim() ? `?body=${encodeURIComponent(body.trim())}` : ''
-  return `sms:${address}${query}`
-}
-
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-
-function parseBooleanLike(value: unknown) {
-  if (typeof value === 'boolean') return value
-  if (typeof value === 'number') return value !== 0
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase()
-    if (['true', 'yes', 'y', '1', 'available', 'in', 'confirmed'].includes(normalized)) return true
-    if (['false', 'no', 'n', '0', 'unavailable', 'out', 'declined'].includes(normalized)) return false
-  }
-  return null
-}
-
-function pickFirstString(record: Record<string, unknown>, keys: string[]) {
-  for (const key of keys) {
-    const value = record[key]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return ''
-}
-
-function pickNullableString(record: Record<string, unknown>, keys: string[]) {
-  const value = pickFirstString(record, keys)
-  return value || null
 }
 
 function coerceAvailabilityStatus(record: Record<string, unknown>): WeeklyAvailability['status'] {
@@ -289,24 +228,9 @@ function datesLookEqual(left: string | null | undefined, right: string | null | 
   return !!leftDate && leftDate === rightDate
 }
 
-function readLocal<T>(key: string): T[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return []
-    return JSON.parse(raw) as T[]
-  } catch {
-    return []
-  }
-}
-
 function writeLocal<T>(key: string, rows: T[]) {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(key, JSON.stringify(rows))
-}
-
-function cleanText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function extractPlayers(value: unknown): string[] {

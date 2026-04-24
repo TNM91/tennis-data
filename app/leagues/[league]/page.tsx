@@ -16,7 +16,7 @@ import {
   inferLeagueFormatFromValues,
   type LeagueFormat,
 } from '@/lib/competition-layers'
-import { formatDate } from '@/lib/captain-formatters'
+import { formatDate, cleanText } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type LeagueMatchRow = {
@@ -47,11 +47,6 @@ type TeamSummary = {
 type LeagueScopeDiagnostic = {
   totalRows: number
   leagueNames: string[]
-}
-
-function cleanText(value: string | null | undefined): string | null {
-  const text = (value || '').trim()
-  return text.length > 0 ? text : null
 }
 
 function normalizeCompareText(value: string | null | undefined): string {

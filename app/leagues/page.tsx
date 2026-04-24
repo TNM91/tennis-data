@@ -12,15 +12,11 @@ import {
   getLeagueFormatLabel,
 } from '@/lib/competition-layers'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
-import { formatDate } from '@/lib/captain-formatters'
+import { formatDate, cleanText as safeText } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 const LEAGUES_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEAGUES_INLINE || null
-
-function safeText(value: string | null | undefined) {
-  return (value || '').trim()
-}
 
 function buildLeagueHref(league: LeagueCard) {
   const slugBase = safeText(league.leagueName) || 'league'

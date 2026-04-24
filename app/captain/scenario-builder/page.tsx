@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { formatDate, uniqueSorted } from '@/lib/captain-formatters'
+import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { type UserRole } from '@/lib/roles'
@@ -48,10 +48,6 @@ type NormalizedSlot = {
   slotType: 'singles' | 'doubles'
   players: string[]
   playerIds: string[]
-}
-
-function cleanText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function safeArray(value: unknown): unknown[] {

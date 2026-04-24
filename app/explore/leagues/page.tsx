@@ -22,7 +22,7 @@ import {
   buildLeagueCardsFromRegistry,
 } from '@/lib/tiq-league-registry'
 import { listTiqIndividualLeagueResults } from '@/lib/tiq-individual-results-service'
-import { formatDate } from '@/lib/captain-formatters'
+import { formatDate, cleanText as safeText } from '@/lib/captain-formatters'
 import {
   buildTiqIndividualLeagueSummaries,
   type TiqIndividualLeagueSummary,
@@ -33,10 +33,6 @@ import { type UserRole } from '@/lib/roles'
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 
 type LayerFilter = 'all' | CompetitionLayer
-
-function safeText(value: string | null | undefined) {
-  return (value || '').trim()
-}
 
 function buildLeagueSubtitle(league: LeagueCard) {
   return [league.flight, league.ustaSection, league.districtArea]

@@ -1,10 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { CSSProperties, FormEvent, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import BrandWordmark from '@/app/components/brand-wordmark'
 import SiteShell from '@/app/components/site-shell'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -140,30 +140,7 @@ export default function ResetPasswordPage() {
           <div style={formPanelGlow} />
           <div style={formPanelInner}>
             <div style={loginBrandWrap}>
-              <div style={logoOrbWrap}>
-                <div style={logoOrbOuter} />
-                <div style={logoOrbMiddle} />
-                <div style={logoOrbInner}>
-                  <Image
-                    src="/logo-icon-current.png"
-                    alt="TenAceIQ"
-                    width={124}
-                    height={124}
-                    priority
-                    style={{
-                      width: isMobile ? '108px' : '124px',
-                      height: isMobile ? '108px' : '124px',
-                      display: 'block',
-                      objectFit: 'contain',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div style={loginBrandText}>
-                <span style={{ color: '#F8FBFF' }}>TenAce</span>
-                <span style={brandIQ}>IQ</span>
-              </div>
+              <BrandWordmark compact={isSmallMobile} />
             </div>
 
             <form onSubmit={handleSubmit} style={formCard}>
@@ -262,41 +239,35 @@ function InfoCard({ title, text }: { title: string; text: string }) {
   )
 }
 
-const brandIQ: CSSProperties = { background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginLeft: '2px' }
-const heroShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '14px auto 24px', display: 'grid', borderRadius: '34px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)', boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)' }
-const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid rgba(130,244,118,0.28)', background: 'rgba(89,145,73,0.14)', color: '#d9e7ef', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
-const heroTitle: CSSProperties = { margin: '0 0 12px', color: '#f7fbff', fontWeight: 900, lineHeight: 0.98, letterSpacing: '-0.055em', maxWidth: '760px', fontSize: '58px' }
-const heroText: CSSProperties = { margin: '0 0 20px', color: 'rgba(224,234,247,0.84)', fontSize: '18px', lineHeight: 1.6, maxWidth: '760px' }
+const heroShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '14px auto 24px', display: 'grid', borderRadius: '34px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)', boxShadow: 'var(--shadow-card)' }
+const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)', background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)', color: 'var(--home-eyebrow-color)', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
+const heroTitle: CSSProperties = { margin: '0 0 12px', color: 'var(--foreground-strong)', fontWeight: 900, lineHeight: 0.98, letterSpacing: '-0.055em', maxWidth: '760px', fontSize: '58px' }
+const heroText: CSSProperties = { margin: '0 0 20px', color: 'var(--shell-copy-muted)', fontSize: '18px', lineHeight: 1.6, maxWidth: '760px' }
 const pillRow: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }
-const pillBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '36px', padding: '0 14px', borderRadius: '999px', fontSize: '13px', lineHeight: 1, fontWeight: 900, border: '1px solid transparent' }
-const pillBlue: CSSProperties = { ...pillBase, background: 'rgba(37,91,227,0.16)', color: '#c7dbff', borderColor: 'rgba(98,154,255,0.18)' }
-const pillGreen: CSSProperties = { ...pillBase, background: 'rgba(96,221,116,0.14)', color: '#dffad5', borderColor: 'rgba(130,244,118,0.2)' }
-const panelCard: CSSProperties = { marginTop: '24px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(10,20,37,0.56)', padding: '18px', maxWidth: '900px' }
-const panelLabel: CSSProperties = { color: '#e7ffd0', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }
+const pillBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '36px', padding: '0 14px', borderRadius: '999px', fontSize: '13px', lineHeight: 1, fontWeight: 900 }
+const pillBlue: CSSProperties = { ...pillBase, background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)' }
+const pillGreen: CSSProperties = { ...pillBase, background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)' }
+const panelCard: CSSProperties = { marginTop: '24px', borderRadius: '24px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px', maxWidth: '900px', boxShadow: 'var(--shadow-soft)' }
+const panelLabel: CSSProperties = { color: 'var(--home-eyebrow-color)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '14px' }
 const infoGrid: CSSProperties = { display: 'grid', gap: '12px' }
-const infoCard: CSSProperties = { borderRadius: '18px', padding: '16px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }
-const infoTitle: CSSProperties = { color: '#f8fbff', fontSize: '16px', fontWeight: 800, lineHeight: 1.35 }
-const infoText: CSSProperties = { marginTop: '6px', color: 'rgba(224,236,249,0.76)', fontSize: '14px', lineHeight: 1.6 }
-const formPanel: CSSProperties = { position: 'relative', borderRadius: '30px', overflow: 'hidden', border: '1px solid rgba(116,190,255,0.18)', background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)', boxShadow: '0 22px 52px rgba(7,18,40,0.24)' }
+const infoCard: CSSProperties = { borderRadius: '18px', padding: '16px', background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)' }
+const infoTitle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: '16px', fontWeight: 800, lineHeight: 1.35 }
+const infoText: CSSProperties = { marginTop: '6px', color: 'var(--shell-copy-muted)', fontSize: '14px', lineHeight: 1.6 }
+const formPanel: CSSProperties = { position: 'relative', borderRadius: '30px', overflow: 'hidden', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', boxShadow: 'var(--shadow-card)' }
 const formPanelGlow: CSSProperties = { position: 'absolute', inset: 'auto auto 8px 50%', width: '250px', height: '250px', transform: 'translateX(-50%)', borderRadius: '999px', background: 'radial-gradient(circle, rgba(116,190,255,0.18) 0%, rgba(155,225,29,0.08) 34%, rgba(116,190,255,0) 72%)', pointerEvents: 'none' }
 const formPanelInner: CSSProperties = { position: 'relative', zIndex: 1, height: '100%', padding: '22px', display: 'flex', flexDirection: 'column' }
-const loginBrandWrap: CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '18px' }
-const logoOrbWrap: CSSProperties = { position: 'relative', width: '188px', height: '188px', display: 'grid', placeItems: 'center', margin: '8px auto 12px' }
-const logoOrbOuter: CSSProperties = { position: 'absolute', inset: 0, borderRadius: '999px', background: 'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)', filter: 'blur(1px)' }
-const logoOrbMiddle: CSSProperties = { position: 'absolute', inset: '14px', borderRadius: '999px', border: '1px solid rgba(116,190,255,0.28)', boxShadow: '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)' }
-const logoOrbInner: CSSProperties = { position: 'relative', zIndex: 2, width: '142px', height: '142px', borderRadius: '999px', display: 'grid', placeItems: 'center', background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)' }
-const loginBrandText: CSSProperties = { display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px', fontWeight: 900, letterSpacing: '-0.05em', fontSize: '36px', lineHeight: 1 }
-const formCard: CSSProperties = { display: 'grid', gap: '12px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(9,18,35,0.56)', padding: '18px' }
-const formLabel: CSSProperties = { color: '#e7ffd0', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
-const formTitle: CSSProperties = { margin: 0, color: '#f8fbff', fontSize: '28px', lineHeight: 1.04, fontWeight: 900, letterSpacing: '-0.045em' }
-const inputLabel: CSSProperties = { color: '#dfe8f7', fontSize: '13px', fontWeight: 700, marginTop: '2px' }
-const inputStyle: CSSProperties = { width: '100%', minHeight: '52px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)', color: '#f5f8ff', padding: '0 16px', fontSize: '15px', outline: 'none' }
-const togglePasswordButton: CSSProperties = { minHeight: '46px', padding: '0 16px', borderRadius: '16px', border: '1px solid rgba(116,190,255,0.22)', background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)', color: '#e7eefb', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }
-const submitButton: CSSProperties = { minHeight: '52px', borderRadius: '16px', border: '1px solid rgba(155,225,29,0.34)', background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)', color: '#08111d', fontWeight: 900, fontSize: '15px', cursor: 'pointer', boxShadow: '0 10px 28px rgba(155,225,29,0.18)' }
-const successBanner: CSSProperties = { borderRadius: '16px', padding: '12px 14px', background: 'rgba(96,221,116,0.12)', border: '1px solid rgba(130,244,118,0.18)', color: '#e7ffd0', fontWeight: 700, fontSize: '14px' }
-const errorBanner: CSSProperties = { borderRadius: '16px', padding: '12px 14px', background: 'rgba(142, 32, 32, 0.18)', border: '1px solid rgba(255, 122, 122, 0.26)', color: '#ffd7d7', fontWeight: 700, fontSize: '14px' }
+const loginBrandWrap: CSSProperties = { display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center', marginBottom: '18px', minHeight: '64px' }
+const formCard: CSSProperties = { display: 'grid', gap: '12px', borderRadius: '24px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: '18px' }
+const formLabel: CSSProperties = { color: 'var(--home-eyebrow-color)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
+const formTitle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: '28px', lineHeight: 1.04, fontWeight: 900, letterSpacing: '-0.045em' }
+const inputLabel: CSSProperties = { color: 'var(--foreground)', fontSize: '13px', fontWeight: 700, marginTop: '2px' }
+const inputStyle: CSSProperties = { width: '100%', minHeight: '52px', borderRadius: '16px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', padding: '0 16px', fontSize: '15px', outline: 'none', boxShadow: 'var(--home-control-shadow)' }
+const togglePasswordButton: CSSProperties = { minHeight: '46px', padding: '0 16px', borderRadius: '16px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }
+const submitButton: CSSProperties = { minHeight: '52px', borderRadius: '16px', border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)', background: 'linear-gradient(135deg, var(--brand-lime) 0%, #c7f36b 100%)', color: 'var(--text-dark)', fontWeight: 900, fontSize: '15px', cursor: 'pointer', boxShadow: '0 10px 28px color-mix(in srgb, var(--brand-lime) 18%, transparent)' }
+const successBanner: CSSProperties = { borderRadius: '16px', padding: '12px 14px', background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)', border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)', color: 'var(--foreground-strong)', fontWeight: 700, fontSize: '14px' }
+const errorBanner: CSSProperties = { borderRadius: '16px', padding: '12px 14px', background: 'color-mix(in srgb, #7f1d1d 14%, var(--shell-chip-bg) 86%)', border: '1px solid color-mix(in srgb, #f87171 26%, var(--shell-panel-border) 74%)', color: 'color-mix(in srgb, #f87171 72%, var(--foreground-strong) 28%)', fontWeight: 700, fontSize: '14px' }
 const helperRow: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginTop: '4px' }
-const inlineLink: CSSProperties = { color: '#c7dbff', textDecoration: 'none', fontWeight: 800 }
-const inlineLinkMuted: CSSProperties = { color: 'rgba(224,236,249,0.74)', textDecoration: 'none', fontWeight: 700 }
+const inlineLink: CSSProperties = { color: 'var(--foreground)', textDecoration: 'none', fontWeight: 800 }
+const inlineLinkMuted: CSSProperties = { color: 'var(--shell-copy-muted)', textDecoration: 'none', fontWeight: 700 }
 const loadingShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '40px auto', padding: '0 24px' }
-const loadingCard: CSSProperties = { borderRadius: '22px', padding: '18px 20px', color: '#eaf4ff', background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)', border: '1px solid rgba(116,190,255,0.18)', fontSize: '15px', fontWeight: 700 }
+const loadingCard: CSSProperties = { borderRadius: '22px', padding: '18px 20px', color: 'var(--foreground-strong)', background: 'var(--shell-panel-bg)', border: '1px solid var(--shell-panel-border)', fontSize: '15px', fontWeight: 700 }

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { type ReactNode, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
-import { formatDate } from '@/lib/captain-formatters'
+import { formatDate, cleanText } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
 
 type MatchLedgerRow = {
@@ -22,10 +22,6 @@ type MatchLedgerRow = {
 
 type StatusFilter = 'pending' | 'upcoming' | 'completed' | 'all'
 type FocusFilter = 'all' | 'due-this-week' | 'missing-id' | 'missing-league'
-
-function cleanText(value: string | null | undefined) {
-  return (value || '').trim()
-}
 
 function startOfTodayKey() {
   const now = new Date()

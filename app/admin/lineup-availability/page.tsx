@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { formatDate, formatRating, safeText } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
 import { type UserRole } from '@/lib/roles'
 import AdminGate from '@/app/components/admin-gate'
@@ -93,11 +93,6 @@ type AvailabilityRow = {
 type LeagueOption = {
   leagueName: string
   flight: string
-}
-
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
-  const text = (value || '').trim()
-  return text || fallback
 }
 
 function normalizePlayerRelation(player: PlayerRelation) {

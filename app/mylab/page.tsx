@@ -36,7 +36,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { formatRating } from '@/lib/captain-formatters'
+import { formatRating, cleanText } from '@/lib/captain-formatters'
 
 type EntityType = 'player' | 'team' | 'league'
 type FeedType = 'match' | 'rating' | 'achievement' | 'community' | 'team' | 'league'
@@ -170,11 +170,6 @@ const LAB_SIGNALS: LabSignal[] = [
     note: 'My Lab turns followed activity into clearer next-step awareness instead of just more data.',
   },
 ]
-
-function cleanText(value: string | null | undefined): string | null {
-  const text = (value || '').trim()
-  return text.length ? text : null
-}
 
 function safeDate(value: string | null | undefined) {
   if (!value) return 'Recently'

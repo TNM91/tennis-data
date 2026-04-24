@@ -39,7 +39,7 @@ import {
   normalizeTiqIndividualCompetitionFormat,
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
-import { formatRating } from '@/lib/captain-formatters'
+import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/player-directory'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
@@ -64,10 +64,6 @@ import {
   type TiqTeamStandingRow,
 } from '@/lib/tiq-team-results-service'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-
-function cleanText(value: string | null | undefined) {
-  return (value || '').trim()
-}
 
 function formatDateTime(value: string | null | undefined) {
   const parsed = value ? new Date(value) : null

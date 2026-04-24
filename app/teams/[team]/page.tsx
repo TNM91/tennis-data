@@ -20,7 +20,7 @@ import {
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
-import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { formatDate, formatRating, cleanText } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
@@ -90,11 +90,6 @@ type MatchCard = TeamMatch & {
   won: boolean | null
   opponent: string | null
   venueLabel: string
-}
-
-function cleanText(value: string | null | undefined): string | null {
-  const text = (value || '').trim()
-  return text.length > 0 ? text : null
 }
 
 function normalizePlayer(player: PlayerRelation): Player | null {

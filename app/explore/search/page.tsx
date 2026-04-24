@@ -27,6 +27,7 @@ import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { cleanText } from '@/lib/captain-formatters'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -70,10 +71,6 @@ const searchScopes: Array<{ value: SearchScope; label: string }> = [
   { value: 'flight', label: 'Flight' },
   { value: 'area', label: 'Area' },
 ]
-
-function cleanText(value: string | null | undefined) {
-  return (value || '').trim()
-}
 
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'

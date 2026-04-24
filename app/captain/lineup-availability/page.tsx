@@ -12,7 +12,7 @@ import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { buildTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '../../../lib/supabase'
-import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { formatDate, formatRating, cleanText, safeText } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -110,15 +110,6 @@ const NAV_LINKS = [
   { href: '/teams', label: 'Teams' },
   { href: '/captain', label: 'Captain Console' },
 ]
-
-function cleanText(value: string | null | undefined): string | null {
-  const text = (value || '').trim()
-  return text.length ? text : null
-}
-
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
-  return cleanText(value) || fallback
-}
 
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null

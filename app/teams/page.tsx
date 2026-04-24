@@ -10,7 +10,7 @@ import { getClientAuthState } from '@/lib/auth'
 import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { formatShortDate, uniqueSorted } from '@/lib/captain-formatters'
+import { formatShortDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 
 type MatchRow = {
   id: string
@@ -51,12 +51,6 @@ type TeamDirectoryEntry = {
 type SortKey = 'team' | 'matches' | 'players' | 'recent'
 
 const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
-
-function cleanText(value: string | null | undefined): string | null {
-  if (typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed.length ? trimmed : null
-}
 
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
   return `${team}__${league || ''}__${flight || ''}`

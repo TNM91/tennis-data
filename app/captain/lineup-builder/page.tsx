@@ -26,7 +26,7 @@ import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
-import { formatDate, formatRating, uniqueSorted } from '@/lib/captain-formatters'
+import { formatDate, formatRating, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -211,10 +211,6 @@ function cloneSlots(slots: LineupSlot[]) {
     ...slot,
     players: slot.players.map((player) => ({ ...player })),
   }))
-}
-
-function cleanText(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function buildRosterPlayerIdSet(

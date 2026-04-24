@@ -28,6 +28,7 @@ import {
   saveTiqLeague,
   type TiqLeagueStorageSource,
 } from '@/lib/tiq-league-service'
+import { cleanText as safeText } from '@/lib/captain-formatters'
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
@@ -40,10 +41,6 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   notes: '',
   teams: [],
   players: [],
-}
-
-function safeText(value: string | null | undefined) {
-  return (value || '').trim()
 }
 
 function formatDateTime(value: string) {

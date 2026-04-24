@@ -30,7 +30,19 @@ import {
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
 import { isMember, type UserRole } from '@/lib/roles'
-import { formatDate, formatRating } from '@/lib/captain-formatters'
+import {
+  formatDate,
+  formatRating,
+  formatMonthDay as formatDateShort,
+  formatDateTime as formatDateTimeShort,
+  safeKey,
+  safeText,
+  average,
+  winPct as getWinPct,
+  formatPercent,
+  readLocalItem as readLocalObject,
+  readLocalArray,
+} from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
@@ -146,72 +158,11 @@ type PairingSummary = {
   avgDoublesRating: number | null
 }
 
-function safeText(value: string | null | undefined, fallback = 'Unknown') {
-  const text = (value || '').trim()
-  return text || fallback
-}
-
-function formatDateShort(value: string | null | undefined) {
-  if (!value) return 'No date set'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-
-function safeKey(...parts: Array<string | null | undefined>) {
-  return parts.map((part) => (part || '').trim().toLowerCase() || '—').join('|')
-}
-
-function readLocalObject<T>(key: string): T | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return null
-    return JSON.parse(raw) as T
-  } catch {
-    return null
-  }
-}
-
-function readLocalArray<T>(key: string): T[] {
-  const value = readLocalObject<T[]>(key)
-  return Array.isArray(value) ? value : []
-}
-
-function formatDateTimeShort(value: string | null) {
-  if (!value) return 'Not updated yet'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
-
-
 function normalizePlayerRelation(player: PlayerRelation) {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
-
-function average(values: number[]) {
-  if (!values.length) return null
-  return values.reduce((a, b) => a + b, 0) / values.length
-}
-
-function getWinPct(wins: number, losses: number) {
-  const total = wins + losses
-  if (!total) return 0
-  return wins / total
-}
-
-function formatPercent(value: number) {
-  return `${Math.round(value * 100)}%`
-}
 
 export default function CaptainHubPage() {
   const router = useRouter()
