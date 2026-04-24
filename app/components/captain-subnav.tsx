@@ -59,9 +59,9 @@ const shellStyle: CSSProperties = {
   gap: 16,
   padding: 20,
   borderRadius: 24,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.68) 0%, rgba(17,34,61,0.54) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.16)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const headerStyle: CSSProperties = {
@@ -71,7 +71,7 @@ const headerStyle: CSSProperties = {
 }
 
 const eyebrowStyle: CSSProperties = {
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
   fontSize: 12,
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -79,7 +79,7 @@ const eyebrowStyle: CSSProperties = {
 }
 
 const titleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 28,
   lineHeight: 1.05,
   fontWeight: 900,
@@ -87,7 +87,7 @@ const titleStyle: CSSProperties = {
 }
 
 const descriptionStyle: CSSProperties = {
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.65,
 }
@@ -107,16 +107,16 @@ const linkStyle: CSSProperties = {
   padding: '0 16px',
   borderRadius: 18,
   textDecoration: 'none',
-  color: '#eaf4ff',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.04)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const activeLinkStyle: CSSProperties = {
-  border: '1px solid rgba(155,225,29,0.22)',
-  background: 'linear-gradient(180deg, rgba(155,225,29,0.08) 0%, rgba(18,34,62,0.88) 100%)',
-  boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--brand-green) 14%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const linkLabelStyle: CSSProperties = {
@@ -125,7 +125,7 @@ const linkLabelStyle: CSSProperties = {
 }
 
 const linkArrowStyle: CSSProperties = {
-  color: 'rgba(215,229,247,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.08em',
@@ -153,12 +153,12 @@ const tierPillBase: CSSProperties = {
 
 const tierPillGreen: CSSProperties = {
   ...tierPillBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, var(--brand-green) 18%)',
+  color: 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)',
 }
 
 const tierPillSlate: CSSProperties = {
   ...tierPillBase,
-  background: 'rgba(142,161,189,0.14)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
 }

@@ -10,15 +10,23 @@ import CompetePageFrame, {
 } from '@/app/compete/_components/compete-page-frame'
 
 export default function CompeteSchedulePage() {
-  const { role, entitlements } = useAuth()
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
-
   return (
     <CompetePageFrame
       eyebrow="Schedule"
       title="Upcoming matches should drive the weekly flow."
       description="Schedule is the bridge between browseable season data and action-oriented preparation. This route anchors the week around what is next, then routes users into the execution tools that already work."
     >
+      <CompeteScheduleContent />
+    </CompetePageFrame>
+  )
+}
+
+function CompeteScheduleContent() {
+  const { role, entitlements } = useAuth()
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+
+  return (
+    <>
       <CompeteGrid>
         <CompeteCard
           href="/captain"
@@ -55,8 +63,7 @@ export default function CompeteSchedulePage() {
           />
         </div>
       ) : null}
-
-    </CompetePageFrame>
+    </>
   )
 }
 

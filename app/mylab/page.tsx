@@ -1295,7 +1295,9 @@ function MyLabPageInner() {
               onMouseLeave={() => setTeamsHovered(false)}
               style={{
                 ...secondaryButtonStyle,
-                borderColor: teamsHovered ? 'rgba(116,190,255,0.30)' : undefined,
+                border: teamsHovered
+                  ? '1px solid color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)'
+                  : secondaryButtonStyle.border,
                 transform: teamsHovered ? 'translateY(-2px)' : 'none',
                 transition: 'all 140ms ease',
               }}
@@ -1308,7 +1310,9 @@ function MyLabPageInner() {
               onMouseLeave={() => setLeaguesHovered(false)}
               style={{
                 ...secondaryButtonStyle,
-                borderColor: leaguesHovered ? 'rgba(116,190,255,0.30)' : undefined,
+                border: leaguesHovered
+                  ? '1px solid color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)'
+                  : secondaryButtonStyle.border,
                 transform: leaguesHovered ? 'translateY(-2px)' : 'none',
                 transition: 'all 140ms ease',
               }}
@@ -1333,9 +1337,9 @@ function MyLabPageInner() {
                 marginTop: 18,
                 padding: '14px 16px',
                 borderRadius: 16,
-                border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.04)',
-                color: 'rgba(224,234,247,0.76)',
+                border: '1px solid var(--shell-panel-border)',
+                background: 'var(--shell-chip-bg)',
+                color: 'var(--shell-copy-muted)',
                 lineHeight: 1.6,
                 fontSize: 13,
               }}
@@ -1675,8 +1679,12 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
       onMouseLeave={() => setHovered(false)}
       style={{
         ...ghostMiniButtonStyle,
-        background: hovered ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.05)',
-        borderColor: hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+        background: hovered
+          ? 'color-mix(in srgb, var(--foreground-strong) 7%, var(--shell-chip-bg) 93%)'
+          : ghostMiniButtonStyle.background,
+        border: hovered
+          ? '1px solid color-mix(in srgb, var(--foreground-strong) 12%, var(--shell-panel-border) 88%)'
+          : ghostMiniButtonStyle.border,
         transform: hovered ? 'translateY(-1px)' : 'none',
         transition: 'all 130ms ease',
       }}
@@ -1752,8 +1760,8 @@ const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
-  backdropFilter: 'blur(18px)',
-  WebkitBackdropFilter: 'blur(18px)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
 })
 
 const eyebrowStyle: CSSProperties = {
@@ -1762,8 +1770,8 @@ const eyebrowStyle: CSSProperties = {
   minHeight: 38,
   padding: '8px 14px',
   borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.28)',
-  background: 'rgba(155,225,29,0.12)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)',
   color: 'var(--home-eyebrow-color)',
   fontWeight: 800,
   fontSize: 14,
@@ -1807,10 +1815,10 @@ const primaryButtonStyle: CSSProperties = {
   borderRadius: 999,
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #4ade80 100%)',
   color: 'var(--text-dark)',
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  boxShadow: '0 16px 32px color-mix(in srgb, var(--brand-lime) 16%, transparent)',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -2027,7 +2035,7 @@ const workflowDotStyle: CSSProperties = {
   height: 10,
   borderRadius: 999,
   marginTop: 7,
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #4ade80 100%)',
   flexShrink: 0,
 }
 
@@ -2065,18 +2073,18 @@ const rightColumnStyle: CSSProperties = {
 const surfaceStrongStyle: CSSProperties = {
   borderRadius: 28,
   padding: 20,
-  border: '1px solid rgba(116,190,255,0.16)',
+  border: '1px solid var(--shell-panel-border)',
   background:
-    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(13,42,90,0.82) 0%, rgba(8,27,59,0.90) 58%, rgba(7,30,62,0.94) 100%)',
-  boxShadow: '0 24px 60px rgba(2, 8, 23, 0.24)',
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 10%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const surfaceStyle: CSSProperties = {
   borderRadius: 28,
   padding: 20,
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.18)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -2089,7 +2097,7 @@ const sectionHeaderStyle: CSSProperties = {
 }
 
 const sectionKickerStyle: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: 13,
   textTransform: 'uppercase',
@@ -2099,7 +2107,7 @@ const sectionKickerStyle: CSSProperties = {
 
 const sectionTitleStyle: CSSProperties = {
   margin: '8px 0',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: 28,
   letterSpacing: '-0.04em',
@@ -2108,7 +2116,7 @@ const sectionTitleStyle: CSSProperties = {
 
 const sectionTextStyle: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   maxWidth: 780,
 }
@@ -2124,7 +2132,7 @@ const inputWrapStyle: CSSProperties = {
 }
 
 const labelStyle: CSSProperties = {
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--brand-blue-2)',
   fontSize: 13,
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -2135,12 +2143,13 @@ const inputStyle: CSSProperties = {
   width: '100%',
   height: 48,
   borderRadius: 14,
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: 14,
   outline: 'none',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const filterRowStyle: CSSProperties = {
@@ -2153,18 +2162,18 @@ const tabButtonStyle: CSSProperties = {
   minHeight: 34,
   borderRadius: 999,
   padding: '0 12px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#dfe8f8',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
 }
 
 const tabActiveStyle: CSSProperties = {
   ...tabButtonStyle,
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.18) 0%, rgba(74,222,128,0.18) 100%)',
-  color: '#f3ffe8',
-  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'color-mix(in srgb, var(--brand-lime) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
 }
 
 const searchResultsStyle: CSSProperties = {
@@ -2179,17 +2188,17 @@ const searchResultItemStyle: CSSProperties = {
   gap: 12,
   padding: 14,
   borderRadius: 16,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const searchResultTitleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
 }
 
 const searchResultMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   marginTop: 4,
 }
@@ -2198,9 +2207,9 @@ const primaryMiniButtonStyle: CSSProperties = {
   minHeight: 34,
   borderRadius: 999,
   padding: '0 12px',
-  border: '1px solid rgba(155,225,29,0.34)',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
-  color: '#071622',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #4ade80 100%)',
+  color: 'var(--text-dark)',
   fontWeight: 800,
   cursor: 'pointer',
 }
@@ -2209,33 +2218,33 @@ const ghostMiniButtonStyle: CSSProperties = {
   minHeight: 34,
   borderRadius: 999,
   padding: '0 12px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#dfe8f8',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
 }
 
 const emptyInlineStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   padding: 12,
   borderRadius: 16,
-  border: '1px dashed rgba(255,255,255,0.10)',
+  border: '1px dashed var(--shell-panel-border)',
 }
 
 const emptyStateStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   padding: 18,
   borderRadius: 18,
-  border: '1px dashed rgba(255,255,255,0.10)',
+  border: '1px dashed var(--shell-panel-border)',
 }
 
 const errorStateStyle: CSSProperties = {
-  color: '#fecaca',
+  color: 'color-mix(in srgb, #f87171 72%, var(--foreground-strong) 28%)',
   padding: 18,
   borderRadius: 18,
-  border: '1px solid rgba(248,113,113,0.20)',
-  background: 'rgba(127,29,29,0.18)',
+  border: '1px solid color-mix(in srgb, #f87171 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, #7f1d1d 14%, var(--shell-chip-bg) 86%)',
 }
 
 const errorActionRowStyle: CSSProperties = {
@@ -2253,13 +2262,13 @@ const feedListStyle: CSSProperties = {
 const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
   borderRadius: 22,
   padding: 18,
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
   background:
     accent === 'green'
-      ? 'linear-gradient(180deg, rgba(97,160,69,0.14) 0%, rgba(16,34,70,0.42) 100%)'
+      ? 'color-mix(in srgb, var(--brand-lime) 9%, var(--shell-panel-bg) 91%)'
       : accent === 'violet'
-        ? 'linear-gradient(180deg, rgba(119,98,255,0.14) 0%, rgba(16,34,70,0.42) 100%)'
-        : 'linear-gradient(180deg, rgba(58,115,212,0.14) 0%, rgba(16,34,70,0.42) 100%)',
+        ? 'color-mix(in srgb, #7762ff 10%, var(--shell-panel-bg) 90%)'
+        : 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%)',
 })
 
 const feedTopRowStyle: CSSProperties = {
@@ -2271,13 +2280,13 @@ const feedTopRowStyle: CSSProperties = {
 }
 
 const feedTimeStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.68)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
 }
 
 const feedTitleStyle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: 20,
   lineHeight: 1.2,
@@ -2285,7 +2294,7 @@ const feedTitleStyle: CSSProperties = {
 
 const feedBodyStyle: CSSProperties = {
   margin: '10px 0 0 0',
-  color: 'rgba(231,239,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
 }
 
@@ -2299,7 +2308,7 @@ const feedMetaRowStyle: CSSProperties = {
 }
 
 const feedLinkStyle: CSSProperties = {
-  color: '#cfe1ff',
+  color: 'var(--foreground)',
   fontWeight: 800,
   textDecoration: 'none',
 }
@@ -2312,26 +2321,30 @@ const pillSlateStyle: CSSProperties = {
   borderRadius: 999,
   fontSize: 12,
   fontWeight: 800,
-  background: 'rgba(255,255,255,0.08)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const pillGreenStyle: CSSProperties = {
   ...pillSlateStyle,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
 }
 
 const pillBlueStyle: CSSProperties = {
   ...pillSlateStyle,
-  background: 'rgba(37,91,227,0.16)',
-  color: '#c7dbff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
 }
 
 const pillVioletStyle: CSSProperties = {
   ...pillSlateStyle,
-  background: 'rgba(119,98,255,0.18)',
-  color: '#ddd7ff',
+  background: 'color-mix(in srgb, #7762ff 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, #7762ff 24%, var(--shell-panel-border) 76%)',
 }
 
 function badgeForAccent(accent: FeedItem['accent']): CSSProperties {
@@ -2349,12 +2362,12 @@ const summaryGridStyle: CSSProperties = {
 const summaryCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 14,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const summaryValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: 26,
   lineHeight: 1.1,
@@ -2369,18 +2382,18 @@ const insightStackStyle: CSSProperties = {
 const insightCardStyle: CSSProperties = {
   borderRadius: 18,
   padding: 16,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const insightTitleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   marginBottom: 6,
 }
 
 const insightTextStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
 }
 
@@ -2396,17 +2409,17 @@ const followCardStyle: CSSProperties = {
   gap: 12,
   padding: 14,
   borderRadius: 16,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const followNameStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
 }
 
 const followMetaStyle: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   marginTop: 4,
 }

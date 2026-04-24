@@ -208,12 +208,21 @@ export default function PreviewHomepage() {
                   alignItems: 'center',
                 }}
               >
-                <span style={sectionKicker}>Premium tennis intelligence platform</span>
+                <span
+                  style={{
+                    ...sectionKicker,
+                    marginBottom: 0,
+                    minHeight: 42,
+                    paddingInline: 16,
+                  }}
+                >
+                  Premium tennis intelligence platform
+                </span>
                 <span
                   style={{
                     ...badgeBlue,
                     color: colors.textStrong,
-                    minHeight: 38,
+                    minHeight: 42,
                     paddingInline: 16,
                   }}
                 >
@@ -280,6 +289,7 @@ export default function PreviewHomepage() {
                   display: 'flex',
                   flexWrap: 'wrap',
                   gap: 8,
+                  alignItems: 'center',
                 }}
               >
                 {[
@@ -309,6 +319,8 @@ export default function PreviewHomepage() {
                   display: 'grid',
                   gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
                   gap: 12,
+                  alignItems: 'stretch',
+                  gridAutoRows: '1fr',
                 }}
               >
                 {[
@@ -336,6 +348,7 @@ export default function PreviewHomepage() {
                       padding: isSmallMobile ? 14 : 16,
                       display: 'grid',
                       gap: 8,
+                      alignContent: 'start',
                       overflow: 'hidden',
                       border: '1px solid rgba(116,190,255,0.10)',
                       borderTop: `2px solid ${theme.priceColor}`,
@@ -591,17 +604,19 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
 
   return (
     <div
-      style={{
-        ...glassCard,
-        padding: isSmallMobile ? 14 : compact || isMobile ? 16 : 18,
-        display: 'grid',
-        gap: 12,
-        maxWidth: isMobile ? '100%' : 760,
-        border: '1px solid var(--home-search-frame-border)',
-        background: 'var(--home-search-frame-bg)',
-        boxShadow: 'var(--home-search-frame-shadow)',
-      }}
-    >
+        style={{
+          ...glassCard,
+          padding: isSmallMobile ? 14 : compact || isMobile ? 16 : 18,
+          display: 'grid',
+          gap: 12,
+          maxWidth: isMobile ? '100%' : 760,
+          border: '1px solid var(--home-search-frame-border)',
+          background: 'var(--home-search-frame-bg)',
+          boxShadow: 'var(--home-search-frame-shadow)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
       <div style={{ display: 'grid', gap: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ ...badgeGreen, width: 'fit-content' }}>Start with search</div>
@@ -638,7 +653,8 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         onSubmit={handleSubmit}
         style={{
           display: 'grid',
-          gridTemplateColumns: compact || isMobile ? '1fr' : 'minmax(164px, 192px) minmax(0, 1fr) auto',
+          gridTemplateColumns:
+            compact || isMobile ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) minmax(148px, 156px)',
           gap: 10,
           alignItems: compact || isMobile ? 'stretch' : 'end',
         }}
@@ -651,7 +667,6 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             value={filter}
             onChange={(event) => setFilter(event.target.value as HeroSearchFilter)}
             style={{
-              ...surfaceCard,
               minHeight: isSmallMobile ? 52 : 56,
               padding: '0 14px',
               border: '1px solid var(--home-input-border)',
@@ -660,7 +675,8 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
               fontSize: 14,
               fontWeight: 700,
               outline: 'none',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+              borderRadius: 16,
+              boxShadow: 'var(--home-control-shadow)',
               colorScheme: theme,
               appearance: 'none',
               WebkitAppearance: 'none',
@@ -693,7 +709,6 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
 
         <div
           style={{
-            ...surfaceCard,
             minHeight: isSmallMobile ? 52 : 56,
             padding: '0 16px',
             display: 'flex',
@@ -701,7 +716,8 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
             gap: 12,
             border: '1px solid var(--home-input-border)',
             background: 'var(--home-input-bg)',
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            borderRadius: 16,
+            boxShadow: 'var(--home-control-shadow)',
           }}
         >
           <SearchIcon />
@@ -726,9 +742,9 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           style={{
             ...buttonPrimary,
             minHeight: isSmallMobile ? 52 : 56,
-            minWidth: compact || isMobile ? '100%' : 138,
+            minWidth: compact || isMobile ? '100%' : 148,
             width: compact || isMobile ? '100%' : undefined,
-            paddingInline: compact || isMobile ? 20 : 24,
+            paddingInline: compact || isMobile ? 20 : 22,
             border: 'none',
             cursor: 'pointer',
           }}
@@ -784,9 +800,8 @@ function HeroWorkspacePreview() {
         minHeight: 100,
         position: 'relative',
         overflow: 'hidden',
-        border: '1px solid rgba(116,190,255,0.14)',
-        background:
-          'linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+        border: '1px solid var(--shell-panel-border)',
+        background: 'var(--shell-panel-bg)',
       }}
     >
       <div
@@ -848,9 +863,8 @@ function HeroWorkspacePreview() {
             gap: 12,
             borderRadius: 24,
             overflow: 'hidden',
-            border: '1px solid rgba(116,190,255,0.12)',
-            background:
-              'linear-gradient(180deg, color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+            border: '1px solid var(--shell-panel-border)',
+            background: 'color-mix(in srgb, var(--shell-panel-bg) 94%, var(--foreground) 6%)',
             padding: 14,
           }}
         >
@@ -898,16 +912,16 @@ function HeroWorkspacePreview() {
             </div>
 
             <div
-              style={{
-                display: 'grid',
-                gap: 10,
-                padding: 12,
-                borderRadius: 18,
-                border: '1px solid rgba(116,190,255,0.12)',
-                background:
-                  'radial-gradient(circle at 78% 18%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.06) 24%, transparent 54%), radial-gradient(circle at 22% 80%, rgba(155,225,29,0.14) 0%, rgba(155,225,29,0.05) 20%, transparent 48%), linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%) 100%)',
-              }}
-            >
+            style={{
+              display: 'grid',
+              gap: 10,
+              padding: 12,
+              borderRadius: 18,
+              border: '1px solid var(--shell-panel-border)',
+              background:
+                'radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, color-mix(in srgb, var(--brand-blue-2) 6%, transparent) 24%, transparent 54%), radial-gradient(circle at 22% 80%, color-mix(in srgb, var(--brand-green) 14%, transparent) 0%, color-mix(in srgb, var(--brand-green) 5%, transparent) 20%, transparent 48%), linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface-soft) 97%, var(--foreground) 3%) 100%)',
+            }}
+          >
               <div
                 style={{
                   display: 'grid',
@@ -953,12 +967,14 @@ function HeroWorkspacePreview() {
             <div
               key={item.label}
               style={{
-                padding: 8,
+                padding: '10px 10px 12px',
                 display: 'grid',
-                gap: 4,
+                gap: 6,
+                alignContent: 'start',
                 borderTop:
                   index === 2 ? '2px solid rgba(155,225,29,0.5)' : '2px solid rgba(116,190,255,0.35)',
                 background: 'transparent',
+                minHeight: 92,
               }}
             >
               <div style={{ color: index === 2 ? 'var(--brand-green)' : 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>

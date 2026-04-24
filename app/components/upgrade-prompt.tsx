@@ -190,7 +190,7 @@ const badgeStyle: CSSProperties = {
 
 const titleStyle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 'clamp(1.32rem, 2vw, 1.8rem)',
   lineHeight: 1.1,
   letterSpacing: '-0.03em',
@@ -198,7 +198,7 @@ const titleStyle: CSSProperties = {
 
 const bodyStyle: CSSProperties = {
   margin: 0,
-  color: 'rgba(229, 238, 251, 0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.65,
   maxWidth: 760,
@@ -231,7 +231,7 @@ const lightResultLabelStyle: CSSProperties = {
 }
 
 const resultTextStyle: CSSProperties = {
-  color: '#edf4ff',
+  color: 'var(--foreground)',
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 700,
@@ -249,7 +249,7 @@ const planMetaStyle: CSSProperties = {
 }
 
 const priceStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: 24,
   lineHeight: 1,
   fontWeight: 900,
@@ -269,7 +269,7 @@ const lightSubtitleStyle: CSSProperties = {
 }
 
 const noteStyle: CSSProperties = {
-  color: 'rgba(229, 238, 251, 0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontWeight: 700,
 }
@@ -288,7 +288,7 @@ const valuePillStyle: CSSProperties = {
   borderRadius: 999,
   fontSize: 12,
   fontWeight: 700,
-  color: '#dbeafe',
+  color: 'var(--foreground)',
   background: 'rgba(255, 255, 255, 0.05)',
   border: '1px solid rgba(116, 190, 255, 0.12)',
 }
@@ -300,7 +300,7 @@ const lightValuePillStyle: CSSProperties = {
 }
 
 const footnoteStyle: CSSProperties = {
-  color: 'rgba(229, 238, 251, 0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.6,
 }

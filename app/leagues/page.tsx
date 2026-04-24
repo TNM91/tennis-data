@@ -612,12 +612,9 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background: `
-    linear-gradient(180deg, rgba(26, 54, 104, 0.52) 0%, rgba(17, 36, 72, 0.72) 22%, rgba(12, 27, 52, 0.82) 100%)
-  `,
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -651,14 +648,14 @@ const heroLeft: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -669,9 +666,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '8px 14px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(37,91,227,0.18)',
-  border: '1px solid rgba(116,190,255,0.22)',
+  color: 'var(--home-eyebrow-color)',
+  background: 'var(--home-eyebrow-bg)',
+  border: '1px solid var(--home-eyebrow-border)',
   fontSize: '12px',
   fontWeight: 900,
   letterSpacing: '0.12em',
@@ -700,12 +697,9 @@ const heroHintPill: CSSProperties = {
 const coverageCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.24)',
-  background: `
-    linear-gradient(180deg, rgba(68, 132, 229, 0.20) 0%, rgba(40, 83, 158, 0.18) 28%, rgba(16, 36, 70, 0.72) 100%)
-  `,
-  boxShadow:
-    '0 18px 44px rgba(9,25,54,0.16), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 0 40px rgba(116,190,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const coverageLabel: CSSProperties = {
@@ -747,9 +741,9 @@ const editorialPanel: CSSProperties = {
   gap: '14px',
   padding: '24px',
   borderRadius: '26px',
-  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
   marginBottom: '18px',
 }
 
@@ -807,15 +801,15 @@ const summaryGrid: CSSProperties = {
 const metricCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(55,109,198,0.26) 0%, rgba(25,52,99,0.34) 100%)',
-  boxShadow: '0 16px 38px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-blue-2) 10%)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
 const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(155,225,29,0.34)',
-  boxShadow: '0 16px 34px rgba(155,225,29,0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const metricLabel: CSSProperties = {
@@ -839,10 +833,10 @@ const metricValue: CSSProperties = {
 const panelCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(116,190,255,0.18)',
+  border: '1px solid var(--shell-panel-border)',
   background:
-    'radial-gradient(circle at top right, rgba(155,225,29,0.10), transparent 34%), linear-gradient(135deg, rgba(11, 34, 75, 0.98) 0%, rgba(8, 25, 58, 0.98) 58%, rgba(10, 30, 58, 0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2, 8, 23, 0.28), inset 0 1px 0 rgba(255,255,255,0.04)',
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 34%), var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   marginBottom: '16px',
 }
@@ -857,7 +851,7 @@ const panelHead: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
@@ -867,7 +861,7 @@ const sectionKicker: CSSProperties = {
 
 const panelTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: '-0.04em',
@@ -905,13 +899,13 @@ const searchIconWrap: CSSProperties = {
 const searchInput: CSSProperties = {
   width: '100%',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '15px 16px 15px 46px',
   fontSize: '15px',
   outline: 'none',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -932,9 +926,9 @@ const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
@@ -1071,9 +1065,9 @@ const leagueCard: CSSProperties = {
   overflow: 'hidden',
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-blue-2) 10%)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -1191,8 +1185,8 @@ const leagueDetailGrid: CSSProperties = {
 const detailCard: CSSProperties = {
   borderRadius: '18px',
   padding: '14px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 

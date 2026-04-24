@@ -349,9 +349,9 @@ const heroShell: CSSProperties = {
   margin: '14px auto 24px',
   display: 'grid',
   borderRadius: '34px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(135deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)',
-  boxShadow: '0 34px 80px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const eyebrow: CSSProperties = {
@@ -361,9 +361,9 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(130,244,118,0.28)',
-  background: 'rgba(89,145,73,0.14)',
-  color: '#d9e7ef',
+  border: '1px solid var(--home-eyebrow-border)',
+  background: 'var(--home-eyebrow-bg)',
+  color: 'var(--home-eyebrow-color)',
   fontWeight: 800,
   fontSize: '15px',
   textTransform: 'uppercase',
@@ -373,7 +373,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: '0 0 12px',
-  color: '#f7fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: '-0.055em',
@@ -383,7 +383,7 @@ const heroTitle: CSSProperties = {
 
 const heroText: CSSProperties = {
   margin: '0 0 20px',
-  color: 'rgba(224,234,247,0.84)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '760px',
@@ -411,29 +411,29 @@ const pillBase: CSSProperties = {
 
 const pillBlue: CSSProperties = {
   ...pillBase,
-  background: 'rgba(37,91,227,0.16)',
-  color: '#c7dbff',
-  borderColor: 'rgba(98,154,255,0.18)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--brand-blue-2) 12%)',
+  color: 'var(--foreground)',
+  borderColor: 'var(--shell-panel-border)',
 }
 
 const pillGreen: CSSProperties = {
   ...pillBase,
-  background: 'rgba(96,221,116,0.14)',
-  color: '#dffad5',
-  borderColor: 'rgba(130,244,118,0.2)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 84%, var(--brand-green) 16%)',
+  color: 'var(--foreground)',
+  borderColor: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
 }
 
 const featurePanel: CSSProperties = {
   marginTop: '24px',
   borderRadius: '24px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(10,20,37,0.56)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: '18px',
   maxWidth: '900px',
 }
 
 const featureLabel: CSSProperties = {
-  color: '#e7ffd0',
+  color: 'var(--home-eyebrow-color)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -449,12 +449,12 @@ const benefitGrid: CSSProperties = {
 const featureCard: CSSProperties = {
   borderRadius: '18px',
   padding: '16px',
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const featureTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 800,
   lineHeight: 1.35,
@@ -462,7 +462,7 @@ const featureTitle: CSSProperties = {
 
 const featureText: CSSProperties = {
   marginTop: '6px',
-  color: 'rgba(224,236,249,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
 }
@@ -471,9 +471,9 @@ const loginPanel: CSSProperties = {
   position: 'relative',
   borderRadius: '30px',
   overflow: 'hidden',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
-  boxShadow: '0 22px 52px rgba(7,18,40,0.24)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const loginPanelGlow: CSSProperties = {
@@ -562,13 +562,13 @@ const formCard: CSSProperties = {
   display: 'grid',
   gap: '12px',
   borderRadius: '24px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(9,18,35,0.56)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
   padding: '18px',
 }
 
 const formLabel: CSSProperties = {
-  color: '#e7ffd0',
+  color: 'var(--home-eyebrow-color)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -577,7 +577,7 @@ const formLabel: CSSProperties = {
 
 const formTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.04,
   fontWeight: 900,
@@ -585,7 +585,7 @@ const formTitle: CSSProperties = {
 }
 
 const inputLabel: CSSProperties = {
-  color: '#dfe8f7',
+  color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
   marginTop: '2px',
@@ -595,9 +595,9 @@ const inputStyle: CSSProperties = {
   width: '100%',
   minHeight: '52px',
   borderRadius: '16px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.04)',
-  color: '#f5f8ff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 16px',
   fontSize: '15px',
   outline: 'none',
@@ -608,7 +608,7 @@ const termsRow: CSSProperties = {
   alignItems: 'flex-start',
   gap: '10px',
   marginTop: '4px',
-  color: 'rgba(224,236,249,0.82)',
+  color: 'var(--foreground)',
   fontSize: '13px',
   lineHeight: 1.6,
   fontWeight: 600,
@@ -623,7 +623,7 @@ const checkboxStyle: CSSProperties = {
 }
 
 const inlineLegalLink: CSSProperties = {
-  color: '#d7f7a2',
+  color: 'var(--brand-green)',
   textDecoration: 'none',
   fontWeight: 800,
 }
@@ -632,9 +632,9 @@ const togglePasswordButton: CSSProperties = {
   minHeight: '46px',
   padding: '0 16px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 84%, var(--brand-blue-2) 16%)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: '13px',
   cursor: 'pointer',
@@ -682,13 +682,13 @@ const helperRow: CSSProperties = {
 }
 
 const helperText: CSSProperties = {
-  color: 'rgba(224,236,249,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
 }
 
 const inlineLink: CSSProperties = {
-  color: '#c7dbff',
+  color: 'var(--brand-blue-2)',
   textDecoration: 'none',
   fontWeight: 800,
 }
@@ -704,9 +704,9 @@ const loadingShell: CSSProperties = {
 const loadingCard: CSSProperties = {
   borderRadius: '22px',
   padding: '18px 20px',
-  color: '#eaf4ff',
-  background: 'linear-gradient(180deg, rgba(24,49,93,0.68) 0%, rgba(13,26,50,0.92) 100%)',
-  border: '1px solid rgba(116,190,255,0.18)',
+  color: 'var(--foreground-strong)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '15px',
   fontWeight: 700,
 }

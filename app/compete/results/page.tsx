@@ -36,6 +36,18 @@ function RowLink({ href, children }: { href: string; children: ReactNode }) {
 }
 
 export default function CompeteResultsPage() {
+  return (
+    <CompetePageFrame
+      eyebrow="Results"
+      title="Results belong in the weekly loop, not just the archive."
+      description="This route now surfaces recent TIQ individual-league outcomes so completed play feeds straight back into standings, player context, and next-match decisions."
+    >
+      <CompeteResultsContent />
+    </CompetePageFrame>
+  )
+}
+
+function CompeteResultsContent() {
   const { role, entitlements } = useAuth()
   const [results, setResults] = useState<TiqIndividualLeagueResultRecord[]>([])
   const [leagueNames, setLeagueNames] = useState<Record<string, string>>({})
@@ -60,11 +72,7 @@ export default function CompeteResultsPage() {
   }, [])
 
   return (
-    <CompetePageFrame
-      eyebrow="Results"
-      title="Results belong in the weekly loop, not just the archive."
-      description="This route now surfaces recent TIQ individual-league outcomes so completed play feeds straight back into standings, player context, and next-match decisions."
-    >
+    <>
       <CompeteGrid>
         <CompeteCard
           href="/explore/rankings"
@@ -152,7 +160,7 @@ export default function CompeteResultsPage() {
       </section>
 
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
-    </CompetePageFrame>
+    </>
   )
 }
 

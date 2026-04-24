@@ -43,19 +43,21 @@ export async function getClientAuthState(): Promise<AuthState> {
   }
 
   const userId = user.id
-  const entitlements = await getClientEntitlementSnapshot(userId)
 
-  const profileResult = await withTimeout(
-    Promise.resolve(
-      supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .maybeSingle(),
+  const [entitlements, profileResult] = await Promise.all([
+    getClientEntitlementSnapshot(userId),
+    withTimeout(
+      Promise.resolve(
+        supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle(),
+      ),
+      AUTH_TIMEOUT_MS,
+      { data: null, error: null, count: null, status: 408, statusText: 'timeout' },
     ),
-    AUTH_TIMEOUT_MS,
-    { data: null, error: null, count: null, status: 408, statusText: 'timeout' },
-  )
+  ])
 
   return {
     user: {

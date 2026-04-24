@@ -391,12 +391,12 @@ function GuideCard({ href, title, text, cta }: { href: string; title: string; te
       onMouseLeave={() => setHovered(false)}
       style={{
         ...guideCard,
-        borderColor: hovered ? 'rgba(116,190,255,0.28)' : 'rgba(116,190,255,0.14)',
+        border: hovered
+          ? '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)'
+          : '1px solid var(--shell-panel-border)',
         transform: hovered ? 'translateY(-3px)' : 'none',
-        boxShadow: hovered
-          ? '0 22px 50px rgba(7,18,40,0.24), inset 0 1px 0 rgba(255,255,255,0.05)'
-          : '0 16px 36px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
-        transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
+        boxShadow: hovered ? 'var(--shadow-card)' : 'var(--shadow-soft)',
+        transition: 'transform 160ms ease, box-shadow 160ms ease, border 160ms ease',
       }}
     >
       <div style={guideCardTitle}>{title}</div>
@@ -404,7 +404,7 @@ function GuideCard({ href, title, text, cta }: { href: string; title: string; te
       <div
         style={{
           ...guideCardCta,
-          color: hovered ? '#9be11d' : '#d5e8ff',
+          color: hovered ? 'var(--brand-lime)' : 'var(--foreground)',
           transition: 'color 160ms ease',
         }}
       >
@@ -589,10 +589,10 @@ const heroNoise: CSSProperties = {
   position: 'absolute',
   inset: 0,
   background: `
-    radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%),
-    radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%),
-    radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%),
-    linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brand-blue-2) 20%, transparent) 0%, transparent 30%),
+    radial-gradient(circle at 72% 8%, color-mix(in srgb, var(--brand-blue-2) 12%, transparent) 0%, transparent 26%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--brand-lime) 9%, transparent) 0%, transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--foreground-strong) 3%, transparent) 0%, transparent 26%)
   `,
   pointerEvents: 'none',
 }
@@ -628,9 +628,10 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '8px 14px',
   borderRadius: '999px',
-  color: 'var(--foreground)',
-  background: 'rgba(37,91,227,0.12)',
-  border: '1px solid var(--card-border-soft)',
+  color: 'var(--foreground-strong)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--home-control-shadow)',
   fontSize: '12px',
   fontWeight: 900,
   letterSpacing: '0.12em',
@@ -672,16 +673,16 @@ const pillBase: CSSProperties = {
 
 const pillBlue: CSSProperties = {
   ...pillBase,
-  color: '#dcebff',
-  background: 'rgba(37,91,227,0.16)',
-  border: '1px solid rgba(74,163,255,0.18)',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
 }
 
 const pillGreen: CSSProperties = {
   ...pillBase,
-  color: '#e7ffd0',
-  background: 'rgba(155,225,29,0.14)',
-  border: '1px solid rgba(155,225,29,0.24)',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
 }
 
 const signalGrid: CSSProperties = {
@@ -769,9 +770,9 @@ const feedTag: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
   marginBottom: '10px',
-  color: '#e7ffd0',
-  background: 'rgba(155,225,29,0.14)',
-  border: '1px solid rgba(155,225,29,0.24)',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
   borderRadius: '999px',
   padding: '5px 10px',
   fontSize: '11px',
@@ -881,10 +882,9 @@ const guidePanel: CSSProperties = {
   zIndex: 1,
   borderRadius: '26px',
   padding: '22px',
-  background:
-    'linear-gradient(180deg, rgba(20,40,76,0.88) 0%, rgba(12,26,49,0.94) 100%)',
-  border: '1px solid rgba(116,190,255,0.18)',
-  boxShadow: '0 20px 48px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
 }
 
 const guideHeader: CSSProperties = {
@@ -897,7 +897,7 @@ const guideHeader: CSSProperties = {
 }
 
 const guideEyebrow: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '12px',
   textTransform: 'uppercase',
@@ -907,7 +907,7 @@ const guideEyebrow: CSSProperties = {
 
 const guideTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   fontWeight: 900,
   letterSpacing: '-0.04em',
@@ -916,7 +916,7 @@ const guideTitle: CSSProperties = {
 const guideIntro: CSSProperties = {
   margin: 0,
   maxWidth: '520px',
-  color: 'rgba(215,229,247,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.7,
 }
@@ -933,13 +933,13 @@ const guideCard: CSSProperties = {
   padding: '18px',
   borderRadius: '22px',
   textDecoration: 'none',
-  background: 'linear-gradient(180deg, rgba(26,48,90,0.88) 0%, rgba(15,30,57,0.94) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 16px 36px rgba(7,18,40,0.16), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const guideCardTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '22px',
   lineHeight: 1.1,
   fontWeight: 900,
@@ -947,14 +947,14 @@ const guideCardTitle: CSSProperties = {
 }
 
 const guideCardText: CSSProperties = {
-  color: 'rgba(215,229,247,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.7,
 }
 
 const guideCardCta: CSSProperties = {
   marginTop: 'auto',
-  color: '#d5e8ff',
+  color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 800,
 }
@@ -997,13 +997,13 @@ const actionCardIcon: CSSProperties = {
 }
 
 const actionCardIconBlue: CSSProperties = {
-  background: 'rgba(37,91,227,0.16)',
-  color: '#cfe4ff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const actionCardIconGreen: CSSProperties = {
-  background: 'rgba(155,225,29,0.14)',
-  color: '#efffd5',
+  background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const actionCardIconHover: CSSProperties = {

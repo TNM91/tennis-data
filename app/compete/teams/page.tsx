@@ -36,6 +36,18 @@ function GhostSmallLink({ href, children }: { href: string; children: ReactNode 
 }
 
 export default function CompeteTeamsPage() {
+  return (
+    <CompetePageFrame
+      eyebrow="My Teams"
+      title="Teams should carry their TIQ participation into the weekly workflow."
+      description="This view now treats teams as the participant unit across both team operations and TIQ league entry. It bridges roster context, entered TIQ seasons, and the captain actions that come next."
+    >
+      <CompeteTeamsContent />
+    </CompetePageFrame>
+  )
+}
+
+function CompeteTeamsContent() {
   const { role, entitlements } = useAuth()
   const [participations, setParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
@@ -105,11 +117,7 @@ export default function CompeteTeamsPage() {
   }, [participations, teamDirectory])
 
   return (
-    <CompetePageFrame
-      eyebrow="My Teams"
-      title="Teams should carry their TIQ participation into the weekly workflow."
-      description="This view now treats teams as the participant unit across both team operations and TIQ league entry. It bridges roster context, entered TIQ seasons, and the captain actions that come next."
-    >
+    <>
       <CompeteGrid>
         <CompeteCard
           href="/teams"
@@ -204,8 +212,7 @@ export default function CompeteTeamsPage() {
           </div>
         )}
       </section>
-
-    </CompetePageFrame>
+    </>
   )
 }
 

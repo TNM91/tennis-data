@@ -12,7 +12,6 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { getClientAuthState } from '@/lib/auth'
 import { getClientEntitlementSnapshot, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 
@@ -64,9 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadAuth = useCallback(async () => {
     try {
-      const authState = await getClientAuthState()
-      if (!mountedRef.current) return
-
       const {
         data: { session: nextSession },
       } = await withTimeout(
@@ -76,10 +72,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
 
       if (!mountedRef.current) return
-
       setSession(nextSession ?? null)
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
+
+      if (!nextSession?.user?.id) {
+        setRole('public')
+        setEntitlements(null)
+        return
+      }
+
+      const [nextRole, nextEntitlements] = await Promise.all([
+        withTimeout(
+          fetchProfileRole(nextSession.user.id),
+          AUTH_PROVIDER_TIMEOUT_MS,
+          'member' as UserRole,
+        ),
+        withTimeout(
+          getClientEntitlementSnapshot(nextSession.user.id),
+          AUTH_PROVIDER_TIMEOUT_MS,
+          null,
+        ),
+      ])
+
+      if (!mountedRef.current) return
+      setRole(nextRole)
+      setEntitlements(nextEntitlements)
     } catch {
       if (!mountedRef.current) return
       setSession(null)

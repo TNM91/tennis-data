@@ -1987,11 +1987,9 @@ const heroShell: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   borderRadius: '30px',
-  background:
-    'linear-gradient(180deg, rgba(26,54,104,0.52) 0%, rgba(17,36,72,0.72) 22%, rgba(12,27,52,0.82) 100%)',
-  border: '1px solid rgba(116,190,255,0.22)',
-  boxShadow:
-    '0 26px 80px rgba(7,18,42,0.24), inset 0 1px 0 rgba(255,255,255,0.07), inset 0 0 80px rgba(88,170,255,0.06)',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
 }
@@ -2021,14 +2019,14 @@ const heroLeft: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   letterSpacing: '-0.045em',
 }
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(224,236,249,0.86)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
 }
@@ -2039,9 +2037,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  color: 'var(--home-eyebrow-color)',
+  background: 'var(--home-eyebrow-bg)',
+  border: '1px solid var(--home-eyebrow-border)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -2068,9 +2066,9 @@ const heroHintPill: CSSProperties = {
 const engineCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const engineLabel: CSSProperties = {
@@ -2109,10 +2107,10 @@ const contentWrap: CSSProperties = {
 const controlsCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(133,168,229,0.16)',
+  border: '1px solid var(--shell-panel-border)',
   background:
-    'radial-gradient(circle at top right, rgba(184,230,26,0.12), transparent 34%), linear-gradient(135deg, rgba(8,34,75,0.98) 0%, rgba(4,18,45,0.98) 58%, rgba(7,36,46,0.98) 100%)',
-  boxShadow: '0 28px 60px rgba(2,8,23,0.28)',
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 12%, transparent), transparent 34%), var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-card)',
   minWidth: 0,
   marginBottom: '16px',
 }
@@ -2145,9 +2143,9 @@ const toggleGroup: CSSProperties = {
   flexWrap: 'wrap',
   padding: '6px',
   borderRadius: '20px',
-  background: 'linear-gradient(180deg, rgba(18,35,68,0.92) 0%, rgba(11,24,49,0.9) 100%)',
-  border: '1px solid rgba(128,174,255,0.18)',
-  boxShadow: '0 12px 26px rgba(8,23,48,0.16), inset 0 1px 0 rgba(255,255,255,0.05)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--home-control-shadow)',
 }
 
 const toggleButton: CSSProperties = {
@@ -2195,9 +2193,9 @@ const selectStyle: CSSProperties = {
   width: '100%',
   height: '52px',
   borderRadius: '18px',
-  border: '1px solid rgba(138,182,255,0.16)',
-  background: 'rgba(10,20,40,0.6)',
-  color: '#f7fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
   fontWeight: 700,
@@ -2220,9 +2218,9 @@ const editorialPanel: CSSProperties = {
   gap: '14px',
   padding: '24px',
   borderRadius: '26px',
-  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const editorialText: CSSProperties = {
@@ -2277,9 +2275,9 @@ const retryButtonStyle: CSSProperties = {
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(15,23,42,0.28)',
-  color: '#dbeafe',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
 }
@@ -2287,9 +2285,9 @@ const retryButtonStyle: CSSProperties = {
 const emptyState: CSSProperties = {
   borderRadius: '18px',
   padding: '18px',
-  background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
-  border: '1px solid rgba(128,174,255,0.14)',
-  color: 'rgba(224,236,249,0.78)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 600,
@@ -2298,7 +2296,7 @@ const emptyState: CSSProperties = {
 }
 
 const emptyStateTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
@@ -2306,13 +2304,13 @@ const emptyStateTitle: CSSProperties = {
 }
 
 const emptyStateText: CSSProperties = {
-  color: '#dfe8f8',
+  color: 'var(--foreground)',
   lineHeight: 1.65,
   marginBottom: '10px',
 }
 
 const emptyStateHint: CSSProperties = {
-  color: 'rgba(224,236,249,0.72)',
+  color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   marginBottom: '14px',
 }
@@ -2651,7 +2649,7 @@ const sectionTitle: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: 'rgba(188,208,232,0.78)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
