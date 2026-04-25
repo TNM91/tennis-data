@@ -1345,3 +1345,103 @@ hr {
     animation: none !important;
   }
 }
+@import "tailwindcss";
+
+/* =========================
+EXISTING ANIMATIONS
+========================= */
+@keyframes tenaceiq-spin {
+to { transform: rotate(360deg); }
+}
+@keyframes tenaceiq-pulse {
+0%, 100% { opacity: 0.35; }
+50% { opacity: 1; }
+}
+@keyframes tenaceiq-fade-up {
+0% { opacity: 0; transform: translateY(10px); }
+100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes tenaceiq-soft-enter {
+0% { opacity: 0; transform: translateY(6px) scale(0.995); }
+100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* =========================
+TENACEIQ LOADER SYSTEM
+========================= */
+.tiq-loader {
+animation: tiq-loader-pulse 1.8s ease-in-out infinite;
+}
+
+.tiq-loader-dot {
+animation: tiq-loader-orbit 1.6s linear infinite;
+transform-origin: 50% 50%;
+}
+
+@keyframes tiq-loader-orbit {
+from {
+transform: rotate(0deg) translateY(-48px) rotate(0deg);
+}
+to {
+transform: rotate(360deg) translateY(-48px) rotate(-360deg);
+}
+}
+
+@keyframes tiq-loader-pulse {
+0%, 100% {
+filter: drop-shadow(0 0 0 rgba(155, 225, 29, 0));
+}
+50% {
+filter: drop-shadow(0 0 14px rgba(155, 225, 29, 0.35));
+}
+}
+
+/* =========================
+YOUR ORIGINAL FILE (UNCHANGED BELOW)
+========================= */
+
+:root {
+--background: #07111f;
+--foreground: #e5eefb;
+--foreground-strong: #f8fbff;
+--header-height: 76px;
+
+--brand-navy: #081a31;
+--brand-blue: #255be3;
+--brand-green: #9be11d;
+--brand-green-2: #4ade80;
+
+--shadow-soft: 0 16px 38px rgba(2, 10, 24, 0.18);
+
+--radius-md: 18px;
+--radius-lg: 24px;
+--radius-xl: 30px;
+}
+
+* {
+  box-sizing: border-box;
+  }
+
+html {
+scroll-behavior: smooth;
+}
+
+body {
+margin: 0;
+background: var(--background);
+color: var(--foreground);
+font-family: var(--font-geist-sans), sans-serif;
+}
+
+/* keep rest of your original file exactly as-is */
+
+/* =========================
+REDUCED MOTION SUPPORT
+========================= */
+@media (prefers-reduced-motion: reduce) {
+
+* {
+  animation: none !important;
+  transition: none !important;
+  }
+  }
