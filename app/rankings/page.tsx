@@ -802,8 +802,8 @@ function getRecentTrendDelta(points: Array<{ dynamic_rating: number }>) {
 }
 
 function getConfidence(matches: number): ConfidenceLevel {
-  if (matches < 5) return 'Low'
-  if (matches < 10) return 'Medium'
+  if (matches < 10) return 'Low'
+  if (matches < 30) return 'Medium'
   return 'High'
 }
 

@@ -72,6 +72,10 @@ type SnapshotRow = {
   snapshot_date: string
   rating_type?: RatingView | null
   dynamic_rating: number
+  delta?: number | null
+  opponent_rating?: number | null
+  win_probability?: number | null
+  multiplier?: number | null
 }
 
 type MatchRow = {
@@ -156,7 +160,7 @@ export default function PlayerProfilePage() {
         supabase.from('match_players').select('match_id').eq('player_id', playerId),
         supabase
           .from('rating_snapshots')
-          .select('id, player_id, match_id, snapshot_date, rating_type, dynamic_rating, track')
+          .select('id, player_id, match_id, snapshot_date, rating_type, dynamic_rating, track, delta, opponent_rating, win_probability, multiplier')
           .eq('player_id', playerId)
           .eq('track', 'tiq')
           .order('snapshot_date', { ascending: true })
@@ -343,6 +347,8 @@ export default function PlayerProfilePage() {
       x: index + 1,
       date: snapshot.snapshot_date,
       rating: snapshot.dynamic_rating,
+      delta: snapshot.delta ?? null,
+      winProbability: snapshot.win_probability ?? null,
     }))
   }, [snapshots, ratingView])
 
@@ -393,6 +399,34 @@ export default function PlayerProfilePage() {
     () => getRecentTrendDelta(chartPoints),
     [chartPoints],
   )
+
+  const daysSinceLastMatch = useMemo(() => {
+    const lastDate = matches[0]?.date
+    if (!lastDate) return null
+    return Math.floor((Date.now() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24))
+  }, [matches])
+
+  const snapshotByMatchId = useMemo(() => {
+    const map = new Map<string, SnapshotRow>()
+    for (const snap of snapshots) {
+      const matchType = snap.rating_type
+      if (matchType && matchType !== 'overall') {
+        map.set(`${snap.match_id}:${matchType}`, snap)
+      }
+      if (!map.has(`${snap.match_id}:overall`) && matchType === 'overall') {
+        map.set(`${snap.match_id}:overall`, snap)
+      }
+    }
+    return map
+  }, [snapshots])
+
+  const stalenessLabel = useMemo(() => {
+    if (daysSinceLastMatch === null || daysSinceLastMatch <= 90) return null
+    const months = Math.floor(daysSinceLastMatch / 30)
+    return months >= 12
+      ? `Last active ${Math.floor(months / 12)}yr ago`
+      : `Last active ${months}mo ago`
+  }, [daysSinceLastMatch])
 
   const meterTheme = useMemo(
     () => getMeterTheme(ratingStatus),
@@ -574,6 +608,9 @@ export default function PlayerProfilePage() {
                 <span style={heroHintPill}>{ratingViewLabel} view</span>
                 {tiqParticipationCount > 0 ? (
                   <span style={heroHintPill}>{tiqParticipationCount} TIQ individual leagues</span>
+                ) : null}
+                {stalenessLabel ? (
+                  <span style={stalenessPill}>{stalenessLabel}</span>
                 ) : null}
               </div>
 
@@ -987,6 +1024,8 @@ export default function PlayerProfilePage() {
                       <th style={tableHead}>Opponent</th>
                       <th style={tableHead}>Score</th>
                       <th style={tableHead}>Result</th>
+                      <th style={tableHead}>Rating change</th>
+                      <th style={tableHead}>Win%</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1015,6 +1054,13 @@ export default function PlayerProfilePage() {
                             {match.result}
                           </span>
                         </td>
+                        <MatchDeltaCell
+                          snap={snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null}
+                        />
+                        <MatchWinPctCell
+                          snap={snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null}
+                          result={match.result}
+                        />
                       </tr>
                     ))}
                   </tbody>
@@ -1025,6 +1071,36 @@ export default function PlayerProfilePage() {
         </div>
       </section>
     </SiteShell>
+  )
+}
+
+function MatchDeltaCell({ snap }: { snap: SnapshotRow | null }) {
+  if (!snap || snap.delta == null) {
+    return <td style={tableCell}>—</td>
+  }
+  const delta = snap.delta
+  const sign = delta >= 0 ? '+' : ''
+  return (
+    <td style={tableCell}>
+      <span style={{ color: delta >= 0 ? '#9be11d' : '#fca5a5', fontWeight: 800, fontSize: 13 }}>
+        {sign}{delta.toFixed(3)}
+      </span>
+    </td>
+  )
+}
+
+function MatchWinPctCell({ snap, result }: { snap: SnapshotRow | null; result: 'W' | 'L' }) {
+  if (!snap || snap.win_probability == null) {
+    return <td style={tableCell}>—</td>
+  }
+  const pct = snap.win_probability
+  const isUpset = (result === 'W' && pct < 40) || (result === 'L' && pct > 60)
+  return (
+    <td style={tableCell}>
+      <span style={{ color: isUpset ? '#fed7aa' : 'var(--shell-copy-muted)', fontWeight: isUpset ? 800 : 600, fontSize: 13 }}>
+        {pct}%{isUpset ? ' upset' : ''}
+      </span>
+    </td>
   )
 }
 
@@ -1124,11 +1200,27 @@ function StatChip({
   )
 }
 
-function SimpleLineChart({
-  points,
-}: {
-  points: Array<{ x: number; date: string; rating: number }>
-}) {
+type ChartPoint = { x: number; date: string; rating: number; delta: number | null; winProbability: number | null }
+
+function dotStyle(point: ChartPoint): { fill: string; halo: string; r: number } {
+  const { delta, winProbability } = point
+  // Upset win: won despite ≤40% chance
+  if (delta !== null && delta > 0 && winProbability !== null && winProbability <= 40) {
+    return { fill: '#fb923c', halo: 'rgba(251,146,60,0.22)', r: 5.5 }
+  }
+  // Big gain: delta > 0.08
+  if (delta !== null && delta > 0.08) {
+    return { fill: '#9be11d', halo: 'rgba(155,225,29,0.20)', r: 5.5 }
+  }
+  // Big loss: delta < -0.08
+  if (delta !== null && delta < -0.08) {
+    return { fill: '#f87171', halo: 'rgba(239,68,68,0.20)', r: 5.5 }
+  }
+  // Normal
+  return { fill: '#255BE3', halo: 'rgba(37,91,227,0.18)', r: 4.5 }
+}
+
+function SimpleLineChart({ points }: { points: ChartPoint[] }) {
   const width = 920
   const height = 280
   const padding = 34
@@ -1141,12 +1233,14 @@ function SimpleLineChart({
   const path = points
     .map((point, index) => {
       const x = padding + index * xStep
-      const y =
-        height - padding - ((point.rating - minRating) / spread) * (height - padding * 2)
-
+      const y = height - padding - ((point.rating - minRating) / spread) * (height - padding * 2)
       return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
     })
     .join(' ')
+
+  const upsets = points.filter((p) => p.delta !== null && p.delta > 0 && p.winProbability !== null && p.winProbability <= 40).length
+  const bigGains = points.filter((p) => p.delta !== null && p.delta > 0.08).length
+  const bigLosses = points.filter((p) => p.delta !== null && p.delta < -0.08).length
 
   return (
     <div style={chartShell}>
@@ -1186,21 +1280,24 @@ function SimpleLineChart({
 
         {points.map((point, index) => {
           const x = padding + index * xStep
-          const y =
-            height - padding - ((point.rating - minRating) / spread) * (height - padding * 2)
+          const y = height - padding - ((point.rating - minRating) / spread) * (height - padding * 2)
+          const { fill, halo, r } = dotStyle(point)
 
           return (
             <g key={`${point.date}-${index}`}>
-              <circle cx={x} cy={y} r="10" fill="rgba(37, 91, 227, 0.18)" />
-              <circle cx={x} cy={y} r="4.5" fill="#255BE3" />
+              <circle cx={x} cy={y} r={r + 5} fill={halo} />
+              <circle cx={x} cy={y} r={r} fill={fill} />
             </g>
           )
         })}
       </svg>
 
       <div style={chartMeta}>
-        {points.length} data point{points.length === 1 ? '' : 's'} - Latest rating{' '}
+        {points.length} data point{points.length === 1 ? '' : 's'} · Latest{' '}
         {points[points.length - 1]?.rating.toFixed(2)}
+        {upsets > 0 ? ` · ${upsets} upset win${upsets > 1 ? 's' : ''} (orange)` : ''}
+        {bigGains > 0 ? ` · ${bigGains} big gain${bigGains > 1 ? 's' : ''} (green)` : ''}
+        {bigLosses > 0 ? ` · ${bigLosses} big loss${bigLosses > 1 ? 'es' : ''} (red)` : ''}
       </div>
     </div>
   )
@@ -1259,8 +1356,8 @@ function getTrendDirection(points: Array<{ rating: number }>): TrendDirection {
 }
 
 function getConfidence(matches: number): ConfidenceLevel {
-  if (matches < 5) return 'Low'
-  if (matches < 10) return 'Medium'
+  if (matches < 10) return 'Low'
+  if (matches < 30) return 'Medium'
   return 'High'
 }
 
@@ -1453,6 +1550,13 @@ const heroHintPill: CSSProperties = {
   padding: '10px 14px',
   fontSize: '13px',
   fontWeight: 700,
+}
+
+const stalenessPill: CSSProperties = {
+  ...heroHintPill,
+  background: 'rgba(251,146,60,0.08)',
+  border: '1px solid rgba(251,146,60,0.22)',
+  color: '#fed7aa',
 }
 
 const meterCard: CSSProperties = {

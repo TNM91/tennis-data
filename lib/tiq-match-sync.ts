@@ -14,7 +14,7 @@ type TiqIndividualResult = {
   result_date: string
 }
 
-function deriveWinnerSide(result: TiqIndividualResult): 'A' | 'B' | null {
+export function deriveWinnerSide(result: TiqIndividualResult): 'A' | 'B' | null {
   if (result.winner_player_id) {
     if (result.winner_player_id === result.player_a_id) return 'A'
     if (result.winner_player_id === result.player_b_id) return 'B'
@@ -32,12 +32,16 @@ function buildTiqTeamLineExternalMatchId(lineId: string) {
   return `tiq_team_line_${lineId}`
 }
 
+export function normalizePlayerName(raw: string): string {
+  return raw.trim().replace(/\s+/g, ' ')
+}
+
 // Resolves a player by id or name, creating a placeholder if not found.
 async function resolvePlayer(
   playerId: string | null,
   playerName: string,
 ): Promise<string | null> {
-  const name = playerName.trim()
+  const name = normalizePlayerName(playerName)
   if (!name) return null
 
   if (playerId) {
@@ -45,6 +49,7 @@ async function resolvePlayer(
     if (data?.id) return data.id
   }
 
+  // Case-insensitive exact match on the normalized name
   const { data: byName } = await supabase
     .from('players')
     .select('id')
@@ -52,6 +57,15 @@ async function resolvePlayer(
     .maybeSingle()
 
   if (byName?.id) return byName.id
+
+  // Fallback: try with extra internal whitespace collapsed via Postgres regexp
+  const { data: byNormalized } = await supabase
+    .from('players')
+    .select('id')
+    .ilike('name', `%${name.split(' ').join('%')}%`)
+    .maybeSingle()
+
+  if (byNormalized?.id) return byNormalized.id
 
   const { data: created, error } = await supabase
     .from('players')

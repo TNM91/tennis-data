@@ -108,6 +108,28 @@ const adminTools: AdminTool[] = [
     statLabel: 'Best for',
     statValue: 'Team leagues',
   },
+  {
+    title: 'Duplicate Players',
+    href: '/admin/deduplicate',
+    description:
+      'Detect players whose names are within two edits of each other, confirm which record to keep, and merge match history automatically before deleting the duplicate.',
+    badge: 'Data quality',
+    accent: 'slate',
+    highlights: ['Edit-distance detection', 'Match reassignment', 'Safe merge flow'],
+    statLabel: 'Best for',
+    statValue: 'Player hygiene',
+  },
+  {
+    title: 'Anomaly Scanner',
+    href: '/admin/anomalies',
+    description:
+      'Scan all matches for suspicious data — extreme rating gaps, missing scores, and possible duplicate entries — so bad records get caught before they corrupt ratings.',
+    badge: 'Data quality',
+    accent: 'slate',
+    highlights: ['Extreme mismatches', 'Missing scores', 'Duplicate detection'],
+    statLabel: 'Best for',
+    statValue: 'Data integrity',
+  },
 ]
 
 const importTools = adminTools.filter((tool) =>
@@ -115,7 +137,7 @@ const importTools = adminTools.filter((tool) =>
 )
 
 const managementTools = adminTools.filter((tool) =>
-  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/tiq-team-matches'].includes(tool.href)
+  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/tiq-team-matches', '/admin/deduplicate', '/admin/anomalies'].includes(tool.href)
 )
 
 function accentStyles(accent: Accent) {
@@ -197,7 +219,7 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="7" helper="Includes access control" />
+              <MetricCard label="Admin Tools" value="9" helper="Includes access control and data quality" />
               <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
               <MetricCard label="Data Control" value="5" helper="Imports, availability, match, player, and access ops" />
               <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
@@ -345,6 +367,16 @@ export default function AdminDashboardPage() {
                     <td>/admin/access</td>
                     <td>Captain and TIQ entitlement control</td>
                     <td>Best for subscription and league-access operations</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/deduplicate</td>
+                    <td>Duplicate player detection and merge</td>
+                    <td>Run after bulk imports or when player identity looks fragmented</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/anomalies</td>
+                    <td>Match data anomaly scanner</td>
+                    <td>Flags extreme mismatches, missing scores, and possible duplicates</td>
                   </tr>
                 </tbody>
               </table>
