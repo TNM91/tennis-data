@@ -556,6 +556,33 @@ export default function PlayerProfilePage() {
       .map(([name, rec]) => ({ name, ...rec, total: rec.wins + rec.losses }))
   }, [matches])
 
+  const seasonBreakdown = useMemo(() => {
+    const map = new Map<string, { wins: number; losses: number; singles: number; doubles: number; deltaSum: number; deltaCount: number }>()
+    for (const match of matches) {
+      const year = match.date.slice(0, 4)
+      const existing = map.get(year) ?? { wins: 0, losses: 0, singles: 0, doubles: 0, deltaSum: 0, deltaCount: 0 }
+      if (match.result === 'W') existing.wins++
+      else existing.losses++
+      if (match.matchType === 'singles') existing.singles++
+      else existing.doubles++
+      const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
+      if (snap?.delta != null) { existing.deltaSum += snap.delta; existing.deltaCount++ }
+      map.set(year, existing)
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([year, rec]) => ({
+        year,
+        wins: rec.wins,
+        losses: rec.losses,
+        total: rec.wins + rec.losses,
+        singles: rec.singles,
+        doubles: rec.doubles,
+        netDelta: rec.deltaCount > 0 ? rec.deltaSum : null,
+        winRate: rec.wins + rec.losses > 0 ? Math.round((rec.wins / (rec.wins + rec.losses)) * 100) : 0,
+      }))
+  }, [matches, snapshotByMatchId])
+
   const scoreBreakdown = useMemo(() => {
     const wins = filteredMatches.filter((m) => m.result === 'W')
     if (wins.length === 0) return null
@@ -1269,7 +1296,7 @@ export default function PlayerProfilePage() {
                 </div>
               </div>
             ) : (
-              <SimpleLineChart points={filteredChartPoints} />
+              <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
             )}
           </article>
 
@@ -1415,6 +1442,69 @@ export default function PlayerProfilePage() {
                   </div>
                 )
               })}
+            </div>
+          </article>
+        ) : null}
+
+        {seasonBreakdown.length > 0 ? (
+          <article style={panelCard}>
+            <div style={panelHead}>
+              <div>
+                <div style={sectionKicker}>Season history</div>
+                <h2 style={panelTitle}>Year-by-year performance</h2>
+              </div>
+              <span style={panelChip}>{seasonBreakdown.length} season{seasonBreakdown.length === 1 ? '' : 's'}</span>
+            </div>
+            <p style={sectionText}>
+              Match record, singles/doubles split, and cumulative rating movement grouped by calendar year.
+            </p>
+            <div style={{ overflowX: 'auto', marginTop: 16 }}>
+              <table style={{ ...dataTable, minWidth: 560 }}>
+                <thead>
+                  <tr>
+                    <th style={tableHead}>Season</th>
+                    <th style={tableHead}>Record</th>
+                    <th style={tableHead}>Win %</th>
+                    <th style={tableHead}>Singles</th>
+                    <th style={tableHead}>Doubles</th>
+                    <th style={tableHead}>Rating movement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {seasonBreakdown.map((s) => {
+                    const positive = s.netDelta !== null && s.netDelta > 0
+                    const negative = s.netDelta !== null && s.netDelta < 0
+                    const goodWR = s.winRate >= 60
+                    const poorWR = s.winRate < 40
+                    return (
+                      <tr key={s.year}>
+                        <td style={{ ...tableCell, fontWeight: 900, fontSize: 15, color: 'var(--foreground)' }}>{s.year}</td>
+                        <td style={tableCell}>
+                          <span style={{ fontWeight: 800 }}>{s.wins}W</span>
+                          <span style={{ color: 'rgba(190,210,240,0.4)', margin: '0 4px' }}>–</span>
+                          <span style={{ fontWeight: 800 }}>{s.losses}L</span>
+                        </td>
+                        <td style={tableCell}>
+                          <span style={{ fontSize: 13, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: goodWR ? 'rgba(155,225,29,0.10)' : poorWR ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)', color: goodWR ? '#d9f84a' : poorWR ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${goodWR ? 'rgba(155,225,29,0.20)' : poorWR ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.08)'}` }}>
+                            {s.winRate}%
+                          </span>
+                        </td>
+                        <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{s.singles}</td>
+                        <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{s.doubles}</td>
+                        <td style={tableCell}>
+                          {s.netDelta !== null ? (
+                            <span style={{ color: positive ? '#9be11d' : negative ? '#fca5a5' : 'var(--shell-copy-muted)', fontWeight: 800, fontSize: 13 }}>
+                              {s.netDelta > 0 ? '+' : ''}{s.netDelta.toFixed(3)}
+                            </span>
+                          ) : (
+                            <span style={{ color: 'rgba(190,210,240,0.3)', fontSize: 12 }}>—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </article>
         ) : null}
@@ -1609,7 +1699,7 @@ function dotStyle(point: ChartPoint): { fill: string; halo: string; r: number } 
   return { fill: '#255BE3', halo: 'rgba(37,91,227,0.18)', r: 4.5 }
 }
 
-function SimpleLineChart({ points }: { points: ChartPoint[] }) {
+function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRating?: number }) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; flip: boolean } | null>(null)
 
@@ -1689,6 +1779,20 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
             />
           )
         })}
+
+        {baseRating !== undefined && baseRating >= minRating - 0.05 && baseRating <= maxRating + 0.05 ? (() => {
+          const by = chartHeight - padding - ((baseRating - minRating) / spread) * (chartHeight - padding * 2)
+          const topY = padding
+          const bottomY = chartHeight - padding
+          return (
+            <>
+              <rect x={padding} y={topY} width={width - padding * 2} height={by - topY} fill="rgba(155,225,29,0.04)" />
+              <rect x={padding} y={by} width={width - padding * 2} height={bottomY - by} fill="rgba(239,68,68,0.05)" />
+              <line x1={padding} x2={width - padding} y1={by} y2={by} stroke="rgba(255,210,50,0.55)" strokeWidth="1.5" strokeDasharray="6 3" />
+              <text x={width - padding + 4} y={by + 4} textAnchor="start" fill="rgba(255,210,50,0.65)" fontSize="10" fontWeight="700">USTA</text>
+            </>
+          )
+        })() : null}
 
         {[1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
           .filter((band) => band >= minRating - 0.05 && band <= maxRating + 0.05)

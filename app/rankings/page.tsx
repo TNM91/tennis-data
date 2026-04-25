@@ -331,10 +331,46 @@ export default function RankingsPage() {
     [playerMovers],
   )
 
+  const hotFormPlayers = useMemo(
+    () =>
+      rankedPlayers
+        .filter((p) => p.formScore > 0.01 && p.matches >= 3)
+        .sort((a, b) => b.formScore - a.formScore)
+        .slice(0, 5),
+    [rankedPlayers],
+  )
+
+  function handleSortCol(col: typeof sortCol) {
+    if (col === sortCol) {
+      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
+    } else {
+      setSortCol(col)
+      setSortDir('desc')
+    }
+  }
+
+  const sortedPlayers = useMemo(() => {
+    if (sortCol === 'tiq') return rankedPlayers
+    return [...rankedPlayers].sort((a, b) => {
+      let diff = 0
+      if (sortCol === 'trend') diff = a.trendDelta - b.trendDelta
+      else if (sortCol === 'form') diff = a.formScore - b.formScore
+      else if (sortCol === 'winRate') diff = (a.winRate ?? -1) - (b.winRate ?? -1)
+      else if (sortCol === 'matches') diff = a.matches - b.matches
+      return sortDir === 'desc' ? -diff : diff
+    })
+  }, [rankedPlayers, sortCol, sortDir])
+
   const tieredRows = useMemo(() => {
     type DividerRow = { type: 'divider'; tier: string; key: string }
     type PlayerRow = { type: 'player'; player: RankedPlayer; rank: number }
     const rows: Array<DividerRow | PlayerRow> = []
+    if (sortCol !== 'tiq') {
+      sortedPlayers.forEach((player, i) => {
+        rows.push({ type: 'player', player, rank: i + 1 })
+      })
+      return rows
+    }
     let lastTier = ''
     rankedPlayers.forEach((player, i) => {
       const tier = getTierLabel(player.baseRating)
@@ -345,7 +381,7 @@ export default function RankingsPage() {
       rows.push({ type: 'player', player, rank: i + 1 })
     })
     return rows
-  }, [rankedPlayers])
+  }, [rankedPlayers, sortedPlayers, sortCol])
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -734,6 +770,36 @@ export default function RankingsPage() {
         </section>
       ) : null}
 
+      {!loading && !error && hotFormPlayers.length > 0 ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>Form spotlight</div>
+            <h2 style={panelTitle}>Hot right now.</h2>
+            <p style={editorialText}>
+              Players with the strongest last-5 match form — positive net delta across their five most recent rated matches. A high form score doesn&apos;t guarantee a high rank, but it signals momentum worth watching.
+            </p>
+
+            <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+              {hotFormPlayers.map((player, i) => {
+                const boardRank = rankedPlayers.findIndex((p) => p.id === player.id) + 1
+                return (
+                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 18, background: 'rgba(155,225,29,0.04)', border: '1px solid rgba(155,225,29,0.12)' }}>
+                  <span style={{ minWidth: 24, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'right' as const }}>#{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                    <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.matches} matches{boardRank > 0 ? ` · board #${boardRank}` : ''}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 13, fontWeight: 700 }}>{player.selectedRating.toFixed(2)} TIQ</span>
+                    <span style={{ padding: '4px 10px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 13, fontWeight: 900 }}>+{player.formScore.toFixed(2)} form</span>
+                  </div>
+                </div>
+              )})}
+            </div>
+          </article>
+        </section>
+      ) : null}
+
       <section style={contentWrap}>
         <article style={tableCard}>
           <div style={panelHead}>
@@ -756,10 +822,10 @@ export default function RankingsPage() {
                   <th style={tableHead}>Player</th>
                   <th style={tableHead}>Location</th>
                   <th style={tableHead}>Signal</th>
-                  <th style={tableHead}>Trend</th>
-                  <th style={tableHead}>Form</th>
-                  <th style={tableHead}>W-L</th>
-                  <th style={tableHead}>Confidence</th>
+                  <SortableHeader col="trend" label="Trend" sortCol={sortCol} sortDir={sortDir} onSort={handleSortCol} />
+                  <SortableHeader col="form" label="Form" sortCol={sortCol} sortDir={sortDir} onSort={handleSortCol} />
+                  <SortableHeader col="winRate" label="W-L" sortCol={sortCol} sortDir={sortDir} onSort={handleSortCol} />
+                  <SortableHeader col="matches" label="Confidence" sortCol={sortCol} sortDir={sortDir} onSort={handleSortCol} />
                   <th style={tableHead}>USTA Base</th>
                   <th style={{ ...tableHead, ...(ratingView === 'overall' ? activeTableHead : {}) }}>USTA Dynamic</th>
                   <th style={{ ...tableHead, ...(ratingView === 'overall' ? activeTableHead : {}) }}>TIQ Overall</th>
@@ -922,6 +988,26 @@ export default function RankingsPage() {
         <AdsenseSlot slot={RANKINGS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
       </div>
     </SiteShell>
+  )
+}
+
+function SortableHeader({
+  col, label, sortCol, sortDir, onSort,
+}: {
+  col: 'trend' | 'form' | 'winRate' | 'matches'
+  label: string
+  sortCol: string
+  sortDir: 'asc' | 'desc'
+  onSort: (col: 'trend' | 'form' | 'winRate' | 'matches') => void
+}) {
+  const active = sortCol === col
+  return (
+    <th
+      style={{ ...tableHead, cursor: 'pointer', userSelect: 'none', ...(active ? activeTableHead : {}) }}
+      onClick={() => onSort(col)}
+    >
+      {label}{active ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
+    </th>
   )
 }
 

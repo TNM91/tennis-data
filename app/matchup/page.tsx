@@ -167,6 +167,7 @@ export default function MatchupPage() {
 
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [headToHead, setHeadToHead] = useState<HeadToHeadState | null>(null)
+  const [formScores, setFormScores] = useState<{ left: number | null; right: number | null }>({ left: null, right: null })
   const urlReadyRef = useRef(false)
   const [accuracy, setAccuracy] = useState<AccuracyState>({
     overall: null,
@@ -287,6 +288,38 @@ export default function MatchupPage() {
     void loadPredictionAccuracy()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, matchType])
+
+  useEffect(() => {
+    const idA = playerAId || null
+    const idB = playerBId || null
+    if (!idA || !idB || idA === idB) {
+      setFormScores({ left: null, right: null })
+      return
+    }
+    let active = true
+    void (async () => {
+      const view = matchType === 'doubles' ? 'doubles' : 'singles'
+      const { data } = await supabase
+        .from('rating_snapshots')
+        .select('player_id, delta, snapshot_date, rating_type')
+        .in('player_id', [idA, idB])
+        .eq('track', 'tiq')
+        .in('rating_type', [view, 'overall'])
+        .order('snapshot_date', { ascending: false })
+        .limit(30)
+      if (!active || !data) return
+      function computeForm(id: string) {
+        const snaps = (data as Array<{ player_id: string; delta: number | null; rating_type: string }>)
+          .filter((s) => s.player_id === id && s.rating_type === view)
+          .slice(0, 5)
+        const deltas = snaps.map((s) => s.delta).filter((d): d is number => d != null)
+        if (deltas.length === 0) return null
+        return Math.round(deltas.reduce((sum, d) => sum + d, 0) * 1000) / 1000
+      }
+      setFormScores({ left: computeForm(idA), right: computeForm(idB) })
+    })()
+    return () => { active = false }
+  }, [playerAId, playerBId, matchType])
 
   async function loadPlayers() {
     setLoading(true)
@@ -1491,6 +1524,34 @@ export default function MatchupPage() {
                   dynamicRatingGrid={dynamicRatingGrid}
                 />
               </div>
+
+              {(formScores.left !== null || formScores.right !== null) ? (
+                <div style={formCompareRow}>
+                  <div style={formCompareCell}>
+                    <div style={formCellLabel}>{comparison.leftLabel}</div>
+                    <div style={formCellValue(formScores.left)}>
+                      {formScores.left !== null
+                        ? `${formScores.left > 0 ? '+' : ''}${formScores.left.toFixed(2)} form`
+                        : '—'}
+                    </div>
+                    <div style={formCellMeta}>Last 5 rating delta</div>
+                  </div>
+
+                  <div style={formCompareDivider}>
+                    <div style={formCompareLabel}>Form comparison</div>
+                  </div>
+
+                  <div style={formCompareCell}>
+                    <div style={formCellLabel}>{comparison.rightLabel}</div>
+                    <div style={formCellValue(formScores.right)}>
+                      {formScores.right !== null
+                        ? `${formScores.right > 0 ? '+' : ''}${formScores.right.toFixed(2)} form`
+                        : '—'}
+                    </div>
+                    <div style={formCellMeta}>Last 5 rating delta</div>
+                  </div>
+                </div>
+              ) : null}
 
               {projection ? (
                 <article style={summaryCard}>
@@ -2729,6 +2790,66 @@ const gapMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const formCompareRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  marginTop: '12px',
+  padding: '16px 20px',
+  borderRadius: '20px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+}
+
+const formCompareCell: CSSProperties = {
+  flex: 1,
+  display: 'grid',
+  gap: '4px',
+}
+
+const formCompareDivider: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '4px',
+  minWidth: '90px',
+  flexShrink: 0,
+}
+
+const formCompareLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  textAlign: 'center',
+}
+
+const formCellLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+function formCellValue(delta: number | null): CSSProperties {
+  const positive = delta !== null && delta > 0
+  const negative = delta !== null && delta < 0
+  return {
+    fontSize: '22px',
+    fontWeight: 900,
+    letterSpacing: '-0.03em',
+    color: positive ? '#86efac' : negative ? '#fca5a5' : 'var(--foreground)',
+  }
+}
+
+const formCellMeta: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 600,
 }
 
 const summaryCard: CSSProperties = {

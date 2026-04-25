@@ -313,6 +313,8 @@ export default function LeagueDetailPage() {
     const doubles = validRows.filter((row) => row.match_type === 'doubles').length
     const teams = teamSummaries.length
     const latest = validRows[0]?.match_date || null
+    const withScores = validRows.filter((row) => row.score && row.score.trim()).length
+    const decided = validRows.filter((row) => row.winner_side).length
 
     return {
       matchCount: validRows.length,
@@ -320,8 +322,12 @@ export default function LeagueDetailPage() {
       doubles,
       teams,
       latest,
+      withScores,
+      decided,
     }
   }, [validRows, teamSummaries])
+
+  const leagueLeader = teamSummaries[0] ?? null
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -642,17 +648,25 @@ export default function LeagueDetailPage() {
                 </div>
 
                 <div style={dynamicTeamGrid}>
-                  {teamSummaries.map((team, index) => (
+                  {teamSummaries.map((team, index) => {
+                    const winPct = Math.round(team.winPct * 100)
+                    const isLeader = team.name === leagueLeader?.name
+                    return (
                     <div key={team.name} style={teamCard}>
                       <div style={cardGlow} />
 
                       <div style={dynamicTeamTop}>
                         <div>
-                          <div style={teamRank}>#{index + 1}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <div style={teamRank}>#{index + 1}</div>
+                            {isLeader && team.wins > 0 ? (
+                              <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>League leader</span>
+                            ) : null}
+                          </div>
                           <div style={teamName}>{team.name}</div>
                           <div style={teamRecord}>
                             {team.wins}-{team.losses} record
-                            {team.matches > 0 ? ` · ${(team.winPct * 100).toFixed(0)}% win` : ''}
+                            {team.matches > 0 ? ` · ${winPct}% win` : ''}
                           </div>
                         </div>
 
@@ -661,6 +675,19 @@ export default function LeagueDetailPage() {
                         </PrimaryLink>
                       </div>
 
+                      {team.matches > 0 ? (
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 8, background: 'rgba(255,255,255,0.06)', marginBottom: 5 }}>
+                            <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.7),rgba(74,222,128,0.7))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
+                            <div style={{ flex: 1, background: 'rgba(239,68,68,0.25)' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(155,225,29,0.8)' }}>{winPct}% W</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(239,68,68,0.7)' }}>{100 - winPct}% L</span>
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div style={dynamicMiniGrid}>
                         <MiniStatCard label="Matches" value={String(team.matches)} />
                         <MiniStatCard label="Home" value={String(team.homeMatches)} />
@@ -668,7 +695,8 @@ export default function LeagueDetailPage() {
                         <MiniStatCard label="Latest" value={formatDate(team.latestMatchDate)} />
                       </div>
                     </div>
-                  ))}
+                  )})}
+
                 </div>
               </section>
 

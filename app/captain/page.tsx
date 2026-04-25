@@ -642,6 +642,20 @@ export default function CaptainHubPage() {
       .slice(0, 8)
   }, [roster, rosterSortMode])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  const rosterSignalSummary = useMemo(() => {
+    const counts: Record<RatingStatus, number> = { 'Bump Up Pace': 0, 'Trending Up': 0, Holding: 0, 'At Risk': 0, 'Drop Watch': 0 }
+    let withStatus = 0
+    for (const p of roster) {
+      if (p.ratingStatus) { counts[p.ratingStatus]++; withStatus++ }
+    }
+    const trendingUp = counts['Bump Up Pace'] + counts['Trending Up']
+    const atRisk = counts['At Risk'] + counts['Drop Watch']
+    const topSingles = roster
+      .filter((p) => p.overallUstaDynamic != null)
+      .sort((a, b) => (b.overallUstaDynamic ?? 0) - (a.overallUstaDynamic ?? 0))[0] ?? null
+    return { counts, withStatus, trendingUp, atRisk, topSingles }
+  }, [roster])
+
   const quickStats = useMemo(() => {
     let wins = 0
     let losses = 0
@@ -1938,6 +1952,23 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             <MiniStat label="Doubles lines" value={String(quickStats.doubles)} />
           </div>
 
+          {rosterSignalSummary.withStatus > 0 ? (
+            <div style={rosterSignalBar}>
+              <div style={rosterSignalLabel}>Roster signal</div>
+              <div style={rosterSignalPills}>
+                {rosterSignalSummary.trendingUp > 0 ? (
+                  <span style={signalPillGreen}>{rosterSignalSummary.trendingUp} trending up</span>
+                ) : null}
+                {rosterSignalSummary.counts.Holding > 0 ? (
+                  <span style={signalPillNeutral}>{rosterSignalSummary.counts.Holding} holding</span>
+                ) : null}
+                {rosterSignalSummary.atRisk > 0 ? (
+                  <span style={signalPillRed}>{rosterSignalSummary.atRisk} at risk</span>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           <div style={rosterTableWrap}>
             {!hasTeamScope ? (
               <div style={emptyLine}>Choose a team scope to see roster usage and match mix.</div>
@@ -3230,3 +3261,43 @@ function getCaptainStatusStyle(status: RatingStatus): CSSProperties {
     case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
   }
 }
+
+const rosterSignalBar: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  padding: '10px 14px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.07)',
+  marginBottom: 12,
+  flexWrap: 'wrap' as const,
+}
+
+const rosterSignalLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.07em',
+  flexShrink: 0,
+}
+
+const rosterSignalPills: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap' as const,
+}
+
+const signalPillBase: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '4px 10px',
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const signalPillGreen: CSSProperties = { ...signalPillBase, background: 'rgba(155,225,29,0.10)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.20)' }
+const signalPillNeutral: CSSProperties = { ...signalPillBase, background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
+const signalPillRed: CSSProperties = { ...signalPillBase, background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.20)' }

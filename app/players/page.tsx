@@ -15,7 +15,7 @@ import { formatRating } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
-type FilterKey = 'all' | 'with-matches' | 'high-rated'
+type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
 type FlightFilter = 'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
@@ -267,6 +267,8 @@ export default function PlayersPage() {
 
       if (filterBy === 'with-matches') return player.matches > 0
       if (filterBy === 'high-rated') return getRating(player, 'overall') >= 4.0
+      if (filterBy === 'trending-up') return player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace'
+      if (filterBy === 'at-risk') return player.overallStatus === 'At Risk' || player.overallStatus === 'Drop Watch'
 
       if (flightFilter !== 'all') {
         const base = player.baseOverall
@@ -512,6 +514,8 @@ export default function PlayersPage() {
                     <option value="all">All players</option>
                     <option value="with-matches">With matches</option>
                     <option value="high-rated">4.0+ overall</option>
+                    <option value="trending-up">Trending up</option>
+                    <option value="at-risk">At risk</option>
                   </select>
 
                   <select
