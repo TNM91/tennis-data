@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+
 import { useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -168,8 +171,8 @@ export default function DeduplicatePage() {
   }
 
   return (
-    <AdminGate>
-      <SiteShell active="/admin">
+    <SiteShell active="/admin">
+      <AdminGate>
         <div style={shell}>
           <div style={header}>
             <div>
@@ -242,8 +245,8 @@ export default function DeduplicatePage() {
             </div>
           )}
         </div>
-      </SiteShell>
-    </AdminGate>
+      </AdminGate>
+    </SiteShell>
   )
 }
 

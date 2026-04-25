@@ -47,9 +47,12 @@ type LineMatch = {
   line_number: string | null
 }
 
+type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
 type Player = {
   id: string
   name: string
+  overall_rating?: number | null
   singles_dynamic_rating: number | null
   doubles_dynamic_rating: number | null
   overall_dynamic_rating?: number | null
@@ -255,6 +258,7 @@ export default function TeamPage() {
           players (
             id,
             name,
+            overall_rating,
             singles_dynamic_rating,
             doubles_dynamic_rating,
             overall_dynamic_rating,
@@ -314,9 +318,11 @@ export default function TeamPage() {
               players (
                 id,
                 name,
+                overall_rating,
                 singles_dynamic_rating,
                 doubles_dynamic_rating,
                 overall_dynamic_rating,
+                overall_usta_dynamic_rating,
                 location
               )
             `)
@@ -402,6 +408,20 @@ export default function TeamPage() {
     })
 
     return { wins, losses }
+  }, [matches, team])
+
+  const teamStreak = useMemo(() => {
+    const results = matches
+      .map((m) => didTeamWin(m, team))
+      .filter((r): r is boolean => r !== null)
+    if (results.length === 0) return null
+    const type = results[0] ? 'W' : 'L'
+    let count = 0
+    for (const r of results) {
+      if ((r ? 'W' : 'L') === type) count++
+      else break
+    }
+    return { count, type }
   }, [matches, team])
 
   const roster = useMemo<RosterPlayer[]>(() => {
@@ -506,6 +526,15 @@ export default function TeamPage() {
       return a.name.localeCompare(b.name)
     })
   }, [lineMatches, linePlayers, matches, players, team])
+
+  const hotPlayers = useMemo(() => {
+    return roster.filter((p) => {
+      const base = p.overall_rating ?? null
+      const usta = p.overall_usta_dynamic_rating ?? null
+      if (base === null || usta === null) return false
+      return (usta - base) >= 0.07
+    })
+  }, [roster])
 
   const bestSingles = useMemo(() => {
     return [...roster]
@@ -760,6 +789,14 @@ export default function TeamPage() {
               {teamMeta.flight ? <span style={badgeGreen}>{teamMeta.flight}</span> : null}
               {teamMeta.section ? <span style={badgeSlate}>{teamMeta.section}</span> : null}
               <span style={badgeSlate}>{matches.length} matches tracked</span>
+              {teamStreak && teamStreak.count >= 2 ? (
+                <span style={teamStreak.type === 'W' ? badgeGreen : badgeRed}>
+                  {teamStreak.count} {teamStreak.type === 'W' ? 'win' : 'loss'} streak
+                </span>
+              ) : null}
+              {hotPlayers.length > 0 ? (
+                <span style={badgeGreen}>{hotPlayers.length} hot player{hotPlayers.length > 1 ? 's' : ''}</span>
+              ) : null}
               {tiqParticipations.length > 0 ? <span style={badgeGreen}>{tiqParticipations.length} TIQ leagues entered</span> : null}
             </div>
 
@@ -790,6 +827,20 @@ export default function TeamPage() {
                 value={formatDate(recentMatch?.match_date)}
                 subtle={recentMatch ? `vs ${getOpponent(recentMatch, team) ?? '--'}` : 'No recent match yet'}
               />
+              {teamStreak && teamStreak.count >= 2 ? (
+                <MetricCard
+                  label="Current streak"
+                  value={`${teamStreak.count} ${teamStreak.type === 'W' ? 'wins' : 'losses'}`}
+                  subtle={teamStreak.type === 'W' ? 'Active win run' : 'Active loss run'}
+                />
+              ) : null}
+              {hotPlayers.length > 0 ? (
+                <MetricCard
+                  label="Hot players"
+                  value={String(hotPlayers.length)}
+                  subtle={hotPlayers.slice(0, 2).map((p) => p.name).join(', ')}
+                />
+              ) : null}
             </div>
 
             {teamMeta.district ? <div style={summaryHint}>{teamMeta.district}</div> : null}
@@ -953,19 +1004,25 @@ export default function TeamPage() {
 
             {bestSingles.length ? (
               <div style={stackList}>
-                {bestSingles.map((player, index) => (
-                  <div key={player.id} style={listRow}>
-                    <div>
-                      <strong>
-                        {index + 1}. {player.name}
-                      </strong>
-                      <div style={mutedText}>
-                        {player.singlesAppearances} singles starts - {player.wins}-{player.losses} record
+                {bestSingles.map((player, index) => {
+                  const status = getTeamPlayerStatus(player)
+                  return (
+                    <div key={player.id} style={listRow}>
+                      <div>
+                        <strong>
+                          {index + 1}. {player.name}
+                        </strong>
+                        <div style={mutedText}>
+                          {player.singlesAppearances} singles starts · {player.wins}-{player.losses} record
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                        <span style={badgeBlue}>{formatRating(player.singles_dynamic_rating)}</span>
+                        {status ? <span style={{ ...teamStatusPill, ...getTeamStatusStyle(status) }}>{status}</span> : null}
                       </div>
                     </div>
-                    <span style={badgeBlue}>{formatRating(player.singles_dynamic_rating)}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div style={emptyStateBlock}>
@@ -1032,19 +1089,25 @@ export default function TeamPage() {
 
             {bestDoubles.length ? (
               <div style={stackList}>
-                {bestDoubles.map((player, index) => (
-                  <div key={player.id} style={listRow}>
-                    <div>
-                      <strong>
-                        {index + 1}. {player.name}
-                      </strong>
-                      <div style={mutedText}>
-                        {player.doublesAppearances} doubles starts - {player.wins}-{player.losses} record
+                {bestDoubles.map((player, index) => {
+                  const status = getTeamPlayerStatus(player)
+                  return (
+                    <div key={player.id} style={listRow}>
+                      <div>
+                        <strong>
+                          {index + 1}. {player.name}
+                        </strong>
+                        <div style={mutedText}>
+                          {player.doublesAppearances} doubles starts · {player.wins}-{player.losses} record
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                        <span style={badgeSlate}>{formatRating(player.doubles_dynamic_rating)}</span>
+                        {status ? <span style={{ ...teamStatusPill, ...getTeamStatusStyle(status) }}>{status}</span> : null}
                       </div>
                     </div>
-                    <span style={badgeSlate}>{formatRating(player.doubles_dynamic_rating)}</span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div style={emptyStateBlock}>
@@ -1422,6 +1485,46 @@ const badgeSlate: CSSProperties = {
   ...badgeBase,
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
+}
+
+const badgeRed: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(239,68,68,0.10)',
+  color: '#fca5a5',
+  border: '1px solid rgba(239,68,68,0.22)',
+}
+
+const teamStatusPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '3px 9px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  whiteSpace: 'nowrap' as const,
+}
+
+function getTeamPlayerStatus(player: Player): TeamRatingStatus | null {
+  const base = player.overall_rating ?? null
+  const usta = player.overall_usta_dynamic_rating ?? null
+  if (base === null || usta === null) return null
+  const diff = usta - base
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getTeamStatusStyle(status: TeamRatingStatus): CSSProperties {
+  switch (status) {
+    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
+    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
+    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
+    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
+    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+  }
 }
 
 const summaryCard: CSSProperties = {

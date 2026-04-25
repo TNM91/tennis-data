@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'

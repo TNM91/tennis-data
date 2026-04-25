@@ -2485,19 +2485,25 @@ function sendCurrentScenarioToMessaging() {
               <div style={{ marginTop: 16 }}>
                 <div style={sectionKicker}>Bench / alternates</div>
                 <div style={stackStyleCompact}>
-                  {eliteRecommendation.bench.length ? eliteRecommendation.bench.map((player) => (
-                    <div key={player.id} style={listCardStyleCompact}>
-                      <div>
-                        <div style={listTitleStyle}>{player.name}</div>
-                        <div style={listMetaStyle}>
-                          TIQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
+                  {eliteRecommendation.bench.length ? eliteRecommendation.bench.map((player) => {
+                    const rStatus = getLineupRatingStatus(player)
+                    return (
+                      <div key={player.id} style={listCardStyleCompact}>
+                        <div>
+                          <div style={listTitleStyle}>{player.name}</div>
+                          <div style={listMetaStyle}>
+                            TIQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
+                          </div>
+                        </div>
+                        <div style={rightPillStackStyle}>
+                          <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
+                            {player.availabilityStatus || 'unknown'}
+                          </span>
+                          {rStatus ? <span style={getLineupStatusStyle(rStatus)}>{rStatus}</span> : null}
                         </div>
                       </div>
-                      <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
-                        {player.availabilityStatus || 'unknown'}
-                      </span>
-                    </div>
-                  )) : (
+                    )
+                  }) : (
                     <p style={mutedTextStyle}>No bench players are left after the recommendation engine fills the lineup.</p>
                   )}
                 </div>
@@ -2806,24 +2812,28 @@ function sendCurrentScenarioToMessaging() {
               </div>
 
               <div style={stackStyleCompact}>
-                {myPlayerPool.length ? myPlayerPool.map((player) => (
-                  <div key={player.id} style={listCardStyleCompact}>
-                    <div>
-                      <div style={listTitleStyle}>{player.name}</div>
-                      <div style={listMetaStyle}>
-                        OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}{player.location ? ` - ${player.location}` : ''}
+                {myPlayerPool.length ? myPlayerPool.map((player) => {
+                  const rStatus = getLineupRatingStatus(player)
+                  return (
+                    <div key={player.id} style={listCardStyleCompact}>
+                      <div>
+                        <div style={listTitleStyle}>{player.name}</div>
+                        <div style={listMetaStyle}>
+                          OVR {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}{player.location ? ` - ${player.location}` : ''}
+                        </div>
+                        {player.lineup_notes ? <div style={tinyNoteStyle}>{player.lineup_notes}</div> : null}
                       </div>
-                      {player.lineup_notes ? <div style={tinyNoteStyle}>{player.lineup_notes}</div> : null}
-                    </div>
 
-                    <div style={rightPillStackStyle}>
-                      <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
-                        {player.availabilityStatus || 'unknown'}
-                      </span>
-                      {teamAssignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
+                      <div style={rightPillStackStyle}>
+                        <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
+                          {player.availabilityStatus || 'unknown'}
+                        </span>
+                        {rStatus ? <span style={getLineupStatusStyle(rStatus)}>{rStatus}</span> : null}
+                        {teamAssignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
+                      </div>
                     </div>
-                  </div>
-                )) : (
+                  )
+                }) : (
                   <div style={stackStyleCompact}>
                     <p style={mutedTextStyle}>
                       {loading ? 'Loading player pool…' : 'No players match the current scope.'}
@@ -3792,6 +3802,30 @@ const rightPillStackStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
   justifyItems: 'end',
+}
+
+type LineupRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
+function getLineupRatingStatus(player: { overall_rating: number | null; overall_usta_dynamic_rating: number | null }): LineupRatingStatus | null {
+  const base = player.overall_rating
+  const usta = player.overall_usta_dynamic_rating
+  if (base == null || usta == null) return null
+  const diff = usta - base
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getLineupStatusStyle(status: LineupRatingStatus): CSSProperties {
+  switch (status) {
+    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.14)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.26)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
+    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
+    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
+    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
+    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
+  }
 }
 
 const pillButton: CSSProperties = {

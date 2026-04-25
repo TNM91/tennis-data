@@ -112,6 +112,11 @@ export default function PlayerProfilePage() {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [ratingView, setRatingView] = useState<RatingView>('overall')
+  const [chartWindow, setChartWindow] = useState<'all' | '90d' | '30d'>('all')
+  const [playerRank, setPlayerRank] = useState<number | null>(null)
+  const [totalPlayers, setTotalPlayers] = useState<number | null>(null)
+  const [nearbyPlayers, setNearbyPlayers] = useState<Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>>([])
+
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
@@ -128,6 +133,35 @@ export default function PlayerProfilePage() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    const tiq = player?.overall_dynamic_rating
+    if (typeof tiq !== 'number') return
+    let active = true
+    void (async () => {
+      const [{ count: total }, { count: above }, { data: nearby }] = await Promise.all([
+        supabase.from('players').select('*', { count: 'exact', head: true }),
+        supabase.from('players').select('*', { count: 'exact', head: true })
+          .gt('overall_dynamic_rating', tiq),
+        supabase
+          .from('players')
+          .select('id, name, location, overall_dynamic_rating')
+          .neq('id', playerId)
+          .gte('overall_dynamic_rating', tiq - 0.15)
+          .lte('overall_dynamic_rating', tiq + 0.15)
+          .order('overall_dynamic_rating', { ascending: false })
+          .limit(5),
+      ])
+      if (!active) return
+      setPlayerRank(typeof above === 'number' ? above + 1 : null)
+      setTotalPlayers(total)
+      setNearbyPlayers(
+        ((nearby ?? []) as Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>)
+          .filter((p) => p.id !== playerId),
+      )
+    })()
+    return () => { active = false }
+  }, [player?.overall_dynamic_rating, playerId])
 
   const loadPlayerProfile = useCallback(async () => {
     setLoading(true)
@@ -352,6 +386,12 @@ export default function PlayerProfilePage() {
     }))
   }, [snapshots, ratingView])
 
+  const filteredChartPoints = useMemo(() => {
+    if (chartWindow === 'all') return chartPoints
+    const cutoff = Date.now() - (chartWindow === '90d' ? 90 : 30) * 24 * 60 * 60 * 1000
+    return chartPoints.filter((p) => new Date(p.date).getTime() >= cutoff)
+  }, [chartPoints, chartWindow])
+
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
 
@@ -427,6 +467,124 @@ export default function PlayerProfilePage() {
       ? `Last active ${Math.floor(months / 12)}yr ago`
       : `Last active ${months}mo ago`
   }, [daysSinceLastMatch])
+
+  const winStreak = useMemo(() => {
+    if (filteredMatches.length === 0) return { count: 0, type: 'W' as const }
+    const firstResult = filteredMatches[0].result
+    let count = 0
+    for (const match of filteredMatches) {
+      if (match.result === firstResult) count++
+      else break
+    }
+    return { count, type: firstResult }
+  }, [filteredMatches])
+
+  const avgOpponentRating = useMemo(() => {
+    const relevant = snapshots.filter((snap) =>
+      ratingView === 'overall'
+        ? !snap.rating_type || snap.rating_type === 'overall'
+        : snap.rating_type === ratingView,
+    )
+    const validRatings = relevant
+      .map((s) => s.opponent_rating)
+      .filter((r): r is number => r != null && Number.isFinite(r))
+    if (validRatings.length === 0) return null
+    return validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
+  }, [snapshots, ratingView])
+
+  const formScore = useMemo(() => {
+    const relevant = snapshots.filter((snap) =>
+      ratingView === 'overall'
+        ? !snap.rating_type || snap.rating_type === 'overall'
+        : snap.rating_type === ratingView,
+    )
+    const last5 = relevant.slice(-5)
+    const deltas = last5.map((s) => s.delta).filter((d): d is number => d != null)
+    if (deltas.length === 0) return null
+    return deltas.reduce((sum, d) => sum + d, 0)
+  }, [snapshots, ratingView])
+
+  const singlesRecord = useMemo(() => {
+    const w = matches.filter((m) => m.matchType === 'singles' && m.result === 'W').length
+    const l = matches.filter((m) => m.matchType === 'singles' && m.result === 'L').length
+    return { w, l, total: w + l }
+  }, [matches])
+
+  const doublesRecord = useMemo(() => {
+    const w = matches.filter((m) => m.matchType === 'doubles' && m.result === 'W').length
+    const l = matches.filter((m) => m.matchType === 'doubles' && m.result === 'L').length
+    return { w, l, total: w + l }
+  }, [matches])
+
+  // How many consecutive matches the current USTA status has held, reading snapshots newest→oldest.
+  const statusStreakMatches = useMemo(() => {
+    const relevant = snapshots
+      .filter((s) => !s.rating_type || s.rating_type === 'overall')
+      .slice()
+      .reverse() // newest first
+    if (relevant.length === 0) return 0
+    let count = 0
+    for (const snap of relevant) {
+      const snapStatus = getRatingStatus(baseRating, snap.dynamic_rating)
+      if (snapStatus === ratingStatus) count++
+      else break
+    }
+    return count
+  }, [snapshots, baseRating, ratingStatus])
+
+  const percentile = useMemo(() => {
+    if (playerRank === null || !totalPlayers) return null
+    return Math.ceil((playerRank / totalPlayers) * 100)
+  }, [playerRank, totalPlayers])
+
+  // Longest win streak across all matches (not filtered by view).
+  const opponentRecords = useMemo(() => {
+    const map = new Map<string, { wins: number; losses: number; lastDate: string }>()
+    for (const match of matches) {
+      const opp = match.opponent
+      if (!opp || opp === 'Player not linked') continue
+      const existing = map.get(opp) ?? { wins: 0, losses: 0, lastDate: match.date }
+      if (match.result === 'W') existing.wins++
+      else existing.losses++
+      if (match.date > existing.lastDate) existing.lastDate = match.date
+      map.set(opp, existing)
+    }
+    return [...map.entries()]
+      .filter(([, rec]) => rec.wins + rec.losses >= 2)
+      .sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
+      .slice(0, 8)
+      .map(([name, rec]) => ({ name, ...rec, total: rec.wins + rec.losses }))
+  }, [matches])
+
+  const scoreBreakdown = useMemo(() => {
+    const wins = filteredMatches.filter((m) => m.result === 'W')
+    if (wins.length === 0) return null
+    let straightSets = 0
+    let threeSets = 0
+    let bagels = 0
+    for (const m of wins) {
+      if (!m.score) continue
+      const sets = m.score.split(/[;,|]/).map((s) => s.trim()).filter(Boolean)
+      if (sets.length === 2) straightSets++
+      if (sets.length >= 3) threeSets++
+      if (/\b6-0\b|\b0-6\b/.test(m.score)) bagels++
+    }
+    return { wins: wins.length, straightSets, threeSets, bagels }
+  }, [filteredMatches])
+
+  const longestWinStreak = useMemo(() => {
+    let best = 0
+    let current = 0
+    for (const match of [...matches].reverse()) { // oldest→newest
+      if (match.result === 'W') {
+        current++
+        if (current > best) best = current
+      } else {
+        current = 0
+      }
+    }
+    return best
+  }, [matches])
 
   const meterTheme = useMemo(
     () => getMeterTheme(ratingStatus),
@@ -606,8 +764,28 @@ export default function PlayerProfilePage() {
                 <span style={heroHintPill}>{totalMatches} matches</span>
                 <span style={heroHintPill}>{winPct}% win rate</span>
                 <span style={heroHintPill}>{ratingViewLabel} view</span>
+                {percentile !== null ? (
+                  <span style={{ ...heroHintPill, background: 'rgba(116,190,255,0.08)', border: '1px solid rgba(116,190,255,0.22)', color: '#93c5fd' }}>
+                    top {percentile}% of {totalPlayers} players
+                  </span>
+                ) : null}
                 {tiqParticipationCount > 0 ? (
                   <span style={heroHintPill}>{tiqParticipationCount} TIQ individual leagues</span>
+                ) : null}
+                {winStreak.count >= 2 ? (
+                  <span
+                    style={{
+                      ...heroHintPill,
+                      background: winStreak.type === 'W' ? 'rgba(155,225,29,0.10)' : 'rgba(239,68,68,0.10)',
+                      border: `1px solid ${winStreak.type === 'W' ? 'rgba(155,225,29,0.28)' : 'rgba(239,68,68,0.22)'}`,
+                      color: winStreak.type === 'W' ? '#d9f84a' : '#fca5a5',
+                    }}
+                  >
+                    {winStreak.count} {winStreak.type === 'W' ? 'win' : 'loss'} streak
+                  </span>
+                ) : null}
+                {longestWinStreak >= 3 ? (
+                  <span style={heroHintPill}>Best streak: {longestWinStreak}W</span>
                 ) : null}
                 {stalenessLabel ? (
                   <span style={stalenessPill}>{stalenessLabel}</span>
@@ -622,6 +800,9 @@ export default function PlayerProfilePage() {
                     <div style={meterStatusRow}>
                       <span style={dynamicStatusPill}>{ratingStatus}</span>
                       <span style={confidencePill}>{confidence} confidence</span>
+                      {statusStreakMatches >= 3 ? (
+                        <span style={confidencePill}>{statusStreakMatches} match streak</span>
+                      ) : null}
                     </div>
 
                     <div style={meterSubtext}>
@@ -713,6 +894,10 @@ export default function PlayerProfilePage() {
                   <StatChip label="USTA Base" value={baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
                   <StatChip label="Confidence" value={confidence} />
+                  <StatChip
+                    label="Form last 5"
+                    value={formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '—'}
+                  />
                 </div>
               </div>
 
@@ -865,7 +1050,98 @@ export default function PlayerProfilePage() {
               {ratingDiff.toFixed(2)}
             </div>
           </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Singles record</div>
+            <div style={statValue}>{singlesRecord.total > 0 ? `${singlesRecord.w}-${singlesRecord.l}` : '—'}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Doubles record</div>
+            <div style={statValue}>{doublesRecord.total > 0 ? `${doublesRecord.w}-${doublesRecord.l}` : '—'}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Avg opponent ({ratingViewLabel.toLowerCase()})</div>
+            <div style={statValue}>{avgOpponentRating !== null ? avgOpponentRating.toFixed(2) : '—'}</div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Form last 5</div>
+            <div
+              style={{
+                ...statValue,
+                color:
+                  formScore !== null
+                    ? formScore >= 0
+                      ? '#9be11d'
+                      : '#f87171'
+                    : 'var(--foreground)',
+              }}
+            >
+              {formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '—'}
+            </div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Status held</div>
+            <div style={statValueSmall}>
+              {statusStreakMatches > 0 ? `${statusStreakMatches} match${statusStreakMatches === 1 ? '' : 'es'}` : '—'}
+            </div>
+          </article>
+
+          <article style={statCard}>
+            <div style={statLabel}>Best win streak</div>
+            <div style={statValue}>{longestWinStreak > 0 ? `${longestWinStreak}W` : '—'}</div>
+          </article>
+
+          {playerRank !== null && totalPlayers !== null ? (
+            <>
+              <article style={statCard}>
+                <div style={statLabel}>Overall rank</div>
+                <div style={statValue}>#{playerRank}</div>
+              </article>
+              <article style={statCard}>
+                <div style={statLabel}>Percentile</div>
+                <div style={{ ...statValue, color: '#93c5fd' }}>top {percentile}%</div>
+              </article>
+            </>
+          ) : null}
+
+          {scoreBreakdown ? (
+            <>
+              <article style={statCard}>
+                <div style={statLabel}>Straight-set wins</div>
+                <div style={statValue}>{scoreBreakdown.straightSets}</div>
+                <div style={{ ...statLabel, marginTop: 4 }}>of {scoreBreakdown.wins} wins</div>
+              </article>
+              <article style={statCard}>
+                <div style={statLabel}>3-set wins</div>
+                <div style={statValue}>{scoreBreakdown.threeSets}</div>
+              </article>
+              {scoreBreakdown.bagels > 0 ? (
+                <article style={{ ...statCard, borderColor: 'rgba(155,225,29,0.22)' }}>
+                  <div style={statLabel}>Bagel sets</div>
+                  <div style={{ ...statValue, color: '#9be11d' }}>{scoreBreakdown.bagels}</div>
+                </article>
+              ) : null}
+            </>
+          ) : null}
         </div>
+
+        {access.canUseAdvancedPlayerInsights ? (() => {
+          const rec = buildPlayerRecommendation(ratingStatus, ratingDiff, confidence, statusStreakMatches, ratingView)
+          return (
+            <article style={{ ...panelCard, marginBottom: 16, borderColor: meterTheme.pillBorder, boxShadow: `0 14px 34px rgba(0,0,0,0.12), inset 0 0 0 1px ${meterTheme.pillBorder}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' as const }}>
+                <span style={{ ...dynamicStatusPill }}>{ratingStatus}</span>
+                <span style={sectionKicker}>What this means</span>
+              </div>
+              <h3 style={{ margin: '0 0 10px', color: 'var(--foreground)', fontWeight: 900, fontSize: 20, letterSpacing: '-0.03em' }}>{rec.headline}</h3>
+              <p style={{ margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.65, fontSize: 15 }}>{rec.body}</p>
+            </article>
+          )
+        })() : null}
 
         <article style={panelCard}>
           <div style={panelHead}>
@@ -955,22 +1231,45 @@ export default function PlayerProfilePage() {
                 <div style={sectionKicker}>Trend</div>
                 <h2 style={panelTitle}>{capitalize(ratingView)} rating trend</h2>
               </div>
-              <span style={panelChip}>{chartPoints.length} points</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {(['30d', '90d', 'all'] as const).map((w) => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => setChartWindow(w)}
+                    style={{
+                      padding: '5px 11px', borderRadius: 999, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                      background: chartWindow === w ? 'rgba(116,190,255,0.14)' : 'transparent',
+                      border: `1px solid ${chartWindow === w ? 'rgba(116,190,255,0.30)' : 'rgba(116,190,255,0.12)'}`,
+                      color: chartWindow === w ? '#93c5fd' : 'rgba(190,210,240,0.45)',
+                      transition: 'all 120ms ease',
+                    }}
+                  >
+                    {w === 'all' ? 'All' : w}
+                  </button>
+                ))}
+                <span style={panelChip}>{filteredChartPoints.length} pts</span>
+              </div>
             </div>
 
-            {chartPoints.length === 0 ? (
+            {filteredChartPoints.length === 0 ? (
               <div style={emptyStateStack}>
-                <p style={emptyText}>No rating history yet for this view.</p>
+                <p style={emptyText}>No rating history for this window.</p>
                 <p style={sectionText}>
-                  This profile has not built enough snapshot history for a trendline yet. Check recent matches below or switch rating views to see if singles, doubles, or overall has more signal.
+                  {chartWindow !== 'all'
+                    ? `No matches in the last ${chartWindow}. Switch to "All" to see full history.`
+                    : 'This profile has not built enough snapshot history for a trendline yet.'}
                 </p>
                 <div style={dynamicFollowRow}>
+                  {chartWindow !== 'all' ? (
+                    <button type="button" onClick={() => setChartWindow('all')} style={{ ...secondaryMiniButton }}>Show all time</button>
+                  ) : null}
                   <MiniLink href="/rankings">Compare on rankings</MiniLink>
                   <MiniLink href="/matchup">Open matchup tool</MiniLink>
                 </div>
               </div>
             ) : (
-              <SimpleLineChart points={chartPoints} />
+              <SimpleLineChart points={filteredChartPoints} />
             )}
           </article>
 
@@ -1023,6 +1322,7 @@ export default function PlayerProfilePage() {
                       <th style={tableHead}>Partner</th>
                       <th style={tableHead}>Opponent</th>
                       <th style={tableHead}>Score</th>
+                      <th style={tableHead}>Quality</th>
                       <th style={tableHead}>Result</th>
                       <th style={tableHead}>Rating change</th>
                       <th style={tableHead}>Win%</th>
@@ -1044,6 +1344,19 @@ export default function PlayerProfilePage() {
                         <td style={tableCell}>{match.partner || '—'}</td>
                         <td style={tableCell}>{match.opponent}</td>
                         <td style={tableCell}>{match.score}</td>
+                        <td style={tableCell}>
+                          {(() => {
+                            const q = getMatchScoreQuality(match.score)
+                            if (!q) return <span style={{ color: 'rgba(190,210,240,0.3)', fontSize: 12 }}>—</span>
+                            const isPositive = q === 'Dominant'
+                            const isTense = q === 'Tiebreak' || q === '3 sets'
+                            return (
+                              <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' as const, background: isPositive ? 'rgba(155,225,29,0.10)' : isTense ? 'rgba(251,146,60,0.10)' : 'rgba(116,190,255,0.08)', color: isPositive ? '#d9f84a' : isTense ? '#fed7aa' : '#93c5fd', border: `1px solid ${isPositive ? 'rgba(155,225,29,0.20)' : isTense ? 'rgba(251,146,60,0.18)' : 'rgba(116,190,255,0.14)'}` }}>
+                                {q}
+                              </span>
+                            )
+                          })()}
+                        </td>
                         <td style={tableCell}>
                           <span
                             style={{
@@ -1069,6 +1382,82 @@ export default function PlayerProfilePage() {
             )}
           </article>
         </div>
+
+        {opponentRecords.length > 0 ? (
+          <article style={panelCard}>
+            <div style={panelHead}>
+              <div>
+                <div style={sectionKicker}>Rivalry records</div>
+                <h2 style={panelTitle}>Repeat opponents</h2>
+              </div>
+              <span style={panelChip}>{opponentRecords.length} opponents</span>
+            </div>
+            <p style={sectionText}>
+              Players faced at least twice. Win rate reflects all tracked matches, not just the current view.
+            </p>
+            <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
+              {opponentRecords.map((opp) => {
+                const rate = Math.round((opp.wins / opp.total) * 100)
+                const dominant = rate >= 70
+                const struggling = rate <= 30
+                return (
+                  <div key={opp.name} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const, padding: '11px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{opp.name}</div>
+                      <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 2 }}>{opp.total} match{opp.total === 1 ? '' : 'es'} · last {formatDate(opp.lastDate)}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 900, fontSize: 15, color: '#f8fbff' }}>{opp.wins}-{opp.losses}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, padding: '3px 9px', borderRadius: 999, background: dominant ? 'rgba(155,225,29,0.10)' : struggling ? 'rgba(239,68,68,0.10)' : 'rgba(116,190,255,0.08)', color: dominant ? '#d9f84a' : struggling ? '#fca5a5' : '#93c5fd', border: `1px solid ${dominant ? 'rgba(155,225,29,0.20)' : struggling ? 'rgba(239,68,68,0.18)' : 'rgba(116,190,255,0.14)'}` }}>
+                        {rate}%
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        ) : null}
+
+        {nearbyPlayers.length > 0 ? (
+          <article style={panelCard}>
+            <div style={panelHead}>
+              <div>
+                <div style={sectionKicker}>Competitive context</div>
+                <h2 style={panelTitle}>Who to play</h2>
+              </div>
+              <span style={panelChip}>{nearbyPlayers.length} within ±0.15</span>
+            </div>
+            <p style={sectionText}>
+              Players currently rated within 0.15 TIQ of this profile — the most competitive match range for pushing the signal in either direction.
+            </p>
+            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+              {nearbyPlayers.map((p) => {
+                const diff = p.overall_dynamic_rating - selectedDynamicRating
+                const isHigher = diff > 0.02
+                const isLower = diff < -0.02
+                return (
+                  <div
+                    key={p.id}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const, padding: '13px 16px', borderRadius: 18, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                  >
+                    <div>
+                      <Link href={`/players/${p.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{p.name}</Link>
+                      <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{p.location || 'No location'}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: '#f8fbff' }}>{p.overall_dynamic_rating.toFixed(2)}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: isHigher ? '#93c5fd' : isLower ? '#9be11d' : 'rgba(224,234,247,0.5)' }}>
+                        {isHigher ? `▲ +${diff.toFixed(2)}` : isLower ? `▼ ${diff.toFixed(2)}` : '≈ even'}
+                      </span>
+                      <Link href={`/matchup?playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(p.id)}`} style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.18)', background: 'rgba(116,190,255,0.07)', color: '#93c5fd', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>Matchup</Link>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        ) : null}
       </section>
     </SiteShell>
   )
@@ -1221,9 +1610,13 @@ function dotStyle(point: ChartPoint): { fill: string; halo: string; r: number } 
 }
 
 function SimpleLineChart({ points }: { points: ChartPoint[] }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number; flip: boolean } | null>(null)
+
   const width = 920
-  const height = 280
+  const height = 304
   const padding = 34
+  const chartHeight = 256
 
   const minRating = Math.min(...points.map((p) => p.rating))
   const maxRating = Math.max(...points.map((p) => p.rating))
@@ -1233,7 +1626,7 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
   const path = points
     .map((point, index) => {
       const x = padding + index * xStep
-      const y = height - padding - ((point.rating - minRating) / spread) * (height - padding * 2)
+      const y = chartHeight - padding - ((point.rating - minRating) / spread) * (chartHeight - padding * 2)
       return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
     })
     .join(' ')
@@ -1242,9 +1635,36 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
   const bigGains = points.filter((p) => p.delta !== null && p.delta > 0.08).length
   const bigLosses = points.filter((p) => p.delta !== null && p.delta < -0.08).length
 
+  const labelIndices = getSpreadIndices(points.length, 6)
+  const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null
+
+  function handleChartMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    if (points.length === 0) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const relX = e.clientX - rect.left
+    const svgX = (relX / rect.width) * width
+    const nearestIdx = xStep > 0
+      ? Math.min(Math.max(0, Math.round((svgX - padding) / xStep)), points.length - 1)
+      : 0
+    setHoveredIndex(nearestIdx)
+    setTooltipPos({ x: relX, y: e.clientY - rect.top, flip: relX > rect.width * 0.55 })
+  }
+
+  function handleChartMouseLeave() {
+    setHoveredIndex(null)
+    setTooltipPos(null)
+  }
+
   return (
-    <div style={chartShell}>
-      <svg width={width} height={height} style={chartSvg} viewBox={`0 0 ${width} ${height}`}>
+    <div style={{ ...chartShell, position: 'relative' }}>
+      <svg
+        width={width}
+        height={height}
+        style={{ ...chartSvg, cursor: points.length > 0 ? 'crosshair' : undefined }}
+        viewBox={`0 0 ${width} ${height}`}
+        onMouseMove={handleChartMouseMove}
+        onMouseLeave={handleChartMouseLeave}
+      >
         <defs>
           <linearGradient id="playerLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#255BE3" />
@@ -1256,7 +1676,7 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
         <rect x="0" y="0" width={width} height={height} rx="20" fill="#0f1c38" />
 
         {[0.2, 0.4, 0.6, 0.8].map((line, index) => {
-          const y = padding + (height - padding * 2) * line
+          const y = padding + (chartHeight - padding * 2) * line
           return (
             <line
               key={index}
@@ -1270,6 +1690,18 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
           )
         })}
 
+        {[1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0]
+          .filter((band) => band >= minRating - 0.05 && band <= maxRating + 0.05)
+          .map((band) => {
+            const y = chartHeight - padding - ((band - minRating) / spread) * (chartHeight - padding * 2)
+            return (
+              <g key={`band-${band}`}>
+                <line x1={padding} x2={width - padding} y1={y} y2={y} stroke="rgba(147,197,253,0.18)" strokeWidth="1" strokeDasharray="4 3" />
+                <text x={padding - 5} y={y + 4} textAnchor="end" fill="rgba(147,197,253,0.45)" fontSize="10" fontWeight="700">{band.toFixed(1)}</text>
+              </g>
+            )
+          })}
+
         <path
           d={path}
           fill="none"
@@ -1280,7 +1712,7 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
 
         {points.map((point, index) => {
           const x = padding + index * xStep
-          const y = height - padding - ((point.rating - minRating) / spread) * (height - padding * 2)
+          const y = chartHeight - padding - ((point.rating - minRating) / spread) * (chartHeight - padding * 2)
           const { fill, halo, r } = dotStyle(point)
 
           return (
@@ -1290,7 +1722,77 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
             </g>
           )
         })}
+
+        {labelIndices.map((i) => {
+          const point = points[i]
+          if (!point) return null
+          const x = padding + i * xStep
+          return (
+            <text
+              key={`label-${i}`}
+              x={x}
+              y={height - 6}
+              textAnchor="middle"
+              fill="rgba(190,210,240,0.55)"
+              fontSize="11"
+              fontWeight="600"
+            >
+              {formatChartDate(point.date)}
+            </text>
+          )
+        })}
+
+        {hoveredIndex !== null && (() => {
+          const hx = padding + hoveredIndex * xStep
+          const hy = chartHeight - padding - ((points[hoveredIndex].rating - minRating) / spread) * (chartHeight - padding * 2)
+          return (
+            <circle
+              cx={hx}
+              cy={hy}
+              r={11}
+              fill="rgba(255,255,255,0.08)"
+              stroke="rgba(255,255,255,0.45)"
+              strokeWidth={1.5}
+              style={{ pointerEvents: 'none' }}
+            />
+          )
+        })()}
       </svg>
+
+      {hoveredPoint && tooltipPos ? (
+        <div
+          style={{
+            position: 'absolute',
+            top: Math.max(tooltipPos.y - 92, 8),
+            left: tooltipPos.flip ? tooltipPos.x - 178 : tooltipPos.x + 14,
+            pointerEvents: 'none',
+            zIndex: 10,
+            background: 'rgba(8,18,38,0.97)',
+            border: '1px solid rgba(116,190,255,0.24)',
+            borderRadius: 14,
+            padding: '10px 14px',
+            minWidth: 162,
+            boxShadow: '0 14px 34px rgba(0,0,0,0.38)',
+          }}
+        >
+          <div style={{ color: '#8fb7ff', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 6 }}>
+            {formatChartDate(hoveredPoint.date)}
+          </div>
+          <div style={{ color: '#f8fbff', fontSize: 19, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>
+            {hoveredPoint.rating.toFixed(3)}
+          </div>
+          {hoveredPoint.delta !== null ? (
+            <div style={{ marginTop: 5, fontSize: 13, fontWeight: 800, color: hoveredPoint.delta >= 0 ? '#9be11d' : '#f87171' }}>
+              {hoveredPoint.delta >= 0 ? '+' : ''}{hoveredPoint.delta.toFixed(3)} change
+            </div>
+          ) : null}
+          {hoveredPoint.winProbability !== null ? (
+            <div style={{ marginTop: 4, fontSize: 12, fontWeight: 700, color: 'rgba(224,234,247,0.68)' }}>
+              {hoveredPoint.winProbability}% win prob
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div style={chartMeta}>
         {points.length} data point{points.length === 1 ? '' : 's'} · Latest{' '}
@@ -1301,6 +1803,74 @@ function SimpleLineChart({ points }: { points: ChartPoint[] }) {
       </div>
     </div>
   )
+}
+
+function buildPlayerRecommendation(
+  status: RatingStatus,
+  ratingDiff: number,
+  confidence: ConfidenceLevel,
+  statusStreak: number,
+  ratingView: RatingView,
+): { headline: string; body: string } {
+  const view = ratingView === 'overall' ? 'overall' : ratingView
+  const streakNote = statusStreak >= 5 ? ` This signal has held for ${statusStreak} consecutive matches.` : ''
+  const diffStr = `${Math.abs(ratingDiff).toFixed(2)}`
+  const confNote = confidence === 'Low' ? 'Sample is still building — more matches will sharpen this read.' : confidence === 'High' ? 'This is a high-confidence read based on your match history.' : 'Moderate sample — a few more results will lock this in.'
+
+  switch (status) {
+    case 'Bump Up Pace':
+      return {
+        headline: 'You\'re tracking ahead of your USTA level.',
+        body: `TIQ shows you playing ${diffStr} above your USTA base in ${view}.${streakNote} ${confNote} Keep competing at this level — especially in singles against similarly-rated opponents — to hold this gap through your next rating review window. Avoid coasting against lower-rated competition; the engine weights quality of result over volume.`,
+      }
+    case 'Trending Up':
+      return {
+        headline: 'Good momentum — keep pushing.',
+        body: `TIQ is tracking ${diffStr} above your USTA base in ${view}.${streakNote} You're not yet in Bump Up Pace range, but ${(0.15 - ratingDiff).toFixed(2)} more points of separation would get you there. Focus on wins against players at or above your rating — that's where the signal moves fastest. ${confNote}`,
+      }
+    case 'Holding':
+      return {
+        headline: 'Performing at level.',
+        body: `TIQ and USTA signals are closely aligned (${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}) in ${view}.${streakNote} ${confNote} To shift the signal upward, prioritize matches against players rated at or above you — the engine rewards quality of competition over easy wins.`,
+      }
+    case 'At Risk':
+      return {
+        headline: 'USTA signal is sliding below your base.',
+        body: `TIQ shows ${diffStr} below your USTA base in ${view}.${streakNote} ${confNote} Competitive wins at or near your rated level are the most direct recovery path. Close losses against strong competition still move the signal better than blowout wins against lower-rated players — focus on quality matchups.`,
+      }
+    case 'Drop Watch':
+      return {
+        headline: 'Gap warrants attention.',
+        body: `TIQ shows ${diffStr} below your USTA base in ${view} — well into knockdown range.${streakNote} ${confNote} Consistent wins against rated opponents are the clearest path forward. Review your recent match log: look for patterns in the loss column and check whether your toughest matches are close or getting away from you — that distinction matters for recovery pace.`,
+      }
+  }
+}
+
+function getMatchScoreQuality(score: string | null): string {
+  if (!score) return ''
+  if (/\b6-0\b|\b0-6\b/.test(score)) return 'Dominant'
+  if (/7-6|6-7|\(/.test(score)) return 'Tiebreak'
+  const sets = score.split(/[;,|]/).map((s) => s.trim()).filter((s) => /\d-\d/.test(s))
+  if (sets.length >= 3) return '3 sets'
+  return ''
+}
+
+function getSpreadIndices(total: number, count: number): number[] {
+  if (total === 0) return []
+  if (total <= count) return Array.from({ length: total }, (_, i) => i)
+  const result = [0]
+  const step = (total - 1) / (count - 1)
+  for (let i = 1; i < count - 1; i++) {
+    result.push(Math.round(i * step))
+  }
+  result.push(total - 1)
+  return result
+}
+
+function formatChartDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return dateStr.slice(5) // fallback: MM-DD
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function normalizeMatchType(value: string | null | undefined): MatchType {

@@ -809,10 +809,10 @@ function expectedScore(playerRating: number, opponentRating: number) {
 }
 
 export function getProvisionalkMultiplier(matchesProcessed: number): number {
-  if (matchesProcessed < 10) return 2.0
-  if (matchesProcessed < 20) return 1.5
-  if (matchesProcessed < 30) return 1.2
-  return 1.0
+  // Smooth linear decay from 2.0 at 0 matches to 1.0 at 30+ matches.
+  // Eliminates the sharp step-downs of the old tier system.
+  if (matchesProcessed >= 30) return 1.0
+  return roundRating(2.0 - matchesProcessed / 30)
 }
 
 export function getRecencyWeight(matchDate: string, mostRecentMatchDate: string): number {

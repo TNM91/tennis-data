@@ -1299,6 +1299,7 @@ export default function LineupBuilderPage() {
                     const tone = statusTone(player.availabilityStatus)
                     const assigned = assignedPlayerIds.has(player.id)
 
+                    const ratingStatus = getAnalyticsRatingStatus(player)
                     return (
                       <article key={player.id} style={poolCardStyle}>
                         <div style={poolCardTopStyle}>
@@ -1311,9 +1312,16 @@ export default function LineupBuilderPage() {
                             </div>
                           </div>
 
-                          <span style={{ ...statusBadgeStyle, ...tone }}>
-                            {player.availabilityStatus || 'Unknown'}
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 5 }}>
+                            <span style={{ ...statusBadgeStyle, ...tone }}>
+                              {player.availabilityStatus || 'Unknown'}
+                            </span>
+                            {ratingStatus ? (
+                              <span style={{ ...miniPillStyle, ...getAnalyticsStatusStyle(ratingStatus) }}>
+                                {ratingStatus}
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
 
                         <div style={pillRowStyle}>
@@ -2137,6 +2145,30 @@ const assignedPillStyle: CSSProperties = {
   ...miniPillStyle,
   background: 'rgba(96, 221, 116, 0.14)',
   color: '#dffad5',
+}
+
+type AnalyticsRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
+function getAnalyticsRatingStatus(player: PlayerRow): AnalyticsRatingStatus | null {
+  const base = player.overall_rating
+  const usta = player.overall_usta_dynamic_rating
+  if (base == null || usta == null) return null
+  const diff = usta - base
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getAnalyticsStatusStyle(status: AnalyticsRatingStatus): CSSProperties {
+  switch (status) {
+    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.14)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.26)' }
+    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
+    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
+    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
+    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+  }
 }
 
 const cardNoteTextStyle: CSSProperties = {

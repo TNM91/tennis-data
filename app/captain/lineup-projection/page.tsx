@@ -31,6 +31,7 @@ type PlayerRelation =
       id: string
       name: string
       flight: string | null
+      overall_rating: number | null
       overall_dynamic_rating: number | null
       overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
@@ -44,6 +45,7 @@ type PlayerRelation =
       id: string
       name: string
       flight: string | null
+      overall_rating: number | null
       overall_dynamic_rating: number | null
       overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
@@ -80,11 +82,14 @@ type AvailabilityRow = {
   notes: string | null
 }
 
+type ProjectionRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
 type RosterPlayer = {
   id: string
   name: string
   flight: string | null
   appearances: number
+  overallBase: number | null
   singlesDynamic: number | null
   singlesUstaDynamic: number | null
   doublesDynamic: number | null
@@ -365,6 +370,7 @@ export default function LineupProjectionPage() {
             id,
             name,
             flight,
+            overall_rating,
             overall_dynamic_rating,
             overall_usta_dynamic_rating,
             singles_dynamic_rating,
@@ -395,6 +401,7 @@ export default function LineupProjectionPage() {
             name: player.name,
             flight: player.flight,
             appearances: 0,
+            overallBase: player.overall_rating,
             singlesDynamic: player.singles_dynamic_rating,
             singlesUstaDynamic: player.singles_usta_dynamic_rating,
             doublesDynamic: player.doubles_dynamic_rating,
@@ -1087,7 +1094,9 @@ export default function LineupProjectionPage() {
               </div>
 
               <div style={rosterGridResponsive(isSmallMobile, isTablet)}>
-                {roster.map((player) => (
+                {roster.map((player) => {
+                  const rStatus = getProjectionRatingStatus(player)
+                  return (
                   <div key={player.id} style={surfaceCard}>
                     <div style={playerNameStyle}>{player.name}</div>
                     <div style={playerMetaStyle}>
@@ -1097,6 +1106,7 @@ export default function LineupProjectionPage() {
                     <div style={pillRowStyle}>
                       <span style={statusPillFor(player.availabilityStatus)}>{getAvailabilityLabel(player.availabilityStatus)}</span>
                       {player.preferredRole ? <span style={miniPillSlate}>Prefers {player.preferredRole}</span> : null}
+                      {rStatus ? <span style={getProjectionStatusStyle(rStatus)}>{rStatus}</span> : null}
                     </div>
 
                     <div style={miniGridResponsive(isSmallMobile)}>
@@ -1114,7 +1124,8 @@ export default function LineupProjectionPage() {
                       <div style={noteBoxStyle}><strong>Captain note:</strong> {player.lineupNotes}</div>
                     ) : null}
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </section>
 
@@ -1877,6 +1888,28 @@ const miniPillGreen: CSSProperties = {
   ...badgeBase,
   background: 'rgba(96, 221, 116, 0.14)',
   color: '#dffad5',
+}
+
+function getProjectionRatingStatus(player: RosterPlayer): ProjectionRatingStatus | null {
+  const base = player.overallBase
+  const usta = player.overallUstaDynamic
+  if (base == null || usta == null) return null
+  const diff = usta - base
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getProjectionStatusStyle(status: ProjectionRatingStatus): CSSProperties {
+  switch (status) {
+    case 'Bump Up Pace': return { ...miniPillSlate, background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
+    case 'Trending Up':  return { ...miniPillSlate, background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
+    case 'Holding':      return { ...miniPillSlate, background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
+    case 'At Risk':      return { ...miniPillSlate, background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
+    case 'Drop Watch':   return { ...miniPillSlate, background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+  }
 }
 
 const projectionGridStyle: CSSProperties = {

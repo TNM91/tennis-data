@@ -27,6 +27,8 @@ type MatchRow = {
   line_number: string | null
 }
 
+type AvailRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
 type PlayerRelation =
   | {
       id: string
@@ -34,6 +36,7 @@ type PlayerRelation =
       flight: string | null
       preferred_role: string | null
       lineup_notes: string | null
+      overall_rating: number | null
       overall_dynamic_rating: number | null
       overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
@@ -47,6 +50,7 @@ type PlayerRelation =
       flight: string | null
       preferred_role: string | null
       lineup_notes: string | null
+      overall_rating: number | null
       overall_dynamic_rating: number | null
       overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
@@ -70,6 +74,7 @@ type RosterPlayer = {
   preferredRole: string | null
   lineupNotes: string | null
   appearances: number
+  overallBase: number | null
   overallDynamic: number | null
   overallUstaDynamic: number | null
   singlesDynamic: number | null
@@ -351,6 +356,7 @@ export default function LineupAvailabilityPage() {
             flight,
             preferred_role,
             lineup_notes,
+            overall_rating,
             overall_dynamic_rating,
             overall_usta_dynamic_rating,
             singles_dynamic_rating,
@@ -381,6 +387,7 @@ export default function LineupAvailabilityPage() {
             preferredRole: player.preferred_role,
             lineupNotes: player.lineup_notes,
             appearances: 0,
+            overallBase: player.overall_rating,
             overallDynamic: player.overall_dynamic_rating,
             overallUstaDynamic: player.overall_usta_dynamic_rating,
             singlesDynamic: player.singles_dynamic_rating,
@@ -1119,6 +1126,11 @@ export default function LineupAvailabilityPage() {
                           <span style={statusPillFor(current.status)}>{statusLabel(current.status)}</span>
                           <div style={miniPillSlate}>TIQ {formatRating(player.overallDynamic)}</div>
                           <div style={miniPillSlate}>USTA {formatRating(player.overallUstaDynamic)}</div>
+                          {(() => {
+                            const s = getAvailRatingStatus(player)
+                            if (!s) return null
+                            return <div style={getAvailStatusStyle(s)}>{s}</div>
+                          })()}
                         </div>
                       </div>
 
@@ -1734,6 +1746,29 @@ const heroBadgeRowStyleCompact: CSSProperties = {
   marginTop: '14px',
 }
 
+
+function getAvailRatingStatus(player: RosterPlayer): AvailRatingStatus | null {
+  const base = player.overallBase
+  const usta = player.overallUstaDynamic
+  if (base == null || usta == null) return null
+  const diff = usta - base
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getAvailStatusStyle(status: AvailRatingStatus): CSSProperties {
+  const base: CSSProperties = { borderRadius: 999, padding: '3px 9px', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' as const }
+  switch (status) {
+    case 'Bump Up Pace': return { ...base, background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
+    case 'Trending Up':  return { ...base, background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
+    case 'Holding':      return { ...base, background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
+    case 'At Risk':      return { ...base, background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
+    case 'Drop Watch':   return { ...base, background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+  }
+}
 
 const miniPillSlate: CSSProperties = {
   display: 'inline-flex',

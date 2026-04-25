@@ -70,6 +70,12 @@ type HeadToHeadState = {
     score: string
     winner: 'A' | 'B'
   } | null
+  recentMatches: Array<{
+    matchDate: string
+    matchType: MatchType
+    score: string
+    winner: 'A' | 'B'
+  }>
 }
 
 type ComparisonState = {
@@ -380,6 +386,7 @@ export default function MatchupPage() {
       let doublesA = 0
       let doublesB = 0
       let lastMatch: HeadToHeadState['lastMatch'] = null
+      const allH2H: HeadToHeadState['recentMatches'] = []
 
       for (const match of typedMatches) {
         const participants = participantsByMatchId.get(match.id) ?? []
@@ -402,6 +409,13 @@ export default function MatchupPage() {
           else doublesB += 1
         }
 
+        allH2H.push({
+          matchDate: match.match_date,
+          matchType: match.match_type,
+          score: match.score,
+          winner: playerAWon ? 'A' : 'B',
+        })
+
         if (
           !lastMatch ||
           new Date(match.match_date).getTime() > new Date(lastMatch.matchDate).getTime()
@@ -415,6 +429,10 @@ export default function MatchupPage() {
         }
       }
 
+      const recentMatches = allH2H
+        .sort((a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime())
+        .slice(0, 5)
+
       setHeadToHead({
         total,
         winsA,
@@ -424,6 +442,7 @@ export default function MatchupPage() {
         doublesA,
         doublesB,
         lastMatch,
+        recentMatches,
       })
     } catch (err) {
       console.error('Failed to load singles head-to-head', err)
@@ -509,6 +528,7 @@ export default function MatchupPage() {
       let doublesA = 0
       let doublesB = 0
       let lastMatch: HeadToHeadState['lastMatch'] = null
+      const allH2H: HeadToHeadState['recentMatches'] = []
 
       for (const match of typedMatches) {
         const participants = participantsByMatchId.get(match.id) ?? []
@@ -540,6 +560,13 @@ export default function MatchupPage() {
           doublesB += 1
         }
 
+        allH2H.push({
+          matchDate: match.match_date,
+          matchType: match.match_type,
+          score: match.score,
+          winner: teamAWon ? 'A' : 'B',
+        })
+
         if (
           !lastMatch ||
           new Date(match.match_date).getTime() > new Date(lastMatch.matchDate).getTime()
@@ -553,6 +580,10 @@ export default function MatchupPage() {
         }
       }
 
+      const recentMatches = allH2H
+        .sort((a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime())
+        .slice(0, 5)
+
       setHeadToHead({
         total,
         winsA,
@@ -562,6 +593,7 @@ export default function MatchupPage() {
         doublesA,
         doublesB,
         lastMatch,
+        recentMatches,
       })
     } catch (err) {
       console.error('Failed to load doubles head-to-head', err)
@@ -749,6 +781,7 @@ export default function MatchupPage() {
       doublesA: 0,
       doublesB: 0,
       lastMatch: null,
+      recentMatches: [],
     })
   }
 
@@ -1585,7 +1618,54 @@ export default function MatchupPage() {
                       />
                     </div>
 
-                    {headToHead.lastMatch ? (
+                    {headToHead.total > 0 ? (() => {
+                      const pctA = Math.round((headToHead.winsA / headToHead.total) * 100)
+                      const pctB = 100 - pctA
+                      const leaderLabel = headToHead.winsA > headToHead.winsB
+                        ? comparison.leftLabel
+                        : headToHead.winsB > headToHead.winsA
+                          ? comparison.rightLabel
+                          : null
+                      return (
+                        <div style={{ marginTop: 18 }}>
+                          <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>
+                            Head-to-head dominance{leaderLabel ? ` · ${leaderLabel} leads` : ' · Even'}
+                          </div>
+                          <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 12, background: 'rgba(255,255,255,0.06)' }}>
+                            <div style={{ width: `${pctA}%`, background: 'linear-gradient(90deg, #9be11d, #4ade80)', transition: 'width 500ms ease', minWidth: pctA > 0 ? 4 : 0 }} />
+                            <div style={{ flex: 1, background: 'rgba(116,190,255,0.35)' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                            <span style={{ color: '#d9f84a', fontWeight: 800, fontSize: 13 }}>{comparison.leftLabel} {pctA}%</span>
+                            <span style={{ color: '#93c5fd', fontWeight: 800, fontSize: 13 }}>{pctB}% {comparison.rightLabel}</span>
+                          </div>
+                        </div>
+                      )
+                    })() : null}
+
+                    {headToHead.recentMatches.length > 0 ? (
+                      <div style={{ marginTop: 18 }}>
+                        <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>Match history</div>
+                        {headToHead.recentMatches.map((m, i) => {
+                          const quality = getH2HScoreQuality(m.score)
+                          const winnerLabel = m.winner === 'A' ? comparison.leftLabel : comparison.rightLabel
+                          return (
+                            <div
+                              key={i}
+                              style={{ display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 6 }}
+                            >
+                              <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 12, fontWeight: 700 }}>{formatDate(m.matchDate)}</span>
+                              <span style={{ color: 'rgba(190,210,240,0.5)', fontSize: 12 }}>{capitalize(m.matchType)}</span>
+                              <span style={{ color: '#f8fbff', fontWeight: 700, fontSize: 13 }}>{m.score || '—'}</span>
+                              {quality ? (
+                                <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{quality}</span>
+                              ) : null}
+                              <span style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, background: m.winner === 'A' ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${m.winner === 'A' ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: m.winner === 'A' ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{winnerLabel}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : headToHead.lastMatch ? (
                       <p style={{ ...paragraph, marginTop: '16px' }}>
                         <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} ·{' '}
                         {capitalize(headToHead.lastMatch.matchType)} ·{' '}
@@ -1637,6 +1717,13 @@ export default function MatchupPage() {
       </div>
     </SiteShell>
   )
+}
+
+function getH2HScoreQuality(score: string | null | undefined): string {
+  if (!score) return ''
+  if (/\b6-0\b/.test(score) || /\b0-6\b/.test(score)) return 'Dominant'
+  if (/7-6|6-7|\(/.test(score)) return 'Tiebreak'
+  return ''
 }
 
 function CompareCard({
@@ -1702,6 +1789,20 @@ function CompareCard({
         </div>
         <div style={highlightValue}>{formatRating(projectionRating)}</div>
       </div>
+
+      {(() => {
+        const tiqVal = ratingView === 'singles' ? ratings.singles : ratingView === 'doubles' ? ratings.doubles : ratings.overall
+        const ustaVal = ratingView === 'singles' ? ustaRatings.singles : ratingView === 'doubles' ? ustaRatings.doubles : ustaRatings.overall
+        if (tiqVal == null || ustaVal == null) return null
+        const diff = tiqVal - ustaVal
+        const label = diff >= 0.15 ? '▲ Hot' : diff >= 0.07 ? '↑ Rising' : diff <= -0.15 ? '▼ Cooling' : diff <= -0.07 ? '↓ Softening' : '→ Stable'
+        const color = diff >= 0.07 ? '#9be11d' : diff <= -0.07 ? '#f87171' : 'rgba(190,210,240,0.6)'
+        return (
+          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color }}>
+            {label} · TIQ signal {diff >= 0 ? '+' : ''}{diff.toFixed(2)}
+          </div>
+        )
+      })()}
     </div>
   )
 }

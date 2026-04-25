@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -184,8 +186,8 @@ export default function AnomaliesPage() {
   }), [anomalies])
 
   return (
-    <AdminGate>
-      <SiteShell active="/admin">
+    <SiteShell active="/admin">
+      <AdminGate>
         <div style={shell}>
           <div style={header}>
             <div>
@@ -264,8 +266,8 @@ export default function AnomaliesPage() {
             </div>
           )}
         </div>
-      </SiteShell>
-    </AdminGate>
+      </AdminGate>
+    </SiteShell>
   )
 }
 

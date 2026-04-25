@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+
 import Link from 'next/link'
 import { type ReactNode, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'

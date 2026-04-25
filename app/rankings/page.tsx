@@ -49,6 +49,7 @@ type SnapshotRow = {
   dynamic_rating: number
   snapshot_date: string
   track?: string | null
+  delta?: number | null
 }
 
 type RankedPlayer = Player & {
@@ -61,6 +62,11 @@ type RankedPlayer = Player & {
   status: RatingStatus
   trendDirection: TrendDirection
   trendDelta: number
+  formScore: number
+  percentile: number
+  wins: number
+  losses: number
+  winRate: number | null
 }
 
 const RANKINGS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE || null
@@ -78,6 +84,9 @@ export default function RankingsPage() {
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [hoveredPodium, setHoveredPodium] = useState<string | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+  const [hideInactive, setHideInactive] = useState(false)
+  const [sortCol, setSortCol] = useState<'tiq' | 'trend' | 'form' | 'winRate' | 'matches'>('tiq')
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const ratingViewLabel = getRatingViewLabel(ratingView)
@@ -157,7 +166,7 @@ export default function RankingsPage() {
 
       const { data: snapshotData, error: snapshotError } = await supabase
         .from('rating_snapshots')
-        .select('player_id, rating_type, dynamic_rating, snapshot_date, track')
+        .select('player_id, rating_type, dynamic_rating, snapshot_date, track, delta')
         .in('player_id', playerIds)
         .eq('track', 'tiq')
         .order('snapshot_date', { ascending: true })
@@ -203,7 +212,7 @@ export default function RankingsPage() {
       return matchesSearch && matchesLocation
     })
   }, [players, searchText, locationFilter])
-  const hasActiveFilters = searchText.trim().length > 0 || locationFilter.length > 0
+  const hasActiveFilters = searchText.trim().length > 0 || locationFilter.length > 0 || hideInactive
 
   const snapshotMap = useMemo(() => {
     const map = new Map<string, SnapshotRow[]>()
@@ -233,6 +242,14 @@ export default function RankingsPage() {
         const trendDelta = getRecentTrendDelta(trendPoints)
         // Signal uses USTA dynamic vs USTA base — mirrors what USTA measures for bump/knockdown.
         const status = getRatingStatus(baseRating, ustaSelectedRating)
+        const recent5 = trendPoints.slice(-5)
+        const formScore = recent5.length >= 2
+          ? roundToTwo(recent5[recent5.length - 1].dynamic_rating - recent5[0].dynamic_rating)
+          : 0
+
+        const wins = trendPoints.filter((s) => typeof s.delta === 'number' && s.delta > 0).length
+        const losses = trendPoints.filter((s) => typeof s.delta === 'number' && s.delta < 0).length
+        const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : null
 
         return {
           ...player,
@@ -245,12 +262,43 @@ export default function RankingsPage() {
           status,
           trendDirection,
           trendDelta,
+          formScore,
+          percentile: 0,
+          wins,
+          losses,
+          winRate,
         }
       })
       .sort((a, b) => b.selectedRating - a.selectedRating)
-  }, [filteredPlayers, ratingView, snapshotMap, matchCounts])
+      .filter((player) => {
+        if (!hideInactive) return true
+        const pts = getTrendPointsForPlayer(snapshotMap, player.id, ratingView)
+        const last = pts[pts.length - 1]
+        if (!last) return false
+        return Date.now() - new Date(last.snapshot_date).getTime() <= 90 * 24 * 60 * 60 * 1000
+      })
+      .map((player, idx, arr) => ({
+        ...player,
+        percentile: Math.ceil(((idx + 1) / arr.length) * 100),
+      }))
+  }, [filteredPlayers, ratingView, snapshotMap, matchCounts, hideInactive])
 
   const topThree = rankedPlayers.slice(0, 3)
+
+  const ratingDistribution = useMemo(() => {
+    const bands = [
+      { label: '2.5–3.0', min: 2.5, max: 3.0 },
+      { label: '3.0–3.5', min: 3.0, max: 3.5 },
+      { label: '3.5–4.0', min: 3.5, max: 4.0 },
+      { label: '4.0–4.5', min: 4.0, max: 4.5 },
+      { label: '4.5–5.0', min: 4.5, max: 5.0 },
+      { label: '5.0+',   min: 5.0, max: Infinity },
+    ]
+    return bands.map((band) => ({
+      ...band,
+      count: rankedPlayers.filter((p) => p.selectedRating >= band.min && p.selectedRating < band.max).length,
+    }))
+  }, [rankedPlayers])
 
   const avgSelected = useMemo(() => {
     if (rankedPlayers.length === 0) return 0
@@ -261,6 +309,42 @@ export default function RankingsPage() {
   const avgMatches = useMemo(() => {
     if (rankedPlayers.length === 0) return 0
     return rankedPlayers.reduce((sum, player) => sum + player.matches, 0) / rankedPlayers.length
+  }, [rankedPlayers])
+
+  const playerMovers = useMemo(() => {
+    return rankedPlayers
+      .map((player) => {
+        const pts = snapshotMap.get(`${player.id}:${ratingView}`) ?? []
+        if (pts.length < 2) return null
+        const delta = roundToTwo(pts[pts.length - 1].dynamic_rating - pts[0].dynamic_rating)
+        return { player, delta }
+      })
+      .filter((m): m is { player: RankedPlayer; delta: number } => m !== null)
+  }, [rankedPlayers, snapshotMap, ratingView])
+
+  const risers = useMemo(
+    () => playerMovers.filter((m) => m.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 3),
+    [playerMovers],
+  )
+  const fallers = useMemo(
+    () => playerMovers.filter((m) => m.delta < 0).sort((a, b) => a.delta - b.delta).slice(0, 3),
+    [playerMovers],
+  )
+
+  const tieredRows = useMemo(() => {
+    type DividerRow = { type: 'divider'; tier: string; key: string }
+    type PlayerRow = { type: 'player'; player: RankedPlayer; rank: number }
+    const rows: Array<DividerRow | PlayerRow> = []
+    let lastTier = ''
+    rankedPlayers.forEach((player, i) => {
+      const tier = getTierLabel(player.baseRating)
+      if (tier !== lastTier) {
+        rows.push({ type: 'divider', tier, key: `divider-${tier}` })
+        lastTier = tier
+      }
+      rows.push({ type: 'player', player, rank: i + 1 })
+    })
+    return rows
   }, [rankedPlayers])
 
   const dynamicHeroWrap: CSSProperties = {
@@ -443,21 +527,35 @@ export default function RankingsPage() {
                 <div style={errorBanner}>{error}</div>
               ) : null}
 
-              {hasActiveFilters ? (
-                <div style={panelChipWrap}>
-                  <span style={panelChip}>Filters active</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setHideInactive((v) => !v)}
+                  style={{
+                    padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                    background: hideInactive ? 'rgba(155,225,29,0.12)' : 'transparent',
+                    border: `1px solid ${hideInactive ? 'rgba(155,225,29,0.28)' : 'rgba(255,255,255,0.12)'}`,
+                    color: hideInactive ? '#d9f84a' : 'var(--shell-copy-muted)',
+                    transition: 'all 140ms ease',
+                  }}
+                >
+                  {hideInactive ? 'Active only ✓' : 'Active only'}
+                </button>
+
+                {hasActiveFilters ? (
                   <button
                     type="button"
                     onClick={() => {
                       setSearchText('')
                       setLocationFilter('')
+                      setHideInactive(false)
                     }}
                     style={clearFilterButton}
                   >
-                    Clear filters
+                    Clear all
                   </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
 
               <div id="rankings-filter-helper" style={controlsHelperText}>
                 Search by player or location, then use the TIQ rating basis buttons to shift the board between overall, singles, and doubles.
@@ -566,6 +664,72 @@ export default function RankingsPage() {
                 <div style={editorialCardText}>Use rankings to shortlist players, then inspect profiles before drawing conclusions.</div>
               </div>
             </div>
+
+            {rankedPlayers.length > 0 ? (() => {
+              const maxCount = Math.max(...ratingDistribution.map((b) => b.count), 1)
+              return (
+                <div style={{ marginTop: 24 }}>
+                  <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>
+                    Rating distribution — {ratingViewLabel}
+                  </div>
+                  <div style={{ display: 'grid', gap: 7 }}>
+                    {ratingDistribution.map((band) => (
+                      <div key={band.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ minWidth: 70, color: 'rgba(190,210,240,0.6)', fontSize: 11, fontWeight: 700, textAlign: 'right' as const }}>{band.label}</span>
+                        <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 999, overflow: 'hidden', height: 18 }}>
+                          <div style={{ width: `${(band.count / maxCount) * 100}%`, background: 'linear-gradient(90deg, rgba(37,91,227,0.6), rgba(63,167,255,0.5))', height: '100%', borderRadius: 999, transition: 'width 400ms ease', minWidth: band.count > 0 ? 4 : 0 }} />
+                        </div>
+                        <span style={{ minWidth: 28, color: 'rgba(190,210,240,0.55)', fontSize: 12, fontWeight: 800 }}>{band.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })() : null}
+          </article>
+        </section>
+      ) : null}
+
+      {!loading && !error && (risers.length > 0 || fallers.length > 0) ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>Movers</div>
+            <h2 style={panelTitle}>Who&apos;s rising and falling.</h2>
+            <p style={editorialText}>
+              Based on the full snapshot history for the current rating view. Rising players have gained the most since their first recorded match; falling players have given back the most.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 20, marginTop: 20 }}>
+              {risers.length > 0 ? (
+                <div>
+                  <div style={{ color: '#9be11d', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 }}>Rising</div>
+                  {risers.map(({ player, delta }) => (
+                    <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)', marginBottom: 8 }}>
+                      <div>
+                        <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                        <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
+                      </div>
+                      <span style={{ color: '#9be11d', fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em' }}>+{delta.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {fallers.length > 0 ? (
+                <div>
+                  <div style={{ color: '#f87171', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 }}>Falling</div>
+                  {fallers.map(({ player, delta }) => (
+                    <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 16, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.14)', marginBottom: 8 }}>
+                      <div>
+                        <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                        <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
+                      </div>
+                      <span style={{ color: '#f87171', fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em' }}>{delta.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </article>
         </section>
       ) : null}
@@ -593,6 +757,8 @@ export default function RankingsPage() {
                   <th style={tableHead}>Location</th>
                   <th style={tableHead}>Signal</th>
                   <th style={tableHead}>Trend</th>
+                  <th style={tableHead}>Form</th>
+                  <th style={tableHead}>W-L</th>
                   <th style={tableHead}>Confidence</th>
                   <th style={tableHead}>USTA Base</th>
                   <th style={{ ...tableHead, ...(ratingView === 'overall' ? activeTableHead : {}) }}>USTA Dynamic</th>
@@ -604,18 +770,29 @@ export default function RankingsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} style={emptyCell}>Loading rankings...</td>
+                    <td colSpan={13} style={emptyCell}>Loading rankings...</td>
                   </tr>
                 ) : rankedPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={emptyCell}>
+                    <td colSpan={13} style={emptyCell}>
                       {hasActiveFilters
                         ? 'No players matched the current search or location filter. Clear filters to widen the board.'
                         : 'Player rankings are not available yet.'}
                     </td>
                   </tr>
                 ) : (
-                  rankedPlayers.map((player, index) => {
+                  tieredRows.map((row) => {
+                    if (row.type === 'divider') {
+                      return (
+                        <tr key={row.key}>
+                          <td colSpan={13} style={tierDividerCell}>
+                            <span style={tierDividerLabel}>{row.tier} USTA tier</span>
+                          </td>
+                        </tr>
+                      )
+                    }
+
+                    const { player, rank } = row
                     const theme = getMeterTheme(player.status)
                     const isRowHovered = hoveredRow === player.id
 
@@ -631,7 +808,10 @@ export default function RankingsPage() {
                         }}
                       >
                         <td style={tableCell}>
-                          <span style={rankBadge}>{index + 1}</span>
+                          <span style={rankBadge}>{rank}</span>
+                          <div style={{ color: 'rgba(147,197,253,0.6)', fontSize: 10, fontWeight: 700, marginTop: 4, letterSpacing: '0.04em' }}>
+                            top {player.percentile}%
+                          </div>
                         </td>
 
                         <td style={tableCell}>
@@ -656,9 +836,14 @@ export default function RankingsPage() {
                         </td>
 
                         <td style={tableCell}>
+                          <MiniSparkline
+                            points={snapshotMap.get(`${player.id}:${ratingView}`) ?? []}
+                            direction={player.trendDirection}
+                          />
                           <span
                             style={{
                               ...trendPill,
+                              marginTop: 5,
                               background: theme.trendBackground,
                               color: theme.trendColor,
                               border: `1px solid ${theme.trendBorder}`,
@@ -668,6 +853,37 @@ export default function RankingsPage() {
                             {player.trendDelta >= 0 ? '+' : ''}
                             {player.trendDelta.toFixed(2)}
                           </span>
+                        </td>
+
+                        <td style={tableCell}>
+                          <span
+                            style={{
+                              fontWeight: 800,
+                              fontSize: 13,
+                              color: player.formScore > 0.02
+                                ? '#9be11d'
+                                : player.formScore < -0.02
+                                  ? '#f87171'
+                                  : 'rgba(224,234,247,0.55)',
+                            }}
+                          >
+                            {player.formScore > 0 ? '+' : ''}{player.formScore.toFixed(2)}
+                          </span>
+                        </td>
+
+                        <td style={tableCell}>
+                          {player.winRate !== null ? (
+                            <div>
+                              <span style={{ fontWeight: 800, fontSize: 13, color: player.winRate >= 55 ? '#9be11d' : player.winRate <= 45 ? '#f87171' : 'var(--foreground)' }}>
+                                {player.winRate}%
+                              </span>
+                              <div style={{ color: 'rgba(190,210,240,0.45)', fontSize: 10, fontWeight: 700, marginTop: 2 }}>
+                                {player.wins}W {player.losses}L
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'rgba(190,210,240,0.35)', fontSize: 12 }}>—</span>
+                          )}
                         </td>
 
                         <td style={tableCell}>
@@ -740,6 +956,28 @@ function SearchIcon() {
   )
 }
 
+function MiniSparkline({ points, direction }: { points: Array<{ dynamic_rating: number }>; direction: TrendDirection }) {
+  const w = 56
+  const h = 22
+  const pad = 2
+  if (points.length < 2) {
+    return <svg width={w} height={h} style={{ display: 'block', opacity: 0.35 }} aria-hidden="true"><line x1={pad} y1={h / 2} x2={w - pad} y2={h / 2} stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" /></svg>
+  }
+  const vals = points.map((p) => p.dynamic_rating)
+  const min = Math.min(...vals)
+  const max = Math.max(...vals)
+  const spread = Math.max(max - min, 0.01)
+  const xStep = (w - pad * 2) / (vals.length - 1)
+  const toY = (v: number) => h - pad - ((v - min) / spread) * (h - pad * 2)
+  const d = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${pad + i * xStep} ${toY(v)}`).join(' ')
+  const color = direction === 'up' ? '#9be11d' : direction === 'down' ? '#f87171' : '#60a5fa'
+  return (
+    <svg width={w} height={h} style={{ display: 'block', overflow: 'visible' }} aria-hidden="true">
+      <path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity={0.85} />
+    </svg>
+  )
+}
+
 function getSelectedRating(player: Player, view: RatingView) {
   return getTiqRating(player, view)
 }
@@ -805,6 +1043,12 @@ function getConfidence(matches: number): ConfidenceLevel {
   if (matches < 10) return 'Low'
   if (matches < 30) return 'Medium'
   return 'High'
+}
+
+function getTierLabel(baseRating: number): string {
+  const tier = Math.round(baseRating * 2) / 2
+  if (tier >= 5.0) return '5.0+'
+  return tier.toFixed(1)
 }
 
 function roundToTwo(value: number) {
@@ -1443,4 +1687,19 @@ const confidencePill: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
   whiteSpace: 'nowrap',
+}
+
+const tierDividerCell: CSSProperties = {
+  padding: '10px 16px',
+  background: 'rgba(116,190,255,0.04)',
+  borderTop: '1px solid rgba(116,190,255,0.10)',
+  borderBottom: '1px solid rgba(116,190,255,0.10)',
+}
+
+const tierDividerLabel: CSSProperties = {
+  color: '#8fb7ff',
+  fontSize: 11,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.10em',
 }

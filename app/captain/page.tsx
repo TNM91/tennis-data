@@ -61,6 +61,7 @@ type PlayerRelation =
   | {
       id: string
       name: string
+      overall_rating: number | null
       overall_dynamic_rating: number | null
       overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
@@ -71,6 +72,7 @@ type PlayerRelation =
   | {
       id: string
       name: string
+      overall_rating: number | null
       overall_dynamic_rating: number | null
       overall_usta_dynamic_rating: number | null
       singles_dynamic_rating: number | null
@@ -139,6 +141,8 @@ const CAPTAIN_COMMAND_SURFACES = [
 ]
 
 
+type RatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
 type TeamPlayerSummary = {
   id: string
   name: string
@@ -147,6 +151,9 @@ type TeamPlayerSummary = {
   losses: number
   singlesDynamic: number | null
   doublesDynamic: number | null
+  overallBase: number | null
+  overallUstaDynamic: number | null
+  ratingStatus: RatingStatus | null
 }
 
 type PairingSummary = {
@@ -202,6 +209,7 @@ export default function CaptainHubPage() {
     latestResponseUpdateLabel: 'Not updated yet',
     lastUpdatedLabel: 'Not updated yet',
   })
+  const [rosterSortMode, setRosterSortMode] = useState<'appearances' | 'signal'>('appearances')
   const [weeklyPrepNotes, setWeeklyPrepNotes] = useState('')
   const [opponentScoutNotes, setOpponentScoutNotes] = useState('')
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
@@ -342,6 +350,7 @@ export default function CaptainHubPage() {
             players (
               id,
               name,
+              overall_rating,
               overall_dynamic_rating,
               overall_usta_dynamic_rating,
               singles_dynamic_rating,
@@ -514,6 +523,12 @@ export default function CaptainHubPage() {
       if (!match) continue
 
       if (!map.has(player.id)) {
+        const overallBase = player.overall_rating ?? null
+        const overallUstaDynamic = player.overall_usta_dynamic_rating ?? null
+        const ratingStatus =
+          overallBase !== null && overallUstaDynamic !== null
+            ? getCaptainRatingStatus(overallBase, overallUstaDynamic)
+            : null
         map.set(player.id, {
           id: player.id,
           name: player.name,
@@ -522,6 +537,9 @@ export default function CaptainHubPage() {
           losses: 0,
           singlesDynamic: player.singles_dynamic_rating,
           doublesDynamic: player.doubles_dynamic_rating,
+          overallBase,
+          overallUstaDynamic,
+          ratingStatus,
         })
       }
 
@@ -602,6 +620,27 @@ export default function CaptainHubPage() {
       )
       .slice(0, 4)
   }, [roster])
+
+  const statusOrder: Record<RatingStatus, number> = {
+    'Bump Up Pace': 0,
+    'Trending Up': 1,
+    'Holding': 2,
+    'At Risk': 3,
+    'Drop Watch': 4,
+  }
+
+  const sortedRoster = useMemo(() => {
+    const base = roster.slice(0, 8)
+    if (rosterSortMode === 'appearances') return base
+    return [...roster]
+      .sort((a, b) => {
+        const aOrder = a.ratingStatus != null ? statusOrder[a.ratingStatus] : 5
+        const bOrder = b.ratingStatus != null ? statusOrder[b.ratingStatus] : 5
+        if (aOrder !== bOrder) return aOrder - bOrder
+        return b.appearances - a.appearances
+      })
+      .slice(0, 8)
+  }, [roster, rosterSortMode])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const quickStats = useMemo(() => {
     let wins = 0
@@ -1801,10 +1840,17 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                             #{index + 1} {player.name}
                           </div>
                           <div style={listMeta}>
-                            {player.appearances} appearances - {player.wins}-{player.losses} when used
+                            {player.appearances} appearances · {player.wins}-{player.losses} when used
                           </div>
                         </div>
-                        <div style={pillStrong}>{formatRating(player.singlesDynamic)}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
+                          <div style={pillStrong}>{formatRating(player.singlesDynamic)}</div>
+                          {player.ratingStatus ? (
+                            <span style={{ ...captainStatusPill, ...getCaptainStatusStyle(player.ratingStatus) }}>
+                              {player.ratingStatus}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     ))
                   )}
@@ -1855,6 +1901,34 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 Fast context for how this team has been used across singles and doubles.
               </div>
             </div>
+            {roster.length > 0 ? (
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setRosterSortMode('appearances')}
+                  style={{
+                    padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                    background: rosterSortMode === 'appearances' ? 'rgba(255,255,255,0.10)' : 'transparent',
+                    border: `1px solid ${rosterSortMode === 'appearances' ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.08)'}`,
+                    color: rosterSortMode === 'appearances' ? 'var(--foreground)' : 'var(--shell-copy-muted)',
+                  }}
+                >
+                  By usage
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRosterSortMode('signal')}
+                  style={{
+                    padding: '7px 13px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                    background: rosterSortMode === 'signal' ? 'rgba(155,225,29,0.12)' : 'transparent',
+                    border: `1px solid ${rosterSortMode === 'signal' ? 'rgba(155,225,29,0.28)' : 'rgba(255,255,255,0.08)'}`,
+                    color: rosterSortMode === 'signal' ? '#d9f84a' : 'var(--shell-copy-muted)',
+                  }}
+                >
+                  By signal
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <div style={summaryGrid}>
@@ -1871,18 +1945,23 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={emptyLine}>No roster history found for this team selection.</div>
             ) : (
               <div style={rosterList}>
-                {roster.slice(0, 8).map((player) => (
+                {sortedRoster.map((player) => (
                   <div key={player.id} style={rosterRow}>
                     <div>
                       <div style={rosterName}>{player.name}</div>
                       <div style={rosterMeta}>
-                        {player.appearances} appearances - {player.wins}-{player.losses} record
+                        {player.appearances} appearances · {player.wins}-{player.losses} record
                       </div>
                     </div>
 
                     <div style={rosterRatingRow}>
-                      <span style={subtlePill}>Singles {formatRating(player.singlesDynamic)}</span>
-                      <span style={subtlePill}>Doubles {formatRating(player.doublesDynamic)}</span>
+                      <span style={subtlePill}>S {formatRating(player.singlesDynamic)}</span>
+                      <span style={subtlePill}>D {formatRating(player.doublesDynamic)}</span>
+                      {player.ratingStatus ? (
+                        <span style={{ ...captainStatusPill, ...getCaptainStatusStyle(player.ratingStatus) }}>
+                          {player.ratingStatus}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -3120,4 +3199,34 @@ const subtlePill: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   fontWeight: 700,
   fontSize: 12,
+}
+
+const captainStatusPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '5px 10px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  whiteSpace: 'nowrap' as const,
+}
+
+function getCaptainRatingStatus(base: number, dynamic: number): RatingStatus {
+  const diff = dynamic - base
+  if (diff >= 0.15) return 'Bump Up Pace'
+  if (diff >= 0.07) return 'Trending Up'
+  if (diff > -0.07) return 'Holding'
+  if (diff > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getCaptainStatusStyle(status: RatingStatus): CSSProperties {
+  switch (status) {
+    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
+    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
+    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
+    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
+    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+  }
 }

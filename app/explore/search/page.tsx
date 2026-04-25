@@ -35,6 +35,7 @@ type PlayerSearchRow = {
   id: string
   name: string
   location?: string | null
+  overall_rating?: number | null
   overall_dynamic_rating?: number | null
   overall_usta_dynamic_rating?: number | null
 }
@@ -489,6 +490,19 @@ export default function ExploreSearchPage() {
                           {typeof player.overall_dynamic_rating === 'number' ? (
                             <span style={miniBadgeGreen}>TIQ {player.overall_dynamic_rating.toFixed(2)}</span>
                           ) : null}
+                          {(() => {
+                            const base = player.overall_rating
+                            const usta = player.overall_usta_dynamic_rating
+                            if (typeof base !== 'number' || typeof usta !== 'number') return null
+                            const diff = usta - base
+                            const status = diff >= 0.15 ? 'Bump Up Pace' : diff >= 0.07 ? 'Trending Up' : diff > -0.07 ? 'Holding' : diff > -0.15 ? 'At Risk' : 'Drop Watch'
+                            const style: CSSProperties = diff >= 0.07
+                              ? { ...miniBadgeGreen, background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.22)' }
+                              : diff <= -0.07
+                                ? { ...miniBadgeBlue, background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
+                                : { ...miniBadgeBlue }
+                            return <span style={style}>{status}</span>
+                          })()}
                         </div>
                       </div>
                     </Link>
@@ -628,7 +642,7 @@ export default function ExploreSearchPage() {
 async function searchPlayers(term: string): Promise<PlayerSearchRow[]> {
   const { data, error } = await supabase
     .from('players')
-    .select('id, name, location, overall_dynamic_rating, overall_usta_dynamic_rating')
+    .select('id, name, location, overall_rating, overall_dynamic_rating, overall_usta_dynamic_rating')
     .order('name', { ascending: true })
     .limit(250)
 

@@ -152,6 +152,27 @@ type CompetitionOpportunity = {
   secondaryLabel: string
 }
 
+type LeagueRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
+function getLeagueRatingStatus(gap: number | null): LeagueRatingStatus | null {
+  if (gap === null) return null
+  if (gap >= 0.15) return 'Bump Up Pace'
+  if (gap >= 0.07) return 'Trending Up'
+  if (gap > -0.07) return 'Holding'
+  if (gap > -0.15) return 'At Risk'
+  return 'Drop Watch'
+}
+
+function getLeagueStatusStyle(status: LeagueRatingStatus): CSSProperties {
+  switch (status) {
+    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
+    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
+    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)' }
+    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)' }
+    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)' }
+  }
+}
+
 function isRecentResult(value: string | null | undefined, windowDays: number) {
   const parsed = value ? new Date(value) : null
   if (!parsed || Number.isNaN(parsed.getTime())) return false
@@ -1699,7 +1720,18 @@ export default function TiqLeagueDetailPage() {
                           <div style={standingBody}>
                             <div style={standingHeader}>
                               <div>
-                                <div style={listTitle}>{entry.playerName}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                                  <div style={listTitle}>{entry.playerName}</div>
+                                  {(() => {
+                                    const status = getLeagueRatingStatus(entry.ratingGap)
+                                    if (!status) return null
+                                    return (
+                                      <span style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', ...getLeagueStatusStyle(status) }}>
+                                        {status}
+                                      </span>
+                                    )
+                                  })()}
+                                </div>
                                 <div style={listMeta}>
                                   {[
                                     entry.location,

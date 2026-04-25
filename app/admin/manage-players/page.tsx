@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
+
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -582,6 +585,7 @@ export default function ManagePlayersPage() {
                       <th>Overall</th>
                       <th>Overall TIQ</th>
                       <th>Overall USTA</th>
+                      <th>Signal</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -658,6 +662,18 @@ export default function ManagePlayersPage() {
 
                         <td>{formatRating(player.overall_dynamic_rating, 3)}</td>
                         <td>{formatRating(player.overall_usta_dynamic_rating, 3)}</td>
+
+                        <td>
+                          {(() => {
+                            const base = player.overall_rating
+                            const usta = player.overall_usta_dynamic_rating
+                            if (base == null || usta == null) return <span style={{ color: '#666', fontSize: 12 }}>—</span>
+                            const diff = usta - base
+                            const status = diff >= 0.15 ? 'Bump Up Pace' : diff >= 0.07 ? 'Trending Up' : diff > -0.07 ? 'Holding' : diff > -0.15 ? 'At Risk' : 'Drop Watch'
+                            const color = diff >= 0.07 ? '#d9f84a' : diff <= -0.07 ? '#fca5a5' : '#bfdbfe'
+                            return <span style={{ fontSize: 11, fontWeight: 800, color, whiteSpace: 'nowrap' as const }}>{status}</span>
+                          })()}
+                        </td>
 
                         <td>
                           <div
@@ -761,4 +777,3 @@ function normalizeNullableText(value: string | null | undefined) {
   const normalized = (value ?? '').trim()
   return normalized ? normalized : null
 }
-

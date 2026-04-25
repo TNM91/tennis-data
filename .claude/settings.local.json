@@ -43,7 +43,8 @@
       "Bash(sort find *)",
       "Bash(sort comm *)",
       "Bash(npm install *)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(npm run *)"
     ]
   }
 }
