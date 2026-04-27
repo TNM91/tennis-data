@@ -1274,11 +1274,12 @@ export default function AdminImportPage() {
 
   useEffect(() => {
     if (scorecardReviewPreviews.length === 0 || committedMatchIds.length === 0) return
-    const committableIds = scorecardReviewPreviews
-      .filter((p) => !p.blocked)
-      .map((p) => p.externalMatchId)
-    if (committableIds.length === 0) return
-    if (!committableIds.every((id) => committedMatchIds.includes(id))) return
+    // Wait until every preview — including blocked ones the user must manually fix — has
+    // been committed before auto-clearing. Firing when only the non-blocked subset is done
+    // wipes the UI while the user is still correcting the blocked match.
+    const allIds = scorecardReviewPreviews.map((p) => p.externalMatchId)
+    if (allIds.length === 0) return
+    if (!allIds.every((id) => committedMatchIds.includes(id))) return
     const timer = window.setTimeout(() => {
       setSelectedFileName('')
       setSelectedFileCount(0)

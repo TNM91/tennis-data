@@ -1518,7 +1518,15 @@
 
     if (home === null || away === null) return false;
 
+    // 1-0 / 0-1 is TennisLink's condensed notation for a won/lost super-tiebreak
     if ((home === 1 && away === 0) || (home === 0 && away === 1)) {
+      return true;
+    }
+
+    // Regular tennis sets max out at 7 games (7-5 or 7-6 tiebreak).
+    // Any score where one side reached 8+ games cannot be a standard set,
+    // so it must be a match tiebreak (super-tiebreak) shown with actual points.
+    if (Math.max(home, away) >= 8) {
       return true;
     }
 
