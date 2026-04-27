@@ -693,7 +693,21 @@
       if (!looksLikePlayersTable(table)) continue;
       const rows = getRows(table);
       if (rows.length < 2) continue;
-      const header = rowTexts(rows[0]).map((value) => lower(value));
+      // Find the actual column header row — TennisLink sometimes puts a spanning
+      // "Players" section header above the real [Player Name | NTRP | ...] row.
+      let headerRowIndex = 0;
+      for (let ri = 0; ri < Math.min(rows.length, 5); ri += 1) {
+        const rowPreview = lower(rowTexts(rows[ri]).join(' | '));
+        if (
+          (rowPreview.includes('player') || rowPreview.includes('name')) &&
+          (rowPreview.includes('ntrp') || rowPreview.includes('rating') || rowPreview.includes('level'))
+        ) {
+          headerRowIndex = ri;
+          break;
+        }
+      }
+
+      const header = rowTexts(rows[headerRowIndex]).map((value) => lower(value));
       const teamIndex = header.findIndex((value) => value.includes('team'));
 
       // TennisLink renders players in a multi-column grid within a single table:
@@ -714,7 +728,7 @@
         columnGroups.push({ nameCol: 0, ratingCol: ratingIndex });
       }
 
-      for (let i = 1; i < rows.length; i += 1) {
+      for (let i = headerRowIndex + 1; i < rows.length; i += 1) {
         const texts = rowTexts(rows[i]);
         for (const { nameCol, ratingCol } of columnGroups) {
           const name = normalizeWhitespace(texts[nameCol]);

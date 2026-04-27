@@ -557,6 +557,7 @@ async function persistPlayerRatings(players: WorkingPlayer[]) {
   for (const chunk of chunkArray(players, 200)) {
     const fullPayload = chunk.map((player) => ({
       id: player.id,
+      name: player.name,
       singles_dynamic_rating: roundRating(player.singlesDynamic),
       doubles_dynamic_rating: roundRating(player.doublesDynamic),
       overall_dynamic_rating: roundRating(player.overallDynamic),
@@ -574,6 +575,7 @@ async function persistPlayerRatings(players: WorkingPlayer[]) {
       if (error.message.includes('usta_dynamic')) {
         const tiqPayload = chunk.map((player) => ({
           id: player.id,
+          name: player.name,
           singles_dynamic_rating: roundRating(player.singlesDynamic),
           doubles_dynamic_rating: roundRating(player.doublesDynamic),
           overall_dynamic_rating: roundRating(player.overallDynamic),
