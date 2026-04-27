@@ -555,22 +555,37 @@ function buildSnapshot(
 
 async function persistPlayerRatings(players: WorkingPlayer[]) {
   for (const chunk of chunkArray(players, 200)) {
+    const fullPayload = chunk.map((player) => ({
+      id: player.id,
+      singles_dynamic_rating: roundRating(player.singlesDynamic),
+      doubles_dynamic_rating: roundRating(player.doublesDynamic),
+      overall_dynamic_rating: roundRating(player.overallDynamic),
+      singles_usta_dynamic_rating: roundRating(player.singlesUstaDynamic),
+      doubles_usta_dynamic_rating: roundRating(player.doublesUstaDynamic),
+      overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
+    }))
+
     const { error } = await supabase
       .from('players')
-      .upsert(
-        chunk.map((player) => ({
+      .upsert(fullPayload, { onConflict: 'id' })
+
+    if (error) {
+      // USTA rating columns may not be migrated yet — fall back to TIQ-only columns
+      if (error.message.includes('usta_dynamic')) {
+        const tiqPayload = chunk.map((player) => ({
           id: player.id,
           singles_dynamic_rating: roundRating(player.singlesDynamic),
           doubles_dynamic_rating: roundRating(player.doublesDynamic),
           overall_dynamic_rating: roundRating(player.overallDynamic),
-          singles_usta_dynamic_rating: roundRating(player.singlesUstaDynamic),
-          doubles_usta_dynamic_rating: roundRating(player.doublesUstaDynamic),
-          overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
-        })),
-        { onConflict: 'id' },
-      )
-
-    if (error) {
+        }))
+        const { error: fallbackError } = await supabase
+          .from('players')
+          .upsert(tiqPayload, { onConflict: 'id' })
+        if (fallbackError) {
+          throw new Error(`Failed to save recalculated player ratings: ${fallbackError.message}`)
+        }
+        continue
+      }
       throw new Error(`Failed to save recalculated player ratings: ${error.message}`)
     }
   }

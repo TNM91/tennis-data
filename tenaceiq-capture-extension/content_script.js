@@ -694,23 +694,38 @@
       const rows = getRows(table);
       if (rows.length < 2) continue;
       const header = rowTexts(rows[0]).map((value) => lower(value));
-      const playerIndex = header.findIndex((value) => value.includes('player') || value.includes('name'));
-      const ratingIndex = header.findIndex((value) => value.includes('ntrp') || value.includes('rating') || value.includes('level'));
       const teamIndex = header.findIndex((value) => value.includes('team'));
-      // Use column 0 as the name column when no labelled player/name column exists,
-      // but only skip rows whose first cell is a pure label or looks like a sub-header.
-      const nameColIndex = playerIndex >= 0 ? playerIndex : 0;
+
+      // TennisLink renders players in a multi-column grid within a single table:
+      //   [Player Name | NTRP | Player Name | NTRP | Player Name | NTRP]
+      // Collect ALL [name, rating] column-index pairs so every group is extracted.
+      const columnGroups = [];
+      for (let h = 0; h < header.length; h += 1) {
+        if (header[h].includes('player') || header[h].includes('name')) {
+          const ratingCol = header.findIndex(
+            (v, j) => j > h && (v.includes('ntrp') || v.includes('rating') || v.includes('level'))
+          );
+          columnGroups.push({ nameCol: h, ratingCol });
+        }
+      }
+      // Fall back to a single group at column 0 when no labelled headers found.
+      if (!columnGroups.length) {
+        const ratingIndex = header.findIndex((v) => v.includes('ntrp') || v.includes('rating') || v.includes('level'));
+        columnGroups.push({ nameCol: 0, ratingCol: ratingIndex });
+      }
+
       for (let i = 1; i < rows.length; i += 1) {
         const texts = rowTexts(rows[i]);
-        const name = normalizeWhitespace(texts[nameColIndex]);
-        if (!name || looksLikePureLabel(name) || isFooterishLine(name)) continue;
-        // Skip rows that look like sub-headers (no rating value and name matches a team-ish pattern)
-        if (ratingIndex >= 0 && !texts[ratingIndex] && /\bplayers?\b|\bteam\b|\broster\b/i.test(name)) continue;
-        results.push({
-          name,
-          ntrp: ratingIndex >= 0 ? toNumber(texts[ratingIndex]) : null,
-          teamName: teamIndex >= 0 ? cleanTeamName(texts[teamIndex]) : null,
-        });
+        for (const { nameCol, ratingCol } of columnGroups) {
+          const name = normalizeWhitespace(texts[nameCol]);
+          if (!name || looksLikePureLabel(name) || isFooterishLine(name)) continue;
+          if (ratingCol >= 0 && !texts[ratingCol] && /\bplayers?\b|\bteam\b|\broster\b/i.test(name)) continue;
+          results.push({
+            name,
+            ntrp: ratingCol >= 0 ? toNumber(texts[ratingCol]) : null,
+            teamName: teamIndex >= 0 ? cleanTeamName(texts[teamIndex]) : null,
+          });
+        }
       }
     }
     return dedupeTeamSummaryPlayers(results);
@@ -2806,7 +2821,13 @@
 
       if (lineNumber === null || !matchType) return;
 
-      const scoreCandidates = cellTexts.filter((value) => extractSetPairsFromText(value).length);
+      const scoreCandidates = cellTexts.filter((value) => {
+        if (extractSetPairsFromText(value).length) return true;
+        // Include bare "N-N" cells that filterMeaningfulSets strips as tiny sets
+        // (e.g. "1-0" shown in a dedicated 3rd-set tiebreak column).
+        const trimmed = normalizeWhitespace(value);
+        return /^\d{1,2}[-–]\d{1,2}$/.test(trimmed);
+      });
       const scoreRaw = scoreCandidates.join(' ') || '';
 
       let vsIndex = -1;
