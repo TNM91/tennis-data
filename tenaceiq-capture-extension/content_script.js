@@ -630,7 +630,9 @@
     const rows = getRows(table);
     if (!rows.length) return false;
     const preview = rows.slice(0, 6).map((row) => lower(rowTexts(row).join(' | '))).join(' || ');
-    return preview.includes('player') && (preview.includes('ntrp') || preview.includes('rating') || preview.includes('level'));
+    const hasPlayerCol = preview.includes('player') || preview.includes('name');
+    const hasRatingCol = preview.includes('ntrp') || preview.includes('rating') || preview.includes('level');
+    return hasPlayerCol && hasRatingCol;
   }
 
   function dedupeTeamSummaryTeams(teams) {
@@ -695,10 +697,15 @@
       const playerIndex = header.findIndex((value) => value.includes('player') || value.includes('name'));
       const ratingIndex = header.findIndex((value) => value.includes('ntrp') || value.includes('rating') || value.includes('level'));
       const teamIndex = header.findIndex((value) => value.includes('team'));
+      // Use column 0 as the name column when no labelled player/name column exists,
+      // but only skip rows whose first cell is a pure label or looks like a sub-header.
+      const nameColIndex = playerIndex >= 0 ? playerIndex : 0;
       for (let i = 1; i < rows.length; i += 1) {
         const texts = rowTexts(rows[i]);
-        const name = normalizeWhitespace(texts[playerIndex >= 0 ? playerIndex : 0]);
+        const name = normalizeWhitespace(texts[nameColIndex]);
         if (!name || looksLikePureLabel(name) || isFooterishLine(name)) continue;
+        // Skip rows that look like sub-headers (no rating value and name matches a team-ish pattern)
+        if (ratingIndex >= 0 && !texts[ratingIndex] && /\bplayers?\b|\bteam\b|\broster\b/i.test(name)) continue;
         results.push({
           name,
           ntrp: ratingIndex >= 0 ? toNumber(texts[ratingIndex]) : null,

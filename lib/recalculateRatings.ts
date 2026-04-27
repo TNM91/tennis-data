@@ -22,7 +22,7 @@ type MatchRow = {
   match_type: MatchType
   score: string
   winner_side: MatchSide
-  match_source: MatchSource
+  match_source?: MatchSource | null
   created_at?: string | null
 }
 
@@ -326,7 +326,6 @@ async function fetchMatches(): Promise<MatchRow[]> {
       match_type,
       score,
       winner_side,
-      match_source,
       created_at
     `)
     .not('match_type', 'is', null)
@@ -405,7 +404,7 @@ function processSinglesMatch(
   )
 
   // USTA track — USTA matches only
-  if (match.match_source === 'usta') {
+  if ((match.match_source ?? 'usta') === 'usta') {
     const ustaExpectedA = expectedScore(playerA.singlesUstaDynamic, playerB.singlesUstaDynamic)
     const ustaMultiplier = buildMatchMultiplier(scoreMetrics, playerA.singlesUstaDynamic, playerB.singlesUstaDynamic, actualA, actualB, recencyWeight)
 
@@ -488,7 +487,7 @@ function processDoublesMatch(
   }
 
   // USTA track — USTA matches only
-  if (match.match_source === 'usta') {
+  if ((match.match_source ?? 'usta') === 'usta') {
     const ustaTeamARating = average(teamA.map((p) => p.doublesUstaDynamic))
     const ustaTeamBRating = average(teamB.map((p) => p.doublesUstaDynamic))
     const ustaTeamAOverall = average(teamA.map((p) => p.overallUstaDynamic))

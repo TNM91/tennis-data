@@ -1741,6 +1741,39 @@ export default function AdminImportPage() {
           </section>
         ) : null}
 
+        {/* ── SCORECARD COMMIT STATUS BANNER ── */}
+        {lineCommitFeedback ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: '10px 16px',
+              borderRadius: 6,
+              background: isRunningCommit
+                ? '#1a2a3a'
+                : lineCommitFeedback.toLowerCase().includes('error') ||
+                  lineCommitFeedback.toLowerCase().includes('failed') ||
+                  lineCommitFeedback.toLowerCase().includes('did not')
+                ? '#3b1a1a'
+                : '#0d2b1a',
+              border: `1px solid ${
+                isRunningCommit
+                  ? '#2a4a6a'
+                  : lineCommitFeedback.toLowerCase().includes('error') ||
+                    lineCommitFeedback.toLowerCase().includes('failed') ||
+                    lineCommitFeedback.toLowerCase().includes('did not')
+                  ? '#7a3030'
+                  : '#1a5c35'
+              }`,
+              color: '#e8f4ee',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+            }}
+          >
+            {isRunningCommit ? '⏳ ' : lineCommitFeedback.toLowerCase().includes('submitted') || lineCommitFeedback.toLowerCase().includes('finalized') ? '✓ ' : ''}
+            {lineCommitFeedback}
+          </div>
+        ) : null}
+
         {/* ── SCORECARD REVIEW PANEL — progressive disclosure ── */}
         {importType === 'scorecard' && scorecardReviewPreviews.length > 0 ? (
           scorecardBatchStatus.flagged > 0 || scorecardBatchStatus.blocked > 0 ? (

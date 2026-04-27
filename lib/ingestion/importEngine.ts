@@ -325,7 +325,7 @@ type MatchUpsertPayload = {
   district_area: string | null
   source: string
   status: string
-  match_source: 'usta' | 'tiq_team' | 'tiq_individual'
+  match_source?: 'usta' | 'tiq_team' | 'tiq_individual'
   match_type?: MatchType | null
   winner_side?: MatchSide | null
   score?: string | null
@@ -607,7 +607,6 @@ function toScheduleMatchUpsert(row: ScheduleImportRow): MatchUpsertPayload {
     district_area: nullableString(row.districtArea),
     source: nullableString(row.source) ?? DEFAULT_SOURCE_SCHEDULE,
     status: 'scheduled',
-    match_source: 'usta',
     match_type: null,
     winner_side: null,
     score: null,
@@ -630,7 +629,6 @@ function toScorecardParentMatchUpsert(row: ScorecardImportRow): MatchUpsertPaylo
     district_area: nullableString(row.districtArea),
     source: nullableString(row.source) ?? DEFAULT_SOURCE_SCORECARD,
     status: 'completed',
-    match_source: 'usta',
     match_type: null,
     winner_side: buildParentWinnerSide(row),
     score: buildParentMatchScore(row),
@@ -653,7 +651,6 @@ function toScorecardLineMatchUpsert(row: ScorecardImportRow, line: ScorecardLine
     district_area: nullableString(row.districtArea),
     source: nullableString(row.source) ?? DEFAULT_SOURCE_SCORECARD,
     status: 'completed',
-    match_source: 'usta',
     match_type: line.matchType,
     winner_side: line.winnerSide,
     score: nullableString(line.score ?? line.rawScoreText),
