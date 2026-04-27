@@ -141,23 +141,41 @@ async function openOrReuseImportTab(targetUrl, softPayload) {
     // Soft-import: dispatch a custom event into the existing page so it handles
     // the new capture without a full page reload (preserves any in-progress review).
     if (softPayload) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: reusableTab.id },
-          world: 'MAIN',
-          func: (eventDetail) => {
-            window.dispatchEvent(new CustomEvent('TENACEIQ_SOFT_IMPORT', { detail: eventDetail }));
-          },
-          args: [softPayload],
-        });
+      let injected = false;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: reusableTab.id },
+            world: 'MAIN',
+            func: (eventDetail) => {
+              window.dispatchEvent(new CustomEvent('TENACEIQ_SOFT_IMPORT', { detail: eventDetail }));
+            },
+            args: [softPayload],
+          });
+          injected = true;
+          break;
+        } catch (err) {
+          console.warn(`[TenAceIQ] soft import inject attempt ${attempt + 1} failed:`, err);
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 400));
+        }
+      }
+
+      if (injected) {
         await chrome.tabs.update(reusableTab.id, { active: true });
         if (typeof reusableTab.windowId === 'number') {
           await chrome.windows.update(reusableTab.windowId, { focused: true });
         }
         return reusableTab;
-      } catch {
-        // Fall through to URL navigation if scripting injection fails
       }
+
+      // Soft inject failed both attempts — navigate without reloading by keeping
+      // the existing URL and only surfacing the tab, so the user doesn't lose state.
+      console.warn('[TenAceIQ] soft import failed; surfacing tab without navigation');
+      await chrome.tabs.update(reusableTab.id, { active: true });
+      if (typeof reusableTab.windowId === 'number') {
+        await chrome.windows.update(reusableTab.windowId, { focused: true });
+      }
+      return reusableTab;
     }
     await chrome.tabs.update(reusableTab.id, { url: targetUrl, active: true });
     if (typeof reusableTab.windowId === 'number') {

@@ -257,13 +257,15 @@ export function summarizeImportResponse(response: RunImportResponse): ImportSumm
 export function importResponseToUiLines(response: RunImportResponse): string[] {
   const summary = summarizeImportResponse(response)
 
+  const isTeamSummaryPreview = summary.kind === 'team_summary' && summary.mode === 'preview'
+
   const lines = [
     `Import type: ${summary.kind}`,
     `Mode: ${summary.mode}`,
     `Normalized rows: ${summary.normalizedRowCount}`,
     `Warnings: ${summary.warningCount}`,
-    `Imported: ${summary.successCount}`,
-    `Updated: ${summary.updatedCount}`,
+    ...(!isTeamSummaryPreview ? [`Imported: ${summary.successCount}`] : []),
+    ...(!isTeamSummaryPreview ? [`Updated: ${summary.updatedCount}`] : []),
     `Skipped: ${summary.skippedCount}`,
     `Failed: ${summary.failedCount}`,
   ]

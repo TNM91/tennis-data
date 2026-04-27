@@ -1299,7 +1299,7 @@ export default function AdminImportPage() {
       } catch {
         // ignore
       }
-    }, 1500)
+    }, 5000)
     return () => window.clearTimeout(timer)
   }, [committedMatchIds, scorecardReviewPreviews])
 

@@ -1681,8 +1681,18 @@
       const ownerIndex = cells.indexOf(ownerCell);
       if (ownerIndex === -1) continue;
 
-      if (ownerIndex <= homeCellIndex) homeHits += 2;
-      else if (ownerIndex >= awayCellIndex) awayHits += 2;
+      // A cell that contains player-name text alongside a marker icon is likely showing
+      // a match-status indicator (e.g. TennisLink's "Completed" checkmark embedded in
+      // the player cell). Give such markers weight 1 so a dedicated winner-marker column
+      // (an icon-only cell with no other text, weight 2) can break the tie.
+      const cellText = normalizeWhitespace(ownerCell.textContent || '');
+      const cellHasPlayerText = cellText.length > 2 &&
+        /[A-Za-z]{2,}/.test(cellText) &&
+        !extractSetPairsFromText(cellText).length;
+      const markerWeight = cellHasPlayerText ? 1 : 2;
+
+      if (ownerIndex <= homeCellIndex) homeHits += markerWeight;
+      else if (ownerIndex >= awayCellIndex) awayHits += markerWeight;
       else if (ownerIndex <= midpoint) homeHits += 1;
       else awayHits += 1;
     }
@@ -2611,18 +2621,38 @@
         else if (winnerText.includes('visiting')) textWinnerSide = 'away';
         else if (winnerText.includes('team 1')) textWinnerSide = 'home';
         else if (winnerText.includes('team 2')) textWinnerSide = 'away';
+        // Standard USTA/TennisLink convention: 'W' = home team wins this line,
+        // 'L' = visiting team wins. Only match exact single-letter values to avoid
+        // catching partial words like "water" or "loss".
         else if (winnerText === 'w') textWinnerSide = 'home';
         else if (winnerText === 'l') textWinnerSide = 'away';
 
-        // If the winner column shows an image marker but no readable text,
-        // use the marker detection result when the marker falls inside the winner column.
-        if (!textWinnerSide && markerWinnerSide) {
+        // If the winner column shows an image marker but no readable text, look at
+        // which player cell in the same row is visually emphasized (bold, winner class,
+        // or has a checkmark adjacent to it). This is more reliable than using the
+        // winner column's cell position, which varies by scorecard layout.
+        if (!textWinnerSide) {
           const rowCells = Array.from(row.querySelectorAll('td, th'));
           const winnerCell = rowCells[headerMap.winner];
-          if (winnerCell) {
-            const hasMarker = Array.from(winnerCell.querySelectorAll('img, svg, i, span'))
-              .some(nodeLooksLikeWinnerMarker);
-            if (hasMarker) textWinnerSide = markerWinnerSide;
+          const hasWinnerMarkerInColumn = winnerCell
+            ? Array.from(winnerCell.querySelectorAll('img, svg, i, span')).some(nodeLooksLikeWinnerMarker)
+            : false;
+
+          if (hasWinnerMarkerInColumn) {
+            // Determine winner by which player cell is emphasized, not column position
+            const homeIdx = typeof headerMap.homePlayers === 'number' ? headerMap.homePlayers : -1;
+            const awayIdx = typeof headerMap.awayPlayers === 'number' ? headerMap.awayPlayers : -1;
+            const homeCell = homeIdx >= 0 ? rowCells[homeIdx] : null;
+            const awayCell = awayIdx >= 0 ? rowCells[awayIdx] : null;
+
+            const homeEmphasized = homeCell &&
+              (nodeLooksEmphasized(homeCell) || Array.from(homeCell.querySelectorAll('*')).some(nodeLooksEmphasized));
+            const awayEmphasized = awayCell &&
+              (nodeLooksEmphasized(awayCell) || Array.from(awayCell.querySelectorAll('*')).some(nodeLooksEmphasized));
+
+            if (homeEmphasized && !awayEmphasized) textWinnerSide = 'home';
+            else if (awayEmphasized && !homeEmphasized) textWinnerSide = 'away';
+            else textWinnerSide = markerWinnerSide; // fall back to position if emphasis is ambiguous
           }
         }
       }
@@ -2813,9 +2843,13 @@
       const sets = extractSetPairsFromText(scoreRaw);
       const scoreMeta = buildLineScoreMetadata(scoreRaw || rowText, sets);
       const setWinnerSide = determineWinnerSideFromSets(sets);
+      // When the "Vs." separator is known, anchor the away side start to the cell
+      // immediately after it — more precise than the generic cellTexts.length - 2 heuristic.
       const markerWinnerSide = detectWinnerSideFromRowMarkers(row, {
         homeCellIndex: Math.max(labelIndex + 1, 1),
-        awayCellIndex: Math.max(cellTexts.length - 2, labelIndex + 2),
+        awayCellIndex: vsIndex !== -1
+          ? Math.max(vsIndex + 1, labelIndex + 2)
+          : Math.max(cellTexts.length - 2, labelIndex + 2),
       });
 
       // Normalize scores to home-first if DOM marker contradicts set math
