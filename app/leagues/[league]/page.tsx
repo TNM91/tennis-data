@@ -97,6 +97,7 @@ export default function LeagueDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [teamFilter, setTeamFilter] = useState('all')
+  const [standingsView, setStandingsView] = useState<'cards' | 'table'>('cards')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   const loadLeagueMatches = useCallback(async () => {
@@ -326,6 +327,63 @@ export default function LeagueDetailPage() {
       decided,
     }
   }, [validRows, teamSummaries])
+
+  const [topPerformers, setTopPerformers] = useState<Array<{ id: string; name: string; wins: number; losses: number; appearances: number }>>([])
+
+  useEffect(() => {
+    if (rows.length === 0) return
+    const matchIds = rows.map((r) => r.id)
+    const CHUNK = 200
+    const chunks: string[][] = []
+    for (let i = 0; i < matchIds.length; i += CHUNK) chunks.push(matchIds.slice(i, i + CHUNK))
+    void (async () => {
+      const all: Array<{ match_id: string; side: string; player_id: string; players: { id: string; name: string } | null }> = []
+      const matchWinnerMap = new Map(rows.map((r) => [r.id, r.winner_side]))
+      for (const chunk of chunks) {
+        const { data } = await supabase
+          .from('match_players')
+          .select('match_id, side, player_id, players(id, name)')
+          .in('match_id', chunk)
+        if (data) all.push(...(data as unknown as typeof all))
+      }
+      const map = new Map<string, { id: string; name: string; wins: number; losses: number; appearances: number }>()
+      for (const row of all) {
+        const playerData = Array.isArray(row.players) ? row.players[0] : row.players
+        if (!playerData?.id || !playerData?.name) continue
+        const winner = matchWinnerMap.get(row.match_id)
+        const existing = map.get(playerData.id) ?? { id: playerData.id, name: playerData.name, wins: 0, losses: 0, appearances: 0 }
+        existing.appearances++
+        if (winner === row.side) existing.wins++
+        else if (winner && winner !== row.side) existing.losses++
+        map.set(playerData.id, existing)
+      }
+      setTopPerformers(
+        [...map.values()]
+          .filter((p) => p.appearances >= 2)
+          .sort((a, b) => b.wins - a.wins || b.appearances - a.appearances)
+          .slice(0, 8)
+      )
+    })()
+  }, [rows])
+
+  const matchQualityStats = useMemo(() => {
+    let dominant = 0   // has a 6-0 set
+    let tiebreak = 0   // has a 7-6 set
+    let threeSets = 0  // 3 sets played
+    let missingScore = 0
+    for (const row of validRows) {
+      const s = (row.score || '').trim()
+      if (!s) { missingScore++; continue }
+      const sets = s.split(/[;,|]/).map((t) => t.trim()).filter(Boolean)
+      if (sets.length >= 3) threeSets++
+      for (const set of sets) {
+        if (/^6-0$|^0-6$/.test(set)) { dominant++; break }
+        if (/^7-6$|^6-7$/.test(set)) { tiebreak++; break }
+      }
+    }
+    const total = validRows.length
+    return { dominant, tiebreak, threeSets, missingScore, total }
+  }, [validRows])
 
   const leagueLeader = teamSummaries[0] ?? null
 
@@ -568,6 +626,22 @@ export default function LeagueDetailPage() {
           <MetricCard label="Latest Match" value={formatDate(stats.latest)} accent />
         </div>
 
+        {matchQualityStats.total > 0 ? (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const, marginTop: 16 }}>
+            {[
+              { label: 'Dominant (6-0 set)', count: matchQualityStats.dominant, color: '#d9f84a', bg: 'rgba(155,225,29,0.10)', border: 'rgba(155,225,29,0.20)' },
+              { label: 'Tiebreak (7-6 set)', count: matchQualityStats.tiebreak, color: '#fed7aa', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.20)' },
+              { label: '3-set battles', count: matchQualityStats.threeSets, color: '#93c5fd', bg: 'rgba(116,190,255,0.10)', border: 'rgba(116,190,255,0.20)' },
+              { label: 'Missing scores', count: matchQualityStats.missingScore, color: matchQualityStats.missingScore > 0 ? '#fca5a5' : 'var(--shell-copy-muted)', bg: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.08)' },
+            ].map((item) => (
+              <div key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 999, background: item.bg, border: `1px solid ${item.border}` }}>
+                <span style={{ fontSize: 15, fontWeight: 900, color: item.color }}>{item.count}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <section style={signalGridStyle(isSmallMobile)}>
           {leagueSignals.map((signal) => (
             <article key={signal.label} style={signalCardStyle}>
@@ -636,6 +710,27 @@ export default function LeagueDetailPage() {
             </div>
           ) : (
             <>
+              {topPerformers.length > 0 ? (
+                <section style={{ marginBottom: 24 }}>
+                  <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>Top performers</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                    {topPerformers.map((p, i) => {
+                      const winPct = p.appearances > 0 ? Math.round((p.wins / p.appearances) * 100) : 0
+                      return (
+                        <Link key={p.id} href={`/players/${p.id}`} style={{ display: 'flex', flexDirection: 'column' as const, gap: 4, padding: '12px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', textDecoration: 'none' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'rgba(190,210,240,0.4)', fontSize: 11, fontWeight: 800 }}>#{i + 1}</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.04)', color: winPct >= 60 ? '#d9f84a' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.18)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
+                          </div>
+                          <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14 }}>{p.name}</div>
+                          <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12 }}>{p.wins}W–{p.losses}L · {p.appearances} matches</div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
               <section>
                 <div style={dynamicSectionHead}>
                   <div>
@@ -645,9 +740,60 @@ export default function LeagueDetailPage() {
                       Standings-style season snapshot for each team in this league.
                     </div>
                   </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    {(['cards', 'table'] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setStandingsView(v)}
+                        style={{ padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: standingsView === v ? 'rgba(116,190,255,0.12)' : 'transparent', border: `1px solid ${standingsView === v ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: standingsView === v ? '#bfdbfe' : 'var(--shell-copy-muted)' }}
+                      >
+                        {v === 'cards' ? 'Cards' : 'Table'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={dynamicTeamGrid}>
+                {standingsView === 'table' ? (
+                  <div style={{ overflowX: 'auto', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', marginTop: 16 }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' as const, minWidth: 520 }}>
+                      <thead>
+                        <tr>
+                          {['#', 'Team', 'W', 'L', 'Win %', 'Matches', 'Last match'].map((h) => (
+                            <th key={h} style={{ padding: '12px 14px', textAlign: 'left' as const, color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.06em', borderBottom: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', whiteSpace: 'nowrap' as const }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamSummaries.map((team, index) => {
+                          const winPct = Math.round(team.winPct * 100)
+                          const isLeader = team.name === leagueLeader?.name
+                          const tdStyle = { padding: '13px 14px', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, borderTop: '1px solid var(--shell-panel-border)' }
+                          return (
+                            <tr key={team.name} style={{ background: index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.016)' }}>
+                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontWeight: 700 }}>#{index + 1}</td>
+                              <td style={tdStyle}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <Link href={buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)} style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>{team.name}</Link>
+                                  {isLeader && team.wins > 0 ? <span style={{ padding: '2px 7px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 10, fontWeight: 800 }}>Leader</span> : null}
+                                </div>
+                              </td>
+                              <td style={{ ...tdStyle, color: '#86efac', fontWeight: 800 }}>{team.wins}</td>
+                              <td style={{ ...tdStyle, color: '#fca5a5', fontWeight: 800 }}>{team.losses}</td>
+                              <td style={tdStyle}>
+                                <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 12, fontWeight: 800, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : winPct < 40 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)', color: winPct >= 60 ? '#d9f84a' : winPct < 40 ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.20)' : winPct < 40 ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
+                              </td>
+                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.matches}</td>
+                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontSize: 13 }}>{formatDate(team.latestMatchDate)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
+
+                {standingsView === 'cards' ? <div style={dynamicTeamGrid}>
                   {teamSummaries.map((team, index) => {
                     const winPct = Math.round(team.winPct * 100)
                     const isLeader = team.name === leagueLeader?.name
@@ -696,8 +842,7 @@ export default function LeagueDetailPage() {
                       </div>
                     </div>
                   )})}
-
-                </div>
+                </div> : null}
               </section>
 
               <section style={{ marginTop: '24px' }}>

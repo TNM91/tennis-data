@@ -44,7 +44,9 @@
       "Bash(sort comm *)",
       "Bash(npm install *)",
       "Bash(npx vitest *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(node --check \"C:/Users/nmein/tennis-data/tenaceiq-capture-extension/content_script.js\")",
+      "Bash(node --check \"C:/Users/nmein/tennis-data/tenaceiq-capture-extension/popup.js\")"
     ]
   }
 }

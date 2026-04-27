@@ -10,6 +10,29 @@
 
   const DEBUG = false;
   const SCHEDULE_CACHE_KEY = 'TENACEIQ_SCHEDULE_MATCH_CACHE';
+  const SCHEDULE_CACHE_MAX_ENTRIES = 200;
+
+  // Order matters: longer (more specific) strings must come before shorter ones
+  // that are substrings of them (e.g. "Missouri Athletic Club - West" before
+  // "Missouri Athletic Club") so the first match wins correctly.
+  const KNOWN_FACILITIES = [
+    'Forest Lake Tennis Club',
+    'St. Clair Tennis Club',
+    'Missouri Athletic Club - West',
+    'Vetta Sports Club - Concord',
+    'Chesterfield Athletic Club',
+    'Sunset Tennis Center',
+    'Woodsmill Tennis Club',
+    'Missouri Athletic Club',
+    'Vetta Sports Club',
+    'Vetta West',
+    'Vetta Sports',
+    'Forest Lake',
+    'St. Clair',
+    'Vetta',
+    'Sunset',
+    'Chesterfield',
+  ];
 
   function log(...args) {
     if (DEBUG) {
@@ -20,19 +43,91 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type !== 'TENACEIQ_CAPTURE_PAGE') return;
 
-    try {
-      const payload = capturePage();
-      persistHelpfulCache(payload);
-      sendResponse({ ok: true, payload });
-    } catch (error) {
-      sendResponse({
-        ok: false,
-        error: error instanceof Error ? error.message : 'Unknown capture error',
+    capturePageAsync()
+      .then((payload) => {
+        persistHelpfulCache(payload);
+        sendResponse({ ok: true, payload });
+      })
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : 'Unknown capture error',
+        });
       });
+
+    return true; // keep message channel open for async response
+  });
+
+  async function capturePageAsync() {
+    const text = document.body?.innerText || '';
+    const pageType = detectPageType(text);
+
+    if (pageType === 'team_summary') {
+      return { pageType: 'team_summary', teamSummary: extractTeamSummary() };
     }
 
-    return true;
-  });
+    if (pageType !== 'scorecard') {
+      const seasonSchedule = extractSeasonSchedule(text);
+      const leagueMeta = extractLeagueMetadata(text);
+      return { pageType: 'season_schedule', seasonSchedule: { ...leagueMeta, ...seasonSchedule } };
+    }
+
+    // Scorecards: look up the schedule cache BEFORE extracting so cached team
+    // names are injected as the highest-priority source, not a last-resort fallback.
+    const urlMatchId = extractMatchIdFromHref(window.location.href);
+    const cachedScheduleEntry = await loadScheduleCacheEntry(urlMatchId);
+
+    const scorecard = extractScorecard(cachedScheduleEntry);
+    const enrichedScorecard = attachScheduleCacheMeta(scorecard, cachedScheduleEntry);
+
+    return { pageType: 'scorecard', scorecard: enrichedScorecard };
+  }
+
+  async function loadScheduleCacheEntry(matchId) {
+    const id = String(matchId || '').trim();
+    if (!id || !chrome?.storage?.local?.get) return null;
+
+    try {
+      const result = await new Promise((resolve) => {
+        chrome.storage.local.get([SCHEDULE_CACHE_KEY], resolve);
+      });
+      const cache = result?.[SCHEDULE_CACHE_KEY];
+      if (!cache || typeof cache !== 'object') return null;
+      return cache[id] || null;
+    } catch (err) {
+      log('schedule cache load failed', err);
+      return null;
+    }
+  }
+
+  function attachScheduleCacheMeta(scorecard, cached) {
+    if (!cached) return scorecard;
+
+    const sc = { ...scorecard };
+
+    // Attach cache provenance so the import pipeline can show it.
+    sc.scheduleCache = {
+      found: true,
+      matchId: cached.matchId || sc.matchId || null,
+      homeTeam: cached.homeTeam || null,
+      awayTeam: cached.awayTeam || null,
+      facility: cached.facility || null,
+      scheduleDate: cached.scheduleDate || null,
+      scheduleTime: cached.scheduleTime || null,
+    };
+
+    // Surface the cache hit in the diagnostics visible in the review panel.
+    if (sc.captureEngine && Array.isArray(sc.captureEngine.diagnostics)) {
+      const teamNote =
+        `schedule cache hit — home: ${cached.homeTeam || '?'}, away: ${cached.awayTeam || '?'}`;
+      sc.captureEngine = {
+        ...sc.captureEngine,
+        diagnostics: [...sc.captureEngine.diagnostics, teamNote],
+      };
+    }
+
+    return sc;
+  }
 
   function capturePage() {
     const text = document.body?.innerText || '';
@@ -90,6 +185,14 @@
             scheduleTime: match.scheduleTime || null,
             scheduleTimeDisplay: match.scheduleTimeDisplay || null,
           };
+        }
+
+        // Prune oldest entries (insertion-order) to stay under the size cap
+        const allKeys = Object.keys(next);
+        if (allKeys.length > SCHEDULE_CACHE_MAX_ENTRIES) {
+          for (const key of allKeys.slice(0, allKeys.length - SCHEDULE_CACHE_MAX_ENTRIES)) {
+            delete next[key];
+          }
         }
 
         chrome.storage.local.set({ [SCHEDULE_CACHE_KEY]: next });
@@ -273,28 +376,9 @@
   }
 
   function smartSplit(text) {
-    const facilities = [
-      'Forest Lake Tennis Club',
-      'St. Clair Tennis Club',
-      'Missouri Athletic Club - West',
-      'Vetta West',
-      'Vetta Sports Club - Concord',
-      'Chesterfield Athletic Club',
-      'Sunset Tennis Center',
-      'Woodsmill Tennis Club',
-      'Missouri Athletic Club',
-      'Forest Lake',
-      'St. Clair',
-      'Vetta Sports Club',
-      'Vetta Sports',
-      'Vetta',
-      'Sunset',
-      'Chesterfield',
-    ];
-
     const cleaned = removeFooter(text);
 
-    for (const facility of facilities) {
+    for (const facility of KNOWN_FACILITIES) {
       if (cleaned.includes(facility)) {
         return {
           team: cleaned.replace(facility, '').trim(),
@@ -320,29 +404,10 @@
       };
     }
 
-    const facilityCandidates = [
-      'Forest Lake Tennis Club',
-      'St. Clair Tennis Club',
-      'Missouri Athletic Club - West',
-      'Vetta Sports Club - Concord',
-      'Chesterfield Athletic Club',
-      'Sunset Tennis Center',
-      'Vetta West',
-      'Woodsmill Tennis Club',
-      'Missouri Athletic Club',
-      'Forest Lake',
-      'St. Clair',
-      'Vetta Sports Club',
-      'Vetta Sports',
-      'Vetta',
-      'Sunset',
-      'Chesterfield',
-    ];
-
     let working = cleanedJoined;
     let facility = '';
 
-    for (const candidate of facilityCandidates) {
+    for (const candidate of KNOWN_FACILITIES) {
       if (working.includes(candidate)) {
         facility = candidate;
         working = working.replace(candidate, ' ').replace(/\s+/g, ' ').trim();
@@ -775,14 +840,41 @@
         }
       }
 
-      if (people.length < 2) continue;
-
       const mid = Math.floor(people.length / 2);
       const homeCaptains = people.slice(0, mid);
       const awayCaptains = people.slice(mid);
 
       let joined = textParts.join(' ');
       joined = removeFooter(joined);
+
+      // When captain data is absent (phone numbers not visible), still try to parse
+      // team names and facility from the raw text rather than skipping the match.
+      if (people.length < 2) {
+        const parsedTeams = parseScheduleTeamsAndFacility(joined, [], []);
+        if (parsedTeams.homeTeam && parsedTeams.awayTeam) {
+          let fac = parsedTeams.facility;
+          const repairedTeams = repairBrokenScheduleTeams(parsedTeams.homeTeam, parsedTeams.awayTeam);
+          const homeSplit = smartSplit(repairedTeams.homeTeam);
+          const awaySplit = smartSplit(repairedTeams.awayTeam);
+          let ht = repairedTeams.homeTeam;
+          let at = repairedTeams.awayTeam;
+          if (!fac && homeSplit.facility) { fac = homeSplit.facility; ht = homeSplit.team; }
+          if (!fac && awaySplit.facility) { fac = awaySplit.facility; at = awaySplit.team; }
+          matches.push({
+            matchId,
+            scheduleDate,
+            scheduleTime,
+            scheduleTimeDisplay,
+            homeTeam: ht,
+            homeCaptains: [],
+            awayTeam: at,
+            awayCaptains: [],
+            facility: fac,
+            scorecardKey: matchId,
+          });
+        }
+        continue;
+      }
 
       const parsedTeams = parseScheduleTeamsAndFacility(joined, homeCaptains, awayCaptains);
       let facility = parsedTeams.facility;
@@ -1111,7 +1203,15 @@
       .split(/\n+/)
       .map((part) => cleanPlayerText(part))
       .filter(Boolean)
-      .filter((part) => !extractSetPairsFromText(part).length);
+      .filter((part) => {
+        // Drop this part only if it is purely a score token — i.e., it contains
+        // set-pair numbers and has NO meaningful name-like content beyond score
+        // keywords. A part like "6-3" is dropped; "Smith 6-3" is kept and the
+        // score digits will be ignored by cleanPlayerText downstream.
+        if (!extractSetPairsFromText(part).length) return true;
+        const withoutScores = part.replace(/\b\d{1,2}\s*[-–]\s*\d{1,2}(?:\s*[\(\[]\d+[\)\]])?/g, '').replace(/\s+/g, ' ').trim();
+        return Boolean(withoutScores) && /[A-Za-z]{2,}/.test(withoutScores);
+      });
 
     if (multiLine.length > 1) {
       return multiLine;
@@ -1272,19 +1372,20 @@
   function extractSetPairsDeepFromNode(node) {
     if (!node) return [];
 
-    const blocks = [];
-    const rawInnerText = normalizeWhitespace(node.innerText || '');
-    const rawText = normalizeWhitespace(node.textContent || '');
+    const rawBlocks = [];
+    if (node.innerText) rawBlocks.push(...String(node.innerText).split(/\n+/));
+    if (node.textContent && node.textContent !== node.innerText) {
+      rawBlocks.push(...String(node.textContent).split(/\n+/));
+    }
     const rawHtml = String(node.innerHTML || '')
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<\/div>/gi, '\n')
       .replace(/<\/p>/gi, '\n')
       .replace(/<[^>]+>/g, ' ');
-    const normalizedHtml = normalizeWhitespace(rawHtml);
+    rawBlocks.push(...rawHtml.split(/\n+/));
 
-    if (rawInnerText) blocks.push(...String(node.innerText || '').split(/\n+/));
-    if (rawText) blocks.push(...String(node.textContent || '').split(/\n+/));
-    if (normalizedHtml) blocks.push(...rawHtml.split(/\n+/));
+    // Deduplicate normalized blocks before processing to avoid scoring duplicate sets
+    const blocks = unique(rawBlocks.map((b) => normalizeWhitespace(b)).filter(Boolean));
 
     const sets = [];
     for (const block of blocks) {
@@ -1464,10 +1565,14 @@
     if (/[✓✔☑✅]/.test(markerText)) return true;
     if (markerText.includes('winner')) return true;
     if (markerText.includes('won')) return true;
+    if (/\bwin\b/.test(markerText)) return true;
     if (markerText.includes('check')) return true;
+    if (markerText.includes('tick')) return true;
     if (markerText.includes('victory')) return true;
     if (markerText.includes('greencheck')) return true;
     if (markerText.includes('icon-check')) return true;
+    if (markerText.includes('fa-check')) return true;
+    if (markerText.includes('glyphicon-ok')) return true;
     if (markerText.includes('selected')) return true;
     if (markerText.includes('highlight')) return true;
     if (markerText.includes('bold')) return true;
@@ -1475,6 +1580,8 @@
     if (markerText.includes('font-weight: 700')) return true;
     if (markerText.includes('font-weight:600')) return true;
     if (markerText.includes('font-weight: 600')) return true;
+    if (markerText.includes('font-weight: bold')) return true;
+    if (markerText.includes('font-weight:bold')) return true;
 
     return false;
   }
@@ -1502,7 +1609,9 @@
       styleText.includes('font-weight:700') ||
       styleText.includes('font-weight: 700') ||
       styleText.includes('font-weight:600') ||
-      styleText.includes('font-weight: 600')
+      styleText.includes('font-weight: 600') ||
+      styleText.includes('font-weight: bold') ||
+      styleText.includes('font-weight:bold')
     ) {
       return true;
     }
@@ -2480,7 +2589,6 @@
       const scoreMeta = buildLineScoreMetadata(rawScoreText, sets);
 
       const setWinnerSide = determineWinnerSideFromSets(sets);
-      let textWinnerSide = null;
 
       const markerWinnerSide = detectWinnerSideFromRowMarkers(row, {
         homeCellIndex:
@@ -2493,11 +2601,11 @@
             : Math.max(cells.length - 2, 1),
       });
 
-      let winnerSide = markerWinnerSide || null;
-
-      if (!winnerSide && typeof headerMap.winner === 'number') {
+      // Always check the winner column — both text labels and embedded marker images.
+      // Don't gate this on markerWinnerSide; gather it independently for cross-confirmation.
+      let textWinnerSide = null;
+      if (typeof headerMap.winner === 'number') {
         const winnerText = lower(cells[headerMap.winner]);
-
         if (winnerText.includes('home')) textWinnerSide = 'home';
         else if (winnerText.includes('away')) textWinnerSide = 'away';
         else if (winnerText.includes('visiting')) textWinnerSide = 'away';
@@ -2506,27 +2614,46 @@
         else if (winnerText === 'w') textWinnerSide = 'home';
         else if (winnerText === 'l') textWinnerSide = 'away';
 
-        if (textWinnerSide) {
-          winnerSide = textWinnerSide;
+        // If the winner column shows an image marker but no readable text,
+        // use the marker detection result when the marker falls inside the winner column.
+        if (!textWinnerSide && markerWinnerSide) {
+          const rowCells = Array.from(row.querySelectorAll('td, th'));
+          const winnerCell = rowCells[headerMap.winner];
+          if (winnerCell) {
+            const hasMarker = Array.from(winnerCell.querySelectorAll('img, svg, i, span'))
+              .some(nodeLooksLikeWinnerMarker);
+            if (hasMarker) textWinnerSide = markerWinnerSide;
+          }
         }
       }
 
-      if (!winnerSide && textWinnerSide) {
-        winnerSide = textWinnerSide;
+      // DOM marker and text column are reliable; set math is not when TennisLink
+      // shows the winner's score first rather than the home player's score first.
+      const reliableWinner = markerWinnerSide || textWinnerSide;
+
+      // When the reliable winner contradicts set math, the scores are inverted —
+      // normalize all set scores to home-first perspective by swapping.
+      let normalizedSets = sets;
+      let normalizedSetWinnerSide = setWinnerSide;
+      if (reliableWinner && setWinnerSide && reliableWinner !== setWinnerSide) {
+        normalizedSets = sets.map((set) => {
+          if (!set) return set;
+          return { ...set, homeGames: set.awayGames, awayGames: set.homeGames };
+        });
+        // Recompute so confidence scoring sees agreement rather than a false conflict
+        normalizedSetWinnerSide = determineWinnerSideFromSets(normalizedSets);
       }
 
-      if (!winnerSide && setWinnerSide) {
-        winnerSide = setWinnerSide;
-      }
+      const winnerSide = reliableWinner || normalizedSetWinnerSide || null;
 
       lines.push({
         lineNumber,
         matchType,
         homePlayers,
         awayPlayers,
-        sets,
+        sets: normalizedSets,
         winnerSide,
-        setWinnerSide,
+        setWinnerSide: normalizedSetWinnerSide,
         textWinnerSide,
         markerWinnerSide,
         parseNotes: [],
@@ -2572,10 +2699,20 @@
       deduped.push(cleanLine);
     }
 
+    function lineCompleteness(line) {
+      return (safeArray(line.homePlayers).filter(Boolean).length) +
+             (safeArray(line.awayPlayers).filter(Boolean).length) +
+             (safeArray(line.sets).filter(Boolean).length * 2) +
+             (line.winnerSide ? 3 : 0);
+    }
+
     const uniqueByLine = {};
 
     for (const line of deduped) {
-      uniqueByLine[line.lineNumber] = line;
+      const existing = uniqueByLine[line.lineNumber];
+      if (!existing || lineCompleteness(line) > lineCompleteness(existing)) {
+        uniqueByLine[line.lineNumber] = line;
+      }
     }
 
     return Object.values(uniqueByLine).sort((a, b) => {
@@ -2680,7 +2817,19 @@
         homeCellIndex: Math.max(labelIndex + 1, 1),
         awayCellIndex: Math.max(cellTexts.length - 2, labelIndex + 2),
       });
-      const winnerSide = markerWinnerSide || setWinnerSide || null;
+
+      // Normalize scores to home-first if DOM marker contradicts set math
+      let normalizedSets = sets;
+      let normalizedSetWinnerSide = setWinnerSide;
+      if (markerWinnerSide && setWinnerSide && markerWinnerSide !== setWinnerSide) {
+        normalizedSets = sets.map((set) => {
+          if (!set) return set;
+          return { ...set, homeGames: set.awayGames, awayGames: set.homeGames };
+        });
+        normalizedSetWinnerSide = determineWinnerSideFromSets(normalizedSets);
+      }
+
+      const winnerSide = markerWinnerSide || normalizedSetWinnerSide || null;
 
       if (!homePlayers.length && !awayPlayers.length && !sets.length) return;
 
@@ -2689,9 +2838,9 @@
         matchType,
         homePlayers,
         awayPlayers,
-        sets,
+        sets: normalizedSets,
         winnerSide,
-        setWinnerSide,
+        setWinnerSide: normalizedSetWinnerSide,
         textWinnerSide: null,
         markerWinnerSide,
         parseNotes: [],
@@ -2768,7 +2917,9 @@
         const awayPlayers = splitPlayers(awayRaw.join('\n'));
         const scoreMeta = buildLineScoreMetadata(scoreRaw, sets);
         const setWinnerSide = determineWinnerSideFromSets(sets);
-        const winnerSide = setWinnerSide;
+        // Text-only fallback: no DOM access means no checkmark detection.
+        // Leave winner unresolved so the review system can catch discrepancies.
+        const winnerSide = null;
 
         if (homePlayers.length || awayPlayers.length || sets.length) {
           results.push({
@@ -2821,7 +2972,8 @@
 
       const scoreMeta = buildLineScoreMetadata(scoreRaw || filteredBlock.join(' '), sets);
       const setWinnerSide = determineWinnerSideFromSets(sets);
-      const winnerSide = setWinnerSide;
+      // Text-only fallback: leave winner unresolved; no DOM evidence available
+      const winnerSide = null;
 
       if (homePlayers.length || awayPlayers.length || sets.length) {
         results.push({
@@ -3217,18 +3369,21 @@
     return null;
   }
 
-  function extractScorecard() {
+  function extractScorecard(cachedScheduleEntry) {
     const text = document.body?.innerText || '';
     const bestTable = extractBestScorecardTable();
 
     let lines = extractScorecardLinesFromTable(bestTable);
+    let captureMethod = 'table';
 
     if (!lines.length && bestTable && isLikelyRenderedScorecardTable(bestTable)) {
       lines = extractRenderedScorecardLines(bestTable);
+      captureMethod = 'rendered_table';
     }
 
     if (!lines.length) {
       lines = extractRenderedScorecardLinesFromText(text);
+      captureMethod = 'text_fallback';
     }
 
     const summaryMeta = extractSummaryTeamsAndScore(text);
@@ -3241,7 +3396,13 @@
     const pageMatchIds = extractAllMatchIdsFromPage();
     const matchId = firstTruthy(urlMatchId, pageMatchIds[0], null);
 
+    // Schedule cache is the highest-priority team source — it comes from the
+    // structured schedule page and is authoritative about which team is home vs away.
+    const cacheHomeTeam = cachedScheduleEntry?.homeTeam || null;
+    const cacheAwayTeam = cachedScheduleEntry?.awayTeam || null;
+
     const homeTeam = mergeTeamCandidates(
+      cacheHomeTeam,
       summaryMeta.homeTeam,
       tableMeta.homeTeam,
       domMeta.homeTeam,
@@ -3252,6 +3413,7 @@
     );
 
     const awayTeam = mergeTeamCandidates(
+      cacheAwayTeam,
       summaryMeta.awayTeam,
       tableMeta.awayTeam,
       domMeta.awayTeam,
@@ -3267,6 +3429,7 @@
       domMeta.dateMatchPlayed ||
       pageMeta.dateMatchPlayed ||
       extractDateMatchPlayed(text) ||
+      (cachedScheduleEntry?.scheduleDate ? normalizeDate(cachedScheduleEntry.scheduleDate) : null) ||
       null;
 
     let totalTeamScore = summaryMeta.teamScore;
@@ -3291,11 +3454,15 @@
 
     const engineDiagnostics = unique([
       ...safeArray(reconciled.diagnostics),
+      `capture method: ${captureMethod}`,
       ...(safeArray(lines).some((line) => line?.hasThirdSetMatchTiebreak)
         ? ['third-set match tiebreak detected']
         : []),
       ...(safeArray(lines).some((line) => line?.timedMatch)
         ? ['timed match detected']
+        : []),
+      ...(captureMethod === 'text_fallback'
+        ? ['text-only fallback used — no DOM table found; all line winners unresolved']
         : []),
     ]);
 
@@ -3311,23 +3478,31 @@
 
     const unresolvedLineCount = safeArray(lines).filter((line) => !line?.winnerSide).length;
 
+    // Facility is not reliably present on the scorecard page itself, but the
+    // schedule cache carries it from the structured schedule page.
+    const facility = cachedScheduleEntry?.facility
+      ? normalizeWhitespace(cachedScheduleEntry.facility)
+      : null;
+
     return {
       matchId,
       homeTeam: normalizeTeamName(homeTeam || ''),
       awayTeam: normalizeTeamName(awayTeam || ''),
       dateMatchPlayed: dateMatchPlayed || null,
+      facility,
       totalTeamScore: {
         home: totalTeamScore.home ?? null,
         away: totalTeamScore.away ?? null,
       },
       captureEngine: {
-        version: 'review-safe-v1',
+        version: 'review-safe-v2',
         captureQuality,
         diagnostics: engineDiagnostics,
       },
       dataConflict: Boolean(reconciled.dataConflict),
       conflictType: reconciled.conflictType || null,
-      needsReview: Boolean(reconciled.needsReview || unresolvedLineCount > 0),
+      needsReview: Boolean(reconciled.needsReview || unresolvedLineCount > 0 || captureMethod === 'text_fallback'),
+      captureMethod,
       lines,
     };
   }

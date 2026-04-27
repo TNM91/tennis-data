@@ -194,6 +194,7 @@ export type ScorecardImportResult = {
   failedCount: number
   createdPlayersCount: number
   linkedPlayersCount: number
+  skippedLinesCount: number
   rows: ScorecardRowResult[]
   errors: ImportRowError[]
 }
@@ -878,6 +879,7 @@ export class ImportEngine {
       failedCount: 0,
       createdPlayersCount: 0,
       linkedPlayersCount: 0,
+      skippedLinesCount: 0,
       rows: [],
       errors: [],
     }
@@ -1026,6 +1028,7 @@ export class ImportEngine {
               externalMatchId: hydratedRow.externalMatchId,
               lineNumber: line.lineNumber,
             })
+            result.skippedLinesCount += 1
             continue
           }
 
@@ -1362,33 +1365,17 @@ export class ImportEngine {
   private async deleteExistingScorecardLineMatches(parentExternalMatchId: string) {
     const pattern = `${cleanString(parentExternalMatchId)}::line:%`
 
-    const { data, error } = await this.supabase
+    const { error } = await this.supabase
       .from('matches')
-      .select('id')
+      .delete()
       .like('external_match_id', pattern)
 
     if (error) {
-      this.options.log('deleteExistingScorecardLineMatches lookup failed', {
+      this.options.log('deleteExistingScorecardLineMatches failed', {
         parentExternalMatchId,
         error: error.message,
       })
-      throw new Error(`Failed to find existing scorecard line matches: ${error.message}`)
-    }
-
-    const ids = ((data ?? []) as Array<{ id: string }>).map((row) => row.id).filter(Boolean)
-    if (ids.length === 0) return
-
-    const { error: deleteError } = await this.supabase
-      .from('matches')
-      .delete()
-      .in('id', ids)
-
-    if (deleteError) {
-      this.options.log('deleteExistingScorecardLineMatches delete failed', {
-        parentExternalMatchId,
-        error: deleteError.message,
-      })
-      throw new Error(`Failed to clear existing scorecard line matches: ${deleteError.message}`)
+      throw new Error(`Failed to clear existing scorecard line matches: ${error.message}`)
     }
   }
 
@@ -1667,11 +1654,16 @@ export class ImportEngine {
     return streak
   }
 
+  private static escapePostgrestValue(value: string): string {
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  }
+
   private async fetchRecentTeamMatches(teamName: string, leagueName?: string | null, flight?: string | null): Promise<MatchRecord[]> {
+    const safe = ImportEngine.escapePostgrestValue(teamName)
     let query = this.supabase
       .from('matches')
       .select('id, external_match_id, home_team, away_team, match_date, league_name, flight, usta_section, district_area, winner_side, score, status, line_number')
-      .or(`home_team.eq.${teamName},away_team.eq.${teamName}`)
+      .or(`home_team.eq."${safe}",away_team.eq."${safe}"`)
       .is('line_number', null)
       .order('match_date', { ascending: false })
       .limit(5)
@@ -2051,108 +2043,144 @@ export class ImportEngine {
 
     result.totalPlayers = playerMap.size
 
-    if (mode === 'preview') {
-      // Dry-run: look up each player to report what would happen, but write nothing.
-      for (const { name, ntrp } of playerMap.values()) {
-        try {
-          const { data: existing, error: lookupError } = await this.supabase
-            .from('players')
-            .select('id, name, singles_rating')
-            .ilike('name', name)
-            .maybeSingle()
+    const allEntries = [...playerMap.values()]
+    const allNormalizedNames = allEntries.map(({ name }) => normalizeName(name))
 
-          if (lookupError) {
-            result.failedCount += 1
-            result.players.push({ name, status: 'failed', ntrp, message: lookupError.message })
-          } else if (existing) {
-            result.updatedCount += 1
-            result.players.push({ name, status: 'updated', ntrp, message: `Would update baseline from ${existing.singles_rating ?? 'unset'} → ${ntrp}` })
-          } else {
-            result.createdCount += 1
-            result.players.push({ name, status: 'created', ntrp, message: `Would create new player with baseline ${ntrp}` })
-          }
-        } catch (err) {
-          result.failedCount += 1
-          result.players.push({ name, status: 'failed', ntrp, message: err instanceof Error ? err.message : 'Lookup failed' })
+    // Single batch lookup — one round-trip regardless of player count
+    type ExistingPlayerRow = {
+      id: string
+      name: string
+      singles_rating: number | null
+      doubles_rating: number | null
+      overall_rating: number | null
+      singles_dynamic_rating: number | null
+      doubles_dynamic_rating: number | null
+      overall_dynamic_rating: number | null
+    }
+
+    const fetchExistingPlayers = async (): Promise<Map<string, ExistingPlayerRow>> => {
+      const byNormalizedName = new Map<string, ExistingPlayerRow>()
+      const lookupQuery = this.options.hasNormalizedPlayerNameColumn
+        ? this.supabase
+            .from('players')
+            .select('id, name, normalized_name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+            .in('normalized_name', allNormalizedNames)
+        : this.supabase
+            .from('players')
+            .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+            .in('name', allEntries.map(({ name }) => name))
+
+      const { data, error } = await lookupQuery
+      if (!error) {
+        for (const row of (data ?? []) as Array<ExistingPlayerRow & { normalized_name?: string | null }>) {
+          byNormalizedName.set(normalizeName(row.normalized_name || row.name), row)
+        }
+      }
+      return byNormalizedName
+    }
+
+    if (mode === 'preview') {
+      const existingByNorm = await fetchExistingPlayers()
+
+      for (const { name, ntrp } of allEntries) {
+        const existing = existingByNorm.get(normalizeName(name))
+        if (existing) {
+          result.updatedCount += 1
+          result.players.push({
+            name,
+            status: 'updated',
+            ntrp,
+            message: `Would update baseline from ${existing.singles_rating ?? 'unset'} → ${ntrp}`,
+          })
+        } else {
+          result.createdCount += 1
+          result.players.push({ name, status: 'created', ntrp, message: `Would create new player with baseline ${ntrp}` })
         }
       }
       return result
     }
 
-    // Commit mode: look up each player, upsert baseline ratings
-    for (const { name, ntrp } of playerMap.values()) {
-      try {
-        const normalizedKey = normalizeName(name)
+    // Commit mode: batch lookup → batch insert for new → targeted updates for existing
+    const existingByNorm = await fetchExistingPlayers()
 
-        // Try to find existing player
-        const { data: existing, error: lookupError } = await this.supabase
-          .from('players')
-          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
-          .ilike('name', name)
-          .maybeSingle()
+    const toInsert: Array<{ name: string; ntrp: number }> = []
+    const toUpdate: Array<{ name: string; ntrp: number; existing: ExistingPlayerRow }> = []
 
-        if (lookupError) {
-          result.failedCount += 1
-          result.players.push({ name, status: 'failed', ntrp, message: lookupError.message })
-          result.errors.push({ rowIndex: 0, code: 'PLAYER_LOOKUP_FAILED', message: `${name}: ${lookupError.message}` })
-          continue
+    for (const { name, ntrp } of allEntries) {
+      const existing = existingByNorm.get(normalizeName(name))
+      if (existing) {
+        toUpdate.push({ name, ntrp, existing })
+      } else {
+        toInsert.push({ name, ntrp })
+      }
+    }
+
+    // Batch insert all new players in one query
+    if (toInsert.length > 0) {
+      const insertPayload = toInsert.map(({ name, ntrp }) => {
+        const roundedNtrp = Math.round(ntrp * 1000) / 1000
+        return {
+          name,
+          normalized_name: normalizeName(name),
+          singles_rating: roundedNtrp,
+          doubles_rating: roundedNtrp,
+          overall_rating: roundedNtrp,
+          singles_dynamic_rating: roundedNtrp,
+          doubles_dynamic_rating: roundedNtrp,
+          overall_dynamic_rating: roundedNtrp,
         }
+      })
 
+      const { error: insertError } = await this.supabase.from('players').insert(insertPayload)
+
+      if (insertError) {
+        for (const { name, ntrp } of toInsert) {
+          result.failedCount += 1
+          result.players.push({ name, status: 'failed', ntrp, message: insertError.message })
+          result.errors.push({ rowIndex: 0, code: 'PLAYER_CREATE_FAILED', message: `${name}: ${insertError.message}` })
+        }
+      } else {
+        for (const { name, ntrp } of toInsert) {
+          result.createdCount += 1
+          result.players.push({ name, status: 'created', ntrp })
+        }
+      }
+    }
+
+    // Individual updates — must stay serial because each player's conditional
+    // logic reads their current dynamic ratings from the batch fetch result.
+    for (const { name, ntrp, existing } of toUpdate) {
+      try {
         const roundedNtrp = Math.round(ntrp * 1000) / 1000
 
-        if (existing) {
-          // Only seed dynamic rating if it equals the old baseline (3.5 default)
-          // or has no value — don't overwrite in-season progress.
-          const oldBaseline = existing.singles_rating ?? DEFAULT_PLAYER_BASELINE
-          const singlesWasDefault = (existing.singles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
-          const doublesWasDefault = (existing.doubles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
-          const overallWasDefault = (existing.overall_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
+        // Only seed dynamic rating if it equals the old baseline (3.5 default)
+        // or has no value — don't overwrite in-season progress.
+        const oldBaseline = existing.singles_rating ?? DEFAULT_PLAYER_BASELINE
+        const singlesWasDefault = (existing.singles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
+        const doublesWasDefault = (existing.doubles_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
+        const overallWasDefault = (existing.overall_dynamic_rating ?? oldBaseline) === DEFAULT_PLAYER_BASELINE
 
-          const update: Record<string, number> = {
-            singles_rating: roundedNtrp,
-            doubles_rating: roundedNtrp,
-            overall_rating: roundedNtrp,
-          }
-          if (singlesWasDefault) update.singles_dynamic_rating = roundedNtrp
-          if (doublesWasDefault) update.doubles_dynamic_rating = roundedNtrp
-          if (overallWasDefault) update.overall_dynamic_rating = roundedNtrp
+        const update: Record<string, number> = {
+          singles_rating: roundedNtrp,
+          doubles_rating: roundedNtrp,
+          overall_rating: roundedNtrp,
+        }
+        if (singlesWasDefault) update.singles_dynamic_rating = roundedNtrp
+        if (doublesWasDefault) update.doubles_dynamic_rating = roundedNtrp
+        if (overallWasDefault) update.overall_dynamic_rating = roundedNtrp
 
-          const { error: updateError } = await this.supabase
-            .from('players')
-            .update(update)
-            .eq('id', existing.id)
+        const { error: updateError } = await this.supabase
+          .from('players')
+          .update(update)
+          .eq('id', existing.id)
 
-          if (updateError) {
-            result.failedCount += 1
-            result.players.push({ name, status: 'failed', ntrp, message: updateError.message })
-            result.errors.push({ rowIndex: 0, code: 'PLAYER_LOOKUP_FAILED', message: `${name}: ${updateError.message}` })
-          } else {
-            result.updatedCount += 1
-            result.players.push({ name, status: 'updated', ntrp })
-          }
+        if (updateError) {
+          result.failedCount += 1
+          result.players.push({ name, status: 'failed', ntrp, message: updateError.message })
+          result.errors.push({ rowIndex: 0, code: 'PLAYER_LOOKUP_FAILED', message: `${name}: ${updateError.message}` })
         } else {
-          // Create the player with both baseline and dynamic ratings set
-          const { error: insertError } = await this.supabase
-            .from('players')
-            .insert({
-              name,
-              normalized_name: normalizedKey,
-              singles_rating: roundedNtrp,
-              doubles_rating: roundedNtrp,
-              overall_rating: roundedNtrp,
-              singles_dynamic_rating: roundedNtrp,
-              doubles_dynamic_rating: roundedNtrp,
-              overall_dynamic_rating: roundedNtrp,
-            })
-
-          if (insertError) {
-            result.failedCount += 1
-            result.players.push({ name, status: 'failed', ntrp, message: insertError.message })
-            result.errors.push({ rowIndex: 0, code: 'PLAYER_CREATE_FAILED', message: `${name}: ${insertError.message}` })
-          } else {
-            result.createdCount += 1
-            result.players.push({ name, status: 'created', ntrp })
-          }
+          result.updatedCount += 1
+          result.players.push({ name, status: 'updated', ntrp })
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error'

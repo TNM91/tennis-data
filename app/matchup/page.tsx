@@ -168,6 +168,7 @@ export default function MatchupPage() {
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [headToHead, setHeadToHead] = useState<HeadToHeadState | null>(null)
   const [formScores, setFormScores] = useState<{ left: number | null; right: number | null }>({ left: null, right: null })
+  const [trajectories, setTrajectories] = useState<{ left: Array<{ date: string; rating: number }>; right: Array<{ date: string; rating: number }> }>({ left: [], right: [] })
   const urlReadyRef = useRef(false)
   const [accuracy, setAccuracy] = useState<AccuracyState>({
     overall: null,
@@ -320,6 +321,30 @@ export default function MatchupPage() {
     })()
     return () => { active = false }
   }, [playerAId, playerBId, matchType])
+
+  useEffect(() => {
+    const idA = playerAId || null
+    const idB = playerBId || null
+    if (!idA || !idB || idA === idB) { setTrajectories({ left: [], right: [] }); return }
+    let active = true
+    void (async () => {
+      const { data } = await supabase
+        .from('rating_snapshots')
+        .select('player_id, snapshot_date, dynamic_rating, rating_type')
+        .in('player_id', [idA, idB])
+        .eq('track', 'tiq')
+        .in('rating_type', ['overall'])
+        .order('snapshot_date', { ascending: true })
+        .limit(120)
+      if (!active || !data) return
+      const rows = data as Array<{ player_id: string; snapshot_date: string; dynamic_rating: number }>
+      setTrajectories({
+        left: rows.filter((r) => r.player_id === idA).map((r) => ({ date: r.snapshot_date, rating: r.dynamic_rating })),
+        right: rows.filter((r) => r.player_id === idB).map((r) => ({ date: r.snapshot_date, rating: r.dynamic_rating })),
+      })
+    })()
+    return () => { active = false }
+  }, [playerAId, playerBId])
 
   async function loadPlayers() {
     setLoading(true)
@@ -1553,6 +1578,18 @@ export default function MatchupPage() {
                 </div>
               ) : null}
 
+              {trajectories.left.length >= 3 && trajectories.right.length >= 3 ? (
+                <div style={{ marginTop: 12, padding: '16px 18px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 12 }}>Rating trajectory comparison</div>
+                  <DualTrajectoryChart
+                    leftPoints={trajectories.left}
+                    rightPoints={trajectories.right}
+                    leftLabel={comparison?.leftLabel ?? 'Player A'}
+                    rightLabel={comparison?.rightLabel ?? 'Player B'}
+                  />
+                </div>
+              ) : null}
+
               {projection ? (
                 <article style={summaryCard}>
                   <h2 style={projectionSectionTitle}>Match projection</h2>
@@ -1704,8 +1741,24 @@ export default function MatchupPage() {
                       )
                     })() : null}
 
-                    {headToHead.recentMatches.length > 0 ? (
+                    {headToHead.recentMatches.length > 0 ? (() => {
+                      let threeSets = 0, tiebreaks = 0, scoredMatches = 0
+                      for (const m of headToHead.recentMatches) {
+                        if (!m.score) continue
+                        scoredMatches++
+                        const sets = m.score.split(/[;,|]/).map((s: string) => s.trim()).filter(Boolean)
+                        if (sets.length >= 3) threeSets++
+                        if (sets.some((s: string) => /^7-6$|^6-7$/.test(s))) tiebreaks++
+                      }
+                      return (
                       <div style={{ marginTop: 18 }}>
+                        {scoredMatches > 0 ? (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 12 }}>
+                            {threeSets > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{threeSets} went 3 sets</span> : null}
+                            {tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.18)', color: '#fed7aa', fontSize: 11, fontWeight: 800 }}>{tiebreaks} tiebreak{tiebreaks !== 1 ? 's' : ''}</span> : null}
+                            {scoredMatches - threeSets - tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(155,225,29,0.08)', border: '1px solid rgba(155,225,29,0.16)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>{scoredMatches - threeSets - tiebreaks} straight sets</span> : null}
+                          </div>
+                        ) : null}
                         <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>Match history</div>
                         {headToHead.recentMatches.map((m, i) => {
                           const quality = getH2HScoreQuality(m.score)
@@ -1726,7 +1779,8 @@ export default function MatchupPage() {
                           )
                         })}
                       </div>
-                    ) : headToHead.lastMatch ? (
+                      )
+                    })() : headToHead.lastMatch ? (
                       <p style={{ ...paragraph, marginTop: '16px' }}>
                         <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} ·{' '}
                         {capitalize(headToHead.lastMatch.matchType)} ·{' '}
@@ -2124,6 +2178,45 @@ function getAccuracyBand(probabilityLeft: number): AccuracyBand {
 function toAccuracyValue(correct: number, total: number) {
   if (!total) return null
   return correct / total
+}
+
+function DualTrajectoryChart({ leftPoints, rightPoints, leftLabel, rightLabel }: {
+  leftPoints: Array<{ date: string; rating: number }>
+  rightPoints: Array<{ date: string; rating: number }>
+  leftLabel: string
+  rightLabel: string
+}) {
+  const W = 800, H = 160, pad = 28
+  const allRatings = [...leftPoints.map((p) => p.rating), ...rightPoints.map((p) => p.rating)]
+  const allDates = [...leftPoints.map((p) => p.date), ...rightPoints.map((p) => p.date)].sort()
+  const minR = Math.min(...allRatings) - 0.1
+  const maxR = Math.max(...allRatings) + 0.1
+  const spread = Math.max(maxR - minR, 0.1)
+  const minD = new Date(allDates[0]).getTime()
+  const maxD = new Date(allDates[allDates.length - 1]).getTime()
+  const xRange = Math.max(maxD - minD, 1)
+
+  function toX(date: string) { return pad + ((new Date(date).getTime() - minD) / xRange) * (W - pad * 2) }
+  function toY(r: number) { return H - pad - ((r - minR) / spread) * (H - pad * 2) }
+  function makePath(pts: typeof leftPoints) {
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(p.date)} ${toY(p.rating)}`).join(' ')
+  }
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', borderRadius: 12 }}>
+      <rect x={0} y={0} width={W} height={H} rx={12} fill="#0f1c38" />
+      {[0.25, 0.5, 0.75].map((t) => {
+        const y = pad + (H - pad * 2) * t
+        return <line key={t} x1={pad} x2={W - pad} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
+      })}
+      <path d={makePath(leftPoints)} fill="none" stroke="#9be11d" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={makePath(rightPoints)} fill="none" stroke="#3FA7FF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      {leftPoints.length > 0 && <circle cx={toX(leftPoints[leftPoints.length - 1].date)} cy={toY(leftPoints[leftPoints.length - 1].rating)} r={4} fill="#9be11d" />}
+      {rightPoints.length > 0 && <circle cx={toX(rightPoints[rightPoints.length - 1].date)} cy={toY(rightPoints[rightPoints.length - 1].rating)} r={4} fill="#3FA7FF" />}
+      <text x={pad + 4} y={H - 6} fill="rgba(155,225,29,0.7)" fontSize={10} fontWeight={700}>{leftLabel}</text>
+      <text x={W - pad - 4} y={H - 6} textAnchor="end" fill="rgba(63,167,255,0.7)" fontSize={10} fontWeight={700}>{rightLabel}</text>
+    </svg>
+  )
 }
 
 function capitalize(value: string) {

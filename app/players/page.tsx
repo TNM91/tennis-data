@@ -307,6 +307,12 @@ export default function PlayersPage() {
     return filteredPlayers.reduce((sum, player) => sum + player.matches, 0) / filteredPlayers.length
   }, [filteredPlayers])
 
+  const statusDistribution = useMemo(() => {
+    const counts: Record<RatingStatus, number> = { 'Bump Up Pace': 0, 'Trending Up': 0, Holding: 0, 'At Risk': 0, 'Drop Watch': 0 }
+    for (const player of players) counts[player.overallStatus]++
+    return counts
+  }, [players])
+
   const totalMatches = useMemo(() => {
     return players.reduce((sum, player) => sum + player.matches, 0)
   }, [players])
@@ -563,6 +569,25 @@ export default function PlayersPage() {
                   <StatChip label="Showing" value={String(filteredPlayers.length)} />
                   <StatChip label="Top overall" value={formatRating(topOverall)} accent />
                   <StatChip label="Avg overall" value={formatRating(avgOverall)} />
+                </div>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 14 }}>
+                  {([
+                    ['Bump Up Pace', 'rgba(155,225,29,0.10)', '#d9f84a', 'rgba(155,225,29,0.20)'],
+                    ['Trending Up', 'rgba(52,211,153,0.10)', '#a7f3d0', 'rgba(52,211,153,0.20)'],
+                    ['Holding', 'rgba(116,190,255,0.08)', '#93c5fd', 'rgba(116,190,255,0.16)'],
+                    ['At Risk', 'rgba(251,146,60,0.10)', '#fed7aa', 'rgba(251,146,60,0.20)'],
+                    ['Drop Watch', 'rgba(239,68,68,0.10)', '#fca5a5', 'rgba(239,68,68,0.18)'],
+                  ] as const).map(([status, bg, color, border]) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setFilterBy(filterBy === 'trending-up' && (status === 'Bump Up Pace' || status === 'Trending Up') ? 'all' : filterBy === 'at-risk' && (status === 'At Risk' || status === 'Drop Watch') ? 'all' : status === 'Bump Up Pace' || status === 'Trending Up' ? 'trending-up' : 'at-risk')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: bg, border: `1px solid ${border}`, color, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
+                    >
+                      {status} <span style={{ opacity: 0.8 }}>{statusDistribution[status]}</span>
+                    </button>
+                  ))}
                 </div>
 
                 <div style={summaryFooterWrap}>

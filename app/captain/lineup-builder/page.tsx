@@ -2632,19 +2632,31 @@ function sendCurrentScenarioToMessaging() {
               </div>
 
               <div style={stackStyle}>
-                {analysis.lines.map((line) => (
-                  <div key={line.label} style={listCardStyleCompact}>
-                    <div>
-                      <div style={listTitleStyle}>{line.label}</div>
-                      <div style={listMetaStyle}>
-                        Your {formatRating(line.yourRating)} - Opp {formatRating(line.opponentRating)} - Diff {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                {analysis.lines.map((line) => {
+                  const pct = typeof line.projection === 'number' ? Math.round(line.projection * 100) : null
+                  const isFavored = pct !== null && pct >= 50
+                  const isSwing = pct !== null && pct >= 45 && pct <= 55
+                  return (
+                    <div key={line.label} style={{ ...listCardStyleCompact, flexDirection: 'column' as const, gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <div>
+                          <div style={listTitleStyle}>{line.label}{isSwing ? <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: 'rgba(250,204,21,0.12)', color: '#fde047', border: '1px solid rgba(250,204,21,0.22)' }}>swing</span> : null}</div>
+                          <div style={listMetaStyle}>
+                            You {formatRating(line.yourRating)} · Opp {formatRating(line.opponentRating)} · {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 15, fontWeight: 900, color: isFavored ? '#86efac' : pct !== null ? '#fca5a5' : 'var(--shell-copy-muted)', flexShrink: 0 }}>
+                          {pct !== null ? `${pct}%` : '—'}
+                        </span>
                       </div>
+                      {pct !== null ? (
+                        <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: isFavored ? 'linear-gradient(90deg,rgba(52,211,153,0.5),rgba(134,239,172,0.7))' : 'linear-gradient(90deg,rgba(239,68,68,0.4),rgba(252,165,165,0.55))', borderRadius: 999, transition: 'width 300ms ease', minWidth: 4 }} />
+                        </div>
+                      ) : null}
                     </div>
-                    <span style={typeof line.projection === 'number' && line.projection >= 0.5 ? miniPillGreenStyle : miniPillSlateStyle}>
-                      {formatPercent(line.projection)}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </section>
 

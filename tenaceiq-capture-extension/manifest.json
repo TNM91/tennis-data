@@ -1,13 +1,18 @@
 {
   "manifest_version": 3,
   "name": "TenAceIQ Capture",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Capture TennisLink page data for TenAceIQ imports.",
   "permissions": [
     "activeTab",
     "scripting",
     "downloads",
-    "storage"
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://tenaceiq.com/*",
+    "http://localhost:3000/*"
   ],
   "action": {
     "default_popup": "popup.html",

@@ -192,6 +192,7 @@ export default function CaptainHubPage() {
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [error, setError] = useState('')
+  const [nextMatch, setNextMatch] = useState<{ date: string; opponent: string; home: boolean } | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
   const [scenarioCount, setScenarioCount] = useState(0)
@@ -422,6 +423,31 @@ export default function CaptainHubPage() {
     if (!selectedTeam) return
     void loadSelectedTeam()
   }, [loadSelectedTeam, refreshTick, selectedTeam])
+
+  useEffect(() => {
+    if (!selectedTeam) { setNextMatch(null); return }
+    let active = true
+    const today = new Date().toISOString().split('T')[0]
+    void (async () => {
+      let q = supabase
+        .from('matches')
+        .select('id, match_date, home_team, away_team')
+        .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
+        .gte('match_date', today)
+        .is('line_number', null)
+        .order('match_date', { ascending: true })
+        .limit(1)
+      if (selectedLeague) q = q.eq('league_name', selectedLeague)
+      if (selectedFlight) q = q.eq('flight', selectedFlight)
+      const { data } = await q
+      if (!active || !data?.length) return
+      const m = data[0] as { match_date: string; home_team: string | null; away_team: string | null }
+      const isHome = (m.home_team || '') === selectedTeam
+      const opponent = isHome ? (m.away_team || 'TBD') : (m.home_team || 'TBD')
+      setNextMatch({ date: m.match_date, opponent, home: isHome })
+    })()
+    return () => { active = false }
+  }, [selectedTeam, selectedLeague, selectedFlight])
 
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
@@ -1905,6 +1931,26 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             </div>
           )}
         </section>
+
+        {nextMatch ? (
+          <section style={{ ...sectionCard, borderColor: 'rgba(116,190,255,0.22)', background: 'rgba(116,190,255,0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap' as const }}>
+              <div>
+                <div style={{ ...sectionKicker, color: '#93c5fd' }}>Next scheduled match</div>
+                <h2 style={{ ...sectionTitle, margin: '4px 0 0' }}>
+                  vs {nextMatch.opponent}
+                </h2>
+                <div style={{ color: 'var(--shell-copy-muted)', fontSize: 14, fontWeight: 600, marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
+                  <span>{formatDate(nextMatch.date)}</span>
+                  <span style={{ padding: '2px 9px', borderRadius: 999, background: nextMatch.home ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${nextMatch.home ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: nextMatch.home ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{nextMatch.home ? 'Home' : 'Away'}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
+                <Link href={buildCaptainScopedHref('/captain/analytics', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'rgba(116,190,255,0.12)', border: '1px solid rgba(116,190,255,0.28)', color: '#bfdbfe', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section style={sectionCard}>
           <div style={sectionHead}>

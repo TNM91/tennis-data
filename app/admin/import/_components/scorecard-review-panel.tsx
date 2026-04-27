@@ -19,6 +19,7 @@ type Props = {
   onMatchDecisionChange: (externalMatchId: string, decision: ReviewDecision) => void
   onApproveMatch: (externalMatchId: string) => void
   onApproveAndSubmitMatch: (preview: ScorecardPreviewModel) => void
+  onQuickWinnerAndSubmit: (preview: ScorecardPreviewModel, lineNumber: number, winnerSide: MatchSide) => void
   onReviewerNoteChange: (externalMatchId: string, note: string) => void
   onLineOverrideChange: (
     externalMatchId: string,
@@ -250,6 +251,7 @@ export default function ScorecardReviewPanel({
   onMatchDecisionChange,
   onApproveMatch,
   onApproveAndSubmitMatch,
+  onQuickWinnerAndSubmit,
   onReviewerNoteChange,
   onLineOverrideChange,
   onCommitCleanOnly,
@@ -726,6 +728,7 @@ export default function ScorecardReviewPanel({
                       preview={preview}
                       onLineOverrideChange={onLineOverrideChange}
                       onApproveAndSubmitMatch={onApproveAndSubmitMatch}
+                      onQuickWinnerAndSubmit={onQuickWinnerAndSubmit}
                       isRunningCommit={isRunningCommit}
                       commitFeedbackMessage={
                         commitFeedbackMatchId === preview.externalMatchId
@@ -811,6 +814,7 @@ function LineReviewCard({
   preview,
   onLineOverrideChange,
   onApproveAndSubmitMatch,
+  onQuickWinnerAndSubmit,
   isRunningCommit,
   commitFeedbackMessage,
 }: {
@@ -818,6 +822,7 @@ function LineReviewCard({
   preview: ScorecardPreviewModel
   onLineOverrideChange: Props['onLineOverrideChange']
   onApproveAndSubmitMatch: Props['onApproveAndSubmitMatch']
+  onQuickWinnerAndSubmit: Props['onQuickWinnerAndSubmit']
   isRunningCommit: boolean
   commitFeedbackMessage?: string | null
 }) {
@@ -870,6 +875,54 @@ function LineReviewCard({
         <PlayerCard title="Home side" players={line.sideAPlayers} />
         <PlayerCard title="Away side" players={line.sideBPlayers} />
       </div>
+
+      {line.winnerSide === null ? (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 10,
+            marginTop: 12,
+          }}
+        >
+          <button
+            type="button"
+            disabled={isRunningCommit}
+            style={{
+              borderRadius: 14,
+              border: '1px solid rgba(155,225,29,0.30)',
+              background: 'linear-gradient(135deg, rgba(18,48,33,0.90) 0%, rgba(9,18,34,0.96) 100%)',
+              color: '#DFFFC2',
+              fontWeight: 800,
+              fontSize: '0.92rem',
+              padding: '10px 14px',
+              cursor: isRunningCommit ? 'wait' : 'pointer',
+              textAlign: 'left' as const,
+            }}
+            onClick={() => onQuickWinnerAndSubmit(preview, line.lineNumber, 'A')}
+          >
+            {preview.finalPreview.homeTeam || 'Home'} won
+          </button>
+          <button
+            type="button"
+            disabled={isRunningCommit}
+            style={{
+              borderRadius: 14,
+              border: '1px solid rgba(116,190,255,0.22)',
+              background: 'linear-gradient(135deg, rgba(17,34,63,0.90) 0%, rgba(9,18,34,0.96) 100%)',
+              color: '#BFD9FF',
+              fontWeight: 800,
+              fontSize: '0.92rem',
+              padding: '10px 14px',
+              cursor: isRunningCommit ? 'wait' : 'pointer',
+              textAlign: 'left' as const,
+            }}
+            onClick={() => onQuickWinnerAndSubmit(preview, line.lineNumber, 'B')}
+          >
+            {preview.finalPreview.awayTeam || 'Away'} won
+          </button>
+        </div>
+      ) : null}
 
       <div
         style={{

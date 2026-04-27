@@ -1129,6 +1129,26 @@ function MyLabPageInner() {
     tiqLeagueContextById,
   ])
 
+  const followedPlayerSignals = useMemo(() => {
+    return follows
+      .filter((f) => f.entity_type === 'player')
+      .map((f) => {
+        const player = playerMap.get(f.entity_id)
+        if (!player) return null
+        const base = player.overall_dynamic_rating
+        const usta = player.overall_usta_dynamic_rating
+        if (base == null || usta == null) return { id: f.entity_id, name: f.entity_name, status: null as null, tiq: base }
+        const diff = usta - base
+        const status =
+          diff >= 0.15 ? 'Bump Up Pace' :
+          diff >= 0.07 ? 'Trending Up' :
+          diff > -0.07 ? 'Holding' :
+          diff > -0.15 ? 'At Risk' : 'Drop Watch'
+        return { id: f.entity_id, name: f.entity_name, status, tiq: base }
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+  }, [follows, playerMap])
+
   async function persistFollows(next: FollowItem[]) {
     setFollows(next)
     writeLocalFollows(next)
@@ -1428,6 +1448,38 @@ function MyLabPageInner() {
           </div>
         ))}
       </section>
+
+      {followedPlayerSignals.length > 0 ? (
+        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 20px' }}>
+          <div style={{ borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px 20px' }}>
+            <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>
+              Signals — followed players
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+              {followedPlayerSignals.map((s) => {
+                const positive = s.status === 'Bump Up Pace' || s.status === 'Trending Up'
+                const negative = s.status === 'At Risk' || s.status === 'Drop Watch'
+                const pillStyle: React.CSSProperties = positive
+                  ? { background: 'rgba(155,225,29,0.10)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.20)' }
+                  : negative
+                    ? { background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
+                    : { background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
+                return (
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: 'var(--foreground)', fontWeight: 800, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
+                      {s.tiq != null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>TIQ {s.tiq.toFixed(2)}</div> : null}
+                    </div>
+                    {s.status ? (
+                      <span style={{ ...pillStyle, display: 'inline-flex', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' as const }}>{s.status}</span>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section style={contentGridStyle(isTablet)}>
         <div style={leftColumnStyle}>

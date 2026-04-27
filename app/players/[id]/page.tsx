@@ -60,6 +60,7 @@ type MatchRecord = {
   score: string
   result: 'W' | 'L'
   opponent: string
+  opponentIds: string[]
   partner: string | null
   sideA: string[]
   sideB: string[]
@@ -113,9 +114,11 @@ export default function PlayerProfilePage() {
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [chartWindow, setChartWindow] = useState<'all' | '90d' | '30d'>('all')
+  const [historyMode, setHistoryMode] = useState<'chart' | 'table'>('chart')
   const [playerRank, setPlayerRank] = useState<number | null>(null)
   const [totalPlayers, setTotalPlayers] = useState<number | null>(null)
   const [nearbyPlayers, setNearbyPlayers] = useState<Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>>([])
+  const [fieldAvgRating, setFieldAvgRating] = useState<number | null>(null)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
@@ -139,7 +142,7 @@ export default function PlayerProfilePage() {
     if (typeof tiq !== 'number') return
     let active = true
     void (async () => {
-      const [{ count: total }, { count: above }, { data: nearby }] = await Promise.all([
+      const [{ count: total }, { count: above }, { data: nearby }, { data: avgData }] = await Promise.all([
         supabase.from('players').select('*', { count: 'exact', head: true }),
         supabase.from('players').select('*', { count: 'exact', head: true })
           .gt('overall_dynamic_rating', tiq),
@@ -151,10 +154,19 @@ export default function PlayerProfilePage() {
           .lte('overall_dynamic_rating', tiq + 0.15)
           .order('overall_dynamic_rating', { ascending: false })
           .limit(5),
+        supabase
+          .from('players')
+          .select('overall_dynamic_rating')
+          .not('overall_dynamic_rating', 'is', null)
+          .limit(500),
       ])
       if (!active) return
       setPlayerRank(typeof above === 'number' ? above + 1 : null)
       setTotalPlayers(total)
+      if (avgData && avgData.length > 0) {
+        const vals = (avgData as Array<{ overall_dynamic_rating: number }>).map((r) => r.overall_dynamic_rating)
+        setFieldAvgRating(vals.reduce((a, b) => a + b, 0) / vals.length)
+      }
       setNearbyPlayers(
         ((nearby ?? []) as Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>)
           .filter((p) => p.id !== playerId),
@@ -275,9 +287,13 @@ export default function PlayerProfilePage() {
         const playerTeam = (playerSide === 'A' ? sideA : sideB).map(
           (p) => p.players?.name || 'Player not linked',
         )
-        const opponentTeam = (opponentSide === 'A' ? sideA : sideB).map(
+        const opponentSideParts = opponentSide === 'A' ? sideA : sideB
+        const opponentTeam = opponentSideParts.map(
           (p) => p.players?.name || 'Player not linked',
         )
+        const opponentIds = opponentSideParts
+          .map((p) => p.player_id)
+          .filter((id): id is string => Boolean(id))
 
         const partnerNames = playerTeam.filter(
           (name) =>
@@ -296,6 +312,7 @@ export default function PlayerProfilePage() {
           score: match.score,
           result: isWin ? 'W' : 'L',
           opponent: opponentTeam.join(' / '),
+          opponentIds,
           partner: partnerNames.length > 0 ? partnerNames.join(' / ') : null,
           sideA: sideA.map((p) => p.players?.name || 'Player not linked'),
           sideB: sideB.map((p) => p.players?.name || 'Player not linked'),
@@ -364,9 +381,19 @@ export default function PlayerProfilePage() {
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showAllHovered, setShowAllHovered] = useState(false)
   const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
+  const [matchSearch, setMatchSearch] = useState('')
+  const matchSearchedMatches = useMemo(() => {
+    const q = matchSearch.trim().toLowerCase()
+    if (!q) return filteredMatches
+    return filteredMatches.filter((m) =>
+      m.opponent.toLowerCase().includes(q) ||
+      (m.partner || '').toLowerCase().includes(q) ||
+      (m.score || '').toLowerCase().includes(q),
+    )
+  }, [filteredMatches, matchSearch])
   const mostRecentMatches = useMemo(
-    () => showAllMatches ? filteredMatches : filteredMatches.slice(0, 10),
-    [filteredMatches, showAllMatches],
+    () => showAllMatches ? matchSearchedMatches : matchSearchedMatches.slice(0, 10),
+    [matchSearchedMatches, showAllMatches],
   )
 
   const chartPoints = useMemo(() => {
@@ -492,6 +519,21 @@ export default function PlayerProfilePage() {
     return validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
   }, [snapshots, ratingView])
 
+  const opponentQualityBreakdown = useMemo(() => {
+    const bands = { weaker: { w: 0, l: 0 }, similar: { w: 0, l: 0 }, stronger: { w: 0, l: 0 } }
+    for (const match of filteredMatches) {
+      const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
+      if (!snap?.opponent_rating || !baseRating) continue
+      const diff = snap.opponent_rating - baseRating
+      const bucket = diff > 0.25 ? 'stronger' : diff < -0.25 ? 'weaker' : 'similar'
+      if (match.result === 'W') bands[bucket].w++
+      else bands[bucket].l++
+    }
+    const total = Object.values(bands).reduce((s, b) => s + b.w + b.l, 0)
+    if (total === 0) return null
+    return bands
+  }, [filteredMatches, snapshotByMatchId, baseRating])
+
   const formScore = useMemo(() => {
     const relevant = snapshots.filter((snap) =>
       ratingView === 'overall'
@@ -539,21 +581,22 @@ export default function PlayerProfilePage() {
 
   // Longest win streak across all matches (not filtered by view).
   const opponentRecords = useMemo(() => {
-    const map = new Map<string, { wins: number; losses: number; lastDate: string }>()
+    const map = new Map<string, { wins: number; losses: number; lastDate: string; id: string | null }>()
     for (const match of matches) {
       const opp = match.opponent
       if (!opp || opp === 'Player not linked') continue
-      const existing = map.get(opp) ?? { wins: 0, losses: 0, lastDate: match.date }
+      const existing = map.get(opp) ?? { wins: 0, losses: 0, lastDate: match.date, id: match.opponentIds[0] ?? null }
       if (match.result === 'W') existing.wins++
       else existing.losses++
       if (match.date > existing.lastDate) existing.lastDate = match.date
+      if (!existing.id && match.opponentIds[0]) existing.id = match.opponentIds[0]
       map.set(opp, existing)
     }
     return [...map.entries()]
       .filter(([, rec]) => rec.wins + rec.losses >= 2)
       .sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
       .slice(0, 8)
-      .map(([name, rec]) => ({ name, ...rec, total: rec.wins + rec.losses }))
+      .map(([name, rec]) => ({ name, id: rec.id, wins: rec.wins, losses: rec.losses, lastDate: rec.lastDate, total: rec.wins + rec.losses }))
   }, [matches])
 
   const seasonBreakdown = useMemo(() => {
@@ -599,6 +642,26 @@ export default function PlayerProfilePage() {
     return { wins: wins.length, straightSets, threeSets, bagels }
   }, [filteredMatches])
 
+  const pressureSituations = useMemo(() => {
+    let tiebreakTotal = 0, tiebreakWins = 0
+    let threeSetTotal = 0, threeSetWins = 0
+    let upsetTotal = 0, upsetWins = 0  // matches where win_probability was known
+    for (const match of filteredMatches) {
+      const sets = (match.score || '').split(/[;,|]/).map((s) => s.trim()).filter(Boolean)
+      const hasTiebreak = sets.some((s) => /^7-6$|^6-7$/.test(s))
+      const isThreeSet = sets.length >= 3
+      if (hasTiebreak) { tiebreakTotal++; if (match.result === 'W') tiebreakWins++ }
+      if (isThreeSet) { threeSetTotal++; if (match.result === 'W') threeSetWins++ }
+      // upset: won with < 40% win probability
+      const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
+      if (snap?.win_probability != null) {
+        upsetTotal++
+        if (match.result === 'W' && snap.win_probability <= 40) upsetWins++
+      }
+    }
+    return { tiebreakTotal, tiebreakWins, threeSetTotal, threeSetWins, upsetWins, upsetTotal }
+  }, [filteredMatches, snapshotByMatchId])
+
   const longestWinStreak = useMemo(() => {
     let best = 0
     let current = 0
@@ -612,6 +675,37 @@ export default function PlayerProfilePage() {
     }
     return best
   }, [matches])
+
+  const careerHighs = useMemo(() => {
+    const peakRating = chartPoints.length > 0
+      ? Math.max(...chartPoints.map((p) => p.rating))
+      : null
+    const bestSeason = seasonBreakdown.length > 0
+      ? seasonBreakdown.reduce((best, s) => s.wins > best.wins ? s : best, seasonBreakdown[0])
+      : null
+    const mostMatchesSeason = seasonBreakdown.length > 0
+      ? seasonBreakdown.reduce((best, s) => s.total > best.total ? s : best, seasonBreakdown[0])
+      : null
+    return { peakRating, bestSeason, longestStreak: longestWinStreak, mostMatchesSeason }
+  }, [chartPoints, seasonBreakdown, longestWinStreak])
+
+  const benchmark = useMemo(() => {
+    if (!fieldAvgRating) return null
+    const tiqDiff = selectedDynamicRating - fieldAvgRating
+    const winRateDiff = totalMatches > 0 ? ((wins / totalMatches) * 100 - 50) : null
+    const formVsNeutral = formScore !== null ? formScore : null
+    return { tiqDiff, winRateDiff, formVsNeutral, fieldAvgRating }
+  }, [fieldAvgRating, selectedDynamicRating, wins, totalMatches, formScore])
+
+  const volatilityScore = useMemo(() => {
+    const deltas = chartPoints
+      .map((p) => p.delta)
+      .filter((d): d is number => d !== null)
+    if (deltas.length < 3) return null
+    const mean = deltas.reduce((a, b) => a + b, 0) / deltas.length
+    const variance = deltas.reduce((sum, d) => sum + (d - mean) ** 2, 0) / deltas.length
+    return Math.sqrt(variance)
+  }, [chartPoints])
 
   const meterTheme = useMemo(
     () => getMeterTheme(ratingStatus),
@@ -1135,6 +1229,21 @@ export default function PlayerProfilePage() {
             </>
           ) : null}
 
+          {volatilityScore !== null ? (
+            <article style={statCard}>
+              <div style={statLabel}>Rating volatility</div>
+              <div style={{
+                ...statValue,
+                color: volatilityScore > 0.07 ? '#fed7aa' : volatilityScore < 0.03 ? '#a7f3d0' : 'var(--foreground)',
+              }}>
+                {volatilityScore.toFixed(3)}
+              </div>
+              <div style={{ ...statLabel, marginTop: 4 }}>
+                {volatilityScore > 0.07 ? 'High swing' : volatilityScore < 0.03 ? 'Very stable' : 'Normal range'}
+              </div>
+            </article>
+          ) : null}
+
           {scoreBreakdown ? (
             <>
               <article style={statCard}>
@@ -1154,7 +1263,149 @@ export default function PlayerProfilePage() {
               ) : null}
             </>
           ) : null}
+
+          {(pressureSituations.tiebreakTotal > 0 || pressureSituations.threeSetTotal > 0 || pressureSituations.upsetWins > 0) ? (
+            <>
+              {pressureSituations.tiebreakTotal > 0 ? (
+                <article style={statCard}>
+                  <div style={statLabel}>Tiebreak record</div>
+                  <div style={statValue}>{pressureSituations.tiebreakWins}-{pressureSituations.tiebreakTotal - pressureSituations.tiebreakWins}</div>
+                  <div style={{ ...statLabel, marginTop: 4 }}>{Math.round((pressureSituations.tiebreakWins / pressureSituations.tiebreakTotal) * 100)}% win</div>
+                </article>
+              ) : null}
+              {pressureSituations.threeSetTotal > 0 ? (
+                <article style={statCard}>
+                  <div style={statLabel}>3-set record</div>
+                  <div style={statValue}>{pressureSituations.threeSetWins}-{pressureSituations.threeSetTotal - pressureSituations.threeSetWins}</div>
+                  <div style={{ ...statLabel, marginTop: 4 }}>{Math.round((pressureSituations.threeSetWins / pressureSituations.threeSetTotal) * 100)}% win</div>
+                </article>
+              ) : null}
+              {pressureSituations.upsetWins > 0 ? (
+                <article style={{ ...statCard, borderColor: 'rgba(251,146,60,0.22)' }}>
+                  <div style={statLabel}>Upset wins</div>
+                  <div style={{ ...statValue, color: '#fed7aa' }}>{pressureSituations.upsetWins}</div>
+                  <div style={{ ...statLabel, marginTop: 4 }}>Won as underdog</div>
+                </article>
+              ) : null}
+            </>
+          ) : null}
         </div>
+
+        {(careerHighs.peakRating !== null || careerHighs.longestStreak > 0 || careerHighs.bestSeason) ? (
+          <article style={panelCard}>
+            <div style={panelHead}>
+              <div>
+                <div style={sectionKicker}>Career highs</div>
+                <h2 style={panelTitle}>Personal records</h2>
+              </div>
+            </div>
+            <p style={sectionText}>Best marks across the full tracked history for this profile.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 16 }}>
+              {careerHighs.peakRating !== null ? (
+                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Peak TIQ</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#d9f84a' }}>{careerHighs.peakRating.toFixed(2)}</div>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>Highest rating reached</div>
+                </div>
+              ) : null}
+              {careerHighs.longestStreak > 1 ? (
+                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(116,190,255,0.05)', border: '1px solid rgba(116,190,255,0.14)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best win streak</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#93c5fd' }}>{careerHighs.longestStreak}W</div>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>Consecutive wins</div>
+                </div>
+              ) : null}
+              {careerHighs.bestSeason ? (
+                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.14)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best season</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#a7f3d0' }}>{careerHighs.bestSeason.year}</div>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.bestSeason.wins}W–{careerHighs.bestSeason.losses}L · {careerHighs.bestSeason.winRate}% win rate</div>
+                </div>
+              ) : null}
+              {careerHighs.mostMatchesSeason && careerHighs.mostMatchesSeason.year !== careerHighs.bestSeason?.year ? (
+                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(251,146,60,0.05)', border: '1px solid rgba(251,146,60,0.14)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Most active season</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#fed7aa' }}>{careerHighs.mostMatchesSeason.year}</div>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.mostMatchesSeason.total} matches played</div>
+                </div>
+              ) : null}
+            </div>
+          </article>
+        ) : null}
+
+        {benchmark ? (
+          <article style={panelCard}>
+            <div style={panelHead}>
+              <div>
+                <div style={sectionKicker}>Vs. the field</div>
+                <h2 style={panelTitle}>Benchmark comparison</h2>
+              </div>
+              <span style={panelChip}>Field avg {benchmark.fieldAvgRating.toFixed(2)}</span>
+            </div>
+            <p style={sectionText}>How this profile compares to the field average across TIQ rating, win rate, and recent form.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 16 }}>
+              {[
+                {
+                  label: 'TIQ vs field avg',
+                  value: `${benchmark.tiqDiff >= 0 ? '+' : ''}${benchmark.tiqDiff.toFixed(2)}`,
+                  positive: benchmark.tiqDiff > 0,
+                  negative: benchmark.tiqDiff < -0.05,
+                  note: benchmark.tiqDiff > 0.1 ? 'Above average' : benchmark.tiqDiff < -0.1 ? 'Below average' : 'Near average',
+                },
+                {
+                  label: 'Win rate vs 50%',
+                  value: benchmark.winRateDiff !== null ? `${benchmark.winRateDiff >= 0 ? '+' : ''}${benchmark.winRateDiff.toFixed(1)}%` : '—',
+                  positive: benchmark.winRateDiff !== null && benchmark.winRateDiff > 0,
+                  negative: benchmark.winRateDiff !== null && benchmark.winRateDiff < -5,
+                  note: benchmark.winRateDiff !== null ? (benchmark.winRateDiff > 5 ? 'Winning more than losing' : benchmark.winRateDiff < -5 ? 'More losses than wins' : 'Near even') : 'Not enough data',
+                },
+                {
+                  label: 'Form vs neutral',
+                  value: benchmark.formVsNeutral !== null ? `${benchmark.formVsNeutral >= 0 ? '+' : ''}${benchmark.formVsNeutral.toFixed(3)}` : '—',
+                  positive: benchmark.formVsNeutral !== null && benchmark.formVsNeutral > 0.01,
+                  negative: benchmark.formVsNeutral !== null && benchmark.formVsNeutral < -0.01,
+                  note: benchmark.formVsNeutral !== null ? (benchmark.formVsNeutral > 0.01 ? 'Gaining recently' : benchmark.formVsNeutral < -0.01 ? 'Losing recently' : 'Flat') : 'Not enough matches',
+                },
+              ].map((row) => (
+                <div key={row.label} style={{ padding: '13px 16px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>{row.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', color: row.positive ? '#86efac' : row.negative ? '#fca5a5' : 'var(--foreground)' }}>{row.value}</div>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{row.note}</div>
+                </div>
+              ))}
+            </div>
+          </article>
+        ) : null}
+
+        {opponentQualityBreakdown ? (
+          <article style={panelCard}>
+            <div style={panelHead}>
+              <div>
+                <div style={sectionKicker}>Matchup quality</div>
+                <h2 style={panelTitle}>Who they beat and lose to</h2>
+              </div>
+            </div>
+            <p style={sectionText}>W-L split by opponent rating relative to this player's USTA base. "Stronger" means the opponent rated 0.25+ higher; "weaker" means 0.25+ lower.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
+              {[
+                { key: 'weaker' as const, label: 'vs Weaker', color: '#d9f84a', bg: 'rgba(155,225,29,0.06)', border: 'rgba(155,225,29,0.16)' },
+                { key: 'similar' as const, label: 'vs Similar', color: '#93c5fd', bg: 'rgba(116,190,255,0.06)', border: 'rgba(116,190,255,0.16)' },
+                { key: 'stronger' as const, label: 'vs Stronger', color: '#fed7aa', bg: 'rgba(251,146,60,0.06)', border: 'rgba(251,146,60,0.16)' },
+              ].map(({ key, label, color, bg, border }) => {
+                const b = opponentQualityBreakdown[key]
+                const total = b.w + b.l
+                const pct = total > 0 ? Math.round((b.w / total) * 100) : null
+                return (
+                  <div key={key} style={{ padding: '14px 16px', borderRadius: 16, background: bg, border: `1px solid ${border}` }}>
+                    <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>{label}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: '-0.03em' }}>{b.w}–{b.l}</div>
+                    {pct !== null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{pct}% win rate</div> : null}
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        ) : null}
 
         {access.canUseAdvancedPlayerInsights ? (() => {
           const rec = buildPlayerRecommendation(ratingStatus, ratingDiff, confidence, statusStreakMatches, ratingView)
@@ -1258,7 +1509,7 @@ export default function PlayerProfilePage() {
                 <div style={sectionKicker}>Trend</div>
                 <h2 style={panelTitle}>{capitalize(ratingView)} rating trend</h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
                 {(['30d', '90d', 'all'] as const).map((w) => (
                   <button
                     key={w}
@@ -1273,6 +1524,23 @@ export default function PlayerProfilePage() {
                     }}
                   >
                     {w === 'all' ? 'All' : w}
+                  </button>
+                ))}
+                <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.10)' }} />
+                {(['chart', 'table'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setHistoryMode(m)}
+                    style={{
+                      padding: '5px 11px', borderRadius: 999, fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                      background: historyMode === m ? 'rgba(155,225,29,0.12)' : 'transparent',
+                      border: `1px solid ${historyMode === m ? 'rgba(155,225,29,0.26)' : 'rgba(255,255,255,0.10)'}`,
+                      color: historyMode === m ? '#d9f84a' : 'rgba(190,210,240,0.45)',
+                      transition: 'all 120ms ease',
+                    }}
+                  >
+                    {m === 'chart' ? 'Chart' : 'Table'}
                   </button>
                 ))}
                 <span style={panelChip}>{filteredChartPoints.length} pts</span>
@@ -1295,8 +1563,68 @@ export default function PlayerProfilePage() {
                   <MiniLink href="/matchup">Open matchup tool</MiniLink>
                 </div>
               </div>
+            ) : historyMode === 'table' ? (
+              <div style={{ overflowX: 'auto', marginTop: 8 }}>
+                <table style={dataTable}>
+                  <thead>
+                    <tr>
+                      {['Date', 'Rating', 'Δ Delta', 'Win %', 'Opp rating', 'Multiplier'].map((h) => (
+                        <th key={h} style={tableHead}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...filteredChartPoints].reverse().map((pt, i) => {
+                      const snap = snapshots.find((s) => s.snapshot_date === pt.date && (!s.rating_type || s.rating_type === ratingView || (ratingView === 'overall' && !s.rating_type)))
+                      const positive = pt.delta !== null && pt.delta > 0
+                      const negative = pt.delta !== null && pt.delta < 0
+                      return (
+                        <tr key={`${pt.date}-${i}`} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.018)' }}>
+                          <td style={tableCell}>{formatDate(pt.date)}</td>
+                          <td style={{ ...tableCell, fontWeight: 800 }}>{pt.rating.toFixed(3)}</td>
+                          <td style={tableCell}>
+                            {pt.delta !== null ? (
+                              <span style={{ color: positive ? '#9be11d' : negative ? '#fca5a5' : 'var(--shell-copy-muted)', fontWeight: 800 }}>
+                                {positive ? '+' : ''}{pt.delta.toFixed(3)}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{pt.winProbability != null ? `${pt.winProbability}%` : '—'}</td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{snap?.opponent_rating != null ? snap.opponent_rating.toFixed(2) : '—'}</td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{snap?.multiplier != null ? snap.multiplier.toFixed(2) : '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : (
-              <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
+              <>
+                <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
+                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '14px', marginTop: '12px', padding: '0 4px' }}>
+                  {[
+                    { dot: '#3FA7FF', label: 'Standard match' },
+                    { dot: '#9be11d', label: 'Big gain (+0.08+)', large: true },
+                    { dot: '#fca5a5', label: 'Big loss (−0.08+)', large: true },
+                    { dot: '#ffd700', label: 'Upset win (won < 40% fav)', large: true },
+                    { dot: undefined, dashed: 'rgba(155,225,29,0.55)', label: 'Projected trend' },
+                    { dot: undefined, dashed: 'rgba(255,210,50,0.65)', label: 'USTA base' },
+                  ].map((item) => (
+                    <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {item.dot ? (
+                        <svg width={item.large ? 10 : 8} height={item.large ? 10 : 8} viewBox="0 0 10 10">
+                          <circle cx="5" cy="5" r="5" fill={item.dot} />
+                        </svg>
+                      ) : item.dashed ? (
+                        <svg width="20" height="4" viewBox="0 0 20 4">
+                          <line x1="0" y1="2" x2="20" y2="2" stroke={item.dashed} strokeWidth="2" strokeDasharray="4 2" />
+                        </svg>
+                      ) : null}
+                      <span style={{ color: 'var(--shell-copy-muted)', fontSize: '11px', fontWeight: 600 }}>{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </article>
 
@@ -1306,8 +1634,17 @@ export default function PlayerProfilePage() {
                 <div style={sectionKicker}>Recent results</div>
                 <h2 style={panelTitle}>Latest match history</h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {filteredMatches.length > 10 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' as const }}>
+                <input
+                  type="text"
+                  value={matchSearch}
+                  onChange={(e) => { setMatchSearch(e.target.value); setShowAllMatches(true) }}
+                  placeholder="Search opponent, score…"
+                  style={{ height: 34, padding: '0 12px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--foreground)', fontSize: 13, fontWeight: 600, minWidth: 0, width: 180, outline: 'none' }}
+                />
+                {matchSearch ? (
+                  <button type="button" onClick={() => setMatchSearch('')} style={{ ...showAllButton, padding: '0 10px', fontSize: 12 }}>Clear</button>
+                ) : filteredMatches.length > 10 ? (
                   <button
                     type="button"
                     onClick={() => setShowAllMatches((prev) => !prev)}
@@ -1324,7 +1661,7 @@ export default function PlayerProfilePage() {
                     {showAllMatches ? 'Show less' : `Show all ${filteredMatches.length}`}
                   </button>
                 ) : null}
-                <span style={panelChip}>{showAllMatches ? filteredMatches.length : Math.min(10, filteredMatches.length)} shown</span>
+                <span style={panelChip}>{matchSearch ? `${mostRecentMatches.length} result${mostRecentMatches.length !== 1 ? 's' : ''}` : `${showAllMatches ? filteredMatches.length : Math.min(10, filteredMatches.length)} shown`}</span>
               </div>
             </div>
 
@@ -1369,7 +1706,25 @@ export default function PlayerProfilePage() {
                         <td style={tableCell}>{formatDate(match.date)}</td>
                         <td style={tableCell}>{capitalize(match.matchType)}</td>
                         <td style={tableCell}>{match.partner || '—'}</td>
-                        <td style={tableCell}>{match.opponent}</td>
+                        <td style={tableCell}>
+                          {match.opponentIds.length === 1 ? (
+                            <Link
+                              href={`/matchup?playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(match.opponentIds[0])}`}
+                              style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'none' }}
+                            >
+                              {match.opponent}
+                            </Link>
+                          ) : match.opponentIds.length > 1 ? (
+                            <Link
+                              href={`/players/${encodeURIComponent(match.opponentIds[0])}`}
+                              style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'none' }}
+                            >
+                              {match.opponent}
+                            </Link>
+                          ) : (
+                            match.opponent
+                          )}
+                        </td>
                         <td style={tableCell}>{match.score}</td>
                         <td style={tableCell}>
                           {(() => {
@@ -1430,7 +1785,11 @@ export default function PlayerProfilePage() {
                 return (
                   <div key={opp.name} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const, padding: '11px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{opp.name}</div>
+                      {opp.id ? (
+                        <Link href={`/matchup?playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(opp.id)}`} style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }}>{opp.name}</Link>
+                      ) : (
+                        <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{opp.name}</div>
+                      )}
                       <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 2 }}>{opp.total} match{opp.total === 1 ? '' : 'es'} · last {formatDate(opp.lastDate)}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1721,6 +2080,26 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
     })
     .join(' ')
 
+  const projectionPath = (() => {
+    if (points.length < 5) return null
+    const recentDeltas = points.slice(-10).map((p) => p.delta).filter((d): d is number => d !== null)
+    if (recentDeltas.length < 3) return null
+    const avgDelta = recentDeltas.reduce((a, b) => a + b, 0) / recentDeltas.length
+    const lastPoint = points[points.length - 1]
+    const lastX = padding + (points.length - 1) * xStep
+    const lastY = chartHeight - padding - ((lastPoint.rating - minRating) / spread) * (chartHeight - padding * 2)
+    const projSteps = 5
+    const projXStep = xStep > 0 ? xStep : (width - padding * 2) / 10
+    let d = `M ${lastX} ${lastY}`
+    for (let i = 1; i <= projSteps; i++) {
+      const projRating = lastPoint.rating + avgDelta * i
+      const px = lastX + i * projXStep
+      const py = chartHeight - padding - ((projRating - minRating) / spread) * (chartHeight - padding * 2)
+      d += ` L ${px} ${py}`
+    }
+    return { d, positive: avgDelta >= 0 }
+  })()
+
   const upsets = points.filter((p) => p.delta !== null && p.delta > 0 && p.winProbability !== null && p.winProbability <= 40).length
   const bigGains = points.filter((p) => p.delta !== null && p.delta > 0.08).length
   const bigLosses = points.filter((p) => p.delta !== null && p.delta < -0.08).length
@@ -1813,6 +2192,17 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
           strokeWidth="4"
           strokeLinecap="round"
         />
+
+        {projectionPath ? (
+          <path
+            d={projectionPath.d}
+            fill="none"
+            stroke={projectionPath.positive ? 'rgba(155,225,29,0.45)' : 'rgba(239,68,68,0.40)'}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeDasharray="6 4"
+          />
+        ) : null}
 
         {points.map((point, index) => {
           const x = padding + index * xStep

@@ -100,6 +100,7 @@ export default function ExploreSearchPage() {
 
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
+  const [ratingBand, setRatingBand] = useState<'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'>('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [players, setPlayers] = useState<PlayerSearchRow[]>([])
@@ -222,11 +223,24 @@ export default function ExploreSearchPage() {
     ).slice(0, 6)
   }, [leagues])
 
+  const filteredPlayers = useMemo(() => {
+    if (ratingBand === 'all') return players
+    return players.filter((p) => {
+      const r = p.overall_dynamic_rating ?? p.overall_rating
+      if (typeof r !== 'number') return false
+      if (ratingBand === '2.5') return r >= 2.25 && r < 2.75
+      if (ratingBand === '3.0') return r >= 2.75 && r < 3.25
+      if (ratingBand === '3.5') return r >= 3.25 && r < 3.75
+      if (ratingBand === '4.0') return r >= 3.75 && r < 4.25
+      return r >= 4.25
+    })
+  }, [players, ratingBand])
+
   const matchupSuggestions = useMemo<MatchupSuggestion[]>(() => {
-    if (players.length < 2) return []
+    if (filteredPlayers.length < 2) return []
 
     const suggestions: MatchupSuggestion[] = []
-    const seed = players.slice(0, 4)
+    const seed = filteredPlayers.slice(0, 4)
 
     for (let index = 1; index < seed.length; index += 1) {
       const left = seed[0]
@@ -242,7 +256,7 @@ export default function ExploreSearchPage() {
     return suggestions.slice(0, 3)
   }, [players])
 
-  const totalResults = players.length + teams.length + leagues.length + matchupSuggestions.length
+  const totalResults = filteredPlayers.length + teams.length + leagues.length + matchupSuggestions.length
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
 
   const upgradeConfig = useMemo(() => {
@@ -372,6 +386,22 @@ export default function ExploreSearchPage() {
             </button>
           </form>
 
+          {scope === 'players' && players.length > 0 ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginTop: 12 }}>
+              <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, alignSelf: 'center' }}>Rating band:</span>
+              {(['all', '2.5', '3.0', '3.5', '4.0', '4.5+'] as const).map((band) => (
+                <button
+                  key={band}
+                  type="button"
+                  onClick={() => setRatingBand(band)}
+                  style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: ratingBand === band ? 'rgba(116,190,255,0.14)' : 'rgba(255,255,255,0.04)', border: `1px solid ${ratingBand === band ? 'rgba(116,190,255,0.30)' : 'rgba(255,255,255,0.10)'}`, color: ratingBand === band ? '#93c5fd' : 'var(--shell-copy-muted)' }}
+                >
+                  {band === 'all' ? 'All levels' : band}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <div
             style={{
               position: 'relative',
@@ -476,7 +506,7 @@ export default function ExploreSearchPage() {
                   ctaHref="/explore/players"
                   ctaLabel="Open player directory"
                 >
-                  {players.map((player) => (
+                  {filteredPlayers.map((player) => (
                     <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle(theme)}>
                       <div style={resultHeaderStyle}>
                         <div>

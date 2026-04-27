@@ -285,6 +285,16 @@ export default function RankingsPage() {
 
   const topThree = rankedPlayers.slice(0, 3)
 
+  const inactiveCount = useMemo(() => {
+    if (!snapshotMap.size) return 0
+    return filteredPlayers.filter((player) => {
+      const pts = getTrendPointsForPlayer(snapshotMap, player.id, ratingView)
+      const last = pts[pts.length - 1]
+      if (!last) return true
+      return Date.now() - new Date(last.snapshot_date).getTime() > 90 * 24 * 60 * 60 * 1000
+    }).length
+  }, [filteredPlayers, snapshotMap, ratingView])
+
   const ratingDistribution = useMemo(() => {
     const bands = [
       { label: '2.5–3.0', min: 2.5, max: 3.0 },
@@ -339,6 +349,39 @@ export default function RankingsPage() {
         .slice(0, 5),
     [rankedPlayers],
   )
+
+  const weeklyMovers = useMemo(() => {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    return rankedPlayers
+      .map((player) => {
+        const pts = (snapshotMap.get(`${player.id}:${ratingView}`) ?? [])
+          .filter((s) => s.snapshot_date >= cutoff && s.delta != null)
+        if (pts.length === 0) return null
+        const weekDelta = roundToTwo(pts.reduce((sum, s) => sum + (s.delta ?? 0), 0))
+        return { player, weekDelta, matchesThisWeek: pts.length }
+      })
+      .filter((m): m is { player: RankedPlayer; weekDelta: number; matchesThisWeek: number } => m !== null && m.weekDelta !== 0)
+      .sort((a, b) => Math.abs(b.weekDelta) - Math.abs(a.weekDelta))
+      .slice(0, 6)
+  }, [rankedPlayers, snapshotMap, ratingView])
+
+  const breakthroughPlayers = useMemo(() => {
+    const cutoff30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    return rankedPlayers
+      .map((player) => {
+        const allPts = snapshotMap.get(`${player.id}:${ratingView}`) ?? []
+        const recent = allPts.filter((s) => s.snapshot_date >= cutoff30)
+        if (recent.length < 2) return null
+        const delta30 = roundToTwo(recent.reduce((sum, s) => sum + (s.delta ?? 0), 0))
+        if (delta30 <= 0.05) return null
+        // Only surface players below the top tier who are climbing fast
+        if (player.selectedRating > 5.0) return null
+        return { player, delta30, matchesThisMonth: recent.length }
+      })
+      .filter((m): m is { player: RankedPlayer; delta30: number; matchesThisMonth: number } => m !== null)
+      .sort((a, b) => b.delta30 - a.delta30)
+      .slice(0, 5)
+  }, [rankedPlayers, snapshotMap, ratingView])
 
   function handleSortCol(col: typeof sortCol) {
     if (col === sortCol) {
@@ -575,7 +618,7 @@ export default function RankingsPage() {
                     transition: 'all 140ms ease',
                   }}
                 >
-                  {hideInactive ? 'Active only ✓' : 'Active only'}
+                  {hideInactive ? `Active (90d) ✓` : `Active (90d)${inactiveCount > 0 ? ` −${inactiveCount}` : ''}`}
                 </button>
 
                 {hasActiveFilters ? (
@@ -795,6 +838,64 @@ export default function RankingsPage() {
                   </div>
                 </div>
               )})}
+            </div>
+          </article>
+        </section>
+      ) : null}
+
+      {!loading && !error && weeklyMovers.length > 0 ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>Week in review</div>
+            <h2 style={panelTitle}>Biggest movers this week.</h2>
+            <p style={editorialText}>
+              Players with the largest cumulative rating movement from matches in the last 7 days. Ranked by absolute delta — both risers and fallers.
+            </p>
+            <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+              {weeklyMovers.map(({ player, weekDelta, matchesThisWeek }) => {
+                const positive = weekDelta > 0
+                return (
+                  <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 18, background: positive ? 'rgba(155,225,29,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${positive ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.12)'}` }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                      <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {matchesThisWeek} match{matchesThisWeek !== 1 ? 'es' : ''} this week</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 13, fontWeight: 700 }}>{player.selectedRating.toFixed(2)}</span>
+                      <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em', color: positive ? '#9be11d' : '#f87171' }}>
+                        {positive ? '+' : ''}{weekDelta.toFixed(3)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        </section>
+      ) : null}
+
+      {!loading && !error && breakthroughPlayers.length > 0 ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>Breakthrough watch</div>
+            <h2 style={panelTitle}>Rising fast — last 30 days.</h2>
+            <p style={editorialText}>
+              Players accumulating the most positive rating movement this month. These are the names most likely to change tier soon — worth watching before lineup decisions.
+            </p>
+            <div style={{ display: 'grid', gap: 10, marginTop: 20 }}>
+              {breakthroughPlayers.map(({ player, delta30, matchesThisMonth }, i) => (
+                <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 18, background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.14)' }}>
+                  <span style={{ minWidth: 24, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'center' as const }}>#{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                    <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {matchesThisMonth} match{matchesThisMonth !== 1 ? 'es' : ''} this month · {player.selectedRating.toFixed(2)} TIQ</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontWeight: 900, fontSize: 16, color: '#a7f3d0', letterSpacing: '-0.02em' }}>+{delta30.toFixed(3)}</span>
+                    <span style={{ padding: '3px 9px', borderRadius: 999, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.22)', color: '#a7f3d0', fontSize: 11, fontWeight: 800 }}>30d</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </article>
         </section>

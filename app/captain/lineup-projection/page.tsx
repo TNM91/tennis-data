@@ -1141,14 +1141,28 @@ export default function LineupProjectionPage() {
               </div>
 
               <div style={listCardStyle}>
-                {singlesProjection.map((player, index) => (
-                  <div key={player.id} style={listRowResponsive(isMobile)}>
-                    <div style={listMainStyle}>
-                      <strong>{index + 1}.</strong> {player.name}
-                    </div>
-                    <div style={listMetaStyle}>Singles DR: {formatRating(player.singlesDynamic)}</div>
-                  </div>
-                ))}
+                {(() => {
+                  const maxSingles = Math.max(...singlesProjection.map((p) => p.singlesDynamic ?? 0), 1)
+                  return singlesProjection.map((player, index) => {
+                    const rStatus = getProjectionRatingStatus(player)
+                    const barPct = maxSingles > 0 ? Math.round(((player.singlesDynamic ?? 0) / maxSingles) * 100) : 0
+                    return (
+                      <div key={player.id} style={{ ...listRowResponsive(isMobile), flexDirection: 'column' as const, gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <div style={listMainStyle}><strong>{index + 1}.</strong> {player.name}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {rStatus ? <span style={getProjectionStatusStyle(rStatus)}>{rStatus}</span> : null}
+                            <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--foreground)' }}>{formatRating(player.singlesDynamic)}</span>
+                          </div>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: `${barPct}%`, height: '100%', background: 'linear-gradient(90deg,rgba(116,190,255,0.5),rgba(63,167,255,0.8))', borderRadius: 999, transition: 'width 400ms ease' }} />
+                        </div>
+                        <div style={listMetaStyle}>{getAvailabilityLabel(player.availabilityStatus)} · USTA {formatRating(player.overallUstaDynamic)}</div>
+                      </div>
+                    )
+                  })
+                })()}
               </div>
             </section>
 
@@ -1164,15 +1178,24 @@ export default function LineupProjectionPage() {
               </div>
 
               <div style={listCardStyle}>
-                {doublesPairs.map((pair, index) => (
-                  <div key={`${pair.player1.id}-${pair.player2.id}`} style={listRowResponsive(isMobile)}>
-                    <div style={listMainStyle}>
-                      <strong>{index + 1}.</strong> {pair.player1.name} / {pair.player2.name}
-                      {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' - ')}</div> : null}
-                    </div>
-                    <div style={listMetaStyle}>Pair DR: {pair.combinedDoubles.toFixed(2)}</div>
-                  </div>
-                ))}
+                {(() => {
+                  const maxDoubles = Math.max(...doublesPairs.map((p) => p.combinedDoubles), 1)
+                  return doublesPairs.map((pair, index) => {
+                    const barPct = maxDoubles > 0 ? Math.round((pair.combinedDoubles / maxDoubles) * 100) : 0
+                    return (
+                      <div key={`${pair.player1.id}-${pair.player2.id}`} style={{ ...listRowResponsive(isMobile), flexDirection: 'column' as const, gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <div style={listMainStyle}><strong>{index + 1}.</strong> {pair.player1.name} / {pair.player2.name}</div>
+                          <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--foreground)' }}>{pair.combinedDoubles.toFixed(2)}</span>
+                        </div>
+                        <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{ width: `${barPct}%`, height: '100%', background: 'linear-gradient(90deg,rgba(155,225,29,0.4),rgba(74,222,128,0.7))', borderRadius: 999, transition: 'width 400ms ease' }} />
+                        </div>
+                        {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' · ')}</div> : null}
+                      </div>
+                    )
+                  })
+                })()}
               </div>
             </section>
           </>

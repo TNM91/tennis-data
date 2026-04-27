@@ -112,9 +112,22 @@ const RATING_BANDS = [
   1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
 ] as const
 
-export async function recalculateDynamicRatings() {
+export type RecalcPhase =
+  | 'fetching-players'
+  | 'fetching-matches'
+  | 'fetching-participants'
+  | 'processing'
+  | 'applying-decay'
+  | 'saving-ratings'
+  | 'saving-snapshots'
+  | 'done'
+
+export async function recalculateDynamicRatings(onPhase?: (phase: RecalcPhase, detail?: string) => void) {
+  onPhase?.('fetching-players')
   const players = await fetchPlayers()
+  onPhase?.('fetching-matches')
   const matches = await fetchMatches()
+  onPhase?.('fetching-participants')
   const matchPlayers = await fetchMatchPlayers()
 
   const playersById = new Map<string, WorkingPlayer>(
@@ -216,9 +229,19 @@ export async function recalculateDynamicRatings() {
     }
   }
 
+  onPhase?.('processing', `${matches.length} matches`)
+  // (processing loop ran above)
+
+  onPhase?.('applying-decay')
   applyInactivityDecay(playersById.values())
+
+  onPhase?.('saving-ratings', `${players.length} players`)
   await persistPlayerRatings([...playersById.values()])
+
+  onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
   await replaceRatingSnapshots(snapshotRows)
+
+  onPhase?.('done')
 }
 
 export function getNextRatingThreshold(currentRating: number): number {

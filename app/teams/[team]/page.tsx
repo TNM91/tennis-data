@@ -160,6 +160,7 @@ export default function TeamPage() {
   const [linePlayers, setLinePlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [seasonFilter, setSeasonFilter] = useState<string>('all')
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState('')
@@ -424,6 +425,25 @@ export default function TeamPage() {
     return { count, type }
   }, [matches, team])
 
+  const matchTypeSplit = useMemo(() => {
+    let singlesW = 0, singlesL = 0, doublesW = 0, doublesL = 0
+    for (const match of matches) {
+      const won = didTeamWin(match, team)
+      if (won === null) continue
+      if (match.match_type === 'singles') { if (won) singlesW++; else singlesL++ }
+      else { if (won) doublesW++; else doublesL++ }
+    }
+    return { singlesW, singlesL, doublesW, doublesL }
+  }, [matches, team])
+
+  const recentForm = useMemo(() => {
+    return matches
+      .slice(0, 10)
+      .map((m) => didTeamWin(m, team))
+      .filter((r): r is boolean => r !== null)
+      .map((won) => (won ? 'W' : 'L'))
+  }, [matches, team])
+
   const roster = useMemo<RosterPlayer[]>(() => {
     const map = new Map<string, RosterPlayer>()
 
@@ -629,6 +649,31 @@ export default function TeamPage() {
       return a.names.join(' / ').localeCompare(b.names.join(' / '))
     })
   }, [matches, players, team])
+
+  const seasonOptions = useMemo(() => {
+    const years = new Set(matches.map((m) => m.match_date?.slice(0, 4)).filter(Boolean) as string[])
+    return [...years].sort((a, b) => b.localeCompare(a))
+  }, [matches])
+
+  const opponentAnalysis = useMemo(() => {
+    const map = new Map<string, { wins: number; losses: number; lastDate: string | null }>()
+    for (const match of matches) {
+      const opp = getOpponent(match, team)
+      if (!opp) continue
+      const won = didTeamWin(match, team)
+      const existing = map.get(opp) ?? { wins: 0, losses: 0, lastDate: null }
+      if (won === true) existing.wins++
+      else if (won === false) existing.losses++
+      if (!existing.lastDate || (match.match_date && match.match_date > existing.lastDate)) {
+        existing.lastDate = match.match_date
+      }
+      map.set(opp, existing)
+    }
+    return [...map.entries()]
+      .map(([name, rec]) => ({ name, wins: rec.wins, losses: rec.losses, total: rec.wins + rec.losses, lastDate: rec.lastDate, winPct: rec.wins + rec.losses > 0 ? Math.round((rec.wins / (rec.wins + rec.losses)) * 100) : 0 }))
+      .filter((r) => r.total > 0)
+      .sort((a, b) => b.total - a.total)
+  }, [matches, team])
 
   const matchCards = useMemo<MatchCard[]>(() => {
     return matches.map((match) => {
@@ -842,6 +887,47 @@ export default function TeamPage() {
                 />
               ) : null}
             </div>
+
+            {(matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 || matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0) ? (
+              <div style={{ marginTop: 14, display: 'flex', gap: 12, flexWrap: 'wrap' as const }}>
+                {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>
+                    <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>S</span>{' '}
+                    {matchTypeSplit.singlesW}-{matchTypeSplit.singlesL}
+                    {matchTypeSplit.singlesW + matchTypeSplit.singlesL > 0 ? (
+                      <span style={{ color: 'rgba(190,210,240,0.4)', marginLeft: 4 }}>
+                        ({Math.round((matchTypeSplit.singlesW / (matchTypeSplit.singlesW + matchTypeSplit.singlesL)) * 100)}% win)
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+                {matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0 ? (
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--shell-copy-muted)' }}>
+                    <span style={{ color: 'var(--foreground)', fontWeight: 900 }}>D</span>{' '}
+                    {matchTypeSplit.doublesW}-{matchTypeSplit.doublesL}
+                    {matchTypeSplit.doublesW + matchTypeSplit.doublesL > 0 ? (
+                      <span style={{ color: 'rgba(190,210,240,0.4)', marginLeft: 4 }}>
+                        ({Math.round((matchTypeSplit.doublesW / (matchTypeSplit.doublesW + matchTypeSplit.doublesL)) * 100)}% win)
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {recentForm.length > 0 ? (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' as const }}>
+                <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>Recent</span>
+                {recentForm.map((result, i) => (
+                  <span
+                    key={i}
+                    style={{ width: 22, height: 22, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, fontSize: 11, fontWeight: 900, background: result === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: result === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${result === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}
+                  >
+                    {result}
+                  </span>
+                ))}
+              </div>
+            ) : null}
 
             {teamMeta.district ? <div style={summaryHint}>{teamMeta.district}</div> : null}
             {tiqParticipations.length > 0 ? (
@@ -1126,7 +1212,65 @@ export default function TeamPage() {
             </div>
           </div>
 
-          {matchCards.length ? (
+          {opponentAnalysis.length > 0 ? (
+            <section style={{ ...surfaceCard, marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' as const, gap: 10 }}>
+                <div>
+                  <div style={sectionKicker}>Opponent breakdown</div>
+                  <h2 style={sectionTitle}>Record vs. opponents</h2>
+                </div>
+                <span style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>{opponentAnalysis.length} opponent{opponentAnalysis.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ ...dataTable, minWidth: 420 }}>
+                  <thead>
+                    <tr>
+                      {['Opponent', 'W', 'L', 'Win %', 'Matches', 'Last met'].map((h) => (
+                        <th key={h} style={tableHeaderCell}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {opponentAnalysis.map((opp, i) => {
+                      const dominated = opp.winPct >= 70
+                      const struggling = opp.winPct <= 30
+                      return (
+                        <tr key={opp.name} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.016)' }}>
+                          <td style={{ ...tableCell, fontWeight: 800, color: 'var(--foreground)' }}>{opp.name}</td>
+                          <td style={{ ...tableCell, color: '#86efac', fontWeight: 800 }}>{opp.wins}</td>
+                          <td style={{ ...tableCell, color: '#fca5a5', fontWeight: 800 }}>{opp.losses}</td>
+                          <td style={tableCell}>
+                            <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: dominated ? 'rgba(155,225,29,0.10)' : struggling ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', color: dominated ? '#d9f84a' : struggling ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${dominated ? 'rgba(155,225,29,0.20)' : struggling ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}` }}>
+                              {opp.winPct}%
+                            </span>
+                          </td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)' }}>{opp.total}</td>
+                          <td style={{ ...tableCell, color: 'var(--shell-copy-muted)', fontSize: 13 }}>{formatDate(opp.lastDate)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
+          {matchCards.length ? (() => {
+            const filteredCards = seasonFilter === 'all'
+              ? matchCards
+              : matchCards.filter((m) => (m.match_date || '').startsWith(seasonFilter))
+            return (
+            <>
+            {seasonOptions.length > 1 ? (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 12, alignItems: 'center' }}>
+                <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700 }}>Season:</span>
+                {(['all', ...seasonOptions] as const).map((y) => (
+                  <button key={y} type="button" onClick={() => setSeasonFilter(y)} style={{ padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 800, cursor: 'pointer', background: seasonFilter === y ? 'rgba(116,190,255,0.14)' : 'transparent', border: `1px solid ${seasonFilter === y ? 'rgba(116,190,255,0.28)' : 'rgba(255,255,255,0.10)'}`, color: seasonFilter === y ? '#93c5fd' : 'var(--shell-copy-muted)' }}>
+                    {y === 'all' ? 'All seasons' : y}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div style={tableWrap}>
               <table style={dataTable}>
                 <thead>
@@ -1140,7 +1284,7 @@ export default function TeamPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {matchCards.map((match) => (
+                  {filteredCards.map((match) => (
                     <tr key={match.id}>
                       <td style={tableCell}>{formatDate(match.match_date)}</td>
                       <td style={tableCell}>{match.opponent ?? '—'}</td>
@@ -1159,7 +1303,9 @@ export default function TeamPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+            </>
+            )
+          })() : (
             <div style={emptyStateBlock}>
               <p style={emptyState}>Team match history is not available yet.</p>
               <p style={mutedText}>Return to the team directory or use the captain tools above while the season history catches up.</p>

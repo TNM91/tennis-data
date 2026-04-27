@@ -20,6 +20,7 @@ type MatchRow = {
   league_name: string | null
   flight: string | null
   line_number: string | null
+  winner_side: 'A' | 'B' | null
 }
 
 type MatchPlayerRow = {
@@ -44,11 +45,14 @@ type TeamDirectoryEntry = {
   league: string | null
   flight: string | null
   matchCount: number
+  wins: number
+  losses: number
+  recentForm: Array<'W' | 'L'>
   playerIds: Set<string>
   mostRecentMatchDate: string | null
 }
 
-type SortKey = 'team' | 'matches' | 'players' | 'recent'
+type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
 
 const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
 
@@ -149,7 +153,7 @@ export default function TeamsPage() {
     try {
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight, line_number')
+        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side')
         .is('line_number', null)
         .order('match_date', { ascending: false })
 
@@ -189,6 +193,9 @@ export default function TeamsPage() {
             league,
             flight,
             matchCount: 0,
+            wins: 0,
+            losses: 0,
+            recentForm: [],
             playerIds: new Set<string>(),
             mostRecentMatchDate: null,
           })
@@ -201,6 +208,9 @@ export default function TeamsPage() {
             league,
             flight,
             matchCount: 0,
+            wins: 0,
+            losses: 0,
+            recentForm: [],
             playerIds: new Set<string>(),
             mostRecentMatchDate: null,
           })
@@ -211,6 +221,10 @@ export default function TeamsPage() {
 
         if (homeEntry) {
           homeEntry.matchCount += 1
+          const homeResult: 'W' | 'L' | null = match.winner_side === 'A' ? 'W' : match.winner_side === 'B' ? 'L' : null
+          if (homeResult === 'W') homeEntry.wins += 1
+          else if (homeResult === 'L') homeEntry.losses += 1
+          if (homeResult && homeEntry.recentForm.length < 5) homeEntry.recentForm.push(homeResult)
           if (
             compareNullableDatesDesc(match.match_date, homeEntry.mostRecentMatchDate) < 0 ||
             homeEntry.mostRecentMatchDate === null
@@ -221,6 +235,10 @@ export default function TeamsPage() {
 
         if (awayEntry) {
           awayEntry.matchCount += 1
+          const awayResult: 'W' | 'L' | null = match.winner_side === 'B' ? 'W' : match.winner_side === 'A' ? 'L' : null
+          if (awayResult === 'W') awayEntry.wins += 1
+          else if (awayResult === 'L') awayEntry.losses += 1
+          if (awayResult && awayEntry.recentForm.length < 5) awayEntry.recentForm.push(awayResult)
           if (
             compareNullableDatesDesc(match.match_date, awayEntry.mostRecentMatchDate) < 0 ||
             awayEntry.mostRecentMatchDate === null
@@ -344,6 +362,13 @@ export default function TeamsPage() {
       }
       if (sortBy === 'recent') {
         const diff = compareNullableDatesDesc(left.mostRecentMatchDate, right.mostRecentMatchDate)
+        if (diff !== 0) return diff
+        return left.team.localeCompare(right.team)
+      }
+      if (sortBy === 'winpct') {
+        const lPct = left.wins + left.losses > 0 ? left.wins / (left.wins + left.losses) : -1
+        const rPct = right.wins + right.losses > 0 ? right.wins / (right.wins + right.losses) : -1
+        const diff = rPct - lPct
         if (diff !== 0) return diff
         return left.team.localeCompare(right.team)
       }
@@ -537,6 +562,7 @@ export default function TeamsPage() {
                   }}
                 >
                   <option value="matches">Most matches</option>
+                  <option value="winpct">Best win %</option>
                   <option value="players">Most players</option>
                   <option value="recent">Most recent</option>
                   <option value="team">Team name</option>
@@ -650,6 +676,34 @@ function TeamCard({ href, row }: { href: object; row: TeamDirectoryEntry }) {
             View team
           </span>
         </div>
+
+        {row.wins + row.losses > 0 ? (() => {
+          const total = row.wins + row.losses
+          const winPct = Math.round((row.wins / total) * 100)
+          return (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 7, background: 'rgba(255,255,255,0.06)', marginBottom: 5 }}>
+                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.65),rgba(74,222,128,0.65))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
+                <div style={{ flex: 1, background: 'rgba(239,68,68,0.22)' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: 'rgba(155,225,29,0.8)' }}>{row.wins}W · {winPct}%</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(239,68,68,0.65)' }}>{row.losses}L</span>
+              </div>
+            </div>
+          )
+        })() : null}
+
+        {row.recentForm.length > 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+            <span style={{ color: 'rgba(190,210,240,0.45)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', flexShrink: 0 }}>Form</span>
+            {row.recentForm.map((r, i) => (
+              <span key={i} style={{ width: 20, height: 20, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, fontSize: 10, fontWeight: 900, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
+                {r}
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         <div style={metricsGrid}>
           <Metric label="Matches" value={String(row.matchCount)} />

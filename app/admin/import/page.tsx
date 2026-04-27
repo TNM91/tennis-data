@@ -998,7 +998,21 @@ export default function AdminImportPage() {
     resetScorecardReviewState()
     setJsonInput(rawText)
     setImportType(inferredKind)
-    setExtensionStatusMessage(options?.sourceLabel ?? '')
+
+    // Build a richer status line from capture metadata when available
+    const captureStatusParts: string[] = []
+    if (options?.sourceLabel) captureStatusParts.push(options.sourceLabel)
+    if (inferredKind === 'scorecard') {
+      const record = parsedInput.value as Record<string, unknown>
+      const sc = (record?.scorecard ?? record) as Record<string, unknown> | null
+      if (sc) {
+        const method = cleanString(sc?.captureMethod)
+        if (method && method !== 'table') captureStatusParts.push(`Capture method: ${method}`)
+        const cacheHit = (sc?.scheduleCache as Record<string, unknown> | null)?.found === true
+        if (cacheHit) captureStatusParts.push('Teams verified from schedule cache')
+      }
+    }
+    setExtensionStatusMessage(captureStatusParts.join(' · '))
 
     if (options?.autoPreview) {
       if (inferredKind === 'scorecard') {
@@ -1112,6 +1126,36 @@ export default function AdminImportPage() {
     ])
   }
 
+  async function handleQuickWinnerAndSubmit(
+    preview: ScorecardPreviewModel,
+    lineNumber: number,
+    winnerSide: 'A' | 'B',
+  ) {
+    // Apply the winner inline without waiting for React state — avoids the
+    // timing gap between onLineOverrideChange and onApproveAndSubmitMatch.
+    const reviewedBy = reviewerName.trim() || preview.finalPreview.reviewed_by || 'Admin'
+    const reviewedAt = new Date().toISOString()
+
+    const patchedLines = preview.finalPreview.lines.map((line) =>
+      line.lineNumber === lineNumber ? { ...line, winnerSide } : line,
+    )
+
+    const stillUnresolved = patchedLines.some((line) => line.winnerSide === null)
+
+    setLineCommitTargetMatchId(preview.externalMatchId)
+    setLineCommitFeedback('Submitting reviewed match...')
+
+    await executeImport('commit', 'scorecard', [
+      {
+        ...preview.finalPreview,
+        lines: patchedLines,
+        reviewed_by: reviewedBy,
+        reviewed_at: reviewedAt,
+        reviewStatus: stillUnresolved || preview.finalPreview.dataConflict ? 'needs_review' : 'clean',
+      },
+    ])
+  }
+
   useEffect(() => {
     if (!lineCommitTargetMatchId || lastRunMode !== 'commit') return
 
@@ -1171,9 +1215,12 @@ export default function AdminImportPage() {
 
     void (async () => {
       try {
+        // Short delay so the tab has focus before the clipboard API is invoked.
+        // Extensions that navigate/open a tab don't guarantee focus at script-run time.
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 600))
         const clipboardText = await navigator.clipboard.readText()
         if (!clipboardText.trim()) {
-          setTopLevelError('Clipboard is empty.')
+          setTopLevelError('Clipboard is empty. Use the Paste button below to load your capture manually.')
           return
         }
 
@@ -1187,8 +1234,8 @@ export default function AdminImportPage() {
       } catch (error) {
         setTopLevelError(
           error instanceof Error
-            ? `Automatic clipboard load failed: ${error.message}`
-            : 'Automatic clipboard load failed.',
+            ? `Auto-load failed (${error.message}) — use the Paste button below to load manually.`
+            : 'Auto-load failed — use the Paste button below to load manually.',
         )
       }
     })()
@@ -1255,6 +1302,36 @@ export default function AdminImportPage() {
     }, 1500)
     return () => window.clearTimeout(timer)
   }, [committedMatchIds, scorecardReviewPreviews])
+
+  // Listen for soft-import events dispatched by the extension into the existing tab.
+  // This lets the extension hand off a new capture without reloading the page.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleSoftImport = (event: Event) => {
+      const { payload, kind, autoPreview, autoCommitMode, source } =
+        (event as CustomEvent<{
+          payload: unknown
+          kind: string
+          autoPreview?: boolean
+          autoCommitMode?: AutoImportRequest['autoCommitMode']
+          source?: string
+        }>).detail ?? {}
+
+      if (!payload) return
+
+      const rawText = typeof payload === 'string' ? payload : JSON.stringify(payload)
+
+      void applyJsonInput(rawText, {
+        sourceLabel: source ? `${source} capture received` : 'Extension capture received',
+        autoPreview: autoPreview ?? true,
+        autoCommitMode: autoCommitMode ?? (kind === 'scorecard' ? 'clean_only' : 'all'),
+      })
+    }
+
+    window.addEventListener('TENACEIQ_SOFT_IMPORT', handleSoftImport)
+    return () => window.removeEventListener('TENACEIQ_SOFT_IMPORT', handleSoftImport)
+  }, [applyJsonInput])
 
   function handleReviewFlaggedMatches() {
     const target = document.querySelector('[data-review-match="flagged"]')
@@ -1673,6 +1750,7 @@ export default function AdminImportPage() {
               onMatchDecisionChange={handleMatchDecisionChange}
               onApproveMatch={handleApproveMatch}
               onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
+              onQuickWinnerAndSubmit={(preview, lineNumber, winnerSide) => void handleQuickWinnerAndSubmit(preview, lineNumber, winnerSide)}
               onReviewerNoteChange={handleReviewerNoteChange}
               onLineOverrideChange={handleLineOverrideChange}
               onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}
@@ -1704,6 +1782,7 @@ export default function AdminImportPage() {
                   onMatchDecisionChange={handleMatchDecisionChange}
                   onApproveMatch={handleApproveMatch}
                   onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
+                  onQuickWinnerAndSubmit={(preview, lineNumber, winnerSide) => void handleQuickWinnerAndSubmit(preview, lineNumber, winnerSide)}
                   onReviewerNoteChange={handleReviewerNoteChange}
                   onLineOverrideChange={handleLineOverrideChange}
                   onCommitCleanOnly={() => void handleScorecardCommit('clean_only')}
@@ -2047,6 +2126,24 @@ export default function AdminImportPage() {
               }}
             >
               {topLevelError}
+              {topLevelError.toLowerCase().includes('auto-load') ||
+               topLevelError.toLowerCase().includes('clipboard') ||
+               topLevelError.toLowerCase().includes('paste') ? (
+                <div style={{ marginTop: 10 }}>
+                  <button
+                    type="button"
+                    style={{
+                      ...primaryButtonStyle,
+                      fontSize: '0.92rem',
+                      minHeight: 40,
+                      padding: '0 16px',
+                    }}
+                    onClick={() => void handlePasteFromClipboard()}
+                  >
+                    Paste from clipboard
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -2078,6 +2175,22 @@ export default function AdminImportPage() {
                   ? ` · ${importSummary.linkedPlayersCount} players linked`
                   : ''}
               </div>
+              {(importSummary.skippedLinesCount ?? 0) > 0 ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    borderRadius: 12,
+                    border: '1px solid rgba(250,204,21,0.28)',
+                    background: 'rgba(58,44,12,0.55)',
+                    color: '#FDE68A',
+                    padding: '10px 12px',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                  }}
+                >
+                  {importSummary.skippedLinesCount} scorecard {importSummary.skippedLinesCount === 1 ? 'line was' : 'lines were'} skipped — winner could not be determined. Re-import after correcting winners in the review panel.
+                </div>
+              ) : null}
               {importType !== 'scorecard' ? (
                 <div style={{ marginTop: 8, color: 'rgba(180,230,170,0.72)', fontWeight: 700, fontSize: '0.88rem' }}>
                   Form clearing in a moment — ready for the next capture.

@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
+import { supabase } from '@/lib/supabase'
 
 type Accent = 'blue' | 'green' | 'slate'
 
@@ -195,6 +196,7 @@ export default function AdminDashboardPage() {
         }}
       >
         <HeroSection />
+        <DataQualityPanel />
 
         <section
           className="surface-card panel-pad section"
@@ -480,6 +482,73 @@ export default function AdminDashboardPage() {
         </section>
       </AdminGate>
     </SiteShell>
+  )
+}
+
+function DataQualityPanel() {
+  const [stats, setStats] = useState<{
+    totalMatches: number | null
+    matchesWithScores: number | null
+    matchesWithPlayers: number | null
+    totalPlayers: number | null
+    lastSnapshotDate: string | null
+  }>({ totalMatches: null, matchesWithScores: null, matchesWithPlayers: null, totalPlayers: null, lastSnapshotDate: null })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    void (async () => {
+      const [
+        { count: totalMatches },
+        { count: matchesWithScores },
+        { count: totalPlayers },
+        { data: lastSnap },
+        { data: matchesWithPlayersData },
+      ] = await Promise.all([
+        supabase.from('matches').select('*', { count: 'exact', head: true }).not('match_type', 'is', null),
+        supabase.from('matches').select('*', { count: 'exact', head: true }).not('score', 'is', null).neq('score', ''),
+        supabase.from('players').select('*', { count: 'exact', head: true }),
+        supabase.from('rating_snapshots').select('snapshot_date').order('snapshot_date', { ascending: false }).limit(1),
+        supabase.from('match_players').select('match_id').limit(500),
+      ])
+      const linkedMatchIds = new Set((matchesWithPlayersData ?? []).map((r: { match_id: string }) => r.match_id))
+      setStats({
+        totalMatches,
+        matchesWithScores,
+        matchesWithPlayers: linkedMatchIds.size,
+        totalPlayers,
+        lastSnapshotDate: (lastSnap?.[0] as { snapshot_date: string } | undefined)?.snapshot_date ?? null,
+      })
+      setLoading(false)
+    })()
+  }, [])
+
+  const scorePct = stats.totalMatches && stats.matchesWithScores != null
+    ? Math.round((stats.matchesWithScores / stats.totalMatches) * 100) : null
+  const linkedPct = stats.totalMatches && stats.matchesWithPlayers != null
+    ? Math.round((stats.matchesWithPlayers / Math.min(stats.totalMatches, 500)) * 100) : null
+
+  return (
+    <section style={{ marginTop: 18, padding: '18px 20px', borderRadius: 20, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(116,190,255,0.03)' }}>
+      <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>Data quality</div>
+      {loading ? (
+        <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 13 }}>Loading health metrics…</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+          {[
+            { label: 'Total matches', value: stats.totalMatches?.toLocaleString() ?? '—' },
+            { label: 'Scores entered', value: scorePct != null ? `${scorePct}%` : '—', flag: scorePct != null && scorePct < 80 },
+            { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%+` : '—', flag: linkedPct != null && linkedPct < 80 },
+            { label: 'Total players', value: stats.totalPlayers?.toLocaleString() ?? '—' },
+            { label: 'Last recalculate', value: stats.lastSnapshotDate ? new Date(stats.lastSnapshotDate).toLocaleDateString() : 'Never' },
+          ].map((item) => (
+            <div key={item.label} style={{ padding: '10px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.flag ? 'rgba(251,146,60,0.22)' : 'rgba(255,255,255,0.07)'}` }}>
+              <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{item.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: item.flag ? '#fed7aa' : 'var(--foreground)', letterSpacing: '-0.02em' }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -840,21 +909,38 @@ function WorkflowStep({
   )
 }
 
+const recalcPhaseLabels: Record<string, string> = {
+  'fetching-players': 'Loading players…',
+  'fetching-matches': 'Loading matches…',
+  'fetching-participants': 'Loading participants…',
+  'processing': 'Processing matches…',
+  'applying-decay': 'Applying decay…',
+  'saving-ratings': 'Saving ratings…',
+  'saving-snapshots': 'Saving snapshots…',
+  'done': 'Done',
+}
+
 function RecalculateRatingsAction() {
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
   const [message, setMessage] = useState('')
+  const [phase, setPhase] = useState('')
 
   async function handleRun() {
     if (status === 'running') return
     setStatus('running')
     setMessage('')
+    setPhase('')
     try {
-      await recalculateDynamicRatings()
+      await recalculateDynamicRatings((p, detail) => {
+        setPhase(recalcPhaseLabels[p] ?? p + (detail ? ` (${detail})` : ''))
+      })
       setStatus('done')
       setMessage('All dynamic ratings recalculated.')
     } catch (err) {
       setStatus('error')
       setMessage(err instanceof Error ? err.message : 'Recalculation failed.')
+    } finally {
+      setPhase('')
     }
   }
 
@@ -870,6 +956,9 @@ function RecalculateRatingsAction() {
         <span>{status === 'running' ? 'Recalculating…' : 'Recalculate All Ratings'}</span>
         <span aria-hidden="true">⟳</span>
       </button>
+      {status === 'running' && phase ? (
+        <div style={{ marginTop: 6, fontSize: 12, color: '#93c5fd', fontWeight: 700 }}>{phase}</div>
+      ) : null}
       {message ? (
         <div style={{ marginTop: 6, fontSize: 12, color: status === 'error' ? '#f87171' : '#9be11d' }}>
           {message}

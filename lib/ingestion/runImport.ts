@@ -72,6 +72,7 @@ export type ImportSummary = {
   failedCount: number
   createdPlayersCount: number
   linkedPlayersCount: number
+  skippedLinesCount?: number
   error?: string
 }
 
@@ -249,6 +250,7 @@ export function summarizeImportResponse(response: RunImportResponse): ImportSumm
     failedCount: response.result.failedCount,
     createdPlayersCount: response.result.createdPlayersCount,
     linkedPlayersCount: response.result.linkedPlayersCount,
+    skippedLinesCount: response.result.skippedLinesCount,
   }
 }
 

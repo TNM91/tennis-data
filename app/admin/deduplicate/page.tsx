@@ -80,6 +80,7 @@ export default function DeduplicatePage() {
   const [error, setError] = useState('')
   const [merging, setMerging] = useState(false)
   const [recalculating, setRecalculating] = useState(false)
+  const [recalcPhase, setRecalcPhase] = useState('')
   const [message, setMessage] = useState('')
   const [mergedIds, setMergedIds] = useState<Set<string>>(new Set())
 
@@ -157,16 +158,31 @@ export default function DeduplicatePage() {
     setMessage(`Merged. Run recalculate when done to refresh all ratings.`)
   }
 
+  const phaseLabels: Record<string, string> = {
+    'fetching-players': 'Loading players…',
+    'fetching-matches': 'Loading matches…',
+    'fetching-participants': 'Loading participants…',
+    'processing': 'Processing matches…',
+    'applying-decay': 'Applying inactivity decay…',
+    'saving-ratings': 'Saving ratings…',
+    'saving-snapshots': 'Saving snapshots…',
+    'done': 'Done',
+  }
+
   async function handleRecalculate() {
     setRecalculating(true)
+    setRecalcPhase('')
     setMessage('')
     try {
-      await recalculateDynamicRatings()
+      await recalculateDynamicRatings((phase, detail) => {
+        setRecalcPhase(phaseLabels[phase] ?? phase + (detail ? ` (${detail})` : ''))
+      })
       setMessage('Ratings recalculated.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Recalculation failed')
     } finally {
       setRecalculating(false)
+      setRecalcPhase('')
     }
   }
 
@@ -184,14 +200,19 @@ export default function DeduplicatePage() {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void handleRecalculate()}
-              disabled={recalculating}
-              style={actionButton}
-            >
-              {recalculating ? 'Recalculating…' : 'Recalculate ratings'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => void handleRecalculate()}
+                disabled={recalculating}
+                style={actionButton}
+              >
+                {recalculating ? 'Recalculating…' : 'Recalculate ratings'}
+              </button>
+              {recalculating && recalcPhase ? (
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#93c5fd', textAlign: 'right' as const }}>{recalcPhase}</div>
+              ) : null}
+            </div>
           </div>
 
           {message ? <div style={successBanner}>{message}</div> : null}

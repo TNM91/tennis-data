@@ -27,6 +27,7 @@ function cleanText(value) {
 
 function inferImportKind(payload) {
   const pageType = cleanText(payload?.pageType).toLowerCase();
+  if (pageType.includes('team_summary') || payload?.teamSummary) return 'team_summary';
   if (pageType.includes('scorecard') || payload?.scorecard) return 'scorecard';
   return 'schedule';
 }
@@ -59,6 +60,8 @@ function buildSummary(payload) {
   const quality = typeof scorecard?.captureEngine?.captureQuality === 'number'
     ? scorecard.captureEngine.captureQuality
     : null;
+  const captureMethod = scorecard?.captureMethod || null;
+  const cacheHit = scorecard?.scheduleCache?.found === true;
 
   return [
     `Page type: ${payload?.pageType || 'unknown'}`,
@@ -69,6 +72,8 @@ function buildSummary(payload) {
     `Needs review: ${needsReview ? 'yes' : 'no'}`,
     `Data conflict: ${dataConflict ? 'yes' : 'no'}`,
     `Capture quality: ${quality === null ? 'n/a' : quality}`,
+    ...(captureMethod ? [`Capture method: ${captureMethod}`] : []),
+    ...(cacheHit ? [`Schedule cache: hit — teams verified from schedule`] : []),
   ].join('\n');
 }
 
@@ -121,12 +126,39 @@ async function copyPayloadToClipboard(payload) {
   await navigator.clipboard.writeText(json);
 }
 
-async function openOrReuseImportTab(targetUrl) {
+async function openOrReuseImportTab(targetUrl, softPayload) {
   const importTabPattern = DEFAULT_IMPORT_URL + '*';
-  const importTabs = await chrome.tabs.query({ url: importTabPattern });
+  let importTabs = [];
+  try {
+    importTabs = await chrome.tabs.query({ url: importTabPattern });
+  } catch {
+    // tabs permission may not be available in all contexts
+  }
+
   const reusableTab = importTabs.find((tab) => typeof tab.id === 'number');
 
   if (reusableTab?.id) {
+    // Soft-import: dispatch a custom event into the existing page so it handles
+    // the new capture without a full page reload (preserves any in-progress review).
+    if (softPayload) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: reusableTab.id },
+          world: 'MAIN',
+          func: (eventDetail) => {
+            window.dispatchEvent(new CustomEvent('TENACEIQ_SOFT_IMPORT', { detail: eventDetail }));
+          },
+          args: [softPayload],
+        });
+        await chrome.tabs.update(reusableTab.id, { active: true });
+        if (typeof reusableTab.windowId === 'number') {
+          await chrome.windows.update(reusableTab.windowId, { focused: true });
+        }
+        return reusableTab;
+      } catch {
+        // Fall through to URL navigation if scripting injection fails
+      }
+    }
     await chrome.tabs.update(reusableTab.id, { url: targetUrl, active: true });
     if (typeof reusableTab.windowId === 'number') {
       await chrome.windows.update(reusableTab.windowId, { focused: true });
@@ -155,6 +187,7 @@ function buildImportUrl(baseUrl, payload) {
   const leagueOverride =
     payload?.scorecard?.leagueName ||
     payload?.seasonSchedule?.leagueName ||
+    payload?.teamSummary?.leagueName ||
     '';
 
   if (leagueOverride) {
@@ -249,7 +282,15 @@ captureBtn.addEventListener('click', async () => {
     await storageSet({ [IMPORT_URL_STORAGE_KEY]: baseUrl });
     await copyPayloadToClipboard(payload);
     const targetUrl = buildImportUrl(baseUrl, payload);
-    await openOrReuseImportTab(targetUrl);
+    const kind = inferImportKind(payload);
+    const softPayload = {
+      payload,
+      kind,
+      autoPreview: true,
+      autoCommitMode: kind === 'scorecard' ? 'clean_only' : 'all',
+      source: 'edge-extension',
+    };
+    await openOrReuseImportTab(targetUrl, softPayload);
 
     setStatus(`Capture complete, copied to clipboard, and sent to the import center. Clean items will move through automatically, and unresolved scorecards will open in focused line review.\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`);
   } catch (error) {
@@ -287,7 +328,15 @@ openImportBtn.addEventListener('click', async () => {
     await storageSet({ [IMPORT_URL_STORAGE_KEY]: baseUrl });
     await copyPayloadToClipboard(lastCaptureRecord.payload);
     const targetUrl = buildImportUrl(baseUrl, lastCaptureRecord.payload);
-    await openOrReuseImportTab(targetUrl);
+    const kind = inferImportKind(lastCaptureRecord.payload);
+    const softPayload = {
+      payload: lastCaptureRecord.payload,
+      kind,
+      autoPreview: true,
+      autoCommitMode: kind === 'scorecard' ? 'clean_only' : 'all',
+      source: 'edge-extension',
+    };
+    await openOrReuseImportTab(targetUrl, softPayload);
     setStatus(`Opened the import center, copied the latest capture, and requested automatic handoff into preview. Clean items will move through automatically, and unresolved scorecards will land in focused review.`);
   } catch (error) {
     setStatus(`Open import failed: ${error.message}`, true);

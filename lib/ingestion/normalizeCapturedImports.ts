@@ -83,12 +83,22 @@ function normalizeDate(value: unknown): string {
   const isoMatch = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
 
-  const parsed = new Date(cleaned)
+  // MM/DD/YYYY or M/D/YYYY (common TennisLink format)
+  const mdyMatch = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (mdyMatch) {
+    const y = mdyMatch[3]
+    const m = mdyMatch[1].padStart(2, '0')
+    const d = mdyMatch[2].padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+
+  // Last-resort: parse as UTC to avoid TZ-dependent off-by-one-day
+  const parsed = new Date(`${cleaned}T00:00:00Z`)
   if (Number.isNaN(parsed.getTime())) return ''
 
-  const y = parsed.getFullYear()
-  const m = `${parsed.getMonth() + 1}`.padStart(2, '0')
-  const d = `${parsed.getDate()}`.padStart(2, '0')
+  const y = parsed.getUTCFullYear()
+  const m = `${parsed.getUTCMonth() + 1}`.padStart(2, '0')
+  const d = `${parsed.getUTCDate()}`.padStart(2, '0')
 
   return `${y}-${m}-${d}`
 }
@@ -163,9 +173,11 @@ function normalizeScorecardSets(value: unknown): Array<{
     if (!isRecord(entry)) continue
     const homeGames = pickFirst(entry, ['homeGames', 'home_games'])
     const awayGames = pickFirst(entry, ['awayGames', 'away_games'])
+    const parsedHome = typeof homeGames === 'number' ? homeGames : Number.parseInt(cleanString(homeGames), 10)
+    const parsedAway = typeof awayGames === 'number' ? awayGames : Number.parseInt(cleanString(awayGames), 10)
     normalized.push({
-      homeGames: typeof homeGames === 'number' ? homeGames : Number.parseInt(cleanString(homeGames), 10),
-      awayGames: typeof awayGames === 'number' ? awayGames : Number.parseInt(cleanString(awayGames), 10),
+      homeGames: Number.isFinite(parsedHome) ? parsedHome : null,
+      awayGames: Number.isFinite(parsedAway) ? parsedAway : null,
       isMatchTiebreak: normalizeBoolean(pickFirst(entry, ['isMatchTiebreak', 'is_match_tiebreak'])),
       isTimed: normalizeBoolean(pickFirst(entry, ['isTimed', 'is_timed'])),
     })
@@ -1114,29 +1126,25 @@ function normalizeScorecardRow(
     facility: normalizeFacility(record),
     matchTime: normalizeTime(record),
     source: buildUnifiedSource('scorecard', record),
-    totalTeamScore: isRecord(pickFirst(record, ['totalTeamScore', 'total_team_score']))
-      ? {
-          home: typeof (pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).home === 'number'
-            ? ((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).home as number)
-            : Number.parseInt(cleanString((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).home), 10) || null,
-          away: typeof (pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).away === 'number'
-            ? ((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).away as number)
-            : Number.parseInt(cleanString((pickFirst(record, ['totalTeamScore', 'total_team_score']) as UnknownRecord).away), 10) || null,
-        }
-      : null,
-    captureEngine: isRecord(pickFirst(record, ['captureEngine', 'capture_engine']))
-      ? {
-          version:
-            cleanString((pickFirst(record, ['captureEngine', 'capture_engine']) as UnknownRecord).version) ||
-            'capture',
-          captureQuality:
-            normalizeConfidence((pickFirst(record, ['captureEngine', 'capture_engine']) as UnknownRecord).captureQuality) ??
-            0,
-          diagnostics: toArray((pickFirst(record, ['captureEngine', 'capture_engine']) as UnknownRecord).diagnostics)
-            .map((entry) => cleanString(entry))
-            .filter(Boolean),
-        }
-      : null,
+    totalTeamScore: (() => {
+      const ts = pickFirst(record, ['totalTeamScore', 'total_team_score'])
+      if (!isRecord(ts)) return null
+      const parseGames = (v: unknown) => {
+        if (typeof v === 'number' && Number.isFinite(v)) return v
+        const n = Number.parseInt(cleanString(v), 10)
+        return Number.isFinite(n) ? n : null
+      }
+      return { home: parseGames(ts.home), away: parseGames(ts.away) }
+    })(),
+    captureEngine: (() => {
+      const ce = pickFirst(record, ['captureEngine', 'capture_engine'])
+      if (!isRecord(ce)) return null
+      return {
+        version: cleanString(ce.version) || 'capture',
+        captureQuality: normalizeConfidence(ce.captureQuality) ?? 0,
+        diagnostics: toArray(ce.diagnostics).map((entry) => cleanString(entry)).filter(Boolean),
+      }
+    })(),
     dataConflict: normalizeBoolean(pickFirst(record, ['dataConflict', 'data_conflict'])),
     conflictType: nullableString(pickFirst(record, ['conflictType', 'conflict_type'])),
     needsReview: normalizeBoolean(pickFirst(record, ['needsReview', 'needs_review'])),
