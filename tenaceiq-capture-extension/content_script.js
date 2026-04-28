@@ -2496,53 +2496,110 @@
     return score >= 8;
   }
 
-  function extractBestScorecardTable() {
-    const tables = getTables();
-    let bestTable = null;
-    let bestScore = -1;
+function getLeafScorecardTables() {
+  const allTables = getTables();
 
-    for (const table of tables) {
-      const rows = getRows(table);
-      if (!rows.length) continue;
+  return allTables.filter((table) => {
+    // Ignore layout/wrapper tables. The actual scorecard table should not contain nested tables.
+    if (table.querySelectorAll('table').length > 0) return false;
 
-      const preview = rows
-        .slice(0, 14)
-        .map((row) => lower(rowTexts(row).join(' | ')))
-        .join(' || ');
+    const rows = getRows(table);
+    if (rows.length < 2) return false;
 
-      let score = 0;
+    return true;
+  });
+}
 
-      if (preview.includes('individual score')) score += 10;
-      if (preview.includes('set 1')) score += 8;
-      if (preview.includes('set 2')) score += 4;
-      if (preview.includes('line')) score += 6;
-      if (preview.includes('position')) score += 5;
-      if (preview.includes('winner')) score += 3;
+function scoreScorecardTable(table) {
+  const rows = getRows(table);
+  const tableText = lower(textOf(table));
+  const preview = rows
+    .slice(0, 20)
+    .map((row) => lower(rowTexts(row).join(' | ')))
+    .join(' || ');
 
-      if (preview.includes('home team')) score += 4;
-      if (preview.includes('visiting team') || preview.includes('away team')) score += 4;
-      if (preview.includes('3rd set tie-break')) score += 5;
-      if (preview.includes('vs.') || preview.includes('vs')) score += 2;
-      if (preview.includes('completed')) score += 2;
-      if (preview.includes('singles')) score += 2;
-      if (preview.includes('doubles')) score += 2;
+  let score = 0;
 
-      const numericLineRows = rows.filter((row) => {
-        const texts = rowTexts(row);
-        const joined = lower(texts.join(' | '));
-        return /^\d+$/.test(String(texts[0] || '').trim()) || joined.includes('singles') || joined.includes('doubles');
-      }).length;
+  if (preview.includes('individual score')) score += 12;
+  if (preview.includes('set 1')) score += 10;
+  if (preview.includes('set 2')) score += 6;
+  if (preview.includes('set 3') || preview.includes('3rd set')) score += 4;
+  if (preview.includes('line')) score += 6;
+  if (preview.includes('position')) score += 5;
+  if (preview.includes('winner')) score += 4;
 
-      score += Math.min(numericLineRows, 8);
+  if (preview.includes('home team')) score += 3;
+  if (preview.includes('visiting team') || preview.includes('away team')) score += 3;
+  if (preview.includes('vs.') || preview.includes(' vs ')) score += 4;
+  if (preview.includes('completed')) score += 2;
+  if (preview.includes('singles')) score += 4;
+  if (preview.includes('doubles')) score += 4;
 
-      if (score > bestScore) {
-        bestScore = score;
-        bestTable = table;
-      }
-    }
+  const scoreLikeRows = rows.filter((row) =>
+    /\b\d{1,2}\s*[-–]\s*\d{1,2}\b/.test(row.textContent || '')
+  ).length;
 
-    return bestTable;
+  score += Math.min(scoreLikeRows * 3, 15);
+
+  const lineLabelRows = rows.filter((row) =>
+    /\b\d+\s*#\s*(singles|doubles)\b/i.test(row.textContent || '')
+  ).length;
+
+  score += Math.min(lineLabelRows * 4, 20);
+
+  const rowsWithEnoughDirectCells = rows.filter((row) => {
+    const directCells = Array.from(row.children).filter((el) =>
+      ['TD', 'TH'].includes(el.tagName)
+    );
+    return directCells.length >= 4;
+  }).length;
+
+  score += Math.min(rowsWithEnoughDirectCells, 10);
+
+  if (!/singles|doubles|individual score|set 1|set 2|\d+\s*#\s*(singles|doubles)/i.test(tableText)) {
+    score -= 20;
   }
+
+  return score;
+}
+
+function extractBestScorecardTable() {
+  const allTables = getTables();
+  const leafTables = getLeafScorecardTables();
+
+  let bestTable = null;
+  let bestScore = -1;
+  let bestIndex = -1;
+
+  leafTables.forEach((table, index) => {
+    const score = scoreScorecardTable(table);
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestTable = table;
+      bestIndex = index;
+    }
+  });
+
+  if (!bestTable || bestScore < 8) {
+    log('Scorecard table selection failed', {
+      totalTables: allTables.length,
+      leafTables: leafTables.length,
+      bestScore,
+      bestIndex,
+    });
+    return null;
+  }
+
+  log('Scorecard table selected', {
+    totalTables: allTables.length,
+    leafTables: leafTables.length,
+    selectedLeafIndex: bestIndex,
+    bestScore,
+  });
+
+  return bestTable;
+}
 
   function extractScorecardLinesFromTable(table) {
     if (!table) return [];
@@ -3574,6 +3631,7 @@
     const engineDiagnostics = unique([
       ...safeArray(reconciled.diagnostics),
       `capture method: ${captureMethod}`,
+            `scorecard table scan: ${getTables().length} total table(s), ${getLeafScorecardTables().length} leaf table(s)`,
       ...(safeArray(lines).some((line) => line?.hasThirdSetMatchTiebreak)
         ? ['third-set match tiebreak detected']
         : []),
