@@ -478,7 +478,7 @@ export default function TeamsPage() {
                 <p style={sectionKicker}>Filters</p>
                 <h2 style={sectionTitle}>Scope the team directory</h2>
                 <p style={sectionText}>
-                  Search by team name and narrow by league or flight without inventing fallback labels.
+                  Search by team name, league, or flight.
                 </p>
               </div>
 

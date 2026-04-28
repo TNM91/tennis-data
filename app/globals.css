@@ -1370,30 +1370,30 @@ to { transform: rotate(360deg); }
 TENACEIQ LOADER SYSTEM
 ========================= */
 .tiq-loader {
-animation: tiq-loader-pulse 1.8s ease-in-out infinite;
+  animation: tiq-loader-pulse 1.8s ease-in-out infinite;
 }
 
 .tiq-loader-dot {
-animation: tiq-loader-orbit 1.6s linear infinite;
-transform-origin: 50% 50%;
+  animation: tiq-loader-orbit 1.6s linear infinite;
+  transform-origin: 50% 50%;
 }
 
 @keyframes tiq-loader-orbit {
-from {
-transform: rotate(0deg) translateY(-48px) rotate(0deg);
-}
-to {
-transform: rotate(360deg) translateY(-48px) rotate(-360deg);
-}
+  from {
+    transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--tiq-loader-orbit-radius, 44px))) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg) translateY(calc(-1 * var(--tiq-loader-orbit-radius, 44px))) rotate(-360deg);
+  }
 }
 
 @keyframes tiq-loader-pulse {
-0%, 100% {
-filter: drop-shadow(0 0 0 rgba(155, 225, 29, 0));
-}
-50% {
-filter: drop-shadow(0 0 14px rgba(155, 225, 29, 0.35));
-}
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(155, 225, 29, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(155, 225, 29, 0.35));
+  }
 }
 
 /* =========================

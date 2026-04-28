@@ -136,7 +136,7 @@ const CAPTAIN_COMMAND_SURFACES = [
   },
   {
     label: 'Scenario delta',
-    text: 'Compare fallback options and understand what each move costs before you commit.',
+    text: 'Compare options before you commit.',
   },
 ]
 
@@ -1358,8 +1358,8 @@ const captainHeroVisualMaskStyle: CSSProperties = {
         </section>
 
         <CaptainSubnav
-          title="Move across the captain workflow"
-          description="Keep availability, lineup, scenarios, messaging, and season management inside one cleaner command layer."
+          title="Run your captain tools"
+          description="Keep availability, lineups, scenarios, messaging, and season management together."
         />
 
         {error ? (
@@ -1457,9 +1457,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           <section style={premiumStrip}>
             <div>
               <div style={sectionKicker}>Captain tier</div>
-              <h2 style={premiumTitle}>Captain is the command layer for this team.</h2>
+              <h2 style={premiumTitle}>Captain keeps this team organized.</h2>
               <div style={premiumText}>
-                Save time, build smarter lineups, keep availability visible, and move the full week from planning to team communication in one place.
+                Save time, build smarter lineups, keep availability visible, and send team updates from one place.
               </div>
             </div>
             <div style={pillGroupWrap}>

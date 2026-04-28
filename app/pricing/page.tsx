@@ -140,9 +140,9 @@ export default function PricingPage() {
         <section style={captainFocusSectionStyle}>
           <div style={captainFocusIntroStyle}>
             <div style={sectionEyebrowStyle}>Most popular for a reason</div>
-            <h2 style={sectionTitleStyle}>Captain clears the weekly chaos.</h2>
+            <h2 style={sectionTitleStyle}>Captain keeps the week organized.</h2>
             <div style={supportItemTextStyle}>
-              Availability, lineups, scenarios, projections, and team texts in one flow.
+              Availability, lineups, scenarios, projections, and team texts stay together.
             </div>
           </div>
           <div style={captainFocusGridStyle}>
@@ -230,7 +230,7 @@ export default function PricingPage() {
             </div>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Organizing a full season</div>
-              <div style={supportItemTextStyle}>League moves scheduling, standings, teams, and communication out of spreadsheets.</div>
+              <div style={supportItemTextStyle}>League keeps scheduling, standings, teams, and communication together.</div>
             </div>
           </div>
         </section>

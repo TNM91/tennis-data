@@ -5,7 +5,7 @@ import InfoPage from '@/app/components/info-page'
 export const metadata: Metadata = {
   title: 'About',
   description:
-    'Learn what TenAceIQ is, who it is built for, and how the platform approaches tennis ratings, lineup decisions, and league intelligence.',
+    'Learn how TenAceIQ helps players, captains, and organizers make clearer tennis decisions.',
 }
 
 export default function AboutPage() {
@@ -13,49 +13,41 @@ export default function AboutPage() {
     <SiteShell active="/about">
       <InfoPage
         kicker="About"
-        title="Built to make tennis decisions easier to trust."
-        intro="TenAceIQ is a tennis intelligence platform focused on turning messy league, player, lineup, and match context into something captains and competitive players can actually use. The goal is simple: less guessing, faster prep, and clearer decisions before and after match day."
+        title="Clearer tennis decisions."
+        intro="TenAceIQ helps players, captains, and organizers search faster, compare better, and prepare with more confidence."
       >
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>What TenAceIQ does</h2>
           <p>
-            The platform combines player profiles, rankings, league structure, matchup context,
-            and captain workflow tools in one place. Instead of bouncing between scorecards,
-            spreadsheets, league pages, and lineup notes, you get a clearer operating picture of
-            who is trending, what a team looks like, and where the real decisions live.
+            TenAceIQ brings player profiles, rankings, leagues, matchup context, and captain tools
+            into one place so you can see who is trending, how teams compare, and what to do next.
           </p>
         </div>
 
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Who it is for</h2>
           <p>
-            TenAceIQ is designed for adult league players, captains, and tennis organizers who
-            need better structure around roster planning, availability, player comparison, weekly
-            prep, and season-level tracking.
+            TenAceIQ is for adult league players, captains, and organizers who manage rosters,
+            availability, player comparisons, weekly prep, and season tracking.
           </p>
         </div>
 
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How the platform adds value</h2>
           <p>
-            The public side helps people explore players, rankings, teams, and leagues without
-            friction. The member and captain layers go further by organizing weekly decisions such
-            as lineup construction, scenario planning, messaging, and match-readiness work.
+            Explore players, rankings, teams, and leagues. Add member and captain tools for
+            lineups, scenarios, messaging, and match prep.
           </p>
           <p>
-            That value comes from curation, normalization, context, and workflow design rather than
-            simply repeating raw tennis records. The platform is built to help users interpret data,
-            not just look at it.
+            TenAceIQ turns tennis records into useful context so the next decision is easier to make.
           </p>
         </div>
 
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How content is approached</h2>
           <p>
-            TenAceIQ aims to present tennis information with useful context, responsible handling,
-            and clear ownership of the site experience. Legal policies, contact information, and
-            product explanations are published so visitors can understand what the platform is, what
-            it does, and how to reach the team behind it.
+            TenAceIQ keeps tennis information clear, useful, and easy to act on. Policies and
+            contact details are available for anyone who needs them.
           </p>
         </div>
       </InfoPage>

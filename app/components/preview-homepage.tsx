@@ -68,11 +68,11 @@ const heroSearchFilters: Array<{
   label: string
   hint: string
 }> = [
-  { value: 'players', label: 'Player name', hint: 'Search player names and locations' },
-  { value: 'teams', label: 'Team', hint: 'Search by team, league, or flight' },
-  { value: 'leagues', label: 'League', hint: 'Search league name or season context' },
-  { value: 'flight', label: 'Flight', hint: 'Jump straight into league flight filtering' },
-  { value: 'area', label: 'Area', hint: 'Search district or area quickly' },
+  { value: 'players', label: 'Player name', hint: 'Find a player' },
+  { value: 'teams', label: 'Team', hint: 'Find a team' },
+  { value: 'leagues', label: 'League', hint: 'Find a league' },
+  { value: 'flight', label: 'Flight', hint: 'Filter by flight' },
+  { value: 'area', label: 'Area', hint: 'Filter by area' },
 ]
 
 const tierSections: TierSectionConfig[] = [
@@ -80,13 +80,12 @@ const tierSections: TierSectionConfig[] = [
     planId: 'free',
     stage: 'Start here',
     label: 'Free',
-    headline: 'Start free and get into the weekly flow fast.',
-    copy:
-      'Get into TenAceIQ without friction. Search for players, join your team or league, set availability, and stay connected to the week without paying first.',
+    headline: 'Start free. Find your tennis context fast.',
+    copy: 'Search players, join your team, set availability, and see posted lineups.',
     bullets: [
-      'Search players, teams, leagues, and matchups in seconds',
+      'Search players, teams, leagues, and matchups',
       'Create your profile and join your team',
-      'Set availability and view the lineup once it is posted',
+      'Set availability and view posted lineups',
     ],
     primaryCta: { label: 'Get Started Free', href: '/join' },
     secondaryCta: { label: 'Explore TIQ', href: '/explore' },
@@ -96,13 +95,12 @@ const tierSections: TierSectionConfig[] = [
     planId: 'player_plus',
     stage: 'Upgrade 1',
     label: 'Player+',
-    headline: 'Unlock Player+ to see where you fit and how to improve faster.',
-    copy:
-      'Player+ is for players who want more than a match log. Turn your results into clearer lineup-fit guidance, projections, recent-form signals, and practical player insight.',
+    headline: 'See where you fit and what to work on.',
+    copy: 'Turn results into lineup fit, projections, recent form, and opponent context.',
     bullets: [
       'See where you should play in singles or doubles',
-      'Understand projections and opponent context faster',
-      'Track personal trends, recent form, and lineup fit',
+      'Read projections and opponent context faster',
+      'Track trends, recent form, and lineup fit',
     ],
     primaryCta: { label: 'Unlock Player+', href: '/pricing' },
     secondaryCta: { label: 'Explore Players', href: '/players' },
@@ -112,31 +110,29 @@ const tierSections: TierSectionConfig[] = [
     planId: 'captain',
     stage: 'Primary unlock',
     label: 'Captain',
-    headline: 'Unlock Captain to run your team with less chaos and better decisions.',
-    copy:
-      'Captain is the main upgrade for weekly team execution. Bring availability, lineup logic, projections, scenarios, and team communication into one command layer.',
+    headline: 'Run the week with less stress.',
+    copy: 'Connect availability, lineups, scenarios, projections, and team messages.',
     bullets: [
       'Build lineups with less guesswork',
       'Compare scenarios before match day',
-      'Turn group-text chaos into one clear weekly plan',
+      'Send one clear weekly plan',
     ],
     primaryCta: { label: 'Unlock Captain Tools', href: '/pricing' },
     secondaryCta: { label: 'See Captain tools', href: '/captain' },
     snapshot: <CaptainSnapshot />,
     featured: true,
-    featuredNote: 'Most captains upgrade here because this is where lineup stress, availability chasing, and team communication finally come together in one workflow.',
+    featuredNote: 'Best for captains chasing availability, building lineups, and sending weekly updates.',
   },
   {
     planId: 'league',
-    stage: 'Organizer layer',
+    stage: 'Organizer',
     label: 'League',
-    headline: 'Run your league without spreadsheets.',
-    copy:
-      'League gives organizers one clean operating layer for schedules, standings, teams, results, and communication so the season stops living in scattered tools.',
+    headline: 'Run your league from one place.',
+    copy: 'Create schedules, standings, teams, results, and league messages in one place.',
     bullets: [
       'Create structure around teams, flights, and seasons',
       'Keep schedules and standings visible in one place',
-      'Organize league-wide communication without cleanup work',
+      'Send league-wide updates cleanly',
     ],
     primaryCta: { label: 'Run Your League on TIQ', href: '/pricing' },
     secondaryCta: { label: 'Explore Leagues', href: '/explore/leagues' },
@@ -226,7 +222,7 @@ export default function PreviewHomepage() {
                     paddingInline: 16,
                   }}
                 >
-                  Search first. Upgrade with purpose.
+                  Search. Plan. Compete.
                 </span>
               </div>
 
@@ -240,7 +236,7 @@ export default function PreviewHomepage() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Start free. Unlock the next edge when you need it.
+                  Start free. Upgrade when it helps.
                 </div>
                 <h1
                   style={{
@@ -251,9 +247,9 @@ export default function PreviewHomepage() {
                     maxWidth: 700,
                   }}
                 >
-                  Start simple.
+                  Find answers faster.
                   <br />
-                  Upgrade with purpose.
+                  Run the week smarter.
                 </h1>
                 <p
                   style={{
@@ -262,8 +258,7 @@ export default function PreviewHomepage() {
                     fontSize: isMobile ? '15px' : '17px',
                   }}
                 >
-                  Search for players, teams, leagues, or matches. Get value quickly, then unlock the tools
-                  that fit your role when you need better answers, more control, and less weekly stress.
+                  Search players, teams, leagues, and matches. Add the tools that fit your role.
                 </p>
               </div>
 
@@ -280,7 +275,7 @@ export default function PreviewHomepage() {
                   Get Started Free
                 </Link>
                 <Link href="/explore" style={buttonGhost}>
-                  Explore the platform
+                  Explore
                 </Link>
               </div>
 
@@ -293,8 +288,8 @@ export default function PreviewHomepage() {
                 }}
               >
                 {[
-                  'Search players, teams, leagues, and matchups fast',
-                  'Captain is the unlock that clears the most weekly friction',
+                  'Fast player, team, and league search',
+                  'Captain clears lineup stress',
                 ].map((item) => (
                   <span
                     key={item}
@@ -415,13 +410,12 @@ export default function PreviewHomepage() {
             }}
           >
             <div style={{ display: 'grid', gap: 12, maxWidth: 860 }}>
-              <div style={sectionKicker}>Guided upgrade flow</div>
+              <div style={sectionKicker}>Plans by role</div>
               <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
-                Unlock the tools that match your role.
+                Choose what helps now.
               </h2>
               <p style={{ ...pageSubtitle, marginTop: 0 }}>
-                Start free, get value quickly, then unlock Player+, Captain, or League when the next problem
-                shows up.
+                Free covers search and team basics. Player+, Captain, and League add focused tools when you need them.
               </p>
             </div>
 
@@ -436,14 +430,13 @@ export default function PreviewHomepage() {
               }}
             >
               <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Best path for most teams
+                Most teams
               </div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
-                Free gets players in. Captain makes the week work.
+                Free gets players in. Captain runs the week.
               </div>
               <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.68 }}>
-                Player+ gives individual players better answers. Captain is where availability, lineups,
-                scenarios, and messaging finally connect into one clear workflow.
+                Player+ helps individuals. Captain connects availability, lineups, scenarios, and messages.
               </div>
             </div>
           </div>
@@ -490,12 +483,8 @@ export default function PreviewHomepage() {
             <div style={{ display: 'grid', gap: 12, maxWidth: 760 }}>
               <div style={sectionKicker}>Next step</div>
               <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
-                Start free. Upgrade only when the next friction shows up.
+                Start with search. Add tools when they help.
               </h2>
-              <p style={{ ...pageSubtitle, marginTop: 0 }}>
-                This homepage keeps the flow simple on purpose: search first, then unlock the right layer
-                when you need more insight, more control, or a cleaner way to run competition.
-              </p>
               <div
                 style={{
                   display: 'flex',
@@ -504,9 +493,9 @@ export default function PreviewHomepage() {
                 }}
               >
                 {[ 
-                  { label: 'Free', text: 'Search, join, and get into the weekly flow.' },
-                  { label: 'Captain', text: 'The clearest upgrade for weekly team execution.' },
-                  { label: 'League', text: 'The easiest way to run organized competition.' },
+                  { label: 'Free', text: 'Search, join, and set availability.' },
+                  { label: 'Captain', text: 'Build lineups and message the team.' },
+                  { label: 'League', text: 'Run schedules, standings, and updates.' },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -826,15 +815,15 @@ function HeroWorkspacePreview() {
         }}
       >
         <div style={{ display: 'grid', gap: 10, maxWidth: 460 }}>
-          <div style={{ ...badgeBlue, width: 'fit-content' }}>Your TIQ workspace</div>
+          <div style={{ ...badgeBlue, width: 'fit-content' }}>Work from one place</div>
           <div style={{ color: colors.textStrong, fontSize: 28, fontWeight: 900, lineHeight: 1.02, letterSpacing: '-0.04em' }}>
-            See the path from search to smarter tools.
+            Search, compare, plan, and run the week.
           </div>
           <div style={{ color: colors.mutedStrong, fontSize: 14, lineHeight: 1.7, maxWidth: 420 }}>
-            The snapshots below feel like real TenAceIQ surfaces: search, insight, captain workflow, and league operations.
+            Use the right view for the decision in front of you.
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, color: 'var(--muted-strong)', fontSize: 12, fontWeight: 700 }}>
-            {['Free entry', 'Player+ insight', 'Captain workflow'].map((item, index) => (
+            {['Free entry', 'Player+ insight', 'Captain tools'].map((item, index) => (
               <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span
                   style={{
@@ -877,7 +866,7 @@ function HeroWorkspacePreview() {
           >
             <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Inside TenAceIQ</div>
             <div style={{ color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 900 }}>
-              Search first, then unlock the next layer when you need it.
+              Search first. Open the tool that helps next.
             </div>
             <div
               style={{
@@ -953,7 +942,7 @@ function HeroWorkspacePreview() {
           {[
             {
               label: 'Free',
-              text: 'Search, join, and set availability without friction.',
+              text: 'Search, join, and set availability.',
             },
             {
               label: 'Player+',
@@ -1203,7 +1192,7 @@ function HeroTrustStrip() {
       planId: 'league',
       label: 'League',
       title: 'Organize competition cleanly',
-      text: 'Scheduling, standings, teams, and season communication move out of spreadsheets.',
+      text: 'Scheduling, standings, teams, and season messages stay together.',
     },
   ]
 
@@ -1230,12 +1219,12 @@ function HeroTrustStrip() {
         }}
       />
       <div style={{ display: 'grid', gap: 6, maxWidth: 760 }}>
-        <div style={sectionKicker}>Why this flow works</div>
+        <div style={sectionKicker}>Why it works</div>
         <div style={{ color: colors.textStrong, fontSize: 22, fontWeight: 900, letterSpacing: '-0.04em' }}>
-          The best homepage makes the next step obvious.
+          Start free. Add the right tools as you go.
         </div>
         <div style={{ color: colors.mutedStrong, fontSize: 14, lineHeight: 1.72 }}>
-          Start with useful free tools, then unlock the layer that removes the biggest source of friction from your tennis week.
+          Start free. Add Player+, Captain, or League when it solves the next job.
         </div>
       </div>
 
@@ -1282,7 +1271,7 @@ function FreeSnapshot() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-          <SnapshotCard title="Profile" value="Ready to join" text="Create your player profile and connect to your weekly flow." />
+          <SnapshotCard title="Profile" value="Ready to join" text="Create your player profile and join your team." />
           <SnapshotCard title="Availability" value="2 taps" text="Set in, out, or tentative before lineup decisions start." accent="green" />
         </div>
 
@@ -1337,7 +1326,7 @@ function CaptainSnapshot() {
   return (
     <SnapshotShell
       planId="captain"
-      title="Captain workflow"
+      title="Captain tools"
       subtitle="Availability, lineup builder, scenarios, projections, and team messaging"
       featured
     >
@@ -1345,7 +1334,7 @@ function CaptainSnapshot() {
         <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
           <SnapshotCard title="Availability" value="8 / 10" text="Players confirmed" accent="green" />
           <SnapshotCard title="Best lineup" value="71%" text="Projected win rate" accent="green" />
-          <SnapshotCard title="Scenario delta" value="+8%" text="Versus fallback option" accent="blue" />
+          <SnapshotCard title="Scenario delta" value="+8%" text="Compared with another option" accent="blue" />
         </div>
 
         <div style={{ ...snapshotPanelStyle, gap: 10 }}>
@@ -1365,7 +1354,7 @@ function CaptainSnapshot() {
         <div style={{ ...snapshotPanelStyle, gap: 10 }}>
           <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Captain signals</div>
           <div style={{ display: 'grid', gap: 8 }}>
-            <CaptainSignalRow title="Availability conflict" text="Two tentative players are still sitting in fallback doubles spots." tone="warn" />
+            <CaptainSignalRow title="Availability check" text="Two tentative players affect doubles." tone="warn" />
             <CaptainSignalRow title="Best projected court" text="D1 is the clearest swing court in the current recommended lineup." tone="good" />
             <CaptainSignalRow title="Team message" text="Lineup, arrival time, and reminders can go out in one update." tone="info" />
           </div>

@@ -27,7 +27,7 @@ const FEATURE_CARDS = [
     href: '/explore/leagues',
     eyebrow: 'Browse',
     title: 'Leagues',
-    text: 'Separate official USTA context from TIQ competition surfaces without losing discovery speed.',
+    text: 'Browse USTA and TIQ league context without slowing down.',
     accent: 'blue' as const,
     icon: 'trophy',
   },
@@ -68,13 +68,13 @@ const DISCOVERY_STREAM = [
   },
   {
     title: 'USTA leagues separated cleanly',
-    detail: 'Browse official context without blurring it into TIQ strategic surfaces.',
+    detail: 'Browse official league context clearly.',
     badge: 'USTA',
     accent: 'green' as const,
   },
   {
     title: 'TIQ leagues ready to browse',
-    detail: 'Move into internal team and individual competition when you want more than status.',
+    detail: 'Explore team and individual competition when you want more detail.',
     badge: 'TIQ',
     accent: 'green' as const,
   },
@@ -246,12 +246,11 @@ export default function ExplorePage() {
               <div style={eyebrow}>Public discovery</div>
 
               <h1 style={dynamicHeroTitle}>
-                Explore the tennis landscape with cleaner separation between status, competition, and strategy.
+                Explore players, teams, rankings, matchups, and leagues.
               </h1>
 
               <p style={dynamicHeroText}>
-                Browse players, teams, rankings, matchups, and league context from one premium public layer.
-                Start with broad discovery, then move into USTA truth or TIQ competition surfaces without losing clarity.
+                Search fast, compare clearly, and open the view that matches what you need next.
               </p>
 
               <div style={explorePills}>

@@ -1,4 +1,5 @@
-import TiqLoader from "./components/TiqLoader";
+import type { CSSProperties } from "react";
+import TiqLoader from "@/components/TiqLoader";
 
 export default function Loading() {
   return (
@@ -49,7 +50,7 @@ function PageSkeleton() {
   );
 }
 
-function Bone({ style }: { style?: React.CSSProperties }) {
+function Bone({ style }: { style?: CSSProperties }) {
   return (
     <div
       style={{

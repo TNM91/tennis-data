@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
@@ -116,6 +116,72 @@ function ThemeToggle({
   )
 }
 
+function HeaderNavLink({
+  href,
+  label,
+  activeNow,
+}: {
+  href: string
+  label: string
+  activeNow: boolean
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      aria-current={activeNow ? 'page' : undefined}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...navLinkStyle,
+        border: activeNow
+          ? '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)'
+          : hovered
+            ? '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)'
+            : '1px solid transparent',
+        color: activeNow || hovered ? 'var(--foreground-strong)' : 'var(--header-link)',
+        background: activeNow
+          ? 'color-mix(in srgb, var(--brand-green) 12%, transparent 88%)'
+          : hovered
+            ? 'color-mix(in srgb, var(--brand-blue-2) 10%, transparent 90%)'
+            : 'transparent',
+        boxShadow: hovered
+          ? '0 8px 20px rgba(37, 91, 227, 0.12), inset 0 1px 0 rgba(255,255,255,0.04)'
+          : 'none',
+      }}
+    >
+      <span>{label}</span>
+      {activeNow ? <span aria-hidden="true" style={activeDotStyle} /> : null}
+    </Link>
+  )
+}
+
+function UtilityLink({
+  href,
+  children,
+}: {
+  href: string
+  children: ReactNode
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...utilityLinkStyle,
+        color: hovered ? 'var(--foreground-strong)' : utilityLinkStyle.color,
+        background: hovered ? 'color-mix(in srgb, var(--brand-blue-2) 9%, transparent 91%)' : utilityLinkStyle.background,
+      }}
+    >
+      {children}
+    </Link>
+  )
+}
+
 export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -142,6 +208,7 @@ export default function SiteHeader({ active }: { active?: string }) {
 
   const authenticated = role !== 'public'
   const useCompactBrand = isTablet
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'captain' ? 'Captain' : authenticated ? 'Member' : ''
 
   return (
     <header
@@ -194,7 +261,12 @@ export default function SiteHeader({ active }: { active?: string }) {
             gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
             alignItems: 'center',
             gap: isMobile ? '10px' : isTablet ? '12px' : '16px',
-            padding: isMobile ? '4px 4px' : isTablet ? '5px 6px' : '6px 8px',
+            padding: isMobile ? '6px 6px' : isTablet ? '7px 8px' : '8px 10px',
+            borderRadius: isMobile ? 18 : 999,
+            border: '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
+            background:
+              'linear-gradient(180deg, color-mix(in srgb, var(--header-bg) 86%, var(--surface) 14%) 0%, color-mix(in srgb, var(--header-bg) 94%, transparent 6%) 100%)',
+            boxShadow: '0 14px 34px rgba(2, 10, 24, 0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
           <Link
@@ -205,6 +277,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               alignItems: 'center',
               width: 'fit-content',
               minWidth: 0,
+              textDecoration: 'none',
             }}
           >
             <BrandWordmark top={!useCompactBrand} compact={useCompactBrand} />
@@ -225,30 +298,12 @@ export default function SiteHeader({ active }: { active?: string }) {
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
                 return (
-                  <Link
+                  <HeaderNavLink
                     key={item.href}
                     href={item.href}
-                    aria-current={activeNow ? 'page' : undefined}
-                    style={{
-                      position: 'relative',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minHeight: '36px',
-                      padding: '0 11px',
-                      borderRadius: 0,
-                      borderBottom: activeNow ? '2px solid var(--brand-green)' : '2px solid transparent',
-                      color: activeNow ? 'var(--foreground-strong)' : 'var(--header-link)',
-                      fontSize: '13px',
-                      fontWeight: activeNow ? 800 : 700,
-                      letterSpacing: '-0.015em',
-                      textDecoration: 'none',
-                      background: 'transparent',
-                      transition: 'border-color 160ms ease, color 160ms ease',
-                    }}
-                  >
-                    <span>{item.label}</span>
-                  </Link>
+                    label={item.label}
+                    activeNow={activeNow}
+                  />
                 )
               })}
             </nav>
@@ -266,15 +321,9 @@ export default function SiteHeader({ active }: { active?: string }) {
 
             {isTablet ? null : authenticated ? (
               <>
+                {roleLabel ? <span style={accountPillStyle}>{roleLabel}</span> : null}
                 {role === 'admin' ? (
-                  <>
-                    <Link href={resumeImportHref} style={utilityLinkStyle}>
-                      Resume import
-                    </Link>
-                    <Link href="/admin" style={utilityLinkStyle}>
-                      Admin
-                    </Link>
-                  </>
+                  <UtilityLink href={resumeImportHref}>Resume import</UtilityLink>
                 ) : null}
                 <button type="button" onClick={handleLogout} style={utilityButtonStyle}>
                   Logout
@@ -282,9 +331,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               </>
             ) : (
               <>
-                <Link href="/login" style={utilityLinkStyle}>
-                  Sign in
-                </Link>
+                <UtilityLink href="/login">Sign in</UtilityLink>
                 <Link href="/join" style={primaryCtaStyle}>
                   Start Free
                 </Link>
@@ -328,8 +375,11 @@ export default function SiteHeader({ active }: { active?: string }) {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingBottom: '2px' }}>
-                <div style={mobileSectionLabelStyle}>Navigation</div>
-                <ThemeToggle compact onClick={toggleTheme} theme={theme} />
+                <div style={mobileSectionLabelStyle}>{roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  {roleLabel ? <span style={accountPillStyle}>{roleLabel}</span> : null}
+                  <ThemeToggle compact onClick={toggleTheme} theme={theme} />
+                </div>
               </div>
 
               {PRIMARY_NAV_ITEMS.map((item) => {
@@ -357,16 +407,10 @@ export default function SiteHeader({ active }: { active?: string }) {
               {authenticated ? (
                 <>
                   {role === 'admin' ? (
-                    <>
-                      <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                        <span>Resume import</span>
-                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                      </Link>
-                      <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                        <span>Admin</span>
-                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                      </Link>
-                    </>
+                    <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                      <span>Resume import</span>
+                      <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                    </Link>
                   ) : null}
                   <button
                     type="button"
@@ -425,6 +469,50 @@ const utilityLinkStyle = {
   background: 'transparent',
 } as const
 
+const navLinkStyle = {
+  position: 'relative',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '38px',
+  padding: '0 13px',
+  borderRadius: '999px',
+  fontSize: '13px',
+  fontWeight: 750,
+  letterSpacing: '-0.015em',
+  textDecoration: 'none',
+  transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
+} as const
+
+const accountPillStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase' as const,
+  whiteSpace: 'nowrap' as const,
+} as const
+
+const activeDotStyle = {
+  position: 'absolute',
+  left: '50%',
+  bottom: '5px',
+  width: '4px',
+  height: '4px',
+  borderRadius: '999px',
+  transform: 'translateX(-50%)',
+  background: 'var(--brand-green)',
+  boxShadow: '0 0 10px rgba(155, 225, 29, 0.55)',
+} as const
+
 const utilityButtonStyle = {
   appearance: 'none',
   border: 'none',
@@ -456,7 +544,7 @@ const primaryCtaStyle = {
   fontWeight: 900,
   letterSpacing: '-0.02em',
   textDecoration: 'none',
-  boxShadow: '0 10px 20px rgba(155, 225, 29, 0.14)',
+  boxShadow: '0 12px 24px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.28)',
 } as const
 
 const menuButtonStyle = {
