@@ -1723,8 +1723,23 @@
     ];
 
     const winnerElements = Array.from(
-      row.querySelectorAll(winnerSelectors.join(', '))
-    ).filter((node) => nodeLooksLikeWinnerMarker(node));
+  row.querySelectorAll(winnerSelectors.join(', '))
+).filter((node) => {
+  if (nodeLooksLikeWinnerMarker(node)) return true;
+
+  const markerText = lower(collectWinnerMarkerText(node));
+
+  // TennisLink green check images often do not expose nice alt/title text.
+  // Detect common image/source/class patterns.
+  return (
+    markerText.includes('green') ||
+    markerText.includes('check') ||
+    markerText.includes('tick') ||
+    markerText.includes('completed') ||
+    markerText.includes('winner') ||
+    /check|tick|green|winner|complete/i.test(String(node.getAttribute?.('src') || ''))
+  );
+});
 
     for (const element of winnerElements) {
       const ownerCell = element.closest('td, th');
@@ -1762,8 +1777,34 @@
       else awayHits += 1;
     }
 
-    if (homeHits > awayHits) return 'home';
-    if (awayHits > homeHits) return 'away';
+  // Prefer the side of the green checkmark relative to the Vs. cell.
+// This is critical because TennisLink does NOT always show home score first.
+const vsCell = cells.find((cell) =>
+  /^(vs\.?|v\.?)$/i.test(normalizeWhitespace(cell.textContent || ''))
+);
+const vsIdx = vsCell ? cells.indexOf(vsCell) : -1;
+
+if (vsIdx !== -1 && winnerElements.length) {
+  let markerHome = 0;
+  let markerAway = 0;
+
+  for (const marker of winnerElements) {
+    const ownerCell = marker.closest('td, th');
+    if (!ownerCell) continue;
+
+    const ownerIndex = cells.indexOf(ownerCell);
+    if (ownerIndex === -1 || ownerIndex === vsIdx) continue;
+
+    if (ownerIndex < vsIdx) markerHome += 1;
+    if (ownerIndex > vsIdx) markerAway += 1;
+  }
+
+  if (markerHome > markerAway) return 'home';
+  if (markerAway > markerHome) return 'away';
+}
+
+if (homeHits > awayHits) return 'home';
+if (awayHits > homeHits) return 'away';
 
     // "Vs." anchor fallback — works regardless of what the winner icon looks like.
     // Find the "Vs." cell, then count any <img>/<svg> to its left (home) or right (away).
@@ -2496,339 +2537,53 @@
     return score >= 8;
   }
 
-function getLeafScorecardTables() {
-  const allTables = getTables();
+  function getLeafScorecardTables() {
+    const allTables = getTables();
 
-  return allTables.filter((table) => {
-    // Ignore layout/wrapper tables. The actual scorecard table should not contain nested tables.
-    if (table.querySelectorAll('table').length > 0) return false;
+    return allTables.filter((table) => {
+      if (table.querySelectorAll('table').length > 0) return false;
 
-    const rows = getRows(table);
-    if (rows.length < 2) return false;
+      const rows = getRows(table);
+      if (rows.length < 2) return false;
 
-    return true;
-  });
-}
-
-function scoreScorecardTable(table) {
-  const rows = getRows(table);
-  const tableText = lower(textOf(table));
-  const preview = rows
-    .slice(0, 20)
-    .map((row) => lower(rowTexts(row).join(' | ')))
-    .join(' || ');
-
-  let score = 0;
-
-  if (preview.includes('individual score')) score += 12;
-  if (preview.includes('set 1')) score += 10;
-  if (preview.includes('set 2')) score += 6;
-  if (preview.includes('set 3') || preview.includes('3rd set')) score += 4;
-  if (preview.includes('line')) score += 6;
-  if (preview.includes('position')) score += 5;
-  if (preview.includes('winner')) score += 4;
-
-  if (preview.includes('home team')) score += 3;
-  if (preview.includes('visiting team') || preview.includes('away team')) score += 3;
-  if (preview.includes('vs.') || preview.includes(' vs ')) score += 4;
-  if (preview.includes('completed')) score += 2;
-  if (preview.includes('singles')) score += 4;
-  if (preview.includes('doubles')) score += 4;
-
-  const scoreLikeRows = rows.filter((row) =>
-    /\b\d{1,2}\s*[-–]\s*\d{1,2}\b/.test(row.textContent || '')
-  ).length;
-
-  score += Math.min(scoreLikeRows * 3, 15);
-
-  const lineLabelRows = rows.filter((row) =>
-    /\b\d+\s*#\s*(singles|doubles)\b/i.test(row.textContent || '')
-  ).length;
-
-  score += Math.min(lineLabelRows * 4, 20);
-
-  const rowsWithEnoughDirectCells = rows.filter((row) => {
-    const directCells = Array.from(row.children).filter((el) =>
-      ['TD', 'TH'].includes(el.tagName)
-    );
-    return directCells.length >= 4;
-  }).length;
-
-  score += Math.min(rowsWithEnoughDirectCells, 10);
-
-  if (!/singles|doubles|individual score|set 1|set 2|\d+\s*#\s*(singles|doubles)/i.test(tableText)) {
-    score -= 20;
-  }
-
-  return score;
-}
-
-function extractBestScorecardTable() {
-  const allTables = getTables();
-  const leafTables = getLeafScorecardTables();
-
-  let bestTable = null;
-  let bestScore = -1;
-  let bestIndex = -1;
-
-  leafTables.forEach((table, index) => {
-    const score = scoreScorecardTable(table);
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestTable = table;
-      bestIndex = index;
-    }
-  });
-
-  if (!bestTable || bestScore < 8) {
-    log('Scorecard table selection failed', {
-      totalTables: allTables.length,
-      leafTables: leafTables.length,
-      bestScore,
-      bestIndex,
+      return true;
     });
-    return null;
   }
 
-  log('Scorecard table selected', {
-    totalTables: allTables.length,
-    leafTables: leafTables.length,
-    selectedLeafIndex: bestIndex,
-    bestScore,
-  });
+  function extractBestScorecardTable() {
+  const allTables = getTables();
+  if (!allTables.length) return null;
 
-  return bestTable;
+  const leafTables = getLeafScorecardTables();
+  const candidates = leafTables.length ? leafTables : allTables;
+
+  for (const table of candidates) {
+    const text = lower(textOf(table));
+
+    if (
+      text.includes('singles') ||
+      text.includes('doubles') ||
+      /\d+\s*#\s*(singles|doubles)/i.test(text) ||
+      /\b\d{1,2}\s*[-–]\s*\d{1,2}\b/.test(text) ||
+      text.includes('vs')
+    ) {
+      return table;
+    }
+  }
+
+  let largest = null;
+  let maxRows = 0;
+
+  for (const table of candidates) {
+    const rows = getRows(table).length;
+    if (rows > maxRows) {
+      maxRows = rows;
+      largest = table;
+    }
+  }
+
+  return largest;
 }
-
-  function extractScorecardLinesFromTable(table) {
-    if (!table) return [];
-
-    const rows = getRows(table);
-    if (!rows.length) return [];
-
-    let headerIndex = -1;
-    let headerMap = {};
-
-    for (let index = 0; index < rows.length; index += 1) {
-      const cells = rowTexts(rows[index]);
-      const joined = lower(cells.join(' | '));
-
-      if (
-        joined.includes('line') ||
-        joined.includes('position') ||
-        joined.includes('individual score') ||
-        joined.includes('set 1') ||
-        joined.includes('winner')
-      ) {
-        headerIndex = index;
-        headerMap = getHeaderMap(cells);
-        break;
-      }
-    }
-
-    if (headerIndex === -1) return [];
-
-    const lines = [];
-
-    for (let index = headerIndex + 1; index < rows.length; index += 1) {
-      const row = rows[index];
-      const cells = rowTexts(row);
-
-      if (!cells.length) continue;
-
-      const joined = normalizeWhitespace(cells.join(' | '));
-      const lowered = lower(joined);
-
-      if (!joined) continue;
-
-      if (
-        lowered.includes('team total') ||
-        lowered.includes('date match played') ||
-        lowered.includes('entry date') ||
-        lowered === 'line' ||
-        lowered === 'position'
-      ) {
-        continue;
-      }
-
-      let rawLineNumber = null;
-
-      if (typeof headerMap.lineNumber === 'number') {
-        rawLineNumber = toNumber(cells[headerMap.lineNumber]);
-      }
-
-      if (rawLineNumber === null && /^\d+$/.test(String(cells[0] || '').trim())) {
-        rawLineNumber = Number(cells[0]);
-      }
-
-      if (rawLineNumber === null) {
-        const inlineLine = joined.match(/\bline\s*(\d+)\b/i);
-        if (inlineLine) rawLineNumber = Number(inlineLine[1]);
-      }
-
-      if (rawLineNumber === null) {
-        log('Skipping row — no line number detected:', cells);
-        continue;
-      }
-
-      let homePlayersRaw =
-        typeof headerMap.homePlayers === 'number'
-          ? cells[headerMap.homePlayers]
-          : null;
-
-      let awayPlayersRaw =
-        typeof headerMap.awayPlayers === 'number'
-          ? cells[headerMap.awayPlayers]
-          : null;
-
-      if (!homePlayersRaw || !awayPlayersRaw) {
-        const candidateTextCells = cells.filter((cell) => {
-          const lc = lower(cell);
-          if (!cell) return false;
-          if (/^\d+$/.test(cell)) return false;
-          if (/\b\d{1,2}\s*[-–]\s*\d{1,2}\b/.test(cell)) return false;
-          if (lc === 'w' || lc === 'l') return false;
-          if (lc.includes('winner')) return false;
-          if (looksLikePureLabel(cell)) return false;
-          if (isTimeLike(cell)) return false;
-          if (isLineLabel(cell)) return false;
-          if (isFooterishLine(cell)) return false;
-          return true;
-        });
-
-        if (!homePlayersRaw && candidateTextCells[1]) homePlayersRaw = candidateTextCells[1];
-        if (!awayPlayersRaw && candidateTextCells[2]) awayPlayersRaw = candidateTextCells[2];
-      }
-
-      const homePlayers = splitPlayers(homePlayersRaw);
-      const awayPlayers = splitPlayers(awayPlayersRaw);
-
-      const matchTypeSource = firstTruthy(
-        typeof headerMap.matchType === 'number' ? cells[headerMap.matchType] : null,
-        joined
-      );
-
-      const matchType = inferMatchType(matchTypeSource, rawLineNumber, homePlayers, awayPlayers);
-      const lineNumber = normalizeLineNumber(rawLineNumber, matchType);
-
-      let sets = extractSetPairsFromColumns(cells, headerMap, row);
-
-      if (!sets.length) {
-        const scoreRaw = firstTruthy(
-          typeof headerMap.individualScore === 'number' ? cells[headerMap.individualScore] : null,
-          cells.find((cell) => /\b\d{1,2}\s*[-–]\s*\d{1,2}\b/.test(cell)),
-          joined
-        );
-        sets = extractSetPairsFromText(scoreRaw);
-      }
-
-      const rawScoreText = [
-        typeof headerMap.individualScore === 'number' ? cells[headerMap.individualScore] : null,
-        typeof headerMap.set1 === 'number' ? cells[headerMap.set1] : null,
-        typeof headerMap.set2 === 'number' ? cells[headerMap.set2] : null,
-        typeof headerMap.set3 === 'number' ? cells[headerMap.set3] : null,
-      ]
-        .filter(Boolean)
-        .join(' ');
-
-      const scoreMeta = buildLineScoreMetadata(rawScoreText, sets);
-
-      const setWinnerSide = determineWinnerSideFromSets(sets);
-
-      const markerWinnerSide = detectWinnerSideFromRowMarkers(row, {
-        homeCellIndex:
-          typeof headerMap.homePlayers === 'number'
-            ? headerMap.homePlayers
-            : 1,
-        awayCellIndex:
-          typeof headerMap.awayPlayers === 'number'
-            ? headerMap.awayPlayers
-            : Math.max(cells.length - 2, 1),
-      });
-
-      // Always check the winner column — both text labels and embedded marker images.
-      // Don't gate this on markerWinnerSide; gather it independently for cross-confirmation.
-      let textWinnerSide = null;
-      if (typeof headerMap.winner === 'number') {
-        const winnerText = lower(cells[headerMap.winner]);
-        if (winnerText.includes('home')) textWinnerSide = 'home';
-        else if (winnerText.includes('away')) textWinnerSide = 'away';
-        else if (winnerText.includes('visiting')) textWinnerSide = 'away';
-        else if (winnerText.includes('team 1')) textWinnerSide = 'home';
-        else if (winnerText.includes('team 2')) textWinnerSide = 'away';
-        // Standard USTA/TennisLink convention: 'W' = home team wins this line,
-        // 'L' = visiting team wins. Only match exact single-letter values to avoid
-        // catching partial words like "water" or "loss".
-        else if (winnerText === 'w') textWinnerSide = 'home';
-        else if (winnerText === 'l') textWinnerSide = 'away';
-
-        // If the winner column shows an image marker but no readable text, look at
-        // which player cell in the same row is visually emphasized (bold, winner class,
-        // or has a checkmark adjacent to it). This is more reliable than using the
-        // winner column's cell position, which varies by scorecard layout.
-        if (!textWinnerSide) {
-          const rowCells = Array.from(row.querySelectorAll('td, th'));
-          const winnerCell = rowCells[headerMap.winner];
-          const hasWinnerMarkerInColumn = winnerCell
-            ? Array.from(winnerCell.querySelectorAll('img, svg, i, span')).some(nodeLooksLikeWinnerMarker)
-            : false;
-
-          if (hasWinnerMarkerInColumn) {
-            // Determine winner by which player cell is emphasized, not column position
-            const homeIdx = typeof headerMap.homePlayers === 'number' ? headerMap.homePlayers : -1;
-            const awayIdx = typeof headerMap.awayPlayers === 'number' ? headerMap.awayPlayers : -1;
-            const homeCell = homeIdx >= 0 ? rowCells[homeIdx] : null;
-            const awayCell = awayIdx >= 0 ? rowCells[awayIdx] : null;
-
-            const homeEmphasized = homeCell &&
-              (nodeLooksEmphasized(homeCell) || Array.from(homeCell.querySelectorAll('*')).some(nodeLooksEmphasized));
-            const awayEmphasized = awayCell &&
-              (nodeLooksEmphasized(awayCell) || Array.from(awayCell.querySelectorAll('*')).some(nodeLooksEmphasized));
-
-            if (homeEmphasized && !awayEmphasized) textWinnerSide = 'home';
-            else if (awayEmphasized && !homeEmphasized) textWinnerSide = 'away';
-            else textWinnerSide = markerWinnerSide; // fall back to position if emphasis is ambiguous
-          }
-        }
-      }
-
-      // DOM marker and text column are reliable; set math is not when TennisLink
-      // shows the winner's score first rather than the home player's score first.
-      const reliableWinner = markerWinnerSide || textWinnerSide;
-
-      // When the reliable winner contradicts set math, the scores are inverted —
-      // normalize all set scores to home-first perspective by swapping.
-      let normalizedSets = sets;
-      let normalizedSetWinnerSide = setWinnerSide;
-      if (reliableWinner && setWinnerSide && reliableWinner !== setWinnerSide) {
-        normalizedSets = sets.map((set) => {
-          if (!set) return set;
-          return { ...set, homeGames: set.awayGames, awayGames: set.homeGames };
-        });
-        // Recompute so confidence scoring sees agreement rather than a false conflict
-        normalizedSetWinnerSide = determineWinnerSideFromSets(normalizedSets);
-      }
-
-      const winnerSide = reliableWinner || normalizedSetWinnerSide || null;
-
-      lines.push({
-        lineNumber,
-        matchType,
-        homePlayers,
-        awayPlayers,
-        sets: normalizedSets,
-        winnerSide,
-        setWinnerSide: normalizedSetWinnerSide,
-        textWinnerSide,
-        markerWinnerSide,
-        parseNotes: [],
-        ...scoreMeta,
-      });
-    }
-
-    return dedupeAndSortLines(lines);
-  }
 
   function dedupeAndSortLines(lines) {
     const deduped = [];
@@ -3549,12 +3304,15 @@ function extractBestScorecardTable() {
     const text = document.body?.innerText || '';
     const bestTable = extractBestScorecardTable();
 
-    let lines = extractScorecardLinesFromTable(bestTable);
+       let lines = [];
     let captureMethod = 'table';
 
-    if (!lines.length && bestTable && isLikelyRenderedScorecardTable(bestTable)) {
+    if (bestTable) {
       lines = extractRenderedScorecardLines(bestTable);
-      captureMethod = 'rendered_table';
+
+      if (lines.length) {
+        captureMethod = 'rendered_table';
+      }
     }
 
     if (!lines.length) {
