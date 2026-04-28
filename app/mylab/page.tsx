@@ -1522,7 +1522,11 @@ function MyLabPageInner() {
                 <div style={searchResultsStyle}>
                   {filteredSearchOptions.length ? (
                     filteredSearchOptions.map((option) => {
-                      const followed = followContainsEntity(follows, option.type, option.id)
+                      const existingFollow = follows.find(
+                        (follow) =>
+                          follow.entity_type === option.type &&
+                          entityIdsMatch(option.type, follow.entity_id, option.id),
+                      )
                       return (
                         <div key={`${option.type}-${option.id}`} style={searchResultItemStyle}>
                           <div>
@@ -1533,10 +1537,10 @@ function MyLabPageInner() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => addFollow(option)}
-                            style={followed ? tabButtonStyle : primaryMiniButtonStyle}
+                            onClick={() => (existingFollow ? removeFollow(existingFollow) : addFollow(option))}
+                            style={existingFollow ? tabButtonStyle : primaryMiniButtonStyle}
                           >
-                            {followed ? 'Following' : 'Follow'}
+                            {existingFollow ? 'Unfollow' : 'Follow'}
                           </button>
                         </div>
                       )
@@ -1642,27 +1646,35 @@ function MyLabPageInner() {
             </div>
 
             {selectedTab === 'feed' ? (
-              <div style={summaryGridStyle}>
-                <SummaryCard
-                  label="Players"
-                  value={String(followedPlayers.length)}
-                  note="Watchlist athletes"
-                />
-                <SummaryCard
-                  label="Teams"
-                  value={String(followedTeams.length)}
-                  note="Tracked squads"
-                />
-                <SummaryCard
-                  label="Leagues"
-                  value={String(followedLeagues.length)}
-                  note="Competition groups"
-                />
-                <SummaryCard
-                  label="TIQ Individual"
-                  value={String(followedTiqIndividualParticipations.length)}
-                  note="Active player league entries"
-                />
+              <div style={collectionsStackStyle}>
+                <div style={summaryGridStyle}>
+                  <SummaryCard
+                    label="Players"
+                    value={String(followedPlayers.length)}
+                    note="Watchlist athletes"
+                  />
+                  <SummaryCard
+                    label="Teams"
+                    value={String(followedTeams.length)}
+                    note="Tracked squads"
+                  />
+                  <SummaryCard
+                    label="Leagues"
+                    value={String(followedLeagues.length)}
+                    note="Competition groups"
+                  />
+                  <SummaryCard
+                    label="TIQ Individual"
+                    value={String(followedTiqIndividualParticipations.length)}
+                    note="Active player league entries"
+                  />
+                </div>
+
+                <div style={manageFollowsHeaderStyle}>
+                  <div style={supportTitleStyle}>Manage follows</div>
+                  <div style={supportTextStyle}>Remove anything you no longer want in your feed.</div>
+                </div>
+                <FollowList items={follows} onRemove={removeFollow} />
               </div>
             ) : null}
 
@@ -1815,8 +1827,8 @@ const eyebrowStyle: CSSProperties = {
   minHeight: 38,
   padding: '8px 14px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
   color: 'var(--home-eyebrow-color)',
   fontWeight: 800,
   fontSize: 14,
@@ -1860,10 +1872,10 @@ const primaryButtonStyle: CSSProperties = {
   borderRadius: 999,
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #4ade80 100%)',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
   color: 'var(--text-dark)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
-  boxShadow: '0 16px 32px color-mix(in srgb, var(--brand-lime) 16%, transparent)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  boxShadow: '0 16px 32px color-mix(in srgb, var(--brand-green) 16%, transparent)',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -2080,7 +2092,7 @@ const workflowDotStyle: CSSProperties = {
   height: 10,
   borderRadius: 999,
   marginTop: 7,
-  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #4ade80 100%)',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
   flexShrink: 0,
 }
 
@@ -2120,7 +2132,7 @@ const surfaceStrongStyle: CSSProperties = {
   padding: 20,
   border: '1px solid var(--shell-panel-border)',
   background:
-    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 10%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 10%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
 }
 
@@ -2216,9 +2228,9 @@ const tabButtonStyle: CSSProperties = {
 
 const tabActiveStyle: CSSProperties = {
   ...tabButtonStyle,
-  background: 'color-mix(in srgb, var(--brand-lime) 13%, var(--shell-chip-bg) 87%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
 }
 
 const searchResultsStyle: CSSProperties = {
@@ -2252,8 +2264,8 @@ const primaryMiniButtonStyle: CSSProperties = {
   minHeight: 34,
   borderRadius: 999,
   padding: '0 12px',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(135deg, var(--brand-lime) 0%, #4ade80 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
   color: 'var(--text-dark)',
   fontWeight: 800,
   cursor: 'pointer',
@@ -2310,7 +2322,7 @@ const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
   border: '1px solid var(--shell-panel-border)',
   background:
     accent === 'green'
-      ? 'color-mix(in srgb, var(--brand-lime) 9%, var(--shell-panel-bg) 91%)'
+      ? 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)'
       : accent === 'violet'
         ? 'color-mix(in srgb, #7762ff 10%, var(--shell-panel-bg) 90%)'
         : 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%)',
@@ -2373,9 +2385,9 @@ const pillSlateStyle: CSSProperties = {
 
 const pillGreenStyle: CSSProperties = {
   ...pillSlateStyle,
-  background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)',
+  background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg) 89%)',
   color: 'var(--foreground-strong)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
 }
 
 const pillBlueStyle: CSSProperties = {
@@ -2402,6 +2414,29 @@ const summaryGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: 12,
+}
+
+const collectionsStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+}
+
+const manageFollowsHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  paddingTop: 4,
+}
+
+const supportTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 900,
+}
+
+const supportTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
 }
 
 const summaryCardStyle: CSSProperties = {
