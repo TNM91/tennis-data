@@ -1757,6 +1757,33 @@
     if (homeHits > awayHits) return 'home';
     if (awayHits > homeHits) return 'away';
 
+    // "Vs." anchor fallback — works regardless of what the winner icon looks like.
+    // Find the "Vs." cell, then count any <img>/<svg> to its left (home) or right (away).
+    // This fires unconditionally so it can override a weak or wrong first-pass result.
+    {
+      const vsCell = cells.find((cell) =>
+        /^(vs\.?|v\.?)$/i.test(normalizeWhitespace(cell.textContent || ''))
+      );
+      const vsIdx = vsCell ? cells.indexOf(vsCell) : -1;
+
+      if (vsIdx !== -1) {
+        let imgHome = 0;
+        let imgAway = 0;
+        for (const img of Array.from(row.querySelectorAll('img, svg'))) {
+          const ownerCell = img.closest('td, th');
+          if (!ownerCell) continue;
+          const ownerIndex = cells.indexOf(ownerCell);
+          if (ownerIndex === -1 || ownerIndex === vsIdx) continue;
+          // Skip the scores column (last cell in the row)
+          if (ownerIndex === cells.length - 1) continue;
+          if (ownerIndex < vsIdx) imgHome += 1;
+          else imgAway += 1;
+        }
+        if (imgHome > imgAway) return 'home';
+        if (imgAway > imgHome) return 'away';
+      }
+    }
+
     const rowText = row.textContent || '';
     const normalized = normalizeWhitespace(rowText);
     const compact = normalized.replace(/\s+/g, '');
