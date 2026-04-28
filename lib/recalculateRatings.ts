@@ -611,6 +611,14 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
       .insert(chunk)
 
     if (error) {
+      // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
+      if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
+          error.message.includes('win_probability') || error.message.includes('multiplier')) {
+        const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
+        const { error: fallbackError } = await supabase.from('rating_snapshots').insert(stripped)
+        if (fallbackError) throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
+        continue
+      }
       throw new Error(`Failed to insert rating snapshots: ${error.message}`)
     }
   }

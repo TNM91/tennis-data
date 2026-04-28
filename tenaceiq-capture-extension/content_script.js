@@ -621,9 +621,17 @@
 
   function looksLikeTeamStandingsTable(table) {
     const rows = getRows(table);
-    if (!rows.length) return false;
-    const preview = rows.slice(0, 6).map((row) => lower(rowTexts(row).join(' | '))).join(' || ');
-    return preview.includes('team') && (preview.includes('wins') || preview.includes('w')) && (preview.includes('losses') || preview.includes('l'));
+    if (rows.length < 2) return false;
+    const preview = rows.slice(0, 8).map((row) => lower(rowTexts(row).join(' | '))).join(' || ');
+    if (!preview.includes('team')) return false;
+    if (!(preview.includes('wins') || preview.includes('w'))) return false;
+    if (!(preview.includes('losses') || preview.includes('l'))) return false;
+    // Require at least one data row with a purely numeric wins/losses value to
+    // exclude navigation or footer tables that happen to contain the same keywords.
+    const dataRows = rows.slice(1, Math.min(rows.length, 8));
+    return dataRows.some((row) =>
+      rowTexts(row).some((cell) => /^\d+$/.test(cell.trim()))
+    );
   }
 
   function looksLikePlayersTable(table) {
