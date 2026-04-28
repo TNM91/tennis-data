@@ -2550,39 +2550,41 @@ if (awayHits > homeHits) return 'away';
     });
   }
 
-  function extractBestScorecardTable() {
-  const allTables = getTables();
-  if (!allTables.length) return null;
+function extractBestScorecardTable() {
+  const tables = Array.from(document.querySelectorAll('table'));
 
-  const leafTables = getLeafScorecardTables();
-  const candidates = leafTables.length ? leafTables : allTables;
+  let bestTable = null;
+  let bestScore = -1;
 
-  for (const table of candidates) {
-    const text = lower(textOf(table));
+  for (const table of tables) {
+    const text = normalizeWhitespace(table.innerText || table.textContent || '');
+    const lowerText = text.toLowerCase();
 
-    if (
-      text.includes('singles') ||
-      text.includes('doubles') ||
-      /\d+\s*#\s*(singles|doubles)/i.test(text) ||
-      /\b\d{1,2}\s*[-–]\s*\d{1,2}\b/.test(text) ||
-      text.includes('vs')
-    ) {
-      return table;
+    const lineLabels = text.match(/\b\d+\s*#\s*(singles|doubles)\b/gi) || [];
+    const scorePairs = text.match(/\b\d{1,2}\s*[-–]\s*\d{1,2}\b/g) || [];
+    const vsMatches = text.match(/\bvs\.?\b/gi) || [];
+
+    let score = 0;
+
+    // Most important: full scorecard should contain all 5 line labels.
+    score += lineLabels.length * 20;
+
+    // Score rows help distinguish the match table from header/layout tables.
+    score += scorePairs.length * 4;
+    score += vsMatches.length * 3;
+
+    if (lowerText.includes('home team')) score += 5;
+    if (lowerText.includes('visiting team') || lowerText.includes('away team')) score += 5;
+    if (lowerText.includes('total team score')) score += 8;
+    if (lowerText.includes('3rd set tie-break')) score += 4;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestTable = table;
     }
   }
 
-  let largest = null;
-  let maxRows = 0;
-
-  for (const table of candidates) {
-    const rows = getRows(table).length;
-    if (rows > maxRows) {
-      maxRows = rows;
-      largest = table;
-    }
-  }
-
-  return largest;
+  return bestTable;
 }
 
   function dedupeAndSortLines(lines) {
@@ -3307,13 +3309,19 @@ if (awayHits > homeHits) return 'away';
        let lines = [];
     let captureMethod = 'table';
 
-    if (bestTable) {
-      lines = extractRenderedScorecardLines(bestTable);
+  const renderedLines = [];
 
-      if (lines.length) {
-        captureMethod = 'rendered_table';
-      }
-    }
+for (const table of getTables()) {
+  const tableLines = extractRenderedScorecardLines(table);
+  if (tableLines.length) {
+    renderedLines.push(...tableLines);
+  }
+}
+
+if (renderedLines.length) {
+  lines = dedupeAndSortLines(renderedLines);
+  captureMethod = 'rendered_table';
+}
 
     if (!lines.length) {
       lines = extractRenderedScorecardLinesFromText(text);
