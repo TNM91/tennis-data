@@ -193,29 +193,29 @@ export function buildProductAccessState(
     canCreateTiqIndividualLeague,
     canJoinTiqIndividualLeague,
     playerPlusLabel: playerPlusActive
-      ? `Player+ active - ${PLAYER_PLUS_PRICE_LABEL}`
+      ? 'Player+ active'
       : `Player+ - ${PLAYER_PLUS_PRICE_LABEL}`,
     playerPlusMessage: playerPlusActive
       ? 'Player+ analytics are active for personal improvement, lineup-fit guidance, opponent insight, and match projections.'
       : 'Player+ helps players see where they should play, understand strengths and weaknesses faster, and make smarter match decisions.',
     captainTierLabel: captainSubscriptionActive
-      ? `Captain ${captainTierStatusLabel} - ${CAPTAIN_SUBSCRIPTION_PRICE_LABEL}`
+      ? `Captain ${captainTierStatusLabel}`
       : `Captain - ${CAPTAIN_SUBSCRIPTION_PRICE_LABEL}`,
     captainTierMessage: captainSubscriptionActive
       ? 'Captain tools are active for lineup building, scenario planning, projections, team messaging, and weekly match-day execution.'
       : 'Still building lineups manually? Captain turns availability, lineup decisions, projections, and communication into one weekly workflow.',
     leagueTierLabel: canUseLeagueTools
-      ? `League tools active - ${LEAGUE_PRICE_LABEL}`
+      ? 'League tools active'
       : `League - ${LEAGUE_PRICE_LABEL}`,
     leagueTierMessage: canUseLeagueTools
       ? 'League tools are active for TIQ season setup, scheduling, standings, and organizer workflows.'
       : 'Ready to run your league without spreadsheets? League tools give organizers one place for structure, visibility, and communication.',
     teamLeagueMessage: canEnterTiqTeamLeague
       ? 'Team-league tools are active. Add your team, manage the season cleanly, and keep weekly competition inside TIQ.'
-      : `Captain plus League is the clean path for organized team play: unlock captain tools, then run each league season for ${TIQ_SEASON_FEE_PRICE_LABEL}.`,
+      : 'Captain plus League keeps organized team play in one place: teams, season flow, and competition tools.',
     individualLeagueMessage: canCreateTiqIndividualLeague
       ? 'Individual-league tools are active. Create the competition container, organize players, and keep standings out of spreadsheets.'
-      : `League tools make it easy to launch individual TIQ competition for ${TIQ_SEASON_FEE_PRICE_LABEL} without forcing every player into a subscription.`,
+      : 'League tools make it easy to launch individual TIQ competition without forcing every player into a subscription.',
   }
 }
 

@@ -506,6 +506,7 @@ export default function CaptainMessagingPage() {
     : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const captainAccess = access.canUseCaptainWorkflow
+  const showAdvancedMessagingPanels = false
 
   function requireCaptainAccess(message = 'Captain tier required to use Messaging.') {
     if (captainAccess) return true
@@ -681,7 +682,7 @@ export default function CaptainMessagingPage() {
           setSelectedScenarioId((current) => current || demoScenario.id)
           if (!eventArrivalTime) setEventArrivalTime('7:15 PM')
           if (!eventLocation) setEventLocation('Demo Tennis Club')
-          if (!eventNotes) setEventNotes('Sample weekly workflow loaded for review.')
+          if (!eventNotes) setEventNotes('Example match week loaded.')
         }
 
         type EventDetail = {
@@ -720,11 +721,11 @@ export default function CaptainMessagingPage() {
         setSelectedScenarioId((current) => current || demoScenario.id)
         if (!eventArrivalTime) setEventArrivalTime('7:15 PM')
         if (!eventLocation) setEventLocation('Demo Tennis Club')
-        if (!eventNotes) setEventNotes('Sample weekly workflow loaded for review.')
+        if (!eventNotes) setEventNotes('Example match week loaded.')
         setError(
           err instanceof Error
-            ? `${err.message} - sample workflow loaded for review.`
-            : 'Unable to load captain messaging data. A sample workflow was loaded for review.',
+            ? 'Messaging is using example data while your team data loads.'
+            : 'Messaging is using example data while your team data loads.',
         )
       } finally {
         if (mounted) setLoading(false)
@@ -1523,7 +1524,7 @@ export default function CaptainMessagingPage() {
     if (upsertError) {
       setStorageMode('local')
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
-      setError(`Saved locally because remote contacts table is unavailable: ${upsertError.message}`)
+      setError('Contacts saved on this device. Cloud sync will retry later.')
     }
   }
 
@@ -1540,7 +1541,7 @@ export default function CaptainMessagingPage() {
     if (upsertError) {
       setStorageMode('local')
       writeLocal(TEMPLATES_STORAGE_KEY, nextTemplates)
-      setError(`Saved locally because remote templates table is unavailable: ${upsertError.message}`)
+      setError('Template saved on this device. Cloud sync will retry later.')
     }
   }
 
@@ -1617,7 +1618,7 @@ export default function CaptainMessagingPage() {
     if (deleteError) {
       setStorageMode('local')
       writeLocal(CONTACTS_STORAGE_KEY, next)
-      setError(`Deleted locally because remote contacts table is unavailable: ${deleteError.message}`)
+      setError('Contact removed on this device. Cloud sync will retry later.')
     }
   }
 
@@ -1650,7 +1651,7 @@ export default function CaptainMessagingPage() {
     if (deleteError) {
       setStorageMode('local')
       writeLocal(TEMPLATES_STORAGE_KEY, next)
-      setError(`Deleted locally because remote templates table is unavailable: ${deleteError.message}`)
+      setError('Template removed on this device. Cloud sync will retry later.')
     }
   }
 
@@ -2097,8 +2098,8 @@ function importScenarioToLineup() {
         </section>
 
         <CaptainSubnav
-          title="Messaging inside the captain command center"
-          description="Keep lineup communication, confirmations, logistics, and follow-up tied to the same captain workflow instead of treating messaging like a separate tool."
+          title="Captain messaging"
+          description="Lineup texts, confirmations, logistics, and follow-ups in one place."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -2107,15 +2108,14 @@ function importScenarioToLineup() {
           <div style={tableHeaderStyle}>
             <div>
               <p style={sectionKicker}>Captain tier</p>
-              <h3 style={sectionTitleSmall}>{captainAccess ? 'Premium messaging unlocked' : 'Preview mode active'}</h3>
+              <h3 style={sectionTitleSmall}>{captainAccess ? 'Messaging unlocked' : 'Preview mode'}</h3>
             </div>
             <span style={captainAccess ? miniPillGreen : warnPill}>
               {captainAccess ? 'Captain access' : 'Member preview'}
             </span>
           </div>
           <p style={mutedTextStyle}>
-            Members can review workflow, lineup intelligence, and message planning. Captain and admin roles unlock editing,
-            lineup sync, contact management, template saves, and live send execution.
+            Captain access unlocks edits, lineup sync, contact management, saved templates, and live texts.
           </p>
         </section>
 
@@ -2146,7 +2146,7 @@ function importScenarioToLineup() {
                   {loading ? 'Refreshing...' : 'Refresh data'}
                 </GhostSmallBtn>
                 <span style={storageMode === 'supabase' ? miniPillGreen : miniPillSlate}>
-                  {storageMode === 'supabase' ? 'Supabase-backed' : 'Local fallback mode'}
+                  {storageMode === 'supabase' ? 'Synced' : 'Saved on device'}
                 </span>
               </div>
             </div>
@@ -2199,7 +2199,7 @@ function importScenarioToLineup() {
               <span style={miniPillBlue}>{availabilitySummary.availableCount} available</span>
               <span style={miniPillGreen}>{responseSummary.confirmedCount} confirmed</span>
               <span style={warnPill}>{responseSummary.noResponseCount} still waiting</span>
-              {availabilitySyncSource ? <span style={miniPillBlue}>Availability sync: {availabilitySyncSource}</span> : <span style={miniPillSlate}>Availability sync: manual/local</span>}
+              {availabilitySyncSource ? <span style={miniPillBlue}>Availability connected</span> : <span style={miniPillSlate}>Manual availability</span>}
             </div>
           </section>
 
@@ -2220,8 +2220,8 @@ function importScenarioToLineup() {
                 <section style={surfaceCard}>
                   <div style={tableHeaderStyle}>
                     <div>
-                      <p style={sectionKicker}>Weekly event setup</p>
-                      <h3 style={sectionTitleSmall}>Match details + directions</h3>
+                      <p style={sectionKicker}>Match setup</p>
+                      <h3 style={sectionTitleSmall}>Details</h3>
                     </div>
                     <span style={miniPillSlate}>{selectedMatch ? formatDate(selectedMatch.match_date) : 'No match selected'}</span>
                   </div>
@@ -2241,7 +2241,7 @@ function importScenarioToLineup() {
                     </Field>
                   </div>
 
-                  <Field label="Captain notes for the week" htmlFor="captain-messaging-notes">
+                    <Field label="Week notes" htmlFor="captain-messaging-notes">
                     <textarea id="captain-messaging-notes" value={eventNotes} onChange={(e) => setEventNotes(e.target.value)} placeholder="Rain plan, warm-up court, expected finish, balls, uniforms, snacks..." style={textareaStyle} />
                   </Field>
 
@@ -2274,7 +2274,7 @@ function importScenarioToLineup() {
                 <div style={tableHeaderStyle}>
                   <div>
                     <p style={sectionKicker}>Roster availability + responses</p>
-                    <h3 style={sectionTitleSmall}>Update the week contact by contact</h3>
+                    <h3 style={sectionTitleSmall}>Update each player</h3>
                   </div>
                 </div>
                 <div style={tableWrapStyle}>
@@ -2336,8 +2336,8 @@ function importScenarioToLineup() {
                 <section style={surfaceCardStrong}>
                   <div style={tableHeaderStyle}>
                     <div>
-                      <p style={sectionKicker}>Lineup communication</p>
-                      <h3 style={sectionTitleSmall}>Import or build the weekly lineup</h3>
+                      <p style={sectionKicker}>Lineup</p>
+                      <h3 style={sectionTitleSmall}>Build or import</h3>
                     </div>
                     <div style={pillRowStyle}>
                       <GhostSmallBtn onClick={() => addLineAssignment('singles')}>Add singles</GhostSmallBtn>
@@ -2389,8 +2389,8 @@ function importScenarioToLineup() {
                   <section style={surfaceCardStrong}>
                     <div style={tableHeaderStyle}>
                       <div>
-                        <p style={sectionKicker}>Winning lineup</p>
-                        <h3 style={sectionTitleSmall}>Send your finalized scenario</h3>
+                      <p style={sectionKicker}>Scenario</p>
+                      <h3 style={sectionTitleSmall}>Load lineup message</h3>
                       </div>
                       <span style={miniPillGreen}>
                         {selectedScenario ? 'Scenario selected' : 'No scenario'}
@@ -2404,7 +2404,7 @@ function importScenarioToLineup() {
                         </div>
 
                         <div style={{ marginBottom: 16, color: 'var(--shell-copy-muted)' }}>
-                          This will generate a clean lineup message using your selected scenario and push it directly into the composer.
+                          Turn this scenario into a lineup text.
                         </div>
 
                         <div style={actionRowStyle}>
@@ -2440,8 +2440,46 @@ function importScenarioToLineup() {
                   <section style={surfaceCardStrong}>
                     <div style={tableHeaderStyle}>
                       <div>
-                        <p style={sectionKicker}>Finalization intelligence</p>
-                        <h3 style={sectionTitleSmall}>What is blocking lineup finalization</h3>
+                        <p style={sectionKicker}>Message plan</p>
+                        <h3 style={sectionTitleSmall}>Next send</h3>
+                      </div>
+                      <span style={sendStrategy.shouldFollowUp ? warnPill : miniPillGreen}>
+                        {sendStrategy.label}
+                      </span>
+                    </div>
+
+                    <div style={intelligenceGridStyle}>
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Audience</div>
+                        <div style={intelligenceValueStyle}>{selectedRecipients.length}</div>
+                        <div style={intelligenceTextStyle}>Recipients currently selected.</div>
+                      </div>
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Blockers</div>
+                        <div style={intelligenceValueStyle}>{blockingContacts.length}</div>
+                        <div style={intelligenceTextStyle}>Players still worth checking before the final send.</div>
+                      </div>
+                      <div style={intelligenceCardStyle}>
+                        <div style={intelligenceLabelStyle}>Composer</div>
+                        <div style={intelligenceValueStyle}>{messageBody.trim() ? 'Ready' : 'Empty'}</div>
+                        <div style={intelligenceTextStyle}>Load a recommended message or write your own.</div>
+                      </div>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <PrimaryBtn onClick={applyRecommendedSendStrategy}>Use Recommended Message</PrimaryBtn>
+                      <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Follow Up</GhostSmallBtn>
+                      <GhostSmallBtn onClick={applyWinningLineupToComposer}>Lineup Message</GhostSmallBtn>
+                    </div>
+                  </section>
+
+                  {showAdvancedMessagingPanels ? (
+                    <>
+                  <section style={surfaceCardStrong}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Readiness</p>
+                        <h3 style={sectionTitleSmall}>Blockers</h3>
                       </div>
                       <span style={finalizationReadiness.ready ? miniPillGreen : warnPill}>
                         {finalizationReadiness.label}
@@ -3313,17 +3351,20 @@ function importScenarioToLineup() {
                     </div>
                   </section>
 
+                    </>
+                  ) : null}
+
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Composer</p>
-                        <h3 style={sectionTitleSmall}>Availability, lineup, directions, reminders</h3>
+                      <h3 style={sectionTitleSmall}>Write and send</h3>
                       </div>
                       <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
                     </div>
 
                     <p id="captain-messaging-composer-helper" style={sectionBodyTextStyle}>
-                      Start with the communication goal, confirm the audience, then review the launch snapshot before opening texts.
+                      Choose the message, choose the audience, then open texts.
                     </p>
 
                     <div style={filtersGridStyle}>

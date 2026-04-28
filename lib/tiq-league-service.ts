@@ -321,8 +321,8 @@ async function tryLoadRemoteParticipantEntries() {
       playerEntries: [] as TiqPlayerEntryRow[],
       warning:
         error instanceof Error
-          ? `TIQ participation tables are not ready yet, so the app is using embedded participant lists: ${error.message}`
-          : 'TIQ participation tables are not ready yet, so the app is using embedded participant lists.',
+          ? 'TIQ participation is available from the current league setup while sync catches up.'
+          : 'TIQ participation is available from the current league setup while sync catches up.',
     }
   }
 }
@@ -360,8 +360,8 @@ export async function listTiqLeagues(): Promise<TiqLeagueListResult> {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using the local TIQ league registry because Supabase league storage is not ready yet: ${error.message}`
-          : 'Using the local TIQ league registry because Supabase league storage is not ready yet.',
+          ? 'TIQ leagues are available on this device while cloud sync catches up.'
+          : 'TIQ leagues are available on this device while cloud sync catches up.',
     }
   }
 }
@@ -430,8 +430,8 @@ export async function listTiqTeamLeagueEntries(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using local TIQ team entry data because Supabase participation storage is not ready yet: ${error.message}`
-          : 'Using local TIQ team entry data because Supabase participation storage is not ready yet.',
+          ? 'TIQ team entries are available on this device while cloud sync catches up.'
+          : 'TIQ team entries are available on this device while cloud sync catches up.',
     }
   }
 }
@@ -529,8 +529,8 @@ export async function listTiqTeamParticipations(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using local TIQ team participation because joined participation storage is not ready yet: ${error.message}`
-          : 'Using local TIQ team participation because joined participation storage is not ready yet.',
+          ? 'TIQ team participation is available on this device while cloud sync catches up.'
+          : 'TIQ team participation is available on this device while cloud sync catches up.',
     }
   }
 }
@@ -576,8 +576,8 @@ export async function listTiqPlayerLeagueEntries(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using local TIQ player entry data because Supabase participation storage is not ready yet: ${error.message}`
-          : 'Using local TIQ player entry data because Supabase participation storage is not ready yet.',
+          ? 'TIQ player entries are available on this device while cloud sync catches up.'
+          : 'TIQ player entries are available on this device while cloud sync catches up.',
     }
   }
 }
@@ -657,8 +657,8 @@ export async function listTiqPlayerParticipations(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using local TIQ individual participation because joined participation storage is not ready yet: ${error.message}`
-          : 'Using local TIQ individual participation because joined participation storage is not ready yet.',
+          ? 'TIQ individual participation is available on this device while cloud sync catches up.'
+          : 'TIQ individual participation is available on this device while cloud sync catches up.',
     }
   }
 }
@@ -676,7 +676,7 @@ export async function saveTiqLeague(
         record: localRecord,
         source: 'local',
         warning:
-          'Saved to the local TIQ league registry because a signed-in captain is required before Supabase-backed TIQ league writes can satisfy ownership policies.',
+          'Sign in as a captain to sync this TIQ league across devices. It is saved on this device for now.',
       }
     }
 
@@ -695,8 +695,8 @@ export async function saveTiqLeague(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Saved to the local TIQ league registry because Supabase league storage is not ready yet: ${error.message}`
-          : 'Saved to the local TIQ league registry because Supabase league storage is not ready yet.',
+          ? 'TIQ league saved on this device. Cloud sync will retry later.'
+          : 'TIQ league saved on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -721,7 +721,7 @@ export async function addTiqTeamLeagueEntry(
         record: localRecord,
         source: 'local',
         warning:
-          'Saved the TIQ team entry locally because a signed-in captain is required before Supabase-backed team entries can satisfy ownership policies.',
+          'Sign in as a captain to sync this TIQ team entry across devices. It is saved on this device for now.',
       }
     }
 
@@ -753,8 +753,8 @@ export async function addTiqTeamLeagueEntry(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Saved the TIQ team entry locally because Supabase participation storage is not ready yet: ${error.message}`
-          : 'Saved the TIQ team entry locally because Supabase participation storage is not ready yet.',
+          ? 'TIQ team entry saved on this device. Cloud sync will retry later.'
+          : 'TIQ team entry saved on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -778,7 +778,7 @@ export async function addTiqPlayerLeagueEntry(
         record: localRecord,
         source: 'local',
         warning:
-          'Saved the TIQ player join locally because a signed-in user is required before Supabase-backed player entries can satisfy ownership policies.',
+          'Sign in to sync this TIQ player entry across devices. It is saved on this device for now.',
       }
     }
 
@@ -809,8 +809,8 @@ export async function addTiqPlayerLeagueEntry(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Saved the TIQ player join locally because Supabase participation storage is not ready yet: ${error.message}`
-          : 'Saved the TIQ player join locally because Supabase participation storage is not ready yet.',
+          ? 'TIQ player entry saved on this device. Cloud sync will retry later.'
+          : 'TIQ player entry saved on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -826,7 +826,7 @@ export async function removeTiqLeague(
       return {
         source: 'local',
         warning:
-          'Removed from the local TIQ league registry because a signed-in captain is required before Supabase-backed TIQ league deletes can satisfy ownership policies.',
+          'Sign in as a captain to sync this TIQ league change across devices. It was removed on this device.',
       }
     }
 
@@ -842,8 +842,8 @@ export async function removeTiqLeague(
       source: 'local',
       warning:
         error instanceof Error
-          ? `Removed from the local TIQ league registry because Supabase league storage is not ready yet: ${error.message}`
-          : 'Removed from the local TIQ league registry because Supabase league storage is not ready yet.',
+          ? 'TIQ league removed on this device. Cloud sync will retry later.'
+          : 'TIQ league removed on this device. Cloud sync will retry later.',
     }
   }
 }

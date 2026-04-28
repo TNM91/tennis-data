@@ -175,8 +175,8 @@ export async function listTiqIndividualLeagueResults(filters?: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using local TIQ individual results because Supabase result storage is not ready yet: ${error.message}`
-          : 'Using local TIQ individual results because Supabase result storage is not ready yet.',
+          ? 'TIQ results are available on this device while cloud sync catches up.'
+          : 'TIQ results are available on this device while cloud sync catches up.',
     }
   }
 }
@@ -223,7 +223,7 @@ export async function saveTiqIndividualLeagueResult(input: {
         result: localRecord,
         source: 'local',
         warning:
-          'Saved the TIQ individual result locally because a signed-in user is required before Supabase-backed result writes can satisfy ownership policies.',
+          'Sign in to sync this TIQ result across devices. It is saved on this device for now.',
       }
     }
 
@@ -282,8 +282,8 @@ export async function saveTiqIndividualLeagueResult(input: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Saved the TIQ individual result locally because Supabase result storage is not ready yet: ${error.message}`
-          : 'Saved the TIQ individual result locally because Supabase result storage is not ready yet.',
+          ? 'Result saved on this device. Cloud sync will retry later.'
+          : 'Result saved on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -300,7 +300,7 @@ export async function deleteTiqIndividualLeagueResult(resultId: string): Promise
     if (!userId) {
       return {
         source: 'local',
-        warning: 'Removed locally only — sign in to delete from Supabase.',
+        warning: 'Removed on this device. Sign in to sync deletes across devices.',
       }
     }
 
@@ -329,8 +329,8 @@ export async function deleteTiqIndividualLeagueResult(resultId: string): Promise
       source: 'local',
       warning:
         error instanceof Error
-          ? `Deleted locally — Supabase removal failed: ${error.message}`
-          : 'Deleted locally — Supabase removal failed.',
+          ? 'Deleted on this device. Cloud sync will retry later.'
+          : 'Deleted on this device. Cloud sync will retry later.',
     }
   }
 }

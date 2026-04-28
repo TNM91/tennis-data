@@ -157,17 +157,17 @@ const LAB_SIGNALS: LabSignal[] = [
   {
     label: 'What happened',
     value: 'Feed',
-    note: 'Recent match, rating, TIQ prompt, and follow activity stays in one personal stream.',
+    note: 'Match, rating, TIQ, and follow activity in one stream.',
   },
   {
     label: 'What to watch',
     value: 'Collections',
-    note: 'Tracked players, teams, leagues, and TIQ individual entries stay easy to revisit.',
+    note: 'Players, teams, leagues, and TIQ entries stay close.',
   },
   {
     label: 'What to do next',
     value: 'Insight',
-    note: 'My Lab turns followed activity into clearer next-step awareness instead of just more data.',
+    note: 'Follow the action and spot the next move faster.',
   },
 ]
 
@@ -1234,8 +1234,8 @@ function MyLabPageInner() {
     },
     {
       label: 'Cloud sync',
-      value: savedToCloud ? 'On' : 'Local',
-      note: savedToCloud ? 'Persisting to Supabase' : 'Fallback storage active',
+      value: savedToCloud ? 'On' : 'Device',
+      note: savedToCloud ? 'Saved across sessions' : 'Saved on this device',
     },
     {
       label: 'TIQ individual',
@@ -1260,19 +1260,19 @@ function MyLabPageInner() {
     {
       label: 'Tracked',
       value: String(follows.length),
-      text: 'Players, teams, and leagues in your lab.',
+      text: 'Your watchlist.',
     },
     {
       label: 'Feed ready',
       value: String(feed.length),
-      text: 'Personal updates already flowing into one stream.',
+      text: 'Updates in one stream.',
     },
     {
       label: 'Best fit',
       value: access.canUseAdvancedPlayerInsights ? 'Player+' : 'Free',
       text: access.canUseAdvancedPlayerInsights
-        ? 'Insights unlocked for personal analysis.'
-        : 'Upgrade when you want deeper personal answers.',
+        ? 'Player insight unlocked.'
+        : 'Upgrade for deeper answers.',
     },
   ]
 
@@ -1283,9 +1283,7 @@ function MyLabPageInner() {
           <div style={eyebrowStyle}>My Lab</div>
           <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>Your tennis intelligence hub</h1>
           <p style={heroTextStyle}>
-            Follow the players, teams, and leagues that matter to you. My Lab turns TenAceIQ into a
-            personalized member experience with a curated feed, watchlists, and community-style
-            momentum around the matches you care about most.
+            Follow players, teams, and leagues. Get a personal feed for the tennis you care about.
           </p>
 
           <div style={heroButtonRowStyle}>
@@ -1359,7 +1357,7 @@ function MyLabPageInner() {
                 fontSize: 13,
               }}
             >
-              {tiqPlayerParticipationSource === 'local' ? 'Local TIQ participation fallback: ' : 'TIQ participation note: '}
+              TIQ participation note: 
               {tiqPlayerParticipationWarning}
             </div>
           ) : null}
@@ -1370,13 +1368,13 @@ function MyLabPageInner() {
           <div style={labRailGridStyle} />
 
           <div style={heroRailContentStyle}>
-            <p style={sectionKickerStyle}>What makes this elite</p>
-            <h2 style={sideTitleStyle}>A community layer on top of your analytics</h2>
+            <p style={sectionKickerStyle}>Why use it</p>
+            <h2 style={sideTitleStyle}>Your watchlist, cleaned up</h2>
             <div style={workflowListStyle}>
               {[
-                ['Follow smarter', 'Track players, teams, and leagues in one place.'],
-                ['See momentum', 'Recent matches, rating movement, lineup activity, and achievements.'],
-                ['Stay connected', 'Build the foundation for future community and member engagement.'],
+                ['Follow', 'Track players, teams, and leagues.'],
+                ['Watch', 'See match and rating movement.'],
+                ['Act', 'Open the right page when something changes.'],
               ].map(([title, text]) => (
                 <div key={title} style={workflowRowStyle}>
                   <div style={workflowDotStyle} />
@@ -1465,7 +1463,7 @@ function MyLabPageInner() {
                     ? { background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
                     : { background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
                 return (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)' }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ color: 'var(--foreground)', fontWeight: 800, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
                       {s.tiq != null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>TIQ {s.tiq.toFixed(2)}</div> : null}
@@ -1489,11 +1487,11 @@ function MyLabPageInner() {
                 <p style={sectionKickerStyle}>Build your lab</p>
                 <h2 style={sectionTitleStyle}>Follow players, teams, and leagues</h2>
                 <p style={sectionTextStyle}>
-                  Search the live data already in your app and add entities to your personal watchlist.
+                  Find players, teams, and leagues to follow.
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
-                {savedToCloud ? 'Cloud synced' : 'Local fallback'}
+                {savedToCloud ? 'Cloud synced' : 'Saved on device'}
               </span>
             </div>
 
@@ -1688,16 +1686,16 @@ function MyLabPageInner() {
                   />
                 ) : null}
                 <InsightCard
-                  title="Community direction"
-                  text="My Lab gives members a reason to come back even when they are not actively searching. This is the surface that can later support alerts, achievements, reactions, and player-to-player community momentum."
+                  title="Why it matters"
+                  text="Your follows become a quick read on the players, teams, and leagues that matter most."
                 />
                 <InsightCard
                   title="Best next upgrade"
-                  text="The next strongest upgrade is deeper event coverage from imports and rating recalculation, so followed entities populate the personal feed more automatically and more completely."
+                  text="Player+ adds deeper player reads, lineup fit, opponent context, and projections."
                 />
                 <InsightCard
                   title="Individual competition pulse"
-                  text={`You are currently tracking ${followedTiqIndividualParticipations.length} TIQ individual league ${followedTiqIndividualParticipations.length === 1 ? 'entry' : 'entries'} across your followed players, which gives My Lab a direct view into internal TIQ competition momentum instead of only official match history.`}
+                  text={`${followedTiqIndividualParticipations.length} followed TIQ individual ${followedTiqIndividualParticipations.length === 1 ? 'entry' : 'entries'}.`}
                 />
                 <InsightCard
                   title="Best TIQ next action"

@@ -1465,7 +1465,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             <div style={pillGroupWrap}>
               <span style={badgeGreen}>{productAccess.captainTierLabel}</span>
               <span style={badgeBlue}>{role === 'admin' ? 'Admin access' : 'Captain access'}</span>
-              <PrimarySmallLink href="/pricing">Review plans</PrimarySmallLink>
             </div>
           </section>
         ) : (

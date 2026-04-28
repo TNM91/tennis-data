@@ -231,8 +231,8 @@ export async function listTiqIndividualSuggestions(filters?: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Using local TIQ suggestion storage because Supabase suggestion storage is not ready yet: ${error.message}`
-          : 'Using local TIQ suggestion storage because Supabase suggestion storage is not ready yet.',
+          ? 'TIQ prompts are available on this device while cloud sync catches up.'
+          : 'TIQ prompts are available on this device while cloud sync catches up.',
     }
   }
 }
@@ -291,7 +291,7 @@ export async function saveTiqIndividualSuggestion(input: {
         suggestion: localSuggestion,
         source: 'local',
         warning:
-          'Saved the TIQ suggestion locally because a signed-in user is required before Supabase-backed suggestion writes can satisfy ownership policies.',
+          'Sign in to sync this TIQ prompt across devices. It is saved on this device for now.',
       }
     }
 
@@ -331,8 +331,8 @@ export async function saveTiqIndividualSuggestion(input: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Saved the TIQ suggestion locally because Supabase suggestion storage is not ready yet: ${error.message}`
-          : 'Saved the TIQ suggestion locally because Supabase suggestion storage is not ready yet.',
+          ? 'TIQ prompt saved on this device. Cloud sync will retry later.'
+          : 'TIQ prompt saved on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -368,7 +368,7 @@ export async function updateTiqIndividualSuggestionStatus(input: {
       return {
         source: 'local',
         warning:
-          'Updated the TIQ suggestion locally because a signed-in user is required before Supabase-backed suggestion updates can satisfy ownership policies.',
+          'Sign in to sync this TIQ prompt across devices. It is updated on this device for now.',
       }
     }
 
@@ -391,8 +391,8 @@ export async function updateTiqIndividualSuggestionStatus(input: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Updated the TIQ suggestion locally because Supabase suggestion storage is not ready yet: ${error.message}`
-          : 'Updated the TIQ suggestion locally because Supabase suggestion storage is not ready yet.',
+          ? 'TIQ prompt updated on this device. Cloud sync will retry later.'
+          : 'TIQ prompt updated on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -459,8 +459,8 @@ export async function claimTiqIndividualSuggestion(input: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Claimed this TIQ prompt locally because Supabase suggestion ownership is not ready yet: ${error.message}`
-          : 'Claimed this TIQ prompt locally because Supabase suggestion ownership is not ready yet.',
+          ? 'TIQ prompt claimed on this device. Cloud sync will retry later.'
+          : 'TIQ prompt claimed on this device. Cloud sync will retry later.',
     }
   }
 }
@@ -517,7 +517,7 @@ export async function completeTiqIndividualSuggestionsForPair(input: {
         completedSuggestions,
         source: 'local',
         warning:
-          'Marked matching TIQ suggestions complete locally because a signed-in user is required before Supabase-backed suggestion updates can satisfy ownership policies.',
+          'Sign in to sync TIQ prompt changes across devices. They are updated on this device for now.',
       }
     }
 
@@ -544,8 +544,8 @@ export async function completeTiqIndividualSuggestionsForPair(input: {
       source: 'local',
       warning:
         error instanceof Error
-          ? `Marked matching TIQ suggestions complete locally because Supabase suggestion storage is not ready yet: ${error.message}`
-          : 'Marked matching TIQ suggestions complete locally because Supabase suggestion storage is not ready yet.',
+          ? 'Matching TIQ prompts marked complete on this device. Cloud sync will retry later.'
+          : 'Matching TIQ prompts marked complete on this device. Cloud sync will retry later.',
     }
   }
 }

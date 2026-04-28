@@ -41,10 +41,9 @@ export default function PricingPage() {
       <section style={pageWrapStyle}>
         <section style={heroStyle}>
           <div style={eyebrowStyle}>Pricing</div>
-          <h1 style={heroTitleStyle}>Solve the problem slowing down your tennis week.</h1>
+          <h1 style={heroTitleStyle}>Pick the tools for your role.</h1>
           <p style={heroTextStyle}>
-            Free gets you into the flow fast. Player+ sharpens your own game, Captain removes weekly lineup chaos,
-            and League gives organizers a cleaner way to run competition.
+            Start free. Upgrade when you want sharper player insight, captain workflow, or league operations.
           </p>
 
           <div style={proofRowStyle}>
@@ -72,35 +71,44 @@ export default function PricingPage() {
                 <div style={cardTopStyle}>
                   <div style={cardLabelRowStyle}>
                     <span style={cardPlanStyle}>{plan.name}</span>
-                    {plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
-                    {active ? <span style={activeBadgeStyle}>Current</span> : null}
+                    {!active && plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
+                    {active ? <span style={activeBadgeStyle}>Access active</span> : null}
                   </div>
-                  <div style={cardPriceStyle}>{plan.priceLabel}</div>
-                  {plan.alternatePriceNote ? <div style={altPriceStyle}>{plan.alternatePriceNote}</div> : null}
+                  <div style={cardPriceStyle}>{active ? 'Unlocked' : plan.priceLabel}</div>
+                  {!active && plan.alternatePriceNote ? <div style={altPriceStyle}>{plan.alternatePriceNote}</div> : null}
                   <div style={cardSubtitleStyle}>{plan.subtitle}</div>
                   <div style={audienceStyle}>{plan.audience}</div>
                 </div>
 
                 <div style={problemBlockStyle}>
-                  <div style={miniSectionStyle}>
-                    <div style={problemLabelStyle}>Best for</div>
-                    <div style={miniHeadlineStyle}>{plan.audience}</div>
-                  </div>
-                  <div style={miniSectionStyle}>
-                    <div style={problemLabelStyle}>Problem</div>
-                    <div style={problemHeadlineStyle}>{plan.problem}</div>
-                    <p style={problemTextStyle}>{plan.friction}</p>
-                  </div>
-                  <div style={solutionGridStyle}>
+                  {active ? (
                     <div style={solutionCardStyle}>
-                      <div style={problemLabelStyle}>Solution</div>
-                      <div style={solutionTextStyle}>{plan.solution}</div>
-                    </div>
-                    <div style={solutionCardStyle}>
-                      <div style={problemLabelStyle}>Outcome</div>
+                      <div style={problemLabelStyle}>Your access</div>
                       <div style={solutionTextStyle}>{plan.outcome}</div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div style={miniSectionStyle}>
+                        <div style={problemLabelStyle}>Best for</div>
+                        <div style={miniHeadlineStyle}>{plan.audience}</div>
+                      </div>
+                      <div style={miniSectionStyle}>
+                        <div style={problemLabelStyle}>Why upgrade</div>
+                        <div style={problemHeadlineStyle}>{plan.problem}</div>
+                        <p style={problemTextStyle}>{plan.friction}</p>
+                      </div>
+                      <div style={solutionGridStyle}>
+                        <div style={solutionCardStyle}>
+                          <div style={problemLabelStyle}>Solution</div>
+                          <div style={solutionTextStyle}>{plan.solution}</div>
+                        </div>
+                        <div style={solutionCardStyle}>
+                          <div style={problemLabelStyle}>Outcome</div>
+                          <div style={solutionTextStyle}>{plan.outcome}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div style={featureListStyle}>
@@ -132,29 +140,28 @@ export default function PricingPage() {
         <section style={captainFocusSectionStyle}>
           <div style={captainFocusIntroStyle}>
             <div style={sectionEyebrowStyle}>Most popular for a reason</div>
-            <h2 style={sectionTitleStyle}>Captain is the fastest path from lineup chaos to calmer weeks.</h2>
+            <h2 style={sectionTitleStyle}>Captain clears the weekly chaos.</h2>
             <div style={supportItemTextStyle}>
-              If you are the one chasing availability, second-guessing lineups, and sending the same update three times,
-              Captain is the package built for that exact problem.
+              Availability, lineups, scenarios, projections, and team texts in one flow.
             </div>
           </div>
           <div style={captainFocusGridStyle}>
             <div style={captainFocusCardStyle}>
               <div style={supportItemTitleStyle}>The problem</div>
               <div style={supportItemTextStyle}>
-                Availability lives in texts, lineup ideas live in your head, and the week keeps getting rebuilt by hand.
+                Availability lives in texts. Lineups get rebuilt by hand.
               </div>
             </div>
             <div style={captainFocusCardStyle}>
               <div style={supportItemTitleStyle}>The solution</div>
               <div style={supportItemTextStyle}>
-                Bring availability, lineup builder, scenario testing, projections, and team messaging into one captain workflow.
+                One workspace for availability, lineup build, scenarios, projections, and messages.
               </div>
             </div>
             <div style={captainFocusCardStyle}>
               <div style={supportItemTitleStyle}>The result</div>
               <div style={supportItemTextStyle}>
-                Save time, reduce stress, send clearer plans, and give your team a better chance to win the right courts.
+                Save time. Send clearer plans. Win the right courts.
               </div>
             </div>
           </div>
@@ -171,7 +178,7 @@ export default function PricingPage() {
         <section style={supportGridStyle}>
           <article style={supportCardStyle}>
             <div style={sectionEyebrowStyle}>Why TenAceIQ</div>
-            <h2 style={sectionTitleStyle}>Built to remove the right kind of friction.</h2>
+            <h2 style={sectionTitleStyle}>Built for match week.</h2>
             <div style={supportStackStyle}>
               {WHY_TENACEIQ_POINTS.map((point) => (
                 <div key={point.title} style={supportItemStyle}>
@@ -184,7 +191,7 @@ export default function PricingPage() {
 
           <article style={supportCardStyle}>
             <div style={sectionEyebrowStyle}>How it works</div>
-            <h2 style={sectionTitleStyle}>Simple to start. Easy to upgrade.</h2>
+            <h2 style={sectionTitleStyle}>Start simple.</h2>
             <div style={stepsStyle}>
               {PRICING_HOW_IT_WORKS.map((step, index) => (
                 <div key={step} style={stepRowStyle}>
@@ -193,10 +200,10 @@ export default function PricingPage() {
                     <div style={stepTitleStyle}>{step}</div>
                     <div style={stepTextStyle}>
                       {index === 0
-                        ? 'Get into the platform quickly with your player profile, teams, leagues, and weekly availability.'
+                        ? 'Create your profile and join your team.'
                         : index === 1
-                          ? 'See the match context, posted lineups, and the basics before you decide whether you want more.'
-                          : 'Upgrade when you want deeper analytics, stronger captain tools, or cleaner league operations.'}
+                          ? 'See matches, lineups, and availability.'
+                          : 'Add deeper insight or team tools when you need them.'}
                     </div>
                   </div>
                 </div>
@@ -207,23 +214,23 @@ export default function PricingPage() {
 
         <section style={supportCardStyle}>
           <div style={sectionEyebrowStyle}>Choose your lane</div>
-          <h2 style={sectionTitleStyle}>Keep it simple: match the package to the job.</h2>
+          <h2 style={sectionTitleStyle}>Match the package to the job.</h2>
           <div style={chooseGridStyle}>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Just playing and tracking</div>
-              <div style={supportItemTextStyle}>Start on Free. You can join your team, set availability, see lineups, and stay in the weekly flow.</div>
+              <div style={supportItemTextStyle}>Free covers profiles, teams, availability, lineups, and history.</div>
             </div>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Trying to improve your own game</div>
-              <div style={supportItemTextStyle}>Go Player+ if your main question is where you should play and how to improve faster.</div>
+              <div style={supportItemTextStyle}>Player+ answers where you fit and what to work on.</div>
             </div>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Running weekly lineup decisions</div>
-              <div style={supportItemTextStyle}>Captain is the best fit if you are tired of lineup chaos, availability chasing, and scattered communication.</div>
+              <div style={supportItemTextStyle}>Captain handles availability, lineups, scenarios, and team texts.</div>
             </div>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Organizing a full season</div>
-              <div style={supportItemTextStyle}>League is the cleanest way to move scheduling, standings, teams, and league communication out of spreadsheets.</div>
+              <div style={supportItemTextStyle}>League moves scheduling, standings, teams, and communication out of spreadsheets.</div>
             </div>
           </div>
         </section>

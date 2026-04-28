@@ -101,30 +101,30 @@ export const PRICING_PLANS: PricingPlan[] = [
 ]
 
 export const PRICING_PROOF_POINTS = [
-  'Save time every week',
-  'Make smarter match decisions',
-  'Reduce lineup stress',
-  'Get better results with clearer context',
+  'Less admin',
+  'Sharper lineups',
+  'Cleaner league play',
+  'Better match prep',
 ] as const
 
 export const PRICING_HOW_IT_WORKS = [
-  'Join your team or league',
-  'See your matches and lineup',
-  'Upgrade when you want more control or insight',
+  'Join',
+  'Track',
+  'Upgrade',
 ] as const
 
 export const WHY_TENACEIQ_POINTS = [
   {
-    title: 'Useful for free',
-    text: 'Free gets players into the weekly flow fast with profiles, availability, teams, leagues, and match history.',
+    title: 'Free is useful',
+    text: 'Profiles, availability, teams, leagues, and match history.',
   },
   {
-    title: 'Upgrade when the pain is real',
-    text: 'Player+ solves personal improvement questions, Captain solves weekly team chaos, and League solves organizer overhead.',
+    title: 'Upgrade by role',
+    text: 'Player+ for your game, Captain for the team week, League for organizers.',
   },
   {
-    title: 'Built around outcomes',
-    text: 'Every paid tier is tied to a practical result: better decisions, less stress, and a cleaner path to winning.',
+    title: 'Built for outcomes',
+    text: 'Better decisions, less stress, cleaner competition.',
   },
 ] as const
 
