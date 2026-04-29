@@ -1143,8 +1143,10 @@ function normalizeScorecardRow(
     return null
   }
 
-  const leagueName = resolveLeagueName(record)
-  if (!leagueName) {
+  const scheduleCache = isRecord(record.scheduleCache) ? record.scheduleCache : null
+  const scheduleCacheHit = scheduleCache ? normalizeBoolean(scheduleCache.found) : false
+  const leagueName = resolveLeagueName(record) ?? sanitizeLeagueNameCandidate(scheduleCache?.leagueName)
+  if (!leagueName && !scheduleCacheHit) {
     warnings.push({
       rowIndex,
       message: `Scorecard row ${externalMatchId} is missing a visible league name. This result will import, but it will not appear under league views until league mapping is corrected.`,
@@ -1158,11 +1160,11 @@ function normalizeScorecardRow(
     awayTeam,
     lines,
     leagueName,
-    flight: normalizeFlight(record),
-    ustaSection: normalizeSection(record),
-    districtArea: normalizeDistrict(record),
-    facility: normalizeFacility(record),
-    matchTime: normalizeTime(record),
+    flight: normalizeFlight(record) ?? nullableString(scheduleCache?.flight),
+    ustaSection: normalizeSection(record) ?? nullableString(scheduleCache?.ustaSection),
+    districtArea: normalizeDistrict(record) ?? nullableString(scheduleCache?.districtArea),
+    facility: normalizeFacility(record) ?? nullableString(scheduleCache?.facility),
+    matchTime: normalizeTime(record) ?? nullableString(scheduleCache?.scheduleTime),
     source: buildUnifiedSource('scorecard', record),
     totalTeamScore: (() => {
       const ts = pickFirst(record, ['totalTeamScore', 'total_team_score'])

@@ -106,9 +106,13 @@
     const sc = { ...scorecard };
 
     // Attach cache provenance so the import pipeline can show it.
-    sc.scheduleCache = {
+      sc.scheduleCache = {
       found: true,
       matchId: cached.matchId || sc.matchId || null,
+      leagueName: cached.leagueName || null,
+      flight: cached.flight || null,
+      ustaSection: cached.ustaSection || null,
+      districtArea: cached.districtArea || null,
       homeTeam: cached.homeTeam || null,
       awayTeam: cached.awayTeam || null,
       facility: cached.facility || null,
@@ -179,6 +183,10 @@
           next[String(match.matchId)] = {
             matchId: match.matchId || null,
             scheduleDate: match.scheduleDate || null,
+            leagueName: payload.seasonSchedule?.leagueName || null,
+            flight: payload.seasonSchedule?.flight || null,
+            ustaSection: payload.seasonSchedule?.ustaSection || null,
+            districtArea: payload.seasonSchedule?.districtArea || null,
             homeTeam: match.homeTeam || null,
             awayTeam: match.awayTeam || null,
             facility: match.facility || null,

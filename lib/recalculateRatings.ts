@@ -626,6 +626,11 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
       })
 
     if (error) {
+      if (isMissingOnConflictConstraintError(error.message)) {
+        await insertRatingSnapshotChunk(chunk)
+        continue
+      }
+
       // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
       if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
           error.message.includes('win_probability') || error.message.includes('multiplier')) {
@@ -633,12 +638,43 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
         const { error: fallbackError } = await supabase.from('rating_snapshots').upsert(stripped, {
           onConflict: 'player_id,match_id,rating_type',
         })
+        if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
+          const { error: insertFallbackError } = await supabase.from('rating_snapshots').insert(stripped)
+          if (insertFallbackError) {
+            throw new Error(`Failed to insert rating snapshots: ${insertFallbackError.message}`)
+          }
+          continue
+        }
         if (fallbackError) throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
         continue
       }
       throw new Error(`Failed to insert rating snapshots: ${error.message}`)
     }
   }
+}
+
+function isMissingOnConflictConstraintError(message: string) {
+  return message.toLowerCase().includes('no unique or exclusion constraint matching the on conflict specification')
+}
+
+async function insertRatingSnapshotChunk(chunk: RatingSnapshotInsert[]) {
+  const { error } = await supabase.from('rating_snapshots').insert(chunk)
+
+  if (!error) return
+
+  if (
+    error.message.includes('delta') ||
+    error.message.includes('opponent_rating') ||
+    error.message.includes('win_probability') ||
+    error.message.includes('multiplier')
+  ) {
+    const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
+    const { error: fallbackError } = await supabase.from('rating_snapshots').insert(stripped)
+    if (!fallbackError) return
+    throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
+  }
+
+  throw new Error(`Failed to insert rating snapshots: ${error.message}`)
 }
 
 export function parseScoreMetrics(score: string | null | undefined, winnerSide: MatchSide): ScoreMetrics {
