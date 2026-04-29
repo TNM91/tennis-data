@@ -9,6 +9,7 @@ import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/
 import { getClientAuthState } from '@/lib/auth'
 import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
+import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 
@@ -21,6 +22,8 @@ type MatchRow = {
   flight: string | null
   line_number: string | null
   winner_side: 'A' | 'B' | null
+  source?: string | null
+  status?: string | null
 }
 
 type MatchPlayerRow = {
@@ -58,6 +61,18 @@ const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE |
 
 function buildTeamKey(team: string, league: string | null, flight: string | null) {
   return `${team}__${league || ''}__${flight || ''}`
+}
+
+function buildScopeKey(league: string | null, flight: string | null) {
+  return `${(league || '').toLowerCase()}__${(flight || '').toLowerCase()}`
+}
+
+function canonicalTeamName(team: string | null | undefined) {
+  return cleanText(team).replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isScheduleLikeMatch(match: MatchRow) {
+  return /\bschedule\b/i.test(cleanText(match.source)) || cleanText(match.status).toLowerCase() === 'scheduled'
 }
 
 function compareNullableDatesDesc(left: string | null, right: string | null) {
@@ -153,7 +168,7 @@ export default function TeamsPage() {
     try {
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side')
+        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status')
         .is('line_number', null)
         .order('match_date', { ascending: false })
 
@@ -173,6 +188,20 @@ export default function TeamsPage() {
 
       const teamSideByMatchAndTeam = new Map<string, 'A' | 'B'>()
       const directoryMap = new Map<string, TeamDirectoryEntry>()
+      const scheduleTeamsByScope = new Map<string, Set<string>>()
+
+      for (const match of matches) {
+        if (!isScheduleLikeMatch(match)) continue
+        const league = cleanText(match.league_name)
+        const flight = cleanText(match.flight)
+        const scopeKey = buildScopeKey(league, flight)
+        if (!scheduleTeamsByScope.has(scopeKey)) scheduleTeamsByScope.set(scopeKey, new Set<string>())
+        const allowedTeams = scheduleTeamsByScope.get(scopeKey)!
+        const homeTeam = canonicalTeamName(match.home_team)
+        const awayTeam = canonicalTeamName(match.away_team)
+        if (homeTeam) allowedTeams.add(homeTeam)
+        if (awayTeam) allowedTeams.add(awayTeam)
+      }
 
       for (const match of matches) {
         const homeTeam = cleanText(match.home_team)
@@ -182,6 +211,13 @@ export default function TeamsPage() {
 
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
+        const allowedTeams = scheduleTeamsByScope.get(buildScopeKey(league, flight))
+        if (
+          allowedTeams?.size &&
+          (!allowedTeams.has(canonicalTeamName(homeTeam)) || !allowedTeams.has(canonicalTeamName(awayTeam)))
+        ) {
+          continue
+        }
 
         const homeKey = buildTeamKey(homeTeam, league, flight)
         const awayKey = buildTeamKey(awayTeam, league, flight)
@@ -612,7 +648,7 @@ export default function TeamsPage() {
             <section style={cardsGrid(isTablet, isMobile)}>
               {filteredRows.map((row) => {
                 const teamHref = {
-                  pathname: `/teams/${encodeURIComponent(row.team)}`,
+                  pathname: `/teams/${encodeTeamRouteSegment(row.team)}`,
                   query: {
                     ...(row.league ? { league: row.league } : {}),
                     ...(row.flight ? { flight: row.flight } : {}),

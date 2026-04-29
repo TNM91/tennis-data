@@ -13,6 +13,7 @@ import {
 } from '@/lib/competition-layers'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import { decodeTeamRouteSegment } from '@/lib/team-routes'
 import {
   listTiqTeamParticipations,
   type TiqLeagueStorageSource,
@@ -69,6 +70,15 @@ type MatchPlayer = {
   side: 'A' | 'B'
   player_id: string
   match_type: 'singles' | 'doubles' | null
+  players: PlayerRelation
+}
+
+type TeamRosterMemberRow = {
+  team_name: string | null
+  player_id: string | null
+  player_name: string | null
+  league_name: string | null
+  flight: string | null
   players: PlayerRelation
 }
 
@@ -143,12 +153,16 @@ function getParamValue(value: string | string[] | undefined) {
   return value || ''
 }
 
+function escapePostgrestValue(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
 export default function TeamPage() {
   const params = useParams()
   const searchParams = useSearchParams()
 
   const rawTeam = getParamValue(params.team as string | string[] | undefined)
-  const team = decodeURIComponent(rawTeam).trim()
+  const team = decodeTeamRouteSegment(rawTeam)
 
   const layerFilter = cleanText(searchParams.get('layer'))
   const leagueFilter = cleanText(searchParams.get('league'))
@@ -156,6 +170,7 @@ export default function TeamPage() {
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
+  const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
   const [lineMatches, setLineMatches] = useState<LineMatch[]>([])
   const [linePlayers, setLinePlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
@@ -174,6 +189,7 @@ export default function TeamPage() {
       if (!team) {
         setMatches([])
         setPlayers([])
+        setRosterMembers([])
         setError('Team not found.')
         return
       }
@@ -208,7 +224,8 @@ export default function TeamPage() {
       }
 
       if (!leagueFilter && !flightFilter) {
-        matchQuery = matchQuery.or(`home_team.eq.${team},away_team.eq.${team}`)
+        const safeTeam = escapePostgrestValue(team)
+        matchQuery = matchQuery.or(`home_team.eq."${safeTeam}",away_team.eq."${safeTeam}"`)
       }
 
       const { data: matchData, error: matchError } = await matchQuery
@@ -226,6 +243,40 @@ export default function TeamPage() {
       })
 
       setMatches(scopedMatches)
+
+      let rosterQuery = supabase
+        .from('team_roster_members')
+        .select(`
+          team_name,
+          player_id,
+          player_name,
+          league_name,
+          flight,
+          players (
+            id,
+            name,
+            overall_rating,
+            singles_dynamic_rating,
+            doubles_dynamic_rating,
+            overall_dynamic_rating,
+            singles_usta_dynamic_rating,
+            doubles_usta_dynamic_rating,
+            overall_usta_dynamic_rating,
+            location
+          )
+        `)
+        .eq('normalized_team_name', team.toLowerCase())
+
+      if (leagueFilter) rosterQuery = rosterQuery.eq('league_name', leagueFilter)
+      if (flightFilter) rosterQuery = rosterQuery.eq('flight', flightFilter)
+
+      const { data: rosterData, error: rosterError } = await rosterQuery
+      if (rosterError) {
+        console.warn('team_roster_members lookup skipped', rosterError.message)
+        setRosterMembers([])
+      } else {
+        setRosterMembers((rosterData || []) as TeamRosterMemberRow[])
+      }
 
       if (!scopedMatches.length) {
         setPlayers([])
@@ -337,6 +388,7 @@ export default function TeamPage() {
       console.error(err)
       setMatches([])
       setPlayers([])
+      setRosterMembers([])
       setError('Unable to load this team page right now.')
     } finally {
       setLoading(false)
@@ -447,6 +499,21 @@ export default function TeamPage() {
   const roster = useMemo<RosterPlayer[]>(() => {
     const map = new Map<string, RosterPlayer>()
 
+    rosterMembers.forEach((entry) => {
+      const player = normalizePlayer(entry.players)
+      if (!player || !player.id) return
+      if (!map.has(player.id)) {
+        map.set(player.id, {
+          ...player,
+          appearances: 0,
+          singlesAppearances: 0,
+          doublesAppearances: 0,
+          wins: 0,
+          losses: 0,
+        })
+      }
+    })
+
     const useLineData = linePlayers.length > 0
 
     if (useLineData) {
@@ -545,7 +612,7 @@ export default function TeamPage() {
       if (bOverall !== aOverall) return bOverall - aOverall
       return a.name.localeCompare(b.name)
     })
-  }, [lineMatches, linePlayers, matches, players, team])
+  }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
   const hotPlayers = useMemo(() => {
     return roster.filter((p) => {

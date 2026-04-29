@@ -93,6 +93,10 @@ function canonicalTeamName(value: string | null | undefined) {
   return cleaned.replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
+function isScheduleSource(value: string | null | undefined) {
+  return /\bschedule\b/i.test(safeText(value))
+}
+
 function inferYear(row: MatchLeagueRow) {
   const leagueYear = safeText(row.league_name).match(/\b(20\d{2})\b/)
   if (leagueYear) return leagueYear[1]
@@ -153,7 +157,7 @@ function createServerSupabaseClient() {
 export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
   const supabase = createServerSupabaseClient()
   const deadline = Date.now() + LEAGUE_SUMMARY_TIMEOUT_MS
-  const leagueMap = new Map<string, LeagueCard & { teamSet: Set<string> }>()
+  const leagueMap = new Map<string, LeagueCard & { teamSet: Set<string>; scheduleTeamSet: Set<string> }>()
   let totalMatches = 0
   let totalParentMatches = 0
   let missingLeagueNameCount = 0
@@ -265,6 +269,7 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
             teamCount: 0,
             latestMatchDate: row.match_date || null,
             teamSet: new Set<string>(),
+            scheduleTeamSet: new Set<string>(),
           })
         }
 
@@ -279,6 +284,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         const canonicalAway = canonicalTeamName(awayTeam)
         if (canonicalHome) current.teamSet.add(canonicalHome)
         if (canonicalAway) current.teamSet.add(canonicalAway)
+        if (isScheduleSource(row.source)) {
+          if (canonicalHome) current.scheduleTeamSet.add(canonicalHome)
+          if (canonicalAway) current.scheduleTeamSet.add(canonicalAway)
+        }
 
         if (
           row.match_date &&
@@ -319,10 +328,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
       leagueFormat: inferLeagueFormatFromValues({
         competitionLayer: league.competitionLayer,
         leagueName: league.leagueName,
-        teamCount: league.teamSet.size,
+        teamCount: (league.scheduleTeamSet.size || league.teamSet.size),
       }),
       matchCount: league.matchCount,
-      teamCount: league.teamSet.size,
+      teamCount: league.scheduleTeamSet.size || league.teamSet.size,
       latestMatchDate: league.latestMatchDate,
     }))
     .sort((a, b) => {

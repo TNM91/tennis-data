@@ -27,6 +27,7 @@ import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText } from '@/lib/captain-formatters'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
@@ -599,7 +600,7 @@ export default function ExploreSearchPage() {
                   {teams.map((team) => (
                     <Link
                       key={team.key}
-                      href={`/teams/${encodeURIComponent(team.team)}${team.league || team.flight ? `?${new URLSearchParams({
+                      href={`/teams/${encodeTeamRouteSegment(team.team)}${team.league || team.flight ? `?${new URLSearchParams({
                         ...(team.league ? { league: team.league } : {}),
                         ...(team.flight ? { flight: team.flight } : {}),
                       }).toString()}` : ''}`}

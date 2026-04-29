@@ -29,6 +29,7 @@ export type TeamSummaryImportRow = {
   flight?: string | null
   ustaSection?: string | null
   districtArea?: string | null
+  rosterTeamName?: string | null
   source?: string | null
   teams: TeamSummaryTeamRow[]
   players: TeamSummaryPlayerRow[]
@@ -247,6 +248,11 @@ export function buildPlayerRatingSeedMapFromTeamSummaryRows(rows: TeamSummaryImp
     }
   }
   return map
+}
+
+function inferSingleTeamSummaryTeam(row: TeamSummaryImportRow): string {
+  const teams = (row.teams ?? []).map((team) => cleanString(team.name)).filter(Boolean)
+  return teams.length === 1 ? teams[0] : ''
 }
 
 function canonicalizeTeamName(name: string, canonicalMap: Record<string, string>): string {
@@ -2047,7 +2053,7 @@ export class ImportEngine {
           playerMap.set(key, { name, ntrp })
         }
 
-        const teamName = cleanString(player.teamName)
+        const teamName = cleanString(player.teamName) || cleanString(row.rosterTeamName) || inferSingleTeamSummaryTeam(row)
         if (teamName) {
           const membershipKey = [
             normalizeName(teamName),

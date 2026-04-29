@@ -525,7 +525,7 @@ const heroGridStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.08fr) minmax(320px, 0.92fr)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))',
   gap: '24px',
 }
 
@@ -540,7 +540,7 @@ const eyebrowStyle: CSSProperties = {
 const titleStyle: CSSProperties = {
   margin: '10px 0 0',
   maxWidth: '760px',
-  fontSize: '58px',
+  fontSize: 'clamp(34px, 5vw, 58px)',
   lineHeight: 0.98,
   letterSpacing: '-0.04em',
   color: '#f4f9ff',
@@ -615,7 +615,7 @@ const filterBarStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))',
   gap: '16px',
   marginTop: '24px',
 }
@@ -644,6 +644,7 @@ const inputStyle: CSSProperties = {
 
 const layerToggleGroupStyle: CSSProperties = {
   display: 'flex',
+  flexWrap: 'wrap',
   gap: '10px',
   alignItems: 'end',
 }
@@ -691,7 +692,7 @@ const sectionStyle: CSSProperties = {
 
 const sectionHeaderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(260px, 1.1fr)',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
   gap: '22px',
   alignItems: 'end',
 }
@@ -721,7 +722,7 @@ const sectionDescriptionStyle: CSSProperties = {
 
 const gridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))',
   gap: '16px',
   marginTop: '20px',
 }

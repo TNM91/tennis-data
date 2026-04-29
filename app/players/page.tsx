@@ -653,9 +653,17 @@ export default function PlayersPage() {
             <div style={sectionKicker}>Directory</div>
             <h2 style={sectionTitle}>Browse player cards and open each full profile</h2>
           </div>
-          <Link href="/rankings" style={secondaryLink}>
-            Open rankings
-          </Link>
+          <div style={exploreNavLinks}>
+            <Link href="/explore/rankings" style={secondaryLink}>
+              Rankings
+            </Link>
+            <Link href="/explore/leagues" style={secondaryLink}>
+              Leagues
+            </Link>
+            <Link href="/explore/matchups" style={secondaryLink}>
+              Matchups
+            </Link>
+          </div>
         </div>
 
         {loading ? (
@@ -1363,6 +1371,13 @@ const secondaryLink: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: '0 14px 34px rgba(45, 196, 106, 0.24), inset 0 1px 0 rgba(255,255,255,0.26)',
+}
+
+const exploreNavLinks: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  justifyContent: 'flex-end',
 }
 
 const loadingCard: CSSProperties = {

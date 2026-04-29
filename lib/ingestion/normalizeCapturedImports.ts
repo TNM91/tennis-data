@@ -1018,6 +1018,7 @@ function normalizeTeamSummaryPlayer(
   rowIndex: number,
   playerIndex: number,
   warnings: NormalizationWarning[],
+  fallbackTeamName?: string | null,
 ): TeamSummaryPlayerRow | null {
   const name = cleanString(
     pickFirst(entry, ['name', 'playerName', 'player_name', 'fullName', 'full_name']),
@@ -1031,8 +1032,39 @@ function normalizeTeamSummaryPlayer(
     ntrp: normalizeSeedRatingValue(
       pickFirst(entry, ['ntrp', 'rating', 'baseRating', 'base_rating', 'level']),
     ),
-    teamName: nullableString(pickFirst(entry, ['teamName', 'team_name', 'team'])),
+    teamName: nullableString(pickFirst(entry, ['teamName', 'team_name', 'team'])) ?? fallbackTeamName ?? null,
   }
+}
+
+function normalizeRosterTeamName(record: UnknownRecord, teams: TeamSummaryTeamRow[]): string | null {
+  const direct = nullableString(
+    pickFirst(record, [
+      'teamName',
+      'team_name',
+      'selectedTeam',
+      'selected_team',
+      'rosterTeam',
+      'roster_team',
+      'capturedTeamName',
+      'captured_team_name',
+    ]),
+  )
+  if (direct) return direct
+
+  const nested = nullableString(
+    pickNested(record, [
+      ['metadata', 'teamName'],
+      ['metadata', 'team_name'],
+      ['metadata', 'selectedTeam'],
+      ['context', 'teamName'],
+      ['context', 'team_name'],
+      ['teamSummary', 'teamName'],
+      ['team_summary', 'teamName'],
+    ]),
+  )
+  if (nested) return nested
+
+  return teams.length === 1 ? teams[0].name : null
 }
 
 function normalizeTeamSummaryRow(
@@ -1047,8 +1079,10 @@ function normalizeTeamSummaryRow(
     .map((entry, teamIndex) => isRecord(entry) ? normalizeTeamSummaryTeam(entry, rowIndex, teamIndex, warnings) : null)
     .filter((entry): entry is TeamSummaryTeamRow => Boolean(entry))
 
+  const rosterTeamName = normalizeRosterTeamName(record, teams)
+
   const players = playerEntries
-    .map((entry, playerIndex) => isRecord(entry) ? normalizeTeamSummaryPlayer(entry, rowIndex, playerIndex, warnings) : null)
+    .map((entry, playerIndex) => isRecord(entry) ? normalizeTeamSummaryPlayer(entry, rowIndex, playerIndex, warnings, rosterTeamName) : null)
     .filter((entry): entry is TeamSummaryPlayerRow => Boolean(entry))
 
   if (teams.length === 0 && players.length === 0) {
@@ -1069,6 +1103,7 @@ function normalizeTeamSummaryRow(
     flight: normalizeFlight(record),
     ustaSection: normalizeSection(record),
     districtArea: normalizeDistrict(record),
+    rosterTeamName,
     source: buildUnifiedSource('team_summary', record),
     teams,
     players,

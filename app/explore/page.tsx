@@ -994,7 +994,10 @@ const actionCardIcon: CSSProperties = {
   borderRadius: '18px',
   display: 'grid',
   placeItems: 'center',
-  transition: 'transform 180ms ease',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), var(--shadow-soft)',
+  flexShrink: 0,
+  transition: 'transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease',
 }
 
 const actionCardIconBlue: CSSProperties = {
@@ -1009,6 +1012,7 @@ const actionCardIconGreen: CSSProperties = {
 
 const actionCardIconHover: CSSProperties = {
   transform: 'scale(1.04)',
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)',
 }
 
 const actionBody: CSSProperties = {
