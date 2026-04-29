@@ -116,6 +116,14 @@ type TeamSummary = {
   playerCount: number
 }
 
+type ProfileLinkRow = {
+  linked_player_id: string | null
+  linked_player_name: string | null
+  linked_team_name: string | null
+  linked_league_name: string | null
+  linked_flight: string | null
+}
+
 type LeagueSummary = {
   id: string
   name: string
@@ -387,6 +395,11 @@ function MyLabPageInner() {
   const [tiqPlayerParticipations, setTiqPlayerParticipations] = useState<TiqPlayerParticipationRecord[]>([])
   const [tiqPlayerParticipationSource, setTiqPlayerParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqPlayerParticipationWarning, setTiqPlayerParticipationWarning] = useState<string | null>(null)
+  const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
+  const [selectedPlayerLinkId, setSelectedPlayerLinkId] = useState('')
+  const [selectedTeamLinkId, setSelectedTeamLinkId] = useState('')
+  const [savingProfileLink, setSavingProfileLink] = useState(false)
+  const [profileLinkMessage, setProfileLinkMessage] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
   const [feedFilter, setFeedFilter] = useState<'all' | FeedType>('all')
@@ -408,7 +421,18 @@ function MyLabPageInner() {
     const local = readLocalFollows()
     setFollows(local)
 
-    const [playersRes, matchesRes, scenariosRes, followsRes, cloudFeedRes, tiqLeaguesRes, tiqParticipationRes, tiqResultsRes, tiqSuggestionsRes] = await Promise.all([
+    const [
+      playersRes,
+      matchesRes,
+      scenariosRes,
+      followsRes,
+      cloudFeedRes,
+      profileLinkRes,
+      tiqLeaguesRes,
+      tiqParticipationRes,
+      tiqResultsRes,
+      tiqSuggestionsRes,
+    ] = await Promise.all([
       supabase
         .from('players')
         .select(
@@ -440,6 +464,13 @@ function MyLabPageInner() {
         )
         .order('created_at', { ascending: false })
         .limit(160),
+      userId
+        ? supabase
+            .from('profiles')
+            .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight')
+            .eq('id', userId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
       listTiqLeagues(),
       listTiqPlayerParticipations(),
       listTiqIndividualLeagueResults(),
@@ -482,6 +513,21 @@ function MyLabPageInner() {
     setTiqPlayerParticipations(tiqParticipationRes.entries)
     setTiqPlayerParticipationSource(tiqParticipationRes.source)
     setTiqPlayerParticipationWarning(tiqParticipationRes.warning)
+    if (!profileLinkRes.error && profileLinkRes.data) {
+      const nextProfileLink = profileLinkRes.data as ProfileLinkRow
+      setProfileLink(nextProfileLink)
+      setSelectedPlayerLinkId(nextProfileLink.linked_player_id || '')
+      setSelectedTeamLinkId(
+        nextProfileLink.linked_team_name
+          ? buildScopedTeamEntityId({
+              competitionLayer: '',
+              teamName: nextProfileLink.linked_team_name,
+              leagueName: nextProfileLink.linked_league_name || '',
+              flight: nextProfileLink.linked_flight || '',
+            })
+          : '',
+      )
+    }
 
     if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
       const cloudFollows = followsRes.data as FollowItem[]
@@ -643,6 +689,49 @@ function MyLabPageInner() {
       }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [matches, matchPlayersByMatch])
+
+  async function saveProfileTeamLink() {
+    if (!userId) {
+      setProfileLinkMessage('Sign in to link your player and team.')
+      return
+    }
+
+    const selectedPlayer = players.find((player) => player.id === selectedPlayerLinkId) ?? null
+    const selectedTeam = selectedTeamLinkId ? parseTeamEntityId(selectedTeamLinkId) : null
+
+    setSavingProfileLink(true)
+    setProfileLinkMessage('')
+
+    const payload = {
+      linked_player_id: selectedPlayer?.id || null,
+      linked_player_name: selectedPlayer?.name || null,
+      linked_team_name: selectedTeam?.teamName || null,
+      linked_league_name: selectedTeam?.leagueName || null,
+      linked_flight: selectedTeam?.flight || null,
+      linked_team_at: new Date().toISOString(),
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update(payload)
+      .eq('id', userId)
+
+    setSavingProfileLink(false)
+
+    if (updateError) {
+      setProfileLinkMessage(updateError.message)
+      return
+    }
+
+    setProfileLink({
+      linked_player_id: payload.linked_player_id,
+      linked_player_name: payload.linked_player_name,
+      linked_team_name: payload.linked_team_name,
+      linked_league_name: payload.linked_league_name,
+      linked_flight: payload.linked_flight,
+    })
+    setProfileLinkMessage('Your player and team links were saved.')
+  }
 
   const searchOptions = useMemo<SearchOption[]>(() => {
     const playerOptions = players.slice(0, 300).map((player) => ({
@@ -1445,6 +1534,59 @@ function MyLabPageInner() {
             <div style={labSignalNoteStyle}>{signal.note}</div>
           </div>
         ))}
+      </section>
+
+      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 20px' }}>
+        <div style={{ borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px 20px', display: 'grid', gap: 14 }}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <p style={sectionKickerStyle}>Profile links</p>
+              <h2 style={sectionTitleStyle}>Connect yourself to a player and team</h2>
+              <p style={sectionTextStyle}>
+                This tells TenAceIQ which player profile and roster context belong to your account.
+              </p>
+            </div>
+            <span style={profileLink?.linked_team_name || profileLink?.linked_player_name ? pillGreenStyle : pillSlateStyle}>
+              {profileLink?.linked_team_name || profileLink?.linked_player_name ? 'Linked' : 'Not linked'}
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 10, alignItems: 'end' }}>
+            <label style={{ display: 'grid', gap: 6 }}>
+              <span style={labelStyle}>Player profile</span>
+              <select value={selectedPlayerLinkId} onChange={(event) => setSelectedPlayerLinkId(event.target.value)} style={inputStyle}>
+                <option value="">Select your player profile</option>
+                {players.map((player) => (
+                  <option key={player.id} value={player.id}>
+                    {player.name}{player.location ? ` - ${player.location}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label style={{ display: 'grid', gap: 6 }}>
+              <span style={labelStyle}>Team roster</span>
+              <select value={selectedTeamLinkId} onChange={(event) => setSelectedTeamLinkId(event.target.value)} style={inputStyle}>
+                <option value="">Select your team</option>
+                {teamSummaries.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {[team.name, team.league, team.flight].filter(Boolean).join(' - ')}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button type="button" onClick={saveProfileTeamLink} disabled={savingProfileLink || !userId} style={primaryButtonStyle}>
+              {savingProfileLink ? 'Saving...' : 'Save links'}
+            </button>
+          </div>
+
+          {profileLinkMessage ? (
+            <div style={{ color: profileLinkMessage.includes('saved') ? '#bbf7d0' : '#fecaca', fontSize: 13, fontWeight: 800 }}>
+              {profileLinkMessage}
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {followedPlayerSignals.length > 0 ? (

@@ -344,6 +344,21 @@ textarea {
   font: inherit;
 }
 
+select,
+input,
+textarea {
+  color: var(--foreground-strong);
+  background-color: #102347;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] select,
+:root[data-theme='light'] input,
+:root[data-theme='light'] textarea {
+  background-color: #ffffff;
+  color-scheme: light;
+}
+
 button,
 a,
 [role='button'] {
@@ -827,14 +842,19 @@ footer {
 
 .select option,
 select option {
-  background-color: var(--surface);
-  color: var(--foreground-strong);
+  background-color: #102347;
+  color: #f8fbff;
 }
 
-@media (prefers-color-scheme: light) {
-  .select {
+:root[data-theme='light'] .select,
+:root[data-theme='light'] select {
     color-scheme: light;
-  }
+}
+
+:root[data-theme='light'] .select option,
+:root[data-theme='light'] select option {
+  background-color: #ffffff;
+  color: #08111d;
 }
 
 .textarea {

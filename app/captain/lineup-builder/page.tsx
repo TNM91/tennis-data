@@ -65,6 +65,8 @@ type MatchTeamRow = {
   league_name: string | null
   flight: string | null
   match_date: string | null
+  match_time: string | null
+  facility: string | null
   home_team: string | null
   away_team: string | null
   line_number: string | null
@@ -74,6 +76,14 @@ type MatchPlayerLinkRow = {
   match_id: string
   player_id: string
   side: 'A' | 'B' | null
+}
+
+type TeamRosterMemberRow = {
+  team_name: string | null
+  player_id: string | null
+  player_name: string | null
+  league_name: string | null
+  flight: string | null
 }
 
 type SlotPlayer = {
@@ -218,6 +228,7 @@ function buildRosterPlayerIdSet(
   matches: MatchTeamRow[],
   matchPlayers: MatchPlayerLinkRow[],
   availabilityRows: AvailabilityRow[],
+  rosterMembers: TeamRosterMemberRow[],
   filters: { leagueName: string; flight: string }
 ) {
   const normalizedTarget = targetTeam.trim().toLowerCase()
@@ -256,12 +267,47 @@ function buildRosterPlayerIdSet(
     ids.add(row.player_id)
   }
 
+  for (const row of rosterMembers) {
+    if (!row.player_id) continue
+    if ((row.team_name ?? '').trim().toLowerCase() !== normalizedTarget) continue
+    if (filters.leagueName && (row.league_name ?? '').trim() !== filters.leagueName) continue
+    if (filters.flight && (row.flight ?? '').trim() !== filters.flight) continue
+    ids.add(row.player_id)
+  }
+
   return ids
 }
 
 function filterPlayerPoolByRoster(playerPool: PoolPlayer[], rosterIds: Set<string>) {
   if (!rosterIds.size) return []
   return playerPool.filter((player) => rosterIds.has(player.id))
+}
+
+function formatMatchContext(match: MatchTeamRow | null) {
+  if (!match) return 'No schedule match selected'
+  const pieces = [
+    formatDate(match.match_date),
+    cleanText(match.match_time),
+    cleanText(match.facility),
+  ].filter(Boolean)
+  return pieces.join(' - ') || 'Schedule details pending'
+}
+
+function getOpponentForTeam(match: MatchTeamRow, teamName: string) {
+  const selected = teamName.trim().toLowerCase()
+  const home = (match.home_team ?? '').trim()
+  const away = (match.away_team ?? '').trim()
+  if (home.toLowerCase() === selected) return away
+  if (away.toLowerCase() === selected) return home
+  return ''
+}
+
+function isSameScope(match: MatchTeamRow, values: { leagueName: string; flight: string; teamName: string }) {
+  if (values.leagueName && (match.league_name ?? '').trim() !== values.leagueName) return false
+  if (values.flight && (match.flight ?? '').trim() !== values.flight) return false
+  if (!values.teamName) return true
+  const team = values.teamName.trim().toLowerCase()
+  return (match.home_team ?? '').trim().toLowerCase() === team || (match.away_team ?? '').trim().toLowerCase() === team
 }
 
 
@@ -828,6 +874,7 @@ export default function LineupBuilderPage() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
+  const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
 
@@ -847,6 +894,7 @@ export default function LineupBuilderPage() {
   const [teamName, setTeamName] = useState('')
   const [opponentTeam, setOpponentTeam] = useState('')
   const [matchDate, setMatchDate] = useState('')
+  const [selectedMatchId, setSelectedMatchId] = useState('')
   const [scenarioName, setScenarioName] = useState('')
   const [notes, setNotes] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
@@ -978,7 +1026,14 @@ export default function LineupBuilderPage() {
     setError('')
     setMessage('')
 
-    const [playersResult, matchesResult, matchPlayersResult, availabilityResult, scenariosResult] = await Promise.all([
+    const [
+      playersResult,
+      matchesResult,
+      matchPlayersResult,
+      rosterMembersResult,
+      availabilityResult,
+      scenariosResult,
+    ] = await Promise.all([
       supabase
         .from('players')
         .select(`
@@ -1006,6 +1061,8 @@ export default function LineupBuilderPage() {
           league_name,
           flight,
           match_date,
+          match_time,
+          facility,
           home_team,
           away_team,
           line_number
@@ -1019,6 +1076,16 @@ export default function LineupBuilderPage() {
           match_id,
           player_id,
           side
+        `)
+        .limit(4000),
+      supabase
+        .from('team_roster_members')
+        .select(`
+          team_name,
+          player_id,
+          player_name,
+          league_name,
+          flight
         `)
         .limit(4000),
       supabase
@@ -1066,6 +1133,7 @@ export default function LineupBuilderPage() {
       setPlayers((playersResult.data ?? []) as PlayerRow[])
       setMatches((matchesResult.data ?? []) as MatchTeamRow[])
       setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
+      setRosterMembers(rosterMembersResult.error ? [] : ((rosterMembersResult.data ?? []) as TeamRosterMemberRow[]))
       setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
       setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
     }
@@ -1081,31 +1149,67 @@ export default function LineupBuilderPage() {
   const leagueOptions = useMemo(
     () =>
       uniqueSorted([
+        ...matches.map((row) => row.league_name),
+        ...rosterMembers.map((row) => row.league_name),
         ...availability.map((row) => row.league_name),
         ...savedScenarios.map((row) => row.league_name),
       ]),
-    [availability, savedScenarios]
+    [availability, matches, rosterMembers, savedScenarios]
   )
 
   const flightOptions = useMemo(
     () =>
       uniqueSorted([
+        ...matches.map((row) => row.flight),
+        ...rosterMembers.map((row) => row.flight),
         ...availability.map((row) => row.flight),
         ...players.map((row) => row.flight),
         ...savedScenarios.map((row) => row.flight),
       ]),
-    [availability, players, savedScenarios]
+    [availability, matches, players, rosterMembers, savedScenarios]
   )
 
   const teamOptions = useMemo(
     () =>
       uniqueSorted([
+        ...rosterMembers.map((row) => row.team_name),
         ...availability.map((row) => row.team_name),
         ...savedScenarios.map((row) => row.team_name),
         ...matches.flatMap((row) => [row.home_team, row.away_team]),
       ]),
-    [availability, savedScenarios, matches]
+    [availability, matches, rosterMembers, savedScenarios]
   )
+
+  const scopedMatchOptions = useMemo(() => {
+    return matches.filter((match) => isSameScope(match, { leagueName, flight, teamName }))
+  }, [flight, leagueName, matches, teamName])
+
+  const selectedMatch = useMemo(() => {
+    return scopedMatchOptions.find((match) => match.id === selectedMatchId) ?? null
+  }, [scopedMatchOptions, selectedMatchId])
+
+  useEffect(() => {
+    if (!teamName || !scopedMatchOptions.length) return
+    if (selectedMatchId && scopedMatchOptions.some((match) => match.id === selectedMatchId)) return
+
+    const now = new Date()
+    const nextMatch =
+      scopedMatchOptions
+        .filter((match) => match.match_date && new Date(match.match_date).getTime() >= now.getTime() - 86400000)
+        .sort((a, b) => new Date(a.match_date || '').getTime() - new Date(b.match_date || '').getTime())[0] ??
+      scopedMatchOptions[0]
+
+    if (nextMatch) setSelectedMatchId(nextMatch.id)
+  }, [scopedMatchOptions, selectedMatchId, teamName])
+
+  useEffect(() => {
+    if (!selectedMatch || !teamName) return
+    const opponent = getOpponentForTeam(selectedMatch, teamName)
+    if (opponent) setOpponentTeam(opponent)
+    if (selectedMatch.match_date) setMatchDate(selectedMatch.match_date)
+    if (selectedMatch.league_name && !leagueName) setLeagueName(selectedMatch.league_name)
+    if (selectedMatch.flight && !flight) setFlight(selectedMatch.flight)
+  }, [flight, leagueName, selectedMatch, teamName])
 
   const scenarioOptions = useMemo(() => {
     return savedScenarios.filter((scenario) => {
@@ -1168,20 +1272,20 @@ export default function LineupBuilderPage() {
 
   const myRosterPlayerIds = useMemo(
     () =>
-      buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, {
+      buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, rosterMembers, {
         leagueName,
         flight,
       }),
-    [teamName, matches, matchPlayers, availability, leagueName, flight]
+    [teamName, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
   )
 
   const opponentRosterPlayerIds = useMemo(
     () =>
-      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, {
+      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, rosterMembers, {
         leagueName,
         flight,
       }),
-    [opponentTeam, matches, matchPlayers, availability, leagueName, flight]
+    [opponentTeam, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
   )
 
   const myPlayerPool = useMemo<PoolPlayer[]>(() => {
@@ -2075,7 +2179,7 @@ function sendCurrentScenarioToMessaging() {
         ) : null}
         {teamName && !myPlayerPool.length ? (
           <div style={warningCardStyle}>
-            No linked roster was found for {teamName}. This builder now stays team-scoped, so it will not fall back to the full system player pool.
+            No roster players are linked for {teamName} in this league and flight yet. Team summary imports now create roster links, and played match lines can also fill gaps; refresh after importing the roster summary or broaden the league/flight filters.
           </div>
         ) : null}
         {opponentTeam && !opponentPlayerPool.length ? (
@@ -2115,6 +2219,10 @@ function sendCurrentScenarioToMessaging() {
               <div style={contextSummaryValueStyle}>{formatDate(matchDate || null)}</div>
             </div>
             <div style={contextSummaryCardStyle}>
+              <div style={contextSummaryLabelStyle}>Time / location</div>
+              <div style={contextSummaryValueStyle}>{formatMatchContext(selectedMatch)}</div>
+            </div>
+            <div style={contextSummaryCardStyle}>
               <div style={contextSummaryLabelStyle}>Scenario</div>
               <div style={contextSummaryValueStyle}>{scenarioName.trim() || 'Untitled scenario'}</div>
             </div>
@@ -2122,8 +2230,8 @@ function sendCurrentScenarioToMessaging() {
 
           <div style={contextSummaryInsightStyle}>
             {!teamName || !opponentTeam || !matchDate
-              ? 'Set the missing match context fields so saved scenarios and comparisons stay easier to trust later.'
-              : 'Your scenario has enough context to save, compare, and track prediction snapshots with more confidence.'}
+              ? 'Choose a team and scheduled match so the opponent, date, time, and location stay tied to imported schedule data.'
+              : 'Your scenario is tied to an imported schedule match, so save, compare, and messaging can use the same match context.'}
           </div>
 
           {sharedCaptainNotes?.weeklyNotes || sharedCaptainNotes?.opponentNotes ? (
@@ -2221,16 +2329,45 @@ function sendCurrentScenarioToMessaging() {
                   </datalist>
                 </Field>
                 <Field label="Match date" htmlFor="lineup-builder-date">
-                  <input id="lineup-builder-date" type="date" value={matchDate} onChange={(e) => setMatchDate(e.target.value)} style={inputStyle} />
+                  <input id="lineup-builder-date" type="date" value={matchDate} readOnly style={readOnlyInputStyle} />
                 </Field>
                 <Field label="Team" htmlFor="lineup-builder-team">
-                  <input id="lineup-builder-team" list="team-options" value={teamName} onChange={(e) => setTeamName(e.target.value)} style={inputStyle} placeholder="Your team" />
+                  <input
+                    id="lineup-builder-team"
+                    list="team-options"
+                    value={teamName}
+                    onChange={(e) => {
+                      setTeamName(e.target.value)
+                      setSelectedMatchId('')
+                    }}
+                    style={inputStyle}
+                    placeholder="Your team"
+                  />
                   <datalist id="team-options">
                     {teamOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
+                <Field label="Scheduled match" htmlFor="lineup-builder-match" hint="Opponent, date, time, and location are driven by imported schedule data.">
+                  <select
+                    id="lineup-builder-match"
+                    value={selectedMatchId}
+                    onChange={(e) => setSelectedMatchId(e.target.value)}
+                    style={inputStyle}
+                    disabled={!teamName || scopedMatchOptions.length === 0}
+                  >
+                    <option value="">Select scheduled match</option>
+                    {scopedMatchOptions.map((match) => {
+                      const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
+                      return (
+                        <option key={match.id} value={match.id}>
+                          {opponent} - {formatMatchContext(match)}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </Field>
                 <Field label="Opponent" htmlFor="lineup-builder-opponent">
-                  <input id="lineup-builder-opponent" value={opponentTeam} onChange={(e) => setOpponentTeam(e.target.value)} style={inputStyle} placeholder="Opponent team" />
+                  <input id="lineup-builder-opponent" value={opponentTeam} readOnly style={readOnlyInputStyle} placeholder="Select a scheduled match" />
                 </Field>
               </div>
 
@@ -3223,6 +3360,14 @@ const inputStyle: CSSProperties = {
   color: 'var(--foreground)',
   padding: '0 14px',
   outline: 'none',
+  colorScheme: 'dark',
+}
+
+const readOnlyInputStyle: CSSProperties = {
+  ...inputStyle,
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'default',
 }
 
 const textareaStyle: CSSProperties = {

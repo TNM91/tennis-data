@@ -90,6 +90,15 @@ type MatchPlayer = {
   players: PlayerRelation
 }
 
+type TeamRosterMember = {
+  player_id: string
+  player_name: string | null
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  players: PlayerRelation
+}
+
 type TeamOption = {
   team: string
   league: string
@@ -188,6 +197,7 @@ export default function CaptainHubPage() {
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [participants, setParticipants] = useState<MatchPlayer[]>([])
+  const [rosterMembers, setRosterMembers] = useState<TeamRosterMember[]>([])
 
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [loadingTeam, setLoadingTeam] = useState(false)
@@ -320,13 +330,6 @@ export default function CaptainHubPage() {
 
       const matchIds = typedMatches.map((match) => match.id)
 
-      if (!matchIds.length) {
-        setParticipants([])
-        setScenarioCount(0)
-        setLatestScenarioName('')
-        return
-      }
-
       let scenarioQuery = supabase
         .from('lineup_scenarios')
         .select('id, scenario_name, match_date')
@@ -338,16 +341,40 @@ export default function CaptainHubPage() {
       if (selectedFlight) scenarioQuery = scenarioQuery.eq('flight', selectedFlight)
 
       const [
-        { data: participantData, error: participantError },
+        participantResult,
+        rosterMemberResult,
         { data: scenarioData, error: scenarioError },
       ] = await Promise.all([
+        matchIds.length
+          ? supabase
+              .from('match_players')
+              .select(`
+                match_id,
+                side,
+                seat,
+                player_id,
+                players (
+                  id,
+                  name,
+                  overall_rating,
+                  overall_dynamic_rating,
+                  overall_usta_dynamic_rating,
+                  singles_dynamic_rating,
+                  singles_usta_dynamic_rating,
+                  doubles_dynamic_rating,
+                  doubles_usta_dynamic_rating
+                )
+              `)
+              .in('match_id', matchIds)
+          : Promise.resolve({ data: [], error: null }),
         supabase
-          .from('match_players')
+          .from('team_roster_members')
           .select(`
-            match_id,
-            side,
-            seat,
             player_id,
+            player_name,
+            team_name,
+            league_name,
+            flight,
             players (
               id,
               name,
@@ -360,14 +387,16 @@ export default function CaptainHubPage() {
               doubles_usta_dynamic_rating
             )
           `)
-          .in('match_id', matchIds),
+          .eq('team_name', selectedTeam)
+          .limit(500),
         scenarioQuery,
       ])
 
-      if (participantError) throw new Error(participantError.message)
+      if (participantResult.error) throw new Error(participantResult.error.message)
       if (scenarioError) throw new Error(scenarioError.message)
 
-      setParticipants((participantData || []) as MatchPlayer[])
+      setParticipants((participantResult.data || []) as MatchPlayer[])
+      setRosterMembers(rosterMemberResult.error ? [] : ((rosterMemberResult.data || []) as TeamRosterMember[]))
 
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
       setScenarioCount(typedScenarios.length)
@@ -575,11 +604,38 @@ export default function CaptainHubPage() {
       else item.losses += 1
     }
 
+    for (const row of rosterMembers) {
+      if (selectedLeague && safeText(row.league_name) !== selectedLeague) continue
+      if (selectedFlight && safeText(row.flight) !== selectedFlight) continue
+      const player = normalizePlayerRelation(row.players)
+      const id = player?.id || row.player_id
+      const name = player?.name || safeText(row.player_name)
+      if (!id || !name || map.has(id)) continue
+      const overallBase = player?.overall_rating ?? null
+      const overallUstaDynamic = player?.overall_usta_dynamic_rating ?? null
+      const ratingStatus =
+        overallBase !== null && overallUstaDynamic !== null
+          ? getCaptainRatingStatus(overallBase, overallUstaDynamic)
+          : null
+      map.set(id, {
+        id,
+        name,
+        appearances: 0,
+        wins: 0,
+        losses: 0,
+        singlesDynamic: player?.singles_dynamic_rating ?? null,
+        doublesDynamic: player?.doubles_dynamic_rating ?? null,
+        overallBase,
+        overallUstaDynamic,
+        ratingStatus,
+      })
+    }
+
     return [...map.values()].sort((a, b) => {
       if (b.appearances !== a.appearances) return b.appearances - a.appearances
       return a.name.localeCompare(b.name)
     })
-  }, [participants, matches, teamSideByMatchId])
+  }, [participants, matches, rosterMembers, selectedFlight, selectedLeague, teamSideByMatchId])
 
   const pairings = useMemo<PairingSummary[]>(() => {
     const map = new Map<string, PairingSummary>()

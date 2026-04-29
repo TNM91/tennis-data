@@ -37,6 +37,18 @@ export type TeamSummaryImportRow = {
   raw_capture_json?: unknown
 }
 
+type TeamRosterMembership = {
+  teamName: string
+  playerName: string
+  playerId: string
+  leagueName: string | null
+  flight: string | null
+  ustaSection: string | null
+  districtArea: string | null
+  source: string | null
+  ntrp: number | null
+}
+
 export type ScheduleImportRow = {
   externalMatchId: string
   matchDate: string
@@ -2023,6 +2035,7 @@ export class ImportEngine {
 
     // Collect all valid players (deduplicated by normalised name)
     const playerMap = new Map<string, { name: string; ntrp: number }>()
+    const rosterMembershipByKey = new Map<string, Omit<TeamRosterMembership, 'playerId'>>()
     for (const row of rows) {
       for (const player of row.players ?? []) {
         const name = cleanString(player.name)
@@ -2032,6 +2045,28 @@ export class ImportEngine {
         const key = normalizeName(name)
         if (!playerMap.has(key)) {
           playerMap.set(key, { name, ntrp })
+        }
+
+        const teamName = cleanString(player.teamName)
+        if (teamName) {
+          const membershipKey = [
+            normalizeName(teamName),
+            normalizeName(name),
+            cleanString(row.leagueName).toLowerCase(),
+            cleanString(row.flight).toLowerCase(),
+          ].join('__')
+          if (!rosterMembershipByKey.has(membershipKey)) {
+            rosterMembershipByKey.set(membershipKey, {
+              teamName,
+              playerName: name,
+              leagueName: cleanString(row.leagueName) || null,
+              flight: cleanString(row.flight) || null,
+              ustaSection: cleanString(row.ustaSection) || null,
+              districtArea: cleanString(row.districtArea) || null,
+              source: cleanString(row.source) || null,
+              ntrp,
+            })
+          }
         }
       }
       // Also pick up any explicit playerRatingSeeds map entries
@@ -2152,6 +2187,18 @@ export class ImportEngine {
       }
     }
 
+    const playerIdByNormalizedName = new Map<string, string>()
+    for (const row of existingByNorm.values()) {
+      playerIdByNormalizedName.set(normalizeName(row.name), row.id)
+    }
+
+    if (toInsert.length > 0) {
+      const createdPlayers = await fetchExistingPlayers()
+      for (const row of createdPlayers.values()) {
+        playerIdByNormalizedName.set(normalizeName(row.name), row.id)
+      }
+    }
+
     // Individual updates — must stay serial because each player's conditional
     // logic reads their current dynamic ratings from the batch fetch result.
     for (const { name, ntrp, existing } of toUpdate) {
@@ -2195,7 +2242,41 @@ export class ImportEngine {
       }
     }
 
+    const rosterMemberships: TeamRosterMembership[] = []
+    for (const membership of rosterMembershipByKey.values()) {
+      const playerId = playerIdByNormalizedName.get(normalizeName(membership.playerName))
+      if (!playerId) continue
+      rosterMemberships.push({ ...membership, playerId })
+    }
+
+    if (rosterMemberships.length > 0) {
+      await this.upsertTeamRosterMemberships(rosterMemberships)
+    }
+
     return result
+  }
+
+  private async upsertTeamRosterMemberships(rows: TeamRosterMembership[]) {
+    const payload = rows.map((row) => ({
+      team_name: row.teamName,
+      normalized_team_name: normalizeName(row.teamName),
+      player_id: row.playerId,
+      player_name: row.playerName,
+      league_name: row.leagueName ?? '',
+      flight: row.flight ?? '',
+      usta_section: row.ustaSection,
+      district_area: row.districtArea,
+      source: row.source,
+      ntrp: row.ntrp,
+    }))
+
+    const { error } = await this.supabase
+      .from('team_roster_members')
+      .upsert(payload, { onConflict: 'normalized_team_name,player_id,league_name,flight' })
+
+    if (error) {
+      this.options.log('team_roster_members upsert skipped', { error: error.message })
+    }
   }
 }
 

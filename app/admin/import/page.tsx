@@ -959,6 +959,28 @@ export default function AdminImportPage() {
           }
         }
 
+        if (kind === 'schedule' && response.kind === 'schedule') {
+          const savedScheduleCount = response.result.successCount + response.result.updatedCount
+          if (savedScheduleCount > 0) {
+            setLineCommitFeedback(
+              savedScheduleCount === 1
+                ? 'Schedule match submitted successfully.'
+                : `${savedScheduleCount} schedule matches submitted successfully.`,
+            )
+          }
+        }
+
+        if (kind === 'team_summary' && response.kind === 'team_summary') {
+          const savedRosterCount = response.result.createdCount + response.result.updatedCount
+          if (savedRosterCount > 0) {
+            setLineCommitFeedback(
+              savedRosterCount === 1
+                ? 'Roster baseline submitted successfully.'
+                : `${savedRosterCount} roster baselines submitted successfully.`,
+            )
+          }
+        }
+
         if (kind === 'scorecard') {
           try {
             await recalculateDynamicRatings()
@@ -2243,7 +2265,7 @@ export default function AdminImportPage() {
               ) : null}
               {importType !== 'scorecard' ? (
                 <div style={{ marginTop: 8, color: 'rgba(180,230,170,0.72)', fontWeight: 700, fontSize: '0.88rem' }}>
-                  Form clearing in a moment — ready for the next capture.
+                  Form clearing in a moment - ready for the next capture.
                 </div>
               ) : null}
             </div>
@@ -2754,3 +2776,4 @@ function sanitizeImportRoute(pathname: string, search: string): string {
   const nextSearch = params.toString()
   return nextSearch ? `${pathname}?${nextSearch}` : pathname
 }
+

@@ -90,7 +90,7 @@ function canonicalTeamName(value: string | null | undefined) {
   if (lower === 'singles' || lower === 'doubles') return ''
   if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return ''
   if (!/[a-z]/i.test(cleaned)) return ''
-  return cleaned.replace(/\s+/g, ' ').trim().toLowerCase()
+  return cleaned.replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
 function inferYear(row: MatchLeagueRow) {

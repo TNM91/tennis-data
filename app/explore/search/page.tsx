@@ -301,7 +301,7 @@ export default function ExploreSearchPage() {
     return {
       planId: 'league' as const,
       headline: 'Need league structure, not more spreadsheet cleanup?',
-      body: 'League tools turn flights, standings, schedules, and organizer communication into one cleaner operating layer.',
+      body: 'League tools keep flights, standings, schedules, and organizer communication in one organized place.',
     }
   }, [access.canUseAdvancedPlayerInsights, access.canUseCaptainWorkflow, access.canUseLeagueTools, scope])
 
@@ -341,8 +341,7 @@ export default function ExploreSearchPage() {
               Search once. See the right layer faster.
             </h1>
             <p style={{ ...pageSubtitle, marginTop: 0, maxWidth: 840 }}>
-              This is the cleaner discovery path between the homepage and the rest of the product:
-              players, teams, leagues, flights, areas, and quick matchup actions in one place.
+              Find players, teams, leagues, flights, areas, and quick matchup actions from one place.
             </p>
           </div>
 
@@ -445,7 +444,7 @@ export default function ExploreSearchPage() {
             <span style={badgeGreen}>{filteredLeagues.length} leagues</span>
             <span style={badgeGreen}>{matchupSuggestions.length} matchup actions</span>
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>
-              {query.trim() ? `${totalResults} surfaced for "${query.trim()}"` : 'Start with a search to unlock grouped results.'}
+              {query.trim() ? `${totalResults} results for "${query.trim()}"` : 'Start with a search to see grouped results.'}
             </span>
           </div>
         </section>
@@ -465,7 +464,7 @@ export default function ExploreSearchPage() {
                 Grouped results keep discovery clear instead of sending users through four separate guesses.
               </h2>
               <p style={{ ...pageSubtitle, marginTop: 0 }}>
-                Search by the identifier you know first, then move into the right TIQ surface without losing context.
+                Search by the detail you know, then jump into the right view without losing context.
               </p>
             </div>
 
@@ -483,10 +482,10 @@ export default function ExploreSearchPage() {
             >
               <div style={sectionKicker}>Quick context</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, lineHeight: 1.08 }}>
-                Scope drives the answer:
+                Choose the search lane that matches your question.
               </div>
               <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68 }}>
-                Players lead toward Player+. Teams point naturally toward Captain. League, flight, and area searches lean into League tools and structure.
+                Player searches open profiles and comparisons. Team and league searches show the season context around them.
               </div>
             </div>
           </div>
@@ -510,10 +509,10 @@ export default function ExploreSearchPage() {
             <section style={emptyStateStyle}>
               <div style={sectionKicker}>Start with a name, team, flight, area, or league</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 24, fontWeight: 900, lineHeight: 1.05 }}>
-                One search now opens the right product layer instead of making the user guess first.
+                One search can take you to the player, team, league, or matchup view you need.
               </div>
               <div style={{ color: 'var(--muted-strong)', fontSize: 14, lineHeight: 1.7, maxWidth: 760 }}>
-                Try a player name, a team, a league, a flight like 3.5, or an area or district. This is the cleaner handoff from homepage discovery into real TIQ surfaces.
+                Try a player name, a team, a league, a flight like 3.5, or an area or district.
               </div>
             </section>
           ) : null}
@@ -593,7 +592,7 @@ export default function ExploreSearchPage() {
                 <ResultGroup
                   title="Teams"
                   count={teams.length}
-                  emptyMessage="No team matches surfaced yet. Try a league or broader team search."
+                  emptyMessage="No team matches found yet. Try a league or broader team search."
                   ctaHref="/explore/teams"
                   ctaLabel="Open teams"
                 >
@@ -622,7 +621,7 @@ export default function ExploreSearchPage() {
                 <ResultGroup
                   title="Leagues"
                   count={filteredLeagues.length}
-                  emptyMessage="No league matches surfaced yet. Try a section, district, area, or different league name."
+                  emptyMessage="No league matches found yet. Try a section, district, area, or different league name."
                   ctaHref="/explore/leagues"
                   ctaLabel="Open leagues"
                 >
@@ -842,7 +841,7 @@ function ResultGroup({
         <div style={{ display: 'grid', gap: 6 }}>
           <div style={sectionKicker}>{title}</div>
           <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, lineHeight: 1.04 }}>
-            {count} {title.toLowerCase()} surfaced
+            {count} {title.toLowerCase()} found
           </div>
         </div>
         <Link href={ctaHref} style={buttonGhost}>

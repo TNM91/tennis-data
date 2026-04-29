@@ -1067,4 +1067,7 @@ const iconSvgStyle: CSSProperties = {
   width: '24px',
   height: '24px',
   display: 'block',
+  color: 'currentColor',
+  flexShrink: 0,
+  overflow: 'visible',
 }

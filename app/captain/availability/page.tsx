@@ -49,6 +49,9 @@ type TeamOptionMatchRow = {
   away_team: string | null
   league_name: string | null
   flight: string | null
+  match_date: string | null
+  match_time?: string | null
+  facility?: string | null
   line_number: string | null
 }
 
@@ -58,7 +61,18 @@ type TeamRosterMatchRow = {
   away_team: string | null
   league_name: string | null
   flight: string | null
+  match_date: string | null
+  match_time?: string | null
+  facility?: string | null
   line_number: string | null
+}
+
+type TeamRosterMemberRow = {
+  team_name: string | null
+  player_id: string | null
+  player_name: string | null
+  league_name: string | null
+  flight: string | null
 }
 
 type RosterPlayerRelation =
@@ -76,6 +90,25 @@ type MatchPlayerRosterRow = {
   match_id: string
   side: 'A' | 'B'
   players: RosterPlayerRelation
+}
+
+function formatScheduleLabel(match: TeamRosterMatchRow | null) {
+  if (!match) return 'Select a scheduled match'
+  const parts = [
+    match.match_date ? new Date(match.match_date).toLocaleDateString() : '',
+    safeText(match.match_time),
+    safeText(match.facility),
+  ].filter(Boolean)
+  return parts.join(' - ') || 'Schedule details pending'
+}
+
+function getOpponent(match: TeamRosterMatchRow, team: string) {
+  const selected = team.trim().toLowerCase()
+  const home = safeText(match.home_team)
+  const away = safeText(match.away_team)
+  if (home.toLowerCase() === selected) return away
+  if (away.toLowerCase() === selected) return home
+  return [home, away].filter(Boolean).join(' vs ')
 }
 
 export default function CaptainAvailabilityPage() {
@@ -101,7 +134,9 @@ export default function CaptainAvailabilityPage() {
   const [error, setError] = useState('')
 
   const [players, setPlayers] = useState<AvailabilityPlayer[]>([])
-  const [weekLabel, setWeekLabel] = useState('Wednesday - 8:30 PM')
+  const [scheduledMatches, setScheduledMatches] = useState<TeamRosterMatchRow[]>([])
+  const [selectedMatchId, setSelectedMatchId] = useState('')
+  const [weekLabel, setWeekLabel] = useState('Select a scheduled match')
   const [requestSent, setRequestSent] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -116,7 +151,7 @@ export default function CaptainAvailabilityPage() {
     try {
       const { data, error } = await supabase
         .from('matches')
-        .select('home_team, away_team, league_name, flight, line_number')
+        .select('home_team, away_team, league_name, flight, match_date, match_time, facility, line_number')
         .is('line_number', null)
 
       if (error) throw new Error(error.message)
@@ -165,7 +200,7 @@ export default function CaptainAvailabilityPage() {
     try {
       let matchQuery = supabase
         .from('matches')
-        .select('id, home_team, away_team, league_name, flight, line_number')
+        .select('id, home_team, away_team, league_name, flight, match_date, match_time, facility, line_number')
         .is('line_number', null)
         .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
 
@@ -176,6 +211,16 @@ export default function CaptainAvailabilityPage() {
       if (matchError) throw new Error(matchError.message)
 
       const typedMatches = (matches || []) as TeamRosterMatchRow[]
+      setScheduledMatches(typedMatches)
+      const nextSelectedMatch =
+        typedMatches.find((match) => match.id === selectedMatchId) ??
+        typedMatches.find((match) => match.match_date && new Date(match.match_date).getTime() >= Date.now() - 86400000) ??
+        typedMatches[0] ??
+        null
+      if (nextSelectedMatch) {
+        setSelectedMatchId(nextSelectedMatch.id)
+        setWeekLabel(formatScheduleLabel(nextSelectedMatch))
+      }
       const matchIds = typedMatches.map((match) => match.id)
 
       if (!matchIds.length) {
@@ -183,19 +228,26 @@ export default function CaptainAvailabilityPage() {
         return
       }
 
-      const { data: matchPlayers, error: playerError } = await supabase
-        .from('match_players')
-        .select(`
-          match_id,
-          side,
-          players (
-            id,
-            name
-          )
-        `)
-        .in('match_id', matchIds)
+      const [matchPlayersResult, rosterMembersResult] = await Promise.all([
+        supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            side,
+            players (
+              id,
+              name
+            )
+          `)
+          .in('match_id', matchIds),
+        supabase
+          .from('team_roster_members')
+          .select('team_name, player_id, player_name, league_name, flight')
+          .eq('team_name', selectedTeam)
+          .limit(500),
+      ])
 
-      if (playerError) throw new Error(playerError.message)
+      if (matchPlayersResult.error) throw new Error(matchPlayersResult.error.message)
 
       const teamSides = new Map<string, 'A' | 'B'>()
       for (const match of typedMatches) {
@@ -205,7 +257,7 @@ export default function CaptainAvailabilityPage() {
 
       const rosterMap = new Map<string, AvailabilityPlayer>()
 
-      for (const row of (matchPlayers || []) as MatchPlayerRosterRow[]) {
+      for (const row of (matchPlayersResult.data || []) as MatchPlayerRosterRow[]) {
         const expectedSide = teamSides.get(row.match_id)
         if (!expectedSide || row.side !== expectedSide) continue
 
@@ -218,6 +270,21 @@ export default function CaptainAvailabilityPage() {
             name: player.name,
             status: 'unanswered',
           })
+        }
+      }
+
+      if (!rosterMembersResult.error) {
+        for (const row of (rosterMembersResult.data || []) as TeamRosterMemberRow[]) {
+          if (!row.player_id || !row.player_name) continue
+          if (selectedLeague && safeText(row.league_name) !== selectedLeague) continue
+          if (selectedFlight && safeText(row.flight) !== selectedFlight) continue
+          if (!rosterMap.has(row.player_id)) {
+            rosterMap.set(row.player_id, {
+              id: row.player_id,
+              name: row.player_name,
+              status: 'unanswered',
+            })
+          }
         }
       }
 
@@ -236,7 +303,7 @@ export default function CaptainAvailabilityPage() {
     } finally {
       setLoadingRoster(false)
     }
-  }, [selectedFlight, selectedLeague, selectedTeam])
+  }, [selectedFlight, selectedLeague, selectedMatchId, selectedTeam])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -448,10 +515,28 @@ export default function CaptainAvailabilityPage() {
 
               <input
                 value={weekLabel}
-                onChange={(e) => setWeekLabel(e.target.value)}
+                readOnly
                 style={textInputStyle}
-                placeholder="Wednesday - 8:30 PM"
+                placeholder="Select a scheduled match"
               />
+
+              <select
+                value={selectedMatchId}
+                onChange={(e) => {
+                  setSelectedMatchId(e.target.value)
+                  const match = scheduledMatches.find((item) => item.id === e.target.value) ?? null
+                  setWeekLabel(formatScheduleLabel(match))
+                }}
+                style={selectStyle}
+                disabled={!selectedTeam || scheduledMatches.length === 0}
+              >
+                <option value="">Select match</option>
+                {scheduledMatches.map((match) => (
+                  <option key={match.id} value={match.id}>
+                    {getOpponent(match, selectedTeam)} - {formatScheduleLabel(match)}
+                  </option>
+                ))}
+              </select>
 
               <button
                 type="button"
