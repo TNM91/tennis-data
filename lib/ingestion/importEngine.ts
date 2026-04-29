@@ -672,12 +672,20 @@ function mergeScorecardRowWithExistingMatch(
     matchDate: normalizeDateInput(row.matchDate) || normalizeDateInput(existingMatch.match_date ?? ''),
     matchTime: nullableString(row.matchTime) ?? nullableString(existingMatch.match_time),
     facility: nullableString(row.facility) ?? nullableString(existingMatch.facility),
-    leagueName: nullableString(row.leagueName) ?? nullableString(existingMatch.league_name),
+    leagueName: normalizeScorecardLeagueName(row.leagueName) ?? nullableString(existingMatch.league_name),
     flight: nullableString(row.flight) ?? nullableString(existingMatch.flight),
     ustaSection: nullableString(row.ustaSection) ?? nullableString(existingMatch.usta_section),
     districtArea: nullableString(row.districtArea) ?? nullableString(existingMatch.district_area),
     source: nullableString(row.source) ?? nullableString(existingMatch.source) ?? DEFAULT_SOURCE_SCORECARD,
   }
+}
+
+function normalizeScorecardLeagueName(value: string | null | undefined): string | null {
+  const cleaned = nullableString(value)
+  if (!cleaned) return null
+  if (/^(singles|doubles)$/i.test(cleaned)) return null
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return null
+  return cleaned
 }
 
 function buildLinePlayerNames(line: ScorecardLineImportRow): { side: MatchSide; seat: number; name: string }[] {

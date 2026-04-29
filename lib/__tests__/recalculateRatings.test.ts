@@ -164,24 +164,24 @@ describe('getProvisionalkMultiplier', () => {
     expect(getProvisionalkMultiplier(0)).toBe(2.0)
   })
 
-  it('returns 2.0 up to the 9th match', () => {
-    expect(getProvisionalkMultiplier(9)).toBe(2.0)
+  it('smoothly decays by the 9th match', () => {
+    expect(getProvisionalkMultiplier(9)).toBe(1.7)
   })
 
-  it('drops to 1.5 at 10 matches', () => {
-    expect(getProvisionalkMultiplier(10)).toBe(1.5)
+  it('continues smooth decay at 10 matches', () => {
+    expect(getProvisionalkMultiplier(10)).toBe(1.667)
   })
 
-  it('holds 1.5 through 19 matches', () => {
-    expect(getProvisionalkMultiplier(19)).toBe(1.5)
+  it('continues smooth decay through 19 matches', () => {
+    expect(getProvisionalkMultiplier(19)).toBe(1.367)
   })
 
-  it('drops to 1.2 at 20 matches', () => {
-    expect(getProvisionalkMultiplier(20)).toBe(1.2)
+  it('continues smooth decay at 20 matches', () => {
+    expect(getProvisionalkMultiplier(20)).toBe(1.333)
   })
 
-  it('holds 1.2 through 29 matches', () => {
-    expect(getProvisionalkMultiplier(29)).toBe(1.2)
+  it('approaches veteran weight by 29 matches', () => {
+    expect(getProvisionalkMultiplier(29)).toBe(1.033)
   })
 
   it('drops to 1.0 at 30 matches', () => {

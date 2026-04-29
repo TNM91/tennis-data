@@ -58,6 +58,10 @@ export default function LeaguesPage() {
   })
   const [search, setSearch] = useState('')
   const [flightFilter, setFlightFilter] = useState('all')
+  const [yearFilter, setYearFilter] = useState('all')
+  const [seasonFilter, setSeasonFilter] = useState('all')
+  const [genderFilter, setGenderFilter] = useState('all')
+  const [ratingFilter, setRatingFilter] = useState('all')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
@@ -118,11 +122,20 @@ export default function LeaguesPage() {
     return unique.sort((a, b) => a.localeCompare(b))
   }, [leagues])
 
+  const years = useMemo(() => uniqueSorted(leagues.map((league) => league.year)), [leagues])
+  const seasons = useMemo(() => uniqueSorted(leagues.map((league) => league.season)), [leagues])
+  const genders = useMemo(() => uniqueSorted(leagues.map((league) => league.gender)), [leagues])
+  const ratings = useMemo(() => uniqueSorted(leagues.map((league) => league.rating)), [leagues])
+
   const filteredLeagues = useMemo(() => {
     const term = search.trim().toLowerCase()
 
     return leagues.filter((league) => {
       const matchesFlight = flightFilter === 'all' || league.flight === flightFilter
+      const matchesYear = yearFilter === 'all' || league.year === yearFilter
+      const matchesSeason = seasonFilter === 'all' || league.season === seasonFilter
+      const matchesGender = genderFilter === 'all' || league.gender === genderFilter
+      const matchesRating = ratingFilter === 'all' || league.rating === ratingFilter
       const matchesSearch =
         !term ||
         league.leagueName.toLowerCase().includes(term) ||
@@ -130,11 +143,17 @@ export default function LeaguesPage() {
         league.ustaSection.toLowerCase().includes(term) ||
         league.districtArea.toLowerCase().includes(term)
 
-      return matchesFlight && matchesSearch
+      return matchesFlight && matchesYear && matchesSeason && matchesGender && matchesRating && matchesSearch
     })
-  }, [leagues, search, flightFilter])
+  }, [leagues, search, flightFilter, yearFilter, seasonFilter, genderFilter, ratingFilter])
 
-  const hasActiveFilters = search.trim().length > 0 || flightFilter !== 'all'
+  const hasActiveFilters =
+    search.trim().length > 0 ||
+    flightFilter !== 'all' ||
+    yearFilter !== 'all' ||
+    seasonFilter !== 'all' ||
+    genderFilter !== 'all' ||
+    ratingFilter !== 'all'
 
   const visibleMatchCount = useMemo(() => {
     return filteredLeagues.reduce((sum, league) => sum + league.matchCount, 0)
@@ -195,7 +214,7 @@ export default function LeaguesPage() {
 
   const dynamicFilterGrid: CSSProperties = {
     ...filterGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 220px',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))',
   }
 
   const dynamicCardGrid: CSSProperties = {
@@ -301,6 +320,10 @@ export default function LeaguesPage() {
                   onClick={() => {
                     setSearch('')
                     setFlightFilter('all')
+                    setYearFilter('all')
+                    setSeasonFilter('all')
+                    setGenderFilter('all')
+                    setRatingFilter('all')
                   }}
                   style={clearFilterButton}
                 >
@@ -326,6 +349,11 @@ export default function LeaguesPage() {
                 />
               </div>
             </div>
+
+            <FilterSelect id="league-year-filter" label="Year" value={yearFilter} onChange={setYearFilter} options={years} />
+            <FilterSelect id="league-season-filter" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} />
+            <FilterSelect id="league-gender-filter" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} />
+            <FilterSelect id="league-rating-filter" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} />
 
             <div>
               <label htmlFor="league-flight-filter" style={inputLabel}>Flight</label>
@@ -447,6 +475,40 @@ export default function LeaguesPage() {
         <AdsenseSlot slot={LEAGUES_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
       </div>
     </SiteShell>
+  )
+}
+
+function uniqueSorted(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => safeText(value)).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  )
+}
+
+function FilterSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+}) {
+  return (
+    <div>
+      <label htmlFor={id} style={inputLabel}>{label}</label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} style={selectStyle}>
+        <option value="all">All</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
   )
 }
 

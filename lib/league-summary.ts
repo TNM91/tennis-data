@@ -32,6 +32,10 @@ export type LeagueCard = {
   flight: string
   ustaSection: string
   districtArea: string
+  year: string
+  season: string
+  gender: string
+  rating: string
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   matchCount: number
@@ -69,6 +73,49 @@ function safeText(value: string | null | undefined) {
 
 function normalizeKeyPart(value: string | null | undefined) {
   return safeText(value).toLowerCase()
+}
+
+function isInvalidLeagueName(value: string | null | undefined) {
+  const cleaned = safeText(value)
+  if (!cleaned) return true
+  if (/^(singles|doubles)$/i.test(cleaned)) return true
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return true
+  return false
+}
+
+function canonicalTeamName(value: string | null | undefined) {
+  const cleaned = safeText(value)
+  if (!cleaned) return ''
+  const lower = cleaned.toLowerCase()
+  if (lower === 'singles' || lower === 'doubles') return ''
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return ''
+  if (!/[a-z]/i.test(cleaned)) return ''
+  return cleaned.replace(/\s+/g, ' ').trim().toLowerCase()
+}
+
+function inferYear(row: MatchLeagueRow) {
+  const leagueYear = safeText(row.league_name).match(/\b(20\d{2})\b/)
+  if (leagueYear) return leagueYear[1]
+  return safeText(row.match_date).slice(0, 4)
+}
+
+function inferSeason(row: MatchLeagueRow) {
+  const haystack = [row.league_name, row.source].map(safeText).join(' ')
+  const match = haystack.match(/\b(Spring|Summer|Fall|Winter)\b/i)
+  return match ? match[1].toLowerCase().replace(/^\w/, (c) => c.toUpperCase()) : ''
+}
+
+function inferGender(row: MatchLeagueRow) {
+  const haystack = [row.league_name, row.flight, row.usta_section, row.district_area].map(safeText).join(' ').toLowerCase()
+  if (/\b(women|female|ladies)\b/.test(haystack)) return 'Female'
+  if (/\b(men|male|gentlemen)\b/.test(haystack)) return 'Male'
+  return ''
+}
+
+function inferRating(row: MatchLeagueRow) {
+  const haystack = [row.flight, row.league_name].map(safeText).join(' ')
+  const match = haystack.match(/\b([2-5](?:\.[05]))\b/)
+  return match ? match[1] : ''
 }
 
 function chooseBetterText(current: string, incoming: string) {
@@ -153,7 +200,7 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
       totalParentMatches += batch.length
 
       for (const row of batch) {
-        const leagueNameText = safeText(row.league_name)
+        const leagueNameText = isInvalidLeagueName(row.league_name) ? '' : safeText(row.league_name)
         const homeTeam = safeText(row.home_team)
         const awayTeam = safeText(row.away_team)
 
@@ -188,6 +235,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         const flight = safeText(row.flight)
         const ustaSection = safeText(row.usta_section)
         const districtArea = safeText(row.district_area)
+        const year = inferYear(row)
+        const season = inferSeason(row)
+        const gender = inferGender(row)
+        const rating = inferRating(row)
         const competitionLayer = inferCompetitionLayerFromValues({
           leagueName,
           ustaSection,
@@ -201,6 +252,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
             flight,
             ustaSection,
             districtArea,
+            year,
+            season,
+            gender,
+            rating,
             competitionLayer,
             leagueFormat: inferLeagueFormatFromValues({
               competitionLayer,
@@ -220,8 +275,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
         current.ustaSection = chooseBetterText(current.ustaSection, ustaSection)
         current.districtArea = chooseBetterText(current.districtArea, districtArea)
 
-        if (homeTeam) current.teamSet.add(homeTeam)
-        if (awayTeam) current.teamSet.add(awayTeam)
+        const canonicalHome = canonicalTeamName(homeTeam)
+        const canonicalAway = canonicalTeamName(awayTeam)
+        if (canonicalHome) current.teamSet.add(canonicalHome)
+        if (canonicalAway) current.teamSet.add(canonicalAway)
 
         if (
           row.match_date &&
@@ -254,6 +311,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
       flight: league.flight,
       ustaSection: league.ustaSection,
       districtArea: league.districtArea,
+      year: league.year,
+      season: league.season,
+      gender: league.gender,
+      rating: league.rating,
       competitionLayer: league.competitionLayer,
       leagueFormat: inferLeagueFormatFromValues({
         competitionLayer: league.competitionLayer,

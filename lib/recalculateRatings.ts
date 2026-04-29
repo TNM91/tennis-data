@@ -326,6 +326,7 @@ async function fetchMatches(): Promise<MatchRow[]> {
       match_type,
       score,
       winner_side,
+      match_source,
       created_at
     `)
     .not('match_type', 'is', null)
@@ -605,17 +606,33 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
 
   if (snapshotRows.length === 0) return
 
-  for (const chunk of chunkArray(snapshotRows, 500)) {
+  const dedupedRows = Array.from(
+    snapshotRows
+      .reduce((map, row) => {
+        const key = `${row.player_id}__${row.match_id}__${row.rating_type}`
+        if (!map.has(key) || row.track === 'tiq') {
+          map.set(key, row)
+        }
+        return map
+      }, new Map<string, RatingSnapshotInsert>())
+      .values(),
+  )
+
+  for (const chunk of chunkArray(dedupedRows, 500)) {
     const { error } = await supabase
       .from('rating_snapshots')
-      .insert(chunk)
+      .upsert(chunk, {
+        onConflict: 'player_id,match_id,rating_type',
+      })
 
     if (error) {
       // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
       if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
           error.message.includes('win_probability') || error.message.includes('multiplier')) {
         const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
-        const { error: fallbackError } = await supabase.from('rating_snapshots').insert(stripped)
+        const { error: fallbackError } = await supabase.from('rating_snapshots').upsert(stripped, {
+          onConflict: 'player_id,match_id,rating_type',
+        })
         if (fallbackError) throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
         continue
       }

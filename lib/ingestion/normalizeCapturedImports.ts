@@ -202,6 +202,32 @@ function splitPlayerList(value: unknown): string[] {
     .filter((entry) => Boolean(entry) && entry.toLowerCase() !== 'timed match')
 }
 
+function splitConcatenatedDoublesPlayers(players: string[]): string[] {
+  if (players.length !== 1) return players
+
+  const value = players[0]
+  const tokens = value.split(' ').map((token) => token.trim()).filter(Boolean)
+  if (tokens.length < 4) return players
+
+  const firstTitlecaseIndexAfterFirst = tokens.findIndex((token, index) => {
+    if (index < 2) return false
+    return /^[A-Z][a-z]/.test(token)
+  })
+
+  if (firstTitlecaseIndexAfterFirst > 0 && firstTitlecaseIndexAfterFirst < tokens.length) {
+    return [
+      tokens.slice(0, firstTitlecaseIndexAfterFirst).join(' '),
+      tokens.slice(firstTitlecaseIndexAfterFirst).join(' '),
+    ].filter(Boolean)
+  }
+
+  if (tokens.length === 4) {
+    return [tokens.slice(0, 2).join(' '), tokens.slice(2).join(' ')]
+  }
+
+  return players
+}
+
 function unwrapRootRows(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload
   if (!isRecord(payload)) return []
@@ -286,12 +312,12 @@ function normalizeExternalMatchId(record: UnknownRecord): string {
 }
 
 function normalizeLeagueName(record: UnknownRecord): string | null {
-  const direct = nullableString(
+  const direct = sanitizeLeagueNameCandidate(
     pickFirst(record, ['leagueName', 'league_name', 'league']),
   )
   if (direct) return direct
 
-  const nested = nullableString(
+  const nested = sanitizeLeagueNameCandidate(
     pickNested(record, [
       ['league', 'name'],
       ['league', 'leagueName'],
@@ -319,7 +345,6 @@ function normalizeLeagueName(record: UnknownRecord): string | null {
   if (districtFallback) return districtFallback
   if (sectionFallback && flightFallback) return `${sectionFallback} • ${flightFallback}`
   if (sectionFallback) return sectionFallback
-  if (flightFallback) return `USTA ${flightFallback}`
 
   return null
 }
@@ -327,6 +352,8 @@ function normalizeLeagueName(record: UnknownRecord): string | null {
 function looksLikeLeagueName(value: string): boolean {
   const lower = cleanString(value).toLowerCase()
   if (!lower) return false
+  if (lower === 'singles' || lower === 'doubles') return false
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(lower)) return false
 
   return (
     lower.includes('adult') ||
@@ -335,14 +362,16 @@ function looksLikeLeagueName(value: string): boolean {
     lower.includes('combo') ||
     lower.includes('league') ||
     lower.includes('over') ||
-    lower.includes('daytime') ||
-    lower.includes('singles')
+    lower.includes('daytime')
   )
 }
 
 function sanitizeLeagueNameCandidate(value: unknown): string | null {
   const cleaned = cleanString(value)
   if (!cleaned) return null
+  const lowered = cleaned.toLowerCase()
+  if (lowered === 'singles' || lowered === 'doubles') return null
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return null
 
   const seasonMatch = cleaned.match(/\b\d{4}\s+.*?\b(Spring|Summer|Fall|Winter)\b/i)
   if (seasonMatch) {
@@ -354,7 +383,11 @@ function sanitizeLeagueNameCandidate(value: unknown): string | null {
     .replace(/\s{2,}/g, ' ')
     .trim()
 
-  return stripped || null
+  if (!stripped) return null
+  if (/^(singles|doubles)$/i.test(stripped)) return null
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(stripped)) return null
+
+  return stripped
 }
 
 function collectSeasonLikeStrings(value: unknown, depth = 0, results: string[] = []): string[] {
@@ -790,13 +823,18 @@ function normalizeScorecardLine(
 
   const matchType = normalizeMatchType(pickFirst(line, ['matchType', 'match_type', 'type']))
 
-  const sideAPlayers = splitPlayerList(
+  const rawSideAPlayers = splitPlayerList(
     pickFirst(line, ['homePlayers', 'sideAPlayers', 'side_a_players', 'playersA']),
   )
 
-  const sideBPlayers = splitPlayerList(
+  const rawSideBPlayers = splitPlayerList(
     pickFirst(line, ['awayPlayers', 'sideBPlayers', 'side_b_players', 'playersB']),
   )
+
+  const sideAPlayers =
+    matchType === 'doubles' ? splitConcatenatedDoublesPlayers(rawSideAPlayers) : rawSideAPlayers
+  const sideBPlayers =
+    matchType === 'doubles' ? splitConcatenatedDoublesPlayers(rawSideBPlayers) : rawSideBPlayers
 
   const winnerSide = normalizeWinnerSide(pickFirst(line, ['winnerSide', 'winner_side', 'winner']))
 

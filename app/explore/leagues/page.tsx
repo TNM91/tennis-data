@@ -50,6 +50,10 @@ export default function ExploreLeaguesPage() {
   const [notice, setNotice] = useState('')
   const [search, setSearch] = useState('')
   const [layerFilter, setLayerFilter] = useState<LayerFilter>('all')
+  const [yearFilter, setYearFilter] = useState('all')
+  const [seasonFilter, setSeasonFilter] = useState('all')
+  const [genderFilter, setGenderFilter] = useState('all')
+  const [ratingFilter, setRatingFilter] = useState('all')
   const [summary, setSummary] = useState({
     totalMatches: 0,
     totalFlights: 0,
@@ -165,6 +169,10 @@ export default function ExploreLeaguesPage() {
 
     return decoratedLeagues.filter((league) => {
       const matchesLayer = layerFilter === 'all' || league.competitionLayer === layerFilter
+      const matchesYear = yearFilter === 'all' || league.year === yearFilter
+      const matchesSeason = seasonFilter === 'all' || league.season === seasonFilter
+      const matchesGender = genderFilter === 'all' || league.gender === genderFilter
+      const matchesRating = ratingFilter === 'all' || league.rating === ratingFilter
       const matchesSearch =
         !term ||
         league.leagueName.toLowerCase().includes(term) ||
@@ -172,9 +180,14 @@ export default function ExploreLeaguesPage() {
         league.ustaSection.toLowerCase().includes(term) ||
         league.districtArea.toLowerCase().includes(term)
 
-      return matchesLayer && matchesSearch
+      return matchesLayer && matchesYear && matchesSeason && matchesGender && matchesRating && matchesSearch
     })
-  }, [decoratedLeagues, layerFilter, search])
+  }, [decoratedLeagues, layerFilter, search, yearFilter, seasonFilter, genderFilter, ratingFilter])
+
+  const years = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.year)), [decoratedLeagues])
+  const seasons = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.season)), [decoratedLeagues])
+  const genders = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.gender)), [decoratedLeagues])
+  const ratings = useMemo(() => uniqueSorted(decoratedLeagues.map((league) => league.rating)), [decoratedLeagues])
 
   const ustaLeagues = useMemo(
     () => filteredLeagues.filter((league) => league.competitionLayer === 'usta'),
@@ -258,6 +271,11 @@ export default function ExploreLeaguesPage() {
                 style={inputStyle}
               />
             </div>
+
+            <FilterSelect id="explore-league-year" label="Year" value={yearFilter} onChange={setYearFilter} options={years} />
+            <FilterSelect id="explore-league-season" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} />
+            <FilterSelect id="explore-league-gender" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} />
+            <FilterSelect id="explore-league-rating" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} />
 
             <div style={layerToggleGroupStyle}>
               <button
@@ -351,6 +369,40 @@ export default function ExploreLeaguesPage() {
         ) : null}
       </section>
     </SiteShell>
+  )
+}
+
+function uniqueSorted(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => safeText(value)).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  )
+}
+
+function FilterSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+}) {
+  return (
+    <div style={searchGroupStyle}>
+      <label htmlFor={id} style={labelStyle}>{label}</label>
+      <select id={id} value={value} onChange={(event) => onChange(event.target.value)} style={inputStyle}>
+        <option value="all">All</option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
   )
 }
 
@@ -563,7 +615,7 @@ const filterBarStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
   gap: '16px',
   marginTop: '24px',
 }

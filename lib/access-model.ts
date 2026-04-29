@@ -7,7 +7,7 @@ import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 export const CAPTAIN_SUBSCRIPTION_PRICE_LABEL = getPricingPlan('captain').priceLabel
 export const PLAYER_PLUS_PRICE_LABEL = getPricingPlan('player_plus').priceLabel
 export const LEAGUE_PRICE_LABEL = getPricingPlan('league').priceLabel
-export const TIQ_SEASON_FEE_PRICE_LABEL = '$10/season'
+export const TIQ_SEASON_FEE_PRICE_LABEL = '$25/season'
 
 export type CaptainSubscriptionStatus = 'inactive' | 'trial' | 'active' | 'past_due' | 'canceled'
 

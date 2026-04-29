@@ -121,6 +121,7 @@ export default function LeagueDetailPage() {
           winner_side
         `)
         .eq('league_name', leagueFromRoute)
+        .is('line_number', null)
         .order('match_date', { ascending: false })
         .limit(200)
 
@@ -151,6 +152,7 @@ export default function LeagueDetailPage() {
             score,
             winner_side
           `)
+          .is('line_number', null)
           .order('match_date', { ascending: false })
           .limit(200)
 

@@ -82,6 +82,7 @@ type SnapshotRow = {
 type MatchRow = {
   id: string
   match_date: string
+  match_time: string | null
   match_type: MatchType
   score: string
   winner_side: MatchSide
@@ -232,12 +233,15 @@ export default function PlayerProfilePage() {
             .select(`
               id,
               match_date,
+              match_time,
               match_type,
               score,
               winner_side
             `)
             .in('id', matchIds)
+            .not('match_type', 'is', null)
             .order('match_date', { ascending: false })
+            .order('match_time', { ascending: false })
             .order('id', { ascending: false }),
           supabase
             .from('match_players')

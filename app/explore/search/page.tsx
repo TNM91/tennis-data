@@ -101,6 +101,10 @@ export default function ExploreSearchPage() {
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
   const [ratingBand, setRatingBand] = useState<'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'>('all')
+  const [yearFilter, setYearFilter] = useState('all')
+  const [seasonFilter, setSeasonFilter] = useState('all')
+  const [genderFilter, setGenderFilter] = useState('all')
+  const [leagueRatingFilter, setLeagueRatingFilter] = useState('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [players, setPlayers] = useState<PlayerSearchRow[]>([])
@@ -223,6 +227,11 @@ export default function ExploreSearchPage() {
     ).slice(0, 6)
   }, [leagues])
 
+  const leagueYears = useMemo(() => uniqueSorted(leagues.map((league) => league.year)), [leagues])
+  const leagueSeasons = useMemo(() => uniqueSorted(leagues.map((league) => league.season)), [leagues])
+  const leagueGenders = useMemo(() => uniqueSorted(leagues.map((league) => league.gender)), [leagues])
+  const leagueRatings = useMemo(() => uniqueSorted(leagues.map((league) => league.rating)), [leagues])
+
   const filteredPlayers = useMemo(() => {
     if (ratingBand === 'all') return players
     return players.filter((p) => {
@@ -254,9 +263,19 @@ export default function ExploreSearchPage() {
     }
 
     return suggestions.slice(0, 3)
-  }, [players])
+  }, [filteredPlayers])
 
-  const totalResults = filteredPlayers.length + teams.length + leagues.length + matchupSuggestions.length
+  const filteredLeagues = useMemo(() => {
+    return leagues.filter((league) => {
+      const matchesYear = yearFilter === 'all' || league.year === yearFilter
+      const matchesSeason = seasonFilter === 'all' || league.season === seasonFilter
+      const matchesGender = genderFilter === 'all' || league.gender === genderFilter
+      const matchesRating = leagueRatingFilter === 'all' || league.rating === leagueRatingFilter
+      return matchesYear && matchesSeason && matchesGender && matchesRating
+    })
+  }, [leagues, yearFilter, seasonFilter, genderFilter, leagueRatingFilter])
+
+  const totalResults = filteredPlayers.length + teams.length + filteredLeagues.length + matchupSuggestions.length
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
 
   const upgradeConfig = useMemo(() => {
@@ -402,6 +421,15 @@ export default function ExploreSearchPage() {
             </div>
           ) : null}
 
+          {leagues.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(150px, 1fr))', gap: 10, marginTop: 12 }}>
+              <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} theme={theme} />
+              <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} theme={theme} />
+              <FilterSelect label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={leagueGenders} theme={theme} />
+              <FilterSelect label="Rating / Flight" value={leagueRatingFilter} onChange={setLeagueRatingFilter} options={leagueRatings} theme={theme} />
+            </div>
+          ) : null}
+
           <div
             style={{
               position: 'relative',
@@ -414,7 +442,7 @@ export default function ExploreSearchPage() {
           >
             <span style={badgeBlue}>{players.length} players</span>
             <span style={badgeBlue}>{teams.length} teams</span>
-            <span style={badgeGreen}>{leagues.length} leagues</span>
+            <span style={badgeGreen}>{filteredLeagues.length} leagues</span>
             <span style={badgeGreen}>{matchupSuggestions.length} matchup actions</span>
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>
               {query.trim() ? `${totalResults} surfaced for "${query.trim()}"` : 'Start with a search to unlock grouped results.'}
@@ -593,12 +621,12 @@ export default function ExploreSearchPage() {
 
                 <ResultGroup
                   title="Leagues"
-                  count={leagues.length}
+                  count={filteredLeagues.length}
                   emptyMessage="No league matches surfaced yet. Try a section, district, area, or different league name."
                   ctaHref="/explore/leagues"
                   ctaLabel="Open leagues"
                 >
-                  {leagues.map((league) => (
+                  {filteredLeagues.map((league) => (
                     <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle(theme)}>
                       <div style={resultHeaderStyle}>
                         <div>
@@ -757,6 +785,40 @@ async function searchLeagues(term: string, scope: SearchScope): Promise<LeagueCa
       return matchLeague || matchFlight || matchArea || matchSection
     })
     .slice(0, 8)
+}
+
+function uniqueSorted(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map((value) => cleanText(value)).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b),
+  )
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  theme,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: string[]
+  theme: ThemeMode
+}) {
+  return (
+    <label style={{ display: 'grid', gap: 6 }}>
+      <span style={searchLabelStyle}>{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} style={getSearchSelectStyle(theme)}>
+        <option value="all" style={getSearchOptionStyle(theme)}>All</option>
+        {options.map((option) => (
+          <option key={option} value={option} style={getSearchOptionStyle(theme)}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 }
 
 function ResultGroup({
