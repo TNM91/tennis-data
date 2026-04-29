@@ -22,7 +22,7 @@ export default function HowItWorksPage() {
           <p>
             Public pages like <Link href="/players">Players</Link>, <Link href="/rankings">Rankings</Link>,{' '}
             <Link href="/teams">Teams</Link>, <Link href="/leagues">Leagues</Link>, and{' '}
-            <Link href="/matchup">Matchup</Link> help visitors explore the tennis landscape before
+            <Link href="/mylab">My Lab</Link> helps players turn tennis context into premium prep before
             they commit to deeper workflow tools.
           </p>
         </div>

@@ -41,10 +41,10 @@ function CompeteScheduleContent() {
           text="Test likely opponent outcomes and lineup branches before match day."
         />
         <CompeteCard
-          href="/matchup"
-          meta="Comparison"
-          title="Matchup Analysis"
-          text="Run comparison work when schedule context turns into opponent-specific preparation."
+          href="/mylab"
+          meta="Player+ prep"
+          title="My Lab"
+          text="Use premium comparison work when schedule context turns into opponent-specific preparation."
         />
       </CompeteGrid>
 

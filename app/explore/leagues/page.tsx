@@ -247,7 +247,7 @@ export default function ExploreLeaguesPage() {
               <div style={exploreNavRowStyle}>
                 <Link href="/explore/players" style={exploreNavLinkStyle}>Players</Link>
                 <Link href="/explore/rankings" style={exploreNavLinkStyle}>Rankings</Link>
-                <Link href="/explore/matchups" style={exploreNavLinkStyle}>Matchups</Link>
+                <Link href="/mylab" style={exploreNavLinkStyle}>My Lab</Link>
               </div>
             </div>
 

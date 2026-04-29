@@ -57,6 +57,8 @@ type MatchRecord = {
   id: string
   date: string
   matchType: MatchType
+  leagueName: string | null
+  source: string | null
   score: string
   result: 'W' | 'L'
   opponent: string
@@ -84,6 +86,8 @@ type MatchRow = {
   match_date: string
   match_time: string | null
   match_type: MatchType
+  league_name: string | null
+  source: string | null
   score: string
   winner_side: MatchSide
 }
@@ -235,6 +239,8 @@ export default function PlayerProfilePage() {
               match_date,
               match_time,
               match_type,
+              league_name,
+              source,
               score,
               winner_side
             `)
@@ -313,6 +319,8 @@ export default function PlayerProfilePage() {
           id: match.id,
           date: match.match_date,
           matchType: normalizeMatchType(match.match_type),
+          leagueName: match.league_name,
+          source: match.source,
           score: match.score,
           result: isWin ? 'W' : 'L',
           opponent: opponentTeam.join(' / '),
@@ -630,6 +638,22 @@ export default function PlayerProfilePage() {
       }))
   }, [matches, snapshotByMatchId])
 
+  const ustaLeagueBreakdown = useMemo(() => {
+    const map = new Map<string, { leagueName: string; matches: number; wins: number; losses: number; latest: string }>()
+    for (const match of matches) {
+      const leagueName = (match.leagueName || '').trim()
+      if (!leagueName) continue
+      if (/\btiq\b/i.test(match.source || leagueName)) continue
+      const existing = map.get(leagueName) ?? { leagueName, matches: 0, wins: 0, losses: 0, latest: match.date }
+      existing.matches += 1
+      if (match.result === 'W') existing.wins += 1
+      else existing.losses += 1
+      if (match.date > existing.latest) existing.latest = match.date
+      map.set(leagueName, existing)
+    }
+    return [...map.values()].sort((a, b) => b.latest.localeCompare(a.latest))
+  }, [matches])
+
   const scoreBreakdown = useMemo(() => {
     const wins = filteredMatches.filter((m) => m.result === 'W')
     if (wins.length === 0) return null
@@ -881,7 +905,7 @@ export default function PlayerProfilePage() {
                   entityName={player.name}
                   subtitle={player.location || ''}
                 />
-                <MiniLink href={`/matchup?playerA=${player.id}`}>Compare in matchup</MiniLink>
+                <MiniLink href="/mylab">Open My Lab</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
 
@@ -1064,7 +1088,7 @@ export default function PlayerProfilePage() {
           </p>
           <div style={dynamicFollowRow}>
             <MiniLink href="/rankings">Compare on rankings</MiniLink>
-            <MiniLink href="/matchup">Use matchup tool</MiniLink>
+            <MiniLink href="/mylab">Use My Lab</MiniLink>
             <MiniLink href="/advertising-disclosure">Advertising disclosure</MiniLink>
           </div>
         </article>
@@ -1428,6 +1452,40 @@ export default function PlayerProfilePage() {
         <article style={panelCard}>
           <div style={panelHead}>
             <div>
+              <div style={sectionKicker}>USTA league context</div>
+              <h2 style={panelTitle}>USTA leagues played</h2>
+            </div>
+            <span style={panelChip}>{ustaLeagueBreakdown.length} league{ustaLeagueBreakdown.length === 1 ? '' : 's'}</span>
+          </div>
+
+          {ustaLeagueBreakdown.length === 0 ? (
+            <div style={{ ...emptyStateStack, marginTop: 16 }}>
+              <p style={emptyText}>No USTA league match history is linked yet.</p>
+              <p style={sectionText}>USTA leagues will appear here as played scorecards are imported with league metadata.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+              {ustaLeagueBreakdown.map((league) => (
+                <div key={league.leagueName} style={leagueRowStyle}>
+                  <div style={{ display: 'grid', gap: 5 }}>
+                    <strong style={{ color: 'var(--foreground-strong)', fontSize: 15 }}>{league.leagueName}</strong>
+                    <span style={{ color: 'var(--shell-copy-muted)', fontSize: 13 }}>
+                      Latest match {formatDate(league.latest)}
+                    </span>
+                  </div>
+                  <div style={leagueBadgeWrapStyle}>
+                    <span style={leagueBadgeBlueStyle}>{league.matches} match{league.matches === 1 ? '' : 'es'}</span>
+                    <span style={leagueBadgeGreenStyle}>{league.wins}W - {league.losses}L</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article style={panelCard}>
+          <div style={panelHead}>
+            <div>
               <div style={sectionKicker}>TIQ competition context</div>
               <h2 style={panelTitle}>Active TIQ individual leagues</h2>
             </div>
@@ -1564,7 +1622,7 @@ export default function PlayerProfilePage() {
                     <button type="button" onClick={() => setChartWindow('all')} style={{ ...secondaryMiniButton }}>Show all time</button>
                   ) : null}
                   <MiniLink href="/rankings">Compare on rankings</MiniLink>
-                  <MiniLink href="/matchup">Open matchup tool</MiniLink>
+                  <MiniLink href="/mylab">Open My Lab</MiniLink>
                 </div>
               </div>
             ) : historyMode === 'table' ? (
@@ -1677,7 +1735,7 @@ export default function PlayerProfilePage() {
                 </p>
                 <div style={dynamicFollowRow}>
                   <MiniLink href="/players">Back to players</MiniLink>
-                  <MiniLink href="/matchup">Open matchup tool</MiniLink>
+                  <MiniLink href="/mylab">Open My Lab</MiniLink>
                 </div>
               </div>
             ) : (
@@ -1713,7 +1771,7 @@ export default function PlayerProfilePage() {
                         <td style={tableCell}>
                           {match.opponentIds.length === 1 ? (
                             <Link
-                              href={`/matchup?playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(match.opponentIds[0])}`}
+                              href="/mylab"
                               style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'none' }}
                             >
                               {match.opponent}
@@ -1790,7 +1848,7 @@ export default function PlayerProfilePage() {
                   <div key={opp.name} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const, padding: '11px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {opp.id ? (
-                        <Link href={`/matchup?playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(opp.id)}`} style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }}>{opp.name}</Link>
+                        <Link href="/mylab" style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }}>{opp.name}</Link>
                       ) : (
                         <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{opp.name}</div>
                       )}
@@ -1903,7 +1961,7 @@ export default function PlayerProfilePage() {
                       <span style={{ fontSize: 12, fontWeight: 700, color: isHigher ? '#93c5fd' : isLower ? '#9be11d' : 'rgba(224,234,247,0.5)' }}>
                         {isHigher ? `▲ +${diff.toFixed(2)}` : isLower ? `▼ ${diff.toFixed(2)}` : '≈ even'}
                       </span>
-                      <Link href={`/matchup?playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(p.id)}`} style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.18)', background: 'rgba(116,190,255,0.07)', color: '#93c5fd', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>Matchup</Link>
+                      <Link href="/mylab" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.18)', background: 'rgba(116,190,255,0.07)', color: '#93c5fd', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>My Lab</Link>
                     </div>
                   </div>
                 )
@@ -3018,6 +3076,42 @@ const panelHead: CSSProperties = {
   gap: '12px',
   marginBottom: '16px',
   flexWrap: 'wrap',
+}
+
+const leagueRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const leagueBadgeWrapStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  flexWrap: 'wrap',
+}
+
+const leagueBadgeBlueStyle: CSSProperties = {
+  padding: '4px 9px',
+  borderRadius: '999px',
+  background: 'rgba(116,190,255,0.10)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  color: '#93c5fd',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const leagueBadgeGreenStyle: CSSProperties = {
+  ...leagueBadgeBlueStyle,
+  background: 'rgba(155,225,29,0.10)',
+  border: '1px solid rgba(155,225,29,0.20)',
+  color: '#d9f84a',
 }
 
 const sectionKicker: CSSProperties = {

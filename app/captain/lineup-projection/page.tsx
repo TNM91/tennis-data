@@ -118,7 +118,7 @@ const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/players', label: 'Players' },
   { href: '/rankings', label: 'Rankings' },
-  { href: '/matchup', label: 'Matchup' },
+  { href: '/mylab', label: 'My Lab' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/teams', label: 'Teams' },
   { href: '/captain', label: 'Captain Console' },
@@ -1234,7 +1234,7 @@ export default function LineupProjectionPage() {
             <div style={footerLinksResponsive(isTablet)}>
               <Link href="/players" style={footerUtilityLink}>Players</Link>
               <Link href="/rankings" style={footerUtilityLink}>Rankings</Link>
-              <Link href="/matchup" style={footerUtilityLink}>Matchup</Link>
+              <Link href="/mylab" style={footerUtilityLink}>My Lab</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
               <Link href="/teams" style={footerUtilityLink}>Teams</Link>
           <Link href="/captain" style={footerUtilityLink}>Captain Console</Link>

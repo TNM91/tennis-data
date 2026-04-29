@@ -1,1 +1,5 @@
-export { default } from '@/app/matchup/page'
+import { redirect } from 'next/navigation'
+
+export default function ExploreMatchupsRedirectPage() {
+  redirect('/mylab')
+}

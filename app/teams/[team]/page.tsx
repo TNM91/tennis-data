@@ -21,7 +21,7 @@ import {
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
-import { formatDate, formatRating, cleanText } from '@/lib/captain-formatters'
+import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
@@ -265,10 +265,7 @@ export default function TeamPage() {
             location
           )
         `)
-        .eq('normalized_team_name', team.toLowerCase())
-
-      if (leagueFilter) rosterQuery = rosterQuery.eq('league_name', leagueFilter)
-      if (flightFilter) rosterQuery = rosterQuery.eq('flight', flightFilter)
+        .eq('normalized_team_name', normalizeTeamName(team))
 
       const { data: rosterData, error: rosterError } = await rosterQuery
       if (rosterError) {

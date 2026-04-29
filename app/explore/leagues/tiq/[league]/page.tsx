@@ -232,7 +232,7 @@ function buildPlayerHref(playerId: string) {
 
 function buildMatchupHref(playerAId: string, playerBId: string) {
   if (!playerAId || !playerBId) return null
-  return `/matchup?playerA=${encodeURIComponent(playerAId)}&playerB=${encodeURIComponent(playerBId)}`
+  return `/mylab?playerA=${encodeURIComponent(playerAId)}&playerB=${encodeURIComponent(playerBId)}`
 }
 
 function buildPrefilledResultHref(
@@ -707,7 +707,7 @@ export default function TiqLeagueDetailPage() {
             playerBName: targetAbove?.playerName || '',
             playerBId: targetAbove?.playerId || '',
             primaryHref: targetAbove ? buildMatchupHref(entry.playerId, targetAbove.playerId) : buildPlayerHref(entry.playerId),
-            primaryLabel: targetAbove ? 'Compare matchup' : 'Player page',
+            primaryLabel: targetAbove ? 'Open My Lab' : 'Player page',
             secondaryHref:
               targetAbove && targetValue
                 ? buildPrefilledResultHref(routeSlug || league.id, league.id, entryValue, targetValue)
@@ -1781,7 +1781,7 @@ export default function TiqLeagueDetailPage() {
                               {entry.playerId ? (
                                 <>
                                   <GhostLink href={`/players/${encodeURIComponent(entry.playerId)}`}>Player Page</GhostLink>
-                                  <GhostLink href={`/matchup?playerA=${encodeURIComponent(entry.playerId)}`}>Matchup</GhostLink>
+                                  <GhostLink href="/mylab">My Lab</GhostLink>
                                 </>
                               ) : (
                                 <span style={metaPill}>Needs linked player record</span>

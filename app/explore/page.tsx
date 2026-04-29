@@ -32,10 +32,10 @@ const FEATURE_CARDS = [
     icon: 'trophy',
   },
   {
-    href: '/explore/matchups',
-    eyebrow: 'Prepare',
-    title: 'Matchups',
-    text: 'Run quick public matchup analysis and compare projected edges before the week gets tactical.',
+    href: '/mylab',
+    eyebrow: 'Player+',
+    title: 'My Lab',
+    text: 'Use premium matchup prep, projections, and personal insight when discovery turns into planning.',
     accent: 'green' as const,
     icon: 'matchup',
   },
@@ -87,7 +87,7 @@ const DISCOVERY_CHANNELS = [
   },
   {
     title: 'Compare second',
-    text: 'Use matchup and ranking views once you know who or what you want to pressure-test.',
+    text: 'Use rankings and My Lab once you know who or what you want to pressure-test.',
   },
 ]
 
@@ -106,9 +106,9 @@ const DISCOVERY_GUIDES = [
   },
   {
     title: 'Prepare a comparison',
-    text: 'Jump into matchup prep once you have two players or doubles teams in mind and want a quick prediction readout.',
-    href: '/explore/matchups',
-    cta: 'Compare now',
+    text: 'Use My Lab when you have two players or doubles teams in mind and want premium matchup prep.',
+    href: '/mylab',
+    cta: 'Open My Lab',
   },
 ]
 
@@ -193,7 +193,7 @@ export default function ExplorePage() {
   const dynamicArtPanelStyle: CSSProperties = {
     ...featurePanel,
     position: 'relative',
-    minHeight: isSmallMobile ? '380px' : isMobile ? '470px' : isTablet ? '620px' : '680px',
+    minHeight: isSmallMobile ? '340px' : isMobile ? '400px' : isTablet ? '520px' : '540px',
     padding: 0,
     overflow: 'hidden',
     background: 'var(--shell-panel-bg)',
@@ -246,7 +246,7 @@ export default function ExplorePage() {
               <div style={eyebrow}>Public discovery</div>
 
               <h1 style={dynamicHeroTitle}>
-                Explore players, teams, rankings, matchups, and leagues.
+                Explore players, teams, rankings, leagues, and Player+ tools.
               </h1>
 
               <p style={dynamicHeroText}>
@@ -258,7 +258,7 @@ export default function ExplorePage() {
                 <span style={pillBlue}>Teams</span>
                 <span style={pillGreen}>USTA Leagues</span>
                 <span style={pillGreen}>TIQ Leagues</span>
-                <span style={pillGreen}>Matchups</span>
+                <span style={pillGreen}>My Lab</span>
               </div>
             </div>
 

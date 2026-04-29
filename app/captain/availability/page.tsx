@@ -26,7 +26,7 @@ import { supabase } from '@/lib/supabase'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { safeText } from '@/lib/captain-formatters'
+import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
 
 type TeamOption = {
   team: string
@@ -250,7 +250,7 @@ export default function CaptainAvailabilityPage() {
         supabase
           .from('team_roster_members')
           .select('team_name, player_id, player_name, league_name, flight')
-          .eq('team_name', selectedTeam)
+          .eq('normalized_team_name', normalizeTeamName(selectedTeam))
           .limit(500),
       ])
 
@@ -283,8 +283,8 @@ export default function CaptainAvailabilityPage() {
       if (!rosterMembersResult.error) {
         for (const row of (rosterMembersResult.data || []) as TeamRosterMemberRow[]) {
           if (!row.player_id || !row.player_name) continue
-          if (selectedLeague && safeText(row.league_name) !== selectedLeague) continue
-          if (selectedFlight && safeText(row.flight) !== selectedFlight) continue
+          if (selectedLeague && safeText(row.league_name, '') && safeText(row.league_name) !== selectedLeague) continue
+          if (selectedFlight && safeText(row.flight, '') && safeText(row.flight) !== selectedFlight) continue
           if (!rosterMap.has(row.player_id)) {
             rosterMap.set(row.player_id, {
               id: row.player_id,

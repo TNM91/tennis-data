@@ -11,7 +11,7 @@ import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { formatShortDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
+import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 
 type MatchRow = {
   id: string
@@ -24,6 +24,7 @@ type MatchRow = {
   winner_side: 'A' | 'B' | null
   source?: string | null
   status?: string | null
+  score?: string | null
 }
 
 type MatchPlayerRow = {
@@ -67,12 +68,8 @@ function buildScopeKey(league: string | null, flight: string | null) {
   return `${(league || '').toLowerCase()}__${(flight || '').toLowerCase()}`
 }
 
-function canonicalTeamName(team: string | null | undefined) {
-  return cleanText(team).replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').toLowerCase()
-}
-
 function isScheduleLikeMatch(match: MatchRow) {
-  return /\bschedule\b/i.test(cleanText(match.source)) || cleanText(match.status).toLowerCase() === 'scheduled'
+  return /\bschedule\b/i.test(cleanText(match.source))
 }
 
 function compareNullableDatesDesc(left: string | null, right: string | null) {
@@ -168,7 +165,7 @@ export default function TeamsPage() {
     try {
       const { data: matchData, error: matchError } = await supabase
         .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status')
+        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
         .is('line_number', null)
         .order('match_date', { ascending: false })
 
@@ -189,6 +186,20 @@ export default function TeamsPage() {
       const teamSideByMatchAndTeam = new Map<string, 'A' | 'B'>()
       const directoryMap = new Map<string, TeamDirectoryEntry>()
       const scheduleTeamsByScope = new Map<string, Set<string>>()
+      const rosterTeamsByScope = new Map<string, Set<string>>()
+
+      const { data: rosterTeamData } = await supabase
+        .from('team_roster_members')
+        .select('team_name, league_name, flight')
+        .limit(3000)
+
+      for (const row of (rosterTeamData || []) as Array<{ team_name: string | null; league_name: string | null; flight: string | null }>) {
+        const teamName = normalizeTeamName(row.team_name)
+        if (!teamName) continue
+        const scopeKey = buildScopeKey(cleanText(row.league_name), cleanText(row.flight))
+        if (!rosterTeamsByScope.has(scopeKey)) rosterTeamsByScope.set(scopeKey, new Set<string>())
+        rosterTeamsByScope.get(scopeKey)!.add(teamName)
+      }
 
       for (const match of matches) {
         if (!isScheduleLikeMatch(match)) continue
@@ -197,8 +208,8 @@ export default function TeamsPage() {
         const scopeKey = buildScopeKey(league, flight)
         if (!scheduleTeamsByScope.has(scopeKey)) scheduleTeamsByScope.set(scopeKey, new Set<string>())
         const allowedTeams = scheduleTeamsByScope.get(scopeKey)!
-        const homeTeam = canonicalTeamName(match.home_team)
-        const awayTeam = canonicalTeamName(match.away_team)
+        const homeTeam = normalizeTeamName(match.home_team)
+        const awayTeam = normalizeTeamName(match.away_team)
         if (homeTeam) allowedTeams.add(homeTeam)
         if (awayTeam) allowedTeams.add(awayTeam)
       }
@@ -211,10 +222,11 @@ export default function TeamsPage() {
 
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
-        const allowedTeams = scheduleTeamsByScope.get(buildScopeKey(league, flight))
+        const scopeKey = buildScopeKey(league, flight)
+        const allowedTeams = scheduleTeamsByScope.get(scopeKey) ?? rosterTeamsByScope.get(scopeKey)
         if (
           allowedTeams?.size &&
-          (!allowedTeams.has(canonicalTeamName(homeTeam)) || !allowedTeams.has(canonicalTeamName(awayTeam)))
+          (!allowedTeams.has(normalizeTeamName(homeTeam)) || !allowedTeams.has(normalizeTeamName(awayTeam)))
         ) {
           continue
         }
@@ -455,7 +467,7 @@ export default function TeamsPage() {
                 <Link href="/explore/players" style={exploreNavLink}>Players</Link>
                 <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
                 <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
-                <Link href="/explore/matchups" style={exploreNavLink}>Matchups</Link>
+                <Link href="/mylab" style={exploreNavLink}>My Lab</Link>
               </div>
 
               <div style={heroStatsGrid(isSmallMobile)}>

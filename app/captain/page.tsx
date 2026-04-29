@@ -37,6 +37,7 @@ import {
   formatDateTime as formatDateTimeShort,
   safeKey,
   safeText,
+  normalizeTeamName,
   average,
   winPct as getWinPct,
   formatPercent,
@@ -393,7 +394,7 @@ export default function CaptainHubPage() {
               doubles_usta_dynamic_rating
             )
           `)
-          .eq('team_name', selectedTeam)
+          .eq('normalized_team_name', normalizeTeamName(selectedTeam))
           .limit(500),
         scenarioQuery,
       ])
@@ -622,8 +623,8 @@ export default function CaptainHubPage() {
     }
 
     for (const row of rosterMembers) {
-      if (selectedLeague && safeText(row.league_name) !== selectedLeague) continue
-      if (selectedFlight && safeText(row.flight) !== selectedFlight) continue
+      if (selectedLeague && safeText(row.league_name, '') && safeText(row.league_name) !== selectedLeague) continue
+      if (selectedFlight && safeText(row.flight, '') && safeText(row.flight) !== selectedFlight) continue
       const player = normalizePlayerRelation(row.players)
       const id = player?.id || row.player_id
       const name = player?.name || safeText(row.player_name)

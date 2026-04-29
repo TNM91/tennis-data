@@ -502,7 +502,7 @@ export default function RankingsPage() {
               <div style={exploreNavRow}>
                 <Link href="/explore/players" style={exploreNavLink}>Players</Link>
                 <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
-                <Link href="/explore/matchups" style={exploreNavLink}>Matchups</Link>
+                <Link href="/mylab" style={exploreNavLink}>My Lab</Link>
               </div>
 
               {!access.canUseAdvancedPlayerInsights ? (

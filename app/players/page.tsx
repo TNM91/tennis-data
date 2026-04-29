@@ -11,7 +11,7 @@ import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/
 import { getClientAuthState } from '@/lib/auth'
 import { type UserRole } from '@/lib/roles'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
-import { formatRating } from '@/lib/captain-formatters'
+import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
@@ -47,6 +47,16 @@ type SnapshotRow = {
   rating_type?: RatingView | null
   dynamic_rating: number
   snapshot_date: string
+}
+
+type MatchPlayerCountRow = {
+  player_id: string
+  match_id: string | null
+  matches?: {
+    match_type?: string | null
+    winner_side?: string | null
+    score?: string | null
+  } | null
 }
 
 type PlayerCard = PlayerRow & {
@@ -176,17 +186,27 @@ export default function PlayersPage() {
       if (playerIds.length > 0) {
         const { data: matchPlayerRows, error: matchPlayersError } = await supabase
           .from('match_players')
-          .select('player_id,match_id')
+          .select(`
+            player_id,
+            match_id,
+            matches (
+              match_type,
+              winner_side,
+              score
+            )
+          `)
           .in('player_id', playerIds)
 
         if (matchPlayersError) throw new Error(matchPlayersError.message)
 
         const uniqueMatchesByPlayer = new Map<string, Set<string>>()
 
-        for (const row of matchPlayerRows || []) {
+        for (const row of ((matchPlayerRows || []) as MatchPlayerCountRow[])) {
           const playerId = String(row.player_id)
           const matchId = String(row.match_id || '')
           if (!matchId) continue
+          if (!row.matches?.match_type) continue
+          if (!row.matches?.winner_side && !cleanText(row.matches?.score)) continue
 
           const existing = uniqueMatchesByPlayer.get(playerId) ?? new Set<string>()
           existing.add(matchId)
@@ -596,7 +616,7 @@ export default function PlayersPage() {
                     <span style={summaryInlineValue}>{totalMatches}</span>
                   </div>
                   <div style={summaryHint}>
-                    Search here, open a profile, then use Matchup or Captain Console when you need deeper prep.
+                    Search here, open a profile, then use My Lab or Captain Console when you need deeper prep.
                   </div>
                 </div>
               </div>
@@ -660,8 +680,8 @@ export default function PlayersPage() {
             <Link href="/explore/leagues" style={secondaryLink}>
               Leagues
             </Link>
-            <Link href="/explore/matchups" style={secondaryLink}>
-              Matchups
+            <Link href="/mylab" style={secondaryLink}>
+              My Lab
             </Link>
           </div>
         </div>

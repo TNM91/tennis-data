@@ -26,7 +26,7 @@ import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
-import { formatDate, formatRating, uniqueSorted, cleanText } from '@/lib/captain-formatters'
+import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -231,12 +231,12 @@ function buildRosterPlayerIdSet(
   rosterMembers: TeamRosterMemberRow[],
   filters: { leagueName: string; flight: string }
 ) {
-  const normalizedTarget = targetTeam.trim().toLowerCase()
+  const normalizedTarget = normalizeTeamName(targetTeam)
   if (!normalizedTarget) return new Set<string>()
 
   const filteredMatches = matches.filter((match) => {
-    const home = (match.home_team ?? '').trim().toLowerCase()
-    const away = (match.away_team ?? '').trim().toLowerCase()
+    const home = normalizeTeamName(match.home_team)
+    const away = normalizeTeamName(match.away_team)
     if (home !== normalizedTarget && away !== normalizedTarget) return false
     if (filters.leagueName && (match.league_name ?? '').trim() !== filters.leagueName) return false
     if (filters.flight && (match.flight ?? '').trim() !== filters.flight) return false
@@ -245,8 +245,8 @@ function buildRosterPlayerIdSet(
 
   const sideByMatchId = new Map<string, 'A' | 'B'>()
   for (const match of filteredMatches) {
-    const home = (match.home_team ?? '').trim().toLowerCase()
-    const away = (match.away_team ?? '').trim().toLowerCase()
+    const home = normalizeTeamName(match.home_team)
+    const away = normalizeTeamName(match.away_team)
     if (home === normalizedTarget) sideByMatchId.set(match.id, 'A')
     else if (away === normalizedTarget) sideByMatchId.set(match.id, 'B')
   }
@@ -261,17 +261,17 @@ function buildRosterPlayerIdSet(
 
   for (const row of availabilityRows) {
     if (!row.player_id) continue
-    if ((row.team_name ?? '').trim().toLowerCase() !== normalizedTarget) continue
-    if (filters.leagueName && (row.league_name ?? '').trim() !== filters.leagueName) continue
-    if (filters.flight && (row.flight ?? '').trim() !== filters.flight) continue
+    if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
+    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) continue
+    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) continue
     ids.add(row.player_id)
   }
 
   for (const row of rosterMembers) {
     if (!row.player_id) continue
-    if ((row.team_name ?? '').trim().toLowerCase() !== normalizedTarget) continue
-    if (filters.leagueName && (row.league_name ?? '').trim() !== filters.leagueName) continue
-    if (filters.flight && (row.flight ?? '').trim() !== filters.flight) continue
+    if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
+    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) continue
+    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) continue
     ids.add(row.player_id)
   }
 

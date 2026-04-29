@@ -67,12 +67,64 @@ const heroSearchFilters: Array<{
   value: HeroSearchFilter
   label: string
   hint: string
+  placeholder: string
+  links: Array<{ href: string; label: string }>
 }> = [
-  { value: 'players', label: 'Player name', hint: 'Find a player' },
-  { value: 'teams', label: 'Team', hint: 'Find a team' },
-  { value: 'leagues', label: 'League', hint: 'Find a league' },
-  { value: 'flight', label: 'Flight', hint: 'Filter by flight' },
-  { value: 'area', label: 'Area', hint: 'Filter by area' },
+  {
+    value: 'players',
+    label: 'Player name',
+    hint: 'Results focus on player profiles, ratings, and Player+ prep.',
+    placeholder: 'Search a player name...',
+    links: [
+      { href: '/explore/players', label: 'Player directory' },
+      { href: '/explore/rankings', label: 'Rankings' },
+      { href: '/mylab', label: 'My Lab' },
+    ],
+  },
+  {
+    value: 'teams',
+    label: 'Team',
+    hint: 'Results focus on team pages, league context, and captain workflows.',
+    placeholder: 'Search a team name...',
+    links: [
+      { href: '/explore/teams', label: 'Teams' },
+      { href: '/captain', label: 'Captain hub' },
+      { href: '/compete/teams', label: 'My teams' },
+    ],
+  },
+  {
+    value: 'leagues',
+    label: 'League',
+    hint: 'Results focus on USTA and TIQ league containers.',
+    placeholder: 'Search a league name...',
+    links: [
+      { href: '/explore/leagues', label: 'Leagues' },
+      { href: '/compete/leagues', label: 'My leagues' },
+      { href: '/pricing', label: 'League tools' },
+    ],
+  },
+  {
+    value: 'flight',
+    label: 'Flight',
+    hint: 'Results focus on rating and flight filters across league views.',
+    placeholder: 'Search 3.5, 4.0, etc...',
+    links: [
+      { href: '/explore/leagues?scope=flight', label: 'Flights' },
+      { href: '/explore/rankings', label: 'Rankings' },
+      { href: '/explore/teams', label: 'Teams' },
+    ],
+  },
+  {
+    value: 'area',
+    label: 'Area',
+    hint: 'Results focus on districts, sections, and local league context.',
+    placeholder: 'Search city, district, or section...',
+    links: [
+      { href: '/explore/leagues?scope=area', label: 'Areas' },
+      { href: '/explore/teams', label: 'Teams nearby' },
+      { href: '/explore/players', label: 'Players nearby' },
+    ],
+  },
 ]
 
 const tierSections: TierSectionConfig[] = [
@@ -83,7 +135,7 @@ const tierSections: TierSectionConfig[] = [
     headline: 'Start free. Find your tennis context fast.',
     copy: 'Search players, join your team, set availability, and see posted lineups.',
     bullets: [
-      'Search players, teams, leagues, and matchups',
+      'Search players, teams, leagues, flights, and areas',
       'Create your profile and join your team',
       'Set availability and view posted lineups',
     ],
@@ -713,7 +765,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={`Search ${selectedFilter.label.toLowerCase()}...`}
+            placeholder={selectedFilter.placeholder}
             aria-label={`Search ${selectedFilter.label.toLowerCase()}`}
             style={{
               flex: 1,
@@ -755,18 +807,12 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           {selectedFilter.hint}
         </div>
         <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          Opens unified Explore results
+          Opens focused Explore results
         </div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-        {[
-          { href: '/explore/players', label: 'Players' },
-          { href: '/explore/teams', label: 'Teams' },
-          { href: '/explore/leagues', label: 'Leagues' },
-          { href: '/explore/leagues?scope=flight', label: 'Flights' },
-          { href: '/explore/leagues?scope=area', label: 'Areas' },
-        ].map((item) => (
+        {selectedFilter.links.map((item) => (
           <Link key={item.href} href={item.href} style={chipLinkStyle}>
             {item.label}
           </Link>
@@ -1263,7 +1309,7 @@ function FreeSnapshot() {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {['Players', 'Teams', 'Leagues', 'Matchups'].map((item) => (
+          {['Players', 'Teams', 'Leagues', 'My Lab'].map((item) => (
             <span key={item} style={snapshotChipStyle}>
               {item}
             </span>

@@ -1,6 +1,6 @@
 export function formatDate(value: string | null | undefined, fallback = 'Unknown') {
   if (!value) return fallback
-  const parsed = new Date(value)
+  const parsed = parseDisplayDate(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -13,14 +13,14 @@ export function uniqueSorted(values: Array<string | null | undefined>) {
 
 export function formatShortDate(value: string | null | undefined, fallback = '—') {
   if (!value) return fallback
-  const parsed = new Date(value)
+  const parsed = parseDisplayDate(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString()
 }
 
 export function formatWeekdayDate(value: string | null | undefined, fallback = 'Not scheduled') {
   if (!value) return fallback
-  const parsed = new Date(value)
+  const parsed = parseDisplayDate(value)
   if (Number.isNaN(parsed.getTime())) return value
   return parsed.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
@@ -34,13 +34,25 @@ export function cleanText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
 }
 
+export function normalizeTeamName(value: unknown): string {
+  return cleanText(value).replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').toLowerCase()
+}
+
+export function parseDisplayDate(value: string) {
+  const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (dateOnlyMatch) {
+    return new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+  }
+  return new Date(value)
+}
+
 export function safeText(value: unknown, fallback = 'Unknown'): string {
   return cleanText(value) || fallback
 }
 
 export function formatMonthDay(value: string | null | undefined, fallback = 'No date set') {
   if (!value) return fallback
-  const d = new Date(value)
+  const d = parseDisplayDate(value)
   if (Number.isNaN(d.getTime())) return value
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
@@ -54,14 +66,14 @@ export function formatDateTime(value: string | null | undefined, fallback = 'Not
 
 export function inferSeasonLabel(matchDate: string | null | undefined) {
   if (!matchDate) return null
-  const date = new Date(matchDate)
+  const date = parseDisplayDate(matchDate)
   if (Number.isNaN(date.getTime())) return null
   return String(date.getFullYear())
 }
 
 export function inferSessionLabel(matchDate: string | null | undefined) {
   if (!matchDate) return null
-  const date = new Date(matchDate)
+  const date = parseDisplayDate(matchDate)
   if (Number.isNaN(date.getTime())) return null
   const month = date.getMonth()
   if (month <= 2) return 'Winter'

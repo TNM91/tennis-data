@@ -28,7 +28,7 @@ import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
-import { cleanText } from '@/lib/captain-formatters'
+import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -48,6 +48,7 @@ type TeamMatchRow = {
   league_name: string | null
   flight: string | null
   match_date: string | null
+  source?: string | null
 }
 
 type TeamSearchResult = {
@@ -77,7 +78,7 @@ const searchScopes: Array<{ value: SearchScope; label: string }> = [
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'
 
-  const date = new Date(value)
+  const date = parseDisplayDate(value)
   if (Number.isNaN(date.getTime())) return value
 
   return date.toLocaleDateString('en-US', {
@@ -258,8 +259,8 @@ export default function ExploreSearchPage() {
       suggestions.push({
         key: `${left.id}-${right.id}`,
         title: `${left.name} vs ${right.name}`,
-        text: 'Launch a quick singles comparison from search results.',
-        href: `/matchup?type=singles&playerA=${encodeURIComponent(left.id)}&playerB=${encodeURIComponent(right.id)}`,
+        text: 'Open Player+ prep with these players in mind.',
+        href: `/mylab?playerA=${encodeURIComponent(left.id)}&playerB=${encodeURIComponent(right.id)}`,
       })
     }
 
@@ -276,8 +277,14 @@ export default function ExploreSearchPage() {
     })
   }, [leagues, yearFilter, seasonFilter, genderFilter, leagueRatingFilter])
 
-  const totalResults = filteredPlayers.length + teams.length + filteredLeagues.length + matchupSuggestions.length
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
+  const showPlayerResults = scope === 'players'
+  const showTeamResults = scope === 'teams'
+  const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
+  const totalResults =
+    (showPlayerResults ? filteredPlayers.length + matchupSuggestions.length : 0) +
+    (showTeamResults ? teams.length : 0) +
+    (showLeagueResults ? filteredLeagues.length : 0)
 
   const upgradeConfig = useMemo(() => {
     if (scope === 'players') {
@@ -342,7 +349,7 @@ export default function ExploreSearchPage() {
               Search once. See the right layer faster.
             </h1>
             <p style={{ ...pageSubtitle, marginTop: 0, maxWidth: 840 }}>
-              Find players, teams, leagues, flights, areas, and quick matchup actions from one place.
+              Find players, teams, leagues, flights, areas, and Player+ prep paths from one place.
             </p>
           </div>
 
@@ -440,10 +447,10 @@ export default function ExploreSearchPage() {
               alignItems: 'center',
             }}
           >
-            <span style={badgeBlue}>{players.length} players</span>
-            <span style={badgeBlue}>{teams.length} teams</span>
-            <span style={badgeGreen}>{filteredLeagues.length} leagues</span>
-            <span style={badgeGreen}>{matchupSuggestions.length} matchup actions</span>
+            {showPlayerResults ? <span style={badgeBlue}>{players.length} players</span> : null}
+            {showTeamResults ? <span style={badgeBlue}>{teams.length} teams</span> : null}
+            {showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
+            {showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>
               {query.trim() ? `${totalResults} results for "${query.trim()}"` : 'Start with a search to see grouped results.'}
             </span>
@@ -486,7 +493,7 @@ export default function ExploreSearchPage() {
                 Choose the search lane that matches your question.
               </div>
               <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68 }}>
-                Player searches open profiles and comparisons. Team and league searches show the season context around them.
+                Player searches open profiles and Player+ prep. Team and league searches stay focused on season context.
               </div>
             </div>
           </div>
@@ -501,7 +508,7 @@ export default function ExploreSearchPage() {
             <section style={{ ...surfaceCard, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900 }}>
-                Pulling players, teams, leagues, and matchup shortcuts together...
+                Pulling players, teams, leagues, and Player+ prep paths together...
               </div>
             </section>
           ) : null}
@@ -520,6 +527,7 @@ export default function ExploreSearchPage() {
 
           {!loading && query.trim().length > 0 ? (
             <>
+              {showPlayerResults ? (
               <div
                 style={{
                   display: 'grid',
@@ -568,11 +576,11 @@ export default function ExploreSearchPage() {
                 </ResultGroup>
 
                 <ResultGroup
-                  title="Matchup shortcuts"
+                  title="My Lab shortcuts"
                   count={matchupSuggestions.length}
-                  emptyMessage="Once at least two player results match, quick comparison actions show up here."
-                  ctaHref="/matchup"
-                  ctaLabel="Open matchup builder"
+                  emptyMessage="Once at least two player results match, Player+ comparison actions show up here."
+                  ctaHref="/mylab"
+                  ctaLabel="Open My Lab"
                 >
                   {matchupSuggestions.map((item) => (
                     <Link key={item.key} href={item.href} style={getResultCardStyle(theme)}>
@@ -582,7 +590,9 @@ export default function ExploreSearchPage() {
                   ))}
                 </ResultGroup>
               </div>
+              ) : null}
 
+              {showTeamResults || showLeagueResults ? (
               <div
                 style={{
                   display: 'grid',
@@ -592,12 +602,12 @@ export default function ExploreSearchPage() {
               >
                 <ResultGroup
                   title="Teams"
-                  count={teams.length}
+                  count={showTeamResults ? teams.length : 0}
                   emptyMessage="No team matches found yet. Try a league or broader team search."
                   ctaHref="/explore/teams"
                   ctaLabel="Open teams"
                 >
-                  {teams.map((team) => (
+                  {showTeamResults ? teams.map((team) => (
                     <Link
                       key={team.key}
                       href={`/teams/${encodeTeamRouteSegment(team.team)}${team.league || team.flight ? `?${new URLSearchParams({
@@ -616,17 +626,17 @@ export default function ExploreSearchPage() {
                         <span style={miniBadgeBlue}>{formatCompactDate(team.latestMatchDate)}</span>
                       </div>
                     </Link>
-                  ))}
+                  )) : null}
                 </ResultGroup>
 
                 <ResultGroup
                   title="Leagues"
-                  count={filteredLeagues.length}
+                  count={showLeagueResults ? filteredLeagues.length : 0}
                   emptyMessage="No league matches found yet. Try a section, district, area, or different league name."
                   ctaHref="/explore/leagues"
                   ctaLabel="Open leagues"
                 >
-                  {filteredLeagues.map((league) => (
+                  {showLeagueResults ? filteredLeagues.map((league) => (
                     <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle(theme)}>
                       <div style={resultHeaderStyle}>
                         <div>
@@ -641,9 +651,10 @@ export default function ExploreSearchPage() {
                         </div>
                       </div>
                     </Link>
-                  ))}
+                  )) : null}
                 </ResultGroup>
               </div>
+              ) : null}
 
               {(matchedFlights.length > 0 || matchedAreas.length > 0) ? (
                 <section style={{ ...surfaceCard, padding: isSmallMobile ? 16 : 18, display: 'grid', gap: 14 }}>
@@ -718,7 +729,7 @@ async function searchPlayers(term: string): Promise<PlayerSearchRow[]> {
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {
   const { data, error } = await supabase
     .from('matches')
-    .select('id, home_team, away_team, league_name, flight, match_date')
+    .select('id, home_team, away_team, league_name, flight, match_date, source')
     .is('line_number', null)
     .order('match_date', { ascending: false })
     .limit(700)
@@ -727,13 +738,26 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
 
   const normalizedTerm = term.toLowerCase()
   const teamMap = new Map<string, TeamSearchResult>()
+  const allowedTeamsByScope = new Map<string, Set<string>>()
 
   for (const row of ((data || []) as TeamMatchRow[]) || []) {
+    if (!/\bschedule\b/i.test(cleanText(row.source))) continue
+    const scopeKey = buildTeamKey('', cleanText(row.league_name), cleanText(row.flight))
+    if (!allowedTeamsByScope.has(scopeKey)) allowedTeamsByScope.set(scopeKey, new Set<string>())
+    const allowed = allowedTeamsByScope.get(scopeKey)!
+    const homeTeam = normalizeTeamName(row.home_team)
+    const awayTeam = normalizeTeamName(row.away_team)
+    if (homeTeam) allowed.add(homeTeam)
+    if (awayTeam) allowed.add(awayTeam)
+  }
+
+  for (const row of ((data || []) as TeamMatchRow[]) || []) {
+    const league = cleanText(row.league_name) || null
+    const flight = cleanText(row.flight) || null
+    const allowedTeams = allowedTeamsByScope.get(buildTeamKey('', league, flight))
     for (const teamName of [cleanText(row.home_team), cleanText(row.away_team)]) {
       if (!teamName) continue
-
-      const league = cleanText(row.league_name) || null
-      const flight = cleanText(row.flight) || null
+      if (allowedTeams?.size && !allowedTeams.has(normalizeTeamName(teamName))) continue
       const haystack = [teamName, league || '', flight || ''].join(' ').toLowerCase()
       if (!haystack.includes(normalizedTerm)) continue
 

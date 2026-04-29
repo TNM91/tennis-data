@@ -20,7 +20,6 @@ export const EXPLORE_NAV_ITEMS: NavItem[] = [
   { href: '/explore/players', label: 'Players' },
   { href: '/explore/teams', label: 'Teams' },
   { href: '/explore/leagues', label: 'Leagues' },
-  { href: '/explore/matchups', label: 'Matchups' },
   { href: '/explore/rankings', label: 'Rankings' },
 ]
 

@@ -61,7 +61,7 @@ export default function Image() {
             <div style={pillStyle}>Players</div>
             <div style={pillStyle}>Rankings</div>
             <div style={pillStyle}>Leagues</div>
-            <div style={pillStyle}>Matchups</div>
+            <div style={pillStyle}>My Lab</div>
           </div>
         </div>
       </div>
