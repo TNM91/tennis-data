@@ -124,9 +124,9 @@ const DISCOVERY_SIGNALS = [
     text: 'Use official-style league and rating context to understand status, movement, and comparison.',
   },
   {
-    label: 'Internal edge',
+    label: 'Player tools',
     value: 'TIQ',
-    text: 'Move from browse to strategy without blending TIQ decision support into official USTA meaning.',
+    text: 'Move from discovery to planning with tools that keep league context clear.',
   },
 ]
 

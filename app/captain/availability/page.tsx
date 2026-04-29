@@ -137,6 +137,8 @@ export default function CaptainAvailabilityPage() {
   const [scheduledMatches, setScheduledMatches] = useState<TeamRosterMatchRow[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState('')
   const [weekLabel, setWeekLabel] = useState('Select a scheduled match')
+  const [preferredMatchDate, setPreferredMatchDate] = useState('')
+  const [preferredOpponent, setPreferredOpponent] = useState('')
   const [requestSent, setRequestSent] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -202,7 +204,7 @@ export default function CaptainAvailabilityPage() {
         .from('matches')
         .select('id, home_team, away_team, league_name, flight, match_date, match_time, facility, line_number')
         .is('line_number', null)
-        .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
+        .or(`home_team.eq."${selectedTeam.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}",away_team.eq."${selectedTeam.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
 
       if (selectedLeague) matchQuery = matchQuery.eq('league_name', selectedLeague)
       if (selectedFlight) matchQuery = matchQuery.eq('flight', selectedFlight)
@@ -214,6 +216,11 @@ export default function CaptainAvailabilityPage() {
       setScheduledMatches(typedMatches)
       const nextSelectedMatch =
         typedMatches.find((match) => match.id === selectedMatchId) ??
+        typedMatches.find((match) => {
+          if (preferredMatchDate && match.match_date !== preferredMatchDate) return false
+          if (preferredOpponent && getOpponent(match, selectedTeam) !== preferredOpponent) return false
+          return Boolean(preferredMatchDate || preferredOpponent)
+        }) ??
         typedMatches.find((match) => match.match_date && new Date(match.match_date).getTime() >= Date.now() - 86400000) ??
         typedMatches[0] ??
         null
@@ -303,7 +310,7 @@ export default function CaptainAvailabilityPage() {
     } finally {
       setLoadingRoster(false)
     }
-  }, [selectedFlight, selectedLeague, selectedMatchId, selectedTeam])
+  }, [preferredMatchDate, preferredOpponent, selectedFlight, selectedLeague, selectedMatchId, selectedTeam])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -313,6 +320,17 @@ export default function CaptainAvailabilityPage() {
     setTeamParam(params.get('team') || resumeState?.team || '')
     setLeagueParam(params.get('league') || resumeState?.league || '')
     setFlightParam(params.get('flight') || resumeState?.flight || '')
+    const nextDate = params.get('date') || resumeState?.eventDate || ''
+    const nextOpponent = params.get('opponent') || resumeState?.opponentTeam || ''
+    setPreferredMatchDate(nextDate)
+    setPreferredOpponent(nextOpponent)
+    if (nextDate) setWeekLabel(new Date(nextDate).toLocaleDateString())
+    if (nextOpponent) {
+      writeCaptainResumeState({
+        eventDate: nextDate || undefined,
+        opponentTeam: nextOpponent,
+      })
+    }
   }, [])
 
   useEffect(() => {
@@ -704,7 +722,8 @@ export default function CaptainAvailabilityPage() {
               <div style={stateBox}>Loading roster...</div>
             ) : players.length === 0 ? (
               <div style={stateBox}>
-                No roster was found for this team selection yet. Try another team scope or load more match history first.
+                No roster is available for this team selection yet. Re-import the team summary, refresh, or widen
+                the league and flight filters.
               </div>
             ) : (
               <div style={playerList}>
@@ -915,6 +934,7 @@ const selectStyle: CSSProperties = {
   padding: '0 16px',
   fontSize: '15px',
   outline: 'none',
+  colorScheme: 'dark',
 }
 
 const textInputStyle: CSSProperties = {

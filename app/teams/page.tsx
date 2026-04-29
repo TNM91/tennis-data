@@ -439,17 +439,24 @@ export default function TeamsPage() {
   }, [filteredRows])
 
   return (
-    <SiteShell active="TEAMS">
+    <SiteShell active="/explore">
       <main style={pageWrap}>
         <section style={heroSection}>
           <div style={contentWrap}>
             <div style={heroCard}>
               <div style={heroEyebrow}>Teams directory</div>
-              <h1 style={heroTitle}>Clean team grouping. Real league context. No ghost data.</h1>
+              <h1 style={heroTitle}>Teams grouped by league, flight, and schedule context.</h1>
               <p style={heroText}>
-                This directory only includes valid team rows from real matches. Missing league or flight values stay hidden.
-                Empty teams are skipped entirely.
+                Browse real team rows inside their league and flight. The directory stays focused on teams,
+                not player names, line labels, or incomplete rows.
               </p>
+
+              <div style={exploreNavRow}>
+                <Link href="/explore/players" style={exploreNavLink}>Players</Link>
+                <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
+                <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
+                <Link href="/explore/matchups" style={exploreNavLink}>Matchups</Link>
+              </div>
 
               <div style={heroStatsGrid(isSmallMobile)}>
                 <StatPill label="Teams" value={String(totals.teams)} />
@@ -822,6 +829,28 @@ const heroText: CSSProperties = {
   lineHeight: 1.75,
 }
 
+const exploreNavRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '16px',
+}
+
+const exploreNavLink: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  padding: '0 13px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#f8fbff',
+  textDecoration: 'none',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
 const heroStatsGrid = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
@@ -1003,6 +1032,7 @@ const inputStyle: CSSProperties = {
   padding: '0 14px',
   fontSize: '14px',
   outline: 'none',
+  colorScheme: 'dark',
 }
 
 const surfaceCard: CSSProperties = {

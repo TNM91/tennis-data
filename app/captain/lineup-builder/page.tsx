@@ -1192,6 +1192,18 @@ export default function LineupBuilderPage() {
     if (!teamName || !scopedMatchOptions.length) return
     if (selectedMatchId && scopedMatchOptions.some((match) => match.id === selectedMatchId)) return
 
+    const requestedMatch =
+      scopedMatchOptions.find((match) => {
+        if (matchDate && match.match_date !== matchDate) return false
+        if (opponentTeam && getOpponentForTeam(match, teamName) !== opponentTeam) return false
+        return Boolean(matchDate || opponentTeam)
+      }) ?? null
+
+    if (requestedMatch) {
+      setSelectedMatchId(requestedMatch.id)
+      return
+    }
+
     const now = new Date()
     const nextMatch =
       scopedMatchOptions
@@ -1200,7 +1212,7 @@ export default function LineupBuilderPage() {
       scopedMatchOptions[0]
 
     if (nextMatch) setSelectedMatchId(nextMatch.id)
-  }, [scopedMatchOptions, selectedMatchId, teamName])
+  }, [matchDate, opponentTeam, scopedMatchOptions, selectedMatchId, teamName])
 
   useEffect(() => {
     if (!selectedMatch || !teamName) return
@@ -2179,12 +2191,14 @@ function sendCurrentScenarioToMessaging() {
         ) : null}
         {teamName && !myPlayerPool.length ? (
           <div style={warningCardStyle}>
-            No roster players are linked for {teamName} in this league and flight yet. Team summary imports now create roster links, and played match lines can also fill gaps; refresh after importing the roster summary or broaden the league/flight filters.
+            No roster players are available for {teamName} in this league and flight yet. Re-import the team
+            summary, refresh the page, or widen the league and flight filters.
           </div>
         ) : null}
         {opponentTeam && !opponentPlayerPool.length ? (
           <div style={bannerBlueStyle}>
-            No linked opponent roster was found for {opponentTeam} yet. Opponent auto-fill will stay empty until imported matches link that team to players.
+            No opponent roster is available for {opponentTeam} yet. Auto-fill will appear after that team has
+            roster summary or played match data.
           </div>
         ) : null}
 

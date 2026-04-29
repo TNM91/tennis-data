@@ -232,11 +232,10 @@ export default function ExploreLeaguesPage() {
           <div style={heroGridStyle}>
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={eyebrowStyle}>Explore leagues</div>
-              <h1 style={titleStyle}>Separate official USTA context from TIQ competition growth.</h1>
+              <h1 style={titleStyle}>Browse USTA and TIQ leagues without mixing their context.</h1>
               <p style={descriptionStyle}>
-                Browse league containers the way the product should think about them: USTA as
-                external baseline truth, and TIQ as the internal competition layer for strategy,
-                monetization, and growth.
+                Keep official league history, ratings, flights, and team structure clear while TIQ leagues
+                stay focused on planning, play, and captain workflows.
               </p>
 
               <div style={heroPillRowStyle}>
@@ -244,6 +243,11 @@ export default function ExploreLeaguesPage() {
                 <span style={heroPillGreenStyle}>{layerCounts.tiq} TIQ leagues</span>
                 <span style={heroPillBlueStyle}>{summary.totalFlights} flights</span>
                 <span style={heroPillBlueStyle}>Latest: {formatDate(summary.latestMatch)}</span>
+              </div>
+              <div style={exploreNavRowStyle}>
+                <Link href="/explore/players" style={exploreNavLinkStyle}>Players</Link>
+                <Link href="/explore/rankings" style={exploreNavLinkStyle}>Rankings</Link>
+                <Link href="/explore/matchups" style={exploreNavLinkStyle}>Matchups</Link>
               </div>
             </div>
 
@@ -561,6 +565,28 @@ const heroPillRowStyle: CSSProperties = {
   marginTop: '18px',
 }
 
+const exploreNavRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '12px',
+}
+
+const exploreNavLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  padding: '0 13px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
 const heroPillBlueStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -640,6 +666,7 @@ const inputStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   outline: 'none',
+  colorScheme: 'dark',
 }
 
 const layerToggleGroupStyle: CSSProperties = {

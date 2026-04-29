@@ -212,7 +212,7 @@ export default function CaptainSeasonDashboardPage() {
             <span style={pillGreen}>{teamLeagues.length} team leagues</span>
             <span style={pillSlate}>{individualLeagues.length} individual leagues</span>
             <span style={storageSource === 'supabase' ? pillGreen : pillSlate}>
-              {storageSource === 'supabase' ? 'Supabase-backed' : 'Local fallback'}
+              {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
             </span>
             <span style={access.captainSubscriptionActive ? pillGreen : pillSlate}>
               {access.captainTierLabel}
@@ -458,14 +458,14 @@ export default function CaptainSeasonDashboardPage() {
             <div style={sectionEyebrow}>Season registry</div>
             <h2 style={sectionTitle}>Current TIQ league definitions</h2>
             <p style={sectionText}>
-              These league records are what `Explore`, `Compete`, and future lightweight league-admin
-              flows can now build on. They stay explicitly TIQ-scoped and preserve the team-vs-individual split.
+              These league records power the captain tools, team views, and player workflows while keeping
+              team leagues and individual leagues clearly separated.
             </p>
 
             {records.length === 0 ? (
               <div style={emptyCard}>
-                No TIQ leagues have been created yet. Start with a `Team League` or an `Individual League`
-                so the product has a real internal competition layer to route through.
+                No TIQ leagues have been created yet. Start with a team league or an individual league to
+                unlock schedules, teams, and captain workflows.
               </div>
             ) : (
               <div style={stackList}>

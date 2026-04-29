@@ -1282,14 +1282,19 @@ export default function MatchupPage() {
                 <span style={heroHintPill}>{capitalize(getEngineRatingView(matchType))} engine</span>
                 <CopyLinkButton />
               </div>
+              <div style={exploreNavRow}>
+                <Link href="/explore/players" style={exploreNavLink}>Players</Link>
+                <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
+                <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
+              </div>
 
               {!access.canUseAdvancedPlayerInsights ? (
                 <div style={{ marginTop: 18, maxWidth: 560 }}>
                   <UpgradePrompt
                     planId="player_plus"
                     compact
-                    headline="Want clearer matchup answers before match day?"
-                    body="Unlock Player+ to go beyond raw comparison and use deeper projections, opponent context, and where-you-should-play guidance."
+                    headline="Matchups are part of Player+ decision support."
+                    body="Use the public comparison to get oriented. Player+ turns this into deeper projections, opponent context, and where-you-should-play guidance alongside MyLab."
                     ctaLabel="Unlock Player+"
                     ctaHref="/pricing"
                     secondaryLabel="See Player+ value"
@@ -2359,6 +2364,28 @@ const contentWrap: CSSProperties = {
   padding: '0 18px 0',
 }
 
+const exploreNavRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '2px',
+}
+
+const exploreNavLink: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  padding: '0 13px',
+  borderRadius: '999px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
 const controlsCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
@@ -2455,6 +2482,7 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
+  colorScheme: 'dark',
 }
 
 const errorBanner: CSSProperties = {

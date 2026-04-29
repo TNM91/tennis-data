@@ -202,7 +202,13 @@ export default function CaptainHubPage() {
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [error, setError] = useState('')
-  const [nextMatch, setNextMatch] = useState<{ date: string; opponent: string; home: boolean } | null>(null)
+  const [nextMatch, setNextMatch] = useState<{
+    date: string
+    time: string | null
+    facility: string | null
+    opponent: string
+    home: boolean
+  } | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
   const [scenarioCount, setScenarioCount] = useState(0)
@@ -458,10 +464,11 @@ export default function CaptainHubPage() {
     let active = true
     const today = new Date().toISOString().split('T')[0]
     void (async () => {
+      const safeTeam = selectedTeam.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
       let q = supabase
         .from('matches')
-        .select('id, match_date, home_team, away_team')
-        .or(`home_team.eq.${selectedTeam},away_team.eq.${selectedTeam}`)
+        .select('id, match_date, match_time, facility, home_team, away_team')
+        .or(`home_team.eq."${safeTeam}",away_team.eq."${safeTeam}"`)
         .gte('match_date', today)
         .is('line_number', null)
         .order('match_date', { ascending: true })
@@ -469,11 +476,21 @@ export default function CaptainHubPage() {
       if (selectedLeague) q = q.eq('league_name', selectedLeague)
       if (selectedFlight) q = q.eq('flight', selectedFlight)
       const { data } = await q
-      if (!active || !data?.length) return
-      const m = data[0] as { match_date: string; home_team: string | null; away_team: string | null }
+      if (!active) return
+      if (!data?.length) {
+        setNextMatch(null)
+        return
+      }
+      const m = data[0] as {
+        match_date: string
+        match_time: string | null
+        facility: string | null
+        home_team: string | null
+        away_team: string | null
+      }
       const isHome = (m.home_team || '') === selectedTeam
       const opponent = isHome ? (m.away_team || 'TBD') : (m.home_team || 'TBD')
-      setNextMatch({ date: m.match_date, opponent, home: isHome })
+      setNextMatch({ date: m.match_date, time: m.match_time, facility: m.facility, opponent, home: isHome })
     })()
     return () => { active = false }
   }, [selectedTeam, selectedLeague, selectedFlight])
@@ -1997,11 +2014,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 </h2>
                 <div style={{ color: 'var(--shell-copy-muted)', fontSize: 14, fontWeight: 600, marginTop: 6, display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
                   <span>{formatDate(nextMatch.date)}</span>
+                  {nextMatch.time ? <span>{nextMatch.time}</span> : null}
+                  {nextMatch.facility ? <span>{nextMatch.facility}</span> : null}
                   <span style={{ padding: '2px 9px', borderRadius: 999, background: nextMatch.home ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${nextMatch.home ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: nextMatch.home ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{nextMatch.home ? 'Home' : 'Away'}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, flexShrink: 0 }}>
-                <Link href={buildCaptainScopedHref('/captain/analytics', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'rgba(116,190,255,0.12)', border: '1px solid rgba(116,190,255,0.28)', color: '#bfdbfe', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
+                <Link href={buildCaptainScopedHref('/captain/lineup-builder', { competitionLayer: selectedCompetitionLayer, team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: nextMatch.date, opponent: nextMatch.opponent })} style={{ display: 'inline-flex', alignItems: 'center', padding: '9px 18px', borderRadius: 999, background: 'rgba(116,190,255,0.12)', border: '1px solid rgba(116,190,255,0.28)', color: '#bfdbfe', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>Build lineup</Link>
               </div>
             </div>
           </section>
@@ -2074,7 +2093,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             {!hasTeamScope ? (
               <div style={emptyLine}>Choose a team scope to see roster usage and match mix.</div>
             ) : roster.length === 0 ? (
-              <div style={emptyLine}>No roster history found for this team selection.</div>
+              <div style={emptyLine}>No roster players are available for this team selection yet.</div>
             ) : (
               <div style={rosterList}>
                 {sortedRoster.map((player) => (
@@ -2462,6 +2481,7 @@ const selectStyle: CSSProperties = {
   outline: 'none',
   fontSize: 14,
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
+  colorScheme: 'dark',
 }
 
 const primaryButton: CSSProperties = {

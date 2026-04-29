@@ -1459,12 +1459,12 @@ export default function TiqLeagueDetailPage() {
                       </span>
                     ) : null}
                     <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
-                      {storageSource === 'supabase' ? 'Supabase-backed' : 'Local fallback'}
+                      {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
                     </span>
                   </div>
                   <p style={heroText}>
                     {[league.seasonLabel, league.flight, league.locationLabel].filter(Boolean).join(' | ') ||
-                      'Internal TIQ competition container'}
+                      'TIQ competition details'}
                   </p>
 
                   <div style={heroHintRow}>
@@ -2064,7 +2064,7 @@ export default function TiqLeagueDetailPage() {
                     {resultSaving ? 'Saving result...' : individualFormatExperience.actionLabel}
                   </button>
                   <span style={metaPill}>
-                    {resultStorageSource === 'supabase' ? 'Supabase-backed results' : 'Local fallback results'}
+                    {resultStorageSource === 'supabase' ? 'Live results' : 'Saved preview results'}
                   </span>
                 </div>
 
