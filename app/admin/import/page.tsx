@@ -943,6 +943,22 @@ export default function AdminImportPage() {
       if (!response.ok) {
         setTopLevelError(response.error)
       } else if (mode === 'commit') {
+        if (kind === 'scorecard' && response.kind === 'scorecard') {
+          const savedScorecardIds = response.result.rows
+            .filter((row) => row.status === 'imported' || row.status === 'updated')
+            .map((row) => row.externalMatchId)
+            .filter(Boolean)
+
+          if (savedScorecardIds.length > 0) {
+            setCommittedMatchIds((current) => Array.from(new Set([...current, ...savedScorecardIds])))
+            setLineCommitFeedback(
+              savedScorecardIds.length === 1
+                ? 'Match committed successfully.'
+                : `${savedScorecardIds.length} scorecards committed successfully.`,
+            )
+          }
+        }
+
         if (kind === 'scorecard') {
           try {
             await recalculateDynamicRatings()

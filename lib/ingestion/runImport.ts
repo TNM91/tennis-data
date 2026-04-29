@@ -124,13 +124,18 @@ export async function runImport(
 
     const normalized = normalizeCapturedScorecardPayload(request.payload)
     const result = await engine.importScorecards(normalized.rows, mode)
+    const warnings = await filterResolvedScorecardLeagueWarnings(
+      supabase,
+      normalized.rows,
+      normalized.warnings,
+    )
 
     return {
       ok: true,
       kind: 'scorecard',
       mode,
       normalizedRowCount: normalized.rows.length,
-      warnings: normalized.warnings,
+      warnings,
       result,
     }
   } catch (error) {
@@ -143,6 +148,46 @@ export async function runImport(
       error: unknownToMessage(error),
     }
   }
+}
+
+async function filterResolvedScorecardLeagueWarnings(
+  supabase: SupabaseClient,
+  rows: ReturnType<typeof normalizeCapturedScorecardPayload>['rows'],
+  warnings: NormalizationWarning[],
+): Promise<NormalizationWarning[]> {
+  const missingLeagueWarnings = warnings.filter((warning) =>
+    warning.message.includes('missing a visible league name'),
+  )
+  if (missingLeagueWarnings.length === 0) return warnings
+
+  const rowIndexes = new Set(missingLeagueWarnings.map((warning) => warning.rowIndex))
+  const externalMatchIds = rows
+    .filter((_, index) => rowIndexes.has(index))
+    .map((row) => row.externalMatchId)
+    .filter((id): id is string => Boolean(id))
+
+  if (externalMatchIds.length === 0) return warnings
+
+  const { data, error } = await supabase
+    .from('matches')
+    .select('external_match_id, league_name')
+    .in('external_match_id', externalMatchIds)
+
+  if (error) return warnings
+
+  const idsWithExistingLeague = new Set(
+    ((data ?? []) as Array<{ external_match_id: string | null; league_name: string | null }>)
+      .filter((row) => row.external_match_id && row.league_name?.trim())
+      .map((row) => row.external_match_id as string),
+  )
+
+  if (idsWithExistingLeague.size === 0) return warnings
+
+  return warnings.filter((warning) => {
+    if (!warning.message.includes('missing a visible league name')) return true
+    const row = rows[warning.rowIndex]
+    return !row?.externalMatchId || !idsWithExistingLeague.has(row.externalMatchId)
+  })
 }
 
 export async function runScheduleImport(
