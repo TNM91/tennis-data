@@ -116,6 +116,33 @@ type TeamOptionMatchRow = {
   line_number?: string | null
 }
 
+type CaptainProfileLinkRow = {
+  linked_player_id: string | null
+  linked_player_name: string | null
+  linked_team_name: string | null
+  linked_league_name: string | null
+  linked_flight: string | null
+}
+
+type CaptainTeamScope = {
+  team: string
+  league: string
+  flight: string
+}
+
+type CaptainRosterScopeRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+}
+
+type CaptainTiqTeamEntryScopeRow = {
+  team_name: string | null
+  source_league_name: string | null
+  source_flight: string | null
+  entry_status: string | null
+}
+
 
 type CaptainWorkspaceState = {
   lineupReady: boolean
@@ -180,6 +207,45 @@ function normalizePlayerRelation(player: PlayerRelation) {
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
+function buildTeamOptionKey(option: Pick<TeamOption, 'team' | 'league' | 'flight'>) {
+  return `${safeText(option.team)}__${safeText(option.league)}__${safeText(option.flight)}`
+}
+
+function addCaptainTeamScope(
+  scopes: Map<string, CaptainTeamScope>,
+  input: {
+    team?: string | null
+    league?: string | null
+    flight?: string | null
+  },
+) {
+  const team = safeText(input.team, '')
+  if (!team) return
+
+  const scope = {
+    team,
+    league: safeText(input.league, ''),
+    flight: safeText(input.flight, ''),
+  }
+
+  scopes.set(buildTeamOptionKey(scope), scope)
+}
+
+function teamOptionMatchesCaptainScopes(option: TeamOption, scopes: CaptainTeamScope[]) {
+  if (!scopes.length) return false
+
+  const optionTeam = safeText(option.team).toLowerCase()
+  const optionLeague = safeText(option.league, '').toLowerCase()
+  const optionFlight = safeText(option.flight, '').toLowerCase()
+
+  return scopes.some((scope) => {
+    if (scope.team.toLowerCase() !== optionTeam) return false
+    if (scope.league && scope.league.toLowerCase() !== optionLeague) return false
+    if (scope.flight && scope.flight.toLowerCase() !== optionFlight) return false
+    return true
+  })
+}
+
 
 export default function CaptainHubPage() {
   const router = useRouter()
@@ -189,6 +255,8 @@ export default function CaptainHubPage() {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
+  const [teamScopeResolved, setTeamScopeResolved] = useState(false)
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedCompetitionLayer, setSelectedCompetitionLayer] = useState('')
@@ -245,7 +313,77 @@ export default function CaptainHubPage() {
     return nextRole
   }, [router])
 
+  const loadCaptainTeamScopes = useCallback(async (nextUserId: string | null | undefined) => {
+    if (!nextUserId) {
+      setCaptainTeamScopes([])
+      setTeamScopeResolved(true)
+      return
+    }
+
+    setTeamScopeResolved(false)
+
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('linked_player_id, linked_player_name, linked_team_name, linked_league_name, linked_flight')
+        .eq('id', nextUserId)
+        .maybeSingle()
+
+      const profile = (profileData || null) as CaptainProfileLinkRow | null
+      const scopes = new Map<string, CaptainTeamScope>()
+
+      addCaptainTeamScope(scopes, {
+        team: profile?.linked_team_name,
+        league: profile?.linked_league_name,
+        flight: profile?.linked_flight,
+      })
+
+      const [rosterResult, tiqEntryResult] = await Promise.all([
+        profile?.linked_player_id
+          ? supabase
+              .from('team_roster_members')
+              .select('team_name, league_name, flight')
+              .eq('player_id', profile.linked_player_id)
+              .limit(200)
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from('tiq_team_league_entries')
+          .select('team_name, source_league_name, source_flight, entry_status')
+          .eq('created_by_user_id', nextUserId)
+          .eq('entry_status', 'active')
+          .limit(200),
+      ])
+
+      for (const row of (rosterResult.data || []) as CaptainRosterScopeRow[]) {
+        addCaptainTeamScope(scopes, {
+          team: row.team_name,
+          league: row.league_name,
+          flight: row.flight,
+        })
+      }
+
+      for (const row of (tiqEntryResult.data || []) as CaptainTiqTeamEntryScopeRow[]) {
+        addCaptainTeamScope(scopes, {
+          team: row.team_name,
+          league: row.source_league_name,
+          flight: row.source_flight,
+        })
+      }
+
+      setCaptainTeamScopes([...scopes.values()])
+    } catch {
+      setCaptainTeamScopes([])
+    } finally {
+      setTeamScopeResolved(true)
+    }
+  }, [])
+
   const loadTeamOptions = useCallback(async () => {
+    if (isMember(role) && role !== 'admin' && !teamScopeResolved) {
+      setLoadingOptions(true)
+      return
+    }
+
     setLoadingOptions(true)
     setError('')
 
@@ -283,7 +421,13 @@ export default function CaptainHubPage() {
         }
       }
 
-      const next = [...map.values()].sort((a, b) => {
+      const allOptions = [...map.values()]
+      const next =
+        isMember(role) && role !== 'admin'
+          ? allOptions.filter((option) => teamOptionMatchesCaptainScopes(option, captainTeamScopes))
+          : allOptions
+
+      next.sort((a, b) => {
         if (b.matches !== a.matches) return b.matches - a.matches
         return a.team.localeCompare(b.team)
       })
@@ -291,16 +435,29 @@ export default function CaptainHubPage() {
       setTeamOptions(next)
 
       if (next.length > 0) {
-        setSelectedTeam((current) => current || next[0].team)
-        setSelectedLeague((current) => current || next[0].league)
-        setSelectedFlight((current) => current || next[0].flight)
+        const fallback = next[0]
+        const current =
+          next.find(
+            (option) =>
+              option.team === selectedTeam &&
+              option.league === selectedLeague &&
+              option.flight === selectedFlight,
+          ) || fallback
+
+        setSelectedTeam(current.team)
+        setSelectedLeague(current.league)
+        setSelectedFlight(current.flight)
+      } else {
+        setSelectedTeam('')
+        setSelectedLeague('')
+        setSelectedFlight('')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load teams')
     } finally {
       setLoadingOptions(false)
     }
-  }, [])
+  }, [captainTeamScopes, role, selectedFlight, selectedLeague, selectedTeam, teamScopeResolved])
 
   const loadSelectedTeam = useCallback(async () => {
     setLoadingTeam(true)
@@ -431,6 +588,8 @@ export default function CaptainHubPage() {
       const authState = await getClientAuthState()
       if (!active) return
       setEntitlements(authState.entitlements)
+      await loadCaptainTeamScopes(authState.user?.id)
+      if (!active) return
       await loadRole(authState.role)
     }
 
@@ -442,6 +601,8 @@ export default function CaptainHubPage() {
       if (!active) return
       const authState = await getClientAuthState()
       setEntitlements(authState.entitlements)
+      await loadCaptainTeamScopes(authState.user?.id)
+      if (!active) return
       void loadRole(authState.role)
     })
 
@@ -449,11 +610,12 @@ export default function CaptainHubPage() {
       active = false
       subscription.unsubscribe()
     }
-  }, [loadRole])
+  }, [loadCaptainTeamScopes, loadRole])
 
   useEffect(() => {
+    if (authLoading) return
     void loadTeamOptions()
-  }, [loadTeamOptions, refreshTick])
+  }, [authLoading, loadTeamOptions, refreshTick])
 
   useEffect(() => {
     if (!selectedTeam) return
@@ -499,6 +661,11 @@ export default function CaptainHubPage() {
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
   }, [teamOptions])
+  const selectedTeamOptionKey = buildTeamOptionKey({
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -947,10 +1114,13 @@ export default function CaptainHubPage() {
   const productAccess = buildProductAccessState(role, entitlements)
   const premiumEnabled = productAccess.canUseCaptainWorkflow
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+  const captainScopeRestricted = isMember(role) && role !== 'admin'
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
+    : captainScopeRestricted && teamScopeResolved && !captainTeamScopes.length
+      ? 'Link your player profile and team in MyLab to show only the USTA and TIQ teams connected to your account.'
     : !filteredTeamOptions.length
-      ? 'Team history is not ready yet. Add match data to start planning.'
+      ? 'No active team history matches your linked player, team, or TIQ captain entries yet.'
       : hasTeamScope
         ? `Active scope: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
         : 'Choose a team, league, and flight to start planning.'
@@ -1309,11 +1479,11 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
             <div style={dynamicHeroControlRow}>
               <select
-                value={selectedTeam}
+                value={selectedTeamOptionKey}
                 onChange={(e) => {
-                  const option = filteredTeamOptions.find((item) => item.team === e.target.value)
-                  setSelectedTeam(e.target.value)
+                  const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === e.target.value)
                   if (option) {
+                    setSelectedTeam(option.team)
                     setSelectedLeague(option.league)
                     setSelectedFlight(option.flight)
                   }
@@ -1322,11 +1492,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               >
                 {loadingOptions && !filteredTeamOptions.length ? (
                   <option>Loading teams...</option>
+                ) : !filteredTeamOptions.length ? (
+                  <option>No linked active teams</option>
                 ) : (
                   filteredTeamOptions.map((option) => (
                     <option
                       key={`${option.team}__${option.league}__${option.flight}`}
-                      value={option.team}
+                      value={buildTeamOptionKey(option)}
                     >
                       {option.team} - {option.league} - {option.flight}
                     </option>

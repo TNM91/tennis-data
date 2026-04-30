@@ -41,7 +41,6 @@ export const PRICING_PLANS: PricingPlan[] = [
     subtitle: 'Play smarter. Improve faster.',
     audience: 'Players who want a competitive edge',
     priceLabel: '$4.99/month',
-    alternatePriceNote: 'or $25/season',
     ctaLabel: 'Unlock Player+',
     problem: 'Want to know how you match up before you play?',
     friction: 'Raw match history does not tell you who has the edge or what to prepare for.',
