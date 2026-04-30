@@ -995,7 +995,7 @@ function normalizeSummaryLookupKey(value: string): string {
 
 function isPlaceholderTeamSummaryName(value: string): boolean {
   const key = normalizeSummaryLookupKey(value)
-  return key === 'team name' || key === 'team' || key === 'teams'
+  return key === 'name' || key === 'team name' || key === 'team' || key === 'teams'
 }
 
 function normalizeTeamSummaryTeam(

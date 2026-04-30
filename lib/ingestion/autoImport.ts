@@ -102,7 +102,7 @@ function normalizePlayerNames(values: string[]): string[] {
 
 function isPlaceholderTeamName(value: unknown): boolean {
   const key = normalizeLookupKey(value)
-  return key === 'team name' || key === 'team' || key === 'teams'
+  return key === 'name' || key === 'team name' || key === 'team' || key === 'teams'
 }
 
 function isMalformedTeamName(value: unknown): boolean {

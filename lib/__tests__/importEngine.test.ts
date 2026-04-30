@@ -167,4 +167,62 @@ describe('importTeamSummary', () => {
       },
     ])
   })
+
+  it('fails loudly when roster memberships cannot be saved', async () => {
+    const players: Array<Record<string, unknown>> = []
+    const supabase = {
+      from(table: string) {
+        if (table === 'players') {
+          return {
+            select() {
+              return {
+                in(column: string, values: string[]) {
+                  return { data: players.filter((player) => values.includes(String(player[column]))), error: null }
+                },
+              }
+            },
+            insert(payload: Array<Record<string, unknown>>) {
+              for (const row of payload) {
+                players.push({ id: `player-${players.length + 1}`, ...row })
+              }
+              return { error: null }
+            },
+          }
+        }
+
+        if (table === 'team_summary_teams') {
+          return {
+            upsert() {
+              return { error: null }
+            },
+          }
+        }
+
+        if (table === 'team_roster_members') {
+          return {
+            upsert() {
+              return { error: { message: 'relation does not exist' } }
+            },
+          }
+        }
+
+        throw new Error(`Unexpected table ${table}`)
+      },
+    }
+
+    const engine = createImportEngine(supabase as never, { hasNormalizedPlayerNameColumn: true })
+
+    await expect(engine.importTeamSummary(
+      [
+        {
+          leagueName: '2026 Adult 18 & Over Spring',
+          flight: 'Men 4.5',
+          rosterTeamName: 'Meinert/The Other Guys',
+          teams: [{ name: 'Meinert/The Other Guys' }],
+          players: [{ name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys' }],
+        },
+      ],
+      'commit',
+    )).rejects.toThrow('team_roster_members upsert failed')
+  })
 })

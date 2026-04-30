@@ -1184,6 +1184,8 @@
       'set 2',
       'set 3',
       'score',
+      'name',
+      'team name',
       'team score',
       'vs',
       'vs.',

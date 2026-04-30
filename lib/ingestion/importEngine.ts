@@ -2359,7 +2359,7 @@ export class ImportEngine {
       .upsert(payload, { onConflict: 'normalized_team_name,player_id,league_name,flight' })
 
     if (error) {
-      this.options.log('team_roster_members upsert skipped', { error: error.message })
+      throw new Error(`team_roster_members upsert failed: ${error.message}`)
     }
   }
 
@@ -2382,7 +2382,7 @@ export class ImportEngine {
       .upsert(payload, { onConflict: 'normalized_team_name,league_name,flight' })
 
     if (error) {
-      this.options.log('team_summary_teams upsert skipped', { error: error.message })
+      throw new Error(`team_summary_teams upsert failed: ${error.message}`)
     }
   }
 }

@@ -43,6 +43,7 @@ describe('normalizeCapturedTeamSummaryPayload', () => {
         leagueName: '2026 Adult 18 & Over Spring',
         flight: 'Men 4.5',
         teams: [
+          { name: 'Name', wins: null, losses: null },
           { name: 'Team Name', wins: null, losses: null },
           { name: 'Huchet/Ariston', wins: null, losses: null },
           { name: 'Schnellaveria', wins: null, losses: null },
@@ -53,6 +54,7 @@ describe('normalizeCapturedTeamSummaryPayload', () => {
 
     expect(result.rows).toHaveLength(1)
     expect(result.rows[0].teams.map((team) => team.name)).toEqual(['Huchet/Ariston', 'Schnellaveria'])
+    expect(result.rows[0].canonicalTeamMap).not.toHaveProperty('name')
     expect(result.rows[0].canonicalTeamMap).not.toHaveProperty('team name')
   })
 })
