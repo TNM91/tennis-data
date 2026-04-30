@@ -123,11 +123,12 @@ function normalizePlayer(player: PlayerRelation): Player | null {
 function rosterMemberPlayer(entry: TeamRosterMemberRow): Player | null {
   const player = normalizePlayer(entry.players)
   if (player?.id && player.name) return player
-  if (!entry.player_id || !entry.player_name) return null
+  if (!entry.player_name) return null
 
   const rating = typeof entry.ntrp === 'number' && Number.isFinite(entry.ntrp) ? entry.ntrp : null
+  const fallbackId = entry.player_id || `summary:${normalizeTeamName(entry.player_name)}`
   return {
-    id: entry.player_id,
+    id: fallbackId,
     name: entry.player_name,
     overall_rating: rating,
     singles_dynamic_rating: rating,
@@ -194,11 +195,12 @@ function extractSummaryRosterMembers(summaryRows: TeamSummaryTeamRow[], teamName
   for (const row of summaryRows) {
     const raw = row.raw_capture_json
     if (!isRecord(raw)) continue
+    const summary = isRecord(raw.teamSummary) ? raw.teamSummary : raw
 
-    const rosterTeamName = cleanText(raw.rosterTeamName)
+    const rosterTeamName = cleanText(summary.rosterTeamName)
     if (normalizeTeamName(rosterTeamName) !== normalizedTeam) continue
 
-    const players = Array.isArray(raw.players) ? raw.players : []
+    const players = Array.isArray(summary.players) ? summary.players : []
     for (const entry of players) {
       if (!isRecord(entry)) continue
       const playerName = cleanText(entry.name)
@@ -220,6 +222,11 @@ function extractSummaryRosterMembers(summaryRows: TeamSummaryTeamRow[], teamName
   }
 
   return [...members.values()]
+}
+
+function summaryRowMatchesTeam(row: TeamSummaryTeamRow, teamName: string) {
+  if (normalizeTeamName(row.team_name) === normalizeTeamName(teamName)) return true
+  return extractSummaryRosterMembers([row], teamName).length > 0
 }
 
 function escapePostgrestValue(value: string) {
@@ -274,12 +281,33 @@ export default function TeamPage() {
       if (leagueFilter) summaryTeamQuery = summaryTeamQuery.eq('league_name', leagueFilter)
       if (flightFilter) summaryTeamQuery = summaryTeamQuery.eq('flight', flightFilter)
 
-      const { data: summaryTeamData, error: summaryTeamError } = await summaryTeamQuery
+      const { data: exactSummaryTeamData, error: summaryTeamError } = await summaryTeamQuery
+      let summaryTeamData = (exactSummaryTeamData || []) as TeamSummaryTeamRow[]
+
+      if (!summaryTeamError && summaryTeamData.length === 0 && (leagueFilter || flightFilter)) {
+        let scopedSummaryTeamQuery = supabase
+          .from('team_summary_teams')
+          .select('team_name, league_name, flight, usta_section, district_area, raw_capture_json')
+          .limit(200)
+
+        if (leagueFilter) scopedSummaryTeamQuery = scopedSummaryTeamQuery.eq('league_name', leagueFilter)
+        if (flightFilter) scopedSummaryTeamQuery = scopedSummaryTeamQuery.eq('flight', flightFilter)
+
+        const { data: scopedSummaryTeamData, error: scopedSummaryTeamError } = await scopedSummaryTeamQuery
+        if (scopedSummaryTeamError) {
+          console.warn('team_summary_teams scoped lookup skipped', scopedSummaryTeamError.message)
+        } else {
+          summaryTeamData = ((scopedSummaryTeamData || []) as TeamSummaryTeamRow[]).filter((row) =>
+            summaryRowMatchesTeam(row, team),
+          )
+        }
+      }
+
       if (summaryTeamError) {
         console.warn('team_summary_teams lookup skipped', summaryTeamError.message)
         setSummaryTeams([])
       } else {
-        setSummaryTeams((summaryTeamData || []) as TeamSummaryTeamRow[])
+        setSummaryTeams(summaryTeamData)
       }
 
       let matchQuery = supabase
@@ -1552,9 +1580,13 @@ export default function TeamPage() {
                     <tr key={player.id}>
                       <td style={tableCell}>
                         <div style={{ display: 'grid', gap: 4 }}>
-                          <Link href={`/players/${player.id}`} style={playerLink}>
+                          {player.id.startsWith('summary:') ? (
                             <strong>{player.name}</strong>
-                          </Link>
+                          ) : (
+                            <Link href={`/players/${player.id}`} style={playerLink}>
+                              <strong>{player.name}</strong>
+                            </Link>
+                          )}
                           {player.location ? <span style={mutedText}>{player.location}</span> : null}
                         </div>
                       </td>
