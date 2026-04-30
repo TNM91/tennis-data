@@ -89,6 +89,7 @@ type TeamSummaryTeamRow = {
   flight: string | null
   usta_section: string | null
   district_area: string | null
+  raw_capture_json?: unknown
 }
 
 type RosterPlayer = Player & {
@@ -182,6 +183,45 @@ function getParamValue(value: string | string[] | undefined) {
   return value || ''
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function extractSummaryRosterMembers(summaryRows: TeamSummaryTeamRow[], teamName: string): TeamRosterMemberRow[] {
+  const normalizedTeam = normalizeTeamName(teamName)
+  const members = new Map<string, TeamRosterMemberRow>()
+
+  for (const row of summaryRows) {
+    const raw = row.raw_capture_json
+    if (!isRecord(raw)) continue
+
+    const rosterTeamName = cleanText(raw.rosterTeamName)
+    if (normalizeTeamName(rosterTeamName) !== normalizedTeam) continue
+
+    const players = Array.isArray(raw.players) ? raw.players : []
+    for (const entry of players) {
+      if (!isRecord(entry)) continue
+      const playerName = cleanText(entry.name)
+      if (!playerName) continue
+      const entryTeamName = cleanText(entry.teamName) || rosterTeamName
+      if (normalizeTeamName(entryTeamName) !== normalizedTeam) continue
+      const key = playerName.toLowerCase()
+      if (members.has(key)) continue
+      members.set(key, {
+        team_name: teamName,
+        player_id: null,
+        player_name: playerName,
+        league_name: row.league_name,
+        flight: row.flight,
+        ntrp: typeof entry.ntrp === 'number' && Number.isFinite(entry.ntrp) ? entry.ntrp : null,
+        players: null,
+      })
+    }
+  }
+
+  return [...members.values()]
+}
+
 function escapePostgrestValue(value: string) {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
@@ -227,7 +267,7 @@ export default function TeamPage() {
 
       let summaryTeamQuery = supabase
         .from('team_summary_teams')
-        .select('team_name, league_name, flight, usta_section, district_area')
+        .select('team_name, league_name, flight, usta_section, district_area, raw_capture_json')
         .eq('normalized_team_name', normalizeTeamName(team))
         .limit(20)
 
@@ -323,7 +363,47 @@ export default function TeamPage() {
         console.warn('team_roster_members lookup skipped', rosterError.message)
         setRosterMembers([])
       } else {
-        setRosterMembers((rosterData || []) as TeamRosterMemberRow[])
+        let nextRosterMembers = (rosterData || []) as TeamRosterMemberRow[]
+
+        if (nextRosterMembers.length === 0 && summaryTeamData?.length) {
+          const fallbackMembers = extractSummaryRosterMembers(summaryTeamData as TeamSummaryTeamRow[], team)
+          const fallbackNames = fallbackMembers.map((member) => cleanText(member.player_name)).filter(Boolean)
+
+          if (fallbackNames.length > 0) {
+            const { data: fallbackPlayers, error: fallbackPlayersError } = await supabase
+              .from('players')
+              .select(`
+                id,
+                name,
+                overall_rating,
+                singles_dynamic_rating,
+                doubles_dynamic_rating,
+                overall_dynamic_rating,
+                singles_usta_dynamic_rating,
+                doubles_usta_dynamic_rating,
+                overall_usta_dynamic_rating,
+                location
+              `)
+              .in('name', fallbackNames)
+
+            if (fallbackPlayersError) {
+              console.warn('team summary fallback player lookup skipped', fallbackPlayersError.message)
+            } else {
+              const fallbackPlayerByName = new Map(
+                ((fallbackPlayers || []) as Player[]).map((player) => [player.name.toLowerCase(), player]),
+              )
+              nextRosterMembers = fallbackMembers.map((member) => ({
+                ...member,
+                player_id: fallbackPlayerByName.get(cleanText(member.player_name).toLowerCase())?.id ?? member.player_id,
+                players: fallbackPlayerByName.get(cleanText(member.player_name).toLowerCase()) ?? member.players,
+              }))
+            }
+          }
+
+          if (nextRosterMembers.length === 0) nextRosterMembers = fallbackMembers
+        }
+
+        setRosterMembers(nextRosterMembers)
       }
 
       if (!scopedMatches.length) {
