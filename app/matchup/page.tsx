@@ -1270,10 +1270,10 @@ export default function MatchupPage() {
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <div style={eyebrow}>Matchup comparison</div>
-              <h1 style={dynamicHeroTitle}>Compare singles players or doubles teams.</h1>
+              <h1 style={dynamicHeroTitle}>See how you match up.</h1>
               <p style={dynamicHeroText}>
-                See rating gaps, projected win probability, confidence, upset risk, model
-                accuracy, and head-to-head history before match day.
+                Compare players before the match. See the rating gap, likely edge, confidence,
+                and head-to-head context so you can prepare faster.
               </p>
 
               <div style={heroHintRow}>
@@ -1293,9 +1293,9 @@ export default function MatchupPage() {
                   <UpgradePrompt
                     planId="player_plus"
                     compact
-                    headline="Matchups are part of Player+ decision support."
-                    body="Use the public comparison to get oriented. Player+ turns this into deeper projections, opponent context, and where-you-should-play guidance alongside MyLab."
-                    ctaLabel="Unlock Player+"
+                    headline="Unlock Matchup with Player+."
+                    body="Use the public comparison to get oriented. Player+ unlocks deeper matchup prep, MyLab, follows, and smarter player/team preparation."
+                    ctaLabel="Unlock Matchup with Player+"
                     ctaHref="/pricing"
                     secondaryLabel="See Player+ value"
                     secondaryHref="/pricing"

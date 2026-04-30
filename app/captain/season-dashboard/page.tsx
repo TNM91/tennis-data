@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
@@ -68,9 +68,20 @@ export default function CaptainSeasonDashboardPage() {
   const [storageSource, setStorageSource] = useState<TiqLeagueStorageSource>('local')
   const [storageWarning, setStorageWarning] = useState('')
 
-  useEffect(() => {
-    void refreshRegistry()
+  const refreshRegistry = useCallback(async () => {
+    const result = await listTiqLeagues()
+    setRecords(result.records)
+    setStorageSource(result.source)
+    setStorageWarning(result.warning || '')
   }, [])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void refreshRegistry()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [refreshRegistry])
 
   useEffect(() => {
     let active = true
@@ -112,13 +123,6 @@ export default function CaptainSeasonDashboardPage() {
     setTeamListInput('')
     setPlayerListInput('')
     setEditingId('')
-  }
-
-  async function refreshRegistry() {
-    const result = await listTiqLeagues()
-    setRecords(result.records)
-    setStorageSource(result.source)
-    setStorageWarning(result.warning || '')
   }
 
   async function persistDraft() {

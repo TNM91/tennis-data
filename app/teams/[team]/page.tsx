@@ -82,6 +82,14 @@ type TeamRosterMemberRow = {
   players: PlayerRelation
 }
 
+type TeamSummaryTeamRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  usta_section: string | null
+  district_area: string | null
+}
+
 type RosterPlayer = Player & {
   appearances: number
   singlesAppearances: number
@@ -171,6 +179,7 @@ export default function TeamPage() {
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
+  const [summaryTeams, setSummaryTeams] = useState<TeamSummaryTeamRow[]>([])
   const [lineMatches, setLineMatches] = useState<LineMatch[]>([])
   const [linePlayers, setLinePlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
@@ -190,8 +199,26 @@ export default function TeamPage() {
         setMatches([])
         setPlayers([])
         setRosterMembers([])
+        setSummaryTeams([])
         setError('Team not found.')
         return
+      }
+
+      let summaryTeamQuery = supabase
+        .from('team_summary_teams')
+        .select('team_name, league_name, flight, usta_section, district_area')
+        .eq('normalized_team_name', normalizeTeamName(team))
+        .limit(20)
+
+      if (leagueFilter) summaryTeamQuery = summaryTeamQuery.eq('league_name', leagueFilter)
+      if (flightFilter) summaryTeamQuery = summaryTeamQuery.eq('flight', flightFilter)
+
+      const { data: summaryTeamData, error: summaryTeamError } = await summaryTeamQuery
+      if (summaryTeamError) {
+        console.warn('team_summary_teams lookup skipped', summaryTeamError.message)
+        setSummaryTeams([])
+      } else {
+        setSummaryTeams((summaryTeamData || []) as TeamSummaryTeamRow[])
       }
 
       let matchQuery = supabase
@@ -244,7 +271,7 @@ export default function TeamPage() {
 
       setMatches(scopedMatches)
 
-      let rosterQuery = supabase
+      const rosterQuery = supabase
         .from('team_roster_members')
         .select(`
           team_name,
@@ -386,6 +413,7 @@ export default function TeamPage() {
       setMatches([])
       setPlayers([])
       setRosterMembers([])
+      setSummaryTeams([])
       setError('Unable to load this team page right now.')
     } finally {
       setLoading(false)
@@ -427,17 +455,20 @@ export default function TeamPage() {
   }, [flightFilter, leagueFilter, team])
 
   const teamMeta = useMemo(() => {
+    const firstSummaryTeam = summaryTeams.find(
+      (row) => cleanText(row.league_name) || cleanText(row.flight) || cleanText(row.usta_section),
+    )
     const firstWithLeague = matches.find(
       (match) => cleanText(match.league_name) || cleanText(match.flight) || cleanText(match.usta_section),
     )
 
     return {
-      league: cleanText(firstWithLeague?.league_name) || leagueFilter,
-      flight: cleanText(firstWithLeague?.flight) || flightFilter,
-      section: cleanText(firstWithLeague?.usta_section),
-      district: cleanText(firstWithLeague?.district_area),
+      league: cleanText(firstSummaryTeam?.league_name) || cleanText(firstWithLeague?.league_name) || leagueFilter,
+      flight: cleanText(firstSummaryTeam?.flight) || cleanText(firstWithLeague?.flight) || flightFilter,
+      section: cleanText(firstSummaryTeam?.usta_section) || cleanText(firstWithLeague?.usta_section),
+      district: cleanText(firstSummaryTeam?.district_area) || cleanText(firstWithLeague?.district_area),
     }
-  }, [matches, leagueFilter, flightFilter])
+  }, [matches, summaryTeams, leagueFilter, flightFilter])
 
   const recentMatch = matches[0] || null
   const competitionLayer = inferCompetitionLayerFromValues({
@@ -929,8 +960,8 @@ export default function TeamPage() {
 
             <div style={summaryMetricGrid}>
               <MetricCard label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses tracked" />
-              <MetricCard label="Roster size" value={String(roster.length)} subtle="Players who have appeared" />
-              <MetricCard label="Matches" value={String(matches.length)} subtle="Singles and doubles logged" />
+              <MetricCard label="Roster size" value={String(roster.length)} subtle="Players from team summary and match history" />
+              <MetricCard label="Imported scorecards" value={String(matches.length)} subtle="Completed team results loaded" />
               <MetricCard
                 label="Latest match"
                 value={formatDate(recentMatch?.match_date)}
@@ -1014,9 +1045,10 @@ export default function TeamPage() {
 
         {!error && !matches.length ? (
           <section style={surfaceCard}>
-            <h2 style={sectionTitle}>Match history is not available yet</h2>
+            <h2 style={sectionTitle}>No scorecards imported yet</h2>
             <p style={bodyText}>
-              No match history is available for this team. Try browsing the full team directory, adjusting your league or flight filters, or opening the captain tools to start planning now.
+              This team can exist from a team summary import before results arrive. Use the roster and captain tools now,
+              then imported scorecards will enrich match history, records, and player usage.
             </p>
             <div style={dynamicHeroActions}>
               <SecondaryLink href="/teams">Browse all teams</SecondaryLink>
@@ -1068,13 +1100,13 @@ export default function TeamPage() {
           <article style={metricCard}>
             <span style={metricLabel}>Roster Size</span>
             <strong style={metricValue}>{roster.length}</strong>
-            <span style={metricSubtle}>Players who have appeared</span>
+            <span style={metricSubtle}>Team summary plus match history</span>
           </article>
 
           <article style={metricCard}>
-            <span style={metricLabel}>Matches</span>
+            <span style={metricLabel}>Imported Scorecards</span>
             <strong style={metricValue}>{matches.length}</strong>
-            <span style={metricSubtle}>Singles and doubles logged</span>
+            <span style={metricSubtle}>Completed team results loaded</span>
           </article>
 
           <article style={metricCard}>
@@ -1425,8 +1457,8 @@ export default function TeamPage() {
             </div>
           ) : (
             <div style={emptyStateBlock}>
-              <p style={emptyState}>No roster data available for this team yet.</p>
-              <p style={mutedText}>Use the captain tools above to start from availability and lineup planning while the roster history catches up.</p>
+              <p style={emptyState}>No roster players are linked to this team yet.</p>
+              <p style={mutedText}>Import a team summary with a roster team selected, or capture scorecards to enrich this page with player usage.</p>
             </div>
           )}
         </section>

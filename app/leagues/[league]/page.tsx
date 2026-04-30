@@ -31,11 +31,15 @@ type LeagueMatchRow = {
   match_type: 'singles' | 'doubles' | null
   score: string | null
   winner_side: 'A' | 'B' | null
+  status: string | null
 }
 
 type TeamSummary = {
   name: string
   matches: number
+  completedMatches: number
+  scheduledMatches: number
+  missingScorecards: number
   homeMatches: number
   awayMatches: number
   wins: number
@@ -118,7 +122,8 @@ export default function LeagueDetailPage() {
           match_date,
           match_type,
           score,
-          winner_side
+          winner_side,
+          status
         `)
         .eq('league_name', leagueFromRoute)
         .is('line_number', null)
@@ -150,7 +155,8 @@ export default function LeagueDetailPage() {
             match_date,
             match_type,
             score,
-            winner_side
+            winner_side,
+            status
           `)
           .is('line_number', null)
           .order('match_date', { ascending: false })
@@ -240,6 +246,9 @@ export default function LeagueDetailPage() {
         map.set(homeTeam, {
           name: homeTeam,
           matches: 0,
+          completedMatches: 0,
+          scheduledMatches: 0,
+          missingScorecards: 0,
           homeMatches: 0,
           awayMatches: 0,
           wins: 0,
@@ -252,6 +261,9 @@ export default function LeagueDetailPage() {
         map.set(awayTeam, {
           name: awayTeam,
           matches: 0,
+          completedMatches: 0,
+          scheduledMatches: 0,
+          missingScorecards: 0,
           homeMatches: 0,
           awayMatches: 0,
           wins: 0,
@@ -267,6 +279,20 @@ export default function LeagueDetailPage() {
       home.homeMatches += 1
       away.matches += 1
       away.awayMatches += 1
+
+      const isCompleted = Boolean(row.winner_side || cleanText(row.score) || row.status === 'completed')
+      if (isCompleted) {
+        home.completedMatches += 1
+        away.completedMatches += 1
+      } else {
+        const isMissingScorecard = row.match_date ? new Date(row.match_date).getTime() <= Date.now() : false
+        home.scheduledMatches += 1
+        away.scheduledMatches += 1
+        if (isMissingScorecard) {
+          home.missingScorecards += 1
+          away.missingScorecards += 1
+        }
+      }
 
       if (row.winner_side === 'A') {
         home.wins += 1
@@ -290,7 +316,7 @@ export default function LeagueDetailPage() {
     return [...map.values()]
       .map((team) => ({
         ...team,
-        winPct: team.matches > 0 ? team.wins / team.matches : 0,
+        winPct: team.completedMatches > 0 ? team.wins / team.completedMatches : 0,
       }))
       .sort((a, b) => {
         if (b.wins !== a.wins) return b.wins - a.wins
@@ -318,6 +344,14 @@ export default function LeagueDetailPage() {
     const latest = validRows[0]?.match_date || null
     const withScores = validRows.filter((row) => row.score && row.score.trim()).length
     const decided = validRows.filter((row) => row.winner_side).length
+    const completed = validRows.filter((row) => row.winner_side || cleanText(row.score) || row.status === 'completed').length
+    const scheduled = validRows.length - completed
+    const today = new Date()
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+    const missingScorecards = validRows.filter((row) => {
+      if (row.winner_side || cleanText(row.score) || row.status === 'completed') return false
+      return row.match_date ? new Date(row.match_date).getTime() <= startOfToday : false
+    }).length
 
     return {
       matchCount: validRows.length,
@@ -327,6 +361,9 @@ export default function LeagueDetailPage() {
       latest,
       withScores,
       decided,
+      completed,
+      scheduled,
+      missingScorecards,
     }
   }, [validRows, teamSummaries])
 
@@ -498,21 +535,21 @@ export default function LeagueDetailPage() {
       value: getCompetitionLayerLabel(competitionLayer),
       note:
         competitionLayer === 'usta'
-          ? 'USTA league pages should read as official season context first, without blending into TIQ strategy.'
-          : 'TIQ league pages should connect season structure to lineup, scenario, and messaging workflow.',
+          ? 'Find your league, track your team, and see which results are in.'
+          : 'Prepare for your next match with team context, lineup tools, and results in one place.',
     },
     {
       label: 'League format',
       value: getLeagueFormatLabel(leagueFormat),
       note:
         leagueFormat === 'team'
-          ? 'This season is organized around teams as the participant unit.'
-          : 'This season is organized around players competing directly, not roster-based teams.',
+          ? 'Track teams, schedules, completed results, and missing scorecards.'
+          : 'Track players, match results, and upcoming competition context.',
     },
     {
       label: 'Season activity',
       value: `${stats.matchCount} matches`,
-      note: `Track ${stats.teams} active ${leagueFormat === 'team' ? 'teams' : 'participants'} and use match history to understand momentum.`,
+      note: `Track ${stats.teams} active ${leagueFormat === 'team' ? 'teams' : 'players'} and prepare for the next match.`,
     },
   ]
   const competeHref = buildCaptainScopedHref('/compete/leagues', {
@@ -600,8 +637,8 @@ export default function LeagueDetailPage() {
             </div>
             <div style={seasonToolsText}>
               {competitionLayer === 'usta'
-                ? 'Review official season structure, team movement, and match history without blending it into TIQ strategy signals.'
-                : 'Use this TIQ league context as the bridge between competition structure and captain-facing strategic execution.'}
+                ? 'Find your league, track your team, and see which scorecards are still missing.'
+                : 'Use this league context to build lineups, compare options, and message your team.'}
             </div>
 
             <div style={seasonToolsActions}>
@@ -621,10 +658,10 @@ export default function LeagueDetailPage() {
         </section>
 
         <div style={dynamicMetricGrid}>
-          <MetricCard label="Matches" value={String(stats.matchCount)} />
+          <MetricCard label="Completed" value={String(stats.completed)} />
+          <MetricCard label="Scheduled" value={String(stats.scheduled)} />
+          <MetricCard label="Missing scorecards" value={String(stats.missingScorecards)} />
           <MetricCard label="Teams" value={String(stats.teams)} />
-          <MetricCard label="Singles Lines" value={String(stats.singles)} />
-          <MetricCard label="Doubles Lines" value={String(stats.doubles)} />
           <MetricCard label="Latest Match" value={formatDate(stats.latest)} accent />
         </div>
 
@@ -661,11 +698,10 @@ export default function LeagueDetailPage() {
           }}
         >
           <div style={sectionKicker}>Season context</div>
-          <h2 style={sectionTitle}>League detail is strongest when it explains structure and momentum together.</h2>
+          <h2 style={sectionTitle}>Find your league. Track your team. Prepare for the next match.</h2>
           <div style={sectionSub}>
-            This page is meant to connect the season-level team picture with the underlying match list.
-            Use it to understand how a league segment is shaped, which teams are active, and where to
-            drill down next across teams, match history, and season scope.
+            Use this page to see completed results, scheduled matches, missing scorecards, and the teams that matter.
+            Captains can jump into lineup, scenario, availability, and messaging tools when they need to act.
           </div>
           <div style={dynamicStateActionRow}>
             <GhostLink href="/leagues">Back to leagues</GhostLink>
@@ -761,7 +797,7 @@ export default function LeagueDetailPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse' as const, minWidth: 520 }}>
                       <thead>
                         <tr>
-                          {['#', 'Team', 'W', 'L', 'Win %', 'Matches', 'Last match'].map((h) => (
+                          {['#', 'Team', 'W', 'L', 'Win %', 'Completed', 'Scheduled', 'Missing scorecards', 'Last match'].map((h) => (
                             <th key={h} style={{ padding: '12px 14px', textAlign: 'left' as const, color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.06em', borderBottom: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', whiteSpace: 'nowrap' as const }}>{h}</th>
                           ))}
                         </tr>
@@ -785,7 +821,9 @@ export default function LeagueDetailPage() {
                               <td style={tdStyle}>
                                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 12, fontWeight: 800, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : winPct < 40 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)', color: winPct >= 60 ? '#d9f84a' : winPct < 40 ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.20)' : winPct < 40 ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
                               </td>
-                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.matches}</td>
+                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.completedMatches}</td>
+                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.scheduledMatches}</td>
+                              <td style={{ ...tdStyle, color: team.missingScorecards > 0 ? '#fca5a5' : 'var(--shell-copy-muted)' }}>{team.missingScorecards}</td>
                               <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontSize: 13 }}>{formatDate(team.latestMatchDate)}</td>
                             </tr>
                           )
@@ -814,7 +852,7 @@ export default function LeagueDetailPage() {
                           <div style={teamName}>{team.name}</div>
                           <div style={teamRecord}>
                             {team.wins}-{team.losses} record
-                            {team.matches > 0 ? ` · ${winPct}% win` : ''}
+                            {team.completedMatches > 0 ? ` · ${winPct}% win` : ' · no completed scorecards'}
                           </div>
                         </div>
 
@@ -823,7 +861,7 @@ export default function LeagueDetailPage() {
                         </PrimaryLink>
                       </div>
 
-                      {team.matches > 0 ? (
+                      {team.completedMatches > 0 ? (
                         <div style={{ marginBottom: 12 }}>
                           <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 8, background: 'rgba(255,255,255,0.06)', marginBottom: 5 }}>
                             <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.7),rgba(74,222,128,0.7))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
@@ -837,9 +875,9 @@ export default function LeagueDetailPage() {
                       ) : null}
 
                       <div style={dynamicMiniGrid}>
-                        <MiniStatCard label="Matches" value={String(team.matches)} />
-                        <MiniStatCard label="Home" value={String(team.homeMatches)} />
-                        <MiniStatCard label="Away" value={String(team.awayMatches)} />
+                        <MiniStatCard label="Completed" value={String(team.completedMatches)} />
+                        <MiniStatCard label="Scheduled" value={String(team.scheduledMatches)} />
+                        <MiniStatCard label="Missing scorecards" value={String(team.missingScorecards)} />
                         <MiniStatCard label="Latest" value={formatDate(team.latestMatchDate)} />
                       </div>
                     </div>

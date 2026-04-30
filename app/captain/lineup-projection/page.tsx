@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
-import { formatDate, formatRating, safeText } from '@/lib/captain-formatters'
+import { formatDate, formatRating, normalizeTeamName, safeText } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -61,6 +61,16 @@ type MatchPlayerRow = {
   match_id: string
   side: 'A' | 'B'
   player_id: string
+  players: PlayerRelation
+}
+
+type TeamRosterMemberRow = {
+  team_name: string | null
+  player_id: string | null
+  player_name: string | null
+  league_name: string | null
+  flight: string | null
+  ntrp: number | null
   players: PlayerRelation
 }
 
@@ -347,25 +357,15 @@ export default function LineupProjectionPage() {
       const typedTeamMatches = (teamMatchesData || []) as MatchRow[]
       const matchIds = typedTeamMatches.map((match) => match.id)
 
-      if (!matchIds.length) {
-        setRoster([])
-        setRosterLoading(false)
-        return
-      }
-
-      const sideByMatchId = new Map<string, 'A' | 'B'>()
-
-      for (const match of typedTeamMatches) {
-        if (safeText(match.home_team) === selectedTeam) sideByMatchId.set(match.id, 'A')
-        if (safeText(match.away_team) === selectedTeam) sideByMatchId.set(match.id, 'B')
-      }
-
-      const { data: participantData, error: participantError } = await supabase
-        .from('match_players')
+      const { data: rosterMemberData, error: rosterMemberError } = await supabase
+        .from('team_roster_members')
         .select(`
-          match_id,
-          side,
+          team_name,
           player_id,
+          player_name,
+          league_name,
+          flight,
+          ntrp,
           players (
             id,
             name,
@@ -381,41 +381,106 @@ export default function LineupProjectionPage() {
             lineup_notes
           )
         `)
-        .in('match_id', matchIds)
+        .eq('normalized_team_name', normalizeTeamName(selectedTeam))
+        .eq('league_name', leagueName)
+        .eq('flight', flight)
+        .limit(500)
 
-      if (participantError) throw new Error(participantError.message)
+      if (rosterMemberError) {
+        console.warn('team_roster_members lookup skipped', rosterMemberError.message)
+      }
 
-      const typedParticipants = (participantData || []) as MatchPlayerRow[]
+      const sideByMatchId = new Map<string, 'A' | 'B'>()
+
+      for (const match of typedTeamMatches) {
+        if (safeText(match.home_team) === selectedTeam) sideByMatchId.set(match.id, 'A')
+        if (safeText(match.away_team) === selectedTeam) sideByMatchId.set(match.id, 'B')
+      }
+
       const rosterMap = new Map<string, RosterPlayer>()
 
-      for (const participant of typedParticipants) {
-        const expectedSide = sideByMatchId.get(participant.match_id)
-        if (!expectedSide || participant.side !== expectedSide) continue
+      for (const row of (rosterMemberData || []) as TeamRosterMemberRow[]) {
+        const player = normalizePlayerRelation(row.players)
+        const playerId = player?.id || row.player_id
+        const playerName = player?.name || row.player_name
+        if (!playerId || !playerName || rosterMap.has(playerId)) continue
 
-        const player = normalizePlayerRelation(participant.players)
-        if (!player) continue
+        rosterMap.set(playerId, {
+          id: playerId,
+          name: playerName,
+          flight: player?.flight ?? row.flight,
+          appearances: 0,
+          overallBase: player?.overall_rating ?? row.ntrp,
+          singlesDynamic: player?.singles_dynamic_rating ?? row.ntrp,
+          singlesUstaDynamic: player?.singles_usta_dynamic_rating ?? null,
+          doublesDynamic: player?.doubles_dynamic_rating ?? row.ntrp,
+          doublesUstaDynamic: player?.doubles_usta_dynamic_rating ?? null,
+          overallDynamic: player?.overall_dynamic_rating ?? row.ntrp,
+          overallUstaDynamic: player?.overall_usta_dynamic_rating ?? null,
+          preferredRole: player?.preferred_role ?? null,
+          lineupNotes: player?.lineup_notes ?? 'No imported match history yet',
+          availabilityStatus: 'available',
+          availabilityNotes: '',
+        })
+      }
 
-        if (!rosterMap.has(player.id)) {
-          rosterMap.set(player.id, {
-            id: player.id,
-            name: player.name,
-            flight: player.flight,
-            appearances: 0,
-            overallBase: player.overall_rating,
-            singlesDynamic: player.singles_dynamic_rating,
-            singlesUstaDynamic: player.singles_usta_dynamic_rating,
-            doublesDynamic: player.doubles_dynamic_rating,
-            doublesUstaDynamic: player.doubles_usta_dynamic_rating,
-            overallDynamic: player.overall_dynamic_rating,
-            overallUstaDynamic: player.overall_usta_dynamic_rating,
-            preferredRole: player.preferred_role,
-            lineupNotes: player.lineup_notes,
-            availabilityStatus: 'available',
-            availabilityNotes: '',
-          })
+      if (matchIds.length) {
+        const { data: participantData, error: participantError } = await supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            side,
+            player_id,
+            players (
+              id,
+              name,
+              flight,
+              overall_rating,
+              overall_dynamic_rating,
+              overall_usta_dynamic_rating,
+              singles_dynamic_rating,
+              singles_usta_dynamic_rating,
+              doubles_dynamic_rating,
+              doubles_usta_dynamic_rating,
+              preferred_role,
+              lineup_notes
+            )
+          `)
+          .in('match_id', matchIds)
+
+        if (participantError) throw new Error(participantError.message)
+
+        const typedParticipants = (participantData || []) as MatchPlayerRow[]
+
+        for (const participant of typedParticipants) {
+          const expectedSide = sideByMatchId.get(participant.match_id)
+          if (!expectedSide || participant.side !== expectedSide) continue
+
+          const player = normalizePlayerRelation(participant.players)
+          if (!player) continue
+
+          if (!rosterMap.has(player.id)) {
+            rosterMap.set(player.id, {
+              id: player.id,
+              name: player.name,
+              flight: player.flight,
+              appearances: 0,
+              overallBase: player.overall_rating,
+              singlesDynamic: player.singles_dynamic_rating,
+              singlesUstaDynamic: player.singles_usta_dynamic_rating,
+              doublesDynamic: player.doubles_dynamic_rating,
+              doublesUstaDynamic: player.doubles_usta_dynamic_rating,
+              overallDynamic: player.overall_dynamic_rating,
+              overallUstaDynamic: player.overall_usta_dynamic_rating,
+              preferredRole: player.preferred_role,
+              lineupNotes: player.lineup_notes,
+              availabilityStatus: 'available',
+              availabilityNotes: '',
+            })
+          }
+
+          rosterMap.get(player.id)!.appearances += 1
         }
-
-        rosterMap.get(player.id)!.appearances += 1
       }
 
       const rosterList = [...rosterMap.values()]

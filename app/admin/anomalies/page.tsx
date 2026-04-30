@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
@@ -49,11 +49,7 @@ export default function AnomaliesPage() {
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'extreme_gap' | 'missing_score' | 'possible_duplicate'>('all')
 
-  useEffect(() => {
-    void load()
-  }, [])
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -86,7 +82,15 @@ export default function AnomaliesPage() {
     setPlayers((playerData ?? []) as PlayerRow[])
     setParticipants((participantData ?? []) as ParticipantRow[])
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void load()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [load])
 
   const anomalies = useMemo<Anomaly[]>(() => {
     const playerMap = new Map(players.map((p) => [p.id, p]))

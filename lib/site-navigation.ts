@@ -11,6 +11,7 @@ export type NavSection = {
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Home' },
   { href: '/explore', label: 'Explore' },
+  { href: '/matchup', label: 'Matchup' },
   { href: '/compete', label: 'Compete' },
   { href: '/captain', label: 'Captain' },
   { href: '/mylab', label: 'My Lab' },

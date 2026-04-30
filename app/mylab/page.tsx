@@ -1701,7 +1701,7 @@ function MyLabPageInner() {
             <div style={sectionHeaderStyle}>
               <div>
                 <p style={sectionKickerStyle}>Personal feed</p>
-                <h2 style={sectionTitleStyle}>What's happening around your network</h2>
+                <h2 style={sectionTitleStyle}>What&apos;s happening around your network</h2>
               </div>
               <div style={filterRowStyle}>
                 <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>

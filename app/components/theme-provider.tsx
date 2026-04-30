@@ -40,18 +40,17 @@ function getPreferredTheme(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>('dark')
+  const [theme, setThemeState] = useState<ThemeMode>(() => getPreferredTheme())
 
   useEffect(() => {
-    const initialTheme = getPreferredTheme()
-    setThemeState(initialTheme)
-    applyTheme(initialTheme)
-  }, [])
+    applyTheme(theme)
+  }, [theme])
 
   const setTheme = useCallback((nextTheme: ThemeMode) => {
     setThemeState(nextTheme)
-    applyTheme(nextTheme)
-    window.localStorage.setItem(STORAGE_KEY, nextTheme)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, nextTheme)
+    }
   }, [])
 
   const toggleTheme = useCallback(() => {

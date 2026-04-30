@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useRouter } from 'next/navigation'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
@@ -69,6 +70,7 @@ function statusBadgeClass(status: QueueStatus) {
 }
 
 export default function AdminImportQueuePage() {
+  const router = useRouter()
   const [rows, setRows] = useState<ImportQueueRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -101,7 +103,11 @@ export default function AdminImportQueuePage() {
   }, [])
 
   useEffect(() => {
-    void loadRows()
+    const timeoutId = window.setTimeout(() => {
+      void loadRows()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [loadRows])
 
   async function updateStatus(row: ImportQueueRow, status: QueueStatus) {
@@ -135,7 +141,7 @@ export default function AdminImportQueuePage() {
       params.set('autocommit', 'clean_safe')
     }
 
-    window.location.href = `/admin/import?${params.toString()}`
+    router.push(`/admin/import?${params.toString()}`)
   }
 
   return (

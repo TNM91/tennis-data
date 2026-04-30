@@ -548,7 +548,13 @@ export default function CaptainTiqTeamMatchesPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { void loadData() }, [loadData])
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadData()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadData])
 
   async function handleFilterChange(leagueId: string) {
     setFilterLeagueId(leagueId)

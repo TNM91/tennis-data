@@ -223,7 +223,7 @@ export default function HomePageHeroResponsive() {
               </Link>
 
               <Link
-                href="/mylab"
+                href="/matchup"
                 onMouseEnter={() => setMatchupHovered(true)}
                 onMouseLeave={() => setMatchupHovered(false)}
                 style={{
@@ -240,7 +240,7 @@ export default function HomePageHeroResponsive() {
                   transition: 'all 150ms ease',
                 }}
               >
-                Open My Lab
+                See how you match up
               </Link>
 
               <Link
@@ -258,7 +258,7 @@ export default function HomePageHeroResponsive() {
                   transition: 'all 150ms ease',
                 }}
               >
-                Open Captain's Corner
+                Open Captain&apos;s Corner
               </Link>
             </div>
 

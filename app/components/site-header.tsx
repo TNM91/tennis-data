@@ -192,7 +192,11 @@ export default function SiteHeader({ active }: { active?: string }) {
 
   // Close mobile menu whenever the route changes (back/forward navigation)
   useEffect(() => {
-    setMenuOpen(false)
+    const timeoutId = window.setTimeout(() => {
+      setMenuOpen(false)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [pathname])
 
   const resumeImportHref = useMemo(() => {

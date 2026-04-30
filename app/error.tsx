@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 
 export default function ErrorPage({
   error,
@@ -30,9 +31,9 @@ export default function ErrorPage({
           <button className="button-primary" onClick={unstable_retry} style={{ minWidth: 130, fontSize: '0.95rem' }}>
             Try again
           </button>
-          <a href="/" className="button-ghost" style={{ minWidth: 130, fontSize: '0.95rem' }}>
+          <Link href="/" className="button-ghost" style={{ minWidth: 130, fontSize: '0.95rem' }}>
             Go home
-          </a>
+          </Link>
         </div>
       </div>
     </div>

@@ -1413,7 +1413,7 @@ export default function PlayerProfilePage() {
                 <h2 style={panelTitle}>Who they beat and lose to</h2>
               </div>
             </div>
-            <p style={sectionText}>W-L split by opponent rating relative to this player's USTA base. "Stronger" means the opponent rated 0.25+ higher; "weaker" means 0.25+ lower.</p>
+            <p style={sectionText}>W-L split by opponent rating relative to this player&apos;s USTA base. &quot;Stronger&quot; means the opponent rated 0.25+ higher; &quot;weaker&quot; means 0.25+ lower.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
               {[
                 { key: 'weaker' as const, label: 'vs Weaker', color: '#d9f84a', bg: 'rgba(155,225,29,0.06)', border: 'rgba(155,225,29,0.16)' },

@@ -414,7 +414,7 @@ export default function CaptainTeamBriefPage() {
                 <p style={sectionKicker}>Team Brief</p>
                 <h1 style={heroTitle}>A clean player-facing weekly summary.</h1>
                 <p style={heroText}>
-                  Use this version when you want to share or print the week's essentials without exposing private scouting notes.
+                  Use this version when you want to share or print the week&apos;s essentials without exposing private scouting notes.
                 </p>
               </div>
 

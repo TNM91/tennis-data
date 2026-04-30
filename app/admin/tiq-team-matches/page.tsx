@@ -534,7 +534,13 @@ export default function TiqTeamMatchesPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { void loadAll() }, [loadAll])
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadAll()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [loadAll])
 
   async function handleFilterChange(leagueId: string) {
     setFilterLeagueId(leagueId)

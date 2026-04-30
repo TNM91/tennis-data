@@ -50,6 +50,18 @@ type TeamRosterMembership = {
   ntrp: number | null
 }
 
+type TeamSummaryTeamRecord = {
+  teamName: string
+  leagueName: string | null
+  flight: string | null
+  ustaSection: string | null
+  districtArea: string | null
+  source: string | null
+  wins: number | null
+  losses: number | null
+  rawCaptureJson: unknown
+}
+
 export type ScheduleImportRow = {
   externalMatchId: string
   matchDate: string
@@ -2041,8 +2053,35 @@ export class ImportEngine {
 
     // Collect all valid players (deduplicated by normalised name)
     const playerMap = new Map<string, { name: string; ntrp: number }>()
+    const teamSummaryTeams = new Map<string, TeamSummaryTeamRecord>()
     const rosterMembershipByKey = new Map<string, Omit<TeamRosterMembership, 'playerId'>>()
     for (const row of rows) {
+      for (const team of row.teams ?? []) {
+        const teamName = cleanString(team.name)
+        if (!teamName) continue
+        const leagueName = cleanString(row.leagueName) || null
+        const flight = cleanString(row.flight) || null
+        const key = [
+          normalizeName(teamName),
+          (leagueName ?? '').toLowerCase(),
+          (flight ?? '').toLowerCase(),
+        ].join('__')
+
+        if (!teamSummaryTeams.has(key)) {
+          teamSummaryTeams.set(key, {
+            teamName,
+            leagueName,
+            flight,
+            ustaSection: cleanString(row.ustaSection) || null,
+            districtArea: cleanString(row.districtArea) || null,
+            source: cleanString(row.source) || null,
+            wins: typeof team.wins === 'number' && Number.isFinite(team.wins) ? team.wins : null,
+            losses: typeof team.losses === 'number' && Number.isFinite(team.losses) ? team.losses : null,
+            rawCaptureJson: row.raw_capture_json ?? null,
+          })
+        }
+      }
+
       for (const player of row.players ?? []) {
         const name = cleanString(player.name)
         if (!name) continue
@@ -2144,6 +2183,10 @@ export class ImportEngine {
         }
       }
       return result
+    }
+
+    if (teamSummaryTeams.size > 0) {
+      await this.upsertTeamSummaryTeams([...teamSummaryTeams.values()])
     }
 
     // Commit mode: batch lookup → batch insert for new → targeted updates for existing
@@ -2282,6 +2325,29 @@ export class ImportEngine {
 
     if (error) {
       this.options.log('team_roster_members upsert skipped', { error: error.message })
+    }
+  }
+
+  private async upsertTeamSummaryTeams(rows: TeamSummaryTeamRecord[]) {
+    const payload = rows.map((row) => ({
+      team_name: row.teamName,
+      normalized_team_name: normalizeName(row.teamName),
+      league_name: row.leagueName ?? '',
+      flight: row.flight ?? '',
+      usta_section: row.ustaSection,
+      district_area: row.districtArea,
+      source: row.source,
+      wins: row.wins,
+      losses: row.losses,
+      raw_capture_json: row.rawCaptureJson,
+    }))
+
+    const { error } = await this.supabase
+      .from('team_summary_teams')
+      .upsert(payload, { onConflict: 'normalized_team_name,league_name,flight' })
+
+    if (error) {
+      this.options.log('team_summary_teams upsert skipped', { error: error.message })
     }
   }
 }

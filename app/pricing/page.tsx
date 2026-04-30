@@ -41,9 +41,9 @@ export default function PricingPage() {
       <section style={pageWrapStyle}>
         <section style={heroStyle}>
           <div style={eyebrowStyle}>Pricing</div>
-          <h1 style={heroTitleStyle}>Pick the tools for your role.</h1>
-          <p style={heroTextStyle}>
-            Start free. Upgrade when you want sharper player insight, captain workflow, or league operations.
+            <h1 style={heroTitleStyle}>Free to explore. Player+ to prepare. Captain to lead.</h1>
+            <p style={heroTextStyle}>
+            Find your league, see your next matchup, and upgrade when you want better prep, stronger lineups, or cleaner league workflows.
           </p>
 
           <div style={proofRowStyle}>
@@ -140,28 +140,28 @@ export default function PricingPage() {
         <section style={captainFocusSectionStyle}>
           <div style={captainFocusIntroStyle}>
             <div style={sectionEyebrowStyle}>Most popular for a reason</div>
-            <h2 style={sectionTitleStyle}>Captain keeps the week organized.</h2>
+          <h2 style={sectionTitleStyle}>Player+ unlocks the prep. Captain organizes the week.</h2>
             <div style={supportItemTextStyle}>
-              Availability, lineups, scenarios, projections, and team texts stay together.
+              Use Matchup and MyLab to prepare as a player. Use Captain when you manage lineups, scenarios, availability, and team messages.
             </div>
           </div>
           <div style={captainFocusGridStyle}>
             <div style={captainFocusCardStyle}>
-              <div style={supportItemTitleStyle}>The problem</div>
+              <div style={supportItemTitleStyle}>Player problem</div>
               <div style={supportItemTextStyle}>
-                Availability lives in texts. Lineups get rebuilt by hand.
+                You want to know how you match up and what to prepare before the match.
               </div>
             </div>
             <div style={captainFocusCardStyle}>
-              <div style={supportItemTitleStyle}>The solution</div>
+              <div style={supportItemTitleStyle}>Player+ tool</div>
               <div style={supportItemTextStyle}>
-                One workspace for availability, lineup build, scenarios, projections, and messages.
+                Matchup compares players before the match. MyLab helps you prep faster.
               </div>
             </div>
             <div style={captainFocusCardStyle}>
-              <div style={supportItemTitleStyle}>The result</div>
+              <div style={supportItemTitleStyle}>Captain upgrade</div>
               <div style={supportItemTextStyle}>
-                Save time. Send clearer plans. Win the right courts.
+                Lineup Builder, Scenario Builder, availability, and messaging keep the team week clear.
               </div>
             </div>
           </div>
@@ -169,8 +169,8 @@ export default function PricingPage() {
             <Link href="/captain" style={featuredCtaStyle}>
               Build Smarter Lineups
             </Link>
-            <Link href="/pricing" style={captainFocusSecondaryCtaStyle}>
-              Compare all plans
+            <Link href="/matchup" style={captainFocusSecondaryCtaStyle}>
+              See how you match up
             </Link>
           </div>
         </section>
@@ -218,11 +218,11 @@ export default function PricingPage() {
           <div style={chooseGridStyle}>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Just playing and tracking</div>
-              <div style={supportItemTextStyle}>Free covers profiles, teams, availability, lineups, and history.</div>
+              <div style={supportItemTextStyle}>Free covers basic search, public players, teams, leagues, and posted results where available.</div>
             </div>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Trying to improve your own game</div>
-              <div style={supportItemTextStyle}>Player+ answers where you fit and what to work on.</div>
+              <div style={supportItemTextStyle}>Player+ unlocks Matchup, MyLab, follows, and smarter prep for your next match.</div>
             </div>
             <div style={supportItemStyle}>
               <div style={supportItemTitleStyle}>Running weekly lineup decisions</div>
@@ -268,6 +268,7 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   }
 
   if (planId === 'captain') return 'Build Smarter Lineups'
+  if (planId === 'player_plus') return 'Unlock Matchup with Player+'
   return getPricingPlan(planId).ctaLabel
 }
 

@@ -806,10 +806,32 @@
     return dedupeTeamSummaryPlayers(results);
   }
 
+  function inferRosterTeamName(teams) {
+    const candidates = dedupeTeamSummaryTeams(teams).map((team) => team.name);
+    if (candidates.length === 1) return candidates[0];
+
+    const headingText = Array.from(document.querySelectorAll('h1,h2,h3,.pageTitle,.pagetitle,.title,.PageTitle,.ContentTitle'))
+      .map((node) => innerTextOf(node))
+      .filter(Boolean)
+      .join(' | ');
+    const urlText = decodeURIComponent(window.location.href || '');
+    const pagePrefix = (document.body?.innerText || '').split(/\bPlayers\b/i)[0] || '';
+    const haystacks = [headingText, urlText, pagePrefix].map((value) => normalizeWhitespace(value));
+
+    for (const teamName of candidates) {
+      const key = normalizeSummaryLookupKey(teamName);
+      if (!key) continue;
+      if (haystacks.some((value) => normalizeSummaryLookupKey(value).includes(key))) return teamName;
+    }
+
+    return null;
+  }
+
   function extractTeamSummary() {
     const text = document.body?.innerText || '';
     const leagueMeta = extractLeagueMetadata(text);
     const teams = extractTeamStandingsFromTables();
+    const rosterTeamName = inferRosterTeamName(teams);
     const players = extractPlayersFromTables();
     const canonicalTeamMap = {};
     const playerRatingSeeds = {};
@@ -827,8 +849,12 @@
 
     return {
       ...leagueMeta,
+      rosterTeamName,
       teams,
-      players,
+      players: players.map((player) => ({
+        ...player,
+        teamName: player.teamName || rosterTeamName || null,
+      })),
       canonicalTeamMap,
       playerRatingSeeds,
       source: 'tennislink_team_summary',
