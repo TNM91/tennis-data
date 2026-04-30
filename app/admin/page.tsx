@@ -33,6 +33,17 @@ const adminTools: AdminTool[] = [
     statValue: 'All imports',
   },
   {
+    title: 'Automated Import Queue',
+    href: '/admin/import-queue',
+    description:
+      'Review payloads that the extension captured but the automated pipeline could not safely commit without human confirmation.',
+    badge: 'Review',
+    accent: 'blue',
+    highlights: ['Pending payloads', 'Review handoff', 'Reject + process states', 'Fallback workflow'],
+    statLabel: 'Best for',
+    statValue: 'Needs review',
+  },
+  {
     title: 'Missing Scorecards',
     href: '/admin/missing-scorecards',
     description:
@@ -134,7 +145,7 @@ const adminTools: AdminTool[] = [
 ]
 
 const importTools = adminTools.filter((tool) =>
-  ['/admin/import', '/admin/missing-scorecards', '/admin/lineup-availability'].includes(tool.href)
+  ['/admin/import', '/admin/import-queue', '/admin/missing-scorecards', '/admin/lineup-availability'].includes(tool.href)
 )
 
 const managementTools = adminTools.filter((tool) =>
@@ -221,7 +232,7 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="9" helper="Includes access control and data quality" />
+              <MetricCard label="Admin Tools" value="10" helper="Includes access control and data quality" />
               <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
               <MetricCard label="Data Control" value="5" helper="Imports, availability, match, player, and access ops" />
               <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
@@ -339,6 +350,11 @@ export default function AdminDashboardPage() {
                     <td>/admin/import</td>
                     <td>Unified schedule + scorecard ingest</td>
                     <td>Main import route going forward</td>
+                  </tr>
+                  <tr>
+                    <td>/admin/import-queue</td>
+                    <td>Automated import review queue</td>
+                    <td>Use only when the extension says a capture needs review</td>
                   </tr>
                   <tr>
                     <td>/admin/missing-scorecards</td>
@@ -468,6 +484,7 @@ export default function AdminDashboardPage() {
                 }}
               >
                 <QuickAction href="/admin/import" label="Open Unified Import Center" />
+                <QuickAction href="/admin/import-queue" label="Open Automated Import Queue" />
                 <QuickAction href="/admin/missing-scorecards" label="Open Missing Scorecards" />
                 <QuickAction href="/admin/lineup-availability" label="Open Lineup Availability" />
                 <QuickAction href="/admin/add-match" label="Open Add Match" />

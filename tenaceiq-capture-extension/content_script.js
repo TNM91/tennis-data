@@ -401,6 +401,63 @@
     };
   }
 
+  function splitKnownScheduleTeams(working) {
+    const value = normalizeTeamName(working || '');
+    if (!value) return null;
+
+    // Safety net for TennisLink schedule rows where two team columns collapse
+    // into one text run. Longest names first prevents partial matches from
+    // beating the full team name.
+    const knownTeamFragments = [
+      "Gontarz/Wild William's Wily Wolverines",
+      'Meinert/The Other Guys',
+      "Bad Bill's Badly Badgered Badgers",
+      'Huchet/Ariston',
+      'Hodge/Kamman',
+      'Hodge/Kammann',
+      'Levin/Collop',
+      'Schnellaveria',
+      'Schlueter/Big',
+      'Hamilton',
+    ]
+      .map(normalizeTeamName)
+      .sort((a, b) => b.length - a.length);
+
+    for (const home of knownTeamFragments) {
+      if (!value.startsWith(home)) continue;
+      const away = normalizeTeamName(value.slice(home.length));
+      if (away && away !== home) return { homeTeam: home, awayTeam: away };
+    }
+
+    for (const away of knownTeamFragments) {
+      if (!value.endsWith(away)) continue;
+      const home = normalizeTeamName(value.slice(0, value.length - away.length));
+      if (home && home !== away) return { homeTeam: home, awayTeam: away };
+    }
+
+    for (const home of knownTeamFragments) {
+      for (const away of knownTeamFragments) {
+        if (home === away) continue;
+        if (value === normalizeTeamName(`${home} ${away}`)) {
+          return { homeTeam: home, awayTeam: away };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function isBrokenScheduleSplit(left, right) {
+    const l = normalizeTeamName(left || '');
+    const r = normalizeTeamName(right || '');
+    if (!l || !r) return true;
+    if (/\/$/.test(l)) return true;
+    if (/^\//.test(r)) return true;
+    if (/\b(Ariston|Collop|Kamman|Kammann)\b\s+Schnellaveria$/i.test(r)) return true;
+    if (/\b(The Other Guys|Wily Wolverines)\b\s+\S+/i.test(r)) return true;
+    return false;
+  }
+
   function parseScheduleTeamsAndFacility(joined, homeCaptains = [], awayCaptains = []) {
     const cleanedJoined = removeFooter(joined || '');
 
@@ -412,13 +469,13 @@
       };
     }
 
-    let working = cleanedJoined;
+    let working = normalizeTeamName(cleanedJoined);
     let facility = '';
 
     for (const candidate of KNOWN_FACILITIES) {
       if (working.includes(candidate)) {
         facility = candidate;
-        working = working.replace(candidate, ' ').replace(/\s+/g, ' ').trim();
+        working = normalizeTeamName(working.replace(candidate, ' '));
         break;
       }
     }
@@ -432,6 +489,18 @@
       return {
         homeTeam: normalizeTeamName(splitOnFlag[0]),
         awayTeam: normalizeTeamName(splitOnFlag.slice(1).join(' ')),
+        facility: normalizeWhitespace(facility),
+      };
+    }
+
+    // Prefer full team shapes over captain-last-name splitting. This prevents
+    // "Huchet/Ariston Schnellaveria" from becoming fake teams
+    // "Huchet/" and "Ariston Schnellaveria".
+    const knownSplit = splitKnownScheduleTeams(working);
+    if (knownSplit?.homeTeam && knownSplit?.awayTeam) {
+      return {
+        homeTeam: normalizeTeamName(knownSplit.homeTeam),
+        awayTeam: normalizeTeamName(knownSplit.awayTeam),
         facility: normalizeWhitespace(facility),
       };
     }
@@ -450,7 +519,7 @@
         const left = normalizeWhitespace(working.slice(0, idx));
         const right = normalizeWhitespace(working.slice(idx));
 
-        if (left && right) {
+        if (left && right && !isBrokenScheduleSplit(left, right)) {
           return {
             homeTeam: normalizeTeamName(left),
             awayTeam: normalizeTeamName(right),
@@ -466,7 +535,7 @@
         const left = normalizeWhitespace(working.slice(0, idx));
         const right = normalizeWhitespace(working.slice(idx));
 
-        if (left && right) {
+        if (left && right && !isBrokenScheduleSplit(left, right)) {
           return {
             homeTeam: normalizeTeamName(left),
             awayTeam: normalizeTeamName(right),
@@ -476,48 +545,18 @@
       }
     }
 
-    const knownTeamFragments = [
-      'Meinert/The Other Guys',
-      "Bad Bill's Badly Badgered Badgers",
-      'Schlueter/Big',
-      'Huchet/Ariston',
-      'Hodge/Kammann',
-      'Levin/Collop',
-      'Hamilton',
-      'William\'s Wily Wolverines',
-      'Gontarz/Wild',
-    ];
-
-    for (const fragment of knownTeamFragments) {
-      if (!working.includes(fragment)) continue;
-
-      const start = working.indexOf(fragment);
-      const after = normalizeWhitespace(working.slice(start + fragment.length));
-      const before = normalizeWhitespace(working.slice(0, start));
-
-      if (before && after) {
-        return {
-          homeTeam: normalizeTeamName(before),
-          awayTeam: normalizeTeamName(`${fragment} ${after}`),
-          facility: normalizeWhitespace(facility),
-        };
-      }
-
-      if (!before && after) {
-        const remainder = normalizeWhitespace(after);
-        if (remainder) {
-          return {
-            homeTeam: normalizeTeamName(fragment),
-            awayTeam: normalizeTeamName(remainder),
-            facility: normalizeWhitespace(facility),
-          };
-        }
-      }
-    }
-
     const smart = smartSplit(working);
-    working = smart.team;
+    working = normalizeTeamName(smart.team);
     if (!facility && smart.facility) facility = smart.facility;
+
+    const smartKnownSplit = splitKnownScheduleTeams(working);
+    if (smartKnownSplit?.homeTeam && smartKnownSplit?.awayTeam) {
+      return {
+        homeTeam: normalizeTeamName(smartKnownSplit.homeTeam),
+        awayTeam: normalizeTeamName(smartKnownSplit.awayTeam),
+        facility: normalizeWhitespace(facility),
+      };
+    }
 
     const partsBySpacing = working
       .split(/\s{2,}/)

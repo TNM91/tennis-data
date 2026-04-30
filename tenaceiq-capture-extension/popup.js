@@ -32,6 +32,11 @@ function inferImportKind(payload) {
   return 'schedule';
 }
 
+function toAutoImportPageType(kind) {
+  if (kind === 'schedule') return 'season_schedule';
+  return kind;
+}
+
 function buildFilename(payload) {
   const pageType = (payload.pageType || 'page').replace(/[^\w-]/g, '_');
   const titleSeed =
@@ -215,6 +220,41 @@ function buildImportUrl(baseUrl, payload) {
   return nextUrl.toString();
 }
 
+function buildAutoImportUrl(baseUrl) {
+  const adminUrl = new URL(baseUrl || DEFAULT_IMPORT_URL);
+  return `${adminUrl.origin}/api/import/auto`;
+}
+
+async function sendAutoImport(baseUrl, payload) {
+  const kind = inferImportKind(payload);
+  const response = await fetch(buildAutoImportUrl(baseUrl), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      pageType: toAutoImportPageType(kind),
+      payload,
+    }),
+  });
+
+  let body = null;
+  try {
+    body = await response.json();
+  } catch {
+    // Keep the HTTP status as the useful failure signal.
+  }
+
+  if (!response.ok && !body?.status) {
+    throw new Error(`Auto import request failed (${response.status})`);
+  }
+
+  return body || {
+    status: response.ok ? 'imported' : 'failed',
+    message: response.ok ? 'Imported' : `Import failed (${response.status})`,
+  };
+}
+
 async function loadSettings() {
   const result = await storageGet([CAPTURE_STORAGE_KEY, CAPTURE_HISTORY_KEY, IMPORT_URL_STORAGE_KEY]);
   lastCaptureRecord = result?.[CAPTURE_STORAGE_KEY] || null;
@@ -298,19 +338,40 @@ captureBtn.addEventListener('click', async () => {
 
     const baseUrl = cleanText(importUrlInput.value) || DEFAULT_IMPORT_URL;
     await storageSet({ [IMPORT_URL_STORAGE_KEY]: baseUrl });
-    await copyPayloadToClipboard(payload);
-    const targetUrl = buildImportUrl(baseUrl, payload);
     const kind = inferImportKind(payload);
-    const softPayload = {
-      payload,
-      kind,
-      autoPreview: true,
-      autoCommitMode: kind === 'scorecard' ? 'clean_only' : 'all',
-      source: 'edge-extension',
-    };
-    await openOrReuseImportTab(targetUrl, softPayload);
+    await copyPayloadToClipboard(payload);
 
-    setStatus(`Capture complete, copied to clipboard, and sent to the import center. Clean items will move through automatically, and unresolved scorecards will open in focused line review.\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`);
+    let autoResult = null;
+    try {
+      autoResult = await sendAutoImport(baseUrl, payload);
+    } catch (autoError) {
+      const targetUrl = buildImportUrl(baseUrl, payload);
+      const softPayload = {
+        payload,
+        kind,
+        autoPreview: true,
+        autoCommitMode: kind === 'scorecard' ? 'clean_only' : 'all',
+        source: 'edge-extension',
+      };
+      await openOrReuseImportTab(targetUrl, softPayload);
+      setStatus(`Capture complete, but direct auto import was unavailable: ${autoError.message}\n\nOpened the import center fallback.\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`);
+      return;
+    }
+
+    if (autoResult.status === 'needs_review') {
+      const targetUrl = buildImportUrl(baseUrl, payload);
+      const softPayload = {
+        payload,
+        kind,
+        autoPreview: true,
+        autoCommitMode: kind === 'scorecard' ? 'clean_only' : 'all',
+        source: 'edge-extension',
+      };
+      await openOrReuseImportTab(targetUrl, softPayload);
+    }
+
+    const isError = autoResult.status === 'failed';
+    setStatus(`${autoResult.message || 'Import complete'}\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`, isError);
   } catch (error) {
     console.error('TenAceIQ popup capture error:', error);
     setStatus(`Error: ${error.message}`, true);
