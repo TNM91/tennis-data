@@ -18,17 +18,51 @@ type MatchLedgerRow = {
   home_team: string | null
   away_team: string | null
   match_date: string | null
+  match_time: string | null
+  facility: string | null
   status: string | null
   score: string | null
   line_number: string | null
 }
 
-type StatusFilter = 'pending' | 'upcoming' | 'completed' | 'all'
-type FocusFilter = 'all' | 'due-this-week' | 'missing-id' | 'missing-league'
+type StatusFilter = 'ready' | 'upcoming' | 'completed' | 'all'
+type FocusFilter = 'all' | 'ready-today' | 'overdue' | 'missing-id' | 'missing-league'
 
 function startOfTodayKey() {
   const now = new Date()
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+}
+
+function formatTodayLabel() {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date())
+}
+
+function getDateKey(value: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  const key = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  return Number.isNaN(key) ? null : key
+}
+
+function getDaysFromToday(value: string | null) {
+  const key = getDateKey(value)
+  if (key === null) return null
+  return Math.round((key - startOfTodayKey()) / 86400000)
+}
+
+function dueLabel(value: string | null) {
+  const days = getDaysFromToday(value)
+  if (days === null) return 'No match date'
+  if (days < -1) return `${Math.abs(days)} days overdue`
+  if (days === -1) return 'Yesterday'
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  return `In ${days} days`
 }
 
 function leagueScopeLabel(leagueName: string | null, flight: string | null) {
@@ -42,7 +76,7 @@ export default function MissingScorecardsPage() {
   const [search, setSearch] = useState('')
   const [leagueFilter, setLeagueFilter] = useState('')
   const [teamFilter, setTeamFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ready')
   const [focusFilter, setFocusFilter] = useState<FocusFilter>('all')
   const [copiedQueue, setCopiedQueue] = useState(false)
   const deferredSearch = useDeferredValue(search)
@@ -53,14 +87,14 @@ export default function MissingScorecardsPage() {
     const nextSearch = params.get('search') || ''
     const nextLeague = params.get('league') || ''
     const nextTeam = params.get('team') || ''
-    const nextStatus = (params.get('status') || 'pending') as StatusFilter
+    const nextStatus = (params.get('status') || 'ready') as StatusFilter
     const nextFocus = (params.get('focus') || 'all') as FocusFilter
 
     setSearch(nextSearch)
     setLeagueFilter(nextLeague)
     setTeamFilter(nextTeam)
-    setStatusFilter(['pending', 'upcoming', 'completed', 'all'].includes(nextStatus) ? nextStatus : 'pending')
-    setFocusFilter(['all', 'due-this-week', 'missing-id', 'missing-league'].includes(nextFocus) ? nextFocus : 'all')
+    setStatusFilter(['ready', 'upcoming', 'completed', 'all'].includes(nextStatus) ? nextStatus : 'ready')
+    setFocusFilter(['all', 'ready-today', 'overdue', 'missing-id', 'missing-league'].includes(nextFocus) ? nextFocus : 'all')
   }, [])
 
   useEffect(() => {
@@ -82,6 +116,8 @@ export default function MissingScorecardsPage() {
           home_team,
           away_team,
           match_date,
+          match_time,
+          facility,
           status,
           score,
           line_number
@@ -125,9 +161,9 @@ export default function MissingScorecardsPage() {
       if (completed) return 'completed'
       if (!row.match_date) return 'all'
 
-      const matchKey = new Date(row.match_date).getTime()
-      if (Number.isNaN(matchKey)) return 'all'
-      return matchKey <= todayKey ? 'pending' : 'upcoming'
+      const matchKey = getDateKey(row.match_date)
+      if (matchKey === null) return 'all'
+      return matchKey <= todayKey ? 'ready' : 'upcoming'
     }
 
     return {
@@ -157,10 +193,7 @@ export default function MissingScorecardsPage() {
     const query = deferredSearch.trim().toLowerCase()
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const sevenDaysFromNow = new Date(today)
-    sevenDaysFromNow.setDate(today.getDate() + 7)
     const todayKey = today.getTime()
-    const dueSoonKey = sevenDaysFromNow.getTime()
 
     return summary.parentRows.filter((row) => {
       const classification = summary.classify(row)
@@ -177,11 +210,17 @@ export default function MissingScorecardsPage() {
 
       if (focusFilter === 'missing-id' && cleanText(row.external_match_id)) return false
       if (focusFilter === 'missing-league' && cleanText(row.league_name)) return false
-      if (focusFilter === 'due-this-week') {
-        if (classification !== 'pending' && classification !== 'upcoming') return false
+      if (focusFilter === 'ready-today') {
+        if (classification !== 'ready') return false
         if (!row.match_date) return false
-        const matchKey = new Date(row.match_date).getTime()
-        if (Number.isNaN(matchKey) || matchKey < todayKey || matchKey > dueSoonKey) return false
+        const matchKey = getDateKey(row.match_date)
+        if (matchKey === null || matchKey !== todayKey) return false
+      }
+      if (focusFilter === 'overdue') {
+        if (classification !== 'ready') return false
+        if (!row.match_date) return false
+        const matchKey = getDateKey(row.match_date)
+        if (matchKey === null || matchKey >= todayKey) return false
       }
 
       if (!query) return true
@@ -202,16 +241,24 @@ export default function MissingScorecardsPage() {
 
   const metrics = useMemo(() => {
     const counts = {
-      pending: 0,
+      ready: 0,
       upcoming: 0,
       completed: 0,
+      overdue: 0,
+      readyToday: 0,
       missingExternalIds: 0,
       missingLeagueNames: 0,
     }
+    const todayKey = startOfTodayKey()
 
     for (const row of summary.parentRows) {
       const classification = summary.classify(row)
-      if (classification === 'pending') counts.pending += 1
+      if (classification === 'ready') {
+        counts.ready += 1
+        const matchKey = getDateKey(row.match_date)
+        if (matchKey !== null && matchKey < todayKey) counts.overdue += 1
+        if (matchKey !== null && matchKey === todayKey) counts.readyToday += 1
+      }
       if (classification === 'upcoming') counts.upcoming += 1
       if (classification === 'completed') counts.completed += 1
       if (!cleanText(row.external_match_id)) counts.missingExternalIds += 1
@@ -222,46 +269,47 @@ export default function MissingScorecardsPage() {
   }, [summary])
 
   const actionLanes = useMemo(() => {
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const sevenDaysFromNow = new Date(today)
-    sevenDaysFromNow.setDate(today.getDate() + 7)
-    const todayKey = today.getTime()
-    const dueSoonKey = sevenDaysFromNow.getTime()
+    const todayKey = startOfTodayKey()
 
-    let dueThisWeek = 0
+    let readyToday = 0
+    let overdue = 0
 
     for (const row of summary.parentRows) {
       if (!row.match_date) continue
-      const matchKey = new Date(row.match_date).getTime()
-      if (Number.isNaN(matchKey)) continue
-      if (matchKey < todayKey || matchKey > dueSoonKey) continue
+      const matchKey = getDateKey(row.match_date)
+      if (matchKey === null) continue
       const classification = summary.classify(row)
-      if (classification === 'pending' || classification === 'upcoming') {
-        dueThisWeek += 1
-      }
+      if (classification !== 'ready') continue
+      if (matchKey === todayKey) readyToday += 1
+      if (matchKey < todayKey) overdue += 1
     }
 
     return {
-      dueThisWeek,
+      readyToday,
+      overdue,
       missingExternalIds: metrics.missingExternalIds,
       missingLeagueNames: metrics.missingLeagueNames,
     }
   }, [metrics.missingExternalIds, metrics.missingLeagueNames, summary])
 
   const backlogSummaries = useMemo(() => {
-    const pendingRows = summary.parentRows.filter((row) => summary.classify(row) === 'pending')
-    const byLeague = new Map<string, { label: string; count: number }>()
+    const readyRows = summary.parentRows.filter((row) => summary.classify(row) === 'ready')
+    const byLeague = new Map<string, { label: string; count: number; oldestMatchDate: string | null }>()
     const byTeam = new Map<string, { label: string; count: number; league: string }>()
 
-    for (const row of pendingRows) {
+    for (const row of readyRows) {
       const leagueLabel = leagueScopeLabel(row.league_name, row.flight)
       const homeTeam = cleanText(row.home_team)
       const awayTeam = cleanText(row.away_team)
+      const existingLeague = byLeague.get(leagueLabel)
 
       byLeague.set(leagueLabel, {
         label: leagueLabel,
-        count: (byLeague.get(leagueLabel)?.count || 0) + 1,
+        count: (existingLeague?.count || 0) + 1,
+        oldestMatchDate:
+          !existingLeague?.oldestMatchDate || (row.match_date && row.match_date < existingLeague.oldestMatchDate)
+            ? row.match_date
+            : existingLeague.oldestMatchDate,
       })
 
       for (const team of [homeTeam, awayTeam]) {
@@ -291,7 +339,7 @@ export default function MissingScorecardsPage() {
     if (search.trim()) params.set('search', search.trim())
     if (leagueFilter) params.set('league', leagueFilter)
     if (teamFilter) params.set('team', teamFilter)
-    if (statusFilter !== 'pending') params.set('status', statusFilter)
+    if (statusFilter !== 'ready') params.set('status', statusFilter)
     if (focusFilter !== 'all') params.set('focus', focusFilter)
 
     const query = params.toString()
@@ -334,18 +382,18 @@ export default function MissingScorecardsPage() {
               <div className="section-kicker">Admin Tool</div>
               <h1 className="page-title">Missing Scorecards</h1>
               <p className="page-subtitle">
-                Review scheduled parent matches, see which ones still need scorecards after match day,
-                and jump straight into import or match review without guessing what is missing.
+                See every uploaded schedule across leagues, use today ({formatTodayLabel()}) to know which
+                match dates have passed, and pull only the scorecards that are ready.
               </p>
             </div>
           </section>
 
           <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
             <div className="metric-grid">
-              <MetricCard label="Needs scorecard" value={String(metrics.pending)} helper="Past scheduled matches still missing results." />
+              <MetricCard label="Ready to pull" value={String(metrics.ready)} helper="Scheduled matches on or before today without scorecards." />
+              <MetricCard label="Overdue" value={String(metrics.overdue)} helper="Ready matches with dates before today." />
               <MetricCard label="Upcoming" value={String(metrics.upcoming)} helper="Future scheduled matches not due yet." />
               <MetricCard label="Completed" value={String(metrics.completed)} helper="Parent matches with score or imported scorecard lines." />
-              <MetricCard label="Missing match ID" value={String(metrics.missingExternalIds)} helper="Parent rows without an external match ID." />
             </div>
           </section>
 
@@ -365,14 +413,28 @@ export default function MissingScorecardsPage() {
                 className="button-ghost"
                 style={{ justifyContent: 'space-between' }}
                 onClick={() => {
-                  setFocusFilter('due-this-week')
+                  setFocusFilter('ready-today')
                   setStatusFilter('all')
                   setLeagueFilter('')
                   setTeamFilter('')
                 }}
               >
-                <span>Due this week</span>
-                <span>{actionLanes.dueThisWeek}</span>
+                <span>Today</span>
+                <span>{actionLanes.readyToday}</span>
+              </button>
+              <button
+                type="button"
+                className="button-ghost"
+                style={{ justifyContent: 'space-between' }}
+                onClick={() => {
+                  setFocusFilter('overdue')
+                  setStatusFilter('all')
+                  setLeagueFilter('')
+                  setTeamFilter('')
+                }}
+              >
+                <span>Overdue</span>
+                <span>{actionLanes.overdue}</span>
               </button>
               <button
                 type="button"
@@ -408,14 +470,14 @@ export default function MissingScorecardsPage() {
                 style={{ justifyContent: 'space-between' }}
                 onClick={() => {
                   setFocusFilter('all')
-                  setStatusFilter('pending')
+                  setStatusFilter('ready')
                   setLeagueFilter('')
                   setTeamFilter('')
                   setSearch('')
                 }}
               >
-                <span>Reset to past due</span>
-                <span>{metrics.pending}</span>
+                <span>Reset to ready</span>
+                <span>{metrics.ready}</span>
               </button>
             </div>
           </section>
@@ -438,7 +500,7 @@ export default function MissingScorecardsPage() {
               </Field>
               <Field label="Status">
                 <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} className="select">
-                  <option value="pending">Past due</option>
+                  <option value="ready">Ready to pull</option>
                   <option value="upcoming">Upcoming</option>
                   <option value="completed">Completed</option>
                   <option value="all">All parent matches</option>
@@ -467,7 +529,8 @@ export default function MissingScorecardsPage() {
               <Field label="Focus lane">
                 <select value={focusFilter} onChange={(event) => setFocusFilter(event.target.value as FocusFilter)} className="select">
                   <option value="all">All queue items</option>
-                  <option value="due-this-week">Due this week</option>
+                  <option value="ready-today">Today only</option>
+                  <option value="overdue">Overdue only</option>
                   <option value="missing-id">Missing external IDs</option>
                   <option value="missing-league">Missing league names</option>
                 </select>
@@ -487,7 +550,7 @@ export default function MissingScorecardsPage() {
                   setSearch('')
                   setLeagueFilter('')
                   setTeamFilter('')
-                  setStatusFilter('pending')
+                  setStatusFilter('ready')
                   setFocusFilter('all')
                 }}
                 className="button-ghost"
@@ -522,11 +585,11 @@ export default function MissingScorecardsPage() {
                         onClick={() => {
                           setLeagueFilter(entry.label)
                           setTeamFilter('')
-                          setStatusFilter('pending')
+                          setStatusFilter('ready')
                         }}
                       >
                         <span>{entry.label}</span>
-                        <span>{entry.count}</span>
+                        <span>{entry.count} | {dueLabel(entry.oldestMatchDate)}</span>
                       </button>
                     ))}
                   </div>
@@ -545,7 +608,7 @@ export default function MissingScorecardsPage() {
                         onClick={() => {
                           setLeagueFilter(entry.league)
                           setTeamFilter(entry.label)
-                          setStatusFilter('pending')
+                          setStatusFilter('ready')
                         }}
                       >
                         <span>{entry.label}</span>
@@ -577,7 +640,7 @@ export default function MissingScorecardsPage() {
                 </p>
                 {focusFilter !== 'all' ? (
                   <p className="subtle-text" style={{ marginTop: 8, maxWidth: 760 }}>
-                    Focus lane active: {focusFilter === 'due-this-week' ? 'Due this week' : focusFilter === 'missing-id' ? 'Missing external IDs' : 'Missing league names'}.
+                    Focus lane active: {focusFilter === 'ready-today' ? 'Today only' : focusFilter === 'overdue' ? 'Overdue only' : focusFilter === 'missing-id' ? 'Missing external IDs' : 'Missing league names'}.
                   </p>
                 ) : null}
               </div>
@@ -634,7 +697,7 @@ export default function MissingScorecardsPage() {
                         padding: 18,
                         border: '1px solid var(--shell-panel-border)',
                         background:
-                          status === 'pending'
+                          status === 'ready'
                             ? 'var(--shell-panel-bg-strong)'
                             : status === 'completed'
                               ? 'var(--shell-panel-bg)'
@@ -655,12 +718,15 @@ export default function MissingScorecardsPage() {
                             {cleanText(row.home_team) || 'Unknown home'} vs {cleanText(row.away_team) || 'Unknown away'}
                           </div>
                           <div className="subtle-text" style={{ marginTop: 6 }}>
-                            {formatDate(row.match_date, 'Unscheduled')} | {leagueScopeLabel(row.league_name, row.flight)}
+                            {formatDate(row.match_date, 'Unscheduled')}
+                            {row.match_time ? ` at ${row.match_time}` : ''} | {leagueScopeLabel(row.league_name, row.flight)}
+                            {row.facility ? ` | ${row.facility}` : ''}
                           </div>
                           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-                            <span className={status === 'pending' ? 'badge badge-green' : status === 'completed' ? 'badge badge-slate' : 'badge badge-blue'}>
-                              {status === 'pending' ? 'Past due' : status === 'completed' ? 'Completed' : 'Upcoming'}
+                            <span className={status === 'ready' ? 'badge badge-green' : status === 'completed' ? 'badge badge-slate' : 'badge badge-blue'}>
+                              {status === 'ready' ? 'Ready to pull' : status === 'completed' ? 'Completed' : 'Upcoming'}
                             </span>
+                            <span className="badge badge-slate">{dueLabel(row.match_date)}</span>
                             <span className="badge badge-blue">Match ID: {externalMatchId || 'Missing'}</span>
                             <span className="badge badge-slate">Scorecard lines: {importedLines}</span>
                           </div>
