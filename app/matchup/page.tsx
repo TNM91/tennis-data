@@ -930,6 +930,22 @@ export default function MatchupPage() {
     [players, playerAId],
   )
 
+  const opponentSuggestions = useMemo(() => {
+    if (matchType !== 'singles' || !playerA || playerB) return []
+    const anchorRating = getSelectedRating(playerA, 'singles') ?? getSelectedRating(playerA, 'overall') ?? 0
+
+    return availablePlayersForB
+      .filter((player) => hasValidRating(getSelectedRating(player, 'singles')) || hasValidRating(getSelectedRating(player, 'overall')))
+      .sort((left, right) => {
+        const leftRating = getSelectedRating(left, 'singles') ?? getSelectedRating(left, 'overall') ?? 0
+        const rightRating = getSelectedRating(right, 'singles') ?? getSelectedRating(right, 'overall') ?? 0
+        const diff = Math.abs(leftRating - anchorRating) - Math.abs(rightRating - anchorRating)
+        if (diff !== 0) return diff
+        return left.name.localeCompare(right.name)
+      })
+      .slice(0, 6)
+  }, [availablePlayersForB, matchType, playerA, playerB])
+
   const availableTeamA1 = useMemo(
     () => players.filter((player) => ![teamA2Id, teamB1Id, teamB2Id].includes(player.id)),
     [players, teamA2Id, teamB1Id, teamB2Id],
@@ -1272,8 +1288,7 @@ export default function MatchupPage() {
               <div style={eyebrow}>Matchup comparison</div>
               <h1 style={dynamicHeroTitle}>See how you match up.</h1>
               <p style={dynamicHeroText}>
-                Compare players before the match. See the rating gap, likely edge, confidence,
-                and head-to-head context so you can prepare faster.
+                Compare players, ratings, recent form, and projected edge before you play.
               </p>
 
               <div style={heroHintRow}>
@@ -1294,12 +1309,12 @@ export default function MatchupPage() {
                     planId="player_plus"
                     compact
                     headline="Unlock Matchup with Player+."
-                    body="Use the public comparison to get oriented. Player+ unlocks deeper matchup prep, MyLab, follows, and smarter player/team preparation."
+                    body="Compare players before you play and see where you have the edge. Player+ also unlocks MyLab and follows."
                     ctaLabel="Unlock Matchup with Player+"
                     ctaHref="/pricing"
                     secondaryLabel="See Player+ value"
                     secondaryHref="/pricing"
-                    footnote="Best for players who want matchup comparisons to turn into better decisions, not just interesting numbers."
+                    footnote="Best for serious players who want smarter match prep."
                   />
                 </div>
               ) : null}
@@ -1448,6 +1463,38 @@ export default function MatchupPage() {
               ) : null}
             </>
           )}
+
+          {matchType === 'singles' && playerA && !playerB ? (
+            <article style={prefillPromptCard}>
+              <div>
+                <div style={prefillPromptKicker}>Matchup is ready for one more player</div>
+                <h2 style={prefillPromptTitle}>Choose an opponent for {playerA.name}</h2>
+                <p style={prefillPromptText}>
+                  Pick Player B to see rating gap, projected edge, form, and head-to-head history.
+                </p>
+              </div>
+
+              {opponentSuggestions.length ? (
+                <div style={suggestionGrid}>
+                  {opponentSuggestions.map((player) => (
+                    <button
+                      key={player.id}
+                      type="button"
+                      onClick={() => setPlayerBId(player.id)}
+                      style={suggestionButton}
+                    >
+                      <span style={suggestionName}>{player.name}</span>
+                      <span style={suggestionMeta}>
+                        S {formatRating(getSelectedRating(player, 'singles'))} · O {formatRating(getSelectedRating(player, 'overall'))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p style={prefillPromptText}>Use the Player B selector above to finish the matchup.</p>
+              )}
+            </article>
+          ) : null}
 
           {error ? (
             <div style={errorBanner}>
@@ -2639,6 +2686,72 @@ const selectionProgressTextStyle: CSSProperties = {
   color: 'rgba(224,236,249,0.76)',
   fontSize: '13px',
   lineHeight: 1.6,
+}
+
+const prefillPromptCard: CSSProperties = {
+  marginTop: '16px',
+  display: 'grid',
+  gap: '16px',
+  padding: '18px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.86) 100%)',
+}
+
+const prefillPromptKicker: CSSProperties = {
+  color: '#d9f84a',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '8px',
+}
+
+const prefillPromptTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const prefillPromptText: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+}
+
+const suggestionGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '10px',
+}
+
+const suggestionButton: CSSProperties = {
+  minHeight: '64px',
+  display: 'grid',
+  gap: '4px',
+  justifyItems: 'start',
+  padding: '12px 14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.05)',
+  color: 'var(--foreground)',
+  cursor: 'pointer',
+  textAlign: 'left',
+}
+
+const suggestionName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+}
+
+const suggestionMeta: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 800,
 }
 
 const decisionBanner: CSSProperties = {

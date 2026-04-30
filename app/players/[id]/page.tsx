@@ -103,6 +103,39 @@ type MatchPlayerRow = {
   } | null
 }
 
+type TeamRosterMembershipRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  usta_section: string | null
+  district_area: string | null
+  source: string | null
+  player_name?: string | null
+}
+
+type TeamSummaryTeamRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  usta_section: string | null
+  district_area: string | null
+  source: string | null
+  raw_capture_json?: unknown
+}
+
+type UstaTeamMembership = {
+  key: string
+  teamName: string
+  leagueName: string | null
+  flight: string | null
+  section: string | null
+  district: string | null
+  matches: number
+  wins: number
+  losses: number
+  latest: string | null
+}
+
 export default function PlayerProfilePage() {
   const params = useParams()
   const playerId = String(params.id)
@@ -110,6 +143,7 @@ export default function PlayerProfilePage() {
   const [player, setPlayer] = useState<Player | null>(null)
   const [matches, setMatches] = useState<MatchRecord[]>([])
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
+  const [rosterMemberships, setRosterMemberships] = useState<TeamRosterMembershipRow[]>([])
   const [tiqParticipations, setTiqParticipations] = useState<TiqPlayerParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState<string | null>(null)
@@ -189,6 +223,8 @@ export default function PlayerProfilePage() {
         { data: playerData, error: playerError },
         { data: playerMatchRefs, error: playerMatchRefsError },
         { data: snapshotsData, error: snapshotsError },
+        { data: rosterMembershipData, error: rosterMembershipError },
+        { data: summaryTeamData, error: summaryTeamError },
       ] = await Promise.all([
         supabase
           .from('players')
@@ -216,11 +252,25 @@ export default function PlayerProfilePage() {
           .eq('track', 'tiq')
           .order('snapshot_date', { ascending: true })
           .order('id', { ascending: true }),
+        supabase
+          .from('team_roster_members')
+          .select('team_name, player_name, league_name, flight, usta_section, district_area, source')
+          .eq('player_id', playerId),
+        supabase
+          .from('team_summary_teams')
+          .select('team_name, league_name, flight, usta_section, district_area, source, raw_capture_json')
+          .limit(500),
       ])
 
       if (playerError) throw new Error(playerError.message)
       if (playerMatchRefsError) throw new Error(playerMatchRefsError.message)
       if (snapshotsError) throw new Error(snapshotsError.message)
+      if (rosterMembershipError) {
+        console.warn('Player roster membership lookup skipped:', rosterMembershipError.message)
+      }
+      if (summaryTeamError) {
+        console.warn('Player team summary membership lookup skipped:', summaryTeamError.message)
+      }
 
       const matchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id))]
 
@@ -334,6 +384,12 @@ export default function PlayerProfilePage() {
       setPlayer(playerData as Player)
       setMatches(groupedMatches)
       setSnapshots((snapshotsData || []) as SnapshotRow[])
+      setRosterMemberships(dedupeRosterMemberships([
+        ...(rosterMembershipError ? [] : ((rosterMembershipData || []) as TeamRosterMembershipRow[])),
+        ...(summaryTeamError
+          ? []
+          : extractPlayerRosterMembershipsFromSummaryRows((summaryTeamData || []) as TeamSummaryTeamRow[], playerData.name)),
+      ]))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load player profile')
     } finally {
@@ -638,21 +694,64 @@ export default function PlayerProfilePage() {
       }))
   }, [matches, snapshotByMatchId])
 
-  const ustaLeagueBreakdown = useMemo(() => {
-    const map = new Map<string, { leagueName: string; matches: number; wins: number; losses: number; latest: string }>()
-    for (const match of matches) {
-      const leagueName = (match.leagueName || '').trim()
-      if (!leagueName) continue
-      if (/\btiq\b/i.test(match.source || leagueName)) continue
-      const existing = map.get(leagueName) ?? { leagueName, matches: 0, wins: 0, losses: 0, latest: match.date }
-      existing.matches += 1
-      if (match.result === 'W') existing.wins += 1
-      else existing.losses += 1
-      if (match.date > existing.latest) existing.latest = match.date
-      map.set(leagueName, existing)
+  const ustaTeamMemberships = useMemo<UstaTeamMembership[]>(() => {
+    const map = new Map<string, UstaTeamMembership>()
+
+    for (const row of rosterMemberships) {
+      const teamName = cleanRosterText(row.team_name)
+      if (!teamName) continue
+      if (isTiqMembership(row)) continue
+
+      const leagueName = cleanRosterText(row.league_name)
+      const flight = cleanRosterText(row.flight)
+      const key = [teamName.toLowerCase(), leagueName?.toLowerCase() ?? '', flight?.toLowerCase() ?? ''].join('__')
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          teamName,
+          leagueName,
+          flight,
+          section: cleanRosterText(row.usta_section),
+          district: cleanRosterText(row.district_area),
+          matches: 0,
+          wins: 0,
+          losses: 0,
+          latest: null,
+        })
+      }
     }
-    return [...map.values()].sort((a, b) => b.latest.localeCompare(a.latest))
-  }, [matches])
+
+    for (const membership of map.values()) {
+      const relatedMatches = matches.filter((match) => {
+        if (/\btiq\b/i.test(match.source || match.leagueName || '')) return false
+        if (!membership.leagueName) return true
+        return normalizeName(match.leagueName || '').toLowerCase() === normalizeName(membership.leagueName).toLowerCase()
+      })
+
+      membership.matches = relatedMatches.length
+      membership.wins = relatedMatches.filter((match) => match.result === 'W').length
+      membership.losses = relatedMatches.filter((match) => match.result === 'L').length
+      membership.latest = relatedMatches.reduce<string | null>(
+        (latest, match) => (!latest || match.date > latest ? match.date : latest),
+        null,
+      )
+    }
+
+    return [...map.values()].sort((a, b) => {
+      if (a.latest && b.latest) return b.latest.localeCompare(a.latest)
+      if (a.latest) return -1
+      if (b.latest) return 1
+      return a.teamName.localeCompare(b.teamName)
+    })
+  }, [matches, rosterMemberships])
+
+  const matchupHref = `/matchup?playerA=${encodeURIComponent(playerId)}`
+  const primaryUstaMembership = ustaTeamMemberships[0] ?? null
+  const primaryTeamHref = primaryUstaMembership
+    ? `/teams/${encodeURIComponent(primaryUstaMembership.teamName)}?layer=usta${primaryUstaMembership.leagueName ? `&league=${encodeURIComponent(primaryUstaMembership.leagueName)}` : ''}${primaryUstaMembership.flight ? `&flight=${encodeURIComponent(primaryUstaMembership.flight)}` : ''}`
+    : null
+  const isRosterOnlyProfile = totalMatches === 0 && ustaTeamMemberships.length > 0
 
   const scoreBreakdown = useMemo(() => {
     const wins = filteredMatches.filter((m) => m.result === 'W')
@@ -905,6 +1004,7 @@ export default function PlayerProfilePage() {
                   entityName={player.name}
                   subtitle={player.location || ''}
                 />
+                <MiniLink href={matchupHref}>Open Matchup</MiniLink>
                 <MiniLink href="/mylab">Open My Lab</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
@@ -913,6 +1013,9 @@ export default function PlayerProfilePage() {
                 <span style={heroHintPill}>{totalMatches} matches</span>
                 <span style={heroHintPill}>{winPct}% win rate</span>
                 <span style={heroHintPill}>{ratingViewLabel} view</span>
+                {ustaTeamMemberships.length > 0 ? (
+                  <span style={heroHintPill}>{ustaTeamMemberships.length} USTA team{ustaTeamMemberships.length === 1 ? '' : 's'}</span>
+                ) : null}
                 {percentile !== null ? (
                   <span style={{ ...heroHintPill, background: 'rgba(116,190,255,0.08)', border: '1px solid rgba(116,190,255,0.22)', color: '#93c5fd' }}>
                     top {percentile}% of {totalPlayers} players
@@ -997,7 +1100,7 @@ export default function PlayerProfilePage() {
                   <div>
                     <div style={focusLabel}>Rating focus</div>
                     <div style={focusSubtitle}>
-                      Keep official USTA status separate from TIQ strategy signal.
+                      Switch between overall, singles, and doubles reads.
                     </div>
                   </div>
 
@@ -1080,13 +1183,13 @@ export default function PlayerProfilePage() {
           }}
         >
           <div style={sectionKicker}>Profile context</div>
-          <h2 style={sectionTitle}>Read status and strategy separately, not as one blended rating.</h2>
+          <h2 style={sectionTitle}>Know the player before the match starts.</h2>
           <p style={sectionText}>
-            This profile is designed to keep official USTA baseline status separate from TIQ decision
-            support. The most useful read usually comes from comparing the TIQ signal against the
-            player&apos;s USTA baseline and recent match history rather than relying on a single number.
+            See public ratings, roster teams, recent form, and the prep tools that help you decide
+            how to play them. Use USTA teams for official context and TIQ leagues for TenAceIQ play.
           </p>
           <div style={dynamicFollowRow}>
+            <MiniLink href={matchupHref}>Open Matchup</MiniLink>
             <MiniLink href="/rankings">Compare on rankings</MiniLink>
             <MiniLink href="/mylab">Use My Lab</MiniLink>
             <MiniLink href="/advertising-disclosure">Advertising disclosure</MiniLink>
@@ -1106,15 +1209,40 @@ export default function PlayerProfilePage() {
         ) : (
           <UpgradePrompt
             planId="player_plus"
-            headline="Want to know where you should play?"
-            body="Player+ turns raw match history into clearer personal insight with lineup-fit guidance, strengths and weaknesses, projections, and opponent context when it is available."
-            ctaLabel="Unlock Player+"
+            headline="Unlock Matchup and MyLab"
+            body="Compare players before you play, follow the people and teams you care about, and build a personal tennis dashboard with Player+."
+            ctaLabel="Upgrade to Player+"
             ctaHref="/pricing"
-            secondaryLabel="Keep browsing free"
+            secondaryLabel="Open Matchup"
+            secondaryHref={matchupHref}
             footnote={access.playerPlusMessage}
             compact
           />
         )}
+
+        {isRosterOnlyProfile && primaryUstaMembership && primaryTeamHref ? (
+          <article style={rosterReadyCard}>
+            <div style={rosterReadyContent}>
+              <div style={sectionKicker}>Before first match</div>
+              <h2 style={rosterReadyTitle}>{player.name} is rostered and ready to track.</h2>
+              <p style={rosterReadyText}>
+                This player is listed on {primaryUstaMembership.teamName} for {[primaryUstaMembership.leagueName, primaryUstaMembership.flight].filter(Boolean).join(' - ') || 'this USTA team'}.
+                Match history will fill in after scorecards are imported.
+              </p>
+              <div style={dynamicFollowRow}>
+                <MiniLink href={primaryTeamHref}>Open team</MiniLink>
+                <MiniLink href={matchupHref}>Choose opponent</MiniLink>
+                <MiniLink href="/mylab">Follow in My Lab</MiniLink>
+              </div>
+            </div>
+            <div style={rosterReadyStats}>
+              <StatChip label="Roster status" value="Rostered" accent />
+              <StatChip label="USTA Base" value={formatRatingValue(player.overall_rating)} />
+              <StatChip label="TIQ Overall" value={formatRatingValue(player.overall_dynamic_rating)} />
+              <StatChip label="Matches" value="0" />
+            </div>
+          </article>
+        ) : null}
 
         <div style={dynamicStatsGrid}>
           <article style={{ ...statCard, ...statCardAccentGreen }}>
@@ -1452,33 +1580,47 @@ export default function PlayerProfilePage() {
         <article style={panelCard}>
           <div style={panelHead}>
             <div>
-              <div style={sectionKicker}>USTA league context</div>
-              <h2 style={panelTitle}>USTA leagues played</h2>
+              <div style={sectionKicker}>USTA Teams</div>
+              <h2 style={panelTitle}>Roster teams</h2>
             </div>
-            <span style={panelChip}>{ustaLeagueBreakdown.length} league{ustaLeagueBreakdown.length === 1 ? '' : 's'}</span>
+            <span style={panelChip}>{ustaTeamMemberships.length} team{ustaTeamMemberships.length === 1 ? '' : 's'}</span>
           </div>
 
-          {ustaLeagueBreakdown.length === 0 ? (
+          {ustaTeamMemberships.length === 0 ? (
             <div style={{ ...emptyStateStack, marginTop: 16 }}>
-              <p style={emptyText}>No USTA league match history is linked yet.</p>
-              <p style={sectionText}>USTA leagues will appear here as played scorecards are imported with league metadata.</p>
+              <p style={emptyText}>No USTA roster teams found yet.</p>
+              <p style={sectionText}>Import a team summary with this player on the roster to show their team before any matches are played.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-              {ustaLeagueBreakdown.map((league) => (
-                <div key={league.leagueName} style={leagueRowStyle}>
+              {ustaTeamMemberships.map((membership) => {
+                const teamHref = `/teams/${encodeURIComponent(membership.teamName)}?layer=usta${membership.leagueName ? `&league=${encodeURIComponent(membership.leagueName)}` : ''}${membership.flight ? `&flight=${encodeURIComponent(membership.flight)}` : ''}`
+                return (
+                <div key={membership.key} style={leagueRowStyle}>
                   <div style={{ display: 'grid', gap: 5 }}>
-                    <strong style={{ color: 'var(--foreground-strong)', fontSize: 15 }}>{league.leagueName}</strong>
+                    <Link href={teamHref} style={{ color: 'var(--foreground-strong)', fontSize: 15, fontWeight: 900, textDecoration: 'none' }}>
+                      {membership.teamName}
+                    </Link>
                     <span style={{ color: 'var(--shell-copy-muted)', fontSize: 13 }}>
-                      Latest match {formatDate(league.latest)}
+                      {[membership.leagueName, membership.flight].filter(Boolean).join(' - ') || 'USTA roster team'}
                     </span>
+                    {membership.matches === 0 ? (
+                      <span style={{ color: 'rgba(224,234,247,0.70)', fontSize: 13 }}>
+                        No matches played yet. This player is listed on the roster for this team.
+                      </span>
+                    ) : null}
                   </div>
                   <div style={leagueBadgeWrapStyle}>
-                    <span style={leagueBadgeBlueStyle}>{league.matches} match{league.matches === 1 ? '' : 'es'}</span>
-                    <span style={leagueBadgeGreenStyle}>{league.wins}W - {league.losses}L</span>
+                    <span style={leagueBadgeBlueStyle}>
+                      {membership.matches > 0 ? `${membership.matches} match${membership.matches === 1 ? '' : 'es'}` : 'Rostered'}
+                    </span>
+                    <span style={leagueBadgeGreenStyle}>
+                      {membership.matches > 0 ? `${membership.wins}W - ${membership.losses}L` : membership.latest ? formatDate(membership.latest) : 'Before first match'}
+                    </span>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </article>
@@ -1486,8 +1628,8 @@ export default function PlayerProfilePage() {
         <article style={panelCard}>
           <div style={panelHead}>
             <div>
-              <div style={sectionKicker}>TIQ competition context</div>
-              <h2 style={panelTitle}>Active TIQ individual leagues</h2>
+              <div style={sectionKicker}>TIQ Leagues</div>
+              <h2 style={panelTitle}>TenAceIQ play</h2>
             </div>
             <span style={panelChip}>
               {tiqParticipationCount} active {tiqParticipationCount === 1 ? 'entry' : 'entries'}
@@ -1495,8 +1637,7 @@ export default function PlayerProfilePage() {
           </div>
 
           <p style={sectionText}>
-            USTA tells you where this player stands officially. TIQ individual leagues show where
-            they are actively competing inside TenAceIQ&apos;s strategic competition layer.
+            TIQ leagues show where this player is active inside TenAceIQ.
           </p>
 
           {tiqParticipationWarning ? (
@@ -1521,8 +1662,7 @@ export default function PlayerProfilePage() {
             <div style={{ ...emptyStateStack, marginTop: 20 }}>
               <p style={emptyText}>No TIQ individual league entries yet.</p>
               <p style={sectionText}>
-                This player has strong USTA and TIQ rating context already, but they have not joined
-                an active TIQ individual competition season yet.
+                This player has not joined an active TIQ league yet.
               </p>
               <div style={dynamicFollowRow}>
                 <MiniLink href="/explore/leagues">Browse TIQ leagues</MiniLink>
@@ -2437,6 +2577,67 @@ function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, ' ')
 }
 
+function cleanRosterText(value: string | null | undefined) {
+  const clean = (value || '').trim()
+  if (!clean || clean.toLowerCase() === 'name') return null
+  return clean
+}
+
+function isTiqMembership(row: TeamRosterMembershipRow) {
+  return /\btiq\b/i.test([row.source, row.league_name, row.usta_section, row.district_area].filter(Boolean).join(' '))
+}
+
+function dedupeRosterMemberships(rows: TeamRosterMembershipRow[]) {
+  const map = new Map<string, TeamRosterMembershipRow>()
+
+  for (const row of rows) {
+    const teamName = cleanRosterText(row.team_name)
+    if (!teamName) continue
+    const leagueName = cleanRosterText(row.league_name)
+    const flight = cleanRosterText(row.flight)
+    const key = [teamName.toLowerCase(), leagueName?.toLowerCase() ?? '', flight?.toLowerCase() ?? ''].join('__')
+    if (!map.has(key)) map.set(key, row)
+  }
+
+  return [...map.values()]
+}
+
+function extractPlayerRosterMembershipsFromSummaryRows(rows: TeamSummaryTeamRow[], playerName: string) {
+  const memberships: TeamRosterMembershipRow[] = []
+  const normalizedPlayerName = normalizeName(playerName).toLowerCase()
+
+  for (const row of rows) {
+    const raw = row.raw_capture_json
+    if (!isPlainRecord(raw)) continue
+    const summary = isPlainRecord(raw.teamSummary) ? raw.teamSummary : raw
+    const players = Array.isArray(summary.players) ? summary.players : []
+    const rosterTeamName = cleanRosterText(typeof summary.rosterTeamName === 'string' ? summary.rosterTeamName : null)
+
+    for (const entry of players) {
+      if (!isPlainRecord(entry)) continue
+      const entryName = cleanRosterText(typeof entry.name === 'string' ? entry.name : null)
+      if (!entryName || normalizeName(entryName).toLowerCase() !== normalizedPlayerName) continue
+
+      const entryTeamName = cleanRosterText(typeof entry.teamName === 'string' ? entry.teamName : null)
+      memberships.push({
+        team_name: entryTeamName || rosterTeamName || row.team_name,
+        player_name: entryName,
+        league_name: row.league_name,
+        flight: row.flight,
+        usta_section: row.usta_section,
+        district_area: row.district_area,
+        source: row.source,
+      })
+    }
+  }
+
+  return memberships
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
   const num = Number(value)
   return Number.isFinite(num) ? num : fallback
@@ -3067,6 +3268,46 @@ const panelCard: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.14), inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
+}
+
+const rosterReadyCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.1fr) minmax(260px, 0.9fr)',
+  gap: '18px',
+  alignItems: 'center',
+  margin: '0 0 16px',
+  padding: '22px',
+  borderRadius: '28px',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(12,28,55,0.92) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.20), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const rosterReadyContent: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const rosterReadyTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '26px',
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const rosterReadyText: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '15px',
+  lineHeight: 1.65,
+}
+
+const rosterReadyStats: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '10px',
 }
 
 const panelHead: CSSProperties = {

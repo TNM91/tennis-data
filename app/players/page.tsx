@@ -464,8 +464,8 @@ export default function PlayersPage() {
               </h1>
 
               <p style={dynamicHeroText}>
-                Search by name or location, sort by TIQ overall, singles, or doubles strength,
-                and move directly into each player profile for separated USTA status, TIQ trend, history, and matchup prep.
+                Search by name or location, sort by overall, singles, or doubles strength,
+                and open a profile to see teams, ratings, history, and matchup prep.
               </p>
 
               <div style={heroHintRow}>
@@ -479,13 +479,13 @@ export default function PlayersPage() {
                   <UpgradePrompt
                     planId="player_plus"
                     compact
-                    headline="Want to know where you should play?"
-                    body="Unlock Player+ to turn player discovery into lineup-fit guidance, opponent context, projections, and strengths-vs-weaknesses reads."
-                    ctaLabel="Unlock Player+"
+                    headline="Want smarter match prep?"
+                    body="Unlock Matchup and MyLab with Player+ so you can compare players before you play and follow the tennis you care about."
+                    ctaLabel="Upgrade to Player+"
                     ctaHref="/pricing"
                     secondaryLabel="See Player+ value"
                     secondaryHref="/pricing"
-                    footnote="Best for players who want more than basic stats and want clearer direction from their numbers."
+                    footnote="Best for serious players who want clearer prep before the match starts."
                   />
                 </div>
               ) : null}
@@ -561,7 +561,7 @@ export default function PlayersPage() {
                 </div>
 
                 <div id="players-directory-helper" style={controlsHelperText}>
-                  Use the directory to move from broad discovery into exact player profiles with clear USTA vs TIQ context.
+                  Use the directory to find a player, then open the full profile for teams, ratings, history, and prep tools.
                 </div>
                 {hasActiveFilters ? (
                   <div style={controlsActionRow}>
@@ -641,12 +641,11 @@ export default function PlayersPage() {
       <section style={contentWrap}>
         {!loading && !error ? (
           <article style={editorialPanel}>
-            <div style={sectionKicker}>Directory context</div>
-            <h2 style={sectionTitle}>Use the directory to shortlist, then open full profiles for the real read.</h2>
+            <div style={sectionKicker}>Player search</div>
+            <h2 style={sectionTitle}>Find a player, then open the profile for the full picture.</h2>
             <p style={editorialText}>
-              The player directory is best used as a fast scouting layer. Search by name or location,
-              sort by the TIQ lens you care about, and then open the full profile before making
-              decisions off a single blended rating alone.
+              Search by name or location, sort the board, and open the full profile when you want
+              teams, recent results, rating movement, and matchup prep.
             </p>
             <div style={editorialGrid}>
               <div style={editorialCard}>
@@ -662,7 +661,7 @@ export default function PlayersPage() {
               <div style={editorialCard}>
                 <div style={editorialCardLabel}>Best next step</div>
                 <div style={editorialCardValue}>Open profile</div>
-                <div style={editorialCardText}>Player pages add trend, history, and matchup context that a card list cannot.</div>
+                <div style={editorialCardText}>Player pages add roster teams, history, trends, and Matchup links.</div>
               </div>
             </div>
           </article>

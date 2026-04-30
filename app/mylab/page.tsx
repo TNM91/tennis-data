@@ -165,7 +165,7 @@ const LAB_SIGNALS: LabSignal[] = [
   {
     label: 'What happened',
     value: 'Feed',
-    note: 'Match, rating, TIQ, and follow activity in one stream.',
+    note: 'Match, rating, team, and league activity in one stream.',
   },
   {
     label: 'What to watch',
@@ -175,7 +175,7 @@ const LAB_SIGNALS: LabSignal[] = [
   {
     label: 'What to do next',
     value: 'Insight',
-    note: 'Follow the action and spot the next move faster.',
+    note: 'Spot trends and prepare for the next match faster.',
   },
 ]
 
@@ -1176,7 +1176,7 @@ function MyLabPageInner() {
         id: 'community-welcome',
         type: 'community',
         title: 'Start following players, teams, and leagues',
-        body: 'Build your lab so your feed can surface match results, lineup activity, rating movement, and community-style updates tied to the entities you care about most.',
+        body: 'Build your personal tennis dashboard so match results, rating movement, teams, and leagues stay in one place.',
         entityType: 'community',
         entityId: null,
         entityName: 'Community',
@@ -1360,8 +1360,8 @@ function MyLabPageInner() {
       label: 'Best fit',
       value: access.canUseAdvancedPlayerInsights ? 'Player+' : 'Free',
       text: access.canUseAdvancedPlayerInsights
-        ? 'Player insight unlocked.'
-        : 'Upgrade for deeper answers.',
+        ? 'MyLab is unlocked.'
+        : 'Unlock MyLab with Player+.',
     },
   ]
 
@@ -1370,9 +1370,9 @@ function MyLabPageInner() {
       <section style={heroStyle(isTablet, isMobile)}>
         <div>
           <div style={eyebrowStyle}>My Lab</div>
-          <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>Your tennis intelligence hub</h1>
+          <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>Your personal tennis dashboard</h1>
           <p style={heroTextStyle}>
-            Follow players, teams, and leagues. Get a personal feed for the tennis you care about.
+            Follow players, teams, and leagues. See the tennis you care about in one place.
           </p>
 
           <div style={heroButtonRowStyle}>
@@ -1830,13 +1830,13 @@ function MyLabPageInner() {
                   <UpgradePrompt
                     planId="player_plus"
                     compact
-                    headline="Want to know where you should play?"
-                    body="Unlock Player+ to turn your feed and tracked activity into clearer lineup-fit reads, opponent context, and personal performance direction."
-                    ctaLabel="Unlock Player+"
+                    headline="Build your personal tennis dashboard"
+                    body="Follow players, teams, and leagues, then use MyLab to track form, trends, insights, and activity in one place."
+                    ctaLabel="Unlock MyLab with Player+"
                     ctaHref="/pricing"
                     secondaryLabel="See Player+ plan"
                     secondaryHref="/pricing"
-                    footnote="Best for players who want more than match history and want clearer direction from their data."
+                    footnote="Best for serious players who want smarter match prep and one home for their tennis."
                   />
                 ) : null}
                 <InsightCard
@@ -1845,7 +1845,7 @@ function MyLabPageInner() {
                 />
                 <InsightCard
                   title="Best next upgrade"
-                  text="Player+ adds deeper player reads, lineup fit, opponent context, and projections."
+                  text="Player+ unlocks Matchup, MyLab, follows, form, trends, and smarter match prep."
                 />
                 <InsightCard
                   title="Individual competition pulse"

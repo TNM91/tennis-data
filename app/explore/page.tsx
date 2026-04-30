@@ -11,7 +11,7 @@ const FEATURE_CARDS = [
     href: '/explore/players',
     eyebrow: 'Discover',
     title: 'Players',
-    text: 'Search player profiles, ratings, and performance context across the platform.',
+    text: 'Search player profiles, ratings, teams, and match history.',
     accent: 'blue' as const,
     icon: 'player',
   },
@@ -27,7 +27,7 @@ const FEATURE_CARDS = [
     href: '/explore/leagues',
     eyebrow: 'Browse',
     title: 'Leagues',
-    text: 'Browse USTA and TIQ league context without slowing down.',
+    text: 'Browse USTA leagues and TIQ leagues from one clean starting point.',
     accent: 'blue' as const,
     icon: 'trophy',
   },
@@ -35,7 +35,7 @@ const FEATURE_CARDS = [
     href: '/mylab',
     eyebrow: 'Player+',
     title: 'My Lab',
-    text: 'Use premium matchup prep, projections, and personal insight when discovery turns into planning.',
+    text: 'Build your personal tennis dashboard with followed players, teams, and leagues.',
     accent: 'green' as const,
     icon: 'matchup',
   },
@@ -67,14 +67,14 @@ const DISCOVERY_STREAM = [
     accent: 'blue' as const,
   },
   {
-    title: 'USTA leagues separated cleanly',
-    detail: 'Browse official league context clearly.',
+    title: 'USTA leagues',
+    detail: 'Find official league, flight, team, and match pages.',
     badge: 'USTA',
     accent: 'green' as const,
   },
   {
-    title: 'TIQ leagues ready to browse',
-    detail: 'Explore team and individual competition when you want more detail.',
+    title: 'TIQ leagues',
+    detail: 'Explore TenAceIQ leagues for teams, rosters, schedules, and results.',
     badge: 'TIQ',
     accent: 'green' as const,
   },
@@ -94,7 +94,7 @@ const DISCOVERY_CHANNELS = [
 const DISCOVERY_GUIDES = [
   {
     title: 'Start with a player',
-    text: 'Open the player directory when you already know a name and want profile context, rating movement, and recent match history.',
+    text: 'Open the player directory when you know a name and want teams, ratings, and recent match history.',
     href: '/explore/players',
     cta: 'Open players',
   },
@@ -106,27 +106,27 @@ const DISCOVERY_GUIDES = [
   },
   {
     title: 'Prepare a comparison',
-    text: 'Use My Lab when you have two players or doubles teams in mind and want premium matchup prep.',
-    href: '/mylab',
-    cta: 'Open My Lab',
+    text: 'Use Matchup when you want to compare players before you play.',
+    href: '/matchup',
+    cta: 'Open Matchup',
   },
 ]
 
 const DISCOVERY_SIGNALS = [
   {
-    label: 'Public layer',
+    label: 'Start here',
     value: 'Explore',
-    text: 'This is the fastest way into discovery when you are not yet in execution mode.',
+    text: 'Search players, teams, rankings, and leagues from one place.',
   },
   {
     label: 'Official truth',
     value: 'USTA',
-    text: 'Use official-style league and rating context to understand status, movement, and comparison.',
+    text: 'Use USTA pages for official leagues, flights, teams, and match results.',
   },
   {
     label: 'Player tools',
-    value: 'TIQ',
-    text: 'Move from discovery to planning with tools that keep league context clear.',
+    value: 'Player+',
+    text: 'Use Matchup and MyLab when you want smarter prep before you play.',
   },
 ]
 

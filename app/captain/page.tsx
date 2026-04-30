@@ -950,10 +950,10 @@ export default function CaptainHubPage() {
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
     : !filteredTeamOptions.length
-      ? 'Team history is not ready yet. Add match data to unlock the weekly captain workflow.'
+      ? 'Team history is not ready yet. Add match data to start planning.'
       : hasTeamScope
         ? `Active scope: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
-        : 'Choose a team, league, and flight to activate the weekly workflow.'
+        : 'Choose a team, league, and flight to start planning.'
 
   const dynamicHeroCard: CSSProperties = {
     ...heroCard,
@@ -1091,7 +1091,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     if (!selectedTeam) {
       return {
         title: 'Choose your team scope',
-        detail: 'Start by loading the correct team, league, and flight so the captain workflow stays tied to the right match week.',
+        detail: 'Pick the team, league, and flight you are planning for this week.',
         href: '/captain',
         cta: 'Select Team',
         tone: 'info' as const,
@@ -1101,7 +1101,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     if (!matches.length) {
       return {
         title: 'Open your team page',
-        detail: 'This team needs more match context before the captain workflow can be fully useful.',
+        detail: 'This team needs more match context before lineup tools can help.',
         href: currentTeamHref,
         cta: 'Open Team Page',
         tone: 'warn' as const,
@@ -1111,7 +1111,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     if (!workspaceState.lineupReady) {
       return {
         title: 'Build the weekly lineup',
-        detail: 'No lineup is currently loaded for the active match context, so that is the highest-value next move.',
+        detail: 'No lineup is saved yet. Start with who can play, then build your best option.',
         href: lineupBuilderHref,
         cta: 'Open Lineup Builder',
         tone: 'info' as const,
@@ -1121,7 +1121,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     if (!workspaceState.scenarioReady) {
       return {
         title: 'Compare and lock scenarios',
-        detail: 'A lineup exists, but it has not been anchored to a saved scenario yet.',
+        detail: 'A lineup exists. Test another option before you send it.',
         href: scenarioHref,
         cta: 'Open Scenario Builder',
         tone: 'info' as const,
@@ -1131,7 +1131,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     if (!workspaceState.messagingReady) {
       return {
         title: 'Send the weekly plan',
-        detail: 'Your lineup and scenario are in place. The next move is communicating the plan to the team.',
+        detail: 'Your lineup is ready. Send the plan and follow up with players who still need details.',
         href: messagingHref,
         cta: 'Open Messaging',
         tone: 'good' as const,
@@ -1139,8 +1139,8 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     }
 
     return {
-      title: 'Review captain intelligence',
-      detail: 'Your week is in motion. Review the final signals and keep an eye on execution risk.',
+      title: 'Get ready for match day',
+      detail: 'Your week is in motion. Review the final plan and the next action before match day.',
       href: analyticsHref,
       cta: 'Open Captain IQ',
       tone: 'good' as const,
@@ -1300,12 +1300,11 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       <div style={pageWrap}>
         <section style={dynamicHeroCard}>
           <div style={heroLeft}>
-            <div style={eyebrow}>Premium captain workflow</div>
+            <div style={eyebrow}>Captain tools</div>
             <h1 style={dynamicHeroTitle}>Captain Console</h1>
             <p style={dynamicHeroText}>
-              A strategic command center for captains. Choose your team, review lineup intelligence,
-              track availability, build match-day options, compare scenarios, communicate with your
-              roster, and manage weekly decisions with real team context.
+              Running a team takes more than a lineup. Use Captain to see who can play,
+              build your best lineup, test options, message the team, and get ready for match day.
             </p>
 
             <div style={dynamicHeroControlRow}>
@@ -1384,15 +1383,16 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             <div style={captainHeroVisualContentStyle}>
               <div>
                 <div style={miniKicker}>Captain quick start</div>
-                <h2 style={quickStartTitle}>Run the full weekly workflow in one place</h2>
+                <h2 style={quickStartTitle}>Plan the week in five steps</h2>
               </div>
 
               <div style={workflowStack}>
                 {[
-                  ['1', 'Check availability', 'Start with the right player pool before building anything.'],
-                  ['2', 'Build and compare', 'Use lineup builder and scenario tools to pressure-test options.'],
-                  ['3', 'Communicate and confirm', 'Send lineup, directions, and reminders from the weekly messaging console.'],
-                  ['4', 'Review captain IQ', 'Use analytics to spot dependable players, pairings, and weekly risks.'],
+                  ['1', 'Know who can play', 'Confirm players and see availability first.'],
+                  ['2', 'Build your best lineup', 'Auto-fill, lock players, and adjust singles or doubles.'],
+                  ['3', 'Test your options', 'Compare lineup choices before you commit.'],
+                  ['4', 'Message the team', 'Send the lineup, match details, and follow-ups.'],
+                  ['5', 'Get ready for match day', 'Review the final checklist and next action.'],
                 ].map(([step, title, text]) => (
                   <div key={step} style={workflowRow}>
                     <div style={workflowStep}>{step}</div>

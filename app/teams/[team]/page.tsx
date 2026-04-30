@@ -49,6 +49,7 @@ type LineMatch = {
 }
 
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles'
 
 type Player = {
   id: string
@@ -253,6 +254,8 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seasonFilter, setSeasonFilter] = useState<string>('all')
+  const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
+  const [selectedRosterPlayerIds, setSelectedRosterPlayerIds] = useState<string[]>([])
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState('')
@@ -817,6 +820,62 @@ export default function TeamPage() {
       .slice(0, 6)
   }, [roster])
 
+  const filteredRoster = useMemo(() => {
+    const nextRoster = roster.filter((player) => {
+      if (rosterFilter === 'played') return player.appearances > 0
+      if (rosterFilter === 'roster-only') return player.appearances === 0
+      return true
+    })
+
+    if (rosterFilter === 'singles') {
+      return [...nextRoster].sort((a, b) => {
+        const left = a.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.singles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    if (rosterFilter === 'doubles') {
+      return [...nextRoster].sort((a, b) => {
+        const left = a.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        const right = b.doubles_dynamic_rating ?? Number.NEGATIVE_INFINITY
+        if (right !== left) return right - left
+        return a.name.localeCompare(b.name)
+      })
+    }
+
+    return nextRoster
+  }, [roster, rosterFilter])
+
+  const rosterFilterOptions = useMemo<Array<{ key: RosterFilter; label: string; count: number }>>(() => [
+    { key: 'all', label: 'All', count: roster.length },
+    { key: 'played', label: 'Played', count: roster.filter((player) => player.appearances > 0).length },
+    { key: 'roster-only', label: 'Roster only', count: roster.filter((player) => player.appearances === 0).length },
+    { key: 'singles', label: 'Singles options', count: roster.length },
+    { key: 'doubles', label: 'Doubles options', count: roster.length },
+  ], [roster])
+
+  const selectedRosterPlayers = useMemo(() => {
+    return selectedRosterPlayerIds
+      .map((id) => roster.find((player) => player.id === id) || null)
+      .filter((player): player is RosterPlayer => Boolean(player))
+  }, [roster, selectedRosterPlayerIds])
+
+  const rosterCompareHref = selectedRosterPlayerIds.length === 2
+    ? `/matchup?playerA=${encodeURIComponent(selectedRosterPlayerIds[0])}&playerB=${encodeURIComponent(selectedRosterPlayerIds[1])}`
+    : '/matchup'
+
+  function handleRosterCompareToggle(playerId: string) {
+    if (playerId.startsWith('summary:')) return
+
+    setSelectedRosterPlayerIds((current) => {
+      if (current.includes(playerId)) return current.filter((id) => id !== playerId)
+      if (current.length >= 2) return [current[1], playerId]
+      return [...current, playerId]
+    })
+  }
+
   const pairings = useMemo<PairingCard[]>(() => {
     const byMatch = new Map<string, MatchPlayer[]>()
 
@@ -1009,19 +1068,21 @@ export default function TeamPage() {
   })
   const teamSignals = [
     {
-      label: 'Competition layer',
+      label: 'League type',
       value: getCompetitionLayerLabel(competitionLayer),
-      note: 'Keep team identity tied to its current league context without blurring USTA and TIQ.',
+      note: competitionLayer === 'usta'
+        ? 'Official league, flight, and roster details stay together here.'
+        : 'TenAceIQ league play, roster, and results stay together here.',
     },
     {
-      label: 'Weekly workflow',
+      label: 'Weekly planning',
       value: `${matches.length} matches tracked`,
-      note: 'Use this page to move from roster context into availability, lineup planning, and scenarios.',
+      note: 'Move from roster review into availability, lineup building, and scenario testing.',
     },
     {
-      label: 'TIQ season state',
+      label: 'TIQ leagues',
       value: tiqParticipations.length > 0 ? `${tiqParticipations.length} TIQ entries` : 'No TIQ entries yet',
-      note: 'TIQ team leagues are where captain workflow turns into seasonal action and monetizable value.',
+      note: 'Use TIQ leagues when you want to run teams, schedules, rosters, and results in TenAceIQ.',
     },
   ]
 
@@ -1048,7 +1109,7 @@ export default function TeamPage() {
                 />
                 Loading team page...
               </h1>
-              <p style={heroText}>Pulling roster, matches, and lineup context.</p>
+              <p style={heroText}>Pulling roster, matches, and lineup options.</p>
             </div>
           </section>
         </section>
@@ -1064,7 +1125,7 @@ export default function TeamPage() {
             <p style={eyebrow}>Team Intelligence</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
             <p style={heroText}>
-              Full roster, recent form, top singles strength, doubles chemistry, and captain workflow tools in one place.
+              See the roster, recent form, singles strength, doubles options, and the captain tools that help you plan the week.
             </p>
 
             <div style={heroBadgeRow}>
@@ -1210,14 +1271,13 @@ export default function TeamPage() {
           >
             <div style={sectionHeadingRow}>
               <div>
-                <p style={sectionKicker}>Team context</p>
-                <h2 style={sectionTitle}>Use this page to understand shape, depth, and weekly options.</h2>
+                <p style={sectionKicker}>Team guide</p>
+                <h2 style={sectionTitle}>Use this page to see who can help you win.</h2>
               </div>
             </div>
             <p style={bodyText}>
-              The team page is meant to connect record, roster depth, pairings, and recent form. It is
-              most helpful when you use it to see where a team is strong, where lineup flexibility exists,
-              and which captain tools should come next.
+              Start with roster depth and recent form, then move into availability, lineup builder,
+              or scenarios when you are ready to plan the next match.
             </p>
             <div style={dynamicHeroActions}>
               <SecondaryLink href="/teams">Back to teams</SecondaryLink>
@@ -1283,7 +1343,7 @@ export default function TeamPage() {
                     </div>
                     {entry.sourceLeagueName || entry.sourceFlight ? (
                       <div style={mutedText}>
-                        Source team context: {[entry.sourceLeagueName, entry.sourceFlight].filter(Boolean).join(' - ')}
+                        Original team: {[entry.sourceLeagueName, entry.sourceFlight].filter(Boolean).join(' - ')}
                       </div>
                     ) : null}
                   </div>
@@ -1307,14 +1367,14 @@ export default function TeamPage() {
             <div style={emptyStateBlock}>
               <p style={emptyState}>This team is not entered in a TIQ league yet.</p>
               <p style={mutedText}>
-                Enter the team from a TIQ league detail page to connect this roster with TIQ seasonal workflow.
+                Enter this team in a TIQ league when you want to manage rosters, schedules, and results in TenAceIQ.
               </p>
             </div>
           )}
 
           {tiqParticipationWarning ? (
             <div style={helperCallout}>
-              {tiqParticipationSource === 'supabase' ? tiqParticipationWarning : `Local TIQ participation fallback: ${tiqParticipationWarning}`}
+              {tiqParticipationSource === 'supabase' ? tiqParticipationWarning : `TIQ leagues are available on this device while cloud sync catches up: ${tiqParticipationWarning}`}
             </div>
           ) : null}
         </section>
@@ -1559,50 +1619,151 @@ export default function TeamPage() {
               <p style={sectionKicker}>Roster</p>
               <h2 style={sectionTitle}>Player Breakdown</h2>
             </div>
+            {roster.length ? (
+              <span style={panelCountPill}>
+                {filteredRoster.length} shown
+              </span>
+            ) : null}
           </div>
 
           {roster.length ? (
-            <div style={tableWrap}>
-              <table style={dataTable}>
-                <thead>
-                  <tr>
-                    <th style={tableHeaderCell}>Player</th>
-                    <th style={tableHeaderCell}>S TIQ</th>
-                    <th style={tableHeaderCell}>S USTA</th>
-                    <th style={tableHeaderCell}>D TIQ</th>
-                    <th style={tableHeaderCell}>D USTA</th>
-                    <th style={tableHeaderCell}>Appearances</th>
-                    <th style={tableHeaderCell}>Record</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roster.map((player) => (
-                    <tr key={player.id}>
-                      <td style={tableCell}>
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          {player.id.startsWith('summary:') ? (
-                            <strong>{player.name}</strong>
-                          ) : (
-                            <Link href={`/players/${player.id}`} style={playerLink}>
-                              <strong>{player.name}</strong>
-                            </Link>
-                          )}
-                          {player.location ? <span style={mutedText}>{player.location}</span> : null}
-                        </div>
-                      </td>
-                      <td style={tableCell}>{formatRating(player.singles_dynamic_rating)}</td>
-                      <td style={tableCell}>{formatRating(player.singles_usta_dynamic_rating)}</td>
-                      <td style={tableCell}>{formatRating(player.doubles_dynamic_rating)}</td>
-                      <td style={tableCell}>{formatRating(player.doubles_usta_dynamic_rating)}</td>
-                      <td style={tableCell}>{player.appearances}</td>
-                      <td style={tableCell}>
-                        {player.wins}-{player.losses}
-                      </td>
+            <>
+              <div style={rosterFilterRow}>
+                {rosterFilterOptions.map((option) => {
+                  const active = rosterFilter === option.key
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setRosterFilter(option.key)}
+                      style={active ? rosterFilterButtonActive : rosterFilterButton}
+                    >
+                      <span>{option.label}</span>
+                      <span style={rosterFilterCount}>{option.count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div style={rosterFilterHint}>
+                {rosterFilter === 'played'
+                  ? 'Players who have already appeared in imported scorecards.'
+                  : rosterFilter === 'roster-only'
+                    ? 'Rostered players who have not played yet.'
+                    : rosterFilter === 'singles'
+                      ? 'Roster sorted by singles strength.'
+                      : rosterFilter === 'doubles'
+                        ? 'Roster sorted by doubles strength.'
+                        : 'Full roster from team summary and match history.'}
+              </div>
+
+              <div style={rosterCompareTray}>
+                <div>
+                  <div style={rosterCompareKicker}>Quick Matchup</div>
+                  <div style={rosterCompareTitle}>
+                    {selectedRosterPlayers.length === 0
+                      ? 'Select two roster players to compare'
+                      : selectedRosterPlayers.map((player) => player.name).join(' vs ')}
+                  </div>
+                </div>
+                <div style={rosterCompareActions}>
+                  {selectedRosterPlayerIds.length ? (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRosterPlayerIds([])}
+                      style={rosterCompareClearButton}
+                    >
+                      Clear
+                    </button>
+                  ) : null}
+                  <Link
+                    href={rosterCompareHref}
+                    style={selectedRosterPlayerIds.length === 2 ? rosterCompareLinkReady : rosterCompareLinkDisabled}
+                    aria-disabled={selectedRosterPlayerIds.length !== 2}
+                    onClick={(event) => {
+                      if (selectedRosterPlayerIds.length !== 2) event.preventDefault()
+                    }}
+                  >
+                    Open Matchup
+                  </Link>
+                </div>
+              </div>
+
+              <div style={tableWrap}>
+                <table style={dataTable}>
+                  <thead>
+                    <tr>
+                      <th style={tableHeaderCell}>Compare</th>
+                      <th style={tableHeaderCell}>Player</th>
+                      <th style={tableHeaderCell}>S TIQ</th>
+                      <th style={tableHeaderCell}>S USTA</th>
+                      <th style={tableHeaderCell}>D TIQ</th>
+                      <th style={tableHeaderCell}>D USTA</th>
+                      <th style={tableHeaderCell}>Appearances</th>
+                      <th style={tableHeaderCell}>Record</th>
+                      <th style={tableHeaderCell}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {filteredRoster.map((player) => (
+                      <tr key={player.id}>
+                        <td style={tableCell}>
+                          {player.id.startsWith('summary:') ? (
+                            <span style={mutedText}>Linked soon</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleRosterCompareToggle(player.id)}
+                              style={selectedRosterPlayerIds.includes(player.id) ? rosterSelectButtonActive : rosterSelectButton}
+                              aria-pressed={selectedRosterPlayerIds.includes(player.id)}
+                            >
+                              {selectedRosterPlayerIds.includes(player.id) ? 'Selected' : 'Select'}
+                            </button>
+                          )}
+                        </td>
+                        <td style={tableCell}>
+                          <div style={{ display: 'grid', gap: 4 }}>
+                            {player.id.startsWith('summary:') ? (
+                              <strong>{player.name}</strong>
+                            ) : (
+                              <Link href={`/players/${player.id}`} style={playerLink}>
+                                <strong>{player.name}</strong>
+                              </Link>
+                            )}
+                            {player.location ? <span style={mutedText}>{player.location}</span> : null}
+                          </div>
+                        </td>
+                        <td style={tableCell}>{formatRating(player.singles_dynamic_rating)}</td>
+                        <td style={tableCell}>{formatRating(player.singles_usta_dynamic_rating)}</td>
+                        <td style={tableCell}>{formatRating(player.doubles_dynamic_rating)}</td>
+                        <td style={tableCell}>{formatRating(player.doubles_usta_dynamic_rating)}</td>
+                        <td style={tableCell}>{player.appearances}</td>
+                        <td style={tableCell}>
+                          {player.wins}-{player.losses}
+                        </td>
+                        <td style={tableCell}>
+                          <div style={rosterActionRow}>
+                            {player.id.startsWith('summary:') ? null : (
+                              <>
+                                <Link href={`/players/${player.id}`} style={rosterActionLink}>
+                                  Profile
+                                </Link>
+                                <Link href={`/matchup?playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>
+                                  Matchup
+                                </Link>
+                              </>
+                            )}
+                            <Link href={captainLinks[1].href} style={rosterActionLink}>
+                              Lineup
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <div style={emptyStateBlock}>
               <p style={emptyState}>
@@ -2107,6 +2268,19 @@ const sectionTitle: CSSProperties = {
   letterSpacing: '-0.04em',
 }
 
+const panelCountPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '32px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.08)',
+  color: '#bfdbfe',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
 const bodyText: CSSProperties = {
   margin: '10px 0 0',
   color: 'var(--shell-copy-muted)',
@@ -2134,6 +2308,143 @@ const mutedText: CSSProperties = {
   lineHeight: 1.55,
   fontSize: '0.92rem',
   marginTop: '4px',
+}
+
+const rosterFilterRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginBottom: '10px',
+}
+
+const rosterFilterButton: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '7px',
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const rosterFilterButtonActive: CSSProperties = {
+  ...rosterFilterButton,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#d9f84a',
+}
+
+const rosterFilterCount: CSSProperties = {
+  minWidth: '22px',
+  height: '22px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  background: 'rgba(255,255,255,0.08)',
+  color: 'inherit',
+  fontSize: '11px',
+}
+
+const rosterFilterHint: CSSProperties = {
+  margin: '0 0 12px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.55,
+}
+
+const rosterCompareTray: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '14px',
+  flexWrap: 'wrap',
+  margin: '0 0 14px',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.72) 100%)',
+}
+
+const rosterCompareKicker: CSSProperties = {
+  color: '#d9f84a',
+  fontSize: '11px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '5px',
+}
+
+const rosterCompareTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  fontWeight: 900,
+}
+
+const rosterCompareActions: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  flexWrap: 'wrap',
+}
+
+const rosterCompareClearButton: CSSProperties = {
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const rosterCompareLinkReady: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '34px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: '#d9f84a',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
+const rosterCompareLinkDisabled: CSSProperties = {
+  ...rosterCompareLinkReady,
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'rgba(224,234,247,0.44)',
+  cursor: 'not-allowed',
+}
+
+const rosterSelectButton: CSSProperties = {
+  minHeight: '30px',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+  fontSize: '12px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const rosterSelectButtonActive: CSSProperties = {
+  ...rosterSelectButton,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: '#d9f84a',
 }
 
 const emptyState: CSSProperties = {
@@ -2205,5 +2516,34 @@ const tableCell: CSSProperties = {
 const playerLink: CSSProperties = {
   color: 'var(--foreground)',
   textDecoration: 'none',
+}
+
+const rosterActionRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  flexWrap: 'wrap',
+}
+
+const rosterActionLink: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '30px',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
+}
+
+const rosterActionLinkAccent: CSSProperties = {
+  ...rosterActionLink,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: '#d9f84a',
 }
 
