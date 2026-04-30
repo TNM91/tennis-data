@@ -516,6 +516,7 @@ function scheduleHasTeam(scheduleTeamKeys: Set<string>, leagueKey: string, teamN
 
 function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], scheduleTeamKeys: Set<string>) {
   const issues: string[] = []
+  const warnings: string[] = []
 
   for (const row of rows) {
     const leagueKey = normalizeLookupKey(row.leagueName)
@@ -528,7 +529,7 @@ function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], schedu
       }
 
       if (scheduleTeamKeys.size > 0 && !scheduleHasTeam(scheduleTeamKeys, leagueKey, team.name)) {
-        issues.push(`Team summary team does not match schedule: ${team.name}`)
+        warnings.push(`Team summary team does not match schedule: ${team.name}`)
       }
     }
 
@@ -542,13 +543,13 @@ function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], schedu
       const playerTeam = normalizeImportName(player.teamName ?? row.rosterTeamName)
       if (playerTeam) {
         if (scheduleTeamKeys.size > 0 && !scheduleHasTeam(scheduleTeamKeys, leagueKey, playerTeam)) {
-          issues.push(`Roster team does not match schedule: ${playerTeam}`)
+          warnings.push(`Roster team does not match schedule: ${playerTeam}`)
         }
       }
     }
   }
 
-  return issues
+  return { issues, warnings }
 }
 
 async function importTeamSummaryAuto(
@@ -568,10 +569,12 @@ async function importTeamSummaryAuto(
   }
 
   const scheduleTeamKeys = await fetchScheduleTeamKeys(supabase, rows)
-  const issues = collectTeamSummaryValidationIssues(rows, scheduleTeamKeys)
+  const validation = collectTeamSummaryValidationIssues(rows, scheduleTeamKeys)
+  const issues = validation.issues
+  const advisoryWarnings = [...validation.warnings]
 
   if (scheduleTeamKeys.size === 0) {
-    issues.push('No matching schedule teams found for this team summary')
+    advisoryWarnings.push('No matching schedule teams found for this team summary')
   }
 
   if (issues.length > 0) {
@@ -579,7 +582,7 @@ async function importTeamSummaryAuto(
       pageType: 'team_summary',
       payload,
       reason: `${issues.length} team summary checks need review`,
-      details: { confidence: 'low', issues, warnings: normalized.warnings },
+      details: { confidence: 'low', issues, warnings: [...normalized.warnings, ...advisoryWarnings] },
     })
   }
 
@@ -598,6 +601,7 @@ async function importTeamSummaryAuto(
     details: {
       createdCount: result.createdCount,
       updatedCount: result.updatedCount,
+      warnings: advisoryWarnings,
       result,
     },
   }
