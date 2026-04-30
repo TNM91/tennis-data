@@ -2148,22 +2148,37 @@ export class ImportEngine {
 
     const fetchExistingPlayers = async (): Promise<Map<string, ExistingPlayerRow>> => {
       const byNormalizedName = new Map<string, ExistingPlayerRow>()
-      const lookupQuery = this.options.hasNormalizedPlayerNameColumn
-        ? this.supabase
+
+      if (this.options.hasNormalizedPlayerNameColumn) {
+        const { data, error } = await this.supabase
             .from('players')
             .select('id, name, normalized_name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
             .in('normalized_name', allNormalizedNames)
-        : this.supabase
-            .from('players')
-            .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
-            .in('name', allEntries.map(({ name }) => name))
 
-      const { data, error } = await lookupQuery
-      if (!error) {
-        for (const row of (data ?? []) as Array<ExistingPlayerRow & { normalized_name?: string | null }>) {
-          byNormalizedName.set(normalizeName(row.normalized_name || row.name), row)
+        if (!error) {
+          for (const row of (data ?? []) as Array<ExistingPlayerRow & { normalized_name?: string | null }>) {
+            byNormalizedName.set(normalizeName(row.normalized_name || row.name), row)
+          }
         }
       }
+
+      const unresolvedNames = allEntries
+        .filter(({ name }) => !byNormalizedName.has(normalizeName(name)))
+        .map(({ name }) => name)
+
+      if (unresolvedNames.length > 0) {
+        const { data, error } = await this.supabase
+          .from('players')
+          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+          .in('name', unresolvedNames)
+
+        if (!error) {
+          for (const row of (data ?? []) as ExistingPlayerRow[]) {
+            byNormalizedName.set(normalizeName(row.name), row)
+          }
+        }
+      }
+
       return byNormalizedName
     }
 
