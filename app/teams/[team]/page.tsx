@@ -79,6 +79,7 @@ type TeamRosterMemberRow = {
   player_name: string | null
   league_name: string | null
   flight: string | null
+  ntrp?: number | null
   players: PlayerRelation
 }
 
@@ -116,6 +117,26 @@ type MatchCard = TeamMatch & {
 function normalizePlayer(player: PlayerRelation): Player | null {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
+}
+
+function rosterMemberPlayer(entry: TeamRosterMemberRow): Player | null {
+  const player = normalizePlayer(entry.players)
+  if (player?.id && player.name) return player
+  if (!entry.player_id || !entry.player_name) return null
+
+  const rating = typeof entry.ntrp === 'number' && Number.isFinite(entry.ntrp) ? entry.ntrp : null
+  return {
+    id: entry.player_id,
+    name: entry.player_name,
+    overall_rating: rating,
+    singles_dynamic_rating: rating,
+    doubles_dynamic_rating: rating,
+    overall_dynamic_rating: rating,
+    singles_usta_dynamic_rating: null,
+    doubles_usta_dynamic_rating: null,
+    overall_usta_dynamic_rating: null,
+    location: null,
+  }
 }
 
 function teamSideForMatch(match: TeamMatch, teamName: string): 'A' | 'B' | null {
@@ -279,6 +300,7 @@ export default function TeamPage() {
           player_name,
           league_name,
           flight,
+          ntrp,
           players (
             id,
             name,
@@ -528,7 +550,7 @@ export default function TeamPage() {
     const map = new Map<string, RosterPlayer>()
 
     rosterMembers.forEach((entry) => {
-      const player = normalizePlayer(entry.players)
+      const player = rosterMemberPlayer(entry)
       if (!player || !player.id) return
       if (!map.has(player.id)) {
         map.set(player.id, {
