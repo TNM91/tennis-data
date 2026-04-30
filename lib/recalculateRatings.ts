@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 type MatchType = 'singles' | 'doubles'
 export type MatchSide = 'A' | 'B'
@@ -122,13 +123,16 @@ export type RecalcPhase =
   | 'saving-snapshots'
   | 'done'
 
-export async function recalculateDynamicRatings(onPhase?: (phase: RecalcPhase, detail?: string) => void) {
+export async function recalculateDynamicRatings(
+  onPhase?: (phase: RecalcPhase, detail?: string) => void,
+  client: SupabaseClient = supabase,
+) {
   onPhase?.('fetching-players')
-  const players = await fetchPlayers()
+  const players = await fetchPlayers(client)
   onPhase?.('fetching-matches')
-  const matches = await fetchMatches()
+  const matches = await fetchMatches(client)
   onPhase?.('fetching-participants')
-  const matchPlayers = await fetchMatchPlayers()
+  const matchPlayers = await fetchMatchPlayers(client)
 
   const playersById = new Map<string, WorkingPlayer>(
     players.map((player) => {
@@ -236,10 +240,10 @@ export async function recalculateDynamicRatings(onPhase?: (phase: RecalcPhase, d
   applyInactivityDecay(playersById.values())
 
   onPhase?.('saving-ratings', `${players.length} players`)
-  await persistPlayerRatings([...playersById.values()])
+  await persistPlayerRatings([...playersById.values()], client)
 
   onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
-  await replaceRatingSnapshots(snapshotRows)
+  await replaceRatingSnapshots(snapshotRows, client)
 
   onPhase?.('done')
 }
@@ -296,8 +300,8 @@ export function projectDoublesTeamWinProbability(
   return roundRating(expectedScore(teamA, teamB) * 100)
 }
 
-async function fetchPlayers(): Promise<PlayerRow[]> {
-  const { data, error } = await supabase
+async function fetchPlayers(client: SupabaseClient): Promise<PlayerRow[]> {
+  const { data, error } = await client
     .from('players')
     .select(`
       id,
@@ -317,8 +321,8 @@ async function fetchPlayers(): Promise<PlayerRow[]> {
   return (data ?? []) as PlayerRow[]
 }
 
-async function fetchMatches(): Promise<MatchRow[]> {
-  const { data, error } = await supabase
+async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
+  const { data, error } = await client
     .from('matches')
     .select(`
       id,
@@ -341,8 +345,8 @@ async function fetchMatches(): Promise<MatchRow[]> {
   return (data ?? []) as MatchRow[]
 }
 
-async function fetchMatchPlayers(): Promise<MatchPlayerRow[]> {
-  const { data, error } = await supabase
+async function fetchMatchPlayers(client: SupabaseClient): Promise<MatchPlayerRow[]> {
+  const { data, error } = await client
     .from('match_players')
     .select(`
       match_id,
@@ -554,7 +558,7 @@ function buildSnapshot(
   }
 }
 
-async function persistPlayerRatings(players: WorkingPlayer[]) {
+async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseClient) {
   for (const chunk of chunkArray(players, 200)) {
     const fullPayload = chunk.map((player) => ({
       id: player.id,
@@ -567,7 +571,7 @@ async function persistPlayerRatings(players: WorkingPlayer[]) {
       overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
     }))
 
-    const { error } = await supabase
+    const { error } = await client
       .from('players')
       .upsert(fullPayload, { onConflict: 'id' })
 
@@ -581,7 +585,7 @@ async function persistPlayerRatings(players: WorkingPlayer[]) {
           doubles_dynamic_rating: roundRating(player.doublesDynamic),
           overall_dynamic_rating: roundRating(player.overallDynamic),
         }))
-        const { error: fallbackError } = await supabase
+        const { error: fallbackError } = await client
           .from('players')
           .upsert(tiqPayload, { onConflict: 'id' })
         if (fallbackError) {
@@ -594,8 +598,8 @@ async function persistPlayerRatings(players: WorkingPlayer[]) {
   }
 }
 
-async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
-  const { error: deleteError } = await supabase
+async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], client: SupabaseClient) {
+  const { error: deleteError } = await client
     .from('rating_snapshots')
     .delete()
     .not('id', 'is', null)
@@ -619,7 +623,7 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
   )
 
   for (const chunk of chunkArray(dedupedRows, 500)) {
-    const { error } = await supabase
+    const { error } = await client
       .from('rating_snapshots')
       .upsert(chunk, {
         onConflict: 'player_id,match_id,rating_type',
@@ -627,7 +631,7 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
 
     if (error) {
       if (isMissingOnConflictConstraintError(error.message)) {
-        await insertRatingSnapshotChunk(chunk)
+        await insertRatingSnapshotChunk(chunk, client)
         continue
       }
 
@@ -635,11 +639,11 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
       if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
           error.message.includes('win_probability') || error.message.includes('multiplier')) {
         const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
-        const { error: fallbackError } = await supabase.from('rating_snapshots').upsert(stripped, {
+        const { error: fallbackError } = await client.from('rating_snapshots').upsert(stripped, {
           onConflict: 'player_id,match_id,rating_type',
         })
         if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
-          const { error: insertFallbackError } = await supabase.from('rating_snapshots').insert(stripped)
+          const { error: insertFallbackError } = await client.from('rating_snapshots').insert(stripped)
           if (insertFallbackError) {
             throw new Error(`Failed to insert rating snapshots: ${insertFallbackError.message}`)
           }
@@ -657,8 +661,8 @@ function isMissingOnConflictConstraintError(message: string) {
   return message.toLowerCase().includes('no unique or exclusion constraint matching the on conflict specification')
 }
 
-async function insertRatingSnapshotChunk(chunk: RatingSnapshotInsert[]) {
-  const { error } = await supabase.from('rating_snapshots').insert(chunk)
+async function insertRatingSnapshotChunk(chunk: RatingSnapshotInsert[], client: SupabaseClient) {
+  const { error } = await client.from('rating_snapshots').insert(chunk)
 
   if (!error) return
 
@@ -669,7 +673,7 @@ async function insertRatingSnapshotChunk(chunk: RatingSnapshotInsert[]) {
     error.message.includes('multiplier')
   ) {
     const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
-    const { error: fallbackError } = await supabase.from('rating_snapshots').insert(stripped)
+    const { error: fallbackError } = await client.from('rating_snapshots').insert(stripped)
     if (!fallbackError) return
     throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
   }

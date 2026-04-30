@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
-import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { supabase } from '@/lib/supabase'
 
 type Accent = 'blue' | 'green' | 'slate'
@@ -926,38 +925,25 @@ function WorkflowStep({
   )
 }
 
-const recalcPhaseLabels: Record<string, string> = {
-  'fetching-players': 'Loading players…',
-  'fetching-matches': 'Loading matches…',
-  'fetching-participants': 'Loading participants…',
-  'processing': 'Processing matches…',
-  'applying-decay': 'Applying decay…',
-  'saving-ratings': 'Saving ratings…',
-  'saving-snapshots': 'Saving snapshots…',
-  'done': 'Done',
-}
-
 function RecalculateRatingsAction() {
   const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
   const [message, setMessage] = useState('')
-  const [phase, setPhase] = useState('')
 
   async function handleRun() {
     if (status === 'running') return
     setStatus('running')
     setMessage('')
-    setPhase('')
     try {
-      await recalculateDynamicRatings((p, detail) => {
-        setPhase(recalcPhaseLabels[p] ?? p + (detail ? ` (${detail})` : ''))
-      })
+      const response = await fetch('/api/ratings/recalculate', { method: 'POST' })
+      const body = await response.json().catch(() => null) as { ok?: boolean; message?: string } | null
+      if (!response.ok || body?.ok === false) {
+        throw new Error(body?.message ?? `Recalculation failed (${response.status})`)
+      }
       setStatus('done')
-      setMessage('All dynamic ratings recalculated.')
+      setMessage(body?.message ?? 'All dynamic ratings recalculated.')
     } catch (err) {
       setStatus('error')
       setMessage(err instanceof Error ? err.message : 'Recalculation failed.')
-    } finally {
-      setPhase('')
     }
   }
 
@@ -973,9 +959,6 @@ function RecalculateRatingsAction() {
         <span>{status === 'running' ? 'Recalculating…' : 'Recalculate All Ratings'}</span>
         <span aria-hidden="true">⟳</span>
       </button>
-      {status === 'running' && phase ? (
-        <div style={{ marginTop: 6, fontSize: 12, color: '#93c5fd', fontWeight: 700 }}>{phase}</div>
-      ) : null}
       {message ? (
         <div style={{ marginTop: 6, fontSize: 12, color: status === 'error' ? '#f87171' : '#9be11d' }}>
           {message}

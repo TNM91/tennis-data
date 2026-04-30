@@ -432,7 +432,7 @@ async function importScorecardAuto(
   }
 
   try {
-    await recalculateDynamicRatings()
+    await recalculateDynamicRatings(undefined, supabase)
   } catch (error) {
     return {
       status: 'failed',
