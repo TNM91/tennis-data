@@ -13,12 +13,30 @@ const statusEl = document.getElementById('status');
 const recentMetaEl = document.getElementById('recentMeta');
 const reviewBadgeEl = document.getElementById('reviewBadge');
 const importUrlInput = document.getElementById('importUrl');
+const topAlertEl = document.getElementById('topAlert');
+const topAlertTextEl = document.getElementById('topAlertText');
 
 let lastCaptureRecord = null;
 
-function setStatus(message, isError = false) {
+function setTopAlert(text, tone = 'idle') {
+  if (!topAlertEl || !topAlertTextEl) return;
+  topAlertTextEl.textContent = text;
+  topAlertEl.dataset.tone = tone;
+}
+
+function summarizeTopStatus(message, isError, tone) {
+  if (tone === 'working') return 'Capture in progress...';
+  if (isError || tone === 'error') return 'Something needs attention.';
+
+  const firstLine = cleanText(String(message || '').split('\n')[0]);
+  if (!firstLine) return 'Ready to capture.';
+  return firstLine.length > 76 ? `${firstLine.slice(0, 73)}...` : firstLine;
+}
+
+function setStatus(message, isError = false, tone = isError ? 'error' : 'success') {
   statusEl.textContent = message;
   statusEl.classList.toggle('error', isError);
+  setTopAlert(summarizeTopStatus(message, isError, tone), tone);
 }
 
 function cleanText(value) {
@@ -56,9 +74,12 @@ function buildFilename(payload) {
 
 function buildSummary(payload) {
   const scorecard = payload?.scorecard || null;
+  const teamSummary = payload?.teamSummary || null;
   const scheduleMatches = Array.isArray(payload?.seasonSchedule?.matches)
     ? payload.seasonSchedule.matches.length
     : 0;
+  const teamSummaryPlayers = Array.isArray(teamSummary?.players) ? teamSummary.players.length : 0;
+  const teamSummaryTeams = Array.isArray(teamSummary?.teams) ? teamSummary.teams.length : 0;
   const scorecardLines = Array.isArray(scorecard?.lines) ? scorecard.lines.length : 0;
   const needsReview = Boolean(scorecard?.needsReview);
   const dataConflict = Boolean(scorecard?.dataConflict);
@@ -72,6 +93,9 @@ function buildSummary(payload) {
     `Page type: ${payload?.pageType || 'unknown'}`,
     `League: ${payload?.seasonSchedule?.leagueName || scorecard?.leagueName || 'not found'}`,
     `Flight: ${payload?.seasonSchedule?.flight || scorecard?.flight || 'not found'}`,
+    ...(teamSummary ? [`Roster team: ${teamSummary.rosterTeamName || 'not found'}`] : []),
+    ...(teamSummary ? [`Roster players: ${teamSummaryPlayers}`] : []),
+    ...(teamSummary ? [`Teams in standings: ${teamSummaryTeams}`] : []),
     `Schedule matches: ${scheduleMatches}`,
     `Scorecard lines: ${scorecardLines}`,
     `Needs review: ${needsReview ? 'yes' : 'no'}`,
@@ -312,7 +336,7 @@ async function persistCapture(payload, filename) {
 
 captureBtn.addEventListener('click', async () => {
   captureBtn.disabled = true;
-  setStatus('Capturing structured data...');
+  setStatus('Capturing structured data...', false, 'working');
 
   try {
     const tab = await getActiveTab();
@@ -354,7 +378,7 @@ captureBtn.addEventListener('click', async () => {
         source: 'edge-extension',
       };
       await openOrReuseImportTab(targetUrl, softPayload);
-      setStatus(`Capture complete, but direct auto import was unavailable: ${autoError.message}\n\nOpened the import center fallback.\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`);
+      setStatus(`Capture complete, but direct auto import was unavailable: ${autoError.message}\n\nOpened the import center fallback.\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`, false, 'review');
       return;
     }
 
@@ -371,7 +395,8 @@ captureBtn.addEventListener('click', async () => {
     }
 
     const isError = autoResult.status === 'failed';
-    setStatus(`${autoResult.message || 'Import complete'}\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`, isError);
+    const statusTone = isError ? 'error' : autoResult.status === 'needs_review' ? 'review' : 'success';
+    setStatus(`${autoResult.message || 'Import complete'}\n\nSaved as:\n${filename}\n\n${buildSummary(payload)}`, isError, statusTone);
   } catch (error) {
     console.error('TenAceIQ popup capture error:', error);
     setStatus(`Error: ${error.message}`, true);
@@ -384,7 +409,7 @@ copyBtn.addEventListener('click', async () => {
   if (!lastCaptureRecord?.payload) return;
   try {
     await copyPayloadToClipboard(lastCaptureRecord.payload);
-    setStatus(`Copied latest capture to clipboard.\n\n${buildSummary(lastCaptureRecord.payload)}`);
+    setStatus(`Copied latest capture to clipboard.\n\n${buildSummary(lastCaptureRecord.payload)}`, false, 'success');
   } catch (error) {
     setStatus(`Clipboard copy failed: ${error.message}`, true);
   }
@@ -394,7 +419,7 @@ downloadBtn.addEventListener('click', async () => {
   if (!lastCaptureRecord?.payload) return;
   try {
     await downloadCapture(lastCaptureRecord.payload, lastCaptureRecord.filename || buildFilename(lastCaptureRecord.payload), true);
-    setStatus(`Downloaded latest capture again.\n\n${buildSummary(lastCaptureRecord.payload)}`);
+    setStatus(`Downloaded latest capture again.\n\n${buildSummary(lastCaptureRecord.payload)}`, false, 'success');
   } catch (error) {
     setStatus(`Download failed: ${error.message}`, true);
   }
@@ -416,7 +441,7 @@ openImportBtn.addEventListener('click', async () => {
       source: 'edge-extension',
     };
     await openOrReuseImportTab(targetUrl, softPayload);
-    setStatus(`Opened the import center, copied the latest capture, and requested automatic handoff into preview. Clean items will move through automatically, and unresolved scorecards will land in focused review.`);
+    setStatus(`Opened the import center, copied the latest capture, and requested automatic handoff into preview. Clean items will move through automatically, and unresolved scorecards will land in focused review.`, false, 'review');
   } catch (error) {
     setStatus(`Open import failed: ${error.message}`, true);
   }
@@ -429,7 +454,7 @@ clearBtn.addEventListener('click', async () => {
     [CAPTURE_HISTORY_KEY]: [],
   });
   renderRecentCapture();
-  setStatus('Cleared the stored recent capture.');
+  setStatus('Cleared the stored recent capture.', false, 'idle');
 });
 
 importUrlInput.addEventListener('change', async () => {

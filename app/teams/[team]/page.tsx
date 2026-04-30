@@ -664,6 +664,8 @@ export default function TeamPage() {
     })
   }, [lineMatches, linePlayers, matches, players, rosterMembers, team])
 
+  const teamExistsFromSummary = summaryTeams.length > 0
+
   const hotPlayers = useMemo(() => {
     return roster.filter((p) => {
       const base = p.overall_rating ?? null
@@ -1479,8 +1481,16 @@ export default function TeamPage() {
             </div>
           ) : (
             <div style={emptyStateBlock}>
-              <p style={emptyState}>No roster players are linked to this team yet.</p>
-              <p style={mutedText}>Import a team summary with a roster team selected, or capture scorecards to enrich this page with player usage.</p>
+              <p style={emptyState}>
+                {teamExistsFromSummary
+                  ? 'This team exists in the imported standings, but its roster was not captured yet.'
+                  : 'No roster players are linked to this team yet.'}
+              </p>
+              <p style={mutedText}>
+                {teamExistsFromSummary
+                  ? `The last team summary can create the ${team} team shell from standings, but roster players only import for the roster team shown in that capture. Open ${team}'s roster/team-summary page in TennisLink and capture that roster, or import scorecards to build usage history.`
+                  : 'Import a team summary with this team selected as the roster team, or capture scorecards to enrich this page with player usage.'}
+              </p>
             </div>
           )}
         </section>
