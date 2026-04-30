@@ -25,6 +25,15 @@ type MatchLeagueRow = {
   line_number?: string | null
 }
 
+type TeamSummaryLeagueRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  usta_section: string | null
+  district_area: string | null
+  source?: string | null
+}
+
 export type LeagueCard = {
   key: string
   leagueId?: string
@@ -142,6 +151,78 @@ function buildLeagueKey(row: MatchLeagueRow) {
     normalizeKeyPart(row.usta_section),
     normalizeKeyPart(row.district_area),
   ].join('__')
+}
+
+function addLeagueSummaryTeam(
+  leagueMap: Map<string, LeagueCard & { teamSet: Set<string>; scheduleTeamSet: Set<string> }>,
+  row: TeamSummaryLeagueRow,
+) {
+  const leagueNameText = isInvalidLeagueName(row.league_name) ? '' : safeText(row.league_name)
+  if (!leagueNameText) return
+
+  const leagueRow: MatchLeagueRow = {
+    id: '',
+    external_match_id: null,
+    league_name: leagueNameText,
+    flight: row.flight,
+    usta_section: row.usta_section,
+    district_area: row.district_area,
+    home_team: row.team_name,
+    away_team: null,
+    match_date: '',
+    source: row.source || 'tennislink_team_summary',
+    line_number: null,
+  }
+
+  const key = buildLeagueKey(leagueRow)
+  if (!key) return
+
+  const leagueName = leagueNameText
+  const flight = safeText(row.flight)
+  const ustaSection = safeText(row.usta_section)
+  const districtArea = safeText(row.district_area)
+  const year = inferYear(leagueRow)
+  const season = inferSeason(leagueRow)
+  const gender = inferGender(leagueRow)
+  const rating = inferRating(leagueRow)
+  const competitionLayer = inferCompetitionLayerFromValues({
+    leagueName,
+    ustaSection,
+    districtArea,
+  })
+
+  if (!leagueMap.has(key)) {
+    leagueMap.set(key, {
+      key,
+      leagueName,
+      flight,
+      ustaSection,
+      districtArea,
+      year,
+      season,
+      gender,
+      rating,
+      competitionLayer,
+      leagueFormat: inferLeagueFormatFromValues({
+        competitionLayer,
+        leagueName,
+      }),
+      matchCount: 0,
+      teamCount: 0,
+      latestMatchDate: null,
+      teamSet: new Set<string>(),
+      scheduleTeamSet: new Set<string>(),
+    })
+  }
+
+  const current = leagueMap.get(key)!
+  current.leagueName = chooseBetterText(current.leagueName, leagueName)
+  current.flight = chooseBetterText(current.flight, flight)
+  current.ustaSection = chooseBetterText(current.ustaSection, ustaSection)
+  current.districtArea = chooseBetterText(current.districtArea, districtArea)
+
+  const canonicalTeam = canonicalTeamName(row.team_name)
+  if (canonicalTeam) current.teamSet.add(canonicalTeam)
 }
 
 function createServerSupabaseClient() {
@@ -310,6 +391,17 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
       throw error
     } finally {
       clearTimeout(timeoutId)
+    }
+  }
+
+  const { data: summaryTeamRows, error: summaryTeamError } = await supabase
+    .from('team_summary_teams')
+    .select('team_name, league_name, flight, usta_section, district_area, source')
+    .limit(LEAGUE_SUMMARY_FETCH_LIMIT)
+
+  if (!summaryTeamError) {
+    for (const row of (summaryTeamRows || []) as TeamSummaryLeagueRow[]) {
+      addLeagueSummaryTeam(leagueMap, row)
     }
   }
 
