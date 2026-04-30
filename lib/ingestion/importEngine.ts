@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { buildLeagueEntityId, buildTeamEntityId } from '@/lib/entity-ids'
+import { buildLeagueEntityId, buildTeamEntityId } from '../entity-ids'
 
 export type MatchSide = 'A' | 'B'
 export type MatchType = 'singles' | 'doubles'
@@ -2051,8 +2051,10 @@ export class ImportEngine {
       errors: [],
     }
 
-    // Collect all valid players (deduplicated by normalised name)
-    const playerMap = new Map<string, { name: string; ntrp: number }>()
+    // Collect all roster players (deduplicated by normalised name). Some team
+    // summary captures list roster members without an NTRP; those players still
+    // need player records so captain roster tools can show them.
+    const playerMap = new Map<string, { name: string; ntrp: number | null }>()
     const teamSummaryTeams = new Map<string, TeamSummaryTeamRecord>()
     const rosterMembershipByKey = new Map<string, Omit<TeamRosterMembership, 'playerId'>>()
     for (const row of rows) {
@@ -2086,9 +2088,10 @@ export class ImportEngine {
         const name = cleanString(player.name)
         if (!name) continue
         const ntrp = typeof player.ntrp === 'number' && Number.isFinite(player.ntrp) ? player.ntrp : null
-        if (ntrp === null) continue
         const key = normalizeName(name)
         if (!playerMap.has(key)) {
+          playerMap.set(key, { name, ntrp })
+        } else if (ntrp !== null && playerMap.get(key)?.ntrp === null) {
           playerMap.set(key, { name, ntrp })
         }
 
@@ -2192,8 +2195,8 @@ export class ImportEngine {
     // Commit mode: batch lookup → batch insert for new → targeted updates for existing
     const existingByNorm = await fetchExistingPlayers()
 
-    const toInsert: Array<{ name: string; ntrp: number }> = []
-    const toUpdate: Array<{ name: string; ntrp: number; existing: ExistingPlayerRow }> = []
+    const toInsert: Array<{ name: string; ntrp: number | null }> = []
+    const toUpdate: Array<{ name: string; ntrp: number | null; existing: ExistingPlayerRow }> = []
 
     for (const { name, ntrp } of allEntries) {
       const existing = existingByNorm.get(normalizeName(name))
@@ -2207,7 +2210,8 @@ export class ImportEngine {
     // Batch insert all new players in one query
     if (toInsert.length > 0) {
       const insertPayload = toInsert.map(({ name, ntrp }) => {
-        const roundedNtrp = Math.round(ntrp * 1000) / 1000
+        const ratingSeed = ntrp ?? DEFAULT_PLAYER_BASELINE
+        const roundedNtrp = Math.round(ratingSeed * 1000) / 1000
         return {
           name,
           normalized_name: normalizeName(name),
@@ -2231,14 +2235,19 @@ export class ImportEngine {
       } else {
         for (const { name, ntrp } of toInsert) {
           result.createdCount += 1
-          result.players.push({ name, status: 'created', ntrp })
+          result.players.push({
+            name,
+            status: 'created',
+            ntrp,
+            message: ntrp === null ? `Created roster player with default baseline ${DEFAULT_PLAYER_BASELINE}` : undefined,
+          })
         }
       }
     }
 
     const playerIdByNormalizedName = new Map<string, string>()
-    for (const row of existingByNorm.values()) {
-      playerIdByNormalizedName.set(normalizeName(row.name), row.id)
+    for (const row of existingByNorm.values() as Iterable<ExistingPlayerRow & { normalized_name?: string | null }>) {
+      playerIdByNormalizedName.set(normalizeName(row.normalized_name || row.name), row.id)
     }
 
     if (toInsert.length > 0) {
@@ -2252,6 +2261,17 @@ export class ImportEngine {
     // logic reads their current dynamic ratings from the batch fetch result.
     for (const { name, ntrp, existing } of toUpdate) {
       try {
+        if (ntrp === null) {
+          result.updatedCount += 1
+          result.players.push({
+            name,
+            status: 'updated',
+            ntrp,
+            message: 'Linked existing player to team roster; no rating supplied',
+          })
+          continue
+        }
+
         const roundedNtrp = Math.round(ntrp * 1000) / 1000
 
         // Only seed dynamic rating if it equals the old baseline (3.5 default)
