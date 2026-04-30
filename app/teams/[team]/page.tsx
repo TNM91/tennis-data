@@ -277,9 +277,11 @@ export default function TeamPage() {
       }
 
       const { data: matchData, error: matchError } = await matchQuery
-      if (matchError) throw matchError
+      if (matchError) {
+        console.warn('team match lookup skipped', matchError.message)
+      }
 
-      const scopedMatches = ((matchData || []) as TeamMatch[]).filter((match) => {
+      const scopedMatches = matchError ? [] : ((matchData || []) as TeamMatch[]).filter((match) => {
         const home = cleanText(match.home_team)
         const away = cleanText(match.away_team)
         if (!home || !away) return false
@@ -390,10 +392,16 @@ export default function TeamPage() {
         lineDataPromise,
       ])
 
-      if (playerError) throw playerError
-      setPlayers((playerData || []) as MatchPlayer[])
+      if (playerError) {
+        console.warn('team match player lookup skipped', playerError.message)
+        setPlayers([])
+      } else {
+        setPlayers((playerData || []) as MatchPlayer[])
+      }
 
-      if (lineResult.data !== null) {
+      if (lineResult.error) {
+        console.warn('team line match lookup skipped', lineResult.error.message)
+      } else if (lineResult.data !== null) {
         const parentIdSet = new Set(parentExternalIds)
         fetchedLineMatches = ((lineResult.data || []) as LineMatch[]).filter((lm) => {
           const extId = cleanText(lm.external_match_id)
@@ -406,7 +414,7 @@ export default function TeamPage() {
 
         if (fetchedLineMatches.length > 0) {
           const lineIds = fetchedLineMatches.map((lm) => lm.id)
-          const { data: linePlayerData } = await supabase
+          const { data: linePlayerData, error: linePlayerError } = await supabase
             .from('match_players')
             .select(`
               match_id,
@@ -426,8 +434,12 @@ export default function TeamPage() {
             `)
             .in('match_id', lineIds)
 
-          fetchedLinePlayers = (linePlayerData || []) as MatchPlayer[]
-          setLinePlayers(fetchedLinePlayers)
+          if (linePlayerError) {
+            console.warn('team line player lookup skipped', linePlayerError.message)
+          } else {
+            fetchedLinePlayers = (linePlayerData || []) as MatchPlayer[]
+            setLinePlayers(fetchedLinePlayers)
+          }
         }
       }
     } catch (err) {

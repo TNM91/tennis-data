@@ -806,23 +806,71 @@
     return dedupeTeamSummaryPlayers(results);
   }
 
-  function inferRosterTeamName(teams) {
+  function teamNameIdentityTokens(teamName) {
+    return normalizeTeamName(teamName || '')
+      .split(/[^a-z0-9']+/i)
+      .map((token) => token.trim().toLowerCase())
+      .filter((token) => token.length >= 4 && !['team', 'guys', 'other', 'wily', 'wild', 'wolverines'].includes(token));
+  }
+
+  function matchKnownTeamName(rawValue, candidates) {
+    const cleaned = cleanTeamName(rawValue);
+    if (!cleaned) return null;
+    const cleanedKey = normalizeSummaryLookupKey(cleaned);
+    if (!cleanedKey) return null;
+    return candidates.find((teamName) => normalizeSummaryLookupKey(teamName) === cleanedKey) || null;
+  }
+
+  function inferRosterTeamFromTopContext(candidates) {
+    const topContext = (document.body?.innerText || '').split(/\bTeam Standings\b|\bMatch Win Criteria\b|\bPlayer Roster\b|\bPlayers\b/i)[0] || '';
+    const lines = topContext
+      .split(/\n+/)
+      .map((line) => normalizeWhitespace(line))
+      .filter(Boolean)
+      .slice(0, 60);
+
+    for (const line of lines) {
+      const explicitTeamMatch = line.match(/^team\s*:?\s*(.+)$/i);
+      if (!explicitTeamMatch) continue;
+      const matched = matchKnownTeamName(explicitTeamMatch[1], candidates);
+      if (matched) return matched;
+    }
+
+    for (const line of lines) {
+      const matched = matchKnownTeamName(line, candidates);
+      if (matched) return matched;
+    }
+
+    return null;
+  }
+
+  function inferRosterTeamName(teams, players = []) {
     const candidates = dedupeTeamSummaryTeams(teams).map((team) => team.name);
     if (candidates.length === 1) return candidates[0];
+
+    const topContextTeam = inferRosterTeamFromTopContext(candidates);
+    if (topContextTeam) return topContextTeam;
 
     const headingText = Array.from(document.querySelectorAll('h1,h2,h3,.pageTitle,.pagetitle,.title,.PageTitle,.ContentTitle'))
       .map((node) => innerTextOf(node))
       .filter(Boolean)
       .join(' | ');
     const urlText = decodeURIComponent(window.location.href || '');
-    const pagePrefix = (document.body?.innerText || '').split(/\bPlayers\b/i)[0] || '';
-    const haystacks = [headingText, urlText, pagePrefix].map((value) => normalizeWhitespace(value));
+    const explicitHaystacks = [headingText, urlText].map((value) => normalizeWhitespace(value));
 
     for (const teamName of candidates) {
       const key = normalizeSummaryLookupKey(teamName);
       if (!key) continue;
-      if (haystacks.some((value) => normalizeSummaryLookupKey(value).includes(key))) return teamName;
+      if (explicitHaystacks.some((value) => normalizeSummaryLookupKey(value).includes(key))) return teamName;
     }
+
+    const playerText = safeArray(players)
+      .map((player) => normalizeWhitespace(player?.name || '').toLowerCase())
+      .join(' | ');
+    const playerMatchedTeams = candidates.filter((teamName) =>
+      teamNameIdentityTokens(teamName).some((token) => new RegExp(`\\b${escapeRegExp(token)}\\b`, 'i').test(playerText))
+    );
+    if (playerMatchedTeams.length === 1) return playerMatchedTeams[0];
 
     return null;
   }
@@ -831,8 +879,8 @@
     const text = document.body?.innerText || '';
     const leagueMeta = extractLeagueMetadata(text);
     const teams = extractTeamStandingsFromTables();
-    const rosterTeamName = inferRosterTeamName(teams);
     const players = extractPlayersFromTables();
+    const rosterTeamName = inferRosterTeamName(teams, players);
     const canonicalTeamMap = {};
     const playerRatingSeeds = {};
 
@@ -1111,6 +1159,7 @@
       .replace(/^Away Team:?/i, '')
       .replace(/^Team 1:?/i, '')
       .replace(/^Team 2:?/i, '')
+      .replace(/^Team:?/i, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
 
