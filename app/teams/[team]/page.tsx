@@ -69,7 +69,7 @@ type MatchPlayer = {
   match_id: string
   side: 'A' | 'B'
   player_id: string
-  match_type: 'singles' | 'doubles' | null
+  match_type?: 'singles' | 'doubles' | null
   players: PlayerRelation
 }
 
@@ -462,7 +462,6 @@ export default function TeamPage() {
           match_id,
           side,
           player_id,
-          match_type,
           players (
             id,
             name,
@@ -528,7 +527,6 @@ export default function TeamPage() {
               match_id,
               side,
               player_id,
-              match_type,
               players (
                 id,
                 name,
@@ -726,8 +724,9 @@ export default function TeamPage() {
         if (!current) return
 
         current.appearances += 1
-        if (entry.match_type === 'singles') current.singlesAppearances += 1
-        if (entry.match_type === 'doubles') current.doublesAppearances += 1
+        const appearanceType = entry.match_type ?? lineMatch.match_type
+        if (appearanceType === 'singles') current.singlesAppearances += 1
+        if (appearanceType === 'doubles') current.doublesAppearances += 1
 
         // Individual win: player's side matches THIS line's winner_side
         if (lineMatch.winner_side === entry.side) current.wins += 1
@@ -762,8 +761,9 @@ export default function TeamPage() {
         if (!current) return
 
         current.appearances += 1
-        if (entry.match_type === 'singles') current.singlesAppearances += 1
-        if (entry.match_type === 'doubles') current.doublesAppearances += 1
+        const appearanceType = entry.match_type ?? match.match_type
+        if (appearanceType === 'singles') current.singlesAppearances += 1
+        if (appearanceType === 'doubles') current.doublesAppearances += 1
 
         // Legacy: use team-level outcome (best available without line data)
         const result = didTeamWin(match, team)
