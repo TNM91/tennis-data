@@ -431,6 +431,10 @@ function normalizeName(name: string): string {
   return cleanString(name).toLowerCase()
 }
 
+function isMissingSchemaRelationError(message: string): boolean {
+  return /could not find the table|relation .* does not exist|schema cache/i.test(message)
+}
+
 function dedupeStrings(values: string[]): string[] {
   const seen = new Set<string>()
   const result: string[] = []
@@ -2382,6 +2386,10 @@ export class ImportEngine {
       .upsert(payload, { onConflict: 'normalized_team_name,league_name,flight' })
 
     if (error) {
+      if (isMissingSchemaRelationError(error.message)) {
+        this.options.log('team_summary_teams upsert skipped because the table is not deployed', { error: error.message })
+        return
+      }
       throw new Error(`team_summary_teams upsert failed: ${error.message}`)
     }
   }

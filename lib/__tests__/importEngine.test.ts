@@ -225,4 +225,72 @@ describe('importTeamSummary', () => {
       'commit',
     )).rejects.toThrow('team_roster_members upsert failed')
   })
+
+  it('still saves roster memberships when the optional team summary table is not deployed', async () => {
+    const players: Array<Record<string, unknown>> = []
+    const rosterMemberships: Array<Record<string, unknown>> = []
+    const supabase = {
+      from(table: string) {
+        if (table === 'players') {
+          return {
+            select() {
+              return {
+                in(column: string, values: string[]) {
+                  return { data: players.filter((player) => values.includes(String(player[column]))), error: null }
+                },
+              }
+            },
+            insert(payload: Array<Record<string, unknown>>) {
+              for (const row of payload) {
+                players.push({ id: `player-${players.length + 1}`, ...row })
+              }
+              return { error: null }
+            },
+          }
+        }
+
+        if (table === 'team_summary_teams') {
+          return {
+            upsert() {
+              return { error: { message: "Could not find the table 'public.team_summary_teams' in the schema cache" } }
+            },
+          }
+        }
+
+        if (table === 'team_roster_members') {
+          return {
+            upsert(payload: Array<Record<string, unknown>>) {
+              rosterMemberships.push(...payload)
+              return { error: null }
+            },
+          }
+        }
+
+        throw new Error(`Unexpected table ${table}`)
+      },
+    }
+
+    const engine = createImportEngine(supabase as never, { hasNormalizedPlayerNameColumn: true })
+    const result = await engine.importTeamSummary(
+      [
+        {
+          leagueName: '2026 Adult 18 & Over Spring',
+          flight: 'Men 4.5',
+          rosterTeamName: 'Meinert/The Other Guys',
+          teams: [{ name: 'Meinert/The Other Guys' }],
+          players: [{ name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys' }],
+        },
+      ],
+      'commit',
+    )
+
+    expect(result.createdCount).toBe(1)
+    expect(rosterMemberships).toMatchObject([
+      {
+        team_name: 'Meinert/The Other Guys',
+        normalized_team_name: 'meinert/the other guys',
+        player_name: 'Nathan Meinert',
+      },
+    ])
+  })
 })
