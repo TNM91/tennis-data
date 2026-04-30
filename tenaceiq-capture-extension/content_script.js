@@ -666,6 +666,11 @@
     return normalizeTeamName(value || '').toLowerCase();
   }
 
+  function isPlaceholderTeamSummaryName(value) {
+    const key = normalizeSummaryLookupKey(value);
+    return key === 'team name' || key === 'team' || key === 'teams';
+  }
+
   function looksLikeTeamStandingsTable(table) {
     const rows = getRows(table);
     if (rows.length < 2) return false;
@@ -696,6 +701,7 @@
     for (const team of safeArray(teams)) {
       const name = cleanTeamName(team?.name);
       if (!name) continue;
+      if (isPlaceholderTeamSummaryName(name)) continue;
       const key = normalizeSummaryLookupKey(name);
       if (seen.has(key)) continue;
       seen.add(key);

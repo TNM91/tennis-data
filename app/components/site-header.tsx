@@ -323,7 +323,10 @@ export default function SiteHeader({ active }: { active?: string }) {
               <>
                 {roleLabel ? <span style={accountPillStyle}>{roleLabel}</span> : null}
                 {role === 'admin' ? (
-                  <UtilityLink href={resumeImportHref}>Resume import</UtilityLink>
+                  <>
+                    <UtilityLink href="/admin">Admin dashboard</UtilityLink>
+                    <UtilityLink href={resumeImportHref}>Resume import</UtilityLink>
+                  </>
                 ) : null}
                 <button type="button" onClick={handleLogout} style={utilityButtonStyle}>
                   Logout
@@ -407,10 +410,16 @@ export default function SiteHeader({ active }: { active?: string }) {
               {authenticated ? (
                 <>
                   {role === 'admin' ? (
-                    <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                      <span>Resume import</span>
-                      <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                    </Link>
+                    <>
+                      <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                        <span>Admin dashboard</span>
+                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                      </Link>
+                      <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                        <span>Resume import</span>
+                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                      </Link>
+                    </>
                   ) : null}
                   <button
                     type="button"

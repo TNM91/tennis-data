@@ -100,11 +100,17 @@ function normalizePlayerNames(values: string[]): string[] {
   return result
 }
 
+function isPlaceholderTeamName(value: unknown): boolean {
+  const key = normalizeLookupKey(value)
+  return key === 'team name' || key === 'team' || key === 'teams'
+}
+
 function isMalformedTeamName(value: unknown): boolean {
   const cleaned = normalizeImportName(value)
   const lower = cleaned.toLowerCase()
 
   if (!cleaned) return true
+  if (isPlaceholderTeamName(cleaned)) return true
   if (lower === 'unknown' || lower === 'unknown team') return true
   if (lower === 'singles' || lower === 'doubles') return true
   if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return true
@@ -145,23 +151,39 @@ function normalizeScorecardRows(rows: ScorecardImportRow[]): ScorecardImportRow[
 }
 
 function normalizeTeamSummaryRows(rows: TeamSummaryImportRow[]): TeamSummaryImportRow[] {
-  return rows.map((row) => ({
-    ...row,
-    leagueName: normalizeImportName(row.leagueName) || null,
-    flight: normalizeImportName(row.flight) || null,
-    ustaSection: normalizeImportName(row.ustaSection) || null,
-    districtArea: normalizeImportName(row.districtArea) || null,
-    rosterTeamName: normalizeImportName(row.rosterTeamName) || null,
-    teams: row.teams.map((team) => ({
+  return rows.map((row) => {
+    const teams = row.teams.map((team) => ({
       ...team,
       name: normalizeImportName(team.name),
-    })),
-    players: row.players.map((player) => ({
+    })).filter((team) => !isPlaceholderTeamName(team.name))
+
+    const canonicalTeamMap: Record<string, string> = {}
+    for (const [key, value] of Object.entries(row.canonicalTeamMap ?? {})) {
+      if (!isPlaceholderTeamName(key) && !isPlaceholderTeamName(value)) {
+        canonicalTeamMap[normalizeLookupKey(key)] = normalizeImportName(value)
+      }
+    }
+    for (const team of teams) {
+      const key = normalizeLookupKey(team.name)
+      if (key && !canonicalTeamMap[key]) canonicalTeamMap[key] = team.name
+    }
+
+    return {
+      ...row,
+      leagueName: normalizeImportName(row.leagueName) || null,
+      flight: normalizeImportName(row.flight) || null,
+      ustaSection: normalizeImportName(row.ustaSection) || null,
+      districtArea: normalizeImportName(row.districtArea) || null,
+      rosterTeamName: normalizeImportName(row.rosterTeamName) || null,
+      teams,
+      canonicalTeamMap,
+      players: row.players.map((player) => ({
       ...player,
       name: normalizeImportName(player.name),
       teamName: normalizeImportName(player.teamName) || null,
-    })),
-  }))
+      })),
+    }
+  })
 }
 
 async function enqueueForReview(
@@ -480,6 +502,18 @@ async function fetchScheduleTeamKeys(supabase: SupabaseClient, rows: TeamSummary
   return keys
 }
 
+function scheduleHasTeam(scheduleTeamKeys: Set<string>, leagueKey: string, teamName: string): boolean {
+  const teamKey = normalizeLookupKey(teamName)
+  if (!teamKey) return false
+  if (scheduleTeamKeys.has(`${leagueKey}__${teamKey}`)) return true
+
+  for (const key of scheduleTeamKeys) {
+    if (key.endsWith(`__${teamKey}`)) return true
+  }
+
+  return false
+}
+
 function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], scheduleTeamKeys: Set<string>) {
   const issues: string[] = []
 
@@ -493,8 +527,7 @@ function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], schedu
         continue
       }
 
-      const teamKey = `${leagueKey}__${normalizeLookupKey(team.name)}`
-      if (scheduleTeamKeys.size > 0 && !scheduleTeamKeys.has(teamKey)) {
+      if (scheduleTeamKeys.size > 0 && !scheduleHasTeam(scheduleTeamKeys, leagueKey, team.name)) {
         issues.push(`Team summary team does not match schedule: ${team.name}`)
       }
     }
@@ -508,8 +541,7 @@ function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], schedu
 
       const playerTeam = normalizeImportName(player.teamName ?? row.rosterTeamName)
       if (playerTeam) {
-        const teamKey = `${leagueKey}__${normalizeLookupKey(playerTeam)}`
-        if (scheduleTeamKeys.size > 0 && !scheduleTeamKeys.has(teamKey)) {
+        if (scheduleTeamKeys.size > 0 && !scheduleHasTeam(scheduleTeamKeys, leagueKey, playerTeam)) {
           issues.push(`Roster team does not match schedule: ${playerTeam}`)
         }
       }

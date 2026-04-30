@@ -993,6 +993,11 @@ function normalizeSummaryLookupKey(value: string): string {
   return cleanString(value).replace(/\s*\/\s*/g, '/').toLowerCase()
 }
 
+function isPlaceholderTeamSummaryName(value: string): boolean {
+  const key = normalizeSummaryLookupKey(value)
+  return key === 'team name' || key === 'team' || key === 'teams'
+}
+
 function normalizeTeamSummaryTeam(
   entry: UnknownRecord,
   rowIndex: number,
@@ -1006,6 +1011,8 @@ function normalizeTeamSummaryTeam(
     warnings.push({ rowIndex, message: `Skipped team summary team ${teamIndex + 1}: missing team name` })
     return null
   }
+  if (isPlaceholderTeamSummaryName(name)) return null
+
   return {
     name,
     wins: normalizeSeedRatingValue(pickFirst(entry, ['wins', 'w'])),
