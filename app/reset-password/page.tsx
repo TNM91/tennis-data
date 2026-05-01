@@ -73,7 +73,7 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw new Error(error.message)
 
-      setMessage('Password updated successfully. Redirecting to login...')
+      setMessage('Password updated. Redirecting to login...')
       setTimeout(async () => {
         await supabase.auth.signOut()
         router.push('/login')
@@ -112,10 +112,9 @@ export default function ResetPasswordPage() {
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>New password</div>
-          <h1 style={heroTitle}>Reset your password and get back in.</h1>
+          <h1 style={heroTitle}>Create a new password.</h1>
           <p style={heroText}>
-            Create a new password for your TenAceIQ account. After resetting, you’ll sign in
-            again with your email and new password.
+            Update your password, then sign in again and return to your TenAceIQ workspace.
           </p>
 
           <div style={pillRow}>
@@ -128,10 +127,10 @@ export default function ResetPasswordPage() {
           <div style={panelCard}>
             <div style={panelLabel}>Reset checklist</div>
             <div style={infoGridResponsive}>
-              <InfoCard title="Use 8+ characters" text="Create a stronger password than your last one." />
-              <InfoCard title="Match both fields" text="Your confirmation field must match exactly." />
-              <InfoCard title="Save it securely" text="Use your password manager if you have one." />
-              <InfoCard title="Sign back in" text="You’ll return to the login page after reset." />
+              <InfoCard title="8+ characters" text="Use at least 8 characters." />
+              <InfoCard title="Match fields" text="Both password fields must match." />
+              <InfoCard title="Save it" text="Use your password manager if you have one." />
+              <InfoCard title="Sign in" text="You will return to login after reset." />
             </div>
           </div>
         </div>
@@ -241,7 +240,7 @@ function InfoCard({ title, text }: { title: string; text: string }) {
 
 const heroShell: CSSProperties = { position: 'relative', zIndex: 2, maxWidth: '1280px', margin: '14px auto 24px', display: 'grid', borderRadius: '34px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)', boxShadow: 'var(--shadow-card)' }
 const eyebrow: CSSProperties = { display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', minHeight: '38px', padding: '8px 14px', borderRadius: '999px', border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)', background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)', color: 'var(--home-eyebrow-color)', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '4px' }
-const heroTitle: CSSProperties = { margin: '0 0 12px', color: 'var(--foreground-strong)', fontWeight: 900, lineHeight: 0.98, letterSpacing: '-0.055em', maxWidth: '760px', fontSize: '58px' }
+const heroTitle: CSSProperties = { margin: '0 0 12px', color: 'var(--foreground-strong)', fontWeight: 900, lineHeight: 0.98, letterSpacing: 0, maxWidth: '760px', fontSize: '58px' }
 const heroText: CSSProperties = { margin: '0 0 20px', color: 'var(--shell-copy-muted)', fontSize: '18px', lineHeight: 1.6, maxWidth: '760px' }
 const pillRow: CSSProperties = { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '8px' }
 const pillBase: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: '36px', padding: '0 14px', borderRadius: '999px', fontSize: '13px', lineHeight: 1, fontWeight: 900 }
@@ -259,7 +258,7 @@ const formPanelInner: CSSProperties = { position: 'relative', zIndex: 1, height:
 const loginBrandWrap: CSSProperties = { display: 'flex', justifyContent: 'center', alignItems: 'center', textAlign: 'center', marginBottom: '18px', minHeight: '64px' }
 const formCard: CSSProperties = { display: 'grid', gap: '12px', borderRadius: '24px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: '18px' }
 const formLabel: CSSProperties = { color: 'var(--home-eyebrow-color)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
-const formTitle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: '28px', lineHeight: 1.04, fontWeight: 900, letterSpacing: '-0.045em' }
+const formTitle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: '28px', lineHeight: 1.04, fontWeight: 900, letterSpacing: 0 }
 const inputLabel: CSSProperties = { color: 'var(--foreground)', fontSize: '13px', fontWeight: 700, marginTop: '2px' }
 const inputStyle: CSSProperties = { width: '100%', minHeight: '52px', borderRadius: '16px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', padding: '0 16px', fontSize: '15px', outline: 'none', boxShadow: 'var(--home-control-shadow)' }
 const togglePasswordButton: CSSProperties = { minHeight: '46px', padding: '0 16px', borderRadius: '16px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', color: 'var(--foreground-strong)', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }

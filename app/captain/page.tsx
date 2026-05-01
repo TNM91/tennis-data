@@ -47,6 +47,7 @@ import {
   readLocalArray,
 } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
 type TeamMatch = {
   id: string
@@ -923,7 +924,7 @@ export default function CaptainHubPage() {
       doubles,
       latest: matches[0]?.match_date || null,
       roster: roster.length,
-      topPairWinPct: pairings[0] ? formatPercent(getWinPct(pairings[0].wins, pairings[0].losses)) : 'â€”',
+      topPairWinPct: pairings[0] ? formatPercent(getWinPct(pairings[0].wins, pairings[0].losses)) : '-',
       singlesCore: recommendedSingles.length,
     }
   }, [matches, teamSideByMatchId, roster.length, pairings, recommendedSingles.length])
@@ -1215,16 +1216,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       }
     }
 
-    if (!workspaceState.scenarioReady) {
-      return {
-        title: 'Compare and lock scenarios',
-        detail: 'A lineup exists. Test another option before you send it.',
-        href: scenarioHref,
-        cta: 'Open Scenario Builder',
-        tone: 'info' as const,
-      }
-    }
-
     if (!workspaceState.messagingReady) {
       return {
         title: 'Send the weekly plan',
@@ -1236,13 +1227,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     }
 
     return {
-      title: 'Get ready for match day',
-      detail: 'Your week is in motion. Review the final plan and the next action before match day.',
-      href: analyticsHref,
-      cta: 'Open Captain IQ',
+      title: 'Review the weekly brief',
+      detail: 'Your week has enough context. Check the brief before match day.',
+      href: weeklyBriefHref,
+      cta: 'Open weekly brief',
       tone: 'good' as const,
     }
-  }, [selectedTeam, matches.length, workspaceState, currentTeamHref, lineupBuilderHref, scenarioHref, messagingHref, analyticsHref])
+  }, [selectedTeam, matches.length, workspaceState, currentTeamHref, lineupBuilderHref, messagingHref, weeklyBriefHref])
 
   const weeklyOpsStatus = useMemo(() => {
     if (!selectedTeam) {
@@ -1283,7 +1274,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
     return {
       tone: 'info' as const,
-      title: 'Start saving the weekâ€™s operating context.',
+      title: "Start saving the week's operating context.",
       detail:
         'Add lineup, event, or response details to unlock a stronger brief and week-at-a-glance operations view.',
     }
@@ -1397,6 +1388,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       <div style={pageWrap}>
         <section style={dynamicHeroCard}>
           <div style={heroLeft}>
+            <TiqFeatureIcon name="captainDashboard" size="lg" variant="surface" />
             <div style={eyebrow}>{CAPTAIN_STORY.eyebrow}</div>
             <h1 style={dynamicHeroTitle}>{CAPTAIN_STORY.headline}</h1>
             <p style={dynamicHeroText}>
@@ -1487,7 +1479,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={workflowStack}>
                 {CAPTAIN_STORY.workflow.map(([step, title, text]) => (
                   <div key={step} style={workflowRow}>
-                    <div style={workflowStep}>{step}</div>
+                    <div style={workflowStep}>
+                      <TiqFeatureIcon
+                        name={step === '1' ? 'schedule' : step === '2' ? 'lineupBuilder' : step === '3' ? 'messagingCenter' : 'reports'}
+                        size="sm"
+                        variant="ghost"
+                      />
+                    </div>
                     <div>
                       <div style={workflowTitle}>{title}</div>
                       <div style={workflowText}>{text}</div>
@@ -1507,7 +1505,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
         <CaptainSubnav
           title="Run the week"
-          description="The main captain path is simple: availability, lineup, scenarios, message, brief."
+          description="Availability, lineup, message, brief. Keep the week moving."
         />
 
         {error ? (
@@ -1523,37 +1521,46 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
         <section style={dynamicStatusStrip}>
           <StatusStripCard
+            label="Availability"
+            icon="schedule"
+            value={workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Clear'}
+            detail={
+              workspaceState.pendingResponseCount > 0
+                ? 'Follow up before locking the lineup'
+                : 'No response blockers saved for this week'
+            }
+            tone={workspaceState.pendingResponseCount > 0 ? 'warn' : 'good'}
+          />
+          <StatusStripCard
             label="Lineup"
+            icon="lineupBuilder"
             value={workspaceState.lineupReady ? 'Built' : 'Not built'}
             detail={workspaceState.lineupReady ? `${workspaceState.lineupCount} lineup slot${workspaceState.lineupCount === 1 ? '' : 's'} loaded` : 'No weekly lineup stored yet'}
             tone={workspaceState.lineupReady ? 'good' : 'info'}
           />
           <StatusStripCard
-            label="Scenario"
-            value={workspaceState.scenarioReady ? 'Chosen' : 'Not chosen'}
-            detail={workspaceState.scenarioReady ? `${workspaceState.scenarioCount} saved scenario${workspaceState.scenarioCount === 1 ? '' : 's'} available${latestScenarioName ? ` - latest: ${latestScenarioName}` : ''}` : 'No saved scenarios tied to this team yet'}
-            tone={workspaceState.scenarioReady ? 'good' : 'info'}
-          />
-          <StatusStripCard
-            label="Messaging"
+            label="Message"
+            icon="messagingCenter"
             value={workspaceState.messagingReady ? 'Ready' : 'Not ready'}
             detail={workspaceState.messagingReady ? 'Weekly communication details are in place.' : 'Messaging prep still needs lineup or event details.'}
             tone={workspaceState.messagingReady ? 'good' : 'warn'}
           />
           <StatusStripCard
-            label="Resume"
-            value={workspaceState.lastUpdatedLabel}
-            detail="Last captain touchpoint"
-            tone="neutral"
+            label="Brief"
+            icon="reports"
+            value={workspaceState.briefReady ? 'Ready' : 'Building'}
+            detail={workspaceState.briefReady ? 'Open the captain or team brief' : 'Add lineup, event, or response context'}
+            tone={workspaceState.briefReady ? 'good' : 'info'}
           />
         </section>
 
         <section style={dynamicNextActionShell}>
           <div style={nextActionIntro}>
+            <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
             <div style={sectionKicker}>Next best action</div>
-            <h2 style={sectionTitle}>What should you do right now?</h2>
+            <h2 style={sectionTitle}>Do this next.</h2>
             <div style={sectionSub}>
-              TenAceIQ reads lineup state, saved scenarios, and messaging readiness to suggest the next move.
+              TenAceIQ uses the saved week to point you at the next captain move.
             </div>
           </div>
 
@@ -1579,9 +1586,11 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                       ? 'scenario'
                       : nextAction.href === messagingHref
                         ? 'messaging'
-                        : nextAction.href === analyticsHref
-                          ? 'analytics'
-                          : 'team',
+                        : nextAction.href === weeklyBriefHref
+                          ? 'brief'
+                          : nextAction.href === analyticsHref
+                            ? 'analytics'
+                            : 'team',
                 )}
               >
                 {nextAction.cta}
@@ -1593,7 +1602,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                   handleCaptainNav(messagingHref, 'messaging')
                 }}
               >
-                Continue Messaging
+                Open messaging
               </SecondarySmallBtn>
             </div>
           </div>
@@ -1653,7 +1662,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           />
         ) : null}
 
-        <section
+        <details
           style={{
             ...dynamicNextActionShell,
             borderColor:
@@ -1670,6 +1679,16 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                   : dynamicNextActionShell.boxShadow,
           }}
         >
+          <summary style={weeklyDetailsSummaryStyle}>
+            <span>
+              <span style={sectionKicker}>Weekly readout</span>
+              <span style={optionalSummaryTitle}>{weeklyOpsStatus.title}</span>
+            </span>
+            <span style={weeklyOpsStatus.tone === 'warn' ? warnBadge : weeklyOpsStatus.tone === 'good' ? badgeGreen : badgeBlue}>
+              {weeklyOpsStatus.tone === 'warn' ? 'Needs attention' : weeklyOpsStatus.tone === 'good' ? 'Ready' : 'Open'}
+            </span>
+          </summary>
+
           <div style={nextActionIntro}>
             <div style={sectionKicker}>Weekly risk watch</div>
             <h2 style={sectionTitle}>{weeklyOpsStatus.title}</h2>
@@ -1707,9 +1726,17 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               </SecondarySmallLink>
             </div>
           </div>
-        </section>
+        </details>
 
-        <section style={sectionCard}>
+        <details style={sectionCard}>
+          <summary style={optionalSummaryStyle}>
+            <span>
+              <span style={sectionKicker}>At a glance</span>
+              <span style={optionalSummaryTitle}>Current match week</span>
+            </span>
+            <span style={badgeSlate}>{weekAtGlance.eventDateLabel}</span>
+          </summary>
+
           <div style={sectionHead}>
             <div>
               <div style={sectionKicker}>This week at a glance</div>
@@ -1776,9 +1803,17 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               })}
             </div>
           </div>
-        </section>
+        </details>
 
-        <section style={sectionCard}>
+        <details style={sectionCard}>
+          <summary style={optionalSummaryStyle}>
+            <span>
+              <span style={sectionKicker}>More captain tools</span>
+              <span style={optionalSummaryTitle}>Availability, lineups, messaging, league work</span>
+            </span>
+            <span style={badgeSlate}>Open tools</span>
+          </summary>
+
           <div style={sectionHead}>
             <div>
               <div style={sectionKicker}>Choose by job</div>
@@ -1860,7 +1895,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               </div>
             </div>
           </div>
-        </section>
+        </details>
 
         <section style={sectionCard}>
           <div style={sectionHead}>
@@ -1898,7 +1933,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                             #{index + 1} {player.name}
                           </div>
                           <div style={listMeta}>
-                            {player.appearances} appearances Â· {player.wins}-{player.losses} when used
+                            {player.appearances} appearances - {player.wins}-{player.losses} when used
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
@@ -2047,7 +2082,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                     <div>
                       <div style={rosterName}>{player.name}</div>
                       <div style={rosterMeta}>
-                        {player.appearances} appearances Â· {player.wins}-{player.losses} record
+                        {player.appearances} appearances - {player.wins}-{player.losses} record
                       </div>
                     </div>
 
@@ -2131,11 +2166,13 @@ function ActionCard({
 
 function StatusStripCard({
   label,
+  icon,
   value,
   detail,
   tone,
 }: {
   label: string
+  icon: TiqFeatureIconName
   value: string
   detail: string
   tone: 'good' | 'warn' | 'info' | 'neutral'
@@ -2146,7 +2183,10 @@ function StatusStripCard({
   return (
     <div style={statusCard}>
       <div style={statusTopRow}>
-        <div style={metricLabel}>{label}</div>
+        <div style={statusLabelClusterStyle}>
+          <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
+          <div style={metricLabel}>{label}</div>
+        </div>
         <span style={toneStyle}>{value}</span>
       </div>
       <div style={statusDetail}>{detail}</div>
@@ -2569,8 +2609,9 @@ const workflowStep: CSSProperties = {
   placeItems: 'center',
   borderRadius: 14,
   fontWeight: 900,
-  color: '#031018',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
 }
 
 const workflowTitle: CSSProperties = {
@@ -2674,6 +2715,13 @@ const statusTopRow: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   flexWrap: 'wrap',
+}
+
+const statusLabelClusterStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
 }
 
 const statusDetail: CSSProperties = {
@@ -2926,6 +2974,11 @@ const optionalSummaryStyle: CSSProperties = {
   gap: 16,
   cursor: 'pointer',
   listStyle: 'none',
+}
+
+const weeklyDetailsSummaryStyle: CSSProperties = {
+  ...optionalSummaryStyle,
+  marginBottom: 0,
 }
 
 const optionalSummaryTitle: CSSProperties = {

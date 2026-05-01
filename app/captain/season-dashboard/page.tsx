@@ -118,6 +118,13 @@ export default function CaptainSeasonDashboardPage() {
   const accessBannerText =
     draft.leagueFormat === 'team' ? access.teamLeagueMessage : access.individualLeagueMessage
   const shouldShowLeagueUpgradePrompt = !canSaveCurrentDraft
+  const activeParticipantCount = records.reduce(
+    (sum, record) => sum + (record.leagueFormat === 'team' ? record.teams.length : record.players.length),
+    0,
+  )
+  const latestRecord = [...records].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  )[0]
 
   function resetDraft() {
     setDraft(EMPTY_DRAFT)
@@ -239,15 +246,53 @@ export default function CaptainSeasonDashboardPage() {
           tierActive={access.canUseLeagueTools}
         />
 
-        <div style={layoutGrid}>
-          <section style={panelCard}>
-            <div style={sectionEyebrow}>New TIQ league</div>
-            <h2 style={sectionTitle}>
-              {editingId ? 'Edit league setup' : LEAGUE_COORDINATOR_STORY.newLeagueTitle}
-            </h2>
+        <section style={commandCard}>
+          <div>
+            <div style={sectionEyebrow}>League command center</div>
+            <h2 style={sectionTitle}>{records.length ? 'Your TIQ league system is active.' : 'Create the first league.'}</h2>
             <p style={sectionText}>
-              {LEAGUE_COORDINATOR_STORY.newLeagueBody}
+              Keep setup simple: create the league, add participants, record results, then let standings and schedules tell the story.
             </p>
+          </div>
+          <div style={commandGrid}>
+            <div style={commandTile}>
+              <span style={commandLabel}>Leagues</span>
+              <strong style={commandValue}>{records.length}</strong>
+              <span style={commandText}>{teamLeagues.length} team - {individualLeagues.length} individual</span>
+            </div>
+            <div style={commandTile}>
+              <span style={commandLabel}>Participants</span>
+              <strong style={commandValue}>{activeParticipantCount}</strong>
+              <span style={commandText}>Teams and players tracked</span>
+            </div>
+            <div style={commandTile}>
+              <span style={commandLabel}>Latest</span>
+              <strong style={commandValue}>{latestRecord?.leagueName || 'None yet'}</strong>
+              <span style={commandText}>{latestRecord ? formatDateTime(latestRecord.updatedAt) : 'Start with setup'}</span>
+            </div>
+          </div>
+          <div style={heroActionRow}>
+            <GhostLink href="/captain/tiq-team-matches">Record results</GhostLink>
+            <GhostLink href="/compete/leagues">View leagues</GhostLink>
+            <GhostLink href="/explore/rankings">View rankings</GhostLink>
+          </div>
+        </section>
+
+        <div style={layoutGrid}>
+          <details style={panelCard} open={!!editingId || records.length === 0}>
+            <summary style={detailsSummary}>
+              <div>
+                <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
+                <h2 style={sectionTitle}>
+                  {editingId ? 'Edit league setup' : 'Add a league'}
+                </h2>
+                <p style={sectionText}>
+                  Use only the fields needed to create the structure. Results and rankings come later.
+                </p>
+              </div>
+              <span style={pillSlate}>{editingId ? 'Editing' : 'Open form'}</span>
+            </summary>
+
             {shouldShowLeagueUpgradePrompt ? (
               <UpgradePrompt
                 planId="league"
@@ -454,7 +499,7 @@ export default function CaptainSeasonDashboardPage() {
                 />
               </div>
             ) : null}
-          </section>
+          </details>
 
           <section style={panelCard}>
             <div style={sectionEyebrow}>League registry</div>
@@ -707,6 +752,56 @@ const layoutGrid: CSSProperties = {
   gap: '18px',
 }
 
+const commandCard: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
+  padding: '24px',
+  borderRadius: '28px',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(14,30,58,0.86) 0%, rgba(11,24,45,0.94) 58%, rgba(39,72,37,0.28) 100%)',
+  boxShadow: '0 24px 52px rgba(2,10,24,0.18)',
+}
+
+const commandGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gap: '12px',
+}
+
+const commandTile: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  minWidth: 0,
+}
+
+const commandLabel: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const commandValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '26px',
+  fontWeight: 950,
+  lineHeight: 1.05,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const commandText: CSSProperties = {
+  color: 'rgba(229,238,251,0.72)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+}
+
 const panelCard: CSSProperties = {
   display: 'grid',
   gap: '16px',
@@ -714,6 +809,16 @@ const panelCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+}
+
+const detailsSummary: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
 }
 
 const sectionEyebrow: CSSProperties = {

@@ -30,6 +30,7 @@ import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } 
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type PlayerRow = {
   id: string
@@ -312,7 +313,7 @@ function isSameScope(match: MatchTeamRow, values: { leagueName: string; flight: 
 
 
 function formatPercent(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return 'â€”'
+  if (typeof value !== 'number' || Number.isNaN(value)) return '-'
   return `${Math.round(value * 100)}%`
 }
 
@@ -747,7 +748,7 @@ function optimizeLineupFromPool(
     mode === 'best'
       ? 'Balanced to maximize total projected match win chance against the current opponent build.'
       : mode === 'safe'
-        ? 'Places your most reliable strength into the opponentâ€™s strongest lines to reduce collapse risk.'
+        ? "Places your most reliable strength into the opponent's strongest lines to reduce collapse risk."
         : 'Targets weaker opponent lines to create bigger expected wins and higher-upside court stacking.'
 
   return {
@@ -1582,7 +1583,7 @@ function sendCurrentScenarioToMessaging() {
       projectedWins,
       projectedLosses,
       countedLines,
-      label: countedLines ? `${projectedWins.toFixed(1)} - ${projectedLosses.toFixed(1)}` : 'â€”',
+      label: countedLines ? `${projectedWins.toFixed(1)} - ${projectedLosses.toFixed(1)}` : '-',
     }
   }, [analysis.lines])
 
@@ -1646,7 +1647,7 @@ function sendCurrentScenarioToMessaging() {
     if (weakestOpponentLine) {
       cards.push({
         title: 'Opponent weakness',
-        body: `${weakestOpponentLine.label} is the opponentâ€™s weakest projected line. If you want to attack a court, start there.`,
+        body: `${weakestOpponentLine.label} is the opponent's weakest projected line. If you want to attack a court, start there.`,
         tone: 'good',
       })
     }
@@ -2066,10 +2067,11 @@ function sendCurrentScenarioToMessaging() {
 
   return (
     <SiteShell active="/captain">
-      <div style={pageWrap}>
-        <section style={heroShellResponsive(isTablet, isMobile)}>
-          <div>
-            <div style={eyebrow}>Captain tools</div>
+        <div style={pageWrap}>
+         <section style={heroShellResponsive(isTablet, isMobile)}>
+            <div>
+              <TiqFeatureIcon name="lineupBuilder" size="lg" variant="surface" />
+              <div style={eyebrow}>Captain tools</div>
             <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Build the lineup.</h1>
             <p style={heroTextStyle}>
               Start from available players, fill the courts, check the edge, then send the plan.
@@ -2112,9 +2114,11 @@ function sendCurrentScenarioToMessaging() {
                   ['1', 'Pick the match', 'Team, opponent, and date keep the build tied to the real week.'],
                   ['2', 'Fill the courts', 'Use availability-aware players and lock anything you already trust.'],
                   ['3', 'Check the edge', 'Save, compare, and send the version you want the team to follow.'],
-                ].map(([step, title, text]) => (
-                  <div key={step} style={workflowRowStyle}>
-                    <div style={workflowNumberStyle}>{step}</div>
+                 ].map(([step, title, text]) => (
+                    <div key={step} style={workflowRowStyle}>
+                      <div style={workflowNumberStyle}>
+                        <TiqFeatureIcon name={step === '1' ? 'schedule' : step === '2' ? 'lineupBuilder' : 'messagingCenter'} size="sm" variant="ghost" />
+                      </div>
                     <div>
                       <div style={workflowTitleStyle}>{title}</div>
                       <div style={workflowTextStyle}>{text}</div>
@@ -2171,6 +2175,63 @@ function sendCurrentScenarioToMessaging() {
             roster summary or played match data.
           </div>
         ) : null}
+
+        <section style={decisionBoardShellStyle}>
+          <div style={decisionBoardHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Captain scorecard</p>
+              <h2 style={decisionBoardTitleStyle}>Start with the decision.</h2>
+              <p style={sectionBodyTextStyle}>
+                Read the match, adjust the court that matters, then save or send the lineup.
+              </p>
+            </div>
+            <span style={confidenceScore.value >= 0.75 ? miniPillGreenStyle : confidenceScore.value < 0.55 ? miniPillWarnStyle : miniPillBlueStyle}>
+              {confidenceScore.label}
+            </span>
+          </div>
+
+          <div style={decisionBoardGridStyle}>
+            <div style={decisionHeroCardStyle}>
+              <div style={decisionCardLabelStyle}>Projected result</div>
+              <div style={decisionHeroValueStyle}>{expectedScoreline.label}</div>
+              <div style={decisionCardTextStyle}>
+                {formatPercent(analysis.projection)} win chance - {projectionTier(analysis.projection)}
+              </div>
+              <div style={decisionProgressTrackStyle}>
+                <span style={{ ...decisionProgressFillStyle, width: `${Math.max(2, Math.min(100, Math.round(analysis.projection * 100)))}%` }} />
+              </div>
+            </div>
+
+            <div style={decisionCompactCardStyle}>
+              <div style={decisionCardLabelStyle}>Best edge</div>
+              <div style={decisionCardValueStyle}>{bestLine?.label ?? 'Complete lineup'}</div>
+              <div style={decisionCardTextStyle}>
+                {bestLine && typeof bestLine.diff === 'number'
+                  ? `${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)} rating edge`
+                  : 'Add both sides to reveal your strongest court.'}
+              </div>
+            </div>
+
+            <div style={decisionCompactCardStyle}>
+              <div style={decisionCardLabelStyle}>Court to watch</div>
+              <div style={decisionCardValueStyle}>{swingLine?.label ?? weakestLine?.label ?? 'Not ready'}</div>
+              <div style={decisionCardTextStyle}>
+                {swingLine
+                  ? 'Likeliest court to decide the match.'
+                  : weakestLine
+                    ? 'Biggest current pressure point.'
+                    : 'Build more courts to unlock risk guidance.'}
+              </div>
+            </div>
+          </div>
+
+          <div style={decisionBoardActionRowStyle}>
+            <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
+            <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
+            <GhostBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</GhostBtn>
+            <GhostLink href={compareHref}>Compare versions</GhostLink>
+          </div>
+        </section>
 
         <details style={surfaceCard}>
           <summary style={detailsSummaryStyle}>
@@ -2366,7 +2427,7 @@ function sendCurrentScenarioToMessaging() {
                   onChange={(e) => setNotes(e.target.value)}
                   style={textareaStyle}
                   rows={4}
-                  placeholder="Anything captains should remember for this buildâ€¦"
+                  placeholder="Anything captains should remember for this build..."
                 />
               </Field>
 
@@ -2395,14 +2456,14 @@ function sendCurrentScenarioToMessaging() {
               </div>
             </section>
 
-            <section style={surfaceCard}>
-              <div style={sectionHeaderStyle}>
+            <details style={surfaceCard}>
+              <summary style={detailsSummaryStyle}>
                 <div>
-                  <p style={sectionKicker}>Saved scenarios</p>
-                  <h2 style={sectionTitle}>Load, overwrite, or delete saved versions</h2>
+                  <p style={sectionKicker}>Saved versions</p>
+                  <h3 style={sectionTitleSmall}>Load or manage lineup drafts</h3>
                 </div>
                 <span style={miniPillBlueStyle}>{scenarioOptions.length} in scope</span>
-              </div>
+              </summary>
 
               <div style={stackStyle}>
                 {scenarioOptions.length ? scenarioOptions.map((scenario) => (
@@ -2416,10 +2477,10 @@ function sendCurrentScenarioToMessaging() {
 
                     <div style={actionRowStyle}>
                       <GhostSmallBtn onClick={() => void loadScenario(scenario.id)} disabled={loadingScenarioId === scenario.id}>
-                        {loadingScenarioId === scenario.id ? 'Loadingâ€¦' : 'Load'}
+                        {loadingScenarioId === scenario.id ? 'Loading...' : 'Load'}
                       </GhostSmallBtn>
                       <GhostSmallBtn onClick={() => void deleteScenario(scenario.id)} disabled={deletingScenarioId === scenario.id}>
-                        {deletingScenarioId === scenario.id ? 'Deletingâ€¦' : 'Delete'}
+                        {deletingScenarioId === scenario.id ? 'Deleting...' : 'Delete'}
                       </GhostSmallBtn>
                     </div>
                   </div>
@@ -2432,7 +2493,7 @@ function sendCurrentScenarioToMessaging() {
                   </div>
                 )}
               </div>
-            </section>
+            </details>
 
             <section style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
@@ -2636,24 +2697,24 @@ function sendCurrentScenarioToMessaging() {
 
               <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
                 <div style={bannerBlueStyle}>
-                  <strong>Match outlook:</strong> {projectionTier(analysis.projection)} â€” {formatPercent(analysis.projection)} win probability
+                  <strong>Match outlook:</strong> {projectionTier(analysis.projection)} - {formatPercent(analysis.projection)} win probability
                 </div>
 
                 {bestLine ? (
                   <div style={bannerGreenStyle}>
-                    <strong>Best edge:</strong> {bestLine.label} ({typeof bestLine.diff === 'number' ? `${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}` : 'â€”'})
+                    <strong>Best edge:</strong> {bestLine.label} ({typeof bestLine.diff === 'number' ? `${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}` : '-'})
                   </div>
                 ) : null}
 
                 {weakestLine ? (
                   <div style={warningCardStyle}>
-                    <strong>Biggest risk:</strong> {weakestLine.label} ({typeof weakestLine.diff === 'number' ? `${weakestLine.diff >= 0 ? '+' : ''}${weakestLine.diff.toFixed(2)}` : 'â€”'})
+                    <strong>Biggest risk:</strong> {weakestLine.label} ({typeof weakestLine.diff === 'number' ? `${weakestLine.diff >= 0 ? '+' : ''}${weakestLine.diff.toFixed(2)}` : '-'})
                   </div>
                 ) : null}
 
                 {swingLine ? (
                   <div style={bannerBlueStyle}>
-                    <strong>Swing match:</strong> {swingLine.label} â€” this likely decides the match
+                    <strong>Swing match:</strong> {swingLine.label} - this likely decides the match
                   </div>
                 ) : null}
               </div>
@@ -2668,14 +2729,14 @@ function sendCurrentScenarioToMessaging() {
               </div>
             </section>
 
-            <section style={surfaceCard}>
-              <div style={tableHeaderStyle}>
+            <details style={surfaceCard}>
+              <summary style={detailsSummaryStyle}>
                 <div>
-                  <p style={sectionKicker}>Lineup options</p>
-                  <h3 style={sectionTitleSmall}>Choose a strategy</h3>
+                  <p style={sectionKicker}>More strategies</p>
+                  <h3 style={sectionTitleSmall}>Compare optimizer options</h3>
                 </div>
-                <span style={miniPillSlateStyle}>{bestOptimizedPlan ? `${bestOptimizedPlan.score.toFixed(1)} top score` : 'â€”'}</span>
-              </div>
+                <span style={miniPillSlateStyle}>{bestOptimizedPlan ? `${bestOptimizedPlan.score.toFixed(1)} top score` : '-'}</span>
+              </summary>
 
               <div style={stackStyle}>
                 {optimizedPlans.map((plan) => (
@@ -2693,7 +2754,7 @@ function sendCurrentScenarioToMessaging() {
                   </div>
                 ))}
               </div>
-            </section>
+            </details>
           </div>
 
           <div style={columnStyle}>
@@ -2762,11 +2823,11 @@ function sendCurrentScenarioToMessaging() {
                         <div>
                           <div style={listTitleStyle}>{line.label}{isSwing ? <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: 'rgba(250,204,21,0.12)', color: '#fde047', border: '1px solid rgba(250,204,21,0.22)' }}>swing</span> : null}</div>
                           <div style={listMetaStyle}>
-                            You {formatRating(line.yourRating)} Â· Opp {formatRating(line.opponentRating)} Â· {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : 'â€”'}
+                            You {formatRating(line.yourRating)} - Opp {formatRating(line.opponentRating)} - {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '-'}
                           </div>
                         </div>
                         <span style={{ fontSize: 15, fontWeight: 900, color: isFavored ? '#86efac' : pct !== null ? '#fca5a5' : 'var(--shell-copy-muted)', flexShrink: 0 }}>
-                          {pct !== null ? `${pct}%` : 'â€”'}
+                          {pct !== null ? `${pct}%` : '-'}
                         </span>
                       </div>
                       {pct !== null ? (
@@ -2778,20 +2839,6 @@ function sendCurrentScenarioToMessaging() {
                   )
                 })}
               </div>
-            </section>
-
-            <section style={surfaceCard}>
-              <div style={tableHeaderStyle}>
-                <div>
-                  <p style={sectionKicker}>Expected scoreline</p>
-                  <h3 style={sectionTitleSmall}>{expectedScoreline.label}</h3>
-                </div>
-                <span style={miniPillGreenStyle}>Expected scoreline {expectedScoreline.label}</span>
-              </div>
-              <p style={sectionBodyTextStyle}>
-                This rolls up the individual court probabilities into a match-level expectation.
-                Use it as a directional planning tool, not a guarantee.
-              </p>
             </section>
 
             <section style={surfaceCardStrong}>
@@ -2934,14 +2981,14 @@ function sendCurrentScenarioToMessaging() {
               ) : null}
             </section>
 
-            <section style={surfaceCard}>
-              <div style={tableHeaderStyle}>
+            <details style={surfaceCard}>
+              <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Player pool</p>
                   <h3 style={sectionTitleSmall}>Available players</h3>
                 </div>
                 <span style={miniPillSlateStyle}>{myPlayerPool.length} team players</span>
-              </div>
+              </summary>
 
               <div style={stackStyleCompact}>
                 {myPlayerPool.length ? myPlayerPool.map((player) => {
@@ -2968,7 +3015,7 @@ function sendCurrentScenarioToMessaging() {
                 }) : (
                   <div style={stackStyleCompact}>
                     <p style={mutedTextStyle}>
-                      {loading ? 'Loading player poolâ€¦' : 'No players match the current scope.'}
+                      {loading ? 'Loading player pool...' : 'No players match the current scope.'}
                     </p>
                     {!loading ? (
                       <p style={subtleHelperTextStyle}>
@@ -2978,7 +3025,7 @@ function sendCurrentScenarioToMessaging() {
                   </div>
                 )}
               </div>
-            </section>
+            </details>
           </div>
         </div>
       </div>
@@ -3651,6 +3698,89 @@ const decisionSnapshotGridStyle: CSSProperties = {
   marginTop: 10,
 }
 
+const decisionBoardShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 28,
+  border: '1px solid rgba(155, 225, 29, 0.18)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg-strong) 92%, var(--brand-green) 8%), var(--shell-panel-bg))',
+  boxShadow: '0 20px 52px rgba(2,10,24,0.18)',
+}
+
+const decisionBoardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 16,
+  flexWrap: 'wrap',
+}
+
+const decisionBoardTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.6rem, 2.6vw, 2.35rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const decisionBoardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 12,
+}
+
+const decisionHeroCardStyle: CSSProperties = {
+  borderRadius: 20,
+  padding: 18,
+  display: 'grid',
+  gap: 8,
+  background: 'linear-gradient(135deg, rgba(155, 225, 29, 0.16), rgba(59, 130, 246, 0.10))',
+  border: '1px solid rgba(155, 225, 29, 0.24)',
+}
+
+const decisionCompactCardStyle: CSSProperties = {
+  borderRadius: 20,
+  padding: 18,
+  display: 'grid',
+  gap: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const decisionHeroValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2rem, 4vw, 3.5rem)',
+  lineHeight: 0.95,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const decisionProgressTrackStyle: CSSProperties = {
+  position: 'relative',
+  height: 10,
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'rgba(148, 163, 184, 0.18)',
+  border: '1px solid rgba(148, 163, 184, 0.14)',
+}
+
+const decisionProgressFillStyle: CSSProperties = {
+  position: 'absolute',
+  inset: '0 auto 0 0',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-green), var(--brand-lime))',
+  minWidth: 3,
+}
+
+const decisionBoardActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
 const decisionCardBaseStyle: CSSProperties = {
   borderRadius: 20,
   padding: 18,
@@ -3847,6 +3977,13 @@ const miniPillGreenStyle: CSSProperties = {
   background: 'rgba(96, 221, 116, 0.16)',
   color: '#bbf7d0',
   border: '1px solid rgba(96, 221, 116, 0.22)',
+}
+
+const miniPillWarnStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(251, 191, 36, 0.14)',
+  color: '#fde68a',
+  border: '1px solid rgba(251, 191, 36, 0.24)',
 }
 
 const badgeGreen: CSSProperties = { ...miniPillGreenStyle }

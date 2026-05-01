@@ -37,8 +37,8 @@ export const CAPTAIN_NAV_ITEMS: NavItem[] = [
   { href: '/captain/availability', label: 'Availability' },
   { href: '/captain/lineup-builder', label: 'Lineup' },
   { href: '/captain/scenario-builder', label: 'Scenarios' },
-  { href: '/captain/messaging', label: 'Messaging' },
-  { href: '/captain/weekly-brief', label: 'Weekly Brief' },
+  { href: '/captain/messaging', label: 'Message' },
+  { href: '/captain/weekly-brief', label: 'Brief' },
   { href: '/captain/lineup-projection', label: 'Projection' },
   { href: '/captain/lineup-availability', label: 'Match Availability' },
   { href: '/captain/analytics', label: 'Captain IQ' },
@@ -49,8 +49,7 @@ export const CAPTAIN_NAV_ITEMS: NavItem[] = [
 export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
   { href: '/captain/availability', label: 'Availability' },
   { href: '/captain/lineup-builder', label: 'Lineup' },
-  { href: '/captain/scenario-builder', label: 'Scenarios' },
-  { href: '/captain/messaging', label: 'Messaging' },
+  { href: '/captain/messaging', label: 'Message' },
   { href: '/captain/weekly-brief', label: 'Brief' },
 ]
 

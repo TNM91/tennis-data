@@ -7,6 +7,7 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import { RoleValueStrip } from '@/app/components/tier-pathway'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
+import TiqIconShowcase from '@/components/brand/TiqIconShowcase'
 import {
   badgeBlue,
   badgeGreen,
@@ -457,6 +458,26 @@ export default function PreviewHomepage() {
                 My Lab, follows, matchups, and player-linked context turn public tennis data into your own tennis workspace.
               </div>
             </div>
+          </div>
+
+          <div
+            style={{
+              ...surfaceCardStrong,
+              display: 'grid',
+              gap: 16,
+              padding: isSmallMobile ? 16 : 20,
+            }}
+          >
+            <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
+              <div style={sectionKicker}>TenAceIQ icon system preview</div>
+              <h3 style={{ ...sectionTitle, fontSize: 'clamp(1.35rem, 2vw, 1.95rem)', lineHeight: 1.05 }}>
+                Branded tennis intelligence, not stock decoration.
+              </h3>
+              <p style={{ ...pageSubtitle, marginTop: 0, fontSize: 14 }}>
+                First pass only: reusable SVG icons with the TenAceIQ ball node, monoline strokes, and IQ green accents.
+              </p>
+            </div>
+            <TiqIconShowcase compact={isSmallMobile} />
           </div>
 
           <div style={{ display: 'grid', gap: isMobile ? 16 : 20 }}>

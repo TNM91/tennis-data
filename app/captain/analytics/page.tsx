@@ -224,7 +224,7 @@ function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
 }
 
 function formatStrength(value: number | null) {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : 'â€”'
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '-'
 }
 
 function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlot[], players: PlayerRow[]) {
@@ -913,6 +913,27 @@ export default function LineupBuilderPage() {
     return scored[0] ?? null
   }, [analysis.lines])
 
+  const projectionPercent = Math.round(analysis.projection * 100)
+  const selectedLineCount = analysis.lines.filter(
+    (line) => typeof line.yourStrength === 'number' && typeof line.opponentStrength === 'number',
+  ).length
+  const captainRead =
+    selectedLineCount === 0
+      ? 'Build both sides to get a read.'
+      : projectionPercent >= 58
+        ? 'This version has a playable edge.'
+        : projectionPercent <= 42
+          ? 'This version needs a safer court.'
+          : 'This version is close.'
+  const captainNextAction =
+    selectedLineCount === 0
+      ? 'Select players'
+      : projectionPercent >= 58 && scenarioOptions.length > 1
+        ? 'Compare versions'
+        : projectionPercent >= 58
+          ? 'Save this version'
+          : 'Adjust weakest line'
+
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
@@ -994,23 +1015,57 @@ export default function LineupBuilderPage() {
         </div>
       </section>
 
+        <section style={decisionBoardStyle}>
+          <div style={decisionMainStyle}>
+            <p style={sectionKicker}>Captain read</p>
+            <h2 style={decisionTitleStyle}>{captainRead}</h2>
+            <p style={sectionBodyTextStyle}>
+              {bestLine?.label ? `Best court: ${bestLine.label}. ` : ''}
+              {weakestLine?.label ? `Watch: ${weakestLine.label}. ` : ''}
+              {selectedLineCount ? `${selectedLineCount} lines have both sides modeled.` : 'Start by selecting your lineup and the likely opponent.'}
+            </p>
+            <div style={heroButtonRowStyle}>
+              <PrimaryLink href={compareHref}>{captainNextAction}</PrimaryLink>
+              <SecondaryLink href="/captain/messaging">Move to messaging</SecondaryLink>
+            </div>
+          </div>
+          <div style={decisionMetricGridStyle}>
+            <div style={decisionMetricStyle}>
+              <span style={signalLabelStyle}>Win read</span>
+              <strong style={decisionMetricValueStyle}>{projectionPercent}%</strong>
+              <span style={signalNoteStyle}>Projected chance</span>
+            </div>
+            <div style={decisionMetricStyle}>
+              <span style={signalLabelStyle}>Avg edge</span>
+              <strong style={decisionMetricValueStyle}>{formatStrength(analysis.avgDiff)}</strong>
+              <span style={signalNoteStyle}>Selected lines</span>
+            </div>
+            <div style={decisionMetricStyle}>
+              <span style={signalLabelStyle}>Versions</span>
+              <strong style={decisionMetricValueStyle}>{scenarioOptions.length}</strong>
+              <span style={signalNoteStyle}>{scenarioOptions.length > 1 ? 'Compare ready' : 'Save another'}</span>
+            </div>
+          </div>
+        </section>
+
         <section style={contentWrap}>
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
-            <section style={surfaceCardStrong}>
-              <div style={sectionHeaderStyle}>
+            <details style={surfaceCardStrong} open={!currentScenarioId && scenarioOptions.length === 0}>
+              <summary style={detailsSummaryStyle}>
                 <div>
-                  <p style={sectionKicker}>Scenario setup</p>
+                  <p style={sectionKicker}>Setup</p>
                   <h2 style={sectionTitle}>Match and scenario details</h2>
-                  <p style={sectionBodyTextStyle}>Save a new version or update the scenario currently loaded into the builder.</p>
+                  <p style={sectionBodyTextStyle}>Open when you need to name, save, or scope this version.</p>
                 </div>
-              </div>
+                <span style={badgeSlate}>{currentScenarioId ? 'Editing saved' : 'Open setup'}</span>
+              </summary>
 
               {currentScenario ? (
                 <div style={bannerBlueStyle}>
                   <div style={bannerTitleStyle}>Editing saved scenario: {currentScenario.scenario_name}</div>
                   <div style={bannerMetaStyle}>
-                    {currentScenario.team_name || 'â€”'} vs {currentScenario.opponent_team || 'â€”'}
+                    {currentScenario.team_name || '-'} vs {currentScenario.opponent_team || '-'}
                     {currentScenario.match_date ? ` - ${formatDate(currentScenario.match_date)}` : ''}
                   </div>
                 </div>
@@ -1113,7 +1168,7 @@ export default function LineupBuilderPage() {
                   </div>
                 </div>
               </div>
-            </section>
+            </details>
 
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
@@ -1198,7 +1253,7 @@ export default function LineupBuilderPage() {
                         <div style={playerMetaStyle}>{line.slotType === 'singles' ? 'Singles line' : 'Doubles line'}</div>
                       </div>
                       <span style={typeof line.diff === 'number' && line.diff >= 0 ? goodBadgeStyle : warnBadgeStyle}>
-                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : 'â€”'}
+                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '-'}
                       </span>
                     </div>
 
@@ -1219,15 +1274,20 @@ export default function LineupBuilderPage() {
               <div style={{ marginTop: 14 }}>
                 <div style={sectionKicker}>Readout</div>
                 <p style={sectionBodyTextStyle}>
-                  Best line: <strong>{bestLine?.label ?? 'â€”'}</strong>. Weakest line: <strong>{weakestLine?.label ?? 'â€”'}</strong>.
+                  Best line: <strong>{bestLine?.label ?? '-'}</strong>. Weakest line: <strong>{weakestLine?.label ?? '-'}</strong>.
                 </p>
               </div>
             </section>
 
-            <section style={surfaceCard}>
-              <p style={sectionKicker}>Player pool</p>
-              <h2 style={sectionTitle}>Availability-aware options</h2>
-              <p style={sectionBodyTextStyle}>Sorted by availability first, then overall strength.</p>
+            <details style={surfaceCard}>
+              <summary style={detailsSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Player pool</p>
+                  <h2 style={sectionTitle}>Availability-aware options</h2>
+                  <p style={sectionBodyTextStyle}>Sorted by availability first, then overall strength.</p>
+                </div>
+                <span style={badgeSlate}>{availablePlayerPool.length} players</span>
+              </summary>
 
               <div style={heroBadgeRowStyleCompact}>
                 <span style={badgeSlate}>{availablePlayerPool.length} players</span>
@@ -1275,10 +1335,10 @@ export default function LineupBuilderPage() {
                         </div>
 
                         <div style={pillRowStyle}>
-                          <span style={miniPillStyle}>TIQ {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? 'â€”'}</span>
-                          <span style={miniPillStyle}>USTA {(player.overall_usta_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? 'â€”'}</span>
-                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? 'â€”'}</span>
-                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? 'â€”'}</span>
+                          <span style={miniPillStyle}>TIQ {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '-'}</span>
+                          <span style={miniPillStyle}>USTA {(player.overall_usta_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '-'}</span>
+                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? '-'}</span>
+                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? '-'}</span>
                           {assigned ? <span style={assignedPillStyle}>Assigned</span> : null}
                         </div>
 
@@ -1289,12 +1349,17 @@ export default function LineupBuilderPage() {
                   })
                 )}
               </div>
-            </section>
+            </details>
 
-            <section style={surfaceCard}>
-              <p style={sectionKicker}>Saved scenarios</p>
-              <h2 style={sectionTitle}>Reload or clean up prior versions</h2>
-              <p style={sectionBodyTextStyle}>Load a saved scenario into the builder, then tweak, compare, resave, or delete it.</p>
+            <details style={surfaceCard}>
+              <summary style={detailsSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Saved scenarios</p>
+                  <h2 style={sectionTitle}>Reload prior versions</h2>
+                  <p style={sectionBodyTextStyle}>Load, compare, or clean up previous lineup versions.</p>
+                </div>
+                <span style={badgeSlate}>{scenarioOptions.length} saved</span>
+              </summary>
 
               <div style={stackStyle}>
                 {scenarioOptions.length === 0 ? (
@@ -1316,10 +1381,10 @@ export default function LineupBuilderPage() {
                           <div>
                             <div style={savedScenarioTitleStyle}>{scenario.scenario_name}</div>
                             <div style={savedScenarioMetaStyle}>
-                              {scenario.team_name || 'â€”'} vs {scenario.opponent_team || 'â€”'}
+                              {scenario.team_name || '-'} vs {scenario.opponent_team || '-'}
                             </div>
                             <div style={savedScenarioMetaStyle}>
-                              {scenario.league_name || 'â€”'}
+                              {scenario.league_name || '-'}
                               {scenario.flight ? ` - ${scenario.flight}` : ''}
                               {scenario.match_date ? ` - ${formatDate(scenario.match_date)}` : ''}
                             </div>
@@ -1346,7 +1411,7 @@ export default function LineupBuilderPage() {
                   })
                 )}
               </div>
-            </section>
+            </details>
           </div>
         </div>
       </section>
@@ -1674,6 +1739,58 @@ const contentWrap: CSSProperties = {
   margin: '0 auto',
 }
 
+const decisionBoardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '18px',
+  alignItems: 'stretch',
+  maxWidth: '1240px',
+  margin: '0 auto 18px',
+  padding: '20px',
+  borderRadius: '28px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'linear-gradient(135deg, rgba(15,35,64,0.88) 0%, rgba(10,24,46,0.94) 58%, rgba(38,70,42,0.28) 100%)',
+  boxShadow: '0 24px 52px rgba(2, 8, 23, 0.16)',
+}
+
+const decisionMainStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const decisionTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground)',
+  fontSize: '2rem',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const decisionMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+  gap: '12px',
+}
+
+const decisionMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const decisionMetricValueStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: '1.9rem',
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
 const builderLayoutStyle: CSSProperties = {
   display: 'grid',
   gap: '20px',
@@ -1700,6 +1817,16 @@ const surfaceCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: '0 18px 40px rgba(0,0,0,0.12)',
+}
+
+const detailsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '14px',
+  flexWrap: 'wrap',
 }
 
 const sectionHeaderStyle: CSSProperties = {

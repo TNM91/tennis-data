@@ -915,6 +915,12 @@ export default function CaptainMessagingPage() {
 
   const selectedScenario = scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ?? null
   const lineupRows = useMemo(() => lineups.filter((row) => row.event_key === eventKey), [lineups, eventKey])
+  const lineupTextForMessage = useMemo(
+    () => lineupRows.length
+      ? lineupRows.map((row) => `${row.court_label}: ${row.players.join(' / ') || 'Open'}`).join('\n')
+      : '',
+    [lineupRows]
+  )
   const availabilityRows = useMemo(() => availability.filter((row) => row.event_key === eventKey), [availability, eventKey])
   const responseRows = useMemo(() => responses.filter((row) => row.event_key === eventKey), [responses, eventKey])
 
@@ -981,9 +987,6 @@ export default function CaptainMessagingPage() {
 
   useEffect(() => {
     if (!selectedMatch) return
-    const lineupText = lineupRows.length
-      ? lineupRows.map((row) => `${row.court_label}: ${row.players.join(' / ') || 'Open'}`).join('\n')
-      : ''
     const nextTitleMap: Record<MessageKind, string> = {
       availability: 'Availability Check',
       lineup: 'Lineup Announcement',
@@ -1000,10 +1003,10 @@ export default function CaptainMessagingPage() {
         dateText: formatDate(selectedMatch.match_date),
         location: eventLocation,
         arrivalTime: eventArrivalTime,
-        lineupText,
+        lineupText: lineupTextForMessage,
       })
     })
-  }, [messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupRows, eventLocation, eventArrivalTime, selectedTemplateId])
+  }, [messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
 
   const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
   const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
@@ -1820,6 +1823,47 @@ function importScenarioToLineup() {
     )
   }
 
+  function loadAvailabilityCheckMessage() {
+    setRecipientMode('all-opted-in')
+    setMessageKind('availability')
+    setMessageTitle('Availability Check')
+    setMessageBody(
+      eventDefaultMessage('availability', {
+        teamName: inferredTeamName,
+        opponent: inferredOpponent,
+        dateText: formatDate(selectedMatch?.match_date),
+        location: eventLocation,
+        arrivalTime: eventArrivalTime,
+        lineupText: '',
+      })
+    )
+  }
+
+  function loadMatchReminderMessage() {
+    setRecipientMode(lineupRows.length ? 'lineup-only' : 'available-only')
+    setMessageKind('reminder')
+    setMessageTitle('Match Reminder')
+    setMessageBody(
+      eventDefaultMessage('reminder', {
+        teamName: inferredTeamName,
+        opponent: inferredOpponent,
+        dateText: formatDate(selectedMatch?.match_date),
+        location: eventLocation,
+        arrivalTime: eventArrivalTime,
+        lineupText: lineupTextForMessage,
+      })
+    )
+  }
+
+  function loadPostMatchNote() {
+    setRecipientMode('all-opted-in')
+    setMessageKind('follow-up')
+    setMessageTitle('Post-Match Note')
+    setMessageBody(
+      `Thanks ${inferredTeamName || 'team'} - nice work today. I will update results once everything is confirmed. Send me any score details or notes I should capture.`
+    )
+  }
+
 
   function loadNeedSubMessage() {
     const names = needSubContacts.map((contact) => contact.full_name.split(' ')[0]).slice(0, 6)
@@ -2068,6 +2112,94 @@ function importScenarioToLineup() {
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
+
+        <section style={messagePlaybookSurfaceStyle}>
+          <div style={tableHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Message center</p>
+              <h2 style={sectionTitle}>Pick the send.</h2>
+              <p style={mutedTextStyle}>
+                Start from the message captains send every week, then adjust the preview before handing it to text.
+              </p>
+            </div>
+            <span style={deliveryReadiness.score >= 4 ? miniPillGreen : deliveryReadiness.score >= 2 ? miniPillBlue : warnPill}>
+              {deliveryReadiness.label}
+            </span>
+          </div>
+
+          <div style={messagePlaybookGridStyle}>
+            <button type="button" style={messagePlaybookCardStyle} onClick={loadAvailabilityCheckMessage}>
+              <span style={messagePlaybookLabelStyle}>Ask</span>
+              <strong style={messagePlaybookTitleStyle}>Availability check</strong>
+              <span style={messagePlaybookTextStyle}>{availabilitySummary.noResponseCount} still need status</span>
+            </button>
+            <button type="button" style={messagePlaybookCardStyle} onClick={applyWinningLineupToComposer}>
+              <span style={messagePlaybookLabelStyle}>Announce</span>
+              <strong style={messagePlaybookTitleStyle}>Lineup announcement</strong>
+              <span style={messagePlaybookTextStyle}>{lineupRows.length ? `${lineupRows.length} courts loaded` : 'Import a lineup first'}</span>
+            </button>
+            <button type="button" style={messagePlaybookCardStyle} onClick={loadMatchReminderMessage}>
+              <span style={messagePlaybookLabelStyle}>Remind</span>
+              <strong style={messagePlaybookTitleStyle}>Match reminder</strong>
+              <span style={messagePlaybookTextStyle}>{selectedMatch ? formatDate(selectedMatch.match_date) : 'Select match'}</span>
+            </button>
+            <button type="button" style={messagePlaybookCardStyle} onClick={applyFollowUpEngine}>
+              <span style={messagePlaybookLabelStyle}>Clear</span>
+              <strong style={messagePlaybookTitleStyle}>Blocker follow-up</strong>
+              <span style={messagePlaybookTextStyle}>{followUpEngine.detail}</span>
+            </button>
+            <button type="button" style={messagePlaybookCardStyle} onClick={loadPostMatchNote}>
+              <span style={messagePlaybookLabelStyle}>Close</span>
+              <strong style={messagePlaybookTitleStyle}>Post-match note</strong>
+              <span style={messagePlaybookTextStyle}>Thank the team and collect score notes</span>
+            </button>
+          </div>
+        </section>
+
+        <section style={teamRoomSurfaceStyle}>
+          <div style={tableHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Team room</p>
+              <h2 style={sectionTitle}>Group chat energy, captain control</h2>
+            </div>
+            <span style={miniPillBlue}>SMS-ready now</span>
+          </div>
+
+          <div style={teamRoomGridStyle}>
+            <div style={teamRoomStepStyle}>
+              <span style={workflowNumberStyle}>1</span>
+              <div>
+                <div style={workflowTitleStyle}>Ask</div>
+                <div style={workflowTextStyle}>Availability and blockers.</div>
+              </div>
+            </div>
+            <div style={teamRoomStepStyle}>
+              <span style={workflowNumberStyle}>2</span>
+              <div>
+                <div style={workflowTitleStyle}>Decide</div>
+                <div style={workflowTextStyle}>Lineup and match notes.</div>
+              </div>
+            </div>
+            <div style={teamRoomStepStyle}>
+              <span style={workflowNumberStyle}>3</span>
+              <div>
+                <div style={workflowTitleStyle}>Send</div>
+                <div style={workflowTextStyle}>One clean team update.</div>
+              </div>
+            </div>
+            <div style={teamRoomStepStyle}>
+              <span style={workflowNumberStyle}>4</span>
+              <div>
+                <div style={workflowTitleStyle}>Track</div>
+                <div style={workflowTextStyle}>Replies, subs, and changes.</div>
+              </div>
+            </div>
+          </div>
+
+          <p style={teamRoomNoteStyle}>
+            Start with text handoff. Later this can become an in-app thread or connect to GroupMe-style channels.
+          </p>
+        </section>
 
         {!captainAccess ? (
           <UpgradePrompt
@@ -3308,14 +3440,48 @@ function importScenarioToLineup() {
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Composer</p>
-                      <h3 style={sectionTitleSmall}>Write and send</h3>
+                        <h3 style={sectionTitleSmall}>Review and send</h3>
                       </div>
                       <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
                     </div>
 
                     <p id="captain-messaging-composer-helper" style={sectionBodyTextStyle}>
-                      Choose the message, choose the audience, then open texts.
+                      The playbook loads the draft. Use this area for the final check before opening texts.
                     </p>
+
+                    <div style={composerPreviewStyle}>
+                      <div style={composerPreviewTopStyle}>
+                        <div>
+                          <div style={composerPreviewLabelStyle}>Ready preview</div>
+                          <div style={composerPreviewTitleStyle}>{messageTitle || 'Untitled message'}</div>
+                        </div>
+                        <span style={messageBody.trim() && selectedRecipients.length ? miniPillGreen : warnPill}>
+                          {messageBody.trim() && selectedRecipients.length ? 'Ready to review' : 'Needs setup'}
+                        </span>
+                      </div>
+
+                      <div style={composerPreviewGridStyle}>
+                        <div style={composerPreviewMetricStyle}>
+                          <span style={composerPreviewMetricLabelStyle}>Audience</span>
+                          <strong>{selectedRecipients.length}</strong>
+                          <small>{recipientMode.replace('-', ' ')}</small>
+                        </div>
+                        <div style={composerPreviewMetricStyle}>
+                          <span style={composerPreviewMetricLabelStyle}>Message</span>
+                          <strong>{messageKind.replace('-', ' ')}</strong>
+                          <small>{messageBody.trim() ? `${messageBody.trim().length} chars` : 'empty'}</small>
+                        </div>
+                        <div style={composerPreviewMetricStyle}>
+                          <span style={composerPreviewMetricLabelStyle}>Match</span>
+                          <strong>{selectedMatch ? formatDate(selectedMatch.match_date) : 'Not set'}</strong>
+                          <small>{inferredOpponent || 'opponent pending'}</small>
+                        </div>
+                      </div>
+
+                      <div style={composerBodyPreviewStyle}>
+                        {messageBody.trim() || 'Load a message from the playbook above.'}
+                      </div>
+                    </div>
 
                     <div style={filtersGridStyle}>
                       <Field
@@ -3412,7 +3578,11 @@ function importScenarioToLineup() {
                     </Field>
 
                     <div style={pillRowStyle}>
-                      <span style={miniPillSlate}>{selectedRecipients.map((r) => r.full_name).join(', ') || 'No recipients selected'}</span>
+                      <span style={miniPillSlate}>
+                        {selectedRecipients.length
+                          ? `${selectedRecipients.slice(0, 4).map((r) => r.full_name).join(', ')}${selectedRecipients.length > 4 ? ` +${selectedRecipients.length - 4} more` : ''}`
+                          : 'No recipients selected'}
+                      </span>
                     </div>
 
                     <div style={actionRowStyle}>
@@ -3862,6 +4032,88 @@ const surfaceCard: CSSProperties = {
   WebkitBackdropFilter: 'blur(14px)',
 }
 
+const teamRoomSurfaceStyle: CSSProperties = {
+  ...surfaceCardStrong,
+  maxWidth: 1280,
+  margin: '0 auto 18px',
+}
+
+const messagePlaybookSurfaceStyle: CSSProperties = {
+  ...surfaceCardStrong,
+  maxWidth: 1280,
+  margin: '0 auto 18px',
+  border: '1px solid rgba(155, 225, 29, 0.18)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg-strong) 92%, var(--brand-green) 8%), var(--shell-panel-bg))',
+}
+
+const messagePlaybookGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gap: 12,
+  marginTop: 16,
+}
+
+const messagePlaybookCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 142,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  textAlign: 'left',
+  cursor: 'pointer',
+  boxShadow: '0 12px 28px rgba(2, 8, 23, 0.12)',
+}
+
+const messagePlaybookLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const messagePlaybookTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const messagePlaybookTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const teamRoomGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: 12,
+  marginTop: 16,
+}
+
+const teamRoomStepStyle: CSSProperties = {
+  display: 'flex',
+  gap: 12,
+  alignItems: 'flex-start',
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+}
+
+const teamRoomNoteStyle: CSSProperties = {
+  margin: '14px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+}
+
 const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -3911,6 +4163,76 @@ const inputStyle: CSSProperties = { width: '100%', height: '48px', borderRadius:
 const inputStyleMuted: CSSProperties = { ...inputStyle, opacity: 0.78 }
 const textareaStyle: CSSProperties = { width: '100%', minHeight: '100px', borderRadius: '14px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground)', padding: '12px 14px', fontSize: '14px', outline: 'none', resize: 'vertical' }
 const textareaStyleLarge: CSSProperties = { ...textareaStyle, minHeight: 180 }
+
+const composerPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  margin: '16px 0',
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(155, 225, 29, 0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(59,130,246,0.08))',
+}
+
+const composerPreviewTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+const composerPreviewLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const composerPreviewTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.05,
+  fontWeight: 950,
+}
+
+const composerPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: 10,
+}
+
+const composerPreviewMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: 12,
+  borderRadius: 16,
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
+}
+
+const composerPreviewMetricLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const composerBodyPreviewStyle: CSSProperties = {
+  maxHeight: 170,
+  overflow: 'auto',
+  whiteSpace: 'pre-wrap',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.65,
+  padding: 14,
+  borderRadius: 16,
+  background: 'rgba(2, 8, 23, 0.18)',
+  border: '1px solid var(--shell-panel-border)',
+}
 
 const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)', color: '#071622', border: '1px solid rgba(155,225,29,0.34)', boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)' }
 const primaryButtonBlock: CSSProperties = { ...primaryButton, width: '100%', appearance: 'none', cursor: 'pointer' }

@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter } from 'next/navigation'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import SiteShell from '@/app/components/site-shell'
@@ -72,6 +72,49 @@ const lineCard: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.07)',
   borderRadius: 10,
   padding: '12px 14px',
+}
+const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 18 }
+const scorekeeperTile: CSSProperties = {
+  padding: '14px 16px',
+  borderRadius: 14,
+  border: '1px solid rgba(124,167,255,0.14)',
+  background: 'rgba(255,255,255,0.055)',
+}
+const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }
+const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05 }
+const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6 }
+const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginTop: 16 }
+const flowStep: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px 1fr',
+  gap: 10,
+  alignItems: 'center',
+  padding: '12px',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+}
+const flowNumber: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, #9be11d 0%, #45e3a1 100%)',
+  color: '#071425',
+  fontWeight: 950,
+}
+const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14 }
+const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2 }
+const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12 }
+const detailsSummary: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
 }
 
 function Field({ label: lbl, children }: { label: string; children: React.ReactNode }) {
@@ -522,6 +565,13 @@ export default function CaptainTiqTeamMatchesPage() {
   const [filterLeagueId, setFilterLeagueId] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const latestEvent = useMemo(
+    () =>
+      [...events].sort(
+        (a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime(),
+      )[0],
+    [events],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -585,29 +635,53 @@ export default function CaptainTiqTeamMatchesPage() {
       />
       <div style={pageWrap}>
         <div style={introCard}>
-          <div style={heading}>League scorekeeper.</div>
-          <div style={subheading}>
-            Create the match, add the lines, and let completed results update TIQ ratings.
+          <div style={heading}>Record results fast.</div>
+          <div style={subheading}>Create the match, enter each line, and keep TIQ ratings current.</div>
+          <div style={scorekeeperGrid}>
+            <div style={scorekeeperTile}>
+              <div style={tileLabel}>Leagues</div>
+              <div style={tileValue}>{leagues.length}</div>
+              <div style={tileText}>Available result groups</div>
+            </div>
+            <div style={scorekeeperTile}>
+              <div style={tileLabel}>Matches</div>
+              <div style={tileValue}>{events.length}</div>
+              <div style={tileText}>{filterLeagueId ? 'Filtered view' : 'All recorded events'}</div>
+            </div>
+            <div style={scorekeeperTile}>
+              <div style={tileLabel}>Latest</div>
+              <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
+              <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'No result yet'}</div>
+            </div>
           </div>
-          <div style={introStats}>
-            <div style={introStat}>
-              <div style={introStatLabel}>Leagues</div>
-              <div style={introStatValue}>{leagues.length}</div>
+          <div style={flowStrip}>
+            <div style={flowStep}>
+              <div style={flowNumber}>1</div>
+              <div><div style={flowTitle}>Create match</div><div style={flowText}>Pick league, teams, date.</div></div>
             </div>
-            <div style={introStat}>
-              <div style={introStatLabel}>Events</div>
-              <div style={introStatValue}>{events.length}</div>
+            <div style={flowStep}>
+              <div style={flowNumber}>2</div>
+              <div><div style={flowTitle}>Add lines</div><div style={flowText}>Singles, doubles, score.</div></div>
             </div>
-            <div style={introStat}>
-              <div style={introStatLabel}>Players</div>
-              <div style={introStatValue}>{players.length}</div>
+            <div style={flowStep}>
+              <div style={flowNumber}>3</div>
+              <div><div style={flowTitle}>Ratings update</div><div style={flowText}>History stays current.</div></div>
             </div>
           </div>
         </div>
 
         {error ? <p style={msgErr}>{error}</p> : null}
 
-        <NewEventForm leagues={leagues} onCreated={(event) => setEvents((prev) => [event, ...prev])} />
+        <details style={detailsCard} open={events.length === 0}>
+          <summary style={detailsSummary}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>New match</div>
+              <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>Open only when you need to record another result.</div>
+            </div>
+            <span style={pillGreen}>Add result</span>
+          </summary>
+          <NewEventForm leagues={leagues} onCreated={(event) => setEvents((prev) => [event, ...prev])} />
+        </details>
 
         <div style={sectionTitle}>Recorded matches</div>
 

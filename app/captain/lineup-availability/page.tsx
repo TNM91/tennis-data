@@ -1106,7 +1106,7 @@ export default function LineupAvailabilityPage() {
                   <p style={sectionKicker}>Roster availability</p>
                   <h2 style={sectionTitle}>Set match-day status for each player</h2>
                   <p style={sectionBodyTextStyle}>
-                    Update each playerâ€™s status and add optional notes for lineup building context.
+                    Update each player's status and add optional notes for lineup building context.
                   </p>
                 </div>
 
@@ -1232,7 +1232,7 @@ export default function LineupAvailabilityPage() {
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              Â© {new Date().getFullYear()} TenAceIQ
+              (c) {new Date().getFullYear()} TenAceIQ
             </div>
           </div>
         </div>

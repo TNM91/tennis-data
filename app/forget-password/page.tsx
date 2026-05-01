@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
 
       if (resetError) throw new Error(resetError.message)
 
-      setMessage('Password reset email sent. Check your inbox for the reset link.')
+      setMessage('Reset email sent. Check your inbox, then come back to sign in.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to send reset email.')
     } finally {
@@ -123,11 +123,10 @@ export default function ForgotPasswordPage() {
 
         <section style={heroShellResponsive}>
           <div style={heroLeftColumn}>
-            <div style={eyebrow}>Reset access</div>
-            <h1 style={heroTitle}>Forgot your password?</h1>
+            <div style={eyebrow}>Account recovery</div>
+            <h1 style={heroTitle}>Get back in quickly.</h1>
             <p style={heroText}>
-              Enter your email and we'll send you a secure reset link so you can create a new
-              password and get back to My Lab, Captain tools, or League Coordinator tools.
+              Enter your email and we will send a secure reset link. Then you can return to your workspace.
             </p>
 
             <div style={pillRow}>
@@ -144,10 +143,10 @@ export default function ForgotPasswordPage() {
               </div>
 
               <div style={infoGridResponsive}>
-                <InfoCard title="Step 1" text="Enter the email tied to your account." />
-                <InfoCard title="Step 2" text="Open the reset email and click the secure link." />
-                <InfoCard title="Step 3" text="Create a new password on the reset page." />
-                <InfoCard title="Step 4" text="Sign back in and continue using TenAceIQ." />
+                <InfoCard title="1" text="Enter your account email." />
+                <InfoCard title="2" text="Open the secure reset link." />
+                <InfoCard title="3" text="Create a new password." />
+                <InfoCard title="4" text="Sign back in." />
               </div>
             </div>
           </div>
@@ -303,7 +302,7 @@ const heroTitle: CSSProperties = {
   fontSize: 'clamp(34px, 5vw, 56px)',
   lineHeight: 0.96,
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -456,7 +455,7 @@ const formTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.05,
   fontWeight: 850,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const inputLabel: CSSProperties = {
@@ -490,7 +489,7 @@ const submitButton: CSSProperties = {
   padding: '0 18px',
   borderRadius: '16px',
   fontWeight: 800,
-  letterSpacing: '-0.01em',
+  letterSpacing: 0,
   cursor: 'pointer',
   border: '1px solid rgba(155, 225, 29, 0.35)',
   background: 'linear-gradient(135deg, #9be11d, #c7f36b)',

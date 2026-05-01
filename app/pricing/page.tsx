@@ -15,13 +15,21 @@ import {
   type PricingPlanId,
 } from '@/lib/pricing-plans'
 import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
 const PLAN_JOB_GUIDE = [
-  ['Explore', 'Start free', 'Look up players, teams, leagues, and rankings.'],
-  ['Personalize', 'Choose Player', 'Save follows, use My Lab, and prep matchups.'],
-  ['Lead', 'Choose Captain', 'Run availability, lineups, briefs, and team messages.'],
-  ['Organize', 'Choose League Coordinator', 'Manage league structure, standings, seasons, and results.'],
+  ['Explore', 'Start free', 'Look up players, teams, leagues, and rankings.', 'playerRatings'],
+  ['Personalize', 'Choose Player', 'Save follows, use My Lab, and prep matchups.', 'myLab'],
+  ['Lead', 'Choose Captain', 'Run availability, lineups, briefs, and team messages.', 'captainDashboard'],
+  ['Organize', 'Choose League Coordinator', 'Manage league structure, standings, seasons, and results.', 'teamRankings'],
 ] as const
+
+const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
+  free: 'playerRatings',
+  player_plus: 'myLab',
+  captain: 'lineupBuilder',
+  league: 'teamRankings',
+}
 
 export default function PricingPage() {
   const [role, setRole] = useState<UserRole>('public')
@@ -66,8 +74,9 @@ export default function PricingPage() {
         <section style={jobGuideStyle} aria-label="Choose a plan by job">
           <div style={sectionEyebrowStyle}>Pick by job</div>
           <div style={jobGuideGridStyle}>
-            {PLAN_JOB_GUIDE.map(([job, title, text]) => (
+            {PLAN_JOB_GUIDE.map(([job, title, text, icon]) => (
               <div key={job} style={jobGuideCardStyle}>
+                <TiqFeatureIcon name={icon} size="md" variant="surface" />
                 <div style={jobGuideJobStyle}>{job}</div>
                 <div style={jobGuideTitleStyle}>{title}</div>
                 <div style={jobGuideTextStyle}>{text}</div>
@@ -90,6 +99,7 @@ export default function PricingPage() {
                 }}
               >
                 <div style={cardTopStyle}>
+                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size="lg" variant="surface" />
                   <div style={cardLabelRowStyle}>
                     <span style={cardPlanStyle}>{plan.name}</span>
                     {!active && plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}

@@ -348,6 +348,25 @@ export default function CaptainWeeklyBriefPage() {
     return counts
   }, [responseRows])
 
+  const availabilityTotal =
+    availabilitySummary.available +
+    availabilitySummary.tentative +
+    availabilitySummary.unavailable +
+    availabilitySummary.noResponse
+  const availabilityReadyPercent = availabilityTotal
+    ? Math.round((availabilitySummary.available / availabilityTotal) * 100)
+    : 0
+  const responseTotal = responseSummary.confirmed + responseSummary.late + responseSummary.noResponse
+  const responseReadyPercent = responseTotal ? Math.round((responseSummary.confirmed / responseTotal) * 100) : 0
+  const lineupTarget = Math.max(lineupRows.length, 5)
+  const lineupReadyPercent = lineupRows.length ? Math.min(100, Math.round((lineupRows.length / lineupTarget) * 100)) : 0
+  const openRiskCount =
+    availabilitySummary.tentative +
+    availabilitySummary.noResponse +
+    responseSummary.late +
+    responseSummary.noResponse +
+    (lineupRows.length ? 0 : 1)
+
   const readinessItems = [
     {
       label: 'Team scope',
@@ -406,6 +425,12 @@ export default function CaptainWeeklyBriefPage() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const nextAction = !lineupRows.length
+    ? { label: 'Build lineup', href: lineupBuilderHref }
+    : openRiskCount > 0
+      ? { label: 'Send follow-up', href: messagingHref }
+      : { label: 'Open team brief', href: teamBriefHref }
+
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
       key: weekStatusKey,
@@ -439,32 +464,34 @@ export default function CaptainWeeklyBriefPage() {
             <div style={heroTopRow}>
               <div>
                 <p style={sectionKicker}>Weekly Brief</p>
-                <h1 style={heroTitle}>Captain readout.</h1>
-                <p style={heroText}>
-                  Check lineup, logistics, notes, and open risks before the team message goes out.
-                </p>
+                <h1 style={heroTitle}>{resolvedOpponent ? `Week vs ${resolvedOpponent}` : 'Match week readout'}</h1>
+                <p style={heroText}>Lineup, replies, and the next move in one place.</p>
               </div>
 
               <div style={heroButtonRow}>
-                <PrimaryBtn onClick={handlePrint}>Print brief</PrimaryBtn>
-                <SecondaryLink href={teamBriefHref}>Team-facing brief</SecondaryLink>
-                <SecondaryLink href={messagingHref}>Open messaging</SecondaryLink>
-                <SecondaryLink href={lineupBuilderHref}>Open lineup builder</SecondaryLink>
+                <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
+                <SecondaryLink href={teamBriefHref}>Team brief</SecondaryLink>
+                <SecondaryBtn onClick={handlePrint}>Print</SecondaryBtn>
               </div>
             </div>
 
-            <div style={statusShell}>
-              <div>
-                <div style={sectionKicker}>This week</div>
+            <div style={briefBoardStyle}>
+              <div style={briefStatusStyle}>
+                <span style={briefStatusPillStyle}>{openRiskCount ? `${openRiskCount} open risk${openRiskCount === 1 ? '' : 's'}` : 'Ready'}</span>
                 <div style={statusValue}>{weekStatusMeta.label}</div>
-                <div style={heroText}>{weekStatusMeta.detail}</div>
+                <p style={briefStatusTextStyle}>{weekStatusMeta.detail}</p>
+                <div style={briefMetaRowStyle}>
+                  <span>{formatDate(eventDate || currentMatch?.match_date)}</span>
+                  <span>{team || 'Team not set'}</span>
+                  <span>{eventDetail?.arrivalTime || 'Arrival pending'}</span>
+                </div>
               </div>
               <div style={statusButtonRow}>
                 <button type="button" onClick={() => updateWeekStatus('draft-lineup')} style={weekStatus === 'draft-lineup' ? primaryButton : secondaryButton}>
-                  Draft lineup
+                  Draft
                 </button>
                 <button type="button" onClick={() => updateWeekStatus('ready-to-send')} style={weekStatus === 'ready-to-send' ? primaryButton : secondaryButton}>
-                  Ready to send
+                  Ready
                 </button>
                 <button type="button" onClick={() => updateWeekStatus('finalized')} style={weekStatus === 'finalized' ? primaryButton : secondaryButton}>
                   Finalized
@@ -472,11 +499,28 @@ export default function CaptainWeeklyBriefPage() {
               </div>
             </div>
 
-            <div style={metricGrid}>
-              <MetricCard label="Team scope" value={team || 'Not set'} detail={league && flight ? `${league} - ${flight}` : 'Scope incomplete'} />
-              <MetricCard label="Match day" value={formatDate(eventDate || currentMatch?.match_date)} detail={resolvedOpponent ? `vs ${resolvedOpponent}` : 'Opponent not set'} />
-              <MetricCard label="Lineup" value={lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'} detail={selectedScenario?.scenario_name || 'No active saved scenario'} />
-              <MetricCard label="Messaging" value={eventDetail?.arrivalTime || 'Pending'} detail={eventDetail?.location || 'Location not set yet'} accent />
+            <div style={briefSignalGridStyle}>
+              <BriefSignal
+                label="Lineup"
+                value={lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'}
+                detail={selectedScenario?.scenario_name || 'No active scenario'}
+                percent={lineupReadyPercent}
+                accent={!!lineupRows.length}
+              />
+              <BriefSignal
+                label="Availability"
+                value={`${availabilitySummary.available} available`}
+                detail={`${availabilitySummary.tentative} tentative - ${availabilitySummary.noResponse} missing`}
+                percent={availabilityReadyPercent}
+                accent={availabilityReadyPercent >= 75}
+              />
+              <BriefSignal
+                label="Replies"
+                value={`${responseSummary.confirmed} confirmed`}
+                detail={`${responseSummary.late} late - ${responseSummary.noResponse} no response`}
+                percent={responseReadyPercent}
+                accent={responseReadyPercent >= 75}
+              />
             </div>
 
           </section>
@@ -497,8 +541,19 @@ export default function CaptainWeeklyBriefPage() {
             </section>
           ) : null}
 
+          <details style={surfaceCard}>
+            <summary style={detailsSummaryStyle}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Details</p>
+                  <h2 style={sectionTitle}>Notes and logistics</h2>
+                </div>
+                <span style={pillStyle}>Open</span>
+              </div>
+            </summary>
+
           <section style={twoColumnGrid(isTablet)}>
-            <section style={surfaceCard}>
+            <div style={flatPanelStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Notes</p>
@@ -517,9 +572,9 @@ export default function CaptainWeeklyBriefPage() {
                   <div style={noteText}>{sharedNotes?.opponentNotes || 'No opponent scouting notes saved yet.'}</div>
                 </div>
               </div>
-            </section>
+            </div>
 
-            <section style={surfaceCard}>
+            <div style={flatPanelStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Logistics</p>
@@ -534,8 +589,9 @@ export default function CaptainWeeklyBriefPage() {
                 <InfoBlock label="Directions" value={eventDetail?.directions || 'No directions saved'} />
                 <InfoBlock label="Week notes for message" value={eventDetail?.notes || 'No event note saved yet'} />
               </div>
-            </section>
+            </div>
           </section>
+          </details>
 
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
@@ -608,22 +664,6 @@ export default function CaptainWeeklyBriefPage() {
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKicker}>Team pulse</p>
-                <h2 style={sectionTitle}>Availability and replies</h2>
-              </div>
-            </div>
-
-            <div style={metricGrid}>
-              <MetricCard label="Available" value={String(availabilitySummary.available)} detail="Players marked available" accent />
-              <MetricCard label="Tentative" value={String(availabilitySummary.tentative)} detail="Still needs follow-up" />
-              <MetricCard label="Unavailable" value={String(availabilitySummary.unavailable)} detail="Out for this match" />
-              <MetricCard label="Confirmed" value={String(responseSummary.confirmed)} detail={`${responseSummary.late} running late - ${responseSummary.noResponse} no response`} />
-            </div>
-          </section>
-
-          <section style={surfaceCard}>
-            <div style={sectionHeaderStyle}>
-              <div>
                 <p style={sectionKicker}>Next actions</p>
                 <h2 style={sectionTitle}>Move the week forward</h2>
               </div>
@@ -683,12 +723,66 @@ function MetricCard({
   )
 }
 
+function BriefSignal({
+  label,
+  value,
+  detail,
+  percent,
+  accent = false,
+}: {
+  label: string
+  value: string
+  detail: string
+  percent: number
+  accent?: boolean
+}) {
+  return (
+    <div style={accent ? briefSignalCardAccentStyle : briefSignalCardStyle}>
+      <div style={briefSignalTopStyle}>
+        <span style={metricLabel}>{label}</span>
+        <strong style={briefSignalPercentStyle}>{percent}%</strong>
+      </div>
+      <div style={metricValue}>{value}</div>
+      <ProgressBar percent={percent} />
+      <div style={metricDetail}>{detail}</div>
+    </div>
+  )
+}
+
+function ProgressBar({ percent }: { percent: number }) {
+  const safePercent = Math.max(0, Math.min(100, percent))
+  return (
+    <div style={progressTrackStyle}>
+      <div style={{ ...progressFillStyle, width: `${safePercent}%` }} />
+    </div>
+  )
+}
+
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
     <div style={infoBlock}>
       <div style={infoLabel}>{label}</div>
       <div style={infoValue}>{value}</div>
     </div>
+  )
+}
+
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...primaryButton,
+        transform: hovered ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered ? '0 20px 40px rgba(155,225,29,0.26)' : undefined,
+        transition: 'transform 150ms ease, box-shadow 150ms ease',
+      }}
+    >
+      {children}
+    </Link>
   )
 }
 
@@ -765,6 +859,102 @@ const statusButtonRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+}
+
+const briefBoardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: 18,
+  alignItems: 'center',
+  padding: 20,
+  borderRadius: 24,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(18,36,66,0.84) 0%, rgba(10,22,44,0.74) 58%, rgba(38,70,42,0.32) 100%)',
+}
+
+const briefStatusStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const briefStatusPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  borderRadius: 999,
+  padding: '7px 11px',
+  background: 'rgba(155,225,29,0.14)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  color: '#d9ff76',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const briefStatusTextStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: 14,
+  lineHeight: 1.6,
+}
+
+const briefMetaRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginTop: 14,
+  color: '#c7dbff',
+  fontSize: 13,
+  fontWeight: 800,
+}
+
+const briefSignalGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gap: 14,
+}
+
+const briefSignalCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(15,23,42,0.52)',
+}
+
+const briefSignalCardAccentStyle: CSSProperties = {
+  ...briefSignalCardStyle,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(180deg, rgba(23,56,45,0.46) 0%, rgba(15,23,42,0.58) 100%)',
+}
+
+const briefSignalTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+}
+
+const briefSignalPercentStyle: CSSProperties = {
+  color: '#d9ff76',
+  fontSize: 13,
+}
+
+const progressTrackStyle: CSSProperties = {
+  width: '100%',
+  height: 9,
+  overflow: 'hidden',
+  borderRadius: 999,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(7,16,30,0.72)',
+}
+
+const progressFillStyle: CSSProperties = {
+  height: '100%',
+  minWidth: 4,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, #60a5fa 0%, #45e3a1 58%, #9be11d 100%)',
+  boxShadow: '0 0 16px rgba(155,225,29,0.32)',
 }
 
 const metricGrid: CSSProperties = {
@@ -853,6 +1043,12 @@ const surfaceCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+}
+
+const flatPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {

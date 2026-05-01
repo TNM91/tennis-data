@@ -221,16 +221,19 @@ const footerJourneyCardStyle = {
 } as const
 
 const footerJourneyStepStyle = {
-  width: '30px',
-  height: '30px',
+  width: '34px',
+  height: '34px',
   borderRadius: '999px',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
-  color: 'var(--text-dark)',
-  fontSize: '12px',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, var(--brand-lime) 100%)',
+  border: '1px solid rgba(255, 255, 255, 0.36)',
+  color: '#06121f',
+  fontSize: '13px',
   fontWeight: 950,
+  lineHeight: 1,
+  boxShadow: '0 10px 22px rgba(155, 225, 29, 0.20)',
 } as const
 
 const footerJourneyTextStyle = {

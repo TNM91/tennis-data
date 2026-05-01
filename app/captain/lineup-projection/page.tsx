@@ -1086,7 +1086,7 @@ export default function LineupProjectionPage() {
                   <div style={notesTitleStyle}>Captain suggestions</div>
                   <div style={notesListStyle}>
                     {suggestedLineup.notes.map((note) => (
-                      <div key={note} style={noteRowStyle}>â€¢ {note}</div>
+                      <div key={note} style={noteRowStyle}>- {note}</div>
                     ))}
                   </div>
                 </div>
@@ -1180,7 +1180,7 @@ export default function LineupProjectionPage() {
                         <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                           <div style={{ width: `${barPct}%`, height: '100%', background: 'linear-gradient(90deg,rgba(116,190,255,0.5),rgba(63,167,255,0.8))', borderRadius: 999, transition: 'width 400ms ease' }} />
                         </div>
-                        <div style={listMetaStyle}>{getAvailabilityLabel(player.availabilityStatus)} Â· USTA {formatRating(player.overallUstaDynamic)}</div>
+                        <div style={listMetaStyle}>{getAvailabilityLabel(player.availabilityStatus)} - USTA {formatRating(player.overallUstaDynamic)}</div>
                       </div>
                     )
                   })
@@ -1213,7 +1213,7 @@ export default function LineupProjectionPage() {
                         <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                           <div style={{ width: `${barPct}%`, height: '100%', background: 'linear-gradient(90deg,rgba(155,225,29,0.4),rgba(74,222,128,0.7))', borderRadius: 999, transition: 'width 400ms ease' }} />
                         </div>
-                        {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' Â· ')}</div> : null}
+                        {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' - ')}</div> : null}
                       </div>
                     )
                   })
@@ -1263,7 +1263,7 @@ export default function LineupProjectionPage() {
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              Â© {new Date().getFullYear()} TenAceIQ
+              (c) {new Date().getFullYear()} TenAceIQ
             </div>
           </div>
         </div>

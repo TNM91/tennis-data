@@ -430,6 +430,18 @@ export default function CaptainAvailabilityPage() {
       unanswered: players.filter((p) => p.status === 'unanswered').length,
     }
   }, [players])
+  const responseTotal = counts.in + counts.out + counts.maybe + counts.unanswered
+  const responseAnswered = responseTotal - counts.unanswered
+  const responseProgress = responseTotal > 0 ? Math.round((responseAnswered / responseTotal) * 100) : 0
+  const lineupPoolCount = counts.in + counts.maybe
+  const lineupPoolLabel =
+    lineupPoolCount >= 8
+      ? 'Healthy lineup pool'
+      : lineupPoolCount >= 4
+        ? 'Usable lineup pool'
+        : responseTotal > 0
+          ? 'Need more yes/maybe replies'
+          : 'Roster not loaded yet'
   const responseSummary =
     counts.unanswered > 0
       ? `${counts.unanswered} player${counts.unanswered === 1 ? '' : 's'} still need a reply before the lineup is safe to finalize.`
@@ -606,6 +618,26 @@ export default function CaptainAvailabilityPage() {
                 </div>
               </div>
 
+              <div style={responseMeterShell}>
+                <div style={responseMeterTop}>
+                  <span>{responseProgress}% answered</span>
+                  <span>{lineupPoolLabel}</span>
+                </div>
+                <div
+                  style={responseTrack}
+                  role="meter"
+                  aria-label="Availability responses answered"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={responseProgress}
+                >
+                  <span style={{ ...responseFill, width: `${responseProgress}%` }} />
+                </div>
+                <div style={responseMeterMeta}>
+                  {responseAnswered} answered - {lineupPoolCount} in play
+                </div>
+              </div>
+
               {requestSent ? (
                 <div style={successBanner}>Availability request prepared for {weekLabel}.</div>
               ) : (
@@ -670,6 +702,12 @@ export default function CaptainAvailabilityPage() {
                 <h2 style={sectionTitle}>Player responses</h2>
                 <div style={sectionSub}>
                   Update the list as replies come in. The lineup should start here.
+                </div>
+                <div style={sectionChipRow}>
+                  <span style={badgeGreen}>{lineupPoolCount} in play</span>
+                  <span style={counts.unanswered > 0 ? badgeBlue : badgeSlate}>
+                    {counts.unanswered > 0 ? `${counts.unanswered} to chase` : 'Ready for lineup'}
+                  </span>
                 </div>
               </div>
 
@@ -1053,6 +1091,49 @@ const statusValue: CSSProperties = {
   lineHeight: 1,
 }
 
+const responseMeterShell: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 14,
+  padding: '12px 14px',
+  borderRadius: 18,
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 72%, var(--brand-blue-2) 10%)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const responseMeterTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+  flexWrap: 'wrap',
+}
+
+const responseTrack: CSSProperties = {
+  position: 'relative',
+  height: 10,
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'rgba(148, 163, 184, 0.22)',
+  border: '1px solid rgba(148, 163, 184, 0.16)',
+}
+
+const responseFill: CSSProperties = {
+  position: 'absolute',
+  inset: '0 auto 0 0',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-green))',
+  minWidth: 2,
+}
+
+const responseMeterMeta: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
 const successBanner: CSSProperties = {
   marginTop: '14px',
   borderRadius: '16px',
@@ -1202,6 +1283,13 @@ const sectionActions: CSSProperties = {
   display: 'flex',
   gap: '10px',
   flexWrap: 'wrap',
+}
+
+const sectionChipRow: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginTop: 12,
 }
 
 const sectionCtaPrimary: CSSProperties = {

@@ -11,9 +11,20 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+
+function getDefaultSignedInRoute(
+  role: UserRole,
+  entitlements?: ProductEntitlementSnapshot | null,
+) {
+  const access = buildProductAccessState(role, entitlements)
+  if (access.canUseLeagueTools) return '/captain/season-dashboard'
+  if (access.canUseCaptainWorkflow) return '/captain'
+  return '/mylab'
+}
 
 export default function JoinPage() {
   const router = useRouter()
@@ -40,7 +51,7 @@ export default function JoinPage() {
         setRole(nextRole)
 
         if (nextRole !== 'public') {
-          router.replace('/mylab')
+          router.replace(getDefaultSignedInRoute(nextRole, authState.entitlements))
         }
       } finally {
         setAuthLoading(false)
@@ -58,7 +69,7 @@ export default function JoinPage() {
       setAuthLoading(false)
 
       if (nextRole !== 'public') {
-        router.replace('/mylab')
+        router.replace(getDefaultSignedInRoute(nextRole, authState.entitlements))
       }
     })
 
@@ -107,7 +118,7 @@ export default function JoinPage() {
 
       if (error) throw new Error(error.message)
 
-      setMessage('Account created. You can now sign in with your email and password.')
+      setMessage('Account created. Sign in to open your TenAceIQ workspace.')
       setTimeout(() => {
         router.push('/login')
       }, 1000)
@@ -121,8 +132,25 @@ export default function JoinPage() {
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
     gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    gap: isMobile ? '18px' : '24px',
+    padding: isMobile ? '22px 18px' : '34px 26px',
+    gap: isMobile ? '14px' : '24px',
+  }
+
+  const loginPanelResponsive: CSSProperties = {
+    ...loginPanel,
+    ...(isMobile
+      ? {
+          border: 'none',
+          background: 'transparent',
+          boxShadow: 'none',
+          borderRadius: 0,
+        }
+      : {}),
+  }
+
+  const loginPanelInnerResponsive: CSSProperties = {
+    ...loginPanelInner,
+    padding: isMobile ? 0 : '22px',
   }
 
   if (authLoading) {
@@ -141,47 +169,48 @@ export default function JoinPage() {
     <SiteShell active="/join">
       <section style={heroShellResponsive}>
         <div>
-          <div style={eyebrow}>Create your TenAceIQ account</div>
-          <h1 style={heroTitle}>Start free. Upgrade when tennis gets easier.</h1>
-          <p style={heroText}>
-            Explore for free, then unlock Player, Captain, or TIQ League Coordinator
-            tools when you want saved context, weekly team prep, or league operations.
+          <div style={eyebrow}>Create your account</div>
+          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
+            {isMobile ? 'Start free.' : 'Start free. Add tools when you need them.'}
+          </h1>
+          <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
+            {isMobile
+              ? 'Create an account and explore tennis context.'
+              : 'Explore tennis context first. Upgrade when you want My Lab, team-week tools, or league operations.'}
           </p>
 
-          <div style={joinPromisePanel}>
-            <div style={promiseLabel}>Why join</div>
-            <div style={promiseStack}>
-              <JoinPromiseStep
-                number="1"
-                title="Start free"
-                text="Explore players, teams, leagues, rankings, and public tennis intelligence."
-              />
-              <JoinPromiseStep
-                number="2"
-                title="Save your tennis context"
-                text="Your account gives follows, player identity, teams, and leagues a place to live."
-              />
-              <JoinPromiseStep
-                number="3"
-                title="Upgrade only when it helps"
-                text="Add Player, Captain, or League Coordinator tools when your tennis life needs them."
-              />
+          {isMobile ? (
+            <div style={mobilePromiseBar}>
+              <span style={mobilePromiseChip}>Explore</span>
+              <span style={mobilePromiseChip}>Personalize</span>
+              <span style={mobilePromiseChip}>Collaborate</span>
             </div>
-          </div>
-        </div>
-
-        <div style={loginPanel}>
-          <div style={loginPanelGlow} />
-          <div style={loginPanelInner}>
-            <div style={loginBrandWrap}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-                <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
+          ) : (
+            <div style={joinPromisePanel}>
+              <div style={promiseLabel}>Why join</div>
+              <div style={promiseStack}>
+                <JoinPromiseStep number="1" title="Explore" text="Players, teams, leagues, rankings." />
+                <JoinPromiseStep number="2" title="Personalize" text="Profile, follows, My Lab, matchups." />
+                <JoinPromiseStep number="3" title="Collaborate" text="Captain messages, lineups, league results." />
               </div>
             </div>
+          )}
+        </div>
 
-            <form onSubmit={handleSubmit} style={formCard}>
+        <div style={loginPanelResponsive}>
+          <div style={loginPanelGlow} />
+          <div style={loginPanelInnerResponsive}>
+            {!isMobile ? (
+              <div style={loginBrandWrap}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                  <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
+                </div>
+              </div>
+            ) : null}
+
+            <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
               <div style={formLabel}>New member setup</div>
-              <h2 style={formTitle}>Create your account</h2>
+              <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -292,7 +321,7 @@ export default function JoinPage() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Creating account...' : 'Create account'}
+                {submitting ? 'Creating account...' : 'Create free account'}
               </button>
 
               {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
@@ -366,16 +395,16 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
   fontSize: '58px',
 }
 
 const heroText: CSSProperties = {
-  margin: '0 0 20px',
+  margin: '0 0 16px',
   color: 'var(--shell-copy-muted)',
   fontSize: '18px',
-  lineHeight: 1.6,
+  lineHeight: 1.45,
   maxWidth: '760px',
 }
 
@@ -420,6 +449,26 @@ const joinPromisePanel: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: '18px',
   maxWidth: '900px',
+}
+
+const mobilePromiseBar: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '10px',
+}
+
+const mobilePromiseChip: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '32px',
+  padding: '0 11px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: '13px',
+  fontWeight: 800,
 }
 
 const promiseLabel: CSSProperties = {
@@ -559,7 +608,7 @@ const loginBrandText: CSSProperties = {
   justifyContent: 'center',
   gap: '2px',
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   fontSize: '36px',
   lineHeight: 1,
 }
@@ -571,6 +620,12 @@ const formCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
   padding: '18px',
+}
+
+const formCardMobile: CSSProperties = {
+  ...formCard,
+  gap: '10px',
+  padding: '16px',
 }
 
 const formLabel: CSSProperties = {
@@ -587,7 +642,12 @@ const formTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.04,
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
+}
+
+const formTitleMobile: CSSProperties = {
+  ...formTitle,
+  fontSize: '24px',
 }
 
 const inputLabel: CSSProperties = {
@@ -599,7 +659,7 @@ const inputLabel: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
-  minHeight: '52px',
+  minHeight: '50px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -647,7 +707,7 @@ const togglePasswordButton: CSSProperties = {
 }
 
 const submitButton: CSSProperties = {
-  minHeight: '52px',
+  minHeight: '50px',
   borderRadius: '16px',
   border: '1px solid rgba(155,225,29,0.34)',
   background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',

@@ -15,6 +15,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -1327,6 +1328,7 @@ export default function MatchupPage() {
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
+              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="lg" variant="surface" />
               <div style={eyebrow}>{MATCHUP_STORY.eyebrow}</div>
               <h1 style={dynamicHeroTitle}>{MATCHUP_STORY.headline}</h1>
               <p style={dynamicHeroText}>
@@ -1376,6 +1378,7 @@ export default function MatchupPage() {
             </div>
 
             <div style={dynamicEngineCard}>
+              <TiqFeatureIcon name="matchPrep" size="md" variant="ghost" />
               <div style={engineLabel}>Projection engine</div>
               <div style={engineValue}>{capitalize(getEngineRatingView(matchType))}</div>
               <div style={engineText}>
@@ -1454,6 +1457,7 @@ export default function MatchupPage() {
             </div>
 
             <div style={selectionProgressCard}>
+              <TiqFeatureIcon name="scenarioBuilder" size="sm" variant="ghost" />
               <div style={selectionProgressLabel}>Setup</div>
               <div style={selectionProgressValue}>{selectionProgressText}</div>
               <div style={selectionProgressTextStyle}>{selectionGuidance}</div>

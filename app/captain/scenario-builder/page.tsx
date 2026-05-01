@@ -17,6 +17,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type ScenarioRow = {
   id: string
@@ -198,8 +199,8 @@ function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[],
 
     const leftPlayers = leftSlot?.players ?? []
     const rightPlayers = rightSlot?.players ?? []
-    const leftText = leftPlayers.length ? leftPlayers.join(' / ') : 'â€”'
-    const rightText = rightPlayers.length ? rightPlayers.join(' / ') : 'â€”'
+    const leftText = leftPlayers.length ? leftPlayers.join(' / ') : '-'
+    const rightText = rightPlayers.length ? rightPlayers.join(' / ') : '-'
     const changed = leftText !== rightText
 
     const leftStrength = strengthForSlot(leftSlot, players)
@@ -530,6 +531,16 @@ export default function ScenarioComparisonPage() {
     const combinedDiff = (yourComparison.avgDiff - opponentComparison.avgDiff) / 2
     return 1 / (1 + Math.exp(-combinedDiff * 3.2))
   }, [yourComparison.avgDiff, opponentComparison.avgDiff])
+  const winningScenarioName =
+    overallProjection >= 0.5
+      ? leftScenario?.scenario_name || 'Scenario A'
+      : rightScenario?.scenario_name || 'Scenario B'
+  const separationLabel =
+    Math.abs(overallProjection - 0.5) >= 0.15
+      ? 'High confidence'
+      : Math.abs(overallProjection - 0.5) >= 0.08
+        ? 'Usable lean'
+        : 'Tight call'
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const premiumEnabled = access.canUseCaptainWorkflow
@@ -583,6 +594,10 @@ export default function ScenarioComparisonPage() {
     if (dateFilter) params.set('date', dateFilter)
     return `/captain/lineup-builder?${params.toString()}`
   }
+  const winningBuilderHref =
+    overallProjection >= 0.5
+      ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
+      : (rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder')
 
   if (authLoading) {
     return (
@@ -601,9 +616,10 @@ export default function ScenarioComparisonPage() {
   return (
     <SiteShell active="/captain">
       <section style={pageContentStyle}>
-        <section style={heroShellResponsive(isTablet, isMobile)}>
-          <div>
-            <div style={eyebrow}>Captain tools</div>
+         <section style={heroShellResponsive(isTablet, isMobile)}>
+            <div>
+              <TiqFeatureIcon name="scenarioBuilder" size="lg" variant="surface" />
+              <div style={eyebrow}>Captain tools</div>
             <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Compare lineup versions.</h1>
             <p style={heroTextStyle}>
               Put two saved builds side by side, spot the swing courts, and keep the version you trust.
@@ -619,11 +635,11 @@ export default function ScenarioComparisonPage() {
               <MetricStat label="Filtered scenarios" value={String(filteredScenarios.length)} />
               <MetricStat
                 label="Your lineup changes"
-                value={leftScenario && rightScenario ? String(yourComparison.changedCount) : 'â€”'}
+                value={leftScenario && rightScenario ? String(yourComparison.changedCount) : '-'}
               />
               <MetricStat
                 label="Opponent changes"
-                value={leftScenario && rightScenario ? String(opponentComparison.changedCount) : 'â€”'}
+                value={leftScenario && rightScenario ? String(opponentComparison.changedCount) : '-'}
               />
             </div>
           </div>
@@ -649,9 +665,11 @@ export default function ScenarioComparisonPage() {
                   ['1', 'Filter', 'Get down to the real team, match, and saved versions.'],
                   ['2', 'Compare', 'Review changed courts and projected edge.'],
                   ['3', 'Choose', 'Return to the builder or message the team.'],
-                ].map(([step, title, text]) => (
-                  <div key={step} style={workflowRowStyle}>
-                    <div style={workflowNumberStyle}>{step}</div>
+                  ].map(([step, title, text]) => (
+                   <div key={step} style={workflowRowStyle}>
+                     <div style={workflowNumberStyle}>
+                       <TiqFeatureIcon name={step === '1' ? 'schedule' : step === '2' ? 'scenarioBuilder' : 'messagingCenter'} size="sm" variant="ghost" />
+                     </div>
                     <div>
                       <div style={workflowTitleStyle}>{title}</div>
                       <div style={workflowTextStyle}>{text}</div>
@@ -689,20 +707,20 @@ export default function ScenarioComparisonPage() {
         ) : null}
 
         <section style={contentWrap}>
-          <section style={surfaceCardStrong}>
-            <div style={sectionHeaderStyle}>
+          <details style={surfaceCardStrong}>
+            <summary style={detailsSummaryStyle}>
               <div>
-                <p style={sectionKicker}>Scenario filters</p>
+                <p style={sectionKicker}>Filters</p>
                 <h2 style={sectionTitle}>Narrow the comparison set</h2>
                 <p style={sectionBodyTextStyle}>
-                  Use filters to isolate the saved scenarios that matter for the current match context.
+                  Open when you need to change team, flight, date, or saved versions.
                 </p>
               </div>
 
               <GhostSmallBtn onClick={() => { setLeagueFilter(''); setFlightFilter(''); setTeamFilter(''); setDateFilter(''); setLeftId(''); setRightId('') }}>
                 Clear Filters
               </GhostSmallBtn>
-            </div>
+            </summary>
 
             <div style={filtersGridStyle}>
               <div>
@@ -758,7 +776,7 @@ export default function ScenarioComparisonPage() {
                 {filteredScenarios.length} saved scenario{filteredScenarios.length === 1 ? '' : 's'}
               </span>
             </div>
-          </section>
+          </details>
 
           {loading ? (
             <section style={surfaceCard}>
@@ -813,6 +831,79 @@ export default function ScenarioComparisonPage() {
 
               {leftScenario && rightScenario ? (
                 <>
+                  <section style={verdictCardStyle}>
+                    <div style={verdictMainStyle}>
+                      <p style={sectionKicker}>Comparison verdict</p>
+                      <h2 style={verdictTitleStyle}>{winningScenarioName}</h2>
+                      <p style={sectionBodyTextStyle}>
+                        {separationLabel}. {yourComparison.biggestSwing?.label || opponentComparison.biggestSwing?.label
+                          ? `Start with ${yourComparison.biggestSwing?.label || opponentComparison.biggestSwing?.label}.`
+                          : 'The versions are similar, so captain judgment still matters.'}
+                      </p>
+                      <div style={actionRowStyle}>
+                        <PrimarySmallLink href={winningBuilderHref}>Open winner in builder</PrimarySmallLink>
+                        <GhostSmallBtn onClick={async () => {
+                          if (!premiumEnabled) {
+                            setError('Captain tier required to send the winning scenario to messaging.')
+                            return
+                          }
+
+                          const winningScenario =
+                            overallProjection >= 0.5 ? leftScenario : rightScenario
+
+                          if (!winningScenario) return
+
+                          localStorage.setItem('tenace_selected_scenario', JSON.stringify(winningScenario))
+                          localStorage.setItem('tenace_flow_source', 'scenario_builder')
+
+                          const team = winningScenario.team_name || ''
+                          const league = winningScenario.league_name || ''
+                          const flight = winningScenario.flight || ''
+
+                          try {
+                            await writeScenarioFeedEvents({
+                              team,
+                              league,
+                              flight,
+                              projection: overallProjection,
+                              biggestSwing: yourComparison.biggestSwing || opponentComparison.biggestSwing,
+                              changedCount: yourComparison.changedCount + opponentComparison.changedCount,
+                            })
+                          } catch (error) {
+                            console.error('Failed to write scenario feed events', error)
+                          }
+
+                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                        }}>
+                          Send to messaging
+                        </GhostSmallBtn>
+                      </div>
+                    </div>
+                    <div style={verdictMetricGridStyle}>
+                      <div style={verdictMetricStyle}>
+                        <span style={scenarioCommandLabelStyle}>Scenario A</span>
+                        <strong style={verdictValueStyle}>{Math.round(overallProjection * 100)}%</strong>
+                      </div>
+                      <div style={verdictMetricStyle}>
+                        <span style={scenarioCommandLabelStyle}>Scenario B</span>
+                        <strong style={verdictValueStyle}>{100 - Math.round(overallProjection * 100)}%</strong>
+                      </div>
+                      <div style={verdictMetricStyle}>
+                        <span style={scenarioCommandLabelStyle}>Changes</span>
+                        <strong style={verdictValueStyle}>{yourComparison.changedCount + opponentComparison.changedCount}</strong>
+                      </div>
+                    </div>
+                  </section>
+
+                  <details style={deepDiveShellStyle}>
+                    <summary style={detailsSummaryStyle}>
+                      <div>
+                        <p style={sectionKicker}>Deep dive</p>
+                        <h3 style={sectionTitleSmall}>Full comparison details</h3>
+                      </div>
+                      <span style={miniPillSlate}>Open analysis</span>
+                    </summary>
+
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
@@ -1301,7 +1392,7 @@ export default function ScenarioComparisonPage() {
 
                       <div style={scenarioCommandCardStyle}>
                         <div style={scenarioCommandLabelStyle}>Captain workflow</div>
-                        <div style={scenarioCommandValueStyle}>Compare â†’ refine â†’ send</div>
+                        <div style={scenarioCommandValueStyle}>Compare {'->'} refine {'->'} send</div>
                         <div style={scenarioCommandTextStyle}>
                           Keep scenario work focused on decision clarity, then move the final version into weekly team messaging.
                         </div>
@@ -1373,6 +1464,7 @@ export default function ScenarioComparisonPage() {
                     <NotesCard label="Scenario A" scenario={leftScenario} />
                     <NotesCard label="Scenario B" scenario={rightScenario} />
                   </section>
+                  </details>
                 </>
               ) : null}
             </>
@@ -1421,7 +1513,7 @@ function ScenarioPanel({
         <select id={selectorId} aria-describedby={helperId} value={selectedId} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
           {scenarios.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.scenario_name} - {item.team_name || 'â€”'} - {formatDate(item.match_date)}
+              {item.scenario_name} - {item.team_name || '-'} - {formatDate(item.match_date)}
             </option>
           ))}
         </select>
@@ -1431,11 +1523,11 @@ function ScenarioPanel({
         <>
           <div style={metaGridStylePanel}>
             <MetaCard label="Scenario" value={scenario.scenario_name || 'Untitled'} />
-            <MetaCard label="League" value={scenario.league_name || 'â€”'} />
-            <MetaCard label="Flight" value={scenario.flight || 'â€”'} />
+            <MetaCard label="League" value={scenario.league_name || '-'} />
+            <MetaCard label="Flight" value={scenario.flight || '-'} />
             <MetaCard label="Match Date" value={formatDate(scenario.match_date)} />
-            <MetaCard label="Team" value={scenario.team_name || 'â€”'} />
-            <MetaCard label="Opponent" value={scenario.opponent_team || 'â€”'} />
+            <MetaCard label="Team" value={scenario.team_name || '-'} />
+            <MetaCard label="Opponent" value={scenario.opponent_team || '-'} />
           </div>
 
           <div style={actionRowStyle}>
@@ -1547,7 +1639,7 @@ function ComparisonTable({
                 const diffText =
                   typeof diff === 'number'
                     ? `${diff >= 0 ? 'A +' : 'B +'}${Math.abs(diff).toFixed(2)}`
-                    : 'â€”'
+                    : '-'
 
                 return (
                   <tr key={row.label}>
@@ -1863,6 +1955,74 @@ const surfaceCard: CSSProperties = {
   boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
+}
+
+const detailsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const verdictCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '18px',
+  padding: '22px',
+  borderRadius: '28px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(16,35,64,0.88) 0%, rgba(10,22,44,0.94) 58%, rgba(42,76,39,0.26) 100%)',
+  boxShadow: '0 24px 52px rgba(2,8,23,0.16)',
+}
+
+const verdictMainStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '8px',
+  minWidth: 0,
+}
+
+const verdictTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground)',
+  fontSize: '2rem',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const verdictMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+  gap: '12px',
+}
+
+const verdictMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const verdictValueStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: '1.85rem',
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const deepDiveShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  padding: '20px',
+  borderRadius: '28px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(255,255,255,0.035)',
 }
 
 const sectionHeaderStyle: CSSProperties = {

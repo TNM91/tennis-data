@@ -6,18 +6,34 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
+import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 
-function resolvePostLoginRoute(candidate: string | null | undefined) {
-  if (!candidate) return DEFAULT_POST_LOGIN_ROUTE
-  if (!candidate.startsWith('/')) return DEFAULT_POST_LOGIN_ROUTE
-  if (candidate.startsWith('//')) return DEFAULT_POST_LOGIN_ROUTE
-  if (candidate.startsWith('/login')) return DEFAULT_POST_LOGIN_ROUTE
-  if (candidate.startsWith('/join')) return DEFAULT_POST_LOGIN_ROUTE
+function getDefaultPostLoginRoute(
+  role: UserRole = 'member',
+  entitlements?: ProductEntitlementSnapshot | null,
+) {
+  const access = buildProductAccessState(role, entitlements)
+  if (access.canUseLeagueTools) return '/captain/season-dashboard'
+  if (access.canUseCaptainWorkflow) return '/captain'
+  return DEFAULT_POST_LOGIN_ROUTE
+}
+
+function resolvePostLoginRoute(
+  candidate: string | null | undefined,
+  role: UserRole = 'member',
+  entitlements?: ProductEntitlementSnapshot | null,
+) {
+  const fallback = getDefaultPostLoginRoute(role, entitlements)
+  if (!candidate) return fallback
+  if (!candidate.startsWith('/')) return fallback
+  if (candidate.startsWith('//')) return fallback
+  if (candidate.startsWith('/login')) return fallback
+  if (candidate.startsWith('/join')) return fallback
   return candidate
 }
 
@@ -37,23 +53,35 @@ export default function LoginPage() {
 
   const hasRedirectedRef = useRef(false)
 
-  // Read fresh at redirect time rather than once at mount — avoids stale value when
+  // Read fresh at redirect time rather than once at mount to avoid stale values when
   // Next.js serves a cached page instance for a navigation with a different ?next= param.
-  function getPostLoginRoute() {
-    if (typeof window === 'undefined') return DEFAULT_POST_LOGIN_ROUTE
-    return resolvePostLoginRoute(new URLSearchParams(window.location.search).get('next'))
+  function getPostLoginRoute(
+    nextRole: UserRole = role === 'public' ? 'member' : role,
+    nextEntitlements: ProductEntitlementSnapshot | null = null,
+  ) {
+    if (typeof window === 'undefined') return getDefaultPostLoginRoute(nextRole, nextEntitlements)
+    return resolvePostLoginRoute(
+      new URLSearchParams(window.location.search).get('next'),
+      nextRole,
+      nextEntitlements,
+    )
   }
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
-    router.prefetch(getPostLoginRoute())
+    router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
+    router.prefetch('/captain')
+    router.prefetch('/captain/season-dashboard')
   }, [router])
 
   useEffect(() => {
     let mounted = true
 
-    const redirectAuthenticatedUser = (nextRole: UserRole) => {
+    const redirectAuthenticatedUser = (
+      nextRole: UserRole,
+      nextEntitlements: ProductEntitlementSnapshot | null,
+    ) => {
       if (nextRole === 'public' || hasRedirectedRef.current) return
 
       hasRedirectedRef.current = true
@@ -64,7 +92,7 @@ export default function LoginPage() {
         setAuthLoading(false)
       }
 
-      router.replace(getPostLoginRoute())
+      router.replace(getPostLoginRoute(nextRole, nextEntitlements))
     }
 
     async function loadAuth() {
@@ -76,7 +104,7 @@ export default function LoginPage() {
         setRole(nextRole)
 
         if (nextRole !== 'public') {
-          redirectAuthenticatedUser(nextRole)
+          redirectAuthenticatedUser(nextRole, authState.entitlements)
           return
         }
       } catch (err) {
@@ -102,7 +130,7 @@ export default function LoginPage() {
       setRole(nextRole)
 
       if (nextRole !== 'public') {
-        redirectAuthenticatedUser(nextRole)
+        redirectAuthenticatedUser(nextRole, authState.entitlements)
         return
       }
 
@@ -143,11 +171,14 @@ export default function LoginPage() {
 
       if (signInError) throw new Error(signInError.message)
 
+      const authState = await getClientAuthState()
+      const nextRole = authState.role === 'public' ? 'member' : authState.role
+
       hasRedirectedRef.current = true
       setRedirecting(true)
-      setRole('member')
+      setRole(nextRole)
       setAuthLoading(false)
-      router.replace(getPostLoginRoute())
+      router.replace(getPostLoginRoute(nextRole, authState.entitlements))
     } catch (err) {
       hasRedirectedRef.current = false
       setRedirecting(false)
@@ -160,8 +191,25 @@ export default function LoginPage() {
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
     gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
-    padding: isMobile ? '26px 18px' : '34px 26px',
-    gap: isMobile ? '18px' : '24px',
+    padding: isMobile ? '22px 18px' : '34px 26px',
+    gap: isMobile ? '14px' : '24px',
+  }
+
+  const loginPanelResponsive: CSSProperties = {
+    ...loginPanel,
+    ...(isMobile
+      ? {
+          border: 'none',
+          background: 'transparent',
+          boxShadow: 'none',
+          borderRadius: 0,
+        }
+      : {}),
+  }
+
+  const loginPanelInnerResponsive: CSSProperties = {
+    ...loginPanelInner,
+    padding: isMobile ? 0 : '22px',
   }
 
   if (authLoading) {
@@ -195,35 +243,59 @@ export default function LoginPage() {
       <section style={heroShellResponsive}>
         <div>
           <div style={eyebrow}>TenAceIQ access</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '38px' : isMobile ? '46px' : '58px' }}>
-            Sign in with your email and password.
+          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
+            {isMobile ? 'Sign in.' : 'Sign in. Get to the work.'}
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
-            Access My Lab, Matchup, Captain tools, followed tennis context, and any league tools tied to your account.
+            {isMobile
+              ? 'Open the right workspace for your role.'
+              : 'TenAceIQ opens the right workspace for your role so you can review, decide, message, and play.'}
           </p>
 
-          <div style={accessPanel}>
-            <div style={featureLabel}>After sign in</div>
-            <div style={accessPathGrid}>
-              <AccessPath label="Player" title="Open My Lab" text="Your follows, matchup prep, and saved tennis context." />
-              <AccessPath label="Captain" title="Run the week" text="Availability, lineups, brief, messaging, and team decisions." />
-              <AccessPath label="Coordinator" title="Manage leagues" text="League setup, seasons, standings, and team match results." />
+          {isMobile ? (
+            <div style={mobilePromiseBar}>
+              <span style={mobilePromiseChip}>My Lab</span>
+              <span style={mobilePromiseChip}>Team week</span>
+              <span style={mobilePromiseChip}>League desk</span>
             </div>
-          </div>
+          ) : (
+            <>
+              <div style={accessPanel}>
+                <div style={featureLabel}>After sign in</div>
+                <div style={accessPathGrid}>
+                  <AccessPath label="Player" title="My Lab" text="Scorecard, matchups, goals, notes, and follows." />
+                  <AccessPath label="Captain" title="Team week" text="Availability, lineup, team update, and weekly brief." />
+                  <AccessPath label="Coordinator" title="League desk" text="League setup, schedules, standings, and results." />
+                </div>
+              </div>
+
+              <div style={teamFlowPanel}>
+                <div style={featureLabel}>Team communication</div>
+                <div style={teamFlowGrid}>
+                  <TeamStep number="1" title="Ask" text="Who can play?" />
+                  <TeamStep number="2" title="Build" text="Set the lineup." />
+                  <TeamStep number="3" title="Send" text="One clear update." />
+                  <TeamStep number="4" title="Track" text="Replies and changes." />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
-        <div style={loginPanel}>
+        <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
-          <div style={loginPanelInner}>
-            <div style={loginBrandWrap}>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-                <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
+          <div style={loginPanelInnerResponsive}>
+            {!isMobile ? (
+              <div style={loginBrandWrap}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                  <BrandWordmark compact={isSmallMobile} top={!isSmallMobile} />
+                </div>
               </div>
-            </div>
+            ) : null}
 
-            <form onSubmit={handleSubmit} style={formCard}>
-              <div style={formLabel}>Password sign in</div>
-              <h2 style={formTitle}>Welcome back</h2>
+            <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
+              <div style={formLabel}>Account sign in</div>
+              <h2 style={isMobile ? formTitleMobile : formTitle}>Welcome back</h2>
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -289,7 +361,7 @@ export default function LoginPage() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Signing in...' : 'Sign in'}
+                {submitting ? 'Signing in...' : 'Open TenAceIQ'}
               </button>
 
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
@@ -323,6 +395,18 @@ function AccessPath({ label, title, text }: { label: string; title: string; text
       <div style={accessPathLabel}>{label}</div>
       <div style={featureTitle}>{title}</div>
       <div style={featureText}>{text}</div>
+    </div>
+  )
+}
+
+function TeamStep({ number, title, text }: { number: string; title: string; text: string }) {
+  return (
+    <div style={teamStepCard}>
+      <span style={teamStepNumber}>{number}</span>
+      <div>
+        <div style={teamStepTitle}>{title}</div>
+        <div style={teamStepText}>{text}</div>
+      </div>
     </div>
   )
 }
@@ -376,16 +460,16 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
   fontSize: '58px',
 }
 
 const heroText: CSSProperties = {
-  margin: '0 0 20px',
+  margin: '0 0 16px',
   color: 'var(--shell-copy-muted)',
   fontSize: '18px',
-  lineHeight: 1.6,
+  lineHeight: 1.45,
   maxWidth: '760px',
 }
 
@@ -432,6 +516,35 @@ const accessPanel: CSSProperties = {
   maxWidth: '900px',
 }
 
+const mobilePromiseBar: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '10px',
+}
+
+const mobilePromiseChip: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '32px',
+  padding: '0 11px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
+const teamFlowPanel: CSSProperties = {
+  marginTop: '14px',
+  borderRadius: '22px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 78%, var(--brand-blue-2) 8%)',
+  padding: '16px',
+  maxWidth: '900px',
+}
+
 const featureLabel: CSSProperties = {
   color: 'var(--home-eyebrow-color)',
   fontSize: '12px',
@@ -443,6 +556,12 @@ const featureLabel: CSSProperties = {
 
 const accessPathGrid: CSSProperties = {
   display: 'grid',
+  gap: '10px',
+}
+
+const teamFlowGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
   gap: '10px',
 }
 
@@ -474,6 +593,44 @@ const featureText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
+}
+
+const teamStepCard: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  minHeight: '72px',
+  borderRadius: '16px',
+  padding: '10px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const teamStepNumber: CSSProperties = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '999px',
+  display: 'grid',
+  placeItems: 'center',
+  flexShrink: 0,
+  background: 'linear-gradient(135deg, #9be11d 0%, #54e184 100%)',
+  color: '#06111d',
+  fontWeight: 900,
+  fontSize: '13px',
+}
+
+const teamStepTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+}
+
+const teamStepText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  lineHeight: 1.35,
+  marginTop: '2px',
 }
 
 const loginPanel: CSSProperties = {
@@ -562,7 +719,7 @@ const loginBrandText: CSSProperties = {
   justifyContent: 'center',
   gap: '2px',
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   fontSize: '36px',
   lineHeight: 1,
 }
@@ -574,6 +731,12 @@ const formCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, var(--foreground) 10%)',
   padding: '18px',
+}
+
+const formCardMobile: CSSProperties = {
+  ...formCard,
+  gap: '10px',
+  padding: '16px',
 }
 
 const formLabel: CSSProperties = {
@@ -590,7 +753,12 @@ const formTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.04,
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
+}
+
+const formTitleMobile: CSSProperties = {
+  ...formTitle,
+  fontSize: '24px',
 }
 
 const inputLabel: CSSProperties = {
@@ -602,7 +770,7 @@ const inputLabel: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
-  minHeight: '52px',
+  minHeight: '50px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -624,7 +792,7 @@ const passwordInputStyle: CSSProperties = {
 }
 
 const togglePasswordButton: CSSProperties = {
-  minHeight: '52px',
+  minHeight: '50px',
   padding: '0 16px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
@@ -636,7 +804,7 @@ const togglePasswordButton: CSSProperties = {
 }
 
 const submitButton: CSSProperties = {
-  minHeight: '52px',
+  minHeight: '50px',
   borderRadius: '16px',
   border: '1px solid rgba(155,225,29,0.34)',
   background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',

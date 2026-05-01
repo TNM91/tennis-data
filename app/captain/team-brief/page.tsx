@@ -289,6 +289,13 @@ export default function CaptainTeamBriefPage() {
     responseRiskSummary.noResponse ? `${responseRiskSummary.noResponse} player${responseRiskSummary.noResponse === 1 ? '' : 's'} still have no response.` : '',
     responseRiskSummary.needSub ? `${responseRiskSummary.needSub} substitution issue${responseRiskSummary.needSub === 1 ? '' : 's'} still need attention.` : '',
   ].filter(Boolean)
+  const readyForTeam = lineupRows.length > 0 && !!(eventDetail?.arrivalTime || eventDetail?.location) && !alertLines.length
+  const teamBriefStatusLabel = readyForTeam ? 'Ready to send' : alertLines.length ? 'Needs follow-up' : 'Missing details'
+  const teamBriefStatusDetail = readyForTeam
+    ? 'Lineup and match logistics are ready for the team.'
+    : alertLines.length
+      ? 'Handle alerts before this goes out.'
+      : 'Add lineup or logistics before sharing.'
 
   const generatedTeamMessage = [
     `Team update for ${formatDate(eventDate || currentMatch?.match_date)}${resolvedOpponent ? ` vs ${resolvedOpponent}` : ''}.`,
@@ -390,31 +397,29 @@ export default function CaptainTeamBriefPage() {
             <div style={heroTopRow}>
               <div>
                 <p style={sectionKicker}>Team Brief</p>
-                <h1 style={heroTitle}>Team weekly brief.</h1>
-                <p style={heroText}>
-                  Share the essentials: when, where, lineup, reminders, and anything that needs attention.
-                </p>
+                <h1 style={heroTitle}>{resolvedOpponent ? `Team update vs ${resolvedOpponent}` : 'Team update'}</h1>
+                <p style={heroText}>One clean message for match day.</p>
               </div>
 
               <div style={heroButtonRow}>
-                <PrimaryBtn onClick={handlePrint}>Print team brief</PrimaryBtn>
-                <SecondaryBtn onClick={() => void handleCopyMessage()}>Copy team message</SecondaryBtn>
+                <PrimaryBtn onClick={() => void handleCopyMessage()}>Copy message</PrimaryBtn>
+                <SecondaryLink href={messagingHref}>Open messaging</SecondaryLink>
                 <SecondaryLink href={weeklyBriefHref}>Open captain brief</SecondaryLink>
               </div>
             </div>
 
             <div style={statusShell}>
               <div>
-                <div style={sectionKicker}>This week</div>
-                <div style={statusValue}>{weekStatusMeta.label}</div>
-                <div style={mutedTextStyle}>{weekStatusMeta.detail}</div>
+                <div style={sectionKicker}>Send status</div>
+                <div style={statusValue}>{teamBriefStatusLabel}</div>
+                <div style={mutedTextStyle}>{teamBriefStatusDetail}</div>
               </div>
               <div style={statusButtonRow}>
                 <button type="button" onClick={() => updateWeekStatus('draft-lineup')} style={weekStatus === 'draft-lineup' ? primaryButton : secondaryButton}>
-                  Draft lineup
+                  Draft
                 </button>
                 <button type="button" onClick={() => updateWeekStatus('ready-to-send')} style={weekStatus === 'ready-to-send' ? primaryButton : secondaryButton}>
-                  Ready to send
+                  Ready
                 </button>
                 <button type="button" onClick={() => updateWeekStatus('finalized')} style={weekStatus === 'finalized' ? primaryButton : secondaryButton}>
                   Finalized
@@ -422,11 +427,27 @@ export default function CaptainTeamBriefPage() {
               </div>
             </div>
 
-            <div style={metricGrid}>
-              <MetricCard label="Team" value={team || 'Not set'} detail={league && flight ? `${league} - ${flight}` : 'Scope incomplete'} />
-              <MetricCard label="Match day" value={formatDate(eventDate || currentMatch?.match_date)} detail={resolvedOpponent ? `vs ${resolvedOpponent}` : 'Opponent not set'} />
-              <MetricCard label="Arrival" value={eventDetail?.arrivalTime || 'Not set'} detail={eventDetail?.location || 'Location not set'} accent />
-              <MetricCard label="Alerts" value={alertLines.length ? String(alertLines.length) : 'Clear'} detail={alertLines.length ? 'Open team issues still need follow-up' : 'No saved late/sub/response alerts'} />
+            <div style={signalGridStyle}>
+              <div style={signalCardStyle}>
+                <div style={signalLabelStyle}>When</div>
+                <div style={signalValueStyle}>{formatDate(eventDate || currentMatch?.match_date)}</div>
+                <div style={signalNoteStyle}>{resolvedOpponent ? `vs ${resolvedOpponent}` : 'Opponent not set'}</div>
+              </div>
+              <div style={signalCardStyle}>
+                <div style={signalLabelStyle}>Where</div>
+                <div style={signalValueStyle}>{eventDetail?.location || 'Location needed'}</div>
+                <div style={signalNoteStyle}>{eventDetail?.arrivalTime ? `Arrive ${eventDetail.arrivalTime}` : 'Arrival time not set'}</div>
+              </div>
+              <div style={signalCardStyle}>
+                <div style={signalLabelStyle}>Lineup</div>
+                <div style={signalValueStyle}>{lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'}</div>
+                <div style={signalNoteStyle}>{lineupRows.length ? 'Assignments included below' : 'Build lineup before sending'}</div>
+              </div>
+              <div style={signalCardStyle}>
+                <div style={signalLabelStyle}>Alerts</div>
+                <div style={signalValueStyle}>{alertLines.length ? String(alertLines.length) : 'Clear'}</div>
+                <div style={signalNoteStyle}>{alertLines.length ? 'Follow up before sending' : 'No saved response risks'}</div>
+              </div>
             </div>
 
           </section>
@@ -463,8 +484,16 @@ export default function CaptainTeamBriefPage() {
             </div>
           </section>
 
+          <details style={surfaceCard}>
+            <summary style={detailsSummaryStyle}>
+              <div>
+                <p style={sectionKicker}>More context</p>
+                <h2 style={sectionTitle}>Match details and note</h2>
+              </div>
+            </summary>
+
           <section style={twoColumnGrid(isTablet)}>
-            <section style={surfaceCard}>
+            <div style={flatPanelStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Match details</p>
@@ -478,9 +507,9 @@ export default function CaptainTeamBriefPage() {
                 <InfoBlock label="Arrival time" value={eventDetail?.arrivalTime || 'Not set'} />
                 <InfoBlock label="Directions" value={eventDetail?.directions || 'No directions saved'} />
               </div>
-            </section>
+            </div>
 
-            <section style={surfaceCard}>
+            <div style={flatPanelStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Captain note</p>
@@ -491,8 +520,9 @@ export default function CaptainTeamBriefPage() {
               <div style={noteCard}>
                 <div style={noteText}>{eventDetail?.notes || 'No team-facing weekly note has been saved yet.'}</div>
               </div>
-            </section>
+            </div>
           </section>
+          </details>
 
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
@@ -675,6 +705,7 @@ const surfaceCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
 }
+const flatPanelStyle: CSSProperties = { display: 'grid', gap: 16, minWidth: 0 }
 const sectionHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }
 const detailsSummaryStyle: CSSProperties = { cursor: 'pointer', listStyle: 'none' }
 const sectionKicker: CSSProperties = { fontSize: 12, color: 'rgba(197,213,234,0.86)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }

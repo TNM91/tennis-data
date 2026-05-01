@@ -38,6 +38,7 @@ import { MY_LAB_STORY } from '@/lib/product-story'
 import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
 type EntityType = 'player' | 'team' | 'league'
 type FeedType = 'match' | 'rating' | 'achievement' | 'community' | 'team' | 'league'
@@ -1811,6 +1812,7 @@ function MyLabPageInner() {
       note: linkedPlayer ? `${linkedPlayer.name} - ${linkedPlayer.location || 'player profile'}` : 'Link your player record in Profile.',
       href: '/profile',
       cta: 'Manage profile',
+      icon: 'playerRatings' as TiqFeatureIconName,
     },
     {
       label: 'How am I doing?',
@@ -1818,6 +1820,7 @@ function MyLabPageInner() {
       note: lastMatchSummary,
       href: '#recent-matches',
       cta: 'Review matches',
+      icon: 'reports' as TiqFeatureIconName,
     },
     {
       label: 'What should I focus on?',
@@ -1825,6 +1828,7 @@ function MyLabPageInner() {
       note: focusSuggestion,
       href: '#player-notebook',
       cta: 'Open notebook',
+      icon: 'myLab' as TiqFeatureIconName,
     },
   ]
   const confirmedTeamEntityId = profileLink?.linked_team_name
@@ -1935,12 +1939,15 @@ function MyLabPageInner() {
       <section id="player-workshop" style={profileLinkSectionStyle}>
         <div style={profileLinkCardStyle}>
           <div style={sectionHeaderStyle}>
-            <div>
+            <div style={sectionTitleClusterStyle}>
+              <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
+              <div>
               <p style={sectionKickerStyle}>Player scorecard</p>
               <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
               <p style={sectionTextStyle}>
                 Start with the score: ratings, progress to the next level, records, and the next useful matchup.
               </p>
+              </div>
             </div>
             <Link href={matchupHref} style={secondaryButtonStyle}>
               Open Matchup
@@ -2014,7 +2021,9 @@ function MyLabPageInner() {
 
           <section style={matchupSpotlightStyle}>
             <div style={matchupSpotlightHeroStyle(isTablet)}>
-              <div>
+              <div style={sectionTitleClusterStyle}>
+                <TiqFeatureIcon name="matchupAnalysis" size="md" variant="surface" />
+                <div>
                 <p style={sectionKickerStyle}>Matchup spotlight</p>
                 <h3 style={matchupSpotlightTitleStyle}>
                   {topMatchupCandidate ? `${linkedPlayer?.name || 'You'} vs ${topMatchupCandidate.player.name}` : 'Find your next useful test'}
@@ -2024,6 +2033,7 @@ function MyLabPageInner() {
                     ? 'Use the closest rating gap as a fast read before you choose who to play next.'
                     : 'Link your player profile and My Lab will turn the player pool into matchup suggestions.'}
                 </p>
+                </div>
               </div>
               <Link href={matchupHref} style={matchupPrimaryLinkStyle}>
                 Compare now
@@ -2051,9 +2061,12 @@ function MyLabPageInner() {
 
           <section style={performancePanelStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={sectionTitleClusterStyle}>
+                <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                <div>
                 <p style={sectionKickerStyle}>Performance mix</p>
                 <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
+                </div>
               </div>
             </div>
             <div style={performanceGridStyle(isTablet)}>
@@ -2073,10 +2086,13 @@ function MyLabPageInner() {
 
           <section style={trophyRoomPanelStyle}>
             <div style={sectionHeaderStyle}>
-              <div>
+              <div style={sectionTitleClusterStyle}>
+                <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
+                <div>
                 <p style={sectionKickerStyle}>Trophy room</p>
                 <h3 style={compactSectionTitleStyle}>Personal records</h3>
                 <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+                </div>
               </div>
             </div>
             <div style={trophyRoomGridStyle(isTablet)}>
@@ -2116,6 +2132,7 @@ function MyLabPageInner() {
           <div style={personalCommandGridStyle(isTablet)}>
             {personalCommandCards.map((card) => (
               <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
+                <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
                 <div style={metricLabelStyle}>{card.label}</div>
                 <div style={personalHomeTitleStyle}>{card.value}</div>
                 <div style={metricNoteStyle}>{card.note}</div>
@@ -3373,6 +3390,13 @@ const sectionHeaderStyle: CSSProperties = {
   gap: 16,
   flexWrap: 'wrap',
   marginBottom: 16,
+}
+
+const sectionTitleClusterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: 14,
+  minWidth: 0,
 }
 
 const sectionKickerStyle: CSSProperties = {
