@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
     description:
-      'Premium tennis analytics, captain workflow, TIQ leagues, and match intelligence in one mobile-ready platform.',
+      'Explore tennis for free, then use Player, Captain, and TIQ League Coordinator tools to spend less time guessing and more time playing.',
     start_url: '/',
     scope: '/',
     display: 'standalone',

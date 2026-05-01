@@ -212,7 +212,7 @@ export default function SiteHeader({ active }: { active?: string }) {
 
   const authenticated = role !== 'public'
   const useCompactBrand = isTablet
-  const roleLabel = role === 'admin' ? 'Admin' : role === 'captain' ? 'Captain' : authenticated ? 'Member' : ''
+  const roleLabel = role === 'admin' ? 'Admin' : role === 'captain' ? 'Captain' : authenticated ? 'Player' : ''
 
   return (
     <header
@@ -256,7 +256,7 @@ export default function SiteHeader({ active }: { active?: string }) {
           width: '100%',
           maxWidth: '1280px',
           margin: '0 auto',
-          padding: isMobile ? '8px 2px' : isTablet ? '10px 4px' : '11px 8px',
+          padding: isMobile ? '9px 2px' : isTablet ? '11px 4px' : '13px 8px',
         }}
       >
         <div
@@ -264,8 +264,8 @@ export default function SiteHeader({ active }: { active?: string }) {
             display: 'grid',
             gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
             alignItems: 'center',
-            gap: isMobile ? '10px' : isTablet ? '12px' : '16px',
-            padding: isMobile ? '6px 6px' : isTablet ? '7px 8px' : '8px 10px',
+            gap: isMobile ? '10px' : isTablet ? '12px' : '18px',
+            padding: isMobile ? '7px 7px' : isTablet ? '8px 9px' : '10px 12px',
             borderRadius: isMobile ? 18 : 999,
             border: '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
             background:
@@ -294,9 +294,9 @@ export default function SiteHeader({ active }: { active?: string }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '2px',
+                gap: '4px',
                 minWidth: 0,
-                paddingInline: '6px',
+                paddingInline: '8px',
               }}
             >
               {PRIMARY_NAV_ITEMS.map((item) => {
@@ -470,12 +470,12 @@ const utilityLinkStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 8px',
+  minHeight: '42px',
+  padding: '0 10px',
   borderRadius: '999px',
   border: 'none',
   color: 'var(--header-link)',
-  fontSize: '13px',
+  fontSize: '13.5px',
   fontWeight: 700,
   letterSpacing: '-0.01em',
   textDecoration: 'none',
@@ -487,10 +487,10 @@ const navLinkStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 13px',
+  minHeight: '42px',
+  padding: '0 15px',
   borderRadius: '999px',
-  fontSize: '13px',
+  fontSize: '13.5px',
   fontWeight: 750,
   letterSpacing: '-0.015em',
   textDecoration: 'none',
@@ -533,11 +533,11 @@ const utilityButtonStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '38px',
-  padding: '0 8px',
+  minHeight: '42px',
+  padding: '0 10px',
   borderRadius: '999px',
   color: 'var(--header-link)',
-  fontSize: '13px',
+  fontSize: '13.5px',
   fontWeight: 700,
   letterSpacing: '-0.01em',
   cursor: 'pointer',
@@ -547,13 +547,13 @@ const primaryCtaStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '40px',
-  padding: '0 18px',
+  minHeight: '44px',
+  padding: '0 20px',
   borderRadius: '999px',
   border: '1px solid rgba(155, 225, 29, 0.32)',
   background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
   color: 'var(--text-dark)',
-  fontSize: '13px',
+  fontSize: '13.5px',
   fontWeight: 900,
   letterSpacing: '-0.02em',
   textDecoration: 'none',

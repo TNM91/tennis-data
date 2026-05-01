@@ -1440,7 +1440,7 @@ export default function TiqLeagueDetailPage() {
             <div style={stateText}>{error || 'This TIQ league could not be loaded right now.'}</div>
             <div style={actionRow}>
               <GhostLink href="/explore/leagues">Back to Explore Leagues</GhostLink>
-              <GhostLink href="/captain/season-dashboard">Open Season Dashboard</GhostLink>
+              <GhostLink href="/captain/season-dashboard">Open League Coordinator</GhostLink>
             </div>
           </div>
         ) : (

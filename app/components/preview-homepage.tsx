@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import { RoleValueStrip } from '@/app/components/tier-pathway'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
 import {
@@ -25,6 +26,12 @@ import {
   surfaceCardStrong,
 } from '@/lib/design-system'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import {
+  getMembershipTier,
+  HOME_HERO_STORY,
+  TIER_HOMEPAGE_STORY,
+  type MembershipTierId,
+} from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const HOME_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_HOME_INLINE || null
@@ -73,7 +80,7 @@ const heroSearchFilters: Array<{
   {
     value: 'players',
     label: 'Player name',
-    hint: 'Results focus on player profiles, ratings, and Player+ prep.',
+    hint: 'Results focus on player profiles, ratings, and Player prep.',
     placeholder: 'Search a player name...',
     links: [
       { href: '/explore/players', label: 'Player directory' },
@@ -128,69 +135,29 @@ const heroSearchFilters: Array<{
 ]
 
 const tierSections: TierSectionConfig[] = [
-  {
-    planId: 'free',
-    stage: 'Start here',
-    label: 'Free',
-    headline: 'Start free. Find your tennis context fast.',
-    copy: 'Search players, join your team, set availability, and see posted lineups.',
-    bullets: [
-      'Search players, teams, leagues, flights, and areas',
-      'Create your profile and join your team',
-      'Set availability and view posted lineups',
-    ],
-    primaryCta: { label: 'Get Started Free', href: '/join' },
-    secondaryCta: { label: 'Explore TIQ', href: '/explore' },
-    snapshot: <FreeSnapshot />,
-  },
-  {
-    planId: 'player_plus',
-    stage: 'Upgrade 1',
-    label: 'Player+',
-    headline: 'See where you fit and what to work on.',
-    copy: 'Turn results into lineup fit, projections, recent form, and opponent context.',
-    bullets: [
-      'See where you should play in singles or doubles',
-      'Read projections and opponent context faster',
-      'Track trends, recent form, and lineup fit',
-    ],
-    primaryCta: { label: 'Unlock Player+', href: '/pricing' },
-    secondaryCta: { label: 'Explore Players', href: '/players' },
-    snapshot: <PlayerPlusSnapshot />,
-  },
-  {
-    planId: 'captain',
-    stage: 'Primary unlock',
-    label: 'Captain',
-    headline: 'Run the week with less stress.',
-    copy: 'Connect availability, lineups, scenarios, projections, and team messages.',
-    bullets: [
-      'Build lineups with less guesswork',
-      'Compare scenarios before match day',
-      'Send one clear weekly plan',
-    ],
-    primaryCta: { label: 'Unlock Captain Tools', href: '/pricing' },
-    secondaryCta: { label: 'See Captain tools', href: '/captain' },
-    snapshot: <CaptainSnapshot />,
-    featured: true,
-    featuredNote: 'Best for captains chasing availability, building lineups, and sending weekly updates.',
-  },
-  {
-    planId: 'league',
-    stage: 'Organizer',
-    label: 'League',
-    headline: 'Run your league from one place.',
-    copy: 'Create schedules, standings, teams, results, and league messages in one place.',
-    bullets: [
-      'Create structure around teams, flights, and seasons',
-      'Keep schedules and standings visible in one place',
-      'Send league-wide updates cleanly',
-    ],
-    primaryCta: { label: 'Run Your League on TIQ', href: '/pricing' },
-    secondaryCta: { label: 'Explore Leagues', href: '/explore/leagues' },
-    snapshot: <LeagueSnapshot />,
-  },
+  buildTierSection('free', <FreeSnapshot />),
+  buildTierSection('player_plus', <PlayerPlusSnapshot />),
+  buildTierSection('captain', <CaptainSnapshot />, true),
+  buildTierSection('league', <LeagueSnapshot />),
 ]
+
+function buildTierSection(planId: MembershipTierId, snapshot: ReactNode, featured = false): TierSectionConfig {
+  const tier = getMembershipTier(planId)
+  const story = TIER_HOMEPAGE_STORY[planId]
+  return {
+    planId,
+    label: tier.name,
+    stage: story.stage,
+    headline: story.headline,
+    copy: story.copy,
+    bullets: story.bullets,
+    primaryCta: story.primaryCta,
+    secondaryCta: story.secondaryCta,
+    snapshot,
+    featured,
+    featuredNote: story.featuredNote,
+  }
+}
 
 export default function PreviewHomepage() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -264,7 +231,7 @@ export default function PreviewHomepage() {
                     paddingInline: 16,
                   }}
                 >
-                  Premium tennis intelligence platform
+                  {HOME_HERO_STORY.eyebrow}
                 </span>
                 <span
                   style={{
@@ -274,7 +241,7 @@ export default function PreviewHomepage() {
                     paddingInline: 16,
                   }}
                 >
-                  Search. Plan. Compete.
+                  {HOME_HERO_STORY.badge}
                 </span>
               </div>
 
@@ -288,7 +255,7 @@ export default function PreviewHomepage() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  Start free. Upgrade when it helps.
+                  {HOME_HERO_STORY.kicker}
                 </div>
                 <h1
                   style={{
@@ -299,9 +266,9 @@ export default function PreviewHomepage() {
                     maxWidth: 700,
                   }}
                 >
-                  Find answers faster.
+                  {HOME_HERO_STORY.headlineTop}
                   <br />
-                  Run the week smarter.
+                  {HOME_HERO_STORY.headlineBottom}
                 </h1>
                 <p
                   style={{
@@ -310,7 +277,7 @@ export default function PreviewHomepage() {
                     fontSize: isMobile ? '15px' : '17px',
                   }}
                 >
-                  Search players, teams, leagues, and matches. Add the tools that fit your role.
+                  {HOME_HERO_STORY.body}
                 </p>
               </div>
 
@@ -340,8 +307,7 @@ export default function PreviewHomepage() {
                 }}
               >
                 {[
-                  'Fast player, team, and league search',
-                  'Captain clears lineup stress',
+                  ...HOME_HERO_STORY.proof,
                 ].map((item) => (
                   <span
                     key={item}
@@ -373,17 +339,17 @@ export default function PreviewHomepage() {
                 {[
                   {
                     planId: 'free' as PricingPlanId,
-                    stage: 'Start here',
-                    label: 'Free',
-                    value: 'Search + join',
-                    text: 'Get in fast with player search, team joins, availability, and lineup visibility.',
+                    stage: getMembershipTier('free').name,
+                    label: TIER_HOMEPAGE_STORY.free.stage,
+                    value: 'Explore',
+                    text: getMembershipTier('free').shortPromise,
                   },
                   {
-                    planId: 'captain' as PricingPlanId,
-                    stage: 'Primary unlock',
-                    label: 'Captain',
-                    value: 'Run the week',
-                    text: 'Use Captain when lineup stress, availability, and messaging start taking over.',
+                    planId: 'player_plus' as PricingPlanId,
+                    stage: getMembershipTier('player_plus').name,
+                    label: TIER_HOMEPAGE_STORY.player_plus.stage,
+                    value: 'Personalize',
+                    text: getMembershipTier('player_plus').shortPromise,
                   },
                 ].map((item) => {
                   const theme = getTierTheme(item.planId)
@@ -467,7 +433,7 @@ export default function PreviewHomepage() {
                 Choose what helps now.
               </h2>
               <p style={{ ...pageSubtitle, marginTop: 0 }}>
-                Free covers search and team basics. Player+, Captain, and League add focused tools when you need them.
+                Free explores the tennis landscape. Player personalizes it. Captain and TIQ League Coordinator add the tools for team and league work.
               </p>
             </div>
 
@@ -485,10 +451,10 @@ export default function PreviewHomepage() {
                 Most teams
               </div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
-                Free gets players in. Captain runs the week.
+                Player is where the site becomes yours.
               </div>
               <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.68 }}>
-                Player+ helps individuals. Captain connects availability, lineups, scenarios, and messages.
+                My Lab, follows, matchups, and player-linked context turn public tennis data into your own tennis workspace.
               </div>
             </div>
           </div>
@@ -537,49 +503,7 @@ export default function PreviewHomepage() {
               <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
                 Start with search. Add tools when they help.
               </h2>
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 10,
-                }}
-              >
-                {[ 
-                  { label: 'Free', text: 'Search, join, and set availability.' },
-                  { label: 'Captain', text: 'Build lineups and message the team.' },
-                  { label: 'League', text: 'Run schedules, standings, and updates.' },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      color: 'var(--muted-strong)',
-                      fontSize: 13,
-                      lineHeight: 1.5,
-                      fontWeight: 700,
-                      maxWidth: 230,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: 999,
-                        flex: '0 0 auto',
-                        background:
-                          item.label === 'Captain'
-                            ? 'var(--brand-green)'
-                            : item.label === 'League'
-                              ? '#f59e0b'
-                              : 'var(--brand-blue-2)',
-                      }}
-                    />
-                    <span>{item.text}</span>
-                  </div>
-                ))}
-              </div>
+              <RoleValueStrip compact />
             </div>
 
             <div
@@ -869,7 +793,7 @@ function HeroWorkspacePreview() {
             Use the right view for the decision in front of you.
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, color: 'var(--muted-strong)', fontSize: 12, fontWeight: 700 }}>
-            {['Free entry', 'Player+ insight', 'Captain tools'].map((item, index) => (
+            {['Free entry', 'Player insight', 'Captain tools'].map((item, index) => (
               <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span
                   style={{
@@ -924,7 +848,7 @@ function HeroWorkspacePreview() {
                 fontWeight: 700,
               }}
             >
-              {['Search', 'Insight', 'Captain', 'League'].map((item, index) => (
+              {['Search', 'Player', 'Captain', 'Coordinator'].map((item, index) => (
                 <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span>{item}</span>
                   {index < 3 ? <span style={{ opacity: 0.35 }}>{'\u2022'}</span> : null}
@@ -942,8 +866,8 @@ function HeroWorkspacePreview() {
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Player+ insight board</div>
-              <span style={{ ...badgeBlue, width: 'fit-content' }}>Player+</span>
+              <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Player insight board</div>
+              <span style={{ ...badgeBlue, width: 'fit-content' }}>Player</span>
             </div>
 
             <div
@@ -991,7 +915,7 @@ function HeroWorkspacePreview() {
               text: 'Search, join, and set availability.',
             },
             {
-              label: 'Player+',
+              label: 'Player',
               text: 'See fit, projections, and matchup context faster.',
             },
             {
@@ -1215,32 +1139,6 @@ function TierSection({
 
 function HeroTrustStrip() {
   const { isMobile } = useViewportBreakpoints()
-  const trustItems: Array<{ planId: PricingPlanId; label: string; title: string; text: string }> = [
-    {
-      planId: 'free',
-      label: 'Free',
-      title: 'Get in the game',
-      text: 'Search, join, set availability, and stay connected without paying first.',
-    },
-    {
-      planId: 'player_plus',
-      label: 'Player+',
-      title: 'See where you fit',
-      text: 'Use personal analytics and projections when you want better individual answers.',
-    },
-    {
-      planId: 'captain',
-      label: 'Captain',
-      title: 'Run the week with less stress',
-      text: 'Lineups, scenarios, projections, and messaging live together when the week gets complicated.',
-    },
-    {
-      planId: 'league',
-      label: 'League',
-      title: 'Organize competition cleanly',
-      text: 'Scheduling, standings, teams, and season messages stay together.',
-    },
-  ]
 
   return (
     <section
@@ -1270,28 +1168,12 @@ function HeroTrustStrip() {
           Start free. Add the right tools as you go.
         </div>
         <div style={{ color: colors.mutedStrong, fontSize: 14, lineHeight: 1.72 }}>
-          Start free. Add Player+, Captain, or League when it solves the next job.
+          Start free. Add Player, Captain, or TIQ League Coordinator when it solves the next job.
         </div>
       </div>
 
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 1,
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))',
-          gap: 10,
-        }}
-      >
-        {trustItems.map((item) => {
-          const theme = getTierTheme(item.planId)
-          return (
-          <div key={item.label} style={{ ...trustCardStyle, border: '1px solid rgba(116,190,255,0.10)', background: 'transparent', boxShadow: 'none' }}>
-            <div style={{ color: theme.accentLabel, fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', width: 'fit-content' }}>{item.label}</div>
-            <div style={trustCardTitleStyle}>{item.title}</div>
-            <div style={trustCardTextStyle}>{item.text}</div>
-          </div>
-        )})}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <RoleValueStrip compact={isMobile} />
       </div>
     </section>
   )
@@ -1334,7 +1216,7 @@ function PlayerPlusSnapshot() {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
 
   return (
-    <SnapshotShell planId="player_plus" title="Player+ insight" subtitle="Role fit, projections, recent form, and matchup context">
+    <SnapshotShell planId="player_plus" title="Player insight" subtitle="Role fit, projections, recent form, and matchup context">
       <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
           <SnapshotCard title="TIQ" value="4.48" text="Current form rating" accent="green" />

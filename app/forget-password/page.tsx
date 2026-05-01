@@ -126,15 +126,15 @@ export default function ForgotPasswordPage() {
             <div style={eyebrow}>Reset access</div>
             <h1 style={heroTitle}>Forgot your password?</h1>
             <p style={heroText}>
-              Enter your email and we’ll send you a secure reset link so you can create a new
-              password and get back into your member dashboard.
+              Enter your email and we'll send you a secure reset link so you can create a new
+              password and get back to My Lab, Captain tools, or League Coordinator tools.
             </p>
 
             <div style={pillRow}>
               <span style={pillBlue}>Fast reset</span>
               <span style={pillBlue}>Secure access</span>
               <span style={pillGreen}>My Lab</span>
-              <span style={pillGreen}>Members</span>
+              <span style={pillGreen}>Player</span>
             </div>
 
             <div style={panelCard}>

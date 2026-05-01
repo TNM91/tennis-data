@@ -9,6 +9,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
+import { LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   getTiqIndividualCompetitionFormatDescription,
@@ -203,12 +204,10 @@ export default function CaptainSeasonDashboardPage() {
     <SiteShell active="/captain">
       <section style={pageWrap}>
         <div style={heroCard}>
-          <div style={heroEyebrow}>Captain season dashboard</div>
-          <h1 style={heroTitle}>Create TIQ team leagues and individual leagues without mixing them into USTA truth.</h1>
+          <div style={heroEyebrow}>{LEAGUE_COORDINATOR_STORY.eyebrow}</div>
+          <h1 style={heroTitle}>{LEAGUE_COORDINATOR_STORY.headline}</h1>
           <p style={heroText}>
-            This is the captain-side registry for TIQ competition. Use it to define the league container,
-            choose the format, seed participants, and create a clean handoff point for seasonal access,
-            monetization, and future league-admin workflows.
+            {LEAGUE_COORDINATOR_STORY.body}
           </p>
 
           <div style={heroPillRow}>
@@ -218,13 +217,13 @@ export default function CaptainSeasonDashboardPage() {
             <span style={storageSource === 'supabase' ? pillGreen : pillSlate}>
               {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
             </span>
-            <span style={access.captainSubscriptionActive ? pillGreen : pillSlate}>
-              {access.captainTierLabel}
+            <span style={access.canUseLeagueTools ? pillGreen : pillSlate}>
+              {access.leagueTierLabel}
             </span>
           </div>
 
           {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
-          <div style={noteBanner}>{access.captainTierMessage}</div>
+          <div style={noteBanner}>{access.leagueTierMessage}</div>
 
           <div style={heroActionRow}>
             <GhostLink href="/captain">Captain Hub</GhostLink>
@@ -234,36 +233,35 @@ export default function CaptainSeasonDashboardPage() {
         </div>
 
         <CaptainSubnav
-          title="Season Dashboard inside the captain command center"
-          description="Create and manage TIQ seasons while staying connected to the rest of the captain workflow, not off in a separate admin corner."
-          tierLabel={access.captainTierLabel}
-          tierActive={access.captainSubscriptionActive}
+          title={LEAGUE_COORDINATOR_STORY.subnavTitle}
+          description={LEAGUE_COORDINATOR_STORY.subnavDescription}
+          tierLabel={access.leagueTierLabel}
+          tierActive={access.canUseLeagueTools}
         />
 
         <div style={layoutGrid}>
           <section style={panelCard}>
             <div style={sectionEyebrow}>New TIQ league</div>
             <h2 style={sectionTitle}>
-              {editingId ? 'Edit season setup' : 'Create season setup'}
+              {editingId ? 'Edit league setup' : LEAGUE_COORDINATOR_STORY.newLeagueTitle}
             </h2>
             <p style={sectionText}>
-              Team leagues are captain-led and roster-oriented. Individual leagues are player-vs-player
-              and do not require teams or captain operations.
+              {LEAGUE_COORDINATOR_STORY.newLeagueBody}
             </p>
             {shouldShowLeagueUpgradePrompt ? (
               <UpgradePrompt
                 planId="league"
                 headline={
                   draft.leagueFormat === 'team'
-                    ? 'Ready to run organized team competition without spreadsheets?'
-                    : 'Ready to launch an individual TIQ league without spreadsheet overhead?'
+                    ? LEAGUE_COORDINATOR_STORY.upgradeHeadline
+                    : LEAGUE_COORDINATOR_STORY.upgradeHeadline
                 }
                 body={
                   draft.leagueFormat === 'team'
-                    ? 'League tools give organizers a cleaner way to create seasons, structure participation, and keep standings and communication in one place.'
-                    : 'League tools make it easier to launch ladders, round robins, and challenge formats with better visibility and less organizer friction.'
+                    ? LEAGUE_COORDINATOR_STORY.upgradeBody
+                    : LEAGUE_COORDINATOR_STORY.upgradeBody
                 }
-                ctaLabel="Run Your League on TIQ"
+                ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
                 ctaHref="/pricing"
                 secondaryLabel="Keep drafting"
                 footnote={accessBannerText}
@@ -441,15 +439,15 @@ export default function CaptainSeasonDashboardPage() {
                   compact
                   headline={
                     draft.leagueFormat === 'team'
-                      ? 'Need this draft to become a real TIQ season workspace?'
-                      : 'Want this draft to become a real player-vs-player TIQ league?'
+                      ? LEAGUE_COORDINATOR_STORY.draftUpgradeHeadline
+                      : LEAGUE_COORDINATOR_STORY.draftUpgradeHeadline
                   }
                   body={
                     draft.leagueFormat === 'team'
-                      ? 'League turns this setup into a usable organizer layer with season structure, scheduling, standings, and cleaner team coordination.'
-                      : 'League turns this setup into an organized ladder, round robin, or challenge workspace with standings, participant structure, and season visibility.'
+                      ? LEAGUE_COORDINATOR_STORY.draftUpgradeBody
+                      : LEAGUE_COORDINATOR_STORY.draftUpgradeBody
                   }
-                  ctaLabel="Run Your League on TIQ"
+                  ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
                   ctaHref="/pricing"
                   secondaryLabel="Compare plans"
                   secondaryHref="/pricing"
@@ -460,10 +458,9 @@ export default function CaptainSeasonDashboardPage() {
 
           <section style={panelCard}>
             <div style={sectionEyebrow}>Season registry</div>
-            <h2 style={sectionTitle}>Current TIQ league definitions</h2>
+            <h2 style={sectionTitle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
             <p style={sectionText}>
-              These league records power the captain tools, team views, and player workflows while keeping
-              team leagues and individual leagues clearly separated.
+              {LEAGUE_COORDINATOR_STORY.registryBody}
             </p>
 
             {records.length === 0 ? (
@@ -531,9 +528,9 @@ export default function CaptainSeasonDashboardPage() {
                 <UpgradePrompt
                   planId="league"
                   compact
-                  headline="Ready to run the season without spreadsheet cleanup?"
-                  body="League is the organizer layer that turns TIQ league records into one cleaner system for scheduling, standings, team structure, and league-wide communication."
-                  ctaLabel="Run Your League on TIQ"
+                  headline={LEAGUE_COORDINATOR_STORY.finalUpgradeHeadline}
+                  body={LEAGUE_COORDINATOR_STORY.finalUpgradeBody}
+                  ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
                   ctaHref="/pricing"
                   secondaryLabel="See league value"
                   secondaryHref="/pricing"

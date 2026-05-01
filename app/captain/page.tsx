@@ -16,6 +16,7 @@ import {
   readCaptainResumeState,
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
+import { CAPTAIN_STORY } from '@/lib/product-story'
 import {
   buildCaptainWeekNotesScopeKey,
   readCaptainWeekNotes,
@@ -1118,7 +1119,7 @@ export default function CaptainHubPage() {
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
     : captainScopeRestricted && teamScopeResolved && !captainTeamScopes.length
-      ? 'Link your player profile and team in MyLab to show only the USTA and TIQ teams connected to your account.'
+      ? 'Link your player profile and team in My Lab to show only the USTA and TIQ teams connected to your account.'
     : !filteredTeamOptions.length
       ? 'No active team history matches your linked player, team, or TIQ captain entries yet.'
       : hasTeamScope
@@ -1433,7 +1434,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                   : stage === 'brief'
                     ? 'Weekly Brief'
                     : stage === 'season-dashboard'
-                      ? 'Season Dashboard'
+                      ? 'League Coordinator'
                       : stage === 'tiq-team-matches'
                         ? 'Team Match Results'
                         : 'Captain Console',
@@ -1457,7 +1458,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     return (
       <SiteShell active="/captain">
         <section style={loadingWrap}>
-          <div style={stateCard}>Loading Captain dashboard...</div>
+          <div style={stateCard}>Loading Captain tools...</div>
         </section>
       </SiteShell>
     )
@@ -1470,11 +1471,10 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       <div style={pageWrap}>
         <section style={dynamicHeroCard}>
           <div style={heroLeft}>
-            <div style={eyebrow}>Captain tools</div>
-            <h1 style={dynamicHeroTitle}>Captain Console</h1>
+            <div style={eyebrow}>{CAPTAIN_STORY.eyebrow}</div>
+            <h1 style={dynamicHeroTitle}>{CAPTAIN_STORY.headline}</h1>
             <p style={dynamicHeroText}>
-              Running a team takes more than a lineup. Use Captain to see who can play,
-              build your best lineup, test options, message the team, and get ready for match day.
+              {CAPTAIN_STORY.body}
             </p>
 
             <div style={dynamicHeroControlRow}>
@@ -1554,18 +1554,12 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
             <div style={captainHeroVisualContentStyle}>
               <div>
-                <div style={miniKicker}>Captain quick start</div>
-                <h2 style={quickStartTitle}>Plan the week in five steps</h2>
+                <div style={miniKicker}>{CAPTAIN_STORY.quickStartKicker}</div>
+                <h2 style={quickStartTitle}>{CAPTAIN_STORY.quickStartTitle}</h2>
               </div>
 
               <div style={workflowStack}>
-                {[
-                  ['1', 'Know who can play', 'Confirm players and see availability first.'],
-                  ['2', 'Build your best lineup', 'Auto-fill, lock players, and adjust singles or doubles.'],
-                  ['3', 'Test your options', 'Compare lineup choices before you commit.'],
-                  ['4', 'Message the team', 'Send the lineup, match details, and follow-ups.'],
-                  ['5', 'Get ready for match day', 'Review the final checklist and next action.'],
-                ].map(([step, title, text]) => (
+                {CAPTAIN_STORY.workflow.map(([step, title, text]) => (
                   <div key={step} style={workflowRow}>
                     <div style={workflowStep}>{step}</div>
                     <div>
@@ -1703,9 +1697,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           <section style={premiumStrip}>
             <div>
               <div style={sectionKicker}>Captain tier</div>
-              <h2 style={premiumTitle}>Captain keeps this team organized.</h2>
+              <h2 style={premiumTitle}>{CAPTAIN_STORY.activeTitle}</h2>
               <div style={premiumText}>
-                Save time, build smarter lineups, keep availability visible, and send team updates from one place.
+                {CAPTAIN_STORY.activeBody}
               </div>
             </div>
             <div style={pillGroupWrap}>
@@ -1716,10 +1710,10 @@ const captainHeroVisualMaskStyle: CSSProperties = {
         ) : (
           <UpgradePrompt
             planId="captain"
-            headline="Still juggling lineups in group texts?"
-            body="Captain brings availability, lineup builder, scenario testing, projections, and team messaging into one weekly workflow."
-            result="Spend less time chasing players and more time sending a lineup you actually trust."
-            ctaLabel="Build Smarter Lineups"
+            headline={CAPTAIN_STORY.upgradeHeadline}
+            body={CAPTAIN_STORY.upgradeBody}
+            result={CAPTAIN_STORY.upgradeResult}
+            ctaLabel={CAPTAIN_STORY.upgradeCta}
             ctaHref="/pricing"
             compact
           />
@@ -2027,10 +2021,10 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             />
             <ActionCard
               badge="TIQ Seasons"
-              title="Season Dashboard"
+              title="League Coordinator"
               description={productAccess.teamLeagueMessage}
               href={seasonDashboardHref}
-              cta="Open Season Dashboard"
+              cta="Open League Coordinator"
               onAction={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}
             />
             <ActionCard
@@ -2307,7 +2301,7 @@ function ActionCard({
   accent = false,
   premium = false,
   premiumEnabled = true,
-  lockedMessage = 'Still building lineups manually? Unlock Captain to save time, reduce stress, and build smarter weekly plans.',
+  lockedMessage = CAPTAIN_STORY.lockedMessage,
   onAction,
 }: {
   badge: string

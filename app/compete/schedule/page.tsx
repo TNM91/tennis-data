@@ -32,7 +32,7 @@ function CompeteScheduleContent() {
           href="/captain"
           meta="Weekly hub"
           title="Captain Week View"
-          text="Use the captain dashboard as the current working surface for upcoming team matches and preparation status."
+          text="Use Captain tools as the current working surface for upcoming team matches and preparation status."
         />
         <CompeteCard
           href="/captain/scenario-builder"
@@ -42,7 +42,7 @@ function CompeteScheduleContent() {
         />
         <CompeteCard
           href="/mylab"
-          meta="Player+ prep"
+          meta="Player prep"
           title="My Lab"
           text="Use premium comparison work when schedule context turns into opponent-specific preparation."
         />

@@ -41,7 +41,7 @@ export const CAPTAIN_NAV_ITEMS: NavItem[] = [
   { href: '/captain/messaging', label: 'Messaging' },
   { href: '/captain/team-brief', label: 'Team Brief' },
   { href: '/captain/weekly-brief', label: 'Weekly Brief' },
-  { href: '/captain/season-dashboard', label: 'Season Dashboard' },
+  { href: '/captain/season-dashboard', label: 'League Coordinator' },
 ]
 
 export const FOOTER_NAV_SECTIONS: NavSection[] = [

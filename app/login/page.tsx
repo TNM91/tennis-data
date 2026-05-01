@@ -199,39 +199,39 @@ export default function LoginPage() {
     <SiteShell active="login">
       <section style={heroShellResponsive}>
         <div>
-          <div style={eyebrow}>Member access</div>
+          <div style={eyebrow}>TenAceIQ access</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '38px' : isMobile ? '46px' : '58px' }}>
             Sign in with your email and password.
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
-            Access My Lab, Captain tools, followed players and teams, and your private member dashboard.
+            Access My Lab, Matchup, Captain tools, followed tennis context, and any league tools tied to your account.
           </p>
 
           <div style={pillRow}>
-            <span style={pillBlue}>My Players</span>
-            <span style={pillBlue}>My Teams</span>
-            <span style={pillGreen}>My Leagues</span>
+            <span style={pillBlue}>Player</span>
+            <span style={pillBlue}>My Lab</span>
+            <span style={pillGreen}>Matchup</span>
             <span style={pillGreen}>Captain</span>
           </div>
 
           <div style={featurePanel}>
-            <div style={featureLabel}>Member tools</div>
+            <div style={featureLabel}>Your tools</div>
             <div style={formGridResponsive}>
               <FeatureCard
                 title="My Lab"
                 text="Follow players, teams, and leagues with a personalized activity feed."
               />
               <FeatureCard
-                title="Captain’s Corner"
+                title="Captain tools"
                 text="Manage availability, lineups, messaging, and match-week planning."
               />
               <FeatureCard
                 title="Saved context"
-                text="Keep your team and season context organized in one workspace."
+                text="Keep your player, team, and season context organized in one workspace."
               />
               <FeatureCard
-                title="Admin access"
-                text="Admins automatically see elevated tools after signing in."
+                title="League Coordinator"
+                text="Run player or team leagues with scheduling, standings, participants, and communication."
               />
             </div>
           </div>

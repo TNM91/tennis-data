@@ -259,7 +259,7 @@ export default function ExploreSearchPage() {
       suggestions.push({
         key: `${left.id}-${right.id}`,
         title: `${left.name} vs ${right.name}`,
-        text: 'Open Player+ prep with these players in mind.',
+        text: 'Open My Lab prep with these players in mind.',
         href: `/mylab?playerA=${encodeURIComponent(left.id)}&playerB=${encodeURIComponent(right.id)}`,
       })
     }
@@ -292,7 +292,7 @@ export default function ExploreSearchPage() {
       return {
         planId: 'player_plus' as const,
         headline: 'Want better answers than a basic directory?',
-        body: 'Unlock Player+ to move from simple search into projections, role fit, and practical player insight.',
+        body: 'Unlock Player to move from simple search into projections, role fit, and practical player insight.',
       }
     }
 
@@ -349,7 +349,7 @@ export default function ExploreSearchPage() {
               Search once. See the right layer faster.
             </h1>
             <p style={{ ...pageSubtitle, marginTop: 0, maxWidth: 840 }}>
-              Find players, teams, leagues, flights, areas, and Player+ prep paths from one place.
+              Find players, teams, leagues, flights, areas, and My Lab prep paths from one place.
             </p>
           </div>
 
@@ -493,7 +493,7 @@ export default function ExploreSearchPage() {
                 Choose the search lane that matches your question.
               </div>
               <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68 }}>
-                Player searches open profiles and Player+ prep. Team and league searches stay focused on season context.
+                Player searches open profiles and My Lab prep. Team and league searches stay focused on season context.
               </div>
             </div>
           </div>
@@ -508,7 +508,7 @@ export default function ExploreSearchPage() {
             <section style={{ ...surfaceCard, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900 }}>
-                Pulling players, teams, leagues, and Player+ prep paths together...
+                Pulling players, teams, leagues, and My Lab prep paths together...
               </div>
             </section>
           ) : null}
@@ -578,7 +578,7 @@ export default function ExploreSearchPage() {
                 <ResultGroup
                   title="My Lab shortcuts"
                   count={matchupSuggestions.length}
-                  emptyMessage="Once at least two player results match, Player+ comparison actions show up here."
+                  emptyMessage="Once at least two player results match, Player comparison actions show up here."
                   ctaHref="/mylab"
                   ctaLabel="Open My Lab"
                 >

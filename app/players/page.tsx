@@ -480,10 +480,10 @@ export default function PlayersPage() {
                     planId="player_plus"
                     compact
                     headline="Want smarter match prep?"
-                    body="Unlock Matchup and MyLab with Player+ so you can compare players before you play and follow the tennis you care about."
-                    ctaLabel="Upgrade to Player+"
+                    body="Unlock Matchup and My Lab with Player so you can compare players before you play and follow the tennis you care about."
+                    ctaLabel="Upgrade to Player"
                     ctaHref="/pricing"
-                    secondaryLabel="See Player+ value"
+                    secondaryLabel="See Player value"
                     secondaryHref="/pricing"
                     footnote="Best for serious players who want clearer prep before the match starts."
                   />

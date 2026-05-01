@@ -1209,9 +1209,9 @@ export default function PlayerProfilePage() {
         ) : (
           <UpgradePrompt
             planId="player_plus"
-            headline="Unlock Matchup and MyLab"
-            body="Compare players before you play, follow the people and teams you care about, and build a personal tennis dashboard with Player+."
-            ctaLabel="Upgrade to Player+"
+            headline="Unlock Matchup and My Lab"
+            body="Compare players before you play, follow the people and teams you care about, and build a personal My Lab with Player."
+            ctaLabel="Upgrade to Player"
             ctaHref="/pricing"
             secondaryLabel="Open Matchup"
             secondaryHref={matchupHref}

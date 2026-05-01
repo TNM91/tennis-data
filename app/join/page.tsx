@@ -13,6 +13,7 @@ import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import TierPathway from '@/app/components/tier-pathway'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export default function JoinPage() {
@@ -125,11 +126,6 @@ export default function JoinPage() {
     gap: isMobile ? '18px' : '24px',
   }
 
-  const formGridResponsive: CSSProperties = {
-    ...benefitGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-  }
-
   if (authLoading) {
     return (
       <SiteShell active="/join">
@@ -146,40 +142,27 @@ export default function JoinPage() {
     <SiteShell active="/join">
       <section style={heroShellResponsive}>
         <div>
-          <div style={eyebrow}>Create member account</div>
-          <h1 style={heroTitle}>Join TenAceIQ with email and password.</h1>
+          <div style={eyebrow}>Create your TenAceIQ account</div>
+          <h1 style={heroTitle}>Start free. Upgrade when tennis gets easier.</h1>
           <p style={heroText}>
-            Set up your member account to unlock My Lab, follow players and teams,
-            and use Captain tools for weekly team prep.
+            Explore for free, then unlock Player, Captain, or TIQ League Coordinator
+            tools when you want saved context, weekly team prep, or league operations.
           </p>
 
           <div style={pillRow}>
-            <span style={pillBlue}>My Players</span>
-            <span style={pillBlue}>My Teams</span>
-            <span style={pillGreen}>My Leagues</span>
+            <span style={pillBlue}>Free Explore</span>
+            <span style={pillBlue}>Player</span>
             <span style={pillGreen}>Captain</span>
+            <span style={pillGreen}>TIQ League Coordinator</span>
           </div>
 
           <div style={featurePanel}>
-            <div style={featureLabel}>Why join</div>
-            <div style={formGridResponsive}>
-              <FeatureCard
-                title="Follow your world"
-                text="Save the players, teams, and leagues you care about most."
-              />
-              <FeatureCard
-                title="Captain planning"
-                text="Track availability, build lineups, and prepare for match day."
-              />
-              <FeatureCard
-                title="Member dashboard"
-                text="Use My Lab as your personalized home base."
-              />
-              <FeatureCard
-                title="Future upgrades"
-                text="Your account is the foundation for premium tools and saved workflows."
-              />
-            </div>
+            <TierPathway
+              compact
+              framed={false}
+              title="Why join"
+              intro="Your account starts with free exploration and gives every future upgrade a place to save context."
+            />
           </div>
         </div>
 
@@ -325,15 +308,6 @@ export default function JoinPage() {
   )
 }
 
-function FeatureCard({ title, text }: { title: string; text: string }) {
-  return (
-    <div style={featureCard}>
-      <div style={featureTitle}>{title}</div>
-      <div style={featureText}>{text}</div>
-    </div>
-  )
-}
-
 const brandIQ: CSSProperties = {
   background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
@@ -425,46 +399,7 @@ const pillGreen: CSSProperties = {
 
 const featurePanel: CSSProperties = {
   marginTop: '24px',
-  borderRadius: '24px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '18px',
   maxWidth: '900px',
-}
-
-const featureLabel: CSSProperties = {
-  color: 'var(--home-eyebrow-color)',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '14px',
-}
-
-const benefitGrid: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-}
-
-const featureCard: CSSProperties = {
-  borderRadius: '18px',
-  padding: '16px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const featureTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  fontWeight: 800,
-  lineHeight: 1.35,
-}
-
-const featureText: CSSProperties = {
-  marginTop: '6px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.6,
 }
 
 const loginPanel: CSSProperties = {

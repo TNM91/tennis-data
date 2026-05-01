@@ -33,9 +33,9 @@ const FEATURE_CARDS = [
   },
   {
     href: '/mylab',
-    eyebrow: 'Player+',
+    eyebrow: 'Player',
     title: 'My Lab',
-    text: 'Build your personal tennis dashboard with followed players, teams, and leagues.',
+    text: 'Build your personal My Lab with followed players, teams, and leagues.',
     accent: 'green' as const,
     icon: 'matchup',
   },
@@ -125,8 +125,8 @@ const DISCOVERY_SIGNALS = [
   },
   {
     label: 'Player tools',
-    value: 'Player+',
-    text: 'Use Matchup and MyLab when you want smarter prep before you play.',
+    value: 'Player',
+    text: 'Use Matchup and My Lab when you want smarter prep before you play.',
   },
 ]
 
@@ -246,7 +246,7 @@ export default function ExplorePage() {
               <div style={eyebrow}>Public discovery</div>
 
               <h1 style={dynamicHeroTitle}>
-                Explore players, teams, rankings, leagues, and Player+ tools.
+                Explore players, teams, rankings, leagues, and Player tools.
               </h1>
 
               <p style={dynamicHeroText}>

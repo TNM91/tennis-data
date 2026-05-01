@@ -23,6 +23,7 @@ import {
   getTiqIndividualCompetitionFormatNextAction,
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
+import { LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 
@@ -66,15 +67,15 @@ export default function CompeteLeaguesPage() {
   return (
     <CompetePageFrame
       eyebrow="My Leagues"
-      title="League participation should start with the right format."
-      description="Team leagues and individual leagues belong in the same workflow layer, but they should not be treated as the same thing. This view now uses the TIQ season registry so captains can move from structure into weekly execution."
+      title="League participation should stay easy to understand."
+      description="Team leagues and individual leagues can share one workflow layer while staying clearly separated. TenAceIQ keeps structure visible so players, captains, and coordinators know what to do next."
     >
       <CompeteGrid>
         <CompeteCard
           href="/captain/season-dashboard"
           meta="Create TIQ leagues"
-          title="Season Dashboard"
-          text="Create TIQ team leagues and individual leagues, seed participants, and keep internal competition separate from USTA truth."
+          title="TIQ League Coordinator"
+          text={LEAGUE_COORDINATOR_STORY.body}
         />
         <CompeteCard
           href="/explore/leagues"
@@ -86,7 +87,7 @@ export default function CompeteLeaguesPage() {
           href="/captain"
           meta="Captain workflow"
           title="Captain Command Center"
-          text="Continue into the captain dashboard when this week requires action instead of season setup."
+          text="Continue into Captain tools when this week requires action instead of season setup."
         />
       </CompeteGrid>
 
@@ -97,7 +98,7 @@ export default function CompeteLeaguesPage() {
           <div style={sectionEyebrowStyle}>Need more control?</div>
           <div style={upgradeTitleStyle}>Pick the package that solves the friction you have right now.</div>
           <div style={sectionTextStyle}>
-            Keep this simple: if you want better personal guidance, upgrade to Player+. If you are running team decisions, Captain is the answer. If you are organizing the season, use League.
+            Keep this simple: Player is for personal prep, Captain is for team decisions, and TIQ League Coordinator is for running the season.
           </div>
         </div>
 
@@ -105,9 +106,9 @@ export default function CompeteLeaguesPage() {
           <UpgradePrompt
             planId="player_plus"
             compact
-            headline="Not sure where you should play?"
-            body="Player+ gives you personal insight, projections, and clearer direction when you want to compete smarter."
-            ctaLabel="Unlock Player+"
+            headline={MY_LAB_STORY.upgradeHeadline}
+            body={MY_LAB_STORY.upgradeBody}
+            ctaLabel="Unlock Player"
             ctaHref="/pricing"
             secondaryLabel="See plans"
             secondaryHref="/pricing"
@@ -125,9 +126,9 @@ export default function CompeteLeaguesPage() {
           <UpgradePrompt
             planId="league"
             compact
-            headline="Running your league in spreadsheets?"
-            body="League tools give organizers one place for scheduling, standings, structure, and league-wide coordination."
-            ctaLabel="Run Your League on TIQ"
+            headline={LEAGUE_COORDINATOR_STORY.finalUpgradeHeadline}
+            body={LEAGUE_COORDINATOR_STORY.finalUpgradeBody}
+            ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
             ctaHref="/pricing"
             secondaryLabel="See plans"
             secondaryHref="/pricing"
@@ -192,7 +193,7 @@ function LeagueListSection({
       <div style={sectionTextStyle}>{body}</div>
 
       {records.length === 0 ? (
-        <div style={emptyStyle}>No leagues in this format yet. Create one from the season dashboard.</div>
+        <div style={emptyStyle}>No leagues in this format yet. Create one from League Coordinator tools.</div>
       ) : (
         <div style={listStyle}>
           {records.map((record) => {

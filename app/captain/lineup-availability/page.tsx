@@ -970,7 +970,7 @@ export default function LineupAvailabilityPage() {
             {[
               ['1', 'Pick match context', 'Choose league, team, and date to pull the right roster usage pool.'],
               ['2', 'Set every player', 'Mark available, out, singles-only, doubles-only, or limited.'],
-              ['3', 'Save once', 'Use the saved availability everywhere else in Captain’s Corner.'],
+              ['3', 'Save once', 'Use the saved availability everywhere else in Captain tools.'],
             ].map(([step, title, text]) => (
               <div key={step} style={workflowRowStyle}>
                 <div style={workflowNumberStyle}>{step}</div>

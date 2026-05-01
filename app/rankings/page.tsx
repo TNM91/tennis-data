@@ -511,10 +511,10 @@ export default function RankingsPage() {
                     planId="player_plus"
                     compact
                     headline="Want more than a leaderboard?"
-                    body="Unlock Player+ to turn rankings into personal guidance with clearer projections, matchup context, and where-you-should-play insight."
-                    ctaLabel="Unlock Player+"
+                    body="Unlock Player to turn rankings into personal guidance with clearer projections, matchup context, and where-you-should-play insight."
+                    ctaLabel="Unlock Player"
                     ctaHref="/pricing"
-                    secondaryLabel="See Player+ value"
+                    secondaryLabel="See Player value"
                     secondaryHref="/pricing"
                     footnote="Best for players who want rankings to turn into better match decisions, not just browsing."
                   />

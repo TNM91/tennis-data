@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import TierPathway from '@/app/components/tier-pathway'
 import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { type UserRole } from '@/lib/roles'
@@ -14,6 +15,7 @@ import {
   WHY_TENACEIQ_POINTS,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
+import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
 
 export default function PricingPage() {
   const [role, setRole] = useState<UserRole>('public')
@@ -41,9 +43,9 @@ export default function PricingPage() {
       <section style={pageWrapStyle}>
         <section style={heroStyle}>
           <div style={eyebrowStyle}>Pricing</div>
-            <h1 style={heroTitleStyle}>Free to explore. Player+ to prepare. Captain to lead.</h1>
-            <p style={heroTextStyle}>
-            Find your league, see your next matchup, and upgrade when you want better prep, stronger lineups, or cleaner league workflows.
+          <h1 style={heroTitleStyle}>Free to explore. Player to personalize. Captain to lead.</h1>
+          <p style={heroTextStyle}>
+            {PRODUCT_NORTH_STAR} {PRODUCT_UPGRADE_MESSAGE}
           </p>
 
           <div style={proofRowStyle}>
@@ -54,6 +56,12 @@ export default function PricingPage() {
             ))}
           </div>
         </section>
+
+        <TierPathway
+          showCtas
+          title="Start free. Add the tier that removes the next headache."
+          intro="Each plan is meant to solve a specific tennis job: exploration, personal prep, team leadership, or league operations."
+        />
 
         <section style={cardGridStyle}>
           {PRICING_PLANS.map((plan) => {
@@ -137,44 +145,6 @@ export default function PricingPage() {
           })}
         </section>
 
-        <section style={captainFocusSectionStyle}>
-          <div style={captainFocusIntroStyle}>
-            <div style={sectionEyebrowStyle}>Most popular for a reason</div>
-          <h2 style={sectionTitleStyle}>Player+ unlocks the prep. Captain organizes the week.</h2>
-            <div style={supportItemTextStyle}>
-              Use Matchup and MyLab to prepare as a player. Use Captain when you manage lineups, scenarios, availability, and team messages.
-            </div>
-          </div>
-          <div style={captainFocusGridStyle}>
-            <div style={captainFocusCardStyle}>
-              <div style={supportItemTitleStyle}>Player problem</div>
-              <div style={supportItemTextStyle}>
-                You want to know how you match up and what to prepare before the match.
-              </div>
-            </div>
-            <div style={captainFocusCardStyle}>
-              <div style={supportItemTitleStyle}>Player+ tool</div>
-              <div style={supportItemTextStyle}>
-                Matchup compares players before the match. MyLab helps you prep faster.
-              </div>
-            </div>
-            <div style={captainFocusCardStyle}>
-              <div style={supportItemTitleStyle}>Captain upgrade</div>
-              <div style={supportItemTextStyle}>
-                Lineup Builder, Scenario Builder, availability, and messaging keep the team week clear.
-              </div>
-            </div>
-          </div>
-          <div style={captainFocusActionRowStyle}>
-            <Link href="/captain" style={featuredCtaStyle}>
-              Build Smarter Lineups
-            </Link>
-            <Link href="/matchup" style={captainFocusSecondaryCtaStyle}>
-              See how you match up
-            </Link>
-          </div>
-        </section>
-
         <section style={supportGridStyle}>
           <article style={supportCardStyle}>
             <div style={sectionEyebrowStyle}>Why TenAceIQ</div>
@@ -212,28 +182,6 @@ export default function PricingPage() {
           </article>
         </section>
 
-        <section style={supportCardStyle}>
-          <div style={sectionEyebrowStyle}>Choose your lane</div>
-          <h2 style={sectionTitleStyle}>Match the package to the job.</h2>
-          <div style={chooseGridStyle}>
-            <div style={supportItemStyle}>
-              <div style={supportItemTitleStyle}>Just playing and tracking</div>
-              <div style={supportItemTextStyle}>Free covers basic search, public players, teams, leagues, and posted results where available.</div>
-            </div>
-            <div style={supportItemStyle}>
-              <div style={supportItemTitleStyle}>Trying to improve your own game</div>
-              <div style={supportItemTextStyle}>Player+ unlocks Matchup, MyLab, follows, and smarter prep for your next match.</div>
-            </div>
-            <div style={supportItemStyle}>
-              <div style={supportItemTitleStyle}>Running weekly lineup decisions</div>
-              <div style={supportItemTextStyle}>Captain handles availability, lineups, scenarios, and team texts.</div>
-            </div>
-            <div style={supportItemStyle}>
-              <div style={supportItemTitleStyle}>Organizing a full season</div>
-              <div style={supportItemTextStyle}>League keeps scheduling, standings, teams, and communication together.</div>
-            </div>
-          </div>
-        </section>
       </section>
     </SiteShell>
   )
@@ -263,12 +211,12 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   if (active) {
     if (planId === 'captain') return 'Open Captain'
     if (planId === 'league') return 'Open League Tools'
-    if (planId === 'player_plus') return 'Open Player Insights'
+    if (planId === 'player_plus') return 'Open Player Tools'
     return 'Get Started Free'
   }
 
   if (planId === 'captain') return 'Build Smarter Lineups'
-  if (planId === 'player_plus') return 'Unlock Matchup with Player+'
+  if (planId === 'player_plus') return 'Unlock Matchup with Player'
   return getPricingPlan(planId).ctaLabel
 }
 
@@ -576,65 +524,6 @@ const supportGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
   gap: 16,
-}
-
-const captainFocusSectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 18,
-  padding: 24,
-  borderRadius: 28,
-  border: '1px solid rgba(155, 225, 29, 0.22)',
-  background:
-    'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)',
-  boxShadow: '0 24px 54px rgba(155, 225, 29, 0.08)',
-}
-
-const captainFocusIntroStyle: CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  maxWidth: 760,
-}
-
-const captainFocusGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 14,
-}
-
-const captainFocusCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  padding: 16,
-  borderRadius: 20,
-  border: '1px solid rgba(155, 225, 29, 0.16)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const captainFocusActionRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  flexWrap: 'wrap',
-  alignItems: 'center',
-}
-
-const captainFocusSecondaryCtaStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '46px',
-  padding: '0 16px',
-  borderRadius: 999,
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  border: '1px solid var(--shell-panel-border)',
-  fontWeight: 900,
-}
-
-const chooseGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 14,
 }
 
 const supportCardStyle: CSSProperties = {

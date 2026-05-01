@@ -10,6 +10,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
+import { MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
@@ -1285,16 +1286,17 @@ export default function MatchupPage() {
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
-              <div style={eyebrow}>Matchup comparison</div>
-              <h1 style={dynamicHeroTitle}>See how you match up.</h1>
+              <div style={eyebrow}>{MATCHUP_STORY.eyebrow}</div>
+              <h1 style={dynamicHeroTitle}>{MATCHUP_STORY.headline}</h1>
               <p style={dynamicHeroText}>
-                Compare players, ratings, recent form, and projected edge before you play.
+                {MATCHUP_STORY.body}
               </p>
 
               <div style={heroHintRow}>
+                {MATCHUP_STORY.proof.map((item) => (
+                  <span key={item} style={heroHintPill}>{item}</span>
+                ))}
                 <span style={heroHintPill}>{capitalize(matchType)} mode</span>
-                <span style={heroHintPill}>{capitalize(ratingView)} display</span>
-                <span style={heroHintPill}>{capitalize(getEngineRatingView(matchType))} engine</span>
                 <CopyLinkButton />
               </div>
               <div style={exploreNavRow}>
@@ -1308,13 +1310,13 @@ export default function MatchupPage() {
                   <UpgradePrompt
                     planId="player_plus"
                     compact
-                    headline="Unlock Matchup with Player+."
-                    body="Compare players before you play and see where you have the edge. Player+ also unlocks MyLab and follows."
-                    ctaLabel="Unlock Matchup with Player+"
+                    headline={MATCHUP_STORY.upgradeHeadline}
+                    body={MATCHUP_STORY.upgradeBody}
+                    ctaLabel={MATCHUP_STORY.upgradeCta}
                     ctaHref="/pricing"
-                    secondaryLabel="See Player+ value"
+                    secondaryLabel={MATCHUP_STORY.upgradeSecondary}
                     secondaryHref="/pricing"
-                    footnote="Best for serious players who want smarter match prep."
+                    footnote={MATCHUP_STORY.upgradeFootnote}
                   />
                 </div>
               ) : null}
@@ -1853,10 +1855,9 @@ export default function MatchupPage() {
         <section style={contentWrap}>
           <article style={editorialPanel}>
             <div style={sectionKicker}>How to read matchup output</div>
-            <h2 style={sectionTitle}>Use matchup as a decision aid, not a guarantee.</h2>
+            <h2 style={sectionTitle}>{MATCHUP_STORY.readoutTitle}</h2>
             <p style={editorialText}>
-              The projection is most useful when you combine probability, confidence, head-to-head
-              history, and the surrounding roster decision. This page helps you compare options and
+              {MATCHUP_STORY.readoutBody} This page helps you compare options and
               spot swing courts, but it should still sit inside a wider lineup or scouting conversation.
             </p>
             <div style={editorialGrid}>

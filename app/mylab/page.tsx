@@ -35,6 +35,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
+import { MY_LAB_STORY, getMembershipTier } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 
@@ -163,19 +164,19 @@ const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
 
 const LAB_SIGNALS: LabSignal[] = [
   {
-    label: 'What happened',
+    label: 'Follow',
     value: 'Feed',
-    note: 'Match, rating, team, and league activity in one stream.',
+    note: 'Players, teams, leagues, and rankings stay close.',
   },
   {
-    label: 'What to watch',
-    value: 'Collections',
-    note: 'Players, teams, leagues, and TIQ entries stay close.',
+    label: 'Link',
+    value: 'Identity',
+    note: 'Connect your player profile and team context to TenAceIQ.',
   },
   {
-    label: 'What to do next',
-    value: 'Insight',
-    note: 'Spot trends and prepare for the next match faster.',
+    label: 'Compare',
+    value: 'Matchup',
+    note: 'Move from scattered activity to clearer match prep.',
   },
 ]
 
@@ -1176,7 +1177,7 @@ function MyLabPageInner() {
         id: 'community-welcome',
         type: 'community',
         title: 'Start following players, teams, and leagues',
-        body: 'Build your personal tennis dashboard so match results, rating movement, teams, and leagues stay in one place.',
+        body: MY_LAB_STORY.upgradeBody,
         entityType: 'community',
         entityId: null,
         entityName: 'Community',
@@ -1358,10 +1359,10 @@ function MyLabPageInner() {
     },
     {
       label: 'Best fit',
-      value: access.canUseAdvancedPlayerInsights ? 'Player+' : 'Free',
+      value: access.canUseAdvancedPlayerInsights ? 'Player' : 'Free',
       text: access.canUseAdvancedPlayerInsights
-        ? 'MyLab is unlocked.'
-        : 'Unlock MyLab with Player+.',
+        ? 'My Lab is unlocked.'
+        : 'Unlock My Lab with Player.',
     },
   ]
 
@@ -1369,10 +1370,10 @@ function MyLabPageInner() {
     <section style={pageStyle}>
       <section style={heroStyle(isTablet, isMobile)}>
         <div>
-          <div style={eyebrowStyle}>My Lab</div>
-          <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>Your personal tennis dashboard</h1>
+          <div style={eyebrowStyle}>{MY_LAB_STORY.eyebrow}</div>
+          <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>{MY_LAB_STORY.headline}</h1>
           <p style={heroTextStyle}>
-            Follow players, teams, and leagues. See the tennis you care about in one place.
+            {MY_LAB_STORY.body}
           </p>
 
           <div style={heroButtonRowStyle}>
@@ -1457,12 +1458,12 @@ function MyLabPageInner() {
           <div style={labRailGridStyle} />
 
           <div style={heroRailContentStyle}>
-            <p style={sectionKickerStyle}>Why use it</p>
-            <h2 style={sideTitleStyle}>Your watchlist, cleaned up</h2>
+            <p style={sectionKickerStyle}>{MY_LAB_STORY.railKicker}</p>
+            <h2 style={sideTitleStyle}>{MY_LAB_STORY.railTitle}</h2>
             <div style={workflowListStyle}>
               {[
-                ['Follow', 'Track players, teams, and leagues.'],
-                ['Watch', 'See match and rating movement.'],
+                ['Follow', getMembershipTier('player_plus').valueProps[1]],
+                ['Compare', getMembershipTier('player_plus').valueProps[2]],
                 ['Act', 'Open the right page when something changes.'],
               ].map(([title, text]) => (
                 <div key={title} style={workflowRowStyle}>
@@ -1830,13 +1831,13 @@ function MyLabPageInner() {
                   <UpgradePrompt
                     planId="player_plus"
                     compact
-                    headline="Build your personal tennis dashboard"
-                    body="Follow players, teams, and leagues, then use MyLab to track form, trends, insights, and activity in one place."
-                    ctaLabel="Unlock MyLab with Player+"
+                    headline={MY_LAB_STORY.upgradeHeadline}
+                    body={MY_LAB_STORY.upgradeBody}
+                    ctaLabel={MY_LAB_STORY.upgradeCta}
                     ctaHref="/pricing"
-                    secondaryLabel="See Player+ plan"
+                    secondaryLabel={MY_LAB_STORY.upgradeSecondary}
                     secondaryHref="/pricing"
-                    footnote="Best for serious players who want smarter match prep and one home for their tennis."
+                    footnote={MY_LAB_STORY.upgradeFootnote}
                   />
                 ) : null}
                 <InsightCard
@@ -1845,7 +1846,7 @@ function MyLabPageInner() {
                 />
                 <InsightCard
                   title="Best next upgrade"
-                  text="Player+ unlocks Matchup, MyLab, follows, form, trends, and smarter match prep."
+                  text={getMembershipTier('player_plus').description}
                 />
                 <InsightCard
                   title="Individual competition pulse"
