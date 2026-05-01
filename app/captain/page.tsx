@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +29,7 @@ import {
   upsertCaptainWeekStatus,
   type CaptainWeekStatus,
 } from '@/lib/captain-week-status'
+import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { supabase } from '@/lib/supabase'
 import { isMember, type UserRole } from '@/lib/roles'
 import {
@@ -117,13 +118,7 @@ type TeamOptionMatchRow = {
   line_number?: string | null
 }
 
-type CaptainProfileLinkRow = {
-  linked_player_id: string | null
-  linked_player_name: string | null
-  linked_team_name: string | null
-  linked_league_name: string | null
-  linked_flight: string | null
-}
+type CaptainProfileLinkRow = UserProfileLink
 
 type CaptainTeamScope = {
   team: string
@@ -144,7 +139,6 @@ type CaptainTiqTeamEntryScopeRow = {
   entry_status: string | null
 }
 
-
 type CaptainWorkspaceState = {
   lineupReady: boolean
   scenarioReady: boolean
@@ -162,22 +156,6 @@ type CaptainWorkspaceState = {
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
-
-const CAPTAIN_COMMAND_SURFACES = [
-  {
-    label: 'Availability',
-    text: 'See who is in, out, tentative, or still needs a response before lineup pressure starts.',
-  },
-  {
-    label: 'Best lineup',
-    text: 'Move from player pool to the strongest weekly shape without losing match context.',
-  },
-  {
-    label: 'Scenario delta',
-    text: 'Compare options before you commit.',
-  },
-]
-
 
 type RatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 
@@ -324,11 +302,7 @@ export default function CaptainHubPage() {
     setTeamScopeResolved(false)
 
     try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('linked_player_id, linked_player_name, linked_team_name, linked_league_name, linked_flight')
-        .eq('id', nextUserId)
-        .maybeSingle()
+      const { data: profileData } = await loadUserProfileLink(nextUserId)
 
       const profile = (profileData || null) as CaptainProfileLinkRow | null
       const scopes = new Map<string, CaptainTeamScope>()
@@ -567,7 +541,7 @@ export default function CaptainHubPage() {
       setScenarioCount(typedScenarios.length)
       setLatestScenarioName(typedScenarios[0]?.scenario_name || '')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load captain console')
+      setError(err instanceof Error ? err.message : 'Failed to load captain tools')
     } finally {
       setLoadingTeam(false)
     }
@@ -949,7 +923,7 @@ export default function CaptainHubPage() {
       doubles,
       latest: matches[0]?.match_date || null,
       roster: roster.length,
-      topPairWinPct: pairings[0] ? formatPercent(getWinPct(pairings[0].wins, pairings[0].losses)) : '—',
+      topPairWinPct: pairings[0] ? formatPercent(getWinPct(pairings[0].wins, pairings[0].losses)) : 'â€”',
       singlesCore: recommendedSingles.length,
     }
   }, [matches, teamSideByMatchId, roster.length, pairings, recommendedSingles.length])
@@ -1080,38 +1054,6 @@ export default function CaptainHubPage() {
     setWeekStatus(saved?.status || 'draft-lineup')
   }, [captainWeekStatusKey, captainWeekStatusScope])
 
-  const resumeHref = buildCaptainScopedHref(
-    captainResume?.lastTool === 'availability'
-      ? '/captain/availability'
-      : captainResume?.lastTool === 'lineup-builder'
-        ? '/captain/lineup-builder'
-        : captainResume?.lastTool === 'lineup-projection'
-          ? '/captain/lineup-projection'
-          : captainResume?.lastTool === 'messaging'
-            ? '/captain/messaging'
-            : captainResume?.lastTool === 'analytics'
-              ? '/captain/analytics'
-                : captainResume?.lastTool === 'scenario-builder'
-                  ? '/captain/scenario-builder'
-                : captainResume?.lastTool === 'lineup-availability'
-                  ? '/captain/lineup-availability'
-                : captainResume?.lastTool === 'weekly-brief'
-                  ? '/captain/weekly-brief'
-                : captainResume?.lastTool === 'team-brief'
-                  ? '/captain/team-brief'
-                  : captainResume?.lastTool === 'season-dashboard'
-                    ? '/captain/season-dashboard'
-                  : '/captain',
-    {
-      competitionLayer: captainResume?.competitionLayer || selectedCompetitionLayer,
-      team: captainResume?.team || selectedTeam,
-      league: captainResume?.league || selectedLeague,
-      flight: captainResume?.flight || selectedFlight,
-      date: captainResume?.eventDate,
-      opponent: captainResume?.opponentTeam,
-    },
-  )
-
   const productAccess = buildProductAccessState(role, entitlements)
   const premiumEnabled = productAccess.canUseCaptainWorkflow
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
@@ -1186,22 +1128,6 @@ const dynamicHeroRightCard: CSSProperties = {
   const dynamicWeekStatusButtonRow: CSSProperties = {
     ...weekStatusButtonRow,
     display: isSmallMobile ? 'grid' : weekStatusButtonRow.display,
-    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
-  }
-
-  const dynamicActionGrid: CSSProperties = {
-    ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : actionGrid.gridTemplateColumns,
-  }
-
-  const dynamicCommandGrid: CSSProperties = {
-    ...commandGrid,
-    gridTemplateColumns: isTablet ? '1fr' : commandGrid.gridTemplateColumns,
-  }
-
-  const dynamicCommandButtonRow: CSSProperties = {
-    ...commandButtonRow,
-    display: isSmallMobile ? 'grid' : commandButtonRow.display,
     gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
   }
 
@@ -1351,13 +1277,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
         tone: 'good' as const,
         title: 'Weekly brief is ready to review and share.',
         detail:
-          'Your week has enough saved context to open the captain and team briefs as a true command sheet.',
+          'Your week has enough saved context to open the captain and team briefs.',
       }
     }
 
     return {
       tone: 'info' as const,
-      title: 'Start saving the week’s operating context.',
+      title: 'Start saving the weekâ€™s operating context.',
       detail:
         'Add lineup, event, or response details to unlock a stronger brief and week-at-a-glance operations view.',
     }
@@ -1437,7 +1363,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                       ? 'League Coordinator'
                       : stage === 'tiq-team-matches'
                         ? 'Team Match Results'
-                        : 'Captain Console',
+                        : 'Captain',
     })
   }
 
@@ -1522,7 +1448,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 }}
                 disabled={!hasTeamScope}
               >
-                {hasTeamScope ? 'Open Lineup Builder' : 'Choose Team Scope'}
+                {hasTeamScope ? 'Build lineup' : 'Choose team'}
               </button>
             </div>
 
@@ -1570,36 +1496,18 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 ))}
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-                  gap: 12,
-                }}
-              >
-                {CAPTAIN_COMMAND_SURFACES.map((item) => (
-                  <div key={item.label} style={captainQuickMetricCardStyle}>
-                    <div style={miniKicker}>{item.label}</div>
-                    <div style={captainQuickMetricValueStyle}>
-                      {item.label === 'Availability'
-                        ? `${quickStats.roster} ready`
-                        : item.label === 'Best lineup'
-                          ? `${quickStats.topPairWinPct} edge`
-                          : workspaceState.responseAlertCount > 0
-                            ? `+${workspaceState.responseAlertCount}`
-                            : 'Stable'}
-                    </div>
-                    <div style={captainQuickMetricTextStyle}>{item.text}</div>
-                  </div>
-                ))}
+              <div style={captainQuickMetricCardStyle}>
+                <div style={miniKicker}>This week</div>
+                <div style={captainQuickMetricValueStyle}>{weekStatusMeta.label}</div>
+                <div style={captainQuickMetricTextStyle}>{weekStatusMeta.detail}</div>
               </div>
             </div>
           </div>
         </section>
 
         <CaptainSubnav
-          title="Run your captain tools"
-          description="Keep availability, lineups, scenarios, messaging, and season management together."
+          title="Run the week"
+          description="The main captain path is simple: availability, lineup, scenarios, message, brief."
         />
 
         {error ? (
@@ -1612,112 +1520,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             </div>
           </section>
         ) : null}
-
-        <section style={dynamicNextActionShell}>
-          <div style={nextActionIntro}>
-            <div style={sectionKicker}>Captain memory</div>
-            <h2 style={sectionTitle}>Resume your weekly workflow.</h2>
-            <div style={sectionSub}>
-              The captain suite now remembers your last active team scope and workflow so you can jump back into the exact part of the week you were working on.
-            </div>
-          </div>
-
-          <div style={nextActionCard}>
-            <div style={nextActionHeader}>
-              <span style={badgeBlue}>{captainResume?.lastToolLabel || 'Captain Console'}</span>
-              <span style={badgeSlate}>{captainResume?.lastVisitedAt ? formatDateTimeShort(captainResume.lastVisitedAt) : 'No saved workflow yet'}</span>
-            </div>
-
-            <div style={nextActionTitle}>
-              {captainResume?.team
-                ? `${captainResume.team}${captainResume.league ? ` - ${captainResume.league}` : ''}${captainResume.flight ? ` - ${captainResume.flight}` : ''}`
-                : 'Choose a team scope to start building memory'}
-            </div>
-
-            <div style={nextActionText}>
-              {captainResume?.team
-                ? 'Resume the saved captain workflow instantly, or keep working below and your newest scope will stay in memory.'
-                : 'Once you open availability, lineup, scenarios, messaging, or analytics, the suite will remember where you left off.'}
-            </div>
-
-            <div style={dynamicNextActionButtonRow}>
-              <PrimaryLink href={resumeHref}>Resume workflow</PrimaryLink>
-              <SecondarySmallLink href={availabilityHref}>Open availability</SecondarySmallLink>
-              <SecondarySmallLink href={weeklyBriefHref}>Weekly brief</SecondarySmallLink>
-            </div>
-          </div>
-        </section>
-
-        <section style={sectionCard}>
-          <div style={sectionHead}>
-            <div>
-              <div style={sectionKicker}>Weekly notes memory</div>
-              <h2 style={sectionTitle}>Carry the plan through the whole week.</h2>
-              <div style={sectionSub}>
-                Save the weekly prep details and opponent scouting notes once, then reuse them as you move into lineup building and team messaging.
-              </div>
-            </div>
-            <span style={badgeSlate}>{notesUpdatedLabel}</span>
-          </div>
-
-          <div style={notesScopeBanner}>
-            {captainNotesScope.team
-              ? `Saving notes for ${captainNotesScope.team}${captainNotesScope.league ? ` - ${captainNotesScope.league}` : ''}${captainNotesScope.flight ? ` - ${captainNotesScope.flight}` : ''}${captainNotesScope.eventDate ? ` - ${formatDateShort(captainNotesScope.eventDate)}` : ''}${captainNotesScope.opponentTeam ? ` - vs ${captainNotesScope.opponentTeam}` : ''}`
-              : 'Pick a team scope above to start a saved weekly notes thread.'}
-          </div>
-
-          <div style={notesGrid}>
-            <label style={notesField}>
-              <span style={notesLabel}>Weekly prep notes</span>
-              <span style={notesHint}>Travel, arrival plan, court prep, roster reminders, subs, weather, or anything your team needs this week.</span>
-              <textarea
-                value={weeklyPrepNotes}
-                onChange={(e) => setWeeklyPrepNotes(e.target.value)}
-                placeholder="Arrival time, balls, warm-up courts, weather plan, subs on standby..."
-                style={notesTextarea}
-                rows={5}
-              />
-            </label>
-
-            <label style={notesField}>
-              <span style={notesLabel}>Opponent scouting notes</span>
-              <span style={notesHint}>Patterns to exploit, likely pairings, court tendencies, pressure points, or lineup traps to avoid.</span>
-              <textarea
-                value={opponentScoutNotes}
-                onChange={(e) => setOpponentScoutNotes(e.target.value)}
-                placeholder="Likely stack on D1, protect S1, target slower second serve pair, expect late lineup changes..."
-                style={notesTextarea}
-                rows={5}
-              />
-            </label>
-          </div>
-        </section>
-
-        {premiumEnabled ? (
-          <section style={premiumStrip}>
-            <div>
-              <div style={sectionKicker}>Captain tier</div>
-              <h2 style={premiumTitle}>{CAPTAIN_STORY.activeTitle}</h2>
-              <div style={premiumText}>
-                {CAPTAIN_STORY.activeBody}
-              </div>
-            </div>
-            <div style={pillGroupWrap}>
-              <span style={badgeGreen}>{productAccess.captainTierLabel}</span>
-              <span style={badgeBlue}>{role === 'admin' ? 'Admin access' : 'Captain access'}</span>
-            </div>
-          </section>
-        ) : (
-          <UpgradePrompt
-            planId="captain"
-            headline={CAPTAIN_STORY.upgradeHeadline}
-            body={CAPTAIN_STORY.upgradeBody}
-            result={CAPTAIN_STORY.upgradeResult}
-            ctaLabel={CAPTAIN_STORY.upgradeCta}
-            ctaHref="/pricing"
-            compact
-          />
-        )}
 
         <section style={dynamicStatusStrip}>
           <StatusStripCard
@@ -1741,7 +1543,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           <StatusStripCard
             label="Resume"
             value={workspaceState.lastUpdatedLabel}
-            detail="Last captain workflow touchpoint"
+            detail="Last captain touchpoint"
             tone="neutral"
           />
         </section>
@@ -1751,7 +1553,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             <div style={sectionKicker}>Next best action</div>
             <h2 style={sectionTitle}>What should you do right now?</h2>
             <div style={sectionSub}>
-              The hub reads lineup state, saved scenarios, and messaging readiness to suggest the highest-leverage next move.
+              TenAceIQ reads lineup state, saved scenarios, and messaging readiness to suggest the next move.
             </div>
           </div>
 
@@ -1760,7 +1562,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <span style={nextAction.tone === 'good' ? badgeGreen : nextAction.tone === 'warn' ? warnBadge : badgeBlue}>
                 {nextAction.tone === 'good' ? 'Ready to move' : nextAction.tone === 'warn' ? 'Needs attention' : 'Recommended'}
               </span>
-              <span style={badgeSlate}>Resume from hub</span>
+              <span style={badgeSlate}>Resume</span>
             </div>
 
             <div style={nextActionTitle}>{nextAction.title}</div>
@@ -1797,26 +1599,59 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           </div>
         </section>
 
-        <section style={metricGrid}>
-          <MetricCard label="Visible team" value={selectedTeam || '—'} />
-          <MetricCard label="League" value={selectedLeague || '—'} />
-          <MetricCard label="Flight" value={selectedFlight || '—'} />
-          <MetricCard label="Latest match" value={formatDate(quickStats.latest)} accent />
-          <MetricCard label="Singles core" value={String(quickStats.singlesCore)} />
-          <MetricCard label="Top pair win rate" value={quickStats.topPairWinPct} />
-          <MetricCard
-            label="Weekly alerts"
-            value={String(workspaceState.responseAlertCount)}
-            accent={workspaceState.responseAlertCount > 0}
+        <details style={sectionCard}>
+          <summary style={optionalSummaryStyle}>
+            <span>
+              <span style={sectionKicker}>Optional notes</span>
+              <span style={optionalSummaryTitle}>Prep notes and scouting</span>
+            </span>
+            <span style={badgeSlate}>{notesUpdatedLabel}</span>
+          </summary>
+
+          <div style={notesScopeBanner}>
+            {captainNotesScope.team
+              ? `Saving notes for ${captainNotesScope.team}${captainNotesScope.league ? ` - ${captainNotesScope.league}` : ''}${captainNotesScope.flight ? ` - ${captainNotesScope.flight}` : ''}${captainNotesScope.eventDate ? ` - ${formatDateShort(captainNotesScope.eventDate)}` : ''}${captainNotesScope.opponentTeam ? ` - vs ${captainNotesScope.opponentTeam}` : ''}`
+              : 'Pick a team scope above to start a saved weekly notes thread.'}
+          </div>
+
+          <div style={notesGrid}>
+            <label style={notesField}>
+              <span style={notesLabel}>Weekly prep notes</span>
+              <span style={notesHint}>Travel, arrival plan, court prep, roster reminders, subs, weather, or anything your team needs this week.</span>
+              <textarea
+                value={weeklyPrepNotes}
+                onChange={(e) => setWeeklyPrepNotes(e.target.value)}
+                placeholder="Arrival time, balls, warm-up courts, weather plan, subs on standby..."
+                style={notesTextarea}
+                rows={5}
+              />
+            </label>
+
+            <label style={notesField}>
+              <span style={notesLabel}>Opponent scouting notes</span>
+              <span style={notesHint}>Patterns to exploit, likely pairings, court tendencies, pressure points, or lineup traps to avoid.</span>
+              <textarea
+                value={opponentScoutNotes}
+                onChange={(e) => setOpponentScoutNotes(e.target.value)}
+                placeholder="Likely stack on D1, protect S1, target slower second serve pair, expect late lineup changes..."
+                style={notesTextarea}
+                rows={5}
+              />
+            </label>
+          </div>
+        </details>
+
+        {!premiumEnabled ? (
+          <UpgradePrompt
+            planId="captain"
+            headline={CAPTAIN_STORY.upgradeHeadline}
+            body={CAPTAIN_STORY.upgradeBody}
+            result={CAPTAIN_STORY.upgradeResult}
+            ctaLabel={CAPTAIN_STORY.upgradeCta}
+            ctaHref="/pricing"
+            compact
           />
-          <MetricCard label="Pending replies" value={String(workspaceState.pendingResponseCount)} />
-          <MetricCard
-            label="Brief status"
-            value={workspaceState.briefReady ? 'Ready' : 'Building'}
-            accent={workspaceState.briefReady}
-          />
-          <MetricCard label="Responses updated" value={workspaceState.latestResponseUpdateLabel} />
-        </section>
+        ) : null}
 
         <section
           style={{
@@ -1845,7 +1680,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             <div style={nextActionCard}>
               <div style={nextActionLabel}>Captain brief</div>
               <div style={nextActionTitle}>
-                {workspaceState.briefReady ? 'Command sheet is ready' : 'Still gathering week context'}
+                {workspaceState.briefReady ? 'Weekly brief is ready' : 'Still gathering week context'}
               </div>
               <div style={nextActionText}>
                 Open the weekly brief for lineup, notes, opponent context, and final captain actions in one place.
@@ -1920,7 +1755,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
           <div style={weekStatusShell}>
             <div>
-              <div style={glanceLabel}>Weekly workflow status</div>
+              <div style={glanceLabel}>This week</div>
               <div style={weekStatusValue}>{weekStatusMeta.label}</div>
               <div style={glanceHint}>{weekStatusMeta.detail}</div>
             </div>
@@ -1946,138 +1781,82 @@ const captainHeroVisualMaskStyle: CSSProperties = {
         <section style={sectionCard}>
           <div style={sectionHead}>
             <div>
-              <div style={sectionKicker}>Quick actions</div>
-              <h2 style={sectionTitle}>Captain toolkit</h2>
-              <div style={sectionSub}>Everything important for match-week prep in one place.</div>
-            </div>
-          </div>
-
-          <div style={dynamicActionGrid}>
-            <ActionCard
-              badge="Briefing"
-              title="Weekly Brief"
-              description="Open one printable command sheet with notes, lineup state, event details, and the next captain actions."
-              href={weeklyBriefHref}
-              cta="Open Weekly Brief"
-              accent
-              onAction={() => handleCaptainNav(weeklyBriefHref, 'brief')}
-            />
-            <ActionCard
-              badge="Availability"
-              title="Availability Tracker"
-              description="Track who is in, out, tentative, or still needs follow-up before building anything."
-              href={availabilityHref}
-              cta="Open Availability"
-              onAction={() => handleCaptainNav(availabilityHref, 'availability')}
-            />
-            <ActionCard
-              badge="Strategy"
-              title="Lineup Builder"
-              description="Build your strongest options using actual team context and lineup intelligence."
-              href={lineupBuilderHref}
-              cta="Open Lineup Builder"
-              accent
-              premium
-              premiumEnabled={premiumEnabled}
-              onAction={() => handleCaptainNav(lineupBuilderHref, 'lineup')}
-            />
-            <ActionCard
-              badge="Comparison"
-              title="Scenario Builder"
-              description="Review and compare likely opponent and saved lineup scenarios."
-              href={scenarioHref}
-              cta="Open Scenario Builder"
-              premium
-              premiumEnabled={premiumEnabled}
-              onAction={() => handleCaptainNav(scenarioHref, 'scenario')}
-            />
-            <ActionCard
-              badge="Messaging"
-              title="Send Weekly Plan"
-              description="Text availability checks, lineup announcements, directions, reminders, and follow-ups by team and session."
-              href={messagingHref}
-              cta="Send to Team"
-              premium
-              premiumEnabled={premiumEnabled}
-              onAction={() => handleCaptainNav(messagingHref, 'messaging')}
-            />
-            <ActionCard
-              badge="Captain IQ"
-              title="Captain Analytics"
-              description="Review dependability, pairings, roster usage, and lineup signals before finalizing decisions."
-              href={analyticsHref}
-              cta="Open Analytics"
-              premium
-              premiumEnabled={premiumEnabled}
-              onAction={() => handleCaptainNav(analyticsHref, 'analytics')}
-            />
-            <ActionCard
-              badge="Team Context"
-              title="Open Team Page"
-              description="Go deeper into roster usage, match history, and full team detail."
-              href={currentTeamHref}
-              cta="Open Team Page"
-              onAction={() => handleCaptainNav(currentTeamHref, 'team')}
-            />
-            <ActionCard
-              badge="TIQ Seasons"
-              title="League Coordinator"
-              description={productAccess.teamLeagueMessage}
-              href={seasonDashboardHref}
-              cta="Open League Coordinator"
-              onAction={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}
-            />
-            <ActionCard
-              badge="TIQ Results"
-              title="Team Match Results"
-              description="Record team match events and enter line results. Completed lines automatically update TIQ dynamic ratings."
-              href={tiqTeamMatchesHref}
-              cta="Enter Match Results"
-              onAction={() => handleCaptainNav(tiqTeamMatchesHref, 'tiq-team-matches')}
-            />
-          </div>
-        </section>
-
-        <section style={sectionCard}>
-          <div style={sectionHead}>
-            <div>
-              <div style={sectionKicker}>Captain command flow</div>
-              <h2 style={sectionTitle}>What to do next for {selectedTeam || 'your team'}</h2>
+              <div style={sectionKicker}>Choose by job</div>
+              <h2 style={sectionTitle}>What are you trying to do?</h2>
               <div style={sectionSub}>
-                These are the highest-value pages to open as you move from planning to match-day execution.
+                Every captain and coordinator tool is still here, grouped by the work users are actually trying to finish.
               </div>
             </div>
           </div>
 
-          <div style={dynamicCommandGrid}>
-            <div style={commandCard}>
-              <div style={commandStep}>Step 1</div>
-              <div style={commandTitle}>Lock the player pool</div>
-              <div style={commandText}>
-                Check availability first so every later decision is based on the players who can actually play.
+          <div style={captainLaneGrid}>
+            <div style={captainLaneCardAccent}>
+              <div style={captainLaneTopline}>Start the week</div>
+              <div style={captainLaneTitle}>Confirm who can play.</div>
+              <div style={captainLaneText}>
+                Start with availability, then open the brief when the week needs one clean read.
               </div>
-              <SecondarySmallBtn onClick={() => handleCaptainNav(availabilityHref, 'availability')}>Go to Availability</SecondarySmallBtn>
+              <div style={captainLaneActions}>
+                <PrimarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
+                  Availability
+                </PrimarySmallBtn>
+                <SecondarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}>
+                  Weekly Brief
+                </SecondarySmallBtn>
+                <SecondarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(teamBriefHref, 'brief')}>
+                  Team Brief
+                </SecondarySmallBtn>
+              </div>
             </div>
-            <div style={commandCard}>
-              <div style={commandStep}>Step 2</div>
-              <div style={commandTitle}>Build and compare lineups</div>
-              <div style={commandText}>
-                Use lineup builder and scenario tools together to create the best version before you communicate it.
+
+            <div style={captainLaneCard}>
+              <div style={captainLaneTopline}>Build the lineup</div>
+              <div style={captainLaneTitle}>Pick the best version before you send it.</div>
+              <div style={captainLaneText}>
+                Build a lineup, compare the alternatives, and use Captain IQ when you need more signal.
               </div>
-              <div style={dynamicCommandButtonRow}>
-                <PrimarySmallBtn onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>Lineup Builder</PrimarySmallBtn>
-                <SecondarySmallBtn onClick={() => handleCaptainNav(scenarioHref, 'scenario')}>Compare Scenarios</SecondarySmallBtn>
+              <div style={captainLaneActions}>
+                <PrimarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
+                  Lineup Builder
+                </PrimarySmallBtn>
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(scenarioHref, 'scenario')}>
+                  Scenarios
+                </SecondarySmallBtn>
+                <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>
+                  Captain IQ
+                </SecondarySmallBtn>
               </div>
             </div>
-            <div style={commandCardAccent}>
-              <div style={commandStep}>Step 3</div>
-              <div style={commandTitle}>Send the weekly plan</div>
-              <div style={commandText}>
-                Open messaging to send lineups, arrival time, directions, and reminders to the right group.
+
+            <div style={captainLaneCard}>
+              <div style={captainLaneTopline}>Communicate</div>
+              <div style={captainLaneTitle}>Send the plan and keep context handy.</div>
+              <div style={captainLaneText}>
+                Move from final lineup to clear team updates, reminders, and the team page.
               </div>
-              <div style={dynamicCommandButtonRow}>
-                <PrimarySmallBtn onClick={() => handleCaptainNav(messagingHref, 'messaging')}>Open Messaging</PrimarySmallBtn>
-                <SecondarySmallBtn onClick={() => handleCaptainNav(analyticsHref, 'analytics')}>Open Captain IQ</SecondarySmallBtn>
+              <div style={captainLaneActions}>
+                <PrimarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
+                  Messaging
+                </PrimarySmallBtn>
+                <SecondarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(currentTeamHref, 'team')}>
+                  Team Page
+                </SecondarySmallBtn>
+              </div>
+            </div>
+
+            <div style={captainLaneCard}>
+              <div style={captainLaneTopline}>Run the league</div>
+              <div style={captainLaneTitle}>Coordinate seasons and results.</div>
+              <div style={captainLaneText}>
+                Create league structure, manage TIQ seasons, and record team match results.
+              </div>
+              <div style={captainLaneActions}>
+                <PrimarySmallBtn onClick={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}>
+                  League Coordinator
+                </PrimarySmallBtn>
+                <SecondarySmallBtn onClick={() => handleCaptainNav(tiqTeamMatchesHref, 'tiq-team-matches')}>
+                  Match Results
+                </SecondarySmallBtn>
               </div>
             </div>
           </div>
@@ -2119,7 +1898,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                             #{index + 1} {player.name}
                           </div>
                           <div style={listMeta}>
-                            {player.appearances} appearances · {player.wins}-{player.losses} when used
+                            {player.appearances} appearances Â· {player.wins}-{player.losses} when used
                           </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
@@ -2268,7 +2047,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                     <div>
                       <div style={rosterName}>{player.name}</div>
                       <div style={rosterMeta}>
-                        {player.appearances} appearances · {player.wins}-{player.losses} record
+                        {player.appearances} appearances Â· {player.wins}-{player.losses} record
                       </div>
                     </div>
 
@@ -2464,10 +2243,12 @@ function SecondarySmallLink({ href, children, fullWidth = false }: { href: strin
 
 function PrimarySmallBtn({
   onClick,
+  disabled,
   children,
   fullWidth = false,
 }: {
   onClick: () => void
+  disabled?: boolean
   children: ReactNode
   fullWidth?: boolean
 }) {
@@ -2475,15 +2256,17 @@ function PrimarySmallBtn({
   return (
     <button
       type="button"
+      disabled={disabled}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onClick}
       style={{
         ...primaryButtonSmallButton,
         width: fullWidth ? '100%' : undefined,
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        boxShadow: hovered ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
+        transform: hovered && !disabled ? 'translateY(-2px)' : 'none',
+        boxShadow: hovered && !disabled ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
         transition: 'transform 150ms ease, box-shadow 150ms ease',
+        ...(disabled ? disabledButton : {}),
       }}
     >
       {children}
@@ -2618,7 +2401,7 @@ const heroTitle: CSSProperties = {
   margin: 0,
   fontSize: 'clamp(2.2rem, 4vw, 4rem)',
   lineHeight: 0.98,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   color: 'var(--foreground-strong)',
 }
 
@@ -2763,7 +2546,7 @@ const quickStartTitle: CSSProperties = {
   margin: 0,
   fontSize: 24,
   lineHeight: 1.1,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   color: 'var(--foreground-strong)',
 }
 
@@ -2817,7 +2600,7 @@ const captainQuickMetricValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 22,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1,
 }
 
@@ -2853,7 +2636,7 @@ const premiumTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 22,
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const premiumText: CSSProperties = {
@@ -2957,7 +2740,7 @@ const nextActionTitle: CSSProperties = {
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const nextActionText: CSSProperties = {
@@ -3055,7 +2838,7 @@ const glanceValue: CSSProperties = {
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.15,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const glanceHint: CSSProperties = {
@@ -3086,7 +2869,7 @@ const weekStatusValue: CSSProperties = {
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginTop: 6,
 }
 
@@ -3115,7 +2898,7 @@ const metricValue: CSSProperties = {
   fontSize: 24,
   fontWeight: 900,
   lineHeight: 1.05,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const sectionCard: CSSProperties = {
@@ -3136,6 +2919,24 @@ const sectionHead: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const optionalSummaryStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 16,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const optionalSummaryTitle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  marginTop: 6,
+}
+
 const sectionKicker: CSSProperties = {
   fontSize: 12,
   color: 'var(--shell-copy-muted)',
@@ -3149,7 +2950,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 28,
   lineHeight: 1.06,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const sectionSub: CSSProperties = {
@@ -3204,6 +3005,60 @@ const notesTextarea: CSSProperties = {
   outline: 'none',
   resize: 'vertical',
   lineHeight: 1.65,
+}
+
+const captainLaneGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: 16,
+}
+
+const captainLaneCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 14,
+  minHeight: 250,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 12px 32px rgba(2,10,24,0.10)',
+}
+
+const captainLaneCardAccent: CSSProperties = {
+  ...captainLaneCard,
+  border: '1px solid rgba(74,222,128,0.2)',
+  background: 'var(--shell-chip-bg-strong)',
+  boxShadow: '0 16px 38px rgba(74,222,128,0.08)',
+}
+
+const captainLaneTopline: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.14em',
+  textTransform: 'uppercase',
+}
+
+const captainLaneTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  fontWeight: 900,
+  lineHeight: 1.1,
+  letterSpacing: 0,
+}
+
+const captainLaneText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.65,
+}
+
+const captainLaneActions: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignSelf: 'end',
 }
 
 const actionGrid: CSSProperties = {
@@ -3283,7 +3138,7 @@ const actionTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 20,
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const actionText: CSSProperties = {
@@ -3333,7 +3188,7 @@ const commandTitle: CSSProperties = {
   fontSize: 20,
   fontWeight: 900,
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const commandText: CSSProperties = {
@@ -3466,7 +3321,7 @@ const miniStatValue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: 22,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const rosterTableWrap: CSSProperties = {

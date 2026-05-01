@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -224,7 +224,7 @@ function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
 }
 
 function formatStrength(value: number | null) {
-  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : '—'
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(2) : 'â€”'
 }
 
 function compareLineupStrength(teamSlots: LineupSlot[], opponentSlots: LineupSlot[], players: PlayerRow[]) {
@@ -913,47 +913,6 @@ export default function LineupBuilderPage() {
     return scored[0] ?? null
   }, [analysis.lines])
 
-  const analyticsSignals = useMemo(
-    () => [
-      {
-        label: 'Comparison scope',
-        value:
-          teamName && opponentTeam
-            ? `${teamName} vs ${opponentTeam}`
-            : leagueName
-              ? `${leagueName}${flight ? ` - ${flight}` : ''}`
-              : 'Set match context',
-        note: currentScenario
-          ? 'Loaded scenario is ready to refine or compare.'
-          : 'Start by naming the version and setting the match frame.',
-      },
-      {
-        label: 'Leverage line',
-        value:
-          bestLine && typeof bestLine.diff === 'number'
-            ? `${bestLine.label} ${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}`
-            : 'No line edge yet',
-        note: bestLine
-          ? 'Current strongest edge based on selected dynamic ratings.'
-          : 'Add players to both sides to reveal line-by-line leverage.',
-      },
-      {
-        label: 'Best next move',
-        value: !scenarioName.trim()
-          ? 'Name the scenario'
-          : !teamName || !opponentTeam
-            ? 'Finish match context'
-            : analysis.lines.some((line) => typeof line.diff === 'number')
-              ? 'Compare or save this version'
-              : 'Build both sides',
-        note: weakestLine
-          ? `Keep an eye on ${weakestLine.label} before you lock the scenario.`
-          : 'Use opponent slots to pressure-test the full lineup.',
-      },
-    ],
-    [analysis.lines, bestLine, currentScenario, flight, leagueName, opponentTeam, scenarioName, teamName, weakestLine]
-  )
-
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>
@@ -990,9 +949,9 @@ export default function LineupBuilderPage() {
         <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Captain Analytics</h1>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Check the edge.</h1>
           <p style={heroTextStyle}>
-            Pressure-test lineup ideas, review line-by-line strength, and keep the scenario work focused on decision clarity before you save or compare.
+            See which courts help, which courts are exposed, and whether this lineup is worth saving.
           </p>
 
           <div style={heroButtonRowStyle}>
@@ -1006,25 +965,16 @@ export default function LineupBuilderPage() {
             <MetricStat label="Saved Versions" value={`${scenarioOptions.length} scenarios`} />
           </div>
 
-          <div style={signalGridStyle(isSmallMobile)}>
-            {analyticsSignals.map((signal) => (
-              <div key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div style={quickStartCard}>
           <p style={sectionKicker}>Builder workflow</p>
-          <h2 style={quickStartTitle}>Set context, model both sides, then compare</h2>
+          <h2 style={quickStartTitle}>Model both sides</h2>
           <div style={workflowListStyle}>
             {[
-              ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
-              ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
-              ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
+              ['1', 'Set context', 'Team, opponent, and date anchor the read.'],
+              ['2', 'Build both sides', 'Select your courts and the likely opponent.'],
+              ['3', 'Check risk', 'Use edge, best line, and weakest line before saving.'],
             ].map(([step, title, text]) => (
               <div key={step} style={workflowRowStyle}>
                 <div style={workflowNumberStyle}>{step}</div>
@@ -1060,7 +1010,7 @@ export default function LineupBuilderPage() {
                 <div style={bannerBlueStyle}>
                   <div style={bannerTitleStyle}>Editing saved scenario: {currentScenario.scenario_name}</div>
                   <div style={bannerMetaStyle}>
-                    {currentScenario.team_name || '—'} vs {currentScenario.opponent_team || '—'}
+                    {currentScenario.team_name || 'â€”'} vs {currentScenario.opponent_team || 'â€”'}
                     {currentScenario.match_date ? ` - ${formatDate(currentScenario.match_date)}` : ''}
                   </div>
                 </div>
@@ -1248,7 +1198,7 @@ export default function LineupBuilderPage() {
                         <div style={playerMetaStyle}>{line.slotType === 'singles' ? 'Singles line' : 'Doubles line'}</div>
                       </div>
                       <span style={typeof line.diff === 'number' && line.diff >= 0 ? goodBadgeStyle : warnBadgeStyle}>
-                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                        {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : 'â€”'}
                       </span>
                     </div>
 
@@ -1269,7 +1219,7 @@ export default function LineupBuilderPage() {
               <div style={{ marginTop: 14 }}>
                 <div style={sectionKicker}>Readout</div>
                 <p style={sectionBodyTextStyle}>
-                  Best line: <strong>{bestLine?.label ?? '—'}</strong>. Weakest line: <strong>{weakestLine?.label ?? '—'}</strong>.
+                  Best line: <strong>{bestLine?.label ?? 'â€”'}</strong>. Weakest line: <strong>{weakestLine?.label ?? 'â€”'}</strong>.
                 </p>
               </div>
             </section>
@@ -1325,10 +1275,10 @@ export default function LineupBuilderPage() {
                         </div>
 
                         <div style={pillRowStyle}>
-                          <span style={miniPillStyle}>TIQ {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
-                          <span style={miniPillStyle}>USTA {(player.overall_usta_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? '—'}</span>
-                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? '—'}</span>
-                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? '—'}</span>
+                          <span style={miniPillStyle}>TIQ {(player.overall_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? 'â€”'}</span>
+                          <span style={miniPillStyle}>USTA {(player.overall_usta_dynamic_rating ?? player.overall_rating)?.toFixed(2) ?? 'â€”'}</span>
+                          <span style={miniPillStyle}>S {player.singles_dynamic_rating?.toFixed(2) ?? 'â€”'}</span>
+                          <span style={miniPillStyle}>D {player.doubles_dynamic_rating?.toFixed(2) ?? 'â€”'}</span>
                           {assigned ? <span style={assignedPillStyle}>Assigned</span> : null}
                         </div>
 
@@ -1366,10 +1316,10 @@ export default function LineupBuilderPage() {
                           <div>
                             <div style={savedScenarioTitleStyle}>{scenario.scenario_name}</div>
                             <div style={savedScenarioMetaStyle}>
-                              {scenario.team_name || '—'} vs {scenario.opponent_team || '—'}
+                              {scenario.team_name || 'â€”'} vs {scenario.opponent_team || 'â€”'}
                             </div>
                             <div style={savedScenarioMetaStyle}>
-                              {scenario.league_name || '—'}
+                              {scenario.league_name || 'â€”'}
                               {scenario.flight ? ` - ${scenario.flight}` : ''}
                               {scenario.match_date ? ` - ${formatDate(scenario.match_date)}` : ''}
                             </div>
@@ -1402,8 +1352,8 @@ export default function LineupBuilderPage() {
       </section>
 
         <CaptainSubnav
-          title="Analytics inside the captain command center"
-          description="Move between matchup planning, availability, lineups, scenarios, and messaging without losing the team context you've built."
+          title="Captain IQ"
+          description="Use this deeper read when a lineup needs one more check before saving or messaging."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -1586,7 +1536,7 @@ const heroTitleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -1775,7 +1725,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1.1,
 }
 

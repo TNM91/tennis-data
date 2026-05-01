@@ -3,11 +3,11 @@
 import Link from 'next/link'
 import { CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
-import { CAPTAIN_NAV_ITEMS } from '@/lib/site-navigation'
+import { CAPTAIN_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS } from '@/lib/site-navigation'
 
 export default function CaptainSubnav({
-  title = 'Captain tools',
-  description = 'Move between the command-center tools without losing your current team scope.',
+  title = 'Captain path',
+  description = 'Start with the weekly actions captains repeat most. Open extra tools only when the week needs them.',
   tierLabel,
   tierActive,
 }: {
@@ -17,11 +17,14 @@ export default function CaptainSubnav({
   tierActive?: boolean
 }) {
   const pathname = usePathname()
+  const secondaryItems = CAPTAIN_NAV_ITEMS.filter(
+    (item) => !CAPTAIN_QUICK_NAV_ITEMS.some((quickItem) => quickItem.href === item.href),
+  )
 
   return (
     <section style={shellStyle} aria-label="Captain tools">
       <div style={headerStyle}>
-        <div style={eyebrowStyle} aria-hidden="true">Command center</div>
+        <div style={eyebrowStyle} aria-hidden="true">Weekly path</div>
         <div style={titleStyle}>{title}</div>
         <div style={descriptionStyle}>{description}</div>
         {tierLabel ? (
@@ -31,8 +34,8 @@ export default function CaptainSubnav({
         ) : null}
       </div>
 
-      <nav aria-label="Captain navigation" style={gridStyle}>
-        {CAPTAIN_NAV_ITEMS.map((item) => {
+      <nav aria-label="Captain weekly workflow" style={gridStyle}>
+        {CAPTAIN_QUICK_NAV_ITEMS.map((item, index) => {
           const active = pathname === item.href
           return (
             <Link
@@ -44,12 +47,38 @@ export default function CaptainSubnav({
                 ...(active ? activeLinkStyle : null),
               }}
             >
+              <span style={stepStyle}>{index + 1}</span>
               <span style={linkLabelStyle}>{item.label}</span>
-              <span aria-hidden="true" style={linkArrowStyle}>{active ? 'Live' : 'Open'}</span>
+              <span aria-hidden="true" style={linkArrowStyle}>{active ? 'Here' : 'Open'}</span>
             </Link>
           )
         })}
       </nav>
+
+      {secondaryItems.length ? (
+        <details style={moreToolsStyle}>
+          <summary style={moreToolsSummaryStyle}>More tools</summary>
+          <nav aria-label="More captain tools" style={secondaryGridStyle}>
+            {secondaryItems.map((item) => {
+              const active = pathname === item.href
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  style={{
+                    ...secondaryLinkStyle,
+                    ...(active ? activeLinkStyle : null),
+                  }}
+                >
+                  <span style={linkLabelStyle}>{item.label}</span>
+                  <span aria-hidden="true" style={linkArrowStyle}>{active ? 'Here' : 'Open'}</span>
+                </Link>
+              )
+            })}
+          </nav>
+        </details>
+      ) : null}
     </section>
   )
 }
@@ -83,7 +112,7 @@ const titleStyle: CSSProperties = {
   fontSize: 28,
   lineHeight: 1.05,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const descriptionStyle: CSSProperties = {
@@ -94,23 +123,35 @@ const descriptionStyle: CSSProperties = {
 
 const gridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(176px, 1fr))',
   gap: 12,
 }
 
 const linkStyle: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: '30px minmax(0, 1fr) auto',
   alignItems: 'center',
-  justifyContent: 'space-between',
   gap: 12,
   minHeight: 56,
-  padding: '0 16px',
+  padding: '0 14px',
   borderRadius: 18,
   textDecoration: 'none',
   color: 'var(--foreground)',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--home-control-shadow)',
+}
+
+const stepStyle: CSSProperties = {
+  width: 30,
+  height: 30,
+  display: 'grid',
+  placeItems: 'center',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
 }
 
 const activeLinkStyle: CSSProperties = {
@@ -122,6 +163,7 @@ const activeLinkStyle: CSSProperties = {
 const linkLabelStyle: CSSProperties = {
   fontSize: 14,
   fontWeight: 800,
+  minWidth: 0,
 }
 
 const linkArrowStyle: CSSProperties = {
@@ -161,4 +203,29 @@ const tierPillSlate: CSSProperties = {
   ...tierPillBase,
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
+}
+
+const moreToolsStyle: CSSProperties = {
+  borderTop: '1px solid var(--shell-panel-border)',
+  paddingTop: 12,
+}
+
+const moreToolsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const secondaryGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: 10,
+  marginTop: 12,
+}
+
+const secondaryLinkStyle: CSSProperties = {
+  ...linkStyle,
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  minHeight: 48,
 }

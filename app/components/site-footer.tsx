@@ -2,14 +2,8 @@
 
 import Link from 'next/link'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import { FOOTER_NAV_SECTIONS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-
-const PRIMARY_LINKS = [
-  { href: '/explore', label: 'Explore' },
-  { href: '/compete', label: 'Compete' },
-  { href: '/captain', label: 'Captain' },
-  { href: '/pricing', label: 'Pricing' },
-]
 
 const META_LINKS = [
   { href: '/about', label: 'About' },
@@ -17,6 +11,13 @@ const META_LINKS = [
   { href: '/legal/privacy', label: 'Privacy' },
   { href: '/legal/terms', label: 'Terms' },
 ]
+
+const FOOTER_JOURNEY: Record<string, { step: string; intent: string; note: string }> = {
+  '/explore': { step: '1', intent: 'Find', note: 'Players, teams, leagues' },
+  '/mylab': { step: '2', intent: 'You', note: 'Your scorecard' },
+  '/matchup': { step: '3', intent: 'Compare', note: 'Who to play next' },
+  '/captain': { step: '4', intent: 'Run', note: 'Team decisions' },
+}
 
 export default function SiteFooter() {
   const { isTablet, isMobile } = useViewportBreakpoints()
@@ -59,11 +60,11 @@ export default function SiteFooter() {
                 maxWidth: '540px',
                 color: 'var(--footer-text)',
                 fontSize: '14px',
-                lineHeight: 1.7,
+                lineHeight: 1.5,
                 fontWeight: 600,
               }}
             >
-              Search free, unlock smarter insight when you need it, and bring your team or league into one clean workflow.
+              Find what matters. Personalize the read. Compare the next match. Go play.
             </p>
           </div>
 
@@ -77,30 +78,56 @@ export default function SiteFooter() {
           </div>
         </div>
 
+        <div style={footerJourneyGridStyle(isMobile)}>
+          {PRIMARY_NAV_ITEMS.map((item) => {
+            const visual = FOOTER_JOURNEY[item.href]
+            return (
+              <Link key={item.href} href={item.href} style={footerJourneyCardStyle}>
+                <span style={footerJourneyStepStyle}>{visual.step}</span>
+                <span style={footerJourneyTextStyle}>
+                  <strong style={footerJourneyLabelStyle}>{item.label}</strong>
+                  <small style={footerJourneyIntentStyle}>{visual.intent}</small>
+                  <em style={footerJourneyNoteStyle}>{visual.note}</em>
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+
+        <nav
+          aria-label="Footer"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+            gap: isMobile ? 18 : 22,
+            paddingTop: 14,
+            borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+          }}
+        >
+          {FOOTER_NAV_SECTIONS.map((section) => (
+            <div key={section.title} style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+              <div style={footerSectionTitleStyle}>{section.title}</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {section.items.map((item) => (
+                  <Link key={`${section.title}-${item.href}`} href={item.href} style={footerNavLinkStyle}>
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
+        </nav>
+
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? '1fr' : '1fr auto auto',
+            gridTemplateColumns: isTablet ? '1fr' : '1fr auto',
             gap: isMobile ? 10 : 16,
             alignItems: 'center',
             paddingTop: 10,
             borderTop: '1px solid rgba(116, 190, 255, 0.08)',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '10px 18px',
-              alignItems: 'center',
-            }}
-          >
-            {PRIMARY_LINKS.map((item) => (
-              <Link key={item.href} href={item.href} style={footerNavLinkStyle}>
-                {item.label}
-              </Link>
-            ))}
-          </div>
 
           <div
             style={{
@@ -171,12 +198,84 @@ const footerSecondaryCtaStyle = {
   letterSpacing: '-0.02em',
 } as const
 
+const footerJourneyGridStyle = (isMobile: boolean) => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gap: isMobile ? '10px' : '12px',
+  paddingTop: 12,
+  borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+}) as const
+
+const footerJourneyCardStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: '12px',
+  alignItems: 'center',
+  minHeight: '72px',
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+} as const
+
+const footerJourneyStepStyle = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '999px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  color: 'var(--text-dark)',
+  fontSize: '12px',
+  fontWeight: 950,
+} as const
+
+const footerJourneyTextStyle = {
+  display: 'grid',
+  gap: '2px',
+  lineHeight: 1.12,
+} as const
+
+const footerJourneyLabelStyle = {
+  color: 'var(--foreground-strong)',
+  fontSize: '13.5px',
+  fontWeight: 900,
+} as const
+
+const footerJourneyIntentStyle = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '9.5px',
+  fontWeight: 900,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+} as const
+
+const footerJourneyNoteStyle = {
+  color: 'var(--footer-text)',
+  fontSize: '12px',
+  fontStyle: 'normal',
+  fontWeight: 700,
+  lineHeight: 1.25,
+} as const
+
 const footerNavLinkStyle = {
   color: 'var(--footer-link)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 700,
   textDecoration: 'none',
+} as const
+
+const footerSectionTitleStyle = {
+  color: 'var(--footer-meta)',
+  fontSize: '11px',
+  lineHeight: 1.4,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
 } as const
 
 const footerMetaLinkStyle = {

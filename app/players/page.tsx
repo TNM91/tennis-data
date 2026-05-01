@@ -311,40 +311,14 @@ export default function PlayersPage() {
   }, [filterBy, flightFilter, players, search, sortBy])
   const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
 
-  const topOverall = useMemo(() => {
-    if (players.length === 0) return 0
-    return Math.max(...players.map((player) => getRating(player, 'overall')))
-  }, [players])
-
-  const avgOverall = useMemo(() => {
-    if (players.length === 0) return 0
-    const total = players.reduce((sum, player) => sum + getRating(player, 'overall'), 0)
-    return total / players.length
-  }, [players])
-
-  const avgVisibleMatches = useMemo(() => {
-    if (filteredPlayers.length === 0) return 0
-    return filteredPlayers.reduce((sum, player) => sum + player.matches, 0) / filteredPlayers.length
-  }, [filteredPlayers])
-
-  const statusDistribution = useMemo(() => {
-    const counts: Record<RatingStatus, number> = { 'Bump Up Pace': 0, 'Trending Up': 0, Holding: 0, 'At Risk': 0, 'Drop Watch': 0 }
-    for (const player of players) counts[player.overallStatus]++
-    return counts
-  }, [players])
-
-  const totalMatches = useMemo(() => {
-    return players.reduce((sum, player) => sum + player.matches, 0)
-  }, [players])
-
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
-    padding: isMobile ? '14px 16px 24px' : '10px 18px 24px',
+    padding: isMobile ? '12px 16px 18px' : '8px 18px 18px',
   }
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
+    padding: isMobile ? '24px 18px 20px' : '28px 28px 22px',
   }
 
   const dynamicHeroContent: CSSProperties = {
@@ -357,7 +331,7 @@ export default function PlayersPage() {
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
+    fontSize: isSmallMobile ? '34px' : isMobile ? '44px' : '54px',
     lineHeight: isMobile ? 1.04 : 0.98,
     maxWidth: '520px',
   }
@@ -460,18 +434,17 @@ export default function PlayersPage() {
               <div style={eyebrow}>Players</div>
 
               <h1 style={dynamicHeroTitle}>
-                Find any player fast and jump straight into the full TenAceIQ profile.
+                Find a player fast.
               </h1>
 
               <p style={dynamicHeroText}>
-                Search by name or location, sort by overall, singles, or doubles strength,
-                and open a profile to see teams, ratings, history, and matchup prep.
+                Search by name or location. Open a profile when you want ratings, teams, history, or matchup prep.
               </p>
 
               <div style={heroHintRow}>
-                <span style={heroHintPill}>Search faster</span>
-                <span style={heroHintPill}>Compare stronger</span>
-                <span style={heroHintPill}>Plan smarter</span>
+                <span style={heroHintPill}>Search</span>
+                <span style={heroHintPill}>Open profile</span>
+                <span style={heroHintPill}>Prep with Matchup</span>
               </div>
 
               {!access.canUseAdvancedPlayerInsights ? (
@@ -494,8 +467,8 @@ export default function PlayersPage() {
             <div style={heroRight}>
               <div style={dynamicControlsShell}>
                 <div style={dynamicControlsTopRow}>
-                  <div style={controlsLabel}>Player controls</div>
-                  {!isTablet ? <div style={controlsHint}>Search, sort, and filter</div> : null}
+                  <div style={controlsLabel}>Find a player</div>
+                  {!isTablet ? <div style={controlsHint}>Search first, filter if needed</div> : null}
                 </div>
 
                 <div style={dynamicControlsRow}>
@@ -561,7 +534,7 @@ export default function PlayersPage() {
                 </div>
 
                 <div id="players-directory-helper" style={controlsHelperText}>
-                  Use the directory to find a player, then open the full profile for teams, ratings, history, and prep tools.
+                  Start with a name. Use filters only when the list is too wide.
                 </div>
                 {hasActiveFilters ? (
                   <div style={controlsActionRow}>
@@ -582,41 +555,16 @@ export default function PlayersPage() {
               </div>
 
               <div style={summaryCard}>
-                <div style={summaryTitle}>Directory snapshot</div>
+                <div style={summaryTitle}>Directory</div>
 
                 <div style={dynamicHeroStatsGrid}>
                   <StatChip label="Players" value={String(players.length)} />
                   <StatChip label="Showing" value={String(filteredPlayers.length)} />
-                  <StatChip label="Top overall" value={formatRating(topOverall)} accent />
-                  <StatChip label="Avg overall" value={formatRating(avgOverall)} />
-                </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 14 }}>
-                  {([
-                    ['Bump Up Pace', 'rgba(155,225,29,0.10)', '#d9f84a', 'rgba(155,225,29,0.20)'],
-                    ['Trending Up', 'rgba(52,211,153,0.10)', '#a7f3d0', 'rgba(52,211,153,0.20)'],
-                    ['Holding', 'rgba(116,190,255,0.08)', '#93c5fd', 'rgba(116,190,255,0.16)'],
-                    ['At Risk', 'rgba(251,146,60,0.10)', '#fed7aa', 'rgba(251,146,60,0.20)'],
-                    ['Drop Watch', 'rgba(239,68,68,0.10)', '#fca5a5', 'rgba(239,68,68,0.18)'],
-                  ] as const).map(([status, bg, color, border]) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setFilterBy(filterBy === 'trending-up' && (status === 'Bump Up Pace' || status === 'Trending Up') ? 'all' : filterBy === 'at-risk' && (status === 'At Risk' || status === 'Drop Watch') ? 'all' : status === 'Bump Up Pace' || status === 'Trending Up' ? 'trending-up' : 'at-risk')}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: bg, border: `1px solid ${border}`, color, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' as const }}
-                    >
-                      {status} <span style={{ opacity: 0.8 }}>{statusDistribution[status]}</span>
-                    </button>
-                  ))}
                 </div>
 
                 <div style={summaryFooterWrap}>
-                  <div style={summaryInlineStat}>
-                    <span style={summaryInlineLabel}>Tracked matches</span>
-                    <span style={summaryInlineValue}>{totalMatches}</span>
-                  </div>
                   <div style={summaryHint}>
-                    Search here, open a profile, then use My Lab or Captain Console when you need deeper prep.
+                    Search here, open a profile, then use My Lab or Matchup when you need deeper prep.
                   </div>
                 </div>
               </div>
@@ -639,38 +587,10 @@ export default function PlayersPage() {
       ) : null}
 
       <section style={contentWrap}>
-        {!loading && !error ? (
-          <article style={editorialPanel}>
-            <div style={sectionKicker}>Player search</div>
-            <h2 style={sectionTitle}>Find a player, then open the profile for the full picture.</h2>
-            <p style={editorialText}>
-              Search by name or location, sort the board, and open the full profile when you want
-              teams, recent results, rating movement, and matchup prep.
-            </p>
-            <div style={editorialGrid}>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Average visible overall</div>
-                <div style={editorialCardValue}>{formatRating(avgOverall)}</div>
-                <div style={editorialCardText}>A quick benchmark for the current board quality and strength.</div>
-              </div>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Average visible matches</div>
-                <div style={editorialCardValue}>{avgVisibleMatches.toFixed(1)}</div>
-                <div style={editorialCardText}>Useful when you want to tell mature profiles from thinner samples.</div>
-              </div>
-              <div style={editorialCard}>
-                <div style={editorialCardLabel}>Best next step</div>
-                <div style={editorialCardValue}>Open profile</div>
-                <div style={editorialCardText}>Player pages add roster teams, history, trends, and Matchup links.</div>
-              </div>
-            </div>
-          </article>
-        ) : null}
-
         <div style={dynamicSectionHeader}>
           <div>
             <div style={sectionKicker}>Directory</div>
-            <h2 style={sectionTitle}>Browse player cards and open each full profile</h2>
+            <h2 style={sectionTitle}>Open a player profile</h2>
           </div>
           <div style={exploreNavLinks}>
             <Link href="/explore/rankings" style={secondaryLink}>

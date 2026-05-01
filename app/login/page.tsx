@@ -164,11 +164,6 @@ export default function LoginPage() {
     gap: isMobile ? '18px' : '24px',
   }
 
-  const formGridResponsive: CSSProperties = {
-    ...benefitGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-  }
-
   if (authLoading) {
     return (
       <SiteShell active="login">
@@ -207,32 +202,12 @@ export default function LoginPage() {
             Access My Lab, Matchup, Captain tools, followed tennis context, and any league tools tied to your account.
           </p>
 
-          <div style={pillRow}>
-            <span style={pillBlue}>Player</span>
-            <span style={pillBlue}>My Lab</span>
-            <span style={pillGreen}>Matchup</span>
-            <span style={pillGreen}>Captain</span>
-          </div>
-
-          <div style={featurePanel}>
-            <div style={featureLabel}>Your tools</div>
-            <div style={formGridResponsive}>
-              <FeatureCard
-                title="My Lab"
-                text="Follow players, teams, and leagues with a personalized activity feed."
-              />
-              <FeatureCard
-                title="Captain tools"
-                text="Manage availability, lineups, messaging, and match-week planning."
-              />
-              <FeatureCard
-                title="Saved context"
-                text="Keep your player, team, and season context organized in one workspace."
-              />
-              <FeatureCard
-                title="League Coordinator"
-                text="Run player or team leagues with scheduling, standings, participants, and communication."
-              />
+          <div style={accessPanel}>
+            <div style={featureLabel}>After sign in</div>
+            <div style={accessPathGrid}>
+              <AccessPath label="Player" title="Open My Lab" text="Your follows, matchup prep, and saved tennis context." />
+              <AccessPath label="Captain" title="Run the week" text="Availability, lineups, brief, messaging, and team decisions." />
+              <AccessPath label="Coordinator" title="Manage leagues" text="League setup, seasons, standings, and team match results." />
             </div>
           </div>
         </div>
@@ -332,7 +307,7 @@ export default function LoginPage() {
             <div style={footerPrompt}>
               Need the public experience first?{' '}
               <Link href="/explore" style={inlineLink}>
-                Explore TA-IQ
+                Explore TenAceIQ
               </Link>
             </div>
           </div>
@@ -342,9 +317,10 @@ export default function LoginPage() {
   )
 }
 
-function FeatureCard({ title, text }: { title: string; text: string }) {
+function AccessPath({ label, title, text }: { label: string; title: string; text: string }) {
   return (
-    <div style={featureCard}>
+    <div style={accessPathCard}>
+      <div style={accessPathLabel}>{label}</div>
       <div style={featureTitle}>{title}</div>
       <div style={featureText}>{text}</div>
     </div>
@@ -447,7 +423,7 @@ const pillGreen: CSSProperties = {
   borderColor: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
 }
 
-const featurePanel: CSSProperties = {
+const accessPanel: CSSProperties = {
   marginTop: '24px',
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
@@ -465,16 +441,26 @@ const featureLabel: CSSProperties = {
   marginBottom: '14px',
 }
 
-const benefitGrid: CSSProperties = {
+const accessPathGrid: CSSProperties = {
   display: 'grid',
-  gap: '12px',
+  gap: '10px',
 }
 
-const featureCard: CSSProperties = {
+const accessPathCard: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
   borderRadius: '18px',
-  padding: '16px',
+  padding: '14px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+}
+
+const accessPathLabel: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
 }
 
 const featureTitle: CSSProperties = {
@@ -485,7 +471,6 @@ const featureTitle: CSSProperties = {
 }
 
 const featureText: CSSProperties = {
-  marginTop: '6px',
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,

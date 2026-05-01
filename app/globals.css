@@ -74,6 +74,7 @@
   --brand-green: #9be11d;
   --brand-green-2: #4ade80;
   --brand-green-3: #c7f36b;
+  --brand-green-rgb: 155, 225, 29;
   --brand-white: #ffffff;
 
   --shadow-soft: 0 16px 38px rgba(2, 10, 24, 0.18);
@@ -98,7 +99,7 @@
   --theme-orb-one:
     radial-gradient(circle, rgba(74,163,255,0.12) 0%, rgba(74,163,255,0.05) 40%, rgba(74,163,255,0) 74%);
   --theme-orb-two:
-    radial-gradient(circle, rgba(155,225,29,0.07) 0%, rgba(155,225,29,0.02) 36%, rgba(155,225,29,0) 72%);
+    radial-gradient(circle, rgba(var(--brand-green-rgb),0.055) 0%, rgba(var(--brand-green-rgb),0.018) 36%, rgba(var(--brand-green-rgb),0) 72%);
   --theme-top-blue-wash:
     linear-gradient(180deg, rgba(74,163,255,0.06) 0%, rgba(74,163,255,0.02) 38%, rgba(74,163,255,0) 100%);
   --theme-grid-glow:
@@ -118,13 +119,13 @@
   --header-mobile-toggle-border: rgba(116,190,255,0.12);
   --header-mobile-panel-border: rgba(116,190,255,0.08);
   --header-mobile-panel-bg: linear-gradient(180deg, rgba(14,31,60,0.56) 0%, rgba(8,19,38,0.76) 100%);
-  --header-mobile-panel-active-bg: linear-gradient(180deg, rgba(155,225,29,0.08) 0%, rgba(20,39,74,0.78) 100%);
+  --header-mobile-panel-active-bg: linear-gradient(180deg, rgba(var(--brand-green-rgb),0.07) 0%, rgba(14,31,60,0.78) 100%);
 
   --shell-panel-bg: linear-gradient(180deg, rgba(11, 24, 46, 0.80) 0%, rgba(8, 18, 35, 0.92) 100%);
   --shell-panel-bg-strong: linear-gradient(180deg, rgba(14, 31, 58, 0.84) 0%, rgba(9, 20, 39, 0.96) 100%);
   --shell-panel-border: rgba(116, 190, 255, 0.14);
   --shell-chip-bg: rgba(255, 255, 255, 0.06);
-  --shell-chip-bg-strong: linear-gradient(180deg, rgba(155, 225, 29, 0.12) 0%, rgba(18, 38, 73, 0.82) 100%);
+  --shell-chip-bg-strong: linear-gradient(180deg, rgba(var(--brand-green-rgb), 0.10) 0%, rgba(18, 38, 73, 0.82) 100%);
   --shell-copy-muted: rgba(214, 228, 246, 0.76);
   --shell-hero-mask: linear-gradient(90deg, rgba(11, 24, 47, 0.98) 0%, rgba(11, 24, 47, 0.88) 22%, rgba(11, 24, 47, 0.56) 42%, rgba(11, 24, 47, 0.14) 64%, rgba(11, 24, 47, 0) 100%);
   --shell-hero-mask-mobile: linear-gradient(180deg, rgba(11, 24, 47, 0.02) 0%, rgba(11, 24, 47, 0.18) 100%);
@@ -146,7 +147,7 @@
   --home-hero-vignette: radial-gradient(ellipse 68% 72% at 50% 42%, transparent 28%, rgba(7,13,27,0.46) 58%, rgba(7,13,27,0.88) 88%);
   --home-hero-fade-bottom: linear-gradient(to top, rgba(7,13,27,1) 0%, rgba(7,13,27,0.86) 34%, rgba(7,13,27,0.28) 65%, transparent 100%);
   --home-hero-fade-top: linear-gradient(to bottom, rgba(7,13,27,0.72) 0%, transparent 100%);
-  --home-hero-glow: radial-gradient(ellipse 44% 40% at 50% 42%, rgba(155,225,29,0.06) 0%, transparent 70%);
+  --home-hero-glow: radial-gradient(ellipse 44% 40% at 50% 42%, rgba(var(--brand-green-rgb),0.055) 0%, transparent 70%);
   --home-band-bg: #070d1b;
   --home-eyebrow-color: #dff8c2;
   --home-eyebrow-bg: rgba(155,225,29,0.14);

@@ -187,7 +187,7 @@ export default function FollowButton({
             ? hovered
               ? '#fca5a5'
               : '#93c5fd'
-            : '#14532d',
+            : 'var(--text-dark)',
           boxShadow: isFollowing
             ? hovered
               ? '0 0 0 4px rgba(248,113,113,0.16)'

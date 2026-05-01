@@ -6,7 +6,6 @@ import Link from 'next/link'
 import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   inferCompetitionLayerFromValues,
@@ -35,7 +34,8 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { MY_LAB_STORY, getMembershipTier } from '@/lib/product-story'
+import { MY_LAB_STORY } from '@/lib/product-story'
+import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 
@@ -99,6 +99,20 @@ type MatchPlayerRow = {
   seat: number | null
 }
 
+type PersonalMatchRow = {
+  id: string
+  date: string | null
+  leagueName: string | null
+  matchType: string | null
+  score: string | null
+  result: 'W' | 'L' | '-'
+  opponent: string
+}
+
+type PersonalParticipantRow = MatchPlayerRow & {
+  players?: { id: string; name: string } | { id: string; name: string }[] | null
+}
+
 type ScenarioRow = {
   id: string
   scenario_name: string
@@ -117,13 +131,7 @@ type TeamSummary = {
   playerCount: number
 }
 
-type ProfileLinkRow = {
-  linked_player_id: string | null
-  linked_player_name: string | null
-  linked_team_name: string | null
-  linked_league_name: string | null
-  linked_flight: string | null
-}
+type ProfileLinkRow = UserProfileLink
 
 type LeagueSummary = {
   id: string
@@ -142,12 +150,6 @@ type SearchOption = {
   subtitle: string | null
 }
 
-type LabSignal = {
-  label: string
-  value: string
-  note: string
-}
-
 type MyLabFeedRow = {
   id: string
   event_type: string
@@ -160,25 +162,33 @@ type MyLabFeedRow = {
   created_at: string
 }
 
-const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
+type LabGoalState = {
+  id: string
+  goal: string
+  progressStatus: 'not-started' | 'in-progress' | 'improving' | 'completed'
+  progressUpdate: string
+  doingWell: string
+  improveNext: string
+  notes: string
+  updatedAt: string | null
+}
 
-const LAB_SIGNALS: LabSignal[] = [
-  {
-    label: 'Follow',
-    value: 'Feed',
-    note: 'Players, teams, leagues, and rankings stay close.',
-  },
-  {
-    label: 'Link',
-    value: 'Identity',
-    note: 'Connect your player profile and team context to TenAceIQ.',
-  },
-  {
-    label: 'Compare',
-    value: 'Matchup',
-    note: 'Move from scattered activity to clearer match prep.',
-  },
-]
+const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
+const LOCAL_GOAL_KEY = 'tenaceiq-my-lab-goal-v1'
+const LOCAL_NOTEBOOK_KEY = 'tenaceiq-my-lab-notebook-v1'
+const LOCAL_GOAL_STATE_KEY = 'tenaceiq-my-lab-goal-state-v1'
+const LOCAL_GOALS_KEY = 'tenaceiq-my-lab-goals-v2'
+
+const EMPTY_LAB_GOAL: LabGoalState = {
+  id: 'goal-1',
+  goal: '',
+  progressStatus: 'not-started',
+  progressUpdate: '',
+  doingWell: '',
+  improveNext: '',
+  notes: '',
+  updatedAt: null,
+}
 
 function safeDate(value: string | null | undefined) {
   if (!value) return 'Recently'
@@ -220,6 +230,93 @@ function writeLocalFollows(items: FollowItem[]) {
   window.localStorage.setItem(LOCAL_FOLLOW_KEY, JSON.stringify(items))
 }
 
+function scopedLabStorageKey(baseKey: string, userId: string | null, playerId: string | null | undefined) {
+  return `${baseKey}:${userId || playerId || 'local'}`
+}
+
+function readLocalLabText(baseKey: string, userId: string | null, playerId: string | null | undefined) {
+  if (typeof window === 'undefined') return ''
+  try {
+    return window.localStorage.getItem(scopedLabStorageKey(baseKey, userId, playerId)) || ''
+  } catch {
+    return ''
+  }
+}
+
+function writeLocalLabText(baseKey: string, userId: string | null, playerId: string | null | undefined, value: string) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(scopedLabStorageKey(baseKey, userId, playerId), value)
+}
+
+function createEmptyGoal(): LabGoalState {
+  return {
+    ...EMPTY_LAB_GOAL,
+    id: `goal-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  }
+}
+
+function normalizeGoalState(value: Partial<LabGoalState> | null | undefined, fallbackId = 'goal-1'): LabGoalState {
+  return {
+    ...EMPTY_LAB_GOAL,
+    ...value,
+    id: value?.id || fallbackId,
+    progressStatus: isGoalProgressStatus(value?.progressStatus) ? value.progressStatus : EMPTY_LAB_GOAL.progressStatus,
+  }
+}
+
+function readLocalGoals(userId: string | null, playerId: string | null | undefined): LabGoalState[] {
+  if (typeof window === 'undefined') return [EMPTY_LAB_GOAL]
+  try {
+    const goalsRaw = window.localStorage.getItem(scopedLabStorageKey(LOCAL_GOALS_KEY, userId, playerId))
+    if (goalsRaw) {
+      const parsedGoals = JSON.parse(goalsRaw)
+      if (Array.isArray(parsedGoals) && parsedGoals.length) {
+        return parsedGoals.map((goal, index) => normalizeGoalState(goal as Partial<LabGoalState>, `goal-${index + 1}`))
+      }
+    }
+
+    const raw = window.localStorage.getItem(scopedLabStorageKey(LOCAL_GOAL_STATE_KEY, userId, playerId))
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<LabGoalState>
+      return [normalizeGoalState(parsed)]
+    }
+
+    return [
+      normalizeGoalState({
+        goal: readLocalLabText(LOCAL_GOAL_KEY, userId, playerId),
+        notes: readLocalLabText(LOCAL_NOTEBOOK_KEY, userId, playerId),
+      }),
+    ]
+  } catch {
+    return [EMPTY_LAB_GOAL]
+  }
+}
+
+function writeLocalGoals(userId: string | null, playerId: string | null | undefined, value: LabGoalState[]) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(scopedLabStorageKey(LOCAL_GOALS_KEY, userId, playerId), JSON.stringify(value))
+}
+
+function isGoalProgressStatus(value: unknown): value is LabGoalState['progressStatus'] {
+  return value === 'not-started' || value === 'in-progress' || value === 'improving' || value === 'completed'
+}
+
+function goalStatusLabel(value: LabGoalState['progressStatus']) {
+  if (value === 'not-started') return 'Not started'
+  if (value === 'in-progress') return 'In progress'
+  if (value === 'improving') return 'Improving'
+  return 'Completed'
+}
+
+function compactOpponentLabel(value: string | null | undefined) {
+  if (!value) return 'opponent'
+  const parts = value
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  if (parts.length <= 2) return value
+  return `${parts.slice(0, 2).join(' / ')} +${parts.length - 2}`
+}
 
 function accentForType(type: FeedType): FeedItem['accent'] {
   if (type === 'achievement' || type === 'rating') return 'green'
@@ -387,6 +484,7 @@ function MyLabPageInner() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
+  const [personalMatches, setPersonalMatches] = useState<PersonalMatchRow[]>([])
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
@@ -407,13 +505,28 @@ function MyLabPageInner() {
   const [selectedTab, setSelectedTab] = useState<'feed' | 'players' | 'teams' | 'leagues'>('feed')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [playersHovered, setPlayersHovered] = useState(false)
-  const [teamsHovered, setTeamsHovered] = useState(false)
-  const [leaguesHovered, setLeaguesHovered] = useState(false)
+  const [goals, setGoals] = useState<LabGoalState[]>([EMPTY_LAB_GOAL])
+  const [activeGoalId, setActiveGoalId] = useState(EMPTY_LAB_GOAL.id)
+  const [notebookSavedLabel, setNotebookSavedLabel] = useState('All changes saved')
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, null), [role])
+
+  useEffect(() => {
+    const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
+    setGoals(nextGoals)
+    setActiveGoalId(nextGoals[0]?.id || EMPTY_LAB_GOAL.id)
+    setNotebookSavedLabel('All changes saved')
+    setLastSavedAt(nextGoals.find((goal) => goal.updatedAt)?.updatedAt || null)
+  }, [userId, profileLink?.linked_player_id])
+
+  useEffect(() => {
+    if (notebookSavedLabel !== 'Saved just now') return
+    const timeout = window.setTimeout(() => setNotebookSavedLabel('All changes saved'), 1800)
+    return () => window.clearTimeout(timeout)
+  }, [notebookSavedLabel])
 
   const refreshMyLab = useCallback(async () => {
     setLoading(true)
@@ -465,13 +578,7 @@ function MyLabPageInner() {
         )
         .order('created_at', { ascending: false })
         .limit(160),
-      userId
-        ? supabase
-            .from('profiles')
-            .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight')
-            .eq('id', userId)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
+      loadUserProfileLink(userId),
       listTiqLeagues(),
       listTiqPlayerParticipations(),
       listTiqIndividualLeagueResults(),
@@ -514,8 +621,11 @@ function MyLabPageInner() {
     setTiqPlayerParticipations(tiqParticipationRes.entries)
     setTiqPlayerParticipationSource(tiqParticipationRes.source)
     setTiqPlayerParticipationWarning(tiqParticipationRes.warning)
+    let linkedPlayerIdForWorkshop = ''
+
     if (!profileLinkRes.error && profileLinkRes.data) {
       const nextProfileLink = profileLinkRes.data as ProfileLinkRow
+      linkedPlayerIdForWorkshop = nextProfileLink.linked_player_id || ''
       setProfileLink(nextProfileLink)
       setSelectedPlayerLinkId(nextProfileLink.linked_player_id || '')
       setSelectedTeamLinkId(
@@ -528,6 +638,81 @@ function MyLabPageInner() {
             })
           : '',
       )
+    }
+
+    if (linkedPlayerIdForWorkshop) {
+      const { data: playerMatchRefs } = await supabase
+        .from('match_players')
+        .select('match_id')
+        .eq('player_id', linkedPlayerIdForWorkshop)
+        .limit(80)
+
+      const personalMatchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id).filter(Boolean))]
+
+      if (personalMatchIds.length) {
+        const [{ data: personalMatchRows }, { data: personalParticipantRows }] = await Promise.all([
+          supabase
+            .from('matches')
+            .select('id, match_date, match_type, league_name, score, winner_side')
+            .in('id', personalMatchIds)
+            .order('match_date', { ascending: false })
+            .limit(8),
+          supabase
+            .from('match_players')
+            .select('match_id, player_id, side, seat, players(id, name)')
+            .in('match_id', personalMatchIds),
+        ])
+
+        const participantsByMatch = new Map<string, PersonalParticipantRow[]>()
+        for (const row of (personalParticipantRows || []) as unknown as PersonalParticipantRow[]) {
+          const existing = participantsByMatch.get(row.match_id) ?? []
+          existing.push(row)
+          participantsByMatch.set(row.match_id, existing)
+        }
+
+        setPersonalMatches(
+          ((personalMatchRows || []) as Array<{
+            id: string
+            match_date: string | null
+            match_type: string | null
+            league_name: string | null
+            score: string | null
+            winner_side: string | null
+          }>).map((match) => {
+            const participants = participantsByMatch.get(match.id) ?? []
+            const linkedParticipant = participants.find((participant) => participant.player_id === linkedPlayerIdForWorkshop)
+            const playerSide = linkedParticipant?.side || ''
+            const opponentSide = playerSide === 'A' ? 'B' : playerSide === 'B' ? 'A' : ''
+            const opponents = participants
+              .filter((participant) => participant.side === opponentSide)
+              .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
+              .map((participant) => {
+                const player = Array.isArray(participant.players) ? participant.players[0] : participant.players
+                return player?.name || 'Player'
+              })
+            const result =
+              playerSide && match.winner_side
+                ? playerSide === match.winner_side
+                  ? 'W'
+                  : 'L'
+                : '-'
+
+            return {
+              id: match.id,
+              date: match.match_date,
+              leagueName: match.league_name,
+              matchType: match.match_type,
+              score: match.score,
+              result,
+              opponent: opponents.join(' / ') || 'Opponent',
+            }
+          }),
+        )
+      } else {
+        setPersonalMatches([])
+      }
+    } else {
+      setPersonalMatches([])
     }
 
     if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
@@ -691,9 +876,73 @@ function MyLabPageInner() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [matches, matchPlayersByMatch])
 
+  const selectedPlayerTeamSummaries = useMemo(() => {
+    if (!selectedPlayerLinkId) return []
+
+    const teamIds = new Set<string>()
+
+    for (const match of matches) {
+      const participants = matchPlayersByMatch.get(match.id) ?? []
+      const selectedParticipant = participants.find((participant) => participant.player_id === selectedPlayerLinkId)
+      if (!selectedParticipant) continue
+
+      const teamName = cleanText(selectedParticipant.side === 'A' ? match.home_team : match.away_team)
+      const leagueName = cleanText(match.league_name)
+      const flight = cleanText(match.flight)
+      if (!teamName) continue
+
+      teamIds.add(
+        buildScopedTeamEntityId({
+          competitionLayer: inferCompetitionLayerForContext({ leagueName }),
+          teamName,
+          leagueName,
+          flight,
+        }),
+      )
+    }
+
+    return teamSummaries.filter((team) => teamIds.has(team.id))
+  }, [matches, matchPlayersByMatch, selectedPlayerLinkId, teamSummaries])
+
+  const linkedPlayerTeamSummaries = useMemo(() => {
+    const linkedPlayerId = profileLink?.linked_player_id
+    if (!linkedPlayerId) return []
+
+    const teamIds = new Set<string>()
+
+    for (const match of matches) {
+      const participants = matchPlayersByMatch.get(match.id) ?? []
+      const linkedParticipant = participants.find((participant) => participant.player_id === linkedPlayerId)
+      if (!linkedParticipant) continue
+
+      const teamName = cleanText(linkedParticipant.side === 'A' ? match.home_team : match.away_team)
+      const leagueName = cleanText(match.league_name)
+      const flight = cleanText(match.flight)
+      if (!teamName) continue
+
+      teamIds.add(
+        buildScopedTeamEntityId({
+          competitionLayer: inferCompetitionLayerForContext({ leagueName }),
+          teamName,
+          leagueName,
+          flight,
+        }),
+      )
+    }
+
+    return teamSummaries.filter((team) => teamIds.has(team.id))
+  }, [matches, matchPlayersByMatch, profileLink?.linked_player_id, teamSummaries])
+
+  const profileTeamOptions = selectedPlayerTeamSummaries.length ? selectedPlayerTeamSummaries : teamSummaries
+
+  useEffect(() => {
+    if (!selectedPlayerLinkId || selectedTeamLinkId || selectedPlayerTeamSummaries.length !== 1) return
+    setSelectedTeamLinkId(selectedPlayerTeamSummaries[0].id)
+  }, [selectedPlayerLinkId, selectedPlayerTeamSummaries, selectedTeamLinkId])
+
   async function saveProfileTeamLink() {
     if (!userId) {
-      setProfileLinkMessage('Sign in to link your player and team.')
+      setProfileLinkMessage('Sign in to confirm your player profile.')
       return
     }
 
@@ -703,7 +952,7 @@ function MyLabPageInner() {
     setSavingProfileLink(true)
     setProfileLinkMessage('')
 
-    const payload = {
+    const payload: ProfileLinkRow & { linked_team_at: string } = {
       linked_player_id: selectedPlayer?.id || null,
       linked_player_name: selectedPlayer?.name || null,
       linked_team_name: selectedTeam?.teamName || null,
@@ -712,17 +961,14 @@ function MyLabPageInner() {
       linked_team_at: new Date().toISOString(),
     }
 
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update(payload)
-      .eq('id', userId)
-
-    setSavingProfileLink(false)
-
-    if (updateError) {
-      setProfileLinkMessage(updateError.message)
+    const saveRes = await saveUserProfileLink(userId, payload)
+    if (saveRes.error) {
+      setSavingProfileLink(false)
+      setProfileLinkMessage(saveRes.error.message)
       return
     }
+
+    setSavingProfileLink(false)
 
     setProfileLink({
       linked_player_id: payload.linked_player_id,
@@ -731,7 +977,11 @@ function MyLabPageInner() {
       linked_league_name: payload.linked_league_name,
       linked_flight: payload.linked_flight,
     })
-    setProfileLinkMessage('Your player and team links were saved.')
+    setProfileLinkMessage(
+      saveRes.source === 'local'
+        ? 'Profile saved on this device. Apply the profile-link migration for cloud sync.'
+        : 'Your player home base is confirmed.',
+    )
   }
 
   const searchOptions = useMemo<SearchOption[]>(() => {
@@ -1307,294 +1557,764 @@ function MyLabPageInner() {
     await persistFollows(next)
   }
 
+  function persistGoalList(nextGoals: LabGoalState[], nextActiveGoalId = activeGoalId, label = 'Saved just now') {
+    setGoals(nextGoals)
+    writeLocalGoals(userId, profileLink?.linked_player_id, nextGoals)
+    const activeGoal = nextGoals.find((goal) => goal.id === nextActiveGoalId) || nextGoals[0] || EMPTY_LAB_GOAL
+    writeLocalLabText(LOCAL_GOAL_KEY, userId, profileLink?.linked_player_id, activeGoal.goal)
+    writeLocalLabText(LOCAL_NOTEBOOK_KEY, userId, profileLink?.linked_player_id, activeGoal.notes)
+    setLastSavedAt(activeGoal.updatedAt || new Date().toISOString())
+    setNotebookSavedLabel(label)
+  }
+
+  function saveNotebook() {
+    const now = new Date().toISOString()
+    const nextGoals = goals.map((goal) => ({
+      ...goal,
+      goal: goal.goal.trim(),
+      progressUpdate: goal.progressUpdate.trim(),
+      doingWell: goal.doingWell.trim(),
+      improveNext: goal.improveNext.trim(),
+      notes: goal.notes.trim(),
+      updatedAt: goal.id === activeGoalId ? now : goal.updatedAt,
+    }))
+    persistGoalList(nextGoals)
+  }
+
+  function updateGoal(goalId: string, updates: Partial<LabGoalState>) {
+    const now = new Date().toISOString()
+    const nextGoals = goals.map((goal) => (
+      goal.id === goalId
+        ? { ...goal, ...updates, updatedAt: now }
+        : goal
+    ))
+    persistGoalList(nextGoals, goalId, 'Saved automatically')
+  }
+
+  function addGoal() {
+    const nextGoal = createEmptyGoal()
+    const nextGoals = [...goals, nextGoal]
+    setActiveGoalId(nextGoal.id)
+    persistGoalList(nextGoals, nextGoal.id, 'New goal added')
+  }
+
+  function removeGoal(goalId: string) {
+    const nextGoals = goals.filter((goal) => goal.id !== goalId)
+    const normalizedGoals = nextGoals.length ? nextGoals : [createEmptyGoal()]
+    const nextActiveGoalId = normalizedGoals.some((goal) => goal.id === activeGoalId)
+      ? activeGoalId
+      : normalizedGoals[0].id
+    setActiveGoalId(nextActiveGoalId)
+    persistGoalList(normalizedGoals, nextActiveGoalId, 'Goal removed')
+  }
+
   const followedPlayers = follows.filter((item) => item.entity_type === 'player')
   const followedTeams = follows.filter((item) => item.entity_type === 'team')
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
+  const isProfileConfirmed = Boolean(profileLink?.linked_player_id || profileLink?.linked_player_name)
+  const confirmedPlayerHref = profileLink?.linked_player_id ? `/players/${profileLink.linked_player_id}` : '/explore/players'
+  const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
+  const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
+  const welcomeLine = firstName ? `Welcome back, ${firstName}.` : 'Welcome to your lab.'
+  const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
+  const recentWins = recentDecisionMatches.filter((match) => match.result === 'W').length
+  const recentLosses = recentDecisionMatches.filter((match) => match.result === 'L').length
+  const recentRecordLabel = recentDecisionMatches.length ? `${recentWins}-${recentLosses}` : 'New'
+  const recentWinRate = recentDecisionMatches.length ? Math.round((recentWins / recentDecisionMatches.length) * 100) : 0
+  const lastMatch = personalMatches[0] || null
+  const lastMatchSummary = lastMatch ? `Last: ${lastMatch.result} vs ${compactOpponentLabel(lastMatch.opponent)}` : 'Recent results appear as imports connect.'
+  const personalSinglesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('singles')).length
+  const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
+  const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
+  const ustaDynamic = linkedPlayer?.overall_usta_dynamic_rating ?? null
+  const ustaBase =
+    typeof ustaDynamic === 'number'
+      ? Math.max(2.5, Math.floor(ustaDynamic * 2) / 2)
+      : null
+  const nextUstaLevel = ustaBase == null ? null : ustaBase + 0.5
+  const levelProgress =
+    typeof currentTiq === 'number' && ustaBase != null
+      ? Math.max(0, Math.min(100, ((currentTiq - ustaBase) / 0.5) * 100))
+      : 0
+  const hasLevelProgress = typeof currentTiq === 'number' && ustaBase != null
+  const tiqVsUsta = typeof currentTiq === 'number' && typeof ustaDynamic === 'number' ? currentTiq - ustaDynamic : null
+  const levelStatus =
+    tiqVsUsta == null
+      ? 'Building profile'
+      : tiqVsUsta >= 0.05
+        ? 'Trending up'
+        : tiqVsUsta <= -0.05
+          ? 'Needs work'
+          : 'Holding steady'
+  const confidenceLabel =
+    recentDecisionMatches.length >= 8 ? 'High confidence' : recentDecisionMatches.length >= 4 ? 'Medium confidence' : 'Low confidence'
+  const ratingToGo = typeof currentTiq === 'number' && nextUstaLevel != null ? Math.max(0, nextUstaLevel - currentTiq) : null
+  const chronologicalDecisions = [...recentDecisionMatches].sort((a, b) => {
+    const left = a.date ? new Date(a.date).getTime() : 0
+    const right = b.date ? new Date(b.date).getTime() : 0
+    return left - right
+  })
+  let bestWinStreak = 0
+  let rollingWinStreak = 0
+  chronologicalDecisions.forEach((match) => {
+    if (match.result === 'W') {
+      rollingWinStreak += 1
+      bestWinStreak = Math.max(bestWinStreak, rollingWinStreak)
+    } else {
+      rollingWinStreak = 0
+    }
+  })
+  let currentWinStreak = 0
+  for (const match of recentDecisionMatches) {
+    if (match.result !== 'W') break
+    currentWinStreak += 1
+  }
+  const seasonRecords = new Map<string, { wins: number; losses: number }>()
+  const leagueRecords = new Map<string, { wins: number; losses: number }>()
+  recentDecisionMatches.forEach((match) => {
+    const year = match.date && !Number.isNaN(new Date(match.date).getTime())
+      ? String(new Date(match.date).getFullYear())
+      : 'Connected'
+    const season = seasonRecords.get(year) || { wins: 0, losses: 0 }
+    if (match.result === 'W') season.wins += 1
+    if (match.result === 'L') season.losses += 1
+    seasonRecords.set(year, season)
 
-  const heroStats = [
+    const leagueName = match.leagueName || 'Connected matches'
+    const league = leagueRecords.get(leagueName) || { wins: 0, losses: 0 }
+    if (match.result === 'W') league.wins += 1
+    if (match.result === 'L') league.losses += 1
+    leagueRecords.set(leagueName, league)
+  })
+  const rankRecords = (records: Map<string, { wins: number; losses: number }>) =>
+    [...records.entries()]
+      .map(([label, record]) => ({
+        label,
+        ...record,
+        total: record.wins + record.losses,
+        winRate: record.wins + record.losses ? Math.round((record.wins / (record.wins + record.losses)) * 100) : 0,
+      }))
+      .filter((record) => record.total > 0)
+      .sort((a, b) => b.winRate - a.winRate || b.wins - a.wins || b.total - a.total)
+  const bestSeason = rankRecords(seasonRecords)[0] || null
+  const bestLeague = rankRecords(leagueRecords)[0] || null
+  const anchorRating = linkedPlayer?.singles_dynamic_rating ?? linkedPlayer?.overall_dynamic_rating ?? null
+  const matchupCandidates =
+    linkedPlayer && typeof anchorRating === 'number'
+      ? players
+          .filter((player) => player.id !== linkedPlayer.id)
+          .map((player) => {
+            const rating = player.singles_dynamic_rating ?? player.overall_dynamic_rating
+            return typeof rating === 'number'
+              ? {
+                  player,
+                  rating,
+                  gap: Math.abs(rating - anchorRating),
+                }
+              : null
+          })
+          .filter((item): item is { player: PlayerRow; rating: number; gap: number } => Boolean(item))
+          .sort((left, right) => left.gap - right.gap)
+          .slice(0, 4)
+      : []
+  const topMatchupCandidate = matchupCandidates[0] || null
+  const secondaryMatchupCandidates = matchupCandidates.slice(1, 4)
+  const matchupHref = linkedPlayer
+    ? `/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayer.id)}${topMatchupCandidate ? `&playerB=${encodeURIComponent(topMatchupCandidate.player.id)}` : ''}`
+    : '/matchup'
+  const matchupGapScore = topMatchupCandidate ? Math.max(0, Math.min(100, 100 - topMatchupCandidate.gap * 100)) : 0
+  const matchupReadLabel =
+    topMatchupCandidate == null
+      ? 'Build player link'
+      : topMatchupCandidate.gap <= 0.08
+        ? 'Very close'
+        : topMatchupCandidate.gap <= 0.18
+          ? 'Good test'
+          : 'Stretch test'
+  const matchupPreviewCards = [
     {
-      label: 'Following',
-      value: String(follows.length),
-      note: 'Players, teams, and leagues in your lab',
+      label: 'Match quality',
+      value: topMatchupCandidate ? matchupReadLabel : 'Waiting',
+      note: topMatchupCandidate ? `${topMatchupCandidate.gap.toFixed(2)} rating gap` : 'Link your profile to find close tests',
     },
     {
-      label: 'Feed items',
-      value: String(feed.length),
-      note: 'Personalized updates across your network',
+      label: 'Your singles',
+      value: formatRating(linkedPlayer?.singles_dynamic_rating ?? linkedPlayer?.overall_dynamic_rating ?? null),
+      note: linkedPlayer ? linkedPlayer.name : 'Player profile needed',
     },
     {
-      label: 'Cloud sync',
-      value: savedToCloud ? 'On' : 'Device',
-      note: savedToCloud ? 'Saved across sessions' : 'Saved on this device',
-    },
-    {
-      label: 'TIQ individual',
-      value: String(followedTiqIndividualParticipations.length),
-      note: 'Tracked TIQ player-league entries',
+      label: 'Their singles',
+      value: formatRating(topMatchupCandidate?.player.singles_dynamic_rating ?? topMatchupCandidate?.player.overall_dynamic_rating ?? null),
+      note: topMatchupCandidate?.player.name || 'Choose an opponent',
     },
   ]
-
-  const dynamicHeroRailCardStyle: CSSProperties = {
-    ...heroRailCardStyle,
-    position: 'relative',
-    overflow: 'hidden',
-    background: 'var(--shell-panel-bg)',
-  }
-
-  const heroRailContentStyle: CSSProperties = {
-    position: 'relative',
-    zIndex: 2,
-  }
-
-  const heroRailHighlights = [
+  const activeGoal = goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL
+  const activeGoals = goals.filter((goal) => goal.progressStatus !== 'completed')
+  const completedGoals = goals.filter((goal) => goal.progressStatus === 'completed')
+  const focusSuggestion =
+    activeGoal.goal.trim() ||
+    (recentDecisionMatches.length >= 3 && recentLosses > recentWins
+      ? 'Review recent losses and choose one pattern to clean up before the next match.'
+      : topMatchupCandidate
+        ? `Test yourself against ${topMatchupCandidate.player.name} and compare the read.`
+        : 'Add a goal for your next two weeks of tennis.')
+  const progressUpdatedLabel = activeGoal.updatedAt ? `Updated ${timeAgo(activeGoal.updatedAt)}` : 'No progress update yet'
+  const improvementDefault =
+    activeGoal.improveNext ||
+    (recentDecisionMatches.length && recentLosses > recentWins
+      ? 'Pick one repeat pattern from the recent losses.'
+      : 'Use Matchup to test a close opponent.')
+  const doingWellDefault =
+    activeGoal.doingWell ||
+    (recentDecisionMatches.length && recentWins >= recentLosses
+      ? 'Recent results are holding steady.'
+      : 'You have a clear place to focus next.')
+  const tiqRecommendation =
+    recentDecisionMatches.length >= 3 && recentLosses > recentWins
+      ? 'Your recent record suggests choosing one repeat pattern from losses and tracking it for the next two matches.'
+      : topMatchupCandidate
+        ? `A close next test is ${topMatchupCandidate.player.name}. Use Matchup, then log what actually happened.`
+        : linkedPlayer
+          ? 'Pick one measurable goal and update it after your next match so My Lab can start showing progress.'
+          : 'Link your player record to unlock recommendations from ratings, match history, and matchup context.'
+  const goalSummaryCards = [
     {
-      label: 'Tracked',
-      value: String(follows.length),
-      text: 'Your watchlist.',
+      label: 'Active goals',
+      value: String(activeGoals.length || goals.length),
+      note: progressUpdatedLabel,
     },
     {
-      label: 'Feed ready',
-      value: String(feed.length),
-      text: 'Updates in one stream.',
+      label: 'Main focus',
+      value: activeGoal.goal || 'Set a goal',
+      note: activeGoal.progressUpdate || 'Add a short update after practice or a match.',
     },
     {
-      label: 'Best fit',
-      value: access.canUseAdvancedPlayerInsights ? 'Player' : 'Free',
-      text: access.canUseAdvancedPlayerInsights
-        ? 'My Lab is unlocked.'
-        : 'Unlock My Lab with Player.',
+      label: 'Doing well',
+      value: doingWellDefault,
+      note: 'Keep the part of your game that is already working visible.',
+    },
+    {
+      label: 'Improve next',
+      value: improvementDefault,
+      note: 'One adjustment beats five vague intentions.',
+    },
+    {
+      label: 'Completed',
+      value: String(completedGoals.length),
+      note: 'Keep finished goals in view without letting them crowd the page.',
     },
   ]
-
+  const personalCommandCards = [
+    {
+      label: 'Where am I?',
+      value: formatRating(linkedPlayer?.overall_dynamic_rating ?? null),
+      note: linkedPlayer ? `${linkedPlayer.name} - ${linkedPlayer.location || 'player profile'}` : 'Link your player record in Profile.',
+      href: '/profile',
+      cta: 'Manage profile',
+    },
+    {
+      label: 'How am I doing?',
+      value: recentRecordLabel,
+      note: lastMatchSummary,
+      href: '#recent-matches',
+      cta: 'Review matches',
+    },
+    {
+      label: 'What should I focus on?',
+      value: activeGoal.goal.trim() ? goalStatusLabel(activeGoal.progressStatus) : 'Choose one',
+      note: focusSuggestion,
+      href: '#player-notebook',
+      cta: 'Open notebook',
+    },
+  ]
+  const confirmedTeamEntityId = profileLink?.linked_team_name
+    ? buildScopedTeamEntityId({
+        competitionLayer: '',
+        teamName: profileLink.linked_team_name,
+        leagueName: profileLink.linked_league_name || '',
+        flight: profileLink.linked_flight || '',
+      })
+    : ''
+  const confirmedTeamHref = confirmedTeamEntityId ? buildTeamHrefFromEntityId(confirmedTeamEntityId) : null
+  const confirmedLeagueCount = new Set(
+    linkedPlayerTeamSummaries
+      .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
+      .filter(Boolean),
+  ).size
+  const visualStatBars = [
+    {
+      label: 'Recent win rate',
+      value: recentWinRate,
+      text: recentDecisionMatches.length ? `${recentWinRate}% across connected decisions` : 'Waiting on connected results',
+      figure: recentDecisionMatches.length ? `${recentWinRate}%` : 'New',
+    },
+    {
+      label: 'Singles share',
+      value: personalMatches.length ? Math.round((personalSinglesCount / personalMatches.length) * 100) : 0,
+      text: `${personalSinglesCount} singles matches`,
+      figure: String(personalSinglesCount),
+    },
+    {
+      label: 'Doubles share',
+      value: personalMatches.length ? Math.round((personalDoublesCount / personalMatches.length) * 100) : 0,
+      text: `${personalDoublesCount} doubles matches`,
+      figure: String(personalDoublesCount),
+    },
+    {
+      label: 'Team context',
+      value: Math.min(100, (linkedPlayerTeamSummaries.length || (profileLink?.linked_team_name ? 1 : 0)) * 25),
+      text: confirmedLeagueCount ? `${confirmedLeagueCount} leagues detected` : 'Grows as results connect',
+      figure: String(linkedPlayerTeamSummaries.length || (profileLink?.linked_team_name ? 1 : 0)),
+    },
+  ]
+  const ratingVisuals = [
+    {
+      label: 'USTA base',
+      value: ustaBase,
+      display: ustaBase == null ? 'New' : ustaBase.toFixed(2),
+    },
+    {
+      label: 'USTA dynamic',
+      value: ustaDynamic,
+      display: formatRating(ustaDynamic),
+    },
+    {
+      label: 'Overall',
+      value: currentTiq,
+      display: formatRating(currentTiq),
+    },
+    {
+      label: 'Singles',
+      value: linkedPlayer?.singles_dynamic_rating ?? null,
+      display: formatRating(linkedPlayer?.singles_dynamic_rating ?? null),
+    },
+    {
+      label: 'Doubles',
+      value: linkedPlayer?.doubles_dynamic_rating ?? null,
+      display: formatRating(linkedPlayer?.doubles_dynamic_rating ?? null),
+    },
+  ]
+  const scorecardSummaryCards = [
+    { label: 'Recent record', value: recentRecordLabel, note: `${recentDecisionMatches.length} connected decisions` },
+    { label: 'Win rate', value: recentDecisionMatches.length ? `${recentWinRate}%` : 'New', note: lastMatchSummary },
+    {
+      label: 'Matchup read',
+      value: matchupReadLabel,
+      note: topMatchupCandidate ? `${topMatchupCandidate.player.name} - gap ${topMatchupCandidate.gap.toFixed(2)}` : 'Use Matchup to compare',
+    },
+    { label: 'Current focus', value: activeGoal.goal || 'Optional', note: activeGoal.progressUpdate || 'Add a goal only when it helps' },
+  ]
+  const trophyRoomCards = [
+    {
+      label: 'Peak TIQ',
+      value: formatRating(
+        [linkedPlayer?.overall_dynamic_rating, linkedPlayer?.singles_dynamic_rating, linkedPlayer?.doubles_dynamic_rating]
+          .filter((value): value is number => typeof value === 'number')
+          .sort((a, b) => b - a)[0] ?? null,
+      ),
+      note: 'Best rating mark currently connected',
+    },
+    {
+      label: 'Best streak',
+      value: bestWinStreak ? `${bestWinStreak}W` : 'New',
+      note: currentWinStreak ? `${currentWinStreak}W active streak` : 'Win streaks appear as results connect',
+    },
+    {
+      label: 'Best season',
+      value: bestSeason?.label || 'New',
+      note: bestSeason ? `${bestSeason.wins}W-${bestSeason.losses}L - ${bestSeason.winRate}% win rate` : 'Season finishes appear from match history',
+    },
+    {
+      label: 'Best league',
+      value: bestLeague?.label || 'New',
+      note: bestLeague ? `${bestLeague.wins}W-${bestLeague.losses}L - ${bestLeague.winRate}% win rate` : 'League finishes appear from match history',
+    },
+  ]
   return (
     <section style={pageStyle}>
-      <section style={heroStyle(isTablet, isMobile)}>
-        <div>
-          <div style={eyebrowStyle}>{MY_LAB_STORY.eyebrow}</div>
-          <h1 style={heroTitleStyle(isSmallMobile, isMobile)}>{MY_LAB_STORY.headline}</h1>
-          <p style={heroTextStyle}>
-            {MY_LAB_STORY.body}
-          </p>
-
-          <div style={heroButtonRowStyle}>
-            <Link
-              href="/explore/players"
-              onMouseEnter={() => setPlayersHovered(true)}
-              onMouseLeave={() => setPlayersHovered(false)}
-              style={{
-                ...primaryButtonStyle,
-                transform: playersHovered ? 'translateY(-2px)' : 'none',
-                boxShadow: playersHovered
-                  ? '0 20px 40px rgba(74,222,128,0.22)'
-                  : '0 16px 32px rgba(74,222,128,0.14)',
-                transition: 'transform 140ms ease, box-shadow 140ms ease',
-              }}
-            >
-              Find players
-            </Link>
-            <Link
-              href="/explore/teams"
-              onMouseEnter={() => setTeamsHovered(true)}
-              onMouseLeave={() => setTeamsHovered(false)}
-              style={{
-                ...secondaryButtonStyle,
-                border: teamsHovered
-                  ? '1px solid color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)'
-                  : secondaryButtonStyle.border,
-                transform: teamsHovered ? 'translateY(-2px)' : 'none',
-                transition: 'all 140ms ease',
-              }}
-            >
-              Browse teams
-            </Link>
-            <Link
-              href="/explore/leagues"
-              onMouseEnter={() => setLeaguesHovered(true)}
-              onMouseLeave={() => setLeaguesHovered(false)}
-              style={{
-                ...secondaryButtonStyle,
-                border: leaguesHovered
-                  ? '1px solid color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)'
-                  : secondaryButtonStyle.border,
-                transform: leaguesHovered ? 'translateY(-2px)' : 'none',
-                transition: 'all 140ms ease',
-              }}
-            >
-              Explore leagues
-            </Link>
-          </div>
-
-          <div style={metricGridStyle(isSmallMobile)}>
-            {heroStats.map((stat) => (
-              <div key={stat.label} style={metricCardStyle}>
-                <div style={metricLabelStyle}>{stat.label}</div>
-                <div style={metricValueStyle}>{stat.value}</div>
-                <div style={metricNoteStyle}>{stat.note}</div>
-              </div>
-              ))}
-          </div>
-
-          {tiqPlayerParticipationWarning ? (
-            <div
-              style={{
-                marginTop: 18,
-                padding: '14px 16px',
-                borderRadius: 16,
-                border: '1px solid var(--shell-panel-border)',
-                background: 'var(--shell-chip-bg)',
-                color: 'var(--shell-copy-muted)',
-                lineHeight: 1.6,
-                fontSize: 13,
-              }}
-            >
-              TIQ participation note: 
-              {tiqPlayerParticipationWarning}
-            </div>
-          ) : null}
-        </div>
-
-        <div style={dynamicHeroRailCardStyle}>
-          <div style={labRailGlowStyle} />
-          <div style={labRailGridStyle} />
-
-          <div style={heroRailContentStyle}>
-            <p style={sectionKickerStyle}>{MY_LAB_STORY.railKicker}</p>
-            <h2 style={sideTitleStyle}>{MY_LAB_STORY.railTitle}</h2>
-            <div style={workflowListStyle}>
-              {[
-                ['Follow', getMembershipTier('player_plus').valueProps[1]],
-                ['Compare', getMembershipTier('player_plus').valueProps[2]],
-                ['Act', 'Open the right page when something changes.'],
-              ].map(([title, text]) => (
-                <div key={title} style={workflowRowStyle}>
-                  <div style={workflowDotStyle} />
-                  <div>
-                    <div style={workflowTitleStyle}>{title}</div>
-                    <div style={workflowTextStyle}>{text}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-                gap: 12,
-                marginTop: 18,
-              }}
-            >
-              {heroRailHighlights.map((item) => (
-                <div key={item.label} style={labRailMiniCardStyle}>
-                  <div style={labRailMiniLabelStyle}>{item.label}</div>
-                  <div style={labRailMiniValueStyle}>{item.value}</div>
-                  <div style={labRailMiniTextStyle}>{item.text}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={labRailBoardStyle}>
-              <div style={labRailBoardHeaderStyle}>
-                <span style={pillSlateStyle}>Watchlist</span>
-                <span style={pillBlueStyle}>Feed</span>
-              </div>
-
-              <div style={labRailBoardRowsStyle}>
-                <div style={labRailBoardRowStyle}>
-                  <div>
-                    <div style={labRailBoardTitleStyle}>Tracked players</div>
-                    <div style={labRailBoardTextStyle}>Follow performance, movement, and match activity.</div>
-                  </div>
-                  <span style={pillGreenStyle}>{followedPlayers.length}</span>
-                </div>
-                <div style={labRailBoardRowStyle}>
-                  <div>
-                    <div style={labRailBoardTitleStyle}>Tracked teams</div>
-                    <div style={labRailBoardTextStyle}>Keep an eye on roster context and weekly motion.</div>
-                  </div>
-                  <span style={pillBlueStyle}>{followedTeams.length}</span>
-                </div>
-                <div style={labRailBoardRowStyle}>
-                  <div>
-                    <div style={labRailBoardTitleStyle}>Tracked leagues</div>
-                    <div style={labRailBoardTextStyle}>Separate official status from TIQ internal competition.</div>
-                  </div>
-                  <span style={pillSlateStyle}>{followedLeagues.length}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section style={labSignalGridStyle(isMobile)}>
-        {LAB_SIGNALS.map((signal) => (
-          <div key={signal.label} style={labSignalCardStyle}>
-            <div style={labSignalLabelStyle}>{signal.label}</div>
-            <div style={labSignalValueStyle}>{signal.value}</div>
-            <div style={labSignalNoteStyle}>{signal.note}</div>
-          </div>
-        ))}
-      </section>
-
-      <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 20px' }}>
-        <div style={{ borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px 20px', display: 'grid', gap: 14 }}>
+      <section id="player-workshop" style={profileLinkSectionStyle}>
+        <div style={profileLinkCardStyle}>
           <div style={sectionHeaderStyle}>
             <div>
-              <p style={sectionKickerStyle}>Profile links</p>
-              <h2 style={sectionTitleStyle}>Connect yourself to a player and team</h2>
+              <p style={sectionKickerStyle}>Player scorecard</p>
+              <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
               <p style={sectionTextStyle}>
-                This tells TenAceIQ which player profile and roster context belong to your account.
+                Start with the score: ratings, progress to the next level, records, and the next useful matchup.
               </p>
             </div>
-            <span style={profileLink?.linked_team_name || profileLink?.linked_player_name ? pillGreenStyle : pillSlateStyle}>
-              {profileLink?.linked_team_name || profileLink?.linked_player_name ? 'Linked' : 'Not linked'}
-            </span>
+            <Link href={matchupHref} style={secondaryButtonStyle}>
+              Open Matchup
+            </Link>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 10, alignItems: 'end' }}>
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span style={labelStyle}>Player profile</span>
-              <select value={selectedPlayerLinkId} onChange={(event) => setSelectedPlayerLinkId(event.target.value)} style={inputStyle}>
-                <option value="">Select your player profile</option>
-                {players.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}{player.location ? ` - ${player.location}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label style={{ display: 'grid', gap: 6 }}>
-              <span style={labelStyle}>Team roster</span>
-              <select value={selectedTeamLinkId} onChange={(event) => setSelectedTeamLinkId(event.target.value)} style={inputStyle}>
-                <option value="">Select your team</option>
-                {teamSummaries.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {[team.name, team.league, team.flight].filter(Boolean).join(' - ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button type="button" onClick={saveProfileTeamLink} disabled={savingProfileLink || !userId} style={primaryButtonStyle}>
-              {savingProfileLink ? 'Saving...' : 'Save links'}
-            </button>
-          </div>
-
-          {profileLinkMessage ? (
-            <div style={{ color: profileLinkMessage.includes('saved') ? '#bbf7d0' : '#fecaca', fontSize: 13, fontWeight: 800 }}>
-              {profileLinkMessage}
+          <section style={levelUpPanelStyle(isTablet)}>
+            <div style={levelMeterStyle}>
+              <div style={levelMeterHeaderStyle}>
+                <div>
+                  <div style={levelMeterTitleStyle}>Level-up meter</div>
+                  <div style={levelBadgeRowStyle}>
+                    <span style={levelStatus === 'Trending up' ? pillGreenStyle : levelStatus === 'Needs work' ? pillRedStyle : pillBlueStyle}>
+                      {levelStatus}
+                    </span>
+                    <span style={pillSlateStyle}>{confidenceLabel}</span>
+                  </div>
+                </div>
+                <div style={levelRatingBlockStyle}>
+                  <strong style={levelRatingNumberStyle}>{formatRating(currentTiq)}</strong>
+                  <span>
+                    {ustaBase == null || nextUstaLevel == null
+                      ? 'Build match history'
+                      : `USTA ${ustaBase.toFixed(2)} - next ${nextUstaLevel.toFixed(1)}`}
+                  </span>
+                  <small>{tiqVsUsta == null ? 'TIQ vs USTA appears after linking' : `TIQ vs USTA ${tiqVsUsta >= 0 ? '+' : ''}${tiqVsUsta.toFixed(2)}`}</small>
+                </div>
+              </div>
+              <div style={levelMeterMetaStyle}>
+                <strong>{ustaBase == null ? 'USTA base pending' : `USTA ${ustaBase.toFixed(2)} - TIQ overall ${formatRating(currentTiq)}`}</strong>
+                <span>{ratingToGo == null ? 'Link your player profile to show your next level path.' : `${ratingToGo.toFixed(2)} to go`}</span>
+              </div>
+              <div style={progressTrackStyle} aria-label={hasLevelProgress ? `Level progress ${Math.round(levelProgress)} percent` : 'Level progress pending'}>
+                <div style={levelProgressFillStyle(levelProgress, hasLevelProgress)} />
+              </div>
+              <div style={levelMeterScaleStyle}>
+                <span>{ustaBase == null ? 'Base' : ustaBase.toFixed(1)}</span>
+                <span>{ratingToGo == null ? 'Next level' : `${ratingToGo.toFixed(2)} to go`}</span>
+                <span>{nextUstaLevel == null ? 'Next' : nextUstaLevel.toFixed(1)}</span>
+              </div>
             </div>
-          ) : null}
+
+            <div style={quickProfileStyle}>
+              <h3 style={quickProfileTitleStyle}>Quick profile view</h3>
+              <div style={quickProfileGridStyle(isTablet)}>
+                {ratingVisuals.map((rating) => (
+                  <div key={rating.label} style={quickProfileCardStyle}>
+                    <div style={metricLabelStyle}>{rating.label}</div>
+                    <div style={quickProfileValueStyle}>{rating.display}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section style={todayReadPanelStyle}>
+            <div style={workshopContextRowStyle}>
+              <span>Today&apos;s read</span>
+              <strong>{linkedPlayer?.name || profileLink?.linked_player_name || 'Player profile'}</strong>
+            </div>
+            <div style={todayReadGridStyle(isTablet)}>
+              {scorecardSummaryCards.map((item) => (
+                <div key={item.label} style={todayReadCardStyle}>
+                  <div style={metricLabelStyle}>{item.label}</div>
+                  <div style={todayReadValueStyle}>{item.value}</div>
+                  <div style={metricNoteStyle}>{item.note}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section style={matchupSpotlightStyle}>
+            <div style={matchupSpotlightHeroStyle(isTablet)}>
+              <div>
+                <p style={sectionKickerStyle}>Matchup spotlight</p>
+                <h3 style={matchupSpotlightTitleStyle}>
+                  {topMatchupCandidate ? `${linkedPlayer?.name || 'You'} vs ${topMatchupCandidate.player.name}` : 'Find your next useful test'}
+                </h3>
+                <p style={sectionTextStyle}>
+                  {topMatchupCandidate
+                    ? 'Use the closest rating gap as a fast read before you choose who to play next.'
+                    : 'Link your player profile and My Lab will turn the player pool into matchup suggestions.'}
+                </p>
+              </div>
+              <Link href={matchupHref} style={matchupPrimaryLinkStyle}>
+                Compare now
+              </Link>
+            </div>
+            <div style={matchupMeterStyle}>
+              <div style={workshopContextRowStyle}>
+                <span>{matchupReadLabel}</span>
+                <strong>{topMatchupCandidate ? `${matchupGapScore.toFixed(0)}% fit` : 'No read yet'}</strong>
+              </div>
+              <div style={matchupTrackStyle}>
+                <div style={matchupFillStyle(matchupGapScore)} />
+              </div>
+            </div>
+            <div style={matchupPreviewGridStyle(isTablet)}>
+              {matchupPreviewCards.map((card) => (
+                <div key={card.label} style={matchupPreviewCardStyle}>
+                  <div style={metricLabelStyle}>{card.label}</div>
+                  <div style={todayReadValueStyle}>{card.value}</div>
+                  <div style={metricNoteStyle}>{card.note}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section style={performancePanelStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Performance mix</p>
+                <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
+              </div>
+            </div>
+            <div style={performanceGridStyle(isTablet)}>
+              {visualStatBars.map((bar) => (
+                <div key={bar.label} style={performanceCardStyle}>
+                  <div style={statRingStyle(bar.value)}>
+                    <span>{bar.figure}</span>
+                  </div>
+                  <div>
+                    <div style={performanceCardTitleStyle}>{bar.label}</div>
+                    <div style={metricNoteStyle}>{bar.text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section style={trophyRoomPanelStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Trophy room</p>
+                <h3 style={compactSectionTitleStyle}>Personal records</h3>
+                <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+              </div>
+            </div>
+            <div style={trophyRoomGridStyle(isTablet)}>
+              {trophyRoomCards.map((record) => (
+                <div key={record.label} style={trophyCardStyle}>
+                  <div style={metricLabelStyle}>{record.label}</div>
+                  <div style={trophyValueStyle}>{record.value}</div>
+                  <div style={metricNoteStyle}>{record.note}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </section>
+
+      {tiqPlayerParticipationWarning ? (
+        <div style={warningNoteStyle}>
+          TIQ participation note: {tiqPlayerParticipationWarning}
+        </div>
+      ) : null}
+
+      <section id="player-tools" style={profileLinkSectionStyle}>
+        <div style={profileLinkCardStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <p style={sectionKickerStyle}>Player workshop</p>
+              <h2 style={sectionTitleStyle}>What should I do next?</h2>
+              <p style={sectionTextStyle}>
+                Turn the scorecard into action: review, compare, choose one focus, then go play.
+              </p>
+            </div>
+            <Link href={matchupHref} style={secondaryButtonStyle}>
+              Open Matchup
+            </Link>
+          </div>
+
+          <div style={personalCommandGridStyle(isTablet)}>
+            {personalCommandCards.map((card) => (
+              <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
+                <div style={metricLabelStyle}>{card.label}</div>
+                <div style={personalHomeTitleStyle}>{card.value}</div>
+                <div style={metricNoteStyle}>{card.note}</div>
+                <span style={miniActionLinkStyle}>{card.cta}</span>
+              </Link>
+            ))}
+          </div>
+
+          <section id="goal-progress" style={goalProgressPanelStyle}>
+            <div style={sectionHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Optional goals</p>
+                <h3 style={compactSectionTitleStyle}>Training notes when you need them</h3>
+              </div>
+              <button type="button" onClick={addGoal} style={smallGhostButtonStyle}>
+                Add goal
+              </button>
+            </div>
+            <div style={goalSummaryGridStyle(isTablet)}>
+              {goalSummaryCards.map((item) => (
+                <div key={item.label} style={goalSummaryCardStyle}>
+                  <div style={metricLabelStyle}>{item.label}</div>
+                  <div style={goalSummaryValueStyle}>{item.value}</div>
+                  <div style={metricNoteStyle}>{item.note}</div>
+                </div>
+              ))}
+            </div>
+            <div style={recommendationCardStyle}>
+              <div style={metricLabelStyle}>TenAceIQ recommendation</div>
+              <p style={recommendationTextStyle}>{tiqRecommendation}</p>
+            </div>
+            <div id="player-notebook" style={goalWorkspaceStyle}>
+              <div style={goalListStyle}>
+                {goals.map((goal, index) => (
+                  <button
+                    key={goal.id}
+                    type="button"
+                    onClick={() => setActiveGoalId(goal.id)}
+                    style={goal.id === activeGoalId ? goalTabActiveStyle : goalTabStyle}
+                  >
+                    <span>{goal.goal || `Goal ${index + 1}`}</span>
+                    <em>{goalStatusLabel(goal.progressStatus)}</em>
+                  </button>
+                ))}
+              </div>
+
+              <details style={goalEditorDetailsStyle}>
+                <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
+                <div style={goalEditorStyle}>
+                  <div style={inputWrapStyle}>
+                    <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
+                    <input
+                      id={`my-lab-goal-${activeGoal.id}`}
+                      value={activeGoal.goal}
+                      onChange={(event) => updateGoal(activeGoal.id, { goal: event.target.value })}
+                      placeholder="Example: attack second serves this month"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div style={inputWrapStyle}>
+                    <label style={labelStyle} htmlFor={`my-lab-progress-${activeGoal.id}`}>Status</label>
+                    <select
+                      id={`my-lab-progress-${activeGoal.id}`}
+                      value={activeGoal.progressStatus}
+                      onChange={(event) => {
+                        const nextStatus = event.target.value
+                        if (!isGoalProgressStatus(nextStatus)) return
+                        updateGoal(activeGoal.id, { progressStatus: nextStatus })
+                      }}
+                      style={inputStyle}
+                    >
+                      <option value="not-started">Not started</option>
+                      <option value="in-progress">In progress</option>
+                      <option value="improving">Improving</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                  <div style={inputWrapStyle}>
+                    <label style={labelStyle} htmlFor={`my-lab-progress-update-${activeGoal.id}`}>Progress update</label>
+                    <textarea
+                      id={`my-lab-progress-update-${activeGoal.id}`}
+                      value={activeGoal.progressUpdate}
+                      onChange={(event) => updateGoal(activeGoal.id, { progressUpdate: event.target.value })}
+                      placeholder="What changed since the last match or practice?"
+                      style={shortTextAreaStyle}
+                    />
+                  </div>
+                  <div style={goalFieldGridStyle(isTablet)}>
+                    <div style={inputWrapStyle}>
+                      <label style={labelStyle} htmlFor={`my-lab-doing-well-${activeGoal.id}`}>What am I doing well?</label>
+                      <textarea
+                        id={`my-lab-doing-well-${activeGoal.id}`}
+                        value={activeGoal.doingWell}
+                        onChange={(event) => updateGoal(activeGoal.id, { doingWell: event.target.value })}
+                        placeholder="Example: holding serve under pressure"
+                        style={shortTextAreaStyle}
+                      />
+                    </div>
+                    <div style={inputWrapStyle}>
+                      <label style={labelStyle} htmlFor={`my-lab-improve-next-${activeGoal.id}`}>Where can I improve?</label>
+                      <textarea
+                        id={`my-lab-improve-next-${activeGoal.id}`}
+                        value={activeGoal.improveNext}
+                        onChange={(event) => updateGoal(activeGoal.id, { improveNext: event.target.value })}
+                        placeholder="Example: return depth on second serves"
+                        style={shortTextAreaStyle}
+                      />
+                    </div>
+                  </div>
+                  <div style={inputWrapStyle}>
+                    <label style={labelStyle} htmlFor={`my-lab-notebook-${activeGoal.id}`}>Notes</label>
+                    <textarea
+                      id={`my-lab-notebook-${activeGoal.id}`}
+                      value={activeGoal.notes}
+                      onChange={(event) => updateGoal(activeGoal.id, { notes: event.target.value })}
+                      placeholder="What felt good? What broke down? What should I test next?"
+                      style={textAreaStyle}
+                    />
+                  </div>
+                  <div style={notebookFooterStyle}>
+                    <span>{notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
+                    <div style={goalFooterActionsStyle}>
+                      <button type="button" onClick={() => removeGoal(activeGoal.id)} style={smallGhostButtonStyle}>
+                        Remove goal
+                      </button>
+                      <button type="button" onClick={saveNotebook} style={saveNotebookButtonStyle}>
+                        Save goals
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <div style={workshopGridStyle(isTablet)}>
+            <div id="recent-matches" style={workshopPanelStyle}>
+              <div style={sectionKickerStyle}>Recent matches</div>
+              <div style={workshopListStyle}>
+                {personalMatches.length ? (
+                  personalMatches.slice(0, 5).map((match) => (
+                    <div key={match.id} style={workshopMatchRowStyle}>
+                      <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
+                        {match.result}
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={workshopRowTitleStyle}>{match.opponent}</div>
+                        <div style={workshopRowMetaStyle}>
+                          {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={emptyStateStyle}>
+                    {isProfileConfirmed ? 'Match history will appear as imported results connect to your player record.' : 'Set up your profile to unlock your personal match history.'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={workshopPanelStyle}>
+              <div style={sectionKickerStyle}>More close tests</div>
+              <div style={workshopListStyle}>
+                {secondaryMatchupCandidates.length ? (
+                  secondaryMatchupCandidates.map(({ player, rating, gap }) => (
+                    <Link
+                      key={player.id}
+                      href={`/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayer?.id || '')}&playerB=${encodeURIComponent(player.id)}`}
+                      style={matchupSuggestionStyle}
+                    >
+                      <span>
+                        <strong>{player.name}</strong>
+                        <small>{player.location || 'Player'} - S {formatRating(player.singles_dynamic_rating)} - O {formatRating(player.overall_dynamic_rating)}</small>
+                      </span>
+                      <em>{gap.toFixed(2)}</em>
+                    </Link>
+                  ))
+                ) : (
+                  <div style={emptyStateStyle}>
+                    {topMatchupCandidate
+                      ? 'The spotlight above is your closest current read.'
+                      : isProfileConfirmed
+                        ? 'Matchup suggestions appear when your rating and player pool are available.'
+                        : 'Manage your profile to unlock matchup suggestions.'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+          </div>
         </div>
       </section>
 
       {followedPlayerSignals.length > 0 ? (
-        <section style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px 20px' }}>
+        <section style={profileLinkSectionStyle}>
           <div style={{ borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px 20px' }}>
             <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>
-              Signals — followed players
+              Watchlist signals
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
               {followedPlayerSignals.map((s) => {
@@ -1627,10 +2347,10 @@ function MyLabPageInner() {
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Build your lab</p>
-                <h2 style={sectionTitleStyle}>Follow players, teams, and leagues</h2>
+                <p style={sectionKickerStyle}>Watchlist</p>
+                <h2 style={sectionTitleStyle}>Track extra players, teams, and leagues</h2>
                 <p style={sectionTextStyle}>
-                  Find players, teams, and leagues to follow.
+                  Keep optional tennis context close without crowding your own lab.
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
@@ -1701,8 +2421,8 @@ function MyLabPageInner() {
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Personal feed</p>
-                <h2 style={sectionTitleStyle}>What&apos;s happening around your network</h2>
+                <p style={sectionKickerStyle}>Watchlist updates</p>
+                <h2 style={sectionTitleStyle}>What changed around your watchlist</h2>
               </div>
               <div style={filterRowStyle}>
                 <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
@@ -1736,7 +2456,7 @@ function MyLabPageInner() {
               </div>
             ) : (
               <div style={feedListStyle}>
-                {feed.map((item) => (
+                {feed.slice(0, 5).map((item) => (
                   <article key={item.id} style={feedCardStyle(item.accent)}>
                     <div style={feedTopRowStyle}>
                       <span style={badgeForAccent(item.accent)}>{item.badge}</span>
@@ -1771,8 +2491,8 @@ function MyLabPageInner() {
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Collections</p>
-                <h2 style={sectionTitleStyle}>Your followed entities</h2>
+                <p style={sectionKickerStyle}>Manage</p>
+                <h2 style={sectionTitleStyle}>Your follows</h2>
               </div>
               <div style={filterRowStyle}>
                 {(['feed', 'players', 'teams', 'leagues'] as const).map((value) => (
@@ -1815,7 +2535,7 @@ function MyLabPageInner() {
 
                 <div style={manageFollowsHeaderStyle}>
                   <div style={supportTitleStyle}>Manage follows</div>
-                  <div style={supportTextStyle}>Remove anything you no longer want in your feed.</div>
+                  <div style={supportTextStyle}>Keep this list small enough to act on.</div>
                 </div>
                 <FollowList items={follows} onRemove={removeFollow} />
               </div>
@@ -1827,33 +2547,12 @@ function MyLabPageInner() {
 
             {selectedTab === 'feed' ? (
               <div style={insightStackStyle}>
-                {!access.canUseAdvancedPlayerInsights ? (
-                  <UpgradePrompt
-                    planId="player_plus"
-                    compact
-                    headline={MY_LAB_STORY.upgradeHeadline}
-                    body={MY_LAB_STORY.upgradeBody}
-                    ctaLabel={MY_LAB_STORY.upgradeCta}
-                    ctaHref="/pricing"
-                    secondaryLabel={MY_LAB_STORY.upgradeSecondary}
-                    secondaryHref="/pricing"
-                    footnote={MY_LAB_STORY.upgradeFootnote}
-                  />
-                ) : null}
                 <InsightCard
-                  title="Why it matters"
+                  title="Next useful action"
                   text="Your follows become a quick read on the players, teams, and leagues that matter most."
                 />
                 <InsightCard
-                  title="Best next upgrade"
-                  text={getMembershipTier('player_plus').description}
-                />
-                <InsightCard
-                  title="Individual competition pulse"
-                  text={`${followedTiqIndividualParticipations.length} followed TIQ individual ${followedTiqIndividualParticipations.length === 1 ? 'entry' : 'entries'}.`}
-                />
-                <InsightCard
-                  title="Best TIQ next action"
+                  title="TIQ prep"
                   text={
                     followedTiqIndividualLeagueInsights[0]
                       ? `${followedTiqIndividualLeagueInsights[0].formatLabel}: ${followedTiqIndividualLeagueInsights[0].nextAction}${followedTiqIndividualLeagueInsights[0].summary?.leaderName ? ` ${followedTiqIndividualLeagueInsights[0].summary.leaderName} currently leads at ${followedTiqIndividualLeagueInsights[0].summary.leaderRecord}.` : ''}`
@@ -1947,78 +2646,7 @@ const pageStyle: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '18px 24px 0',
-}
-
-const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
-  position: 'relative',
-  display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(320px, 0.92fr)',
-  gap: isMobile ? 18 : 24,
-  padding: isMobile ? '26px 18px' : '34px 26px',
-  borderRadius: 34,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: 'var(--shadow-card)',
-  backdropFilter: 'blur(12px)',
-  WebkitBackdropFilter: 'blur(12px)',
-})
-
-const eyebrowStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 38,
-  padding: '8px 14px',
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 800,
-  fontSize: 14,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: 8,
-}
-
-const heroTitleStyle = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: '-0.055em',
-  maxWidth: 760,
-  fontSize: isSmallMobile ? 34 : isMobile ? 42 : 50,
-})
-
-const heroTextStyle: CSSProperties = {
-  marginTop: 16,
-  marginBottom: 0,
-  maxWidth: 840,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '1.02rem',
-  lineHeight: 1.72,
-}
-
-const heroButtonRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  flexWrap: 'wrap',
-  marginTop: 22,
-}
-
-const primaryButtonStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 46,
-  padding: '0 16px',
-  borderRadius: 999,
-  textDecoration: 'none',
-  fontWeight: 800,
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  color: 'var(--text-dark)',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  boxShadow: '0 16px 32px color-mix(in srgb, var(--brand-green) 16%, transparent)',
+  padding: '20px 24px 0',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -2035,58 +2663,658 @@ const secondaryButtonStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
 }
 
-const metricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
-  marginTop: 22,
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  gap: 14,
-})
+const profileLinkSectionStyle: CSSProperties = {
+  margin: '0 0 18px',
+}
 
-const labSignalGridStyle = (isMobile: boolean): CSSProperties => ({
-  marginTop: 18,
-  display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  gap: 14,
-})
-
-const labSignalCardStyle: CSSProperties = {
-  borderRadius: 24,
-  padding: '18px 18px 16px',
+const warningNoteStyle: CSSProperties = {
+  margin: '0 0 18px',
+  padding: '12px 14px',
+  borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.55,
+  fontSize: 13,
+}
+
+const profileLinkCardStyle: CSSProperties = {
+  borderRadius: 28,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
+  padding: '24px',
+  display: 'grid',
+  gap: 18,
+}
+
+const profileHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const personalHomeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.08rem',
+  fontWeight: 900,
+  lineHeight: 1.2,
+}
+
+const levelUpPanelStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+  gap: 18,
+  alignItems: 'stretch',
+})
+
+const levelMeterStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 12%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
+  padding: 20,
+  display: 'grid',
+  gap: 16,
   boxShadow: 'var(--shadow-soft)',
 }
 
-const labSignalLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: 12,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+const levelMeterHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
 }
 
-const labSignalValueStyle: CSSProperties = {
-  marginTop: 10,
+const levelMeterTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '1.35rem',
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
+  fontSize: '1.28rem',
+  fontWeight: 950,
   lineHeight: 1.1,
 }
 
-const labSignalNoteStyle: CSSProperties = {
-  marginTop: 8,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '.94rem',
-  lineHeight: 1.6,
+const levelBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginTop: 12,
 }
 
-const metricCardStyle: CSSProperties = {
+const levelRatingBlockStyle: CSSProperties = {
+  display: 'grid',
+  justifyItems: 'end',
+  gap: 4,
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 900,
+  textAlign: 'right',
+}
+
+const levelRatingNumberStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2.2rem, 5vw, 3.4rem)',
+  lineHeight: 0.92,
+  fontWeight: 950,
+}
+
+const levelMeterMetaStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 900,
+  flexWrap: 'wrap',
+}
+
+const levelMeterScaleStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+}
+
+const levelProgressFillStyle = (value: number, hasProgress: boolean): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  minWidth: hasProgress ? 18 : '100%',
+  width: hasProgress ? `${Math.max(4, Math.min(value, 100))}%` : '100%',
+  borderRadius: 999,
+  background: hasProgress
+    ? 'linear-gradient(90deg, #74beff 0%, #4ade80 58%, #9be11d 100%)'
+    : 'repeating-linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 24%, transparent) 0 10px, color-mix(in srgb, var(--brand-blue-2) 10%, transparent) 10px 20px)',
+  opacity: hasProgress ? 1 : 0.9,
+  boxShadow: hasProgress
+    ? '0 0 0 1px color-mix(in srgb, white 18%, transparent), 0 0 22px color-mix(in srgb, var(--brand-lime) 42%, transparent)'
+    : 'none',
+})
+
+const quickProfileStyle: CSSProperties = {
   borderRadius: 22,
-  padding: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 20,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const quickProfileTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1.28rem',
+  fontWeight: 950,
+  lineHeight: 1.1,
+}
+
+const quickProfileGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const quickProfileCardStyle: CSSProperties = {
+  borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  padding: 14,
+  minHeight: 78,
+  display: 'grid',
+  alignContent: 'center',
+  gap: 6,
 }
+
+const quickProfileValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.35rem',
+  fontWeight: 950,
+  lineHeight: 1,
+}
+
+const todayReadPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 18,
+  display: 'grid',
+  gap: 12,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const todayReadCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  minHeight: 106,
+  display: 'grid',
+  gap: 6,
+  alignContent: 'start',
+}
+
+const todayReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.12rem',
+  fontWeight: 950,
+  lineHeight: 1.1,
+}
+
+const matchupSpotlightStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 14%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const matchupSpotlightHeroStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 14,
+})
+
+const matchupSpotlightTitleStyle: CSSProperties = {
+  margin: '4px 0 8px',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.35rem',
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const matchupPrimaryLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 44,
+  padding: '0 16px',
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',
+  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
+  textDecoration: 'none',
+  fontWeight: 950,
+}
+
+const matchupMeterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+}
+
+const matchupTrackStyle: CSSProperties = {
+  height: 14,
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 72%, black 28%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  overflow: 'hidden',
+}
+
+const matchupFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  minWidth: value > 0 ? 12 : 0,
+  width: `${Math.max(0, Math.min(value, 100))}%`,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+  boxShadow: '0 0 18px color-mix(in srgb, var(--brand-lime) 42%, transparent)',
+})
+
+const matchupPreviewGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const matchupPreviewCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 6,
+  minHeight: 104,
+}
+
+const performancePanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 18,
+  display: 'grid',
+  gap: 12,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const performanceGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const performanceCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 14,
+  display: 'grid',
+  gridTemplateColumns: '64px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 12,
+  minHeight: 104,
+}
+
+const performanceCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  lineHeight: 1.15,
+}
+
+const statRingStyle = (value: number): CSSProperties => ({
+  width: 64,
+  height: 64,
+  borderRadius: '50%',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  background: `conic-gradient(var(--brand-lime) 0% ${Math.max(0, Math.min(value, 100))}%, var(--shell-chip-bg) ${Math.max(0, Math.min(value, 100))}% 100%)`,
+  boxShadow: 'inset 0 0 0 8px var(--shell-panel-bg)',
+})
+
+const trophyRoomPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 12%, transparent) 0%, transparent 34%), var(--shell-panel-bg)',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const trophyCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 16,
+  display: 'grid',
+  gap: 8,
+  minHeight: 118,
+  alignContent: 'start',
+}
+
+const trophyValueStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: '1.55rem',
+  fontWeight: 950,
+  lineHeight: 1.05,
+}
+
+const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const personalCommandCardStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 16,
+  display: 'grid',
+  gap: 8,
+  textDecoration: 'none',
+  minHeight: 160,
+  alignContent: 'start',
+}
+
+const goalProgressPanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  padding: 16,
+  display: 'grid',
+  gap: 12,
+}
+
+const compactSectionTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.08rem',
+  lineHeight: 1.2,
+  fontWeight: 900,
+}
+
+const goalSummaryGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(5, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const goalSummaryCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 6,
+  minHeight: 116,
+}
+
+const goalSummaryValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  lineHeight: 1.25,
+}
+
+const recommendationCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+}
+
+const recommendationTextStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
+const smallGhostButtonStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  borderRadius: 999,
+  minHeight: 36,
+  padding: '0 13px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const collapsibleSummaryStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  cursor: 'pointer',
+  marginBottom: 12,
+}
+
+const progressTrackStyle: CSSProperties = {
+  height: 16,
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--foreground-strong) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, var(--foreground-strong) 14%, var(--shell-panel-border) 86%)',
+  overflow: 'hidden',
+  padding: 2,
+  boxShadow: 'inset 0 1px 3px color-mix(in srgb, black 18%, transparent)',
+}
+
+const goalWorkspaceStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+}
+
+const goalListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: 10,
+}
+
+const goalTabStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  borderRadius: 14,
+  padding: '10px 12px',
+  display: 'grid',
+  gap: 4,
+  textAlign: 'left',
+  cursor: 'pointer',
+  fontWeight: 900,
+}
+
+const goalTabActiveStyle: CSSProperties = {
+  ...goalTabStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
+}
+
+const goalEditorDetailsStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+}
+
+const goalFooterActionsStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+}
+
+const miniActionLinkStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 13,
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
+const workshopGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.1fr) minmax(280px, 0.9fr)',
+  gap: 12,
+})
+
+const workshopPanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 16,
+  display: 'grid',
+  gap: 12,
+}
+
+const workshopListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+}
+
+const goalAccordionListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+}
+
+const goalAccordionStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+}
+
+const goalSummaryHeaderStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  cursor: 'pointer',
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+}
+
+const goalEditorStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  marginTop: 14,
+}
+
+const workshopMatchRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: '10px 12px',
+}
+
+const workshopContextRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: '10px 12px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+}
+
+const workshopRowTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const workshopRowMetaStyle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const matchupSuggestionStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: '10px 12px',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+}
+
+const notebookFooterStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 12,
+  flexWrap: 'wrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 800,
+}
+
+const saveNotebookButtonStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
+  color: 'var(--text-dark)',
+  borderRadius: 999,
+  minHeight: 38,
+  padding: '0 14px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const goalFieldGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gap: 12,
+})
 
 const metricLabelStyle: CSSProperties = {
   color: 'var(--muted)',
@@ -2095,160 +3323,11 @@ const metricLabelStyle: CSSProperties = {
   fontWeight: 700,
 }
 
-const metricValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '1.55rem',
-  fontWeight: 900,
-  lineHeight: 1.1,
-}
-
 const metricNoteStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.5,
   fontSize: '.92rem',
   marginTop: 6,
-}
-
-const heroRailCardStyle: CSSProperties = {
-  borderRadius: 28,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: 20,
-}
-
-const labRailGlowStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background:
-    'radial-gradient(circle at 78% 18%, rgba(155,225,29,0.18) 0%, rgba(155,225,29,0.06) 22%, rgba(155,225,29,0) 54%), radial-gradient(circle at 18% 78%, rgba(116,190,255,0.16) 0%, rgba(116,190,255,0.06) 20%, rgba(116,190,255,0) 48%)',
-  pointerEvents: 'none',
-}
-
-const labRailGridStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  backgroundImage:
-    'linear-gradient(var(--page-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--page-grid-line) 1px, transparent 1px)',
-  backgroundSize: '28px 28px',
-  opacity: 0.16,
-  pointerEvents: 'none',
-}
-
-const labRailMiniCardStyle: CSSProperties = {
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: '14px 14px 13px',
-  boxShadow: 'var(--shadow-soft)',
-  display: 'grid',
-  gap: 8,
-}
-
-const labRailMiniLabelStyle: CSSProperties = {
-  color: 'var(--muted)',
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-}
-
-const labRailMiniValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 24,
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
-}
-
-const labRailMiniTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.6,
-}
-
-const labRailBoardStyle: CSSProperties = {
-  marginTop: 18,
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: 16,
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const labRailBoardHeaderStyle: CSSProperties = {
-  display: 'flex',
-  gap: 10,
-  flexWrap: 'wrap',
-}
-
-const labRailBoardRowsStyle: CSSProperties = {
-  marginTop: 14,
-  display: 'grid',
-  gap: 10,
-}
-
-const labRailBoardRowStyle: CSSProperties = {
-  borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: '14px 14px 13px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 14,
-}
-
-const labRailBoardTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 14,
-  fontWeight: 800,
-  lineHeight: 1.3,
-}
-
-const labRailBoardTextStyle: CSSProperties = {
-  marginTop: 6,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.6,
-}
-
-const sideTitleStyle: CSSProperties = {
-  marginTop: 10,
-  marginBottom: 14,
-  fontSize: '1.35rem',
-  lineHeight: 1.14,
-  color: 'var(--foreground-strong)',
-}
-
-const workflowListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-}
-
-const workflowRowStyle: CSSProperties = {
-  display: 'flex',
-  gap: 12,
-  alignItems: 'flex-start',
-}
-
-const workflowDotStyle: CSSProperties = {
-  width: 10,
-  height: 10,
-  borderRadius: 999,
-  marginTop: 7,
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  flexShrink: 0,
-}
-
-const workflowTitleStyle: CSSProperties = {
-  fontWeight: 700,
-  color: 'var(--foreground-strong)',
-  marginBottom: 4,
-}
-
-const workflowTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.55,
-  fontSize: '.95rem',
 }
 
 const contentGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -2350,6 +3429,19 @@ const inputStyle: CSSProperties = {
   fontSize: 14,
   outline: 'none',
   boxShadow: 'var(--home-control-shadow)',
+}
+
+const textAreaStyle: CSSProperties = {
+  ...inputStyle,
+  height: 112,
+  padding: '12px 14px',
+  resize: 'vertical',
+  lineHeight: 1.45,
+}
+
+const shortTextAreaStyle: CSSProperties = {
+  ...textAreaStyle,
+  height: 84,
 }
 
 const filterRowStyle: CSSProperties = {
@@ -2457,6 +3549,9 @@ const errorActionRowStyle: CSSProperties = {
 const feedListStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
+  maxHeight: 640,
+  overflowY: 'auto',
+  paddingRight: 6,
 }
 
 const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
@@ -2531,6 +3626,13 @@ const pillGreenStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg) 89%)',
   color: 'var(--foreground-strong)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+}
+
+const pillRedStyle: CSSProperties = {
+  ...pillSlateStyle,
+  background: 'rgba(239,68,68,0.12)',
+  color: '#fecaca',
+  border: '1px solid rgba(239,68,68,0.20)',
 }
 
 const pillBlueStyle: CSSProperties = {

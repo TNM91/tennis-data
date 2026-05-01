@@ -13,7 +13,6 @@ import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
-import TierPathway from '@/app/components/tier-pathway'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export default function JoinPage() {
@@ -149,20 +148,25 @@ export default function JoinPage() {
             tools when you want saved context, weekly team prep, or league operations.
           </p>
 
-          <div style={pillRow}>
-            <span style={pillBlue}>Free Explore</span>
-            <span style={pillBlue}>Player</span>
-            <span style={pillGreen}>Captain</span>
-            <span style={pillGreen}>TIQ League Coordinator</span>
-          </div>
-
-          <div style={featurePanel}>
-            <TierPathway
-              compact
-              framed={false}
-              title="Why join"
-              intro="Your account starts with free exploration and gives every future upgrade a place to save context."
-            />
+          <div style={joinPromisePanel}>
+            <div style={promiseLabel}>Why join</div>
+            <div style={promiseStack}>
+              <JoinPromiseStep
+                number="1"
+                title="Start free"
+                text="Explore players, teams, leagues, rankings, and public tennis intelligence."
+              />
+              <JoinPromiseStep
+                number="2"
+                title="Save your tennis context"
+                text="Your account gives follows, player identity, teams, and leagues a place to live."
+              />
+              <JoinPromiseStep
+                number="3"
+                title="Upgrade only when it helps"
+                text="Add Player, Captain, or League Coordinator tools when your tennis life needs them."
+              />
+            </div>
           </div>
         </div>
 
@@ -308,6 +312,18 @@ export default function JoinPage() {
   )
 }
 
+function JoinPromiseStep({ number, title, text }: { number: string; title: string; text: string }) {
+  return (
+    <div style={promiseStep}>
+      <div style={promiseNumber}>{number}</div>
+      <div>
+        <div style={promiseTitle}>{title}</div>
+        <div style={promiseText}>{text}</div>
+      </div>
+    </div>
+  )
+}
+
 const brandIQ: CSSProperties = {
   background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
   WebkitBackgroundClip: 'text',
@@ -397,9 +413,64 @@ const pillGreen: CSSProperties = {
   borderColor: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
 }
 
-const featurePanel: CSSProperties = {
+const joinPromisePanel: CSSProperties = {
   marginTop: '24px',
+  borderRadius: '24px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: '18px',
   maxWidth: '900px',
+}
+
+const promiseLabel: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '14px',
+}
+
+const promiseStack: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const promiseStep: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '38px minmax(0, 1fr)',
+  gap: '12px',
+  alignItems: 'start',
+  borderRadius: '18px',
+  padding: '14px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const promiseNumber: CSSProperties = {
+  width: '34px',
+  height: '34px',
+  display: 'grid',
+  placeItems: 'center',
+  borderRadius: '12px',
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: '#08111d',
+  fontSize: '13px',
+  fontWeight: 900,
+}
+
+const promiseTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  lineHeight: 1.35,
+  fontWeight: 900,
+}
+
+const promiseText: CSSProperties = {
+  marginTop: '4px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
 }
 
 const loginPanel: CSSProperties = {

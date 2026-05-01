@@ -9,35 +9,57 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 const FEATURE_CARDS = [
   {
     href: '/explore/players',
-    eyebrow: 'Discover',
-    title: 'Players',
-    text: 'Search player profiles, ratings, teams, and match history.',
+    eyebrow: 'Find',
+    title: 'Find a player',
+    text: 'Search names, ratings, teams, and match history.',
+    cta: 'Find players',
     accent: 'blue' as const,
     icon: 'player',
   },
   {
-    href: '/explore/rankings',
-    eyebrow: 'Track',
-    title: 'Rankings',
-    text: 'See leaderboard movement, compare tiers, and monitor top performers.',
+    href: '/explore/teams',
+    eyebrow: 'Find',
+    title: 'Find a team',
+    text: 'Open rosters, flights, and recent team results.',
+    cta: 'Find teams',
     accent: 'green' as const,
-    icon: 'chart',
+    icon: 'team',
   },
   {
     href: '/explore/leagues',
-    eyebrow: 'Browse',
-    title: 'Leagues',
-    text: 'Browse USTA leagues and TIQ leagues from one clean starting point.',
+    eyebrow: 'Find',
+    title: 'Find a league',
+    text: 'Browse USTA and TIQ league pages from one place.',
+    cta: 'Find leagues',
     accent: 'blue' as const,
     icon: 'trophy',
   },
   {
-    href: '/mylab',
-    eyebrow: 'Player',
-    title: 'My Lab',
-    text: 'Build your personal My Lab with followed players, teams, and leagues.',
+    href: '/explore/rankings',
+    eyebrow: 'Check',
+    title: 'Check rankings',
+    text: 'Scan the field before drilling into a player or flight.',
+    cta: 'View rankings',
     accent: 'green' as const,
-    icon: 'matchup',
+    icon: 'chart',
+  },
+]
+
+const START_STEPS = [
+  {
+    label: 'Start free',
+    title: 'Explore tennis context',
+    text: 'Look up players, teams, leagues, and rankings without setting anything up.',
+  },
+  {
+    label: 'Go deeper',
+    title: 'Open the right page',
+    text: 'Use a profile, team page, league page, or rankings view once you know what you need.',
+  },
+  {
+    label: 'Save effort',
+    title: 'Upgrade when it helps',
+    text: 'Use My Lab and Matchup when you want follows, prep, and a personal tennis home.',
   },
 ]
 
@@ -169,31 +191,10 @@ export default function ExplorePage() {
     maxWidth: '640px',
   }
 
-  const dynamicSignalGrid: CSSProperties = {
-    ...signalGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-
-  const dynamicFeedGrid: CSSProperties = {
-    ...feedGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-    gap: isMobile ? '12px' : '14px',
-  }
-
-  const dynamicDiscoveryStream: CSSProperties = {
-    ...discoveryStreamStyle,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-
-  const dynamicDiscoveryChannels: CSSProperties = {
-    ...discoveryChannelGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
-  }
-
   const dynamicArtPanelStyle: CSSProperties = {
     ...featurePanel,
     position: 'relative',
-    minHeight: isSmallMobile ? '340px' : isMobile ? '400px' : isTablet ? '520px' : '540px',
+    minHeight: isSmallMobile ? '320px' : isMobile ? '360px' : isTablet ? '420px' : '440px',
     padding: 0,
     overflow: 'hidden',
     background: 'var(--shell-panel-bg)',
@@ -218,7 +219,7 @@ export default function ExplorePage() {
     right: isMobile ? '16px' : '20px',
     bottom: isMobile ? '16px' : '20px',
     display: 'grid',
-    gap: '10px',
+    gap: '12px',
     alignContent: 'start',
     zIndex: 2,
   }
@@ -227,11 +228,6 @@ export default function ExplorePage() {
     ...actionGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(220px, 1fr))',
     gap: isMobile ? '14px' : '16px',
-  }
-
-  const dynamicGuideGrid: CSSProperties = {
-    ...guideGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
   return (
@@ -243,22 +239,21 @@ export default function ExplorePage() {
 
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
-              <div style={eyebrow}>Public discovery</div>
+              <div style={eyebrow}>Free exploration</div>
 
               <h1 style={dynamicHeroTitle}>
-                Explore players, teams, rankings, leagues, and Player tools.
+                Find tennis context fast.
               </h1>
 
               <p style={dynamicHeroText}>
-                Search fast, compare clearly, and open the view that matches what you need next.
+                Start with a player, team, league, or ranking. Get oriented first, then decide if you need My Lab, Matchup, or Captain tools.
               </p>
 
               <div style={explorePills}>
                 <span style={pillBlue}>Players</span>
                 <span style={pillBlue}>Teams</span>
-                <span style={pillGreen}>USTA Leagues</span>
-                <span style={pillGreen}>TIQ Leagues</span>
-                <span style={pillGreen}>My Lab</span>
+                <span style={pillGreen}>Leagues</span>
+                <span style={pillGreen}>Rankings</span>
               </div>
             </div>
 
@@ -269,46 +264,24 @@ export default function ExplorePage() {
 
               <div style={dynamicArtOverlayStyle}>
                 <div style={featurePanelHeader}>
-                  <div style={featurePanelLabel}>Global activity</div>
-                  <div style={featurePanelHint}>Public feed</div>
+                  <div style={featurePanelLabel}>Start here</div>
+                  <div style={featurePanelHint}>Free tier</div>
                 </div>
 
-                <div style={dynamicFeedGrid}>
-                  {GLOBAL_FEED.map((item) => (
-                    <div key={item.title} style={feedCard}>
-                      <div style={feedTag}>{item.tag}</div>
-                      <div style={feedTitle}>{item.title}</div>
-                      <div style={feedText}>{item.body}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={dynamicDiscoveryStream}>
-                  {DISCOVERY_STREAM.map((item) => (
-                    <div key={item.title} style={discoveryStreamCard}>
-                      <span style={item.accent === 'green' ? pillGreen : pillBlue}>{item.badge}</span>
-                      <div style={discoveryStreamTitle}>{item.title}</div>
-                      <div style={discoveryStreamText}>{item.detail}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div style={dynamicDiscoveryChannels}>
-                  {DISCOVERY_CHANNELS.map((item) => (
-                    <div key={item.title} style={discoveryChannelCard}>
-                      <div style={discoveryChannelTitle}>{item.title}</div>
-                      <div style={discoveryChannelText}>{item.text}</div>
+                <div style={startStepStack}>
+                  {START_STEPS.map((item, index) => (
+                    <div key={item.title} style={startStepCard}>
+                      <div style={startStepNumber}>{index + 1}</div>
+                      <div>
+                        <div style={startStepLabel}>{item.label}</div>
+                        <div style={startStepTitle}>{item.title}</div>
+                        <div style={startStepText}>{item.text}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
-
-          <div style={dynamicSignalGrid}>
-            {DISCOVERY_SIGNALS.map((signal) => (
-              <DiscoverySignal key={signal.label} label={signal.label} value={signal.value} text={signal.text} />
-            ))}
           </div>
 
           <div style={dynamicActionGrid}>
@@ -319,6 +292,7 @@ export default function ExplorePage() {
                 eyebrow={card.eyebrow}
                 title={card.title}
                 text={card.text}
+                cta={card.cta}
                 icon={getCardIcon(card.icon)}
                 hovered={hoveredCard === card.href}
                 onEnter={() => setHoveredCard(card.href)}
@@ -326,25 +300,6 @@ export default function ExplorePage() {
                 accent={card.accent}
               />
             ))}
-          </div>
-
-          <div style={guidePanel}>
-            <div style={guideHeader}>
-              <div>
-                <div style={guideEyebrow}>Where to start</div>
-                <h2 style={guideTitle}>Choose the shortest path for the question you have.</h2>
-              </div>
-              <p style={guideIntro}>
-                Explore works best when the first click is obvious. These entry points keep the public side clean,
-                efficient, and mobile-friendly before you move deeper into the product.
-              </p>
-            </div>
-
-            <div style={dynamicGuideGrid}>
-              {DISCOVERY_GUIDES.map((guide) => (
-                <GuideCard key={guide.href} href={guide.href} title={guide.title} text={guide.text} cta={guide.cta} />
-              ))}
-            </div>
           </div>
         </div>
       </section>
@@ -375,6 +330,7 @@ function DiscoverySignal({
 
 function getCardIcon(icon: string) {
   if (icon === 'player') return <PlayerIcon />
+  if (icon === 'team') return <TeamIcon />
   if (icon === 'chart') return <ChartIcon />
   if (icon === 'trophy') return <TrophyIcon />
   return <MatchupIcon />
@@ -418,6 +374,7 @@ function ActionCard({
   eyebrow,
   title,
   text,
+  cta,
   icon,
   hovered,
   onEnter,
@@ -428,6 +385,7 @@ function ActionCard({
   eyebrow?: string
   title: string
   text: string
+  cta: string
   icon: ReactNode
   hovered: boolean
   onEnter: () => void
@@ -466,10 +424,26 @@ function ActionCard({
       </div>
 
       <div style={actionFooterRow}>
-        <span style={ctaStyle}>Open</span>
+        <span style={ctaStyle}>{cta}</span>
         <span style={actionFooterArrow}>{'->'}</span>
       </div>
     </Link>
+  )
+}
+
+function TeamIcon() {
+  return (
+    <IconBase>
+      <circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <circle cx="16" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M4.5 18c.9-2.6 2.2-3.9 3.5-3.9s2.6 1.3 3.5 3.9M12.5 18c.9-2.6 2.2-3.9 3.5-3.9s2.6 1.3 3.5 3.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </IconBase>
   )
 }
 
@@ -751,6 +725,59 @@ const featurePanelHint: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
+}
+
+const startStepStack: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const startStepCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: '12px',
+  alignItems: 'start',
+  padding: '16px',
+  borderRadius: '20px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const startStepNumber: CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: 999,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--text-dark)',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const startStepLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const startStepTitle: CSSProperties = {
+  marginTop: '5px',
+  color: 'var(--foreground-strong)',
+  fontSize: '18px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const startStepText: CSSProperties = {
+  marginTop: '7px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
 }
 
 const feedGrid: CSSProperties = {

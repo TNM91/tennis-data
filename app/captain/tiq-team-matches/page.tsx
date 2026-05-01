@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,11 +24,27 @@ import { formatDate } from '@/lib/captain-formatters'
 
 type PlayerOption = { id: string; name: string }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
-const heading: CSSProperties = { fontSize: 24, fontWeight: 700, marginBottom: 6 }
-const subheading: CSSProperties = { color: '#94a3b8', fontSize: 14, marginBottom: 32 }
+const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0 }
+const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 640 }
+const introCard: CSSProperties = {
+  background: 'linear-gradient(135deg, rgba(13, 31, 55, 0.92), rgba(6, 17, 33, 0.96))',
+  border: '1px solid rgba(124, 167, 255, 0.18)',
+  borderRadius: 16,
+  padding: '24px',
+  marginBottom: 22,
+}
+const introStats: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }
+const introStat: CSSProperties = {
+  minWidth: 120,
+  padding: '10px 12px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.09)',
+}
+const introStatLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }
+const introStatValue: CSSProperties = { color: '#f8fbff', fontSize: 22, fontWeight: 900, marginTop: 4 }
 const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 700, marginBottom: 14, marginTop: 28 }
 const card: CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
@@ -80,7 +96,7 @@ function PlayerSelect({
 }) {
   return (
     <select style={selectStyle} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">{placeholder ?? 'Select player…'}</option>
+      <option value="">{placeholder ?? 'Select player...'}</option>
       {players.map((p) => (
         <option key={p.id} value={p.id}>{p.name}</option>
       ))}
@@ -88,7 +104,6 @@ function PlayerSelect({
   )
 }
 
-// ─── Line form ────────────────────────────────────────────────────────────────
 
 type LineFormState = {
   lineNumber: string
@@ -177,7 +192,7 @@ function LineForm({
   return (
     <div style={card}>
       <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14 }}>
-        {existingLine ? `Edit Line ${existingLine.lineNumber}` : 'Add Line'}
+        {existingLine ? `Edit line ${existingLine.lineNumber}` : 'Add line'}
       </div>
 
       <div style={row}>
@@ -203,22 +218,22 @@ function LineForm({
       </div>
 
       <div style={row}>
-        <Field label={`SIDE A — ${event.teamAName} — P1`}>
+        <Field label={`SIDE A - ${event.teamAName} - P1`}>
           <PlayerSelect value={form.sideAPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer1Id: v }))} players={players} />
         </Field>
         {isDoubles && (
-          <Field label="SIDE A — P2">
+          <Field label="SIDE A - P2">
             <PlayerSelect value={form.sideAPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer2Id: v }))} players={players} />
           </Field>
         )}
       </div>
 
       <div style={row}>
-        <Field label={`SIDE B — ${event.teamBName} — P1`}>
+        <Field label={`SIDE B - ${event.teamBName} - P1`}>
           <PlayerSelect value={form.sideBPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer1Id: v }))} players={players} />
         </Field>
         {isDoubles && (
-          <Field label="SIDE B — P2">
+          <Field label="SIDE B - P2">
             <PlayerSelect value={form.sideBPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer2Id: v }))} players={players} />
           </Field>
         )}
@@ -226,7 +241,7 @@ function LineForm({
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button style={btnPrimary} onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Line'}
+          {saving ? 'Saving...' : 'Save line'}
         </button>
         <button style={btnSecondary} onClick={onCancel}>Cancel</button>
       </div>
@@ -235,7 +250,6 @@ function LineForm({
   )
 }
 
-// ─── Event card ───────────────────────────────────────────────────────────────
 
 function EventCard({
   event,
@@ -306,7 +320,7 @@ function EventCard({
             {event.teamAName} <span style={{ color: '#64748b' }}>vs</span> {event.teamBName}
           </div>
           <div style={{ fontSize: 13, color: '#94a3b8' }}>
-            {formatDate(event.matchDate)}{event.facility ? ` · ${event.facility}` : ''}
+            {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
           {linesLoaded && (teamAWins > 0 || teamBWins > 0) && (
             <div style={{ marginTop: 6, fontSize: 13 }}>
@@ -322,7 +336,7 @@ function EventCard({
             {expanded ? 'Collapse' : `Lines${linesLoaded ? ` (${lines.length})` : ''}`}
           </button>
           <button style={btnDanger} onClick={handleDeleteEvent} disabled={deleting}>
-            {deleting ? '…' : 'Delete'}
+            {deleting ? '...' : 'Delete'}
           </button>
         </div>
       </div>
@@ -332,7 +346,7 @@ function EventCard({
       {expanded && (
         <div style={divider}>
           {!linesLoaded ? (
-            <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading…</p>
+            <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading...</p>
           ) : lines.length === 0 ? (
             <p style={{ color: '#94a3b8', fontSize: 13 }}>No lines yet.</p>
           ) : (
@@ -377,7 +391,7 @@ function EventCard({
 
           {!addingLine && !editingLine && (
             <button style={{ ...btnSecondary, marginTop: 12 }} onClick={() => setAddingLine(true)}>
-              + Add Line
+              + Add line
             </button>
           )}
 
@@ -397,7 +411,6 @@ function EventCard({
   )
 }
 
-// ─── New event form ────────────────────────────────────────────────────────────
 
 type EventFormState = {
   leagueId: string
@@ -448,7 +461,7 @@ function NewEventForm({
     setSaving(false)
     if (w) setWarning(w)
     if (event) {
-      setMessage('Event created. Expand below to add lines.')
+      setMessage('Match created. Expand below to add lines.')
       setForm(emptyEvent())
       onCreated(event)
     }
@@ -456,12 +469,12 @@ function NewEventForm({
 
   return (
     <div style={card}>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>New Match Event</div>
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>New team match</div>
 
       <div style={row}>
         <Field label="LEAGUE">
           <select style={selectStyle} value={form.leagueId} onChange={(e) => setForm((f) => ({ ...f, leagueId: e.target.value }))}>
-            <option value="">Select league…</option>
+            <option value="">Select league...</option>
             {leagues.map((l) => (
               <option key={l.id} value={l.id}>{l.leagueName}</option>
             ))}
@@ -491,7 +504,7 @@ function NewEventForm({
       </div>
 
       <button style={btnPrimary} onClick={handleCreate} disabled={saving}>
-        {saving ? 'Creating…' : 'Create Event'}
+        {saving ? 'Creating...' : 'Create match'}
       </button>
       {warning ? <p style={msgErr}>{warning}</p> : null}
       {message ? <p style={msgOk}>{message}</p> : null}
@@ -499,7 +512,6 @@ function NewEventForm({
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CaptainTiqTeamMatchesPage() {
   const router = useRouter()
@@ -567,18 +579,37 @@ export default function CaptainTiqTeamMatchesPage() {
 
   return (
     <SiteShell>
-      <CaptainSubnav />
+      <CaptainSubnav
+        title="League results"
+        description="Record team matches, save each line, and keep ratings, standings, and history current."
+      />
       <div style={pageWrap}>
-        <div style={heading}>TIQ Team Matches</div>
-        <div style={subheading}>
-          Record team match events and enter line results. Completed lines automatically update TIQ dynamic ratings.
+        <div style={introCard}>
+          <div style={heading}>League scorekeeper.</div>
+          <div style={subheading}>
+            Create the match, add the lines, and let completed results update TIQ ratings.
+          </div>
+          <div style={introStats}>
+            <div style={introStat}>
+              <div style={introStatLabel}>Leagues</div>
+              <div style={introStatValue}>{leagues.length}</div>
+            </div>
+            <div style={introStat}>
+              <div style={introStatLabel}>Events</div>
+              <div style={introStatValue}>{events.length}</div>
+            </div>
+            <div style={introStat}>
+              <div style={introStatLabel}>Players</div>
+              <div style={introStatValue}>{players.length}</div>
+            </div>
+          </div>
         </div>
 
         {error ? <p style={msgErr}>{error}</p> : null}
 
         <NewEventForm leagues={leagues} onCreated={(event) => setEvents((prev) => [event, ...prev])} />
 
-        <div style={sectionTitle}>Match Events</div>
+        <div style={sectionTitle}>Recorded matches</div>
 
         <div style={{ marginBottom: 14 }}>
           <select
@@ -594,7 +625,7 @@ export default function CaptainTiqTeamMatchesPage() {
         </div>
 
         {loading ? (
-          <p style={{ color: '#94a3b8' }}>Loading…</p>
+          <p style={{ color: '#94a3b8' }}>Loading...</p>
         ) : events.length === 0 ? (
           <p style={{ color: '#94a3b8' }}>No events yet. Create one above.</p>
         ) : (
@@ -611,3 +642,4 @@ export default function CaptainTiqTeamMatchesPage() {
     </SiteShell>
   )
 }
+

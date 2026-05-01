@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -131,7 +131,7 @@ const NAV_LINKS = [
   { href: '/mylab', label: 'My Lab' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/teams', label: 'Teams' },
-  { href: '/captain', label: 'Captain Console' },
+  { href: '/captain', label: 'Captain' },
 ]
 
 
@@ -759,37 +759,6 @@ export default function LineupProjectionPage() {
     return query ? `/captain/lineup-builder?${query}` : '/captain/lineup-builder'
   }, [selectedLeagueKey, selectedTeam, selectedDate])
 
-  const projectionSignals = useMemo(
-    () => [
-      {
-        label: 'Roster state',
-        value: roster.length ? `${availabilitySummary.available} available now` : 'Load a team roster',
-        note: selectedDate
-          ? `Availability is scoped to ${formatDate(selectedDate)}.`
-          : 'Add a match date for the most realistic projection read.',
-      },
-      {
-        label: 'Projection read',
-        value: suggestedLineup.singles.length || suggestedLineup.doubles.length ? confidenceLabel : 'Waiting on lineup pool',
-        note: suggestedLineup.notes[0] ?? 'Ratings, availability, and role preference are all in the mix.',
-      },
-      {
-        label: 'Best next move',
-        value: !selectedLeagueKey
-          ? 'Choose league context'
-          : !selectedTeam
-            ? 'Choose team'
-            : !roster.length
-              ? 'Refresh roster context'
-              : 'Push into Lineup Builder',
-        note: roster.length
-          ? 'Use the builder to turn the estimate into a saved scenario.'
-          : 'The projection sharpens once the roster pool is loaded.',
-      },
-    ],
-    [availabilitySummary.available, confidenceLabel, roster.length, selectedDate, selectedLeagueKey, selectedTeam, suggestedLineup]
-  )
-
   if (authLoading) {
     return (
       <main style={pageStyle}>
@@ -834,16 +803,15 @@ export default function LineupProjectionPage() {
       <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Projection</h1>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Preview a lineup.</h1>
           <p style={heroTextStyle}>
-            Build a smarter lineup from the available roster. Pick a league, team, and optional
-            match date to generate lineup suggestions using dynamic ratings, roster usage,
-            preferences, and availability.
+            Pick the team and date. TenAceIQ gives you a starting lineup you can take straight
+            into the builder.
           </p>
 
           <div style={heroButtonRowStyle}>
             <PrimaryLink href={builderHrefResolved}>Build in Lineup Builder</PrimaryLink>
-            <GhostLink href="/captain">Back to Captain Console</GhostLink>
+            <GhostLink href="/captain">Back to Captain</GhostLink>
             <GhostBtn onClick={() => setRefreshTick((current) => current + 1)}>
               {loading || rosterLoading ? 'Refreshing...' : 'Refresh data'}
             </GhostBtn>
@@ -854,31 +822,20 @@ export default function LineupProjectionPage() {
             <MetricStat label="Matches loaded" value={String(matches.length)} />
             <MetricStat label="Projection confidence" value={confidenceLabel} />
           </div>
-
-          <div style={signalGridStyle(isSmallMobile)}>
-            {projectionSignals.map((signal) => (
-              <div key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div style={quickStartCard}>
-          <div style={quickStartLabel}>Projection logic</div>
-          <div style={quickStartValue}>Ratings + usage + availability</div>
+          <div style={quickStartLabel}>Starting point</div>
+          <div style={quickStartValue}>Project, check, build</div>
           <div style={quickStartText}>
-            Singles and doubles recommendations are adjusted for availability status and preferred role,
-            then ranked from the most competitive options.
+            Use this when you want a fast first draft before fine-tuning courts in the builder.
           </div>
 
           <div style={workflowListStyle}>
             {[
-              ['1', 'Choose team context', 'Filter down to the exact league, team, and optional match date.'],
-              ['2', 'Review projected lineup', 'See projected singles and doubles built from the available roster.'],
-              ['3', 'Push into builder', 'Open the Lineup Builder to turn this estimate into a saved scenario.'],
+              ['1', 'Pick team', 'Choose the league, team, and match date.'],
+              ['2', 'Review suggestion', 'Check singles, doubles, and the confidence read.'],
+              ['3', 'Build it', 'Open the builder and turn the preview into a saved plan.'],
             ].map(([step, title, text]) => (
               <div key={step} style={workflowRowStyle}>
                 <div style={workflowNumberStyle}>{step}</div>
@@ -1129,7 +1086,7 @@ export default function LineupProjectionPage() {
                   <div style={notesTitleStyle}>Captain suggestions</div>
                   <div style={notesListStyle}>
                     {suggestedLineup.notes.map((note) => (
-                      <div key={note} style={noteRowStyle}>• {note}</div>
+                      <div key={note} style={noteRowStyle}>â€¢ {note}</div>
                     ))}
                   </div>
                 </div>
@@ -1223,7 +1180,7 @@ export default function LineupProjectionPage() {
                         <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                           <div style={{ width: `${barPct}%`, height: '100%', background: 'linear-gradient(90deg,rgba(116,190,255,0.5),rgba(63,167,255,0.8))', borderRadius: 999, transition: 'width 400ms ease' }} />
                         </div>
-                        <div style={listMetaStyle}>{getAvailabilityLabel(player.availabilityStatus)} · USTA {formatRating(player.overallUstaDynamic)}</div>
+                        <div style={listMetaStyle}>{getAvailabilityLabel(player.availabilityStatus)} Â· USTA {formatRating(player.overallUstaDynamic)}</div>
                       </div>
                     )
                   })
@@ -1256,7 +1213,7 @@ export default function LineupProjectionPage() {
                         <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                           <div style={{ width: `${barPct}%`, height: '100%', background: 'linear-gradient(90deg,rgba(155,225,29,0.4),rgba(74,222,128,0.7))', borderRadius: 999, transition: 'width 400ms ease' }} />
                         </div>
-                        {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' · ')}</div> : null}
+                        {pair.notes.length ? <div style={pairNoteInlineStyle}>{pair.notes.join(' Â· ')}</div> : null}
                       </div>
                     )
                   })
@@ -1269,8 +1226,8 @@ export default function LineupProjectionPage() {
 
       <section style={{ padding: '0 24px 32px' }}>
         <CaptainSubnav
-          title="Lineup Projection inside the captain command center"
-          description="Stay connected to availability data, the full lineup builder, scenario planning, and team messaging while reviewing projected team sheets."
+          title="Lineup Projection"
+          description="Use this as a quick starting point before the full builder."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -1302,11 +1259,11 @@ export default function LineupProjectionPage() {
               <Link href="/mylab" style={footerUtilityLink}>My Lab</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
               <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-          <Link href="/captain" style={footerUtilityLink}>Captain Console</Link>
+              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              © {new Date().getFullYear()} TenAceIQ
+              Â© {new Date().getFullYear()} TenAceIQ
             </div>
           </div>
         </div>
@@ -1674,7 +1631,7 @@ const heroTitleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -1783,7 +1740,7 @@ const quickStartValue: CSSProperties = {
   fontSize: '30px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const quickStartText: CSSProperties = {
@@ -1894,7 +1851,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1.1,
 }
 
@@ -2014,7 +1971,7 @@ const projectionValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '36px',
   lineHeight: 1,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   marginTop: '8px',
   marginBottom: '10px',
 }
@@ -2029,7 +1986,7 @@ const cardTitleStyle: CSSProperties = {
   fontSize: '1.15rem',
   lineHeight: 1.2,
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
   marginBottom: '0.85rem',
 }
 
@@ -2101,7 +2058,7 @@ const playerNameStyle: CSSProperties = {
   fontSize: '1.22rem',
   lineHeight: 1.2,
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 }
 
 const playerMetaStyle: CSSProperties = {

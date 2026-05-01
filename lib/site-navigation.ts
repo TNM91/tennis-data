@@ -9,12 +9,14 @@ export type NavSection = {
 }
 
 export const PRIMARY_NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Home' },
   { href: '/explore', label: 'Explore' },
-  { href: '/matchup', label: 'Matchup' },
-  { href: '/compete', label: 'Compete' },
-  { href: '/captain', label: 'Captain' },
   { href: '/mylab', label: 'My Lab' },
+  { href: '/matchup', label: 'Matchup' },
+  { href: '/captain', label: 'Captain' },
+]
+
+export const ACCOUNT_NAV_ITEMS: NavItem[] = [
+  { href: '/profile', label: 'Profile' },
 ]
 
 export const EXPLORE_NAV_ITEMS: NavItem[] = [
@@ -33,28 +35,54 @@ export const COMPETE_NAV_ITEMS: NavItem[] = [
 
 export const CAPTAIN_NAV_ITEMS: NavItem[] = [
   { href: '/captain/availability', label: 'Availability' },
-  { href: '/captain/lineup-builder', label: 'Lineup Builder' },
-  { href: '/captain/lineup-projection', label: 'Lineup Projection' },
-  { href: '/captain/lineup-availability', label: 'Lineup Availability' },
-  { href: '/captain/scenario-builder', label: 'Scenario Builder' },
-  { href: '/captain/analytics', label: 'Analytics' },
+  { href: '/captain/lineup-builder', label: 'Lineup' },
+  { href: '/captain/scenario-builder', label: 'Scenarios' },
   { href: '/captain/messaging', label: 'Messaging' },
-  { href: '/captain/team-brief', label: 'Team Brief' },
   { href: '/captain/weekly-brief', label: 'Weekly Brief' },
+  { href: '/captain/lineup-projection', label: 'Projection' },
+  { href: '/captain/lineup-availability', label: 'Match Availability' },
+  { href: '/captain/analytics', label: 'Captain IQ' },
+  { href: '/captain/team-brief', label: 'Team Brief' },
   { href: '/captain/season-dashboard', label: 'League Coordinator' },
+]
+
+export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
+  { href: '/captain/availability', label: 'Availability' },
+  { href: '/captain/lineup-builder', label: 'Lineup' },
+  { href: '/captain/scenario-builder', label: 'Scenarios' },
+  { href: '/captain/messaging', label: 'Messaging' },
+  { href: '/captain/weekly-brief', label: 'Brief' },
 ]
 
 export const FOOTER_NAV_SECTIONS: NavSection[] = [
   {
-    title: 'Platform',
-    items: PRIMARY_NAV_ITEMS,
+    title: 'Start',
+    items: [
+      { href: '/', label: 'Home' },
+      { href: '/pricing', label: 'Pricing' },
+      { href: '/join', label: 'Start Free' },
+      { href: '/login', label: 'Sign in' },
+    ],
   },
   {
-    title: 'Explore',
+    title: 'Player',
+    items: [
+      { href: '/profile', label: 'Profile' },
+      { href: '/explore', label: 'Explore' },
+      { href: '/mylab', label: 'My Lab' },
+      { href: '/matchup', label: 'Matchup' },
+      { href: '/compete', label: 'Compete' },
+    ],
+  },
+  {
+    title: 'Find',
     items: EXPLORE_NAV_ITEMS,
   },
   {
-    title: 'Captain',
-    items: CAPTAIN_NAV_ITEMS,
+    title: 'Run',
+    items: [
+      { href: '/captain', label: 'Captain Hub' },
+      ...CAPTAIN_QUICK_NAV_ITEMS,
+    ],
   },
 ]

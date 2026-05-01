@@ -1,16 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
-import { PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
+import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { supabase } from '@/lib/supabase'
+import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-
-const LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY = 'tenaceiq-last-admin-import-route-v1'
 
 function HamburgerIcon() {
   return (
@@ -75,6 +74,13 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   return false
 }
 
+const NAV_VISUALS: Record<string, { step: string; intent: string }> = {
+  '/explore': { step: '1', intent: 'Find' },
+  '/mylab': { step: '2', intent: 'You' },
+  '/matchup': { step: '3', intent: 'Compare' },
+  '/captain': { step: '4', intent: 'Run' },
+}
+
 function ThemeToggle({
   compact = false,
   onClick,
@@ -94,10 +100,10 @@ function ThemeToggle({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: compact ? '0' : '8px',
-        minWidth: compact ? '40px' : 'auto',
-        minHeight: compact ? '40px' : '38px',
-        padding: compact ? '0' : '0 11px',
+        gap: 0,
+        minWidth: compact ? '40px' : '42px',
+        minHeight: compact ? '40px' : '42px',
+        padding: 0,
         borderRadius: compact ? '13px' : '999px',
         border: '1px solid rgba(116,190,255,0.10)',
         background: 'color-mix(in srgb, var(--header-bg) 78%, var(--surface) 22%)',
@@ -111,7 +117,6 @@ function ThemeToggle({
       }}
     >
       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-      {compact ? null : <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
     </button>
   )
 }
@@ -126,6 +131,7 @@ function HeaderNavLink({
   activeNow: boolean
 }) {
   const [hovered, setHovered] = useState(false)
+  const visual = NAV_VISUALS[href]
 
   return (
     <Link
@@ -151,7 +157,11 @@ function HeaderNavLink({
           : 'none',
       }}
     >
-      <span>{label}</span>
+      <span style={navStepStyle}>{visual?.step || '•'}</span>
+      <span style={navTextWrapStyle}>
+        <strong style={navLabelStyle}>{label}</strong>
+        {visual ? <small style={navIntentStyle}>{visual.intent}</small> : null}
+      </span>
       {activeNow ? <span aria-hidden="true" style={activeDotStyle} /> : null}
     </Link>
   )
@@ -185,10 +195,11 @@ function UtilityLink({
 export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { role } = useAuth()
+  const { role, userId, authResolved } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { isTablet, isMobile } = useViewportBreakpoints()
+  const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [linkedPlayerName, setLinkedPlayerName] = useState('')
 
   // Close mobile menu whenever the route changes (back/forward navigation)
   useEffect(() => {
@@ -199,10 +210,26 @@ export default function SiteHeader({ active }: { active?: string }) {
     return () => window.clearTimeout(timeoutId)
   }, [pathname])
 
-  const resumeImportHref = useMemo(() => {
-    if (typeof window === 'undefined' || role !== 'admin') return '/admin/import'
-    return window.localStorage.getItem(LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY) ?? '/admin/import'
-  }, [role])
+  useEffect(() => {
+    let active = true
+
+    async function loadHeaderProfile() {
+      if (!authResolved || !userId) {
+        setLinkedPlayerName('')
+        return
+      }
+
+      const result = await loadUserProfileLink(userId)
+      if (!active) return
+      setLinkedPlayerName(result.data?.linked_player_name || '')
+    }
+
+    void loadHeaderProfile()
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, userId])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -211,8 +238,12 @@ export default function SiteHeader({ active }: { active?: string }) {
   }
 
   const authenticated = role !== 'public'
-  const useCompactBrand = isTablet
+  const useCompactHeader = screenWidth < 1180
+  const useCompactBrand = useCompactHeader
   const roleLabel = role === 'admin' ? 'Admin' : role === 'captain' ? 'Captain' : authenticated ? 'Player' : ''
+  const firstName = linkedPlayerName.split(' ')[0] || ''
+  const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
+  const canUseCaptainTools = role === 'captain' || role === 'admin'
 
   return (
     <header
@@ -262,10 +293,10 @@ export default function SiteHeader({ active }: { active?: string }) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
+            gridTemplateColumns: useCompactHeader ? 'minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto',
             alignItems: 'center',
-            gap: isMobile ? '10px' : isTablet ? '12px' : '18px',
-            padding: isMobile ? '7px 7px' : isTablet ? '8px 9px' : '10px 12px',
+            gap: isMobile ? '10px' : useCompactHeader ? '12px' : '16px',
+            padding: isMobile ? '7px 7px' : useCompactHeader ? '8px 9px' : '10px 12px',
             borderRadius: isMobile ? 18 : 999,
             border: '1px solid color-mix(in srgb, var(--shell-panel-border) 76%, rgba(116,190,255,0.18) 24%)',
             background:
@@ -287,16 +318,16 @@ export default function SiteHeader({ active }: { active?: string }) {
             <BrandWordmark top={!useCompactBrand} compact={useCompactBrand} />
           </Link>
 
-          {isTablet ? null : (
+          {useCompactHeader ? null : (
             <nav
               aria-label="Primary"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '4px',
+                gap: '6px',
                 minWidth: 0,
-                paddingInline: '8px',
+                paddingInline: '4px',
               }}
             >
               {PRIMARY_NAV_ITEMS.map((item) => {
@@ -321,16 +352,14 @@ export default function SiteHeader({ active }: { active?: string }) {
               gap: isMobile ? '7px' : isTablet ? '8px' : '9px',
             }}
           >
-            {isTablet ? null : <ThemeToggle onClick={toggleTheme} theme={theme} />}
+            {useCompactHeader ? null : <ThemeToggle onClick={toggleTheme} theme={theme} />}
 
-            {isTablet ? null : authenticated ? (
+            {useCompactHeader ? null : authenticated ? (
               <>
-                {roleLabel ? <span style={accountPillStyle}>{roleLabel}</span> : null}
+                {accountLabel ? <span style={accountPillStyle}>{accountLabel}</span> : null}
+                <UtilityLink href={ACCOUNT_NAV_ITEMS[0].href}>{ACCOUNT_NAV_ITEMS[0].label}</UtilityLink>
                 {role === 'admin' ? (
-                  <>
-                    <UtilityLink href="/admin">Admin dashboard</UtilityLink>
-                    <UtilityLink href={resumeImportHref}>Resume import</UtilityLink>
-                  </>
+                  <UtilityLink href="/admin">Admin dashboard</UtilityLink>
                 ) : null}
                 <button type="button" onClick={handleLogout} style={utilityButtonStyle}>
                   Logout
@@ -345,7 +374,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               </>
             )}
 
-            {isTablet ? (
+            {useCompactHeader ? (
               <button
                 type="button"
                 aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -359,7 +388,7 @@ export default function SiteHeader({ active }: { active?: string }) {
           </div>
         </div>
 
-        {isTablet ? (
+        {useCompactHeader ? (
           <div
             style={{
               maxHeight: menuOpen ? '760px' : '0px',
@@ -384,13 +413,14 @@ export default function SiteHeader({ active }: { active?: string }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingBottom: '2px' }}>
                 <div style={mobileSectionLabelStyle}>{roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  {roleLabel ? <span style={accountPillStyle}>{roleLabel}</span> : null}
+                  {accountLabel ? <span style={accountPillStyle}>{accountLabel}</span> : null}
                   <ThemeToggle compact onClick={toggleTheme} theme={theme} />
                 </div>
               </div>
 
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
+                const visual = NAV_VISUALS[item.href]
                 return (
                   <Link
                     key={item.href}
@@ -405,25 +435,56 @@ export default function SiteHeader({ active }: { active?: string }) {
                         : 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 90%, var(--surface) 10%) 0%, var(--shell-chip-bg) 100%)',
                     }}
                   >
-                    <span>{item.label}</span>
+                    <span style={mobileItemMainStyle}>
+                      <span style={mobileStepStyle}>{visual?.step || '•'}</span>
+                      <span style={mobileItemTextStyle}>
+                        <strong style={mobileItemLabelStyle}>{item.label}</strong>
+                        {visual ? <small style={mobileItemIntentStyle}>{visual.intent}</small> : null}
+                      </span>
+                    </span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                 )
               })}
 
+              {canUseCaptainTools ? (
+                <>
+                  <div style={mobileSectionLabelStyle}>Captain tools</div>
+                  {CAPTAIN_QUICK_NAV_ITEMS.map((item) => {
+                    const activeNow = isActiveLink(active, pathname, item.href)
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={activeNow ? 'page' : undefined}
+                        onClick={() => setMenuOpen(false)}
+                        style={{
+                          ...mobileItemStyle,
+                          borderColor: activeNow ? 'rgba(155, 225, 29, 0.30)' : 'var(--shell-panel-border)',
+                          background: activeNow
+                            ? 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg-strong) 72%, var(--surface) 28%) 0%, var(--shell-chip-bg-strong) 100%)'
+                            : 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 90%, var(--surface) 10%) 0%, var(--shell-chip-bg) 100%)',
+                        }}
+                      >
+                        <span>{item.label}</span>
+                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                      </Link>
+                    )
+                  })}
+                </>
+              ) : null}
+
               {authenticated ? (
                 <>
+                  <Link href={ACCOUNT_NAV_ITEMS[0].href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <span>{ACCOUNT_NAV_ITEMS[0].label}</span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </Link>
                   {role === 'admin' ? (
-                    <>
-                      <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                        <span>Admin dashboard</span>
-                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                      </Link>
-                      <Link href={resumeImportHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                        <span>Resume import</span>
-                        <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
-                      </Link>
-                    </>
+                    <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                      <span>Admin dashboard</span>
+                      <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                    </Link>
                   ) : null}
                   <button
                     type="button"
@@ -480,6 +541,7 @@ const utilityLinkStyle = {
   letterSpacing: '-0.01em',
   textDecoration: 'none',
   background: 'transparent',
+  whiteSpace: 'nowrap' as const,
 } as const
 
 const navLinkStyle = {
@@ -487,14 +549,50 @@ const navLinkStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  gap: '7px',
   minHeight: '42px',
-  padding: '0 15px',
+  padding: '0 10px',
   borderRadius: '999px',
-  fontSize: '13.5px',
   fontWeight: 750,
-  letterSpacing: '-0.015em',
+  letterSpacing: '0',
   textDecoration: 'none',
+  whiteSpace: 'nowrap' as const,
   transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
+} as const
+
+const navStepStyle = {
+  width: '20px',
+  height: '20px',
+  borderRadius: '999px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '10.5px',
+  fontWeight: 950,
+  lineHeight: 1,
+} as const
+
+const navTextWrapStyle = {
+  display: 'grid',
+  gap: '0',
+  lineHeight: 1.08,
+} as const
+
+const navLabelStyle = {
+  color: 'inherit',
+  fontSize: '12.5px',
+  fontWeight: 900,
+} as const
+
+const navIntentStyle = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '9.5px',
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase' as const,
 } as const
 
 const accountPillStyle = {
@@ -517,7 +615,7 @@ const accountPillStyle = {
 const activeDotStyle = {
   position: 'absolute',
   left: '50%',
-  bottom: '5px',
+  bottom: '4px',
   width: '4px',
   height: '4px',
   borderRadius: '999px',
@@ -541,6 +639,7 @@ const utilityButtonStyle = {
   fontWeight: 700,
   letterSpacing: '-0.01em',
   cursor: 'pointer',
+  whiteSpace: 'nowrap' as const,
 } as const
 
 const primaryCtaStyle = {
@@ -574,8 +673,8 @@ const menuButtonStyle = {
 } as const
 
 const mobileItemStyle = {
-  minHeight: '48px',
-  padding: '0 14px',
+  minHeight: '58px',
+  padding: '8px 14px',
   borderRadius: '15px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -586,6 +685,45 @@ const mobileItemStyle = {
   fontSize: '14px',
   fontWeight: 700,
   textDecoration: 'none',
+} as const
+
+const mobileItemMainStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '10px',
+} as const
+
+const mobileItemTextStyle = {
+  display: 'grid',
+  gap: '3px',
+  lineHeight: 1,
+} as const
+
+const mobileItemLabelStyle = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+} as const
+
+const mobileItemIntentStyle = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 800,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase' as const,
+} as const
+
+const mobileStepStyle = {
+  width: '28px',
+  height: '28px',
+  borderRadius: '999px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  color: 'var(--text-dark)',
+  fontSize: '12px',
+  fontWeight: 950,
 } as const
 
 const mobileSectionLabelStyle = {

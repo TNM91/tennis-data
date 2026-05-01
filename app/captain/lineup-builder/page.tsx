@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -312,7 +312,7 @@ function isSameScope(match: MatchTeamRow, values: { leagueName: string; flight: 
 
 
 function formatPercent(value: number | null | undefined) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—'
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'â€”'
   return `${Math.round(value * 100)}%`
 }
 
@@ -747,7 +747,7 @@ function optimizeLineupFromPool(
     mode === 'best'
       ? 'Balanced to maximize total projected match win chance against the current opponent build.'
       : mode === 'safe'
-        ? 'Places your most reliable strength into the opponent’s strongest lines to reduce collapse risk.'
+        ? 'Places your most reliable strength into the opponentâ€™s strongest lines to reduce collapse risk.'
         : 'Targets weaker opponent lines to create bigger expected wins and higher-upside court stacking.'
 
   return {
@@ -1582,7 +1582,7 @@ function sendCurrentScenarioToMessaging() {
       projectedWins,
       projectedLosses,
       countedLines,
-      label: countedLines ? `${projectedWins.toFixed(1)} - ${projectedLosses.toFixed(1)}` : '—',
+      label: countedLines ? `${projectedWins.toFixed(1)} - ${projectedLosses.toFixed(1)}` : 'â€”',
     }
   }, [analysis.lines])
 
@@ -1646,7 +1646,7 @@ function sendCurrentScenarioToMessaging() {
     if (weakestOpponentLine) {
       cards.push({
         title: 'Opponent weakness',
-        body: `${weakestOpponentLine.label} is the opponent’s weakest projected line. If you want to attack a court, start there.`,
+        body: `${weakestOpponentLine.label} is the opponentâ€™s weakest projected line. If you want to attack a court, start there.`,
         tone: 'good',
       })
     }
@@ -2009,26 +2009,6 @@ function sendCurrentScenarioToMessaging() {
     },
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
-  const lineupSignals = [
-    {
-      label: 'Builder state',
-      value: currentScenarioId ? 'Editing saved version' : 'New build',
-      note: 'Treat this page as the place where the real match version gets shaped before you compare or send it.',
-    },
-    {
-      label: 'Readiness',
-      value: `${readinessCompleteCount}/${builderReadiness.length} checks`,
-      note: 'Good lineup work starts with real context, then moves into assignments, saving, and comparison.',
-    },
-    {
-      label: 'Best next move',
-      value: hasComparisonCandidates ? 'Build or compare' : 'Save a second version',
-      note: hasComparisonCandidates
-        ? 'Once the build is real, compare versions before you message the team.'
-        : 'Save another version in the same scope so the scenario workflow becomes useful.',
-    },
-  ]
-
   const dynamicQuickStartCard: CSSProperties = {
     ...quickStartCard,
     position: 'relative',
@@ -2090,18 +2070,18 @@ function sendCurrentScenarioToMessaging() {
         <section style={heroShellResponsive(isTablet, isMobile)}>
           <div>
             <div style={eyebrow}>Captain tools</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Builder</h1>
+            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Build the lineup.</h1>
             <p style={heroTextStyle}>
-              Build match-day lineups, work from availability-aware player pools, save multiple scenarios,
-              compare versions, and pressure-test your expected edge line by line.
+              Start from available players, fill the courts, check the edge, then send the plan.
             </p>
 
             <div style={heroButtonRowStyle}>
-              <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare Saved Scenarios</Link>
+              <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
+                {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
+              </PrimaryBtn>
+              <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
+              <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>Send to messaging</PrimaryBtn>
               <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
-              <GhostBtn onClick={() => setRefreshTick((current) => current + 1)}>
-                {loading ? 'Refreshing...' : 'Refresh data'}
-              </GhostBtn>
             </div>
 
             <div style={heroMetricGridStyle(isSmallMobile)}>
@@ -2109,16 +2089,6 @@ function sendCurrentScenarioToMessaging() {
                 <MetricStat key={stat.label} label={stat.label} value={stat.value} />
               ))}
             </div>
-
-            <section style={signalGridStyle(isSmallMobile)}>
-              {lineupSignals.map((signal) => (
-                <article key={signal.label} style={signalCardStyle}>
-                  <div style={signalLabelStyle}>{signal.label}</div>
-                  <div style={signalValueStyle}>{signal.value}</div>
-                  <div style={signalNoteStyle}>{signal.note}</div>
-                </article>
-              ))}
-            </section>
           </div>
 
           <div style={dynamicQuickStartCard}>
@@ -2136,12 +2106,12 @@ function sendCurrentScenarioToMessaging() {
 
             <div style={lineupVisualContentStyle}>
               <p style={sectionKicker}>Builder workflow</p>
-              <h2 style={quickStartTitle}>Set the match context, build, save, compare</h2>
+              <h2 style={quickStartTitle}>Build, check, send</h2>
               <div style={workflowListStyle}>
                 {[
-                  ['1', 'Define the match context', 'League, flight, team, opponent, and date drive the scenario.'],
-                  ['2', 'Build both sides', 'Create your lineup and capture the likely opponent projection.'],
-                  ['3', 'Save and compare', 'Keep multiple versions and review them side by side.'],
+                  ['1', 'Pick the match', 'Team, opponent, and date keep the build tied to the real week.'],
+                  ['2', 'Fill the courts', 'Use availability-aware players and lock anything you already trust.'],
+                  ['3', 'Check the edge', 'Save, compare, and send the version you want the team to follow.'],
                 ].map(([step, title, text]) => (
                   <div key={step} style={workflowRowStyle}>
                     <div style={workflowNumberStyle}>{step}</div>
@@ -2163,8 +2133,8 @@ function sendCurrentScenarioToMessaging() {
         </section>
 
         <CaptainSubnav
-          title="Lineup Builder inside the captain command center"
-          description="Stay anchored to availability, scenarios, messaging, and season management while you build the strongest team sheet."
+          title="Step 2: Lineup"
+          description="Build the match sheet, compare versions, then send the final plan."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -2202,14 +2172,14 @@ function sendCurrentScenarioToMessaging() {
           </div>
         ) : null}
 
-        <section style={surfaceCard}>
-          <div style={tableHeaderStyle}>
+        <details style={surfaceCard}>
+          <summary style={detailsSummaryStyle}>
             <div>
-              <p style={sectionKicker}>Match context summary</p>
-              <h3 style={sectionTitleSmall}>Everything driving this build</h3>
+              <p style={sectionKicker}>Match context</p>
+              <h3 style={sectionTitleSmall}>Team, opponent, date</h3>
             </div>
             <span style={miniPillBlueStyle}>{currentScenarioId ? 'saved scenario' : 'draft scenario'}</span>
-          </div>
+          </summary>
 
           <div style={contextSummaryGridStyle}>
             <div style={contextSummaryCardStyle}>
@@ -2275,16 +2245,16 @@ function sendCurrentScenarioToMessaging() {
               ) : null}
             </div>
           ) : null}
-        </section>
+        </details>
 
-        <section style={surfaceCard}>
-          <div style={tableHeaderStyle}>
+        <details style={surfaceCard}>
+          <summary style={detailsSummaryStyle}>
             <div>
               <p style={sectionKicker}>Builder readiness</p>
-              <h3 style={sectionTitleSmall}>What is ready and what still needs attention</h3>
+              <h3 style={sectionTitleSmall}>Setup checklist</h3>
             </div>
             <span style={miniPillBlueStyle}>{readinessCompleteCount}/4 complete</span>
-          </div>
+          </summary>
 
           <div style={decisionSnapshotGridStyle}>
             {builderReadiness.map((item) => (
@@ -2301,27 +2271,27 @@ function sendCurrentScenarioToMessaging() {
               ? 'This build has enough structure to save, compare, and push forward into weekly messaging with confidence.'
               : 'Finish the setup items above first, then use save and compare as decision tools instead of placeholders.'}
           </div>
-        </section>
+        </details>
 
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
             <section style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Scenario setup</p>
-                  <h2 style={sectionTitle}>Match and scenario details</h2>
+                  <p style={sectionKicker}>Match setup</p>
+                  <h2 style={sectionTitle}>Pick the match</h2>
                   <p style={sectionBodyTextStyle}>
-                    Save multiple versions for the same team/date and compare them later.
+                    Choose the team, match, and name for this lineup.
                   </p>
                 </div>
 
                 <div style={actionRowStyle}>
                   <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                    {saving ? 'Saving…' : currentScenarioId ? 'Update Scenario' : 'Save Scenario'}
+                    {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
                   </PrimaryBtn>
-                  <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as New</GhostBtn>
+                  <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as new</GhostBtn>
                   <GhostBtn onClick={() => void trackPredictionSnapshot('manual-track')} disabled={trackingSnapshot}>
-                    {trackingSnapshot ? 'Tracking…' : 'Track Snapshot'}
+                    {trackingSnapshot ? 'Tracking...' : 'Track snapshot'}
                   </GhostBtn>
                 </div>
               </div>
@@ -2396,7 +2366,7 @@ function sendCurrentScenarioToMessaging() {
                   onChange={(e) => setNotes(e.target.value)}
                   style={textareaStyle}
                   rows={4}
-                  placeholder="Anything captains should remember for this build…"
+                  placeholder="Anything captains should remember for this buildâ€¦"
                 />
               </Field>
 
@@ -2446,10 +2416,10 @@ function sendCurrentScenarioToMessaging() {
 
                     <div style={actionRowStyle}>
                       <GhostSmallBtn onClick={() => void loadScenario(scenario.id)} disabled={loadingScenarioId === scenario.id}>
-                        {loadingScenarioId === scenario.id ? 'Loading…' : 'Load'}
+                        {loadingScenarioId === scenario.id ? 'Loadingâ€¦' : 'Load'}
                       </GhostSmallBtn>
                       <GhostSmallBtn onClick={() => void deleteScenario(scenario.id)} disabled={deletingScenarioId === scenario.id}>
-                        {deletingScenarioId === scenario.id ? 'Deleting…' : 'Delete'}
+                        {deletingScenarioId === scenario.id ? 'Deletingâ€¦' : 'Delete'}
                       </GhostSmallBtn>
                     </div>
                   </div>
@@ -2531,11 +2501,10 @@ function sendCurrentScenarioToMessaging() {
             </section>
 
             <section style={surfaceCardStrong}>
-              <p style={sectionKicker}>Elite builder assist</p>
-              <h2 style={sectionTitle}>Auto-build, warnings, and bench ideas</h2>
+              <p style={sectionKicker}>Auto-build</p>
+              <h2 style={sectionTitle}>Get a starting lineup</h2>
               <p style={sectionBodyTextStyle}>
-                Use the recommendation engine to fill the strongest balanced lineup from the current pool, then review
-                conflicts before saving.
+                Fill a first draft from the current player pool, then adjust the courts you care about.
               </p>
 
               <div style={actionRowStyleWrap}>
@@ -2662,29 +2631,29 @@ function sendCurrentScenarioToMessaging() {
             </section>
 
             <section style={surfaceCardStrong}>
-              <p style={sectionKicker}>Optimizer command center</p>
+              <p style={sectionKicker}>Lineup read</p>
               <h2 style={sectionTitle}>How to win this match</h2>
 
               <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
                 <div style={bannerBlueStyle}>
-                  <strong>Match outlook:</strong> {projectionTier(analysis.projection)} — {formatPercent(analysis.projection)} win probability
+                  <strong>Match outlook:</strong> {projectionTier(analysis.projection)} â€” {formatPercent(analysis.projection)} win probability
                 </div>
 
                 {bestLine ? (
                   <div style={bannerGreenStyle}>
-                    <strong>Best edge:</strong> {bestLine.label} ({typeof bestLine.diff === 'number' ? `${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}` : '—'})
+                    <strong>Best edge:</strong> {bestLine.label} ({typeof bestLine.diff === 'number' ? `${bestLine.diff >= 0 ? '+' : ''}${bestLine.diff.toFixed(2)}` : 'â€”'})
                   </div>
                 ) : null}
 
                 {weakestLine ? (
                   <div style={warningCardStyle}>
-                    <strong>Biggest risk:</strong> {weakestLine.label} ({typeof weakestLine.diff === 'number' ? `${weakestLine.diff >= 0 ? '+' : ''}${weakestLine.diff.toFixed(2)}` : '—'})
+                    <strong>Biggest risk:</strong> {weakestLine.label} ({typeof weakestLine.diff === 'number' ? `${weakestLine.diff >= 0 ? '+' : ''}${weakestLine.diff.toFixed(2)}` : 'â€”'})
                   </div>
                 ) : null}
 
                 {swingLine ? (
                   <div style={bannerBlueStyle}>
-                    <strong>Swing match:</strong> {swingLine.label} — this likely decides the match
+                    <strong>Swing match:</strong> {swingLine.label} â€” this likely decides the match
                   </div>
                 ) : null}
               </div>
@@ -2702,10 +2671,10 @@ function sendCurrentScenarioToMessaging() {
             <section style={surfaceCard}>
               <div style={tableHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Optimizer plans</p>
-                  <h3 style={sectionTitleSmall}>Three different lineup strategies</h3>
+                  <p style={sectionKicker}>Lineup options</p>
+                  <h3 style={sectionTitleSmall}>Choose a strategy</h3>
                 </div>
-                <span style={miniPillSlateStyle}>{bestOptimizedPlan ? `${bestOptimizedPlan.score.toFixed(1)} top score` : '—'}</span>
+                <span style={miniPillSlateStyle}>{bestOptimizedPlan ? `${bestOptimizedPlan.score.toFixed(1)} top score` : 'â€”'}</span>
               </div>
 
               <div style={stackStyle}>
@@ -2729,8 +2698,8 @@ function sendCurrentScenarioToMessaging() {
 
           <div style={columnStyle}>
             <section style={surfaceCardStrong}>
-              <p style={sectionKicker}>Captain decision snapshot</p>
-              <h2 style={sectionTitle}>What this lineup says right now</h2>
+              <p style={sectionKicker}>Scorecard</p>
+              <h2 style={sectionTitle}>What this lineup says</h2>
 
               <div style={decisionSnapshotGridStyle}>
                 <div style={decisionCardGoodStyle}>
@@ -2793,11 +2762,11 @@ function sendCurrentScenarioToMessaging() {
                         <div>
                           <div style={listTitleStyle}>{line.label}{isSwing ? <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 800, padding: '1px 6px', borderRadius: 999, background: 'rgba(250,204,21,0.12)', color: '#fde047', border: '1px solid rgba(250,204,21,0.22)' }}>swing</span> : null}</div>
                           <div style={listMetaStyle}>
-                            You {formatRating(line.yourRating)} · Opp {formatRating(line.opponentRating)} · {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '—'}
+                            You {formatRating(line.yourRating)} Â· Opp {formatRating(line.opponentRating)} Â· {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : 'â€”'}
                           </div>
                         </div>
                         <span style={{ fontSize: 15, fontWeight: 900, color: isFavored ? '#86efac' : pct !== null ? '#fca5a5' : 'var(--shell-copy-muted)', flexShrink: 0 }}>
-                          {pct !== null ? `${pct}%` : '—'}
+                          {pct !== null ? `${pct}%` : 'â€”'}
                         </span>
                       </div>
                       {pct !== null ? (
@@ -2882,8 +2851,8 @@ function sendCurrentScenarioToMessaging() {
             <section style={surfaceCard}>
               <div style={tableHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Why the model likes or dislikes this build</p>
-                  <h3 style={sectionTitleSmall}>Explainability cards</h3>
+                  <p style={sectionKicker}>Why</p>
+                  <h3 style={sectionTitleSmall}>What stands out</h3>
                 </div>
                 <span style={miniPillBlueStyle}>Auto-generated</span>
               </div>
@@ -2901,8 +2870,8 @@ function sendCurrentScenarioToMessaging() {
             <section style={surfaceCardStrong}>
               <div style={tableHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Scenario command deck</p>
-                  <h3 style={sectionTitleSmall}>Save, compare, and track with less friction</h3>
+                  <p style={sectionKicker}>Next actions</p>
+                  <h3 style={sectionTitleSmall}>Save, compare, send</h3>
                 </div>
                 <span style={miniPillBlueStyle}>{currentScenarioId ? 'active scenario' : 'draft mode'}</span>
               </div>
@@ -2937,16 +2906,16 @@ function sendCurrentScenarioToMessaging() {
 
               <div style={scenarioDeckButtonRowStyle}>
                 <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                  {saving ? 'Saving…' : currentScenarioId ? 'Update Current Scenario' : 'Save Current Scenario'}
+                  {saving ? 'Saving...' : currentScenarioId ? 'Update lineup' : 'Save lineup'}
                 </PrimaryBtn>
-                <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as New Version</GhostBtn>
+                <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as new</GhostBtn>
                 <GhostBtn onClick={() => void trackPredictionSnapshot('command-deck-track')} disabled={trackingSnapshot}>
-                  {trackingSnapshot ? 'Tracking…' : 'Track Prediction Snapshot'}
+                  {trackingSnapshot ? 'Tracking...' : 'Track snapshot'}
                 </GhostBtn>
                 <PrimaryBtn onClick={sendCurrentScenarioToMessaging}>
-                  Send to Messaging
+                  Send to messaging
                 </PrimaryBtn>
-                <GhostLink href={compareHref}>Open Scenario Comparison</GhostLink>
+                <GhostLink href={compareHref}>Compare versions</GhostLink>
               </div>
 
               {!isCaptainAccess ? (
@@ -2969,7 +2938,7 @@ function sendCurrentScenarioToMessaging() {
               <div style={tableHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Player pool</p>
-                  <h3 style={sectionTitleSmall}>Availability-aware ranking</h3>
+                  <h3 style={sectionTitleSmall}>Available players</h3>
                 </div>
                 <span style={miniPillSlateStyle}>{myPlayerPool.length} team players</span>
               </div>
@@ -2999,7 +2968,7 @@ function sendCurrentScenarioToMessaging() {
                 }) : (
                   <div style={stackStyleCompact}>
                     <p style={mutedTextStyle}>
-                      {loading ? 'Loading player pool…' : 'No players match the current scope.'}
+                      {loading ? 'Loading player poolâ€¦' : 'No players match the current scope.'}
                     </p>
                     {!loading ? (
                       <p style={subtleHelperTextStyle}>
@@ -3158,7 +3127,7 @@ const heroTitleResponsive = (isSmallMobile: boolean, isMobile: boolean): CSSProp
   color: 'var(--foreground)',
   fontSize: isSmallMobile ? 32 : isMobile ? 40 : 52,
   lineHeight: 1.02,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   fontWeight: 900,
 })
 
@@ -3220,7 +3189,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '1.24rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -3437,7 +3406,7 @@ const contextSummaryValueStyle: CSSProperties = {
   fontSize: 18,
   lineHeight: 1.2,
   fontWeight: 800,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 }
 
 const contextSummaryInsightStyle: CSSProperties = {
@@ -3665,6 +3634,16 @@ const tableHeaderStyle: CSSProperties = {
   marginBottom: 12,
 }
 
+const detailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+  alignItems: 'center',
+  cursor: 'pointer',
+  listStyle: 'none',
+  marginBottom: 12,
+}
+
 const decisionSnapshotGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '1fr',
@@ -3710,7 +3689,7 @@ const decisionCardValueStyle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1.05,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const decisionCardTextStyle: CSSProperties = {
@@ -3748,7 +3727,7 @@ const actionPlanValueStyle: CSSProperties = {
   fontSize: 22,
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const actionPlanTextStyle: CSSProperties = {
@@ -3793,7 +3772,7 @@ const scenarioDeckValueStyle: CSSProperties = {
   fontSize: 22,
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const scenarioDeckTextStyle: CSSProperties = {

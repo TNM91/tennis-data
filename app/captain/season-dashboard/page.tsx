@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -223,12 +223,12 @@ export default function CaptainSeasonDashboardPage() {
           </div>
 
           {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
-          <div style={noteBanner}>{access.leagueTierMessage}</div>
+          {!access.canUseLeagueTools ? <div style={noteBanner}>{access.leagueTierMessage}</div> : null}
 
           <div style={heroActionRow}>
-            <GhostLink href="/captain">Captain Hub</GhostLink>
-            <GhostLink href="/compete/leagues">My Leagues</GhostLink>
-            <GhostLink href="/explore/leagues">Explore Leagues</GhostLink>
+            <GhostLink href="/captain/tiq-team-matches">Record results</GhostLink>
+            <GhostLink href="/compete/leagues">My leagues</GhostLink>
+            <GhostLink href="/explore/leagues">Browse leagues</GhostLink>
           </div>
         </div>
 
@@ -349,7 +349,7 @@ export default function CaptainSeasonDashboardPage() {
               </label>
 
               <label style={fieldLabel}>
-                <span>Captain team / organizer</span>
+                <span>Organizer / owner</span>
                 <input
                   value={draft.captainTeamName}
                   onChange={(event) =>
@@ -418,7 +418,7 @@ export default function CaptainSeasonDashboardPage() {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, notes: event.target.value }))
                 }
-                placeholder="Use this field for pricing notes, structure, format rules, or captain reminders."
+                placeholder="Format rules, schedule notes, eligibility, defaults, or league reminders."
                 style={textareaStyle}
               />
             </label>
@@ -427,7 +427,7 @@ export default function CaptainSeasonDashboardPage() {
 
             <div style={buttonRow}>
               <PrimaryBtn onClick={persistDraft} disabled={!canSaveCurrentDraft}>
-                {editingId ? 'Update TIQ league' : 'Save TIQ league'}
+                {editingId ? 'Update league' : 'Save league'}
               </PrimaryBtn>
               <GhostBtn onClick={resetDraft}>Clear form</GhostBtn>
             </div>
@@ -457,7 +457,7 @@ export default function CaptainSeasonDashboardPage() {
           </section>
 
           <section style={panelCard}>
-            <div style={sectionEyebrow}>Season registry</div>
+            <div style={sectionEyebrow}>League registry</div>
             <h2 style={sectionTitle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
             <p style={sectionText}>
               {LEAGUE_COORDINATOR_STORY.registryBody}
@@ -466,7 +466,7 @@ export default function CaptainSeasonDashboardPage() {
             {records.length === 0 ? (
               <div style={emptyCard}>
                 No TIQ leagues have been created yet. Start with a team league or an individual league to
-                unlock schedules, teams, and captain workflows.
+                create structure for participants, schedules, and results.
               </div>
             ) : (
               <div style={stackList}>
@@ -515,10 +515,9 @@ export default function CaptainSeasonDashboardPage() {
 
             {leagueCards.length > 0 ? (
               <div style={noteCard}>
-                <div style={sectionEyebrow}>Product seam</div>
+                <div style={sectionEyebrow}>League records</div>
                 <div style={sectionText}>
-                  {leagueCards.length} TIQ league records are now available for browse and workflow layers.
-                  This is the right foundation for later billing and league-admin entitlements without polluting USTA league discovery.
+                  {leagueCards.length} TIQ league records are now available for browsing and result entry.
                 </div>
               </div>
             ) : null}
@@ -648,7 +647,7 @@ const heroTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '52px',
   lineHeight: 0.98,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   maxWidth: '940px',
 }
 
@@ -730,7 +729,7 @@ const sectionTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '28px',
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sectionText: CSSProperties = {

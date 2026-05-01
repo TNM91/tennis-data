@@ -1915,30 +1915,6 @@ function importScenarioToLineup() {
     )
   }
 
-  const messagingSignals = [
-    {
-      label: 'Weekly status',
-      value: weekStatusMeta.label,
-      note: 'Use this console to keep communication tied to the actual stage of the week, not just the next text you want to send.',
-    },
-    {
-      label: 'Audience pressure',
-      value:
-        responseSummary.noResponseCount > 0
-          ? `${responseSummary.noResponseCount} still waiting`
-          : 'Replies are moving',
-      note: 'Non-responders, need-sub replies, and late updates should shape the next send before you broadcast broadly.',
-    },
-    {
-      label: 'Best next move',
-      value: sendStrategy.label,
-      note:
-        finalizationReadiness.ready
-          ? 'The workflow is stable enough to move from planning into execution.'
-          : 'Use the recommendation engine to clear blockers before sending the final plan.',
-    },
-  ]
-
   const dynamicQuickStartCard: CSSProperties = {
     ...quickStartCard,
     position: 'relative',
@@ -2017,19 +1993,18 @@ function importScenarioToLineup() {
         <section style={heroShellResponsive(isTablet, isMobile)}>
           <div>
             <div style={eyebrow}>Captain communications</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Weekly Captain Console</h1>
+            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Send the plan.</h1>
             <p style={heroTextStyle}>
-              Run the full weekly workflow in one place: choose the correct team and season group,
-              see availability, build or import the lineup, text match details and directions, and
-              track who has confirmed, declined, or still needs follow-up.
+              Choose the audience, load the right lineup context, and prepare the message your team needs next.
             </p>
             <div style={heroButtonRowStyle}>
-              <PrimaryLink href="/captain/lineup-builder">Open Lineup Builder</PrimaryLink>
-              <GhostLink href="/captain">Back to Captain Console</GhostLink>
+              <PrimaryLink href="/captain/lineup-builder">Edit lineup</PrimaryLink>
+              <GhostLink href="/captain/weekly-brief">Weekly brief</GhostLink>
+              <GhostLink href="/captain">Back to Captain</GhostLink>
             </div>
             <div style={heroStatusShell}>
               <div>
-                <div style={eyebrow}>Weekly workflow status</div>
+                <div style={eyebrow}>This week</div>
                 <div style={heroStatusValue}>{weekStatusMeta.label}</div>
                 <div style={heroStatusText}>{weekStatusMeta.detail}</div>
               </div>
@@ -2050,16 +2025,6 @@ function importScenarioToLineup() {
               <MetricStat label="Available this week" value={String(availabilitySummary.availableCount)} />
               <MetricStat label="No response" value={String(responseSummary.noResponseCount)} />
             </div>
-
-            <section style={signalGridStyle(isSmallMobile)}>
-              {messagingSignals.map((signal) => (
-                <article key={signal.label} style={signalCardStyle}>
-                  <div style={signalLabelStyle}>{signal.label}</div>
-                  <div style={signalValueStyle}>{signal.value}</div>
-                  <div style={signalNoteStyle}>{signal.note}</div>
-                </article>
-              ))}
-            </section>
           </div>
 
           <div style={dynamicQuickStartCard}>
@@ -2077,12 +2042,12 @@ function importScenarioToLineup() {
 
             <div style={messagingVisualContentStyle}>
               <p style={sectionKicker}>Weekly flow</p>
-              <h2 style={quickStartTitle}>Built around how captains actually run a week</h2>
+              <h2 style={quickStartTitle}>Right message, right group</h2>
               <div style={workflowListStyle}>
                 {[
-                  ['1', 'Pick the roster scope', 'League, flight, season, session, and team keep the correct contact list loaded.'],
-                  ['2', 'Track availability', 'Mark players available, unavailable, tentative, or no response for the upcoming week.'],
-                  ['3', 'Communicate lineup + details', 'Send lineup, arrival time, directions, and reminders only to the right group.'],
+                  ['1', 'Pick scope', 'Load the team and match week.'],
+                  ['2', 'Choose audience', 'Use lineup, availability, or follow-up groups.'],
+                  ['3', 'Prepare text', 'Send lineup, logistics, reminders, or blockers.'],
                 ].map(([step, title, text]) => (
                   <div key={step} style={workflowRowStyle}>
                     <div style={workflowNumberStyle}>{step}</div>
@@ -2098,26 +2063,11 @@ function importScenarioToLineup() {
         </section>
 
         <CaptainSubnav
-          title="Captain messaging"
-          description="Lineup texts, confirmations, logistics, and follow-ups in one place."
+          title="Step 4: Messaging"
+          description="Send the lineup, logistics, reminders, and follow-ups from one place."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
-
-        <section style={surfaceCard}>
-          <div style={tableHeaderStyle}>
-            <div>
-              <p style={sectionKicker}>Captain tier</p>
-              <h3 style={sectionTitleSmall}>{captainAccess ? 'Messaging unlocked' : 'Preview mode'}</h3>
-            </div>
-            <span style={captainAccess ? miniPillGreen : warnPill}>
-              {captainAccess ? 'Captain access' : 'Member preview'}
-            </span>
-          </div>
-          <p style={mutedTextStyle}>
-            Captain access unlocks edits, lineup sync, contact management, saved templates, and live texts.
-          </p>
-        </section>
 
         {!captainAccess ? (
           <UpgradePrompt
@@ -2134,12 +2084,11 @@ function importScenarioToLineup() {
         ) : null}
 
         <section style={contentWrap}>
-          <section style={surfaceCardStrong}>
-            <div style={sectionHeaderStyle}>
+          <details style={surfaceCardStrong}>
+            <summary style={detailsSummaryStyle}>
               <div>
-                <p style={sectionKicker}>Team scope</p>
-                <h2 style={sectionTitle}>Roster + season/session filters</h2>
-                <p style={sectionBodyTextStyle}>Load the correct contact list for the right league team and session before sending anything.</p>
+                <p style={sectionKicker}>Scope</p>
+                <h2 style={sectionTitle}>Team and match filters</h2>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
@@ -2149,7 +2098,7 @@ function importScenarioToLineup() {
                   {storageMode === 'supabase' ? 'Synced' : 'Saved on device'}
                 </span>
               </div>
-            </div>
+            </summary>
 
             <div style={filtersGridStyle}>
               <Field label="League" htmlFor="captain-messaging-league">
@@ -2201,17 +2150,17 @@ function importScenarioToLineup() {
               <span style={warnPill}>{responseSummary.noResponseCount} still waiting</span>
               {availabilitySyncSource ? <span style={miniPillBlue}>Availability connected</span> : <span style={miniPillSlate}>Manual availability</span>}
             </div>
-          </section>
+          </details>
 
           {loading ? (
-            <section style={surfaceCard}><p style={mutedTextStyle}>Loading captain console...</p></section>
+            <section style={surfaceCard}><p style={mutedTextStyle}>Loading captain tools...</p></section>
           ) : (
             <>
               {error ? (
                 <section style={surfaceCard}>
                   <p role="alert" style={errorTextStyle}>{error}</p>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-                    <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry console load</GhostSmallBtn>
+                    <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry load</GhostSmallBtn>
                   </div>
                 </section>
               ) : null}
@@ -2270,13 +2219,14 @@ function importScenarioToLineup() {
                 </section>
               </section>
 
-              <section style={surfaceCard}>
-                <div style={tableHeaderStyle}>
+              <details style={surfaceCard}>
+                <summary style={detailsSummaryStyle}>
                   <div>
-                    <p style={sectionKicker}>Roster availability + responses</p>
-                    <h3 style={sectionTitleSmall}>Update each player</h3>
+                    <p style={sectionKicker}>Player status</p>
+                    <h3 style={sectionTitleSmall}>Availability and replies</h3>
                   </div>
-                </div>
+                  <span style={miniPillSlate}>{scopedContacts.length} players</span>
+                </summary>
                 <div style={tableWrapStyle}>
                   <table style={tableStyle}>
                     <thead>
@@ -2330,7 +2280,7 @@ function importScenarioToLineup() {
                     </tbody>
                   </table>
                 </div>
-              </section>
+              </details>
 
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCardStrong}>
@@ -2409,7 +2359,7 @@ function importScenarioToLineup() {
 
                         <div style={actionRowStyle}>
                           <PrimaryBtn onClick={applyWinningLineupToComposer}>
-                            Load Winning Lineup Message
+                            Load lineup text
                           </PrimaryBtn>
 
                           <GhostSmallBtn onClick={importScenarioToLineup} disabled={!captainAccess}>Sync to lineup editor</GhostSmallBtn>
@@ -2440,8 +2390,8 @@ function importScenarioToLineup() {
                   <section style={surfaceCardStrong}>
                     <div style={tableHeaderStyle}>
                       <div>
-                        <p style={sectionKicker}>Message plan</p>
-                        <h3 style={sectionTitleSmall}>Next send</h3>
+                        <p style={sectionKicker}>Next send</p>
+                        <h3 style={sectionTitleSmall}>Audience and blockers</h3>
                       </div>
                       <span style={sendStrategy.shouldFollowUp ? warnPill : miniPillGreen}>
                         {sendStrategy.label}
@@ -2467,9 +2417,9 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <PrimaryBtn onClick={applyRecommendedSendStrategy}>Use Recommended Message</PrimaryBtn>
-                      <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Follow Up</GhostSmallBtn>
-                      <GhostSmallBtn onClick={applyWinningLineupToComposer}>Lineup Message</GhostSmallBtn>
+                      <PrimaryBtn onClick={applyRecommendedSendStrategy}>Use recommended text</PrimaryBtn>
+                      <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Follow up</GhostSmallBtn>
+                      <GhostSmallBtn onClick={applyWinningLineupToComposer}>Lineup text</GhostSmallBtn>
                     </div>
                   </section>
 
@@ -3475,12 +3425,21 @@ function importScenarioToLineup() {
                 </div>
               </section>
 
+              <details style={surfaceCard}>
+                <summary style={detailsSummaryStyle}>
+                  <div>
+                    <p style={sectionKicker}>Admin setup</p>
+                    <h3 style={sectionTitleSmall}>Contacts, replies, and templates</h3>
+                  </div>
+                  <span style={miniPillSlate}>{scopedContacts.length} contacts</span>
+                </summary>
+
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCard}>
                   <div style={tableHeaderStyle}>
                     <div>
-                      <p style={sectionKicker}>Response dashboard</p>
-                      <h3 style={sectionTitleSmall}>Who replied and who needs a follow-up</h3>
+                      <p style={sectionKicker}>Responses</p>
+                      <h3 style={sectionTitleSmall}>Who needs a follow-up</h3>
                     </div>
                   </div>
                   <div style={statsGridStyle}>
@@ -3546,7 +3505,7 @@ function importScenarioToLineup() {
               <section style={surfaceCard}>
                 <div style={tableHeaderStyle}>
                   <div>
-                    <p style={sectionKicker}>Current roster in scope</p>
+                    <p style={sectionKicker}>Current roster</p>
                     <h3 style={sectionTitleSmall}>Team contacts</h3>
                   </div>
                 </div>
@@ -3582,8 +3541,8 @@ function importScenarioToLineup() {
               <section style={surfaceCard}>
                 <div style={tableHeaderStyle}>
                   <div>
-                    <p style={sectionKicker}>Saved message templates</p>
-                    <h3 style={sectionTitleSmall}>Reusable captain texts</h3>
+                    <p style={sectionKicker}>Templates</p>
+                    <h3 style={sectionTitleSmall}>Reusable texts</h3>
                   </div>
                 </div>
                 <div style={templateGridStyle}>
@@ -3600,6 +3559,7 @@ function importScenarioToLineup() {
                   ))}
                 </div>
               </section>
+              </details>
             </>
           )}
         </section>
@@ -3736,7 +3696,7 @@ const heroTitleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -3771,7 +3731,7 @@ const heroStatusValue: CSSProperties = {
   fontWeight: 900,
   fontSize: 26,
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginTop: 6,
 }
 
@@ -3822,7 +3782,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '1.24rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -3925,7 +3885,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1.1,
 }
 
@@ -3934,7 +3894,7 @@ const sectionTitleSmall: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   lineHeight: 1.15,
 }
 
@@ -3966,6 +3926,7 @@ const warnPill: CSSProperties = { ...badgeBase, background: 'rgba(255, 93, 93, 0
 const pillRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }
 
 const tableHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 14 }
+const detailsSummaryStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', cursor: 'pointer', listStyle: 'none', marginBottom: 14 }
 const tableWrapStyle: CSSProperties = { width: '100%', overflowX: 'auto', borderRadius: '18px', border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
 const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' }
 const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em' }
@@ -4025,7 +3986,7 @@ const intelligenceValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const intelligenceTextStyle: CSSProperties = {
@@ -4094,7 +4055,7 @@ const recipientIntelligenceValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const recipientIntelligenceTextStyle: CSSProperties = {
@@ -4132,7 +4093,7 @@ const sendStrategyValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sendStrategyTextStyle: CSSProperties = {
@@ -4170,7 +4131,7 @@ const weeklyCommandValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const weeklyCommandTextStyle: CSSProperties = {
@@ -4222,7 +4183,7 @@ const actionQueueValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const actionQueueTextStyle: CSSProperties = {
@@ -4296,7 +4257,7 @@ const outcomePlannerValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const outcomePlannerTextStyle: CSSProperties = {
@@ -4348,7 +4309,7 @@ const sequencePlannerValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sequencePlannerTextStyle: CSSProperties = {
@@ -4386,7 +4347,7 @@ const launchSnapshotValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const launchSnapshotTextStyle: CSSProperties = {
@@ -4424,7 +4385,7 @@ const sendConfidenceValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sendConfidenceTextStyle: CSSProperties = {
@@ -4462,7 +4423,7 @@ const sendGateValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sendGateTextStyle: CSSProperties = {
@@ -4500,7 +4461,7 @@ const riskRadarValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const riskRadarTextStyle: CSSProperties = {
@@ -4538,7 +4499,7 @@ const deliveryReadinessValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const deliveryReadinessTextStyle: CSSProperties = {

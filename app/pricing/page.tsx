@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import TierPathway from '@/app/components/tier-pathway'
 import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { type UserRole } from '@/lib/roles'
@@ -16,6 +15,13 @@ import {
   type PricingPlanId,
 } from '@/lib/pricing-plans'
 import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
+
+const PLAN_JOB_GUIDE = [
+  ['Explore', 'Start free', 'Look up players, teams, leagues, and rankings.'],
+  ['Personalize', 'Choose Player', 'Save follows, use My Lab, and prep matchups.'],
+  ['Lead', 'Choose Captain', 'Run availability, lineups, briefs, and team messages.'],
+  ['Organize', 'Choose League Coordinator', 'Manage league structure, standings, seasons, and results.'],
+] as const
 
 export default function PricingPage() {
   const [role, setRole] = useState<UserRole>('public')
@@ -57,11 +63,18 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <TierPathway
-          showCtas
-          title="Start free. Add the tier that removes the next headache."
-          intro="Each plan is meant to solve a specific tennis job: exploration, personal prep, team leadership, or league operations."
-        />
+        <section style={jobGuideStyle} aria-label="Choose a plan by job">
+          <div style={sectionEyebrowStyle}>Pick by job</div>
+          <div style={jobGuideGridStyle}>
+            {PLAN_JOB_GUIDE.map(([job, title, text]) => (
+              <div key={job} style={jobGuideCardStyle}>
+                <div style={jobGuideJobStyle}>{job}</div>
+                <div style={jobGuideTitleStyle}>{title}</div>
+                <div style={jobGuideTextStyle}>{text}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section style={cardGridStyle}>
           {PRICING_PLANS.map((plan) => {
@@ -88,7 +101,7 @@ export default function PricingPage() {
                   <div style={audienceStyle}>{plan.audience}</div>
                 </div>
 
-                <div style={problemBlockStyle}>
+                <div style={planSummaryStyle}>
                   {active ? (
                     <div style={solutionCardStyle}>
                       <div style={problemLabelStyle}>Your access</div>
@@ -96,24 +109,13 @@ export default function PricingPage() {
                     </div>
                   ) : (
                     <>
-                      <div style={miniSectionStyle}>
-                        <div style={problemLabelStyle}>Best for</div>
-                        <div style={miniHeadlineStyle}>{plan.audience}</div>
+                      <div style={solutionCardStyle}>
+                        <div style={problemLabelStyle}>Use this when</div>
+                        <div style={solutionTextStyle}>{plan.problem}</div>
                       </div>
-                      <div style={miniSectionStyle}>
-                        <div style={problemLabelStyle}>Why upgrade</div>
-                        <div style={problemHeadlineStyle}>{plan.problem}</div>
-                        <p style={problemTextStyle}>{plan.friction}</p>
-                      </div>
-                      <div style={solutionGridStyle}>
-                        <div style={solutionCardStyle}>
-                          <div style={problemLabelStyle}>Solution</div>
-                          <div style={solutionTextStyle}>{plan.solution}</div>
-                        </div>
-                        <div style={solutionCardStyle}>
-                          <div style={problemLabelStyle}>Outcome</div>
-                          <div style={solutionTextStyle}>{plan.outcome}</div>
-                        </div>
+                      <div style={solutionCardStyle}>
+                        <div style={problemLabelStyle}>What gets easier</div>
+                        <div style={solutionTextStyle}>{plan.outcome}</div>
                       </div>
                     </>
                   )}
@@ -290,6 +292,53 @@ const proofPillStyle: CSSProperties = {
   fontWeight: 800,
 }
 
+const jobGuideStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 20,
+  borderRadius: 24,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.10)',
+}
+
+const jobGuideGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gap: 12,
+}
+
+const jobGuideCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const jobGuideJobStyle: CSSProperties = {
+  color: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const jobGuideTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.2,
+  fontWeight: 900,
+}
+
+const jobGuideTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 700,
+}
+
 const cardGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
@@ -394,9 +443,10 @@ const audienceStyle: CSSProperties = {
   lineHeight: 1.6,
 }
 
-const problemBlockStyle: CSSProperties = {
+const planSummaryStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gap: 10,
 }
 
 const problemLabelStyle: CSSProperties = {
@@ -405,39 +455,6 @@ const problemLabelStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
-}
-
-const miniSectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-}
-
-const miniHeadlineStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 16,
-  lineHeight: 1.4,
-  fontWeight: 800,
-}
-
-const problemHeadlineStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 20,
-  lineHeight: 1.12,
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
-
-const problemTextStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.7,
-}
-
-const solutionGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 10,
 }
 
 const solutionCardStyle: CSSProperties = {

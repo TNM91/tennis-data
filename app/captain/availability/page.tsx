@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -436,26 +436,6 @@ export default function CaptainAvailabilityPage() {
       : counts.in === 0 && counts.out === 0 && counts.maybe === 0
         ? 'Start by picking a team to load the weekly roster.'
         : 'The roster is fully answered, so you can move straight into lineup planning.'
-  const availabilitySignals = [
-    {
-      label: 'Roster clarity',
-      value: counts.unanswered > 0 ? `${counts.unanswered} waiting` : 'Fully answered',
-      note: 'Availability is the checkpoint that tells you whether the week is still uncertain or ready for lineup decisions.',
-    },
-    {
-      label: 'Weekly scope',
-      value: hasScope ? `${selectedTeam} - ${selectedFlight}` : 'Choose a team',
-      note: 'Keep this page scoped to one real team and one weekly context before sending requests or building lineups.',
-    },
-    {
-      label: 'Best next move',
-      value: counts.unanswered > 0 ? 'Follow up first' : 'Build lineup',
-      note: counts.unanswered > 0
-        ? 'Clear blockers here, then hand off into messaging or lineup building.'
-        : 'The roster is clear enough to move directly into lineup construction.',
-    },
-  ]
-
   const dynamicQuickStartCard: CSSProperties = {
     ...quickStartCard,
     position: 'relative',
@@ -500,11 +480,10 @@ export default function CaptainAvailabilityPage() {
           <div>
             <div style={eyebrow}>Captain availability</div>
             <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>
-              Know who you have before you build the lineup.
+              Who can play?
             </h1>
             <p style={heroText}>
-              Use this page as your weekly captain checkpoint. Select the team, view availability status,
-              follow up with non-responders, and move directly into lineup building once the roster is clear.
+              Pick the match, mark responses, then build the lineup from players who are actually available.
             </p>
 
             <div style={selectorPanelResponsive(isSmallMobile)}>
@@ -568,7 +547,7 @@ export default function CaptainAvailabilityPage() {
                 }}
                 disabled={!hasScope}
               >
-                Send Request
+                Prep request
               </button>
 
               <button
@@ -637,8 +616,8 @@ export default function CaptainAvailabilityPage() {
         </section>
 
         <CaptainSubnav
-          title="Availability sits inside the full captain workflow"
-          description="Clear the roster first, then move directly into lineups, messaging, scenarios, and season management."
+          title="Step 1: Availability"
+          description="Clear the player pool first. Then build, compare, and send the plan."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -684,23 +663,13 @@ export default function CaptainAvailabilityPage() {
             <MetricCard label="Unanswered" value={String(counts.unanswered)} accent="slate" />
           </div>
 
-          <section style={signalGridStyle(isSmallMobile)}>
-            {availabilitySignals.map((signal) => (
-              <article key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </article>
-            ))}
-          </section>
-
           <section style={sectionCard}>
             <div style={sectionHeadResponsive(isTablet)}>
               <div>
                 <div style={sectionKicker}>Weekly roster</div>
                 <h2 style={sectionTitle}>Player responses</h2>
                 <div style={sectionSub}>
-                  Update statuses as you hear back, then move straight into lineup planning.
+                  Update the list as replies come in. The lineup should start here.
                 </div>
               </div>
 
@@ -901,7 +870,7 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -1028,7 +997,7 @@ const quickStartTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.04,
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
 }
 
 const quickStartMeta: CSSProperties = {
@@ -1143,7 +1112,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.24rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -1162,8 +1131,8 @@ const metricCard: CSSProperties = {
 }
 
 const metricCardGreen: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(20,66,54,0.82) 0%, rgba(10,40,32,0.92) 100%)',
-  border: '1px solid rgba(130,244,118,0.16)',
+  background: 'linear-gradient(180deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(13,27,52,0.86) 100%)',
+  border: '1px solid rgba(155,225,29,0.20)',
 }
 
 const metricCardBlue: CSSProperties = {
@@ -1189,7 +1158,7 @@ const metricValue: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.1,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sectionCard: CSSProperties = {
@@ -1219,7 +1188,7 @@ const sectionTitle: CSSProperties = {
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const sectionSub: CSSProperties = {

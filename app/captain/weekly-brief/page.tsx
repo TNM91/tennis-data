@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -362,7 +362,7 @@ export default function CaptainWeeklyBriefPage() {
     {
       label: 'Lineup loaded',
       done: lineupRows.length > 0,
-      detail: lineupRows.length ? `${lineupRows.length} court assignments are loaded.` : 'No weekly lineup has been imported into the command sheet yet.',
+      detail: lineupRows.length ? `${lineupRows.length} court assignments are loaded.` : 'No weekly lineup has been added yet.',
     },
     {
       label: 'Communication plan',
@@ -406,28 +406,6 @@ export default function CaptainWeeklyBriefPage() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
-  const weeklySignals = [
-    {
-      label: 'Weekly status',
-      value: weekStatusMeta.label,
-      note: 'Use this brief as the captain-facing command sheet that pulls lineup, logistics, and readiness into one read.',
-    },
-    {
-      label: 'Scope health',
-      value: team && league && flight ? 'Context loaded' : 'Scope incomplete',
-      note: team && league && flight
-        ? `${team} - ${league} - ${flight}`
-        : 'The weekly brief is only useful once the correct team, league, and flight are in scope.',
-    },
-    {
-      label: 'Best next move',
-      value: readinessItems.every((item) => item.done) ? 'Move to execution' : 'Close open checks',
-      note: readinessItems.every((item) => item.done)
-        ? 'The week has enough structure to move into messaging and final execution.'
-        : 'Use the missing checks below to see what still needs captain attention first.',
-    },
-  ]
-
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
       key: weekStatusKey,
@@ -461,9 +439,9 @@ export default function CaptainWeeklyBriefPage() {
             <div style={heroTopRow}>
               <div>
                 <p style={sectionKicker}>Weekly Brief</p>
-                <h1 style={heroTitle}>One captain command sheet for the whole week.</h1>
+                <h1 style={heroTitle}>Captain readout.</h1>
                 <p style={heroText}>
-                  Pull together match context, shared notes, lineup status, event logistics, and communication readiness in one place before match day.
+                  Check lineup, logistics, notes, and open risks before the team message goes out.
                 </p>
               </div>
 
@@ -477,7 +455,7 @@ export default function CaptainWeeklyBriefPage() {
 
             <div style={statusShell}>
               <div>
-                <div style={sectionKicker}>Weekly workflow status</div>
+                <div style={sectionKicker}>This week</div>
                 <div style={statusValue}>{weekStatusMeta.label}</div>
                 <div style={heroText}>{weekStatusMeta.detail}</div>
               </div>
@@ -501,15 +479,6 @@ export default function CaptainWeeklyBriefPage() {
               <MetricCard label="Messaging" value={eventDetail?.arrivalTime || 'Pending'} detail={eventDetail?.location || 'Location not set yet'} accent />
             </div>
 
-            <section style={signalGridStyle}>
-              {weeklySignals.map((signal) => (
-                <article key={signal.label} style={signalCardStyle}>
-                  <div style={signalLabelStyle}>{signal.label}</div>
-                  <div style={signalValueStyle}>{signal.value}</div>
-                  <div style={signalNoteStyle}>{signal.note}</div>
-                </article>
-              ))}
-            </section>
           </section>
 
           {error ? <section style={errorCard}>{error}</section> : null}
@@ -532,8 +501,8 @@ export default function CaptainWeeklyBriefPage() {
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Shared notes</p>
-                  <h2 style={sectionTitle}>Weekly prep + opponent scouting</h2>
+                  <p style={sectionKicker}>Notes</p>
+                  <h2 style={sectionTitle}>Prep and scouting</h2>
                 </div>
                 <span style={pillStyle}>{sharedNotes?.updatedAt ? 'Saved memory' : 'No saved notes'}</span>
               </div>
@@ -553,8 +522,8 @@ export default function CaptainWeeklyBriefPage() {
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Event setup</p>
-                  <h2 style={sectionTitle}>Arrival, location, and captain ops</h2>
+                  <p style={sectionKicker}>Logistics</p>
+                  <h2 style={sectionTitle}>Arrival and location</h2>
                 </div>
                 <span style={pillStyle}>{eventDetail?.arrivalTime || 'Arrival not set'}</span>
               </div>
@@ -571,8 +540,8 @@ export default function CaptainWeeklyBriefPage() {
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKicker}>Lineup sheet</p>
-                <h2 style={sectionTitle}>Current weekly lineup</h2>
+                <p style={sectionKicker}>Lineup</p>
+                <h2 style={sectionTitle}>Current courts</h2>
               </div>
               <span style={pillStyle}>{lineupRows.length ? `${lineupRows.length} assignments` : 'No lineup yet'}</span>
             </div>
@@ -596,15 +565,18 @@ export default function CaptainWeeklyBriefPage() {
             )}
           </section>
 
-          <section style={twoColumnGrid(isTablet)}>
-            <section style={surfaceCard}>
+          <details style={surfaceCard}>
+            <summary style={detailsSummaryStyle}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Scenario anchor</p>
-                  <h2 style={sectionTitle}>Saved scenario context</h2>
+                  <p style={sectionKicker}>Details</p>
+                  <h2 style={sectionTitle}>Scenario and readiness</h2>
                 </div>
               </div>
+            </summary>
 
+          <section style={twoColumnGrid(isTablet)}>
+            <section style={surfaceCard}>
               <div style={eventGrid}>
                 <InfoBlock label="Scenario" value={selectedScenario?.scenario_name || 'No saved scenario selected'} />
                 <InfoBlock label="Opponent" value={selectedScenario?.opponent_team || resolvedOpponent || 'Not set'} />
@@ -615,8 +587,8 @@ export default function CaptainWeeklyBriefPage() {
             <section style={surfaceCard}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <p style={sectionKicker}>Readiness</p>
-                  <h2 style={sectionTitle}>Are we ready to move?</h2>
+                  <p style={sectionKicker}>Checklist</p>
+                  <h2 style={sectionTitle}>Ready to move?</h2>
                 </div>
               </div>
 
@@ -631,12 +603,13 @@ export default function CaptainWeeklyBriefPage() {
               </div>
             </section>
           </section>
+          </details>
 
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
               <div>
                 <p style={sectionKicker}>Team pulse</p>
-                <h2 style={sectionTitle}>Availability and response snapshot</h2>
+                <h2 style={sectionTitle}>Availability and replies</h2>
               </div>
             </div>
 
@@ -666,8 +639,8 @@ export default function CaptainWeeklyBriefPage() {
         </div>
 
         <CaptainSubnav
-          title="Weekly Brief inside the captain command center"
-          description="Continue from your weekly overview directly into availability tracking, lineup building, scenario planning, or team messaging."
+          title="Weekly Brief"
+          description="Use this readout to check the week, then open the team brief or messaging."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -677,7 +650,7 @@ export default function CaptainWeeklyBriefPage() {
             planId="captain"
             compact
             headline="Still piecing together your week from scattered notes?"
-            body="Unlock Captain to turn your weekly brief into a real command center for availability, lineups, scenarios, and team communication."
+            body="Unlock Captain to connect availability, lineups, scenarios, and team communication in one weekly flow."
             ctaLabel="Build Smarter Lineups"
             ctaHref="/pricing"
             secondaryLabel="See Captain value"
@@ -752,7 +725,7 @@ const heroTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: 34,
   lineHeight: 1.02,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -784,7 +757,7 @@ const statusValue: CSSProperties = {
   fontSize: 26,
   fontWeight: 900,
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginTop: 6,
 }
 
@@ -827,7 +800,7 @@ const signalValueStyle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '1.24rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -890,6 +863,11 @@ const sectionHeaderStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const detailsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
 const sectionKicker: CSSProperties = {
   fontSize: 12,
   color: 'rgba(197,213,234,0.86)',
@@ -903,7 +881,7 @@ const sectionTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: 24,
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const pillStyle: CSSProperties = {

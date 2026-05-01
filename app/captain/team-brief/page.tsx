@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -351,28 +351,6 @@ export default function CaptainTeamBriefPage() {
   const lineupUpdatedLabel = lineupRows.length ? `${lineupRows.length} assignments ready` : 'No lineup saved yet'
   const eventUpdatedLabel = eventDetail ? 'Event details saved' : 'No event details saved'
   const responseUpdatedLabel = latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
-  const teamBriefSignals = [
-    {
-      label: 'Weekly status',
-      value: weekStatusMeta.label,
-      note: 'This version is meant for players and parents, so it should stay clean, current, and easy to act on.',
-    },
-    {
-      label: 'Share readiness',
-      value: lineupRows.length ? 'Lineup loaded' : 'Lineup still open',
-      note: lineupRows.length
-        ? 'Assignments are present, so this brief can work as a clear outward-facing summary.'
-        : 'Wait until the lineup is more stable before treating this as the final player-facing brief.',
-    },
-    {
-      label: 'Best next move',
-      value: alertLines.length ? 'Clear team alerts' : 'Share the brief',
-      note: alertLines.length
-        ? 'Late arrivals, no-responses, or sub issues should be handled before broad sharing.'
-        : 'The player-facing version is clean enough to print, copy, or send.',
-    },
-  ]
-
   function handlePrint() {
     if (typeof window === 'undefined') return
     window.print()
@@ -412,9 +390,9 @@ export default function CaptainTeamBriefPage() {
             <div style={heroTopRow}>
               <div>
                 <p style={sectionKicker}>Team Brief</p>
-                <h1 style={heroTitle}>A clean player-facing weekly summary.</h1>
+                <h1 style={heroTitle}>Team weekly brief.</h1>
                 <p style={heroText}>
-                  Use this version when you want to share or print the week&apos;s essentials without exposing private scouting notes.
+                  Share the essentials: when, where, lineup, reminders, and anything that needs attention.
                 </p>
               </div>
 
@@ -427,7 +405,7 @@ export default function CaptainTeamBriefPage() {
 
             <div style={statusShell}>
               <div>
-                <div style={sectionKicker}>Weekly workflow status</div>
+                <div style={sectionKicker}>This week</div>
                 <div style={statusValue}>{weekStatusMeta.label}</div>
                 <div style={mutedTextStyle}>{weekStatusMeta.detail}</div>
               </div>
@@ -451,15 +429,6 @@ export default function CaptainTeamBriefPage() {
               <MetricCard label="Alerts" value={alertLines.length ? String(alertLines.length) : 'Clear'} detail={alertLines.length ? 'Open team issues still need follow-up' : 'No saved late/sub/response alerts'} />
             </div>
 
-            <section style={signalGridStyle}>
-              {teamBriefSignals.map((signal) => (
-                <article key={signal.label} style={signalCardStyle}>
-                  <div style={signalLabelStyle}>{signal.label}</div>
-                  <div style={signalValueStyle}>{signal.value}</div>
-                  <div style={signalNoteStyle}>{signal.note}</div>
-                </article>
-              ))}
-            </section>
           </section>
 
           {error ? <section style={errorCard}>{error}</section> : null}
@@ -481,15 +450,16 @@ export default function CaptainTeamBriefPage() {
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKicker}>Freshness</p>
-                <h2 style={sectionTitle}>How current is this brief?</h2>
+                <p style={sectionKicker}>Send-ready message</p>
+                <h2 style={sectionTitle}>Copy and send this to the team</h2>
               </div>
+              <SecondaryBtn onClick={() => void handleCopyMessage()}>Copy message</SecondaryBtn>
             </div>
 
-            <div style={metricGrid}>
-              <MetricCard label="Lineup" value={lineupUpdatedLabel} detail="Pulled from the weekly lineup memory." />
-              <MetricCard label="Event details" value={eventUpdatedLabel} detail="Location, arrival, and weekly note status." />
-              <MetricCard label="Responses" value={responseUpdatedLabel} detail="Latest saved response/alert update." accent />
+            {copyStatus ? <div style={statusPill}>{copyStatus}</div> : null}
+
+            <div style={messageCard}>
+              <pre style={messageText}>{generatedTeamMessage}</pre>
             </div>
           </section>
 
@@ -514,7 +484,7 @@ export default function CaptainTeamBriefPage() {
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Captain note</p>
-                  <h2 style={sectionTitle}>Weekly message context</h2>
+                  <h2 style={sectionTitle}>Message note</h2>
                 </div>
               </div>
 
@@ -528,7 +498,7 @@ export default function CaptainTeamBriefPage() {
             <div style={sectionHeaderStyle}>
               <div>
                 <p style={sectionKicker}>Lineup</p>
-                <h2 style={sectionTitle}>Current assignment sheet</h2>
+                <h2 style={sectionTitle}>Current courts</h2>
               </div>
               <span style={pillStyle}>{lineupRows.length ? `${lineupRows.length} assignments` : 'No lineup yet'}</span>
             </div>
@@ -552,21 +522,20 @@ export default function CaptainTeamBriefPage() {
             )}
           </section>
 
-          <section style={surfaceCard}>
-            <div style={sectionHeaderStyle}>
+          <details style={surfaceCard}>
+            <summary style={detailsSummaryStyle}>
               <div>
-                <p style={sectionKicker}>Send-ready message</p>
-                <h2 style={sectionTitle}>Copy and send this to the team</h2>
+                <p style={sectionKicker}>Freshness</p>
+                <h2 style={sectionTitle}>How current is this brief?</h2>
               </div>
-              <SecondaryBtn onClick={() => void handleCopyMessage()}>Copy message</SecondaryBtn>
-            </div>
+            </summary>
 
-            {copyStatus ? <div style={statusPill}>{copyStatus}</div> : null}
-
-            <div style={messageCard}>
-              <pre style={messageText}>{generatedTeamMessage}</pre>
+            <div style={metricGrid}>
+              <MetricCard label="Lineup" value={lineupUpdatedLabel} detail="Pulled from the weekly lineup memory." />
+              <MetricCard label="Event details" value={eventUpdatedLabel} detail="Location, arrival, and weekly note status." />
+              <MetricCard label="Responses" value={responseUpdatedLabel} detail="Latest saved response/alert update." accent />
             </div>
-          </section>
+          </details>
 
           <section style={surfaceCard}>
             <div style={sectionHeaderStyle}>
@@ -597,8 +566,8 @@ export default function CaptainTeamBriefPage() {
         </div>
 
         <CaptainSubnav
-          title="Team Brief inside the captain command center"
-          description="Move from team intelligence into lineup building, scenario planning, messaging, and availability without breaking the pre-match workflow."
+          title="Team Brief"
+          description="Use this when the team needs one clean weekly summary."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -676,7 +645,7 @@ const heroTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: 34,
   lineHeight: 1.02,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 const heroText: CSSProperties = {
   marginTop: 12,
@@ -690,7 +659,7 @@ const metricGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repea
 const signalGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }
 const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)', boxShadow: '0 14px 34px rgba(7,18,40,0.16)' }
 const signalLabelStyle: CSSProperties = { color: '#8fb7ff', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
-const signalValueStyle: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: '1.24rem', fontWeight: 900, letterSpacing: '-0.03em' }
+const signalValueStyle: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: '1.24rem', fontWeight: 900, letterSpacing: 0 }
 const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6 }
 const metricCard: CSSProperties = { padding: 16, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(15,23,42,0.52)' }
 const metricCardAccent: CSSProperties = { ...metricCard, border: '1px solid rgba(74,222,128,0.18)', boxShadow: '0 10px 24px rgba(74,222,128,0.08)' }
@@ -707,11 +676,12 @@ const surfaceCard: CSSProperties = {
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
 }
 const sectionHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }
+const detailsSummaryStyle: CSSProperties = { cursor: 'pointer', listStyle: 'none' }
 const sectionKicker: CSSProperties = { fontSize: 12, color: 'rgba(197,213,234,0.86)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }
-const sectionTitle: CSSProperties = { margin: '6px 0 0', color: '#f8fbff', fontSize: 24, lineHeight: 1.08, letterSpacing: '-0.03em' }
+const sectionTitle: CSSProperties = { margin: '6px 0 0', color: '#f8fbff', fontSize: 24, lineHeight: 1.08, letterSpacing: 0 }
 const pillStyle: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(37,91,227,0.16)', color: '#c7dbff', fontSize: 12, fontWeight: 800 }
 const statusShell: CSSProperties = { display: 'grid', gap: 14, padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)', marginTop: 18 }
-const statusValue: CSSProperties = { color: '#f8fbff', fontSize: 26, fontWeight: 900, lineHeight: 1.08, letterSpacing: '-0.03em', marginTop: 6 }
+const statusValue: CSSProperties = { color: '#f8fbff', fontSize: 26, fontWeight: 900, lineHeight: 1.08, letterSpacing: 0, marginTop: 6 }
 const statusButtonRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
 const twoColumnGrid = (isTablet: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 20 })
 const eventGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }

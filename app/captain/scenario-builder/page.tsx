@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -198,8 +198,8 @@ function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[],
 
     const leftPlayers = leftSlot?.players ?? []
     const rightPlayers = rightSlot?.players ?? []
-    const leftText = leftPlayers.length ? leftPlayers.join(' / ') : '—'
-    const rightText = rightPlayers.length ? rightPlayers.join(' / ') : '—'
+    const leftText = leftPlayers.length ? leftPlayers.join(' / ') : 'â€”'
+    const rightText = rightPlayers.length ? rightPlayers.join(' / ') : 'â€”'
     const changed = leftText !== rightText
 
     const leftStrength = strengthForSlot(leftSlot, players)
@@ -533,30 +533,6 @@ export default function ScenarioComparisonPage() {
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const premiumEnabled = access.canUseCaptainWorkflow
-  const scenarioSignals = [
-    {
-      label: 'Comparison scope',
-      value: `${filteredScenarios.length} saved scenarios`,
-      note: 'This page works best after you narrow the comparison set to one real team and one real weekly situation.',
-    },
-    {
-      label: 'Decision status',
-      value:
-        leftScenario && rightScenario
-          ? `${yourComparison.changedCount + opponentComparison.changedCount} total deltas`
-          : 'Choose A and B',
-      note: 'Use the comparison only to isolate real differences, not to re-read the same lineup twice.',
-    },
-    {
-      label: 'Best next move',
-      value: leftScenario && rightScenario ? 'Pick a winner' : 'Filter first',
-      note:
-        leftScenario && rightScenario
-          ? 'Once the better version is clear, push it back into the builder or messaging workflow.'
-          : 'Start by narrowing the saved set until only the real decision remains.',
-    },
-  ]
-
   const dynamicQuickStartCard: CSSProperties = {
     ...quickStartCard,
     position: 'relative',
@@ -628,27 +604,26 @@ export default function ScenarioComparisonPage() {
         <section style={heroShellResponsive(isTablet, isMobile)}>
           <div>
             <div style={eyebrow}>Captain tools</div>
-            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Scenario Comparison</h1>
+            <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Compare lineup versions.</h1>
             <p style={heroTextStyle}>
-              Compare saved lineup scenarios side by side, see where the lineup changed, identify
-              the biggest swing lines, and decide which version gives you the strongest overall edge.
+              Put two saved builds side by side, spot the swing courts, and keep the version you trust.
             </p>
 
             <div style={heroButtonRowStyle}>
-              <PrimaryLink href="/captain/lineup-builder">Open Lineup Builder</PrimaryLink>
+              <PrimaryLink href="/captain/lineup-builder">Back to builder</PrimaryLink>
               <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Refresh data</GhostSmallBtn>
-              <GhostLink href="/captain">Back to Captain Console</GhostLink>
+              <GhostLink href="/captain/messaging">Open messaging</GhostLink>
             </div>
 
             <div style={heroMetricGridStyle(isSmallMobile)}>
               <MetricStat label="Filtered scenarios" value={String(filteredScenarios.length)} />
               <MetricStat
                 label="Your lineup changes"
-                value={leftScenario && rightScenario ? String(yourComparison.changedCount) : '—'}
+                value={leftScenario && rightScenario ? String(yourComparison.changedCount) : 'â€”'}
               />
               <MetricStat
                 label="Opponent changes"
-                value={leftScenario && rightScenario ? String(opponentComparison.changedCount) : '—'}
+                value={leftScenario && rightScenario ? String(opponentComparison.changedCount) : 'â€”'}
               />
             </div>
           </div>
@@ -668,12 +643,12 @@ export default function ScenarioComparisonPage() {
 
             <div style={scenarioVisualContentStyle}>
               <p style={sectionKicker}>Decision support</p>
-              <h2 style={quickStartTitle}>Find the version you actually want to field</h2>
+              <h2 style={quickStartTitle}>Pick the better build</h2>
               <div style={workflowListStyle}>
                 {[
-                  ['1', 'Filter the saved set', 'Narrow by league, flight, team, and date so only relevant versions remain.'],
-                  ['2', 'Compare A vs B', 'Line-by-line changes, strength differences, and notes all in one view.'],
-                  ['3', 'Send the winner back', 'Jump back to the builder with the scenario you want to keep iterating.'],
+                  ['1', 'Filter', 'Get down to the real team, match, and saved versions.'],
+                  ['2', 'Compare', 'Review changed courts and projected edge.'],
+                  ['3', 'Choose', 'Return to the builder or message the team.'],
                 ].map(([step, title, text]) => (
                   <div key={step} style={workflowRowStyle}>
                     <div style={workflowNumberStyle}>{step}</div>
@@ -695,8 +670,8 @@ export default function ScenarioComparisonPage() {
         </section>
 
         <CaptainSubnav
-          title="Scenario Builder inside the captain command center"
-          description="Compare options without losing the surrounding workflow for availability, messaging, lineup decisions, and season management."
+          title="Step 3: Compare"
+          description="Use scenarios to choose the lineup, then move into messaging."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -714,16 +689,6 @@ export default function ScenarioComparisonPage() {
         ) : null}
 
         <section style={contentWrap}>
-          <section style={signalGridStyle(isSmallMobile)}>
-            {scenarioSignals.map((signal) => (
-              <article key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </article>
-            ))}
-          </section>
-
           <section style={surfaceCardStrong}>
             <div style={sectionHeaderStyle}>
               <div>
@@ -819,7 +784,7 @@ export default function ScenarioComparisonPage() {
               </p>
               <div style={heroButtonRowStyle}>
                 <PrimarySmallLink href="/captain/lineup-builder">Start in lineup builder</PrimarySmallLink>
-                <GhostSmallLink href="/captain">Return to captain console</GhostSmallLink>
+                <GhostSmallLink href="/captain">Back to Captain</GhostSmallLink>
               </div>
             </section>
           ) : (
@@ -1185,7 +1150,7 @@ export default function ScenarioComparisonPage() {
                         }}>
                         Send Winning Scenario
                       </GhostSmallBtn>
-                      <GhostSmallLink href="/captain">Back to Captain Console</GhostSmallLink>
+                      <GhostSmallLink href="/captain">Back to Captain</GhostSmallLink>
                     </div>
                   </section>
 
@@ -1336,7 +1301,7 @@ export default function ScenarioComparisonPage() {
 
                       <div style={scenarioCommandCardStyle}>
                         <div style={scenarioCommandLabelStyle}>Captain workflow</div>
-                        <div style={scenarioCommandValueStyle}>Compare → refine → send</div>
+                        <div style={scenarioCommandValueStyle}>Compare â†’ refine â†’ send</div>
                         <div style={scenarioCommandTextStyle}>
                           Keep scenario work focused on decision clarity, then move the final version into weekly team messaging.
                         </div>
@@ -1456,7 +1421,7 @@ function ScenarioPanel({
         <select id={selectorId} aria-describedby={helperId} value={selectedId} onChange={(e) => onChange(e.target.value)} style={inputStyle}>
           {scenarios.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.scenario_name} - {item.team_name || '—'} - {formatDate(item.match_date)}
+              {item.scenario_name} - {item.team_name || 'â€”'} - {formatDate(item.match_date)}
             </option>
           ))}
         </select>
@@ -1466,11 +1431,11 @@ function ScenarioPanel({
         <>
           <div style={metaGridStylePanel}>
             <MetaCard label="Scenario" value={scenario.scenario_name || 'Untitled'} />
-            <MetaCard label="League" value={scenario.league_name || '—'} />
-            <MetaCard label="Flight" value={scenario.flight || '—'} />
+            <MetaCard label="League" value={scenario.league_name || 'â€”'} />
+            <MetaCard label="Flight" value={scenario.flight || 'â€”'} />
             <MetaCard label="Match Date" value={formatDate(scenario.match_date)} />
-            <MetaCard label="Team" value={scenario.team_name || '—'} />
-            <MetaCard label="Opponent" value={scenario.opponent_team || '—'} />
+            <MetaCard label="Team" value={scenario.team_name || 'â€”'} />
+            <MetaCard label="Opponent" value={scenario.opponent_team || 'â€”'} />
           </div>
 
           <div style={actionRowStyle}>
@@ -1582,7 +1547,7 @@ function ComparisonTable({
                 const diffText =
                   typeof diff === 'number'
                     ? `${diff >= 0 ? 'A +' : 'B +'}${Math.abs(diff).toFixed(2)}`
-                    : '—'
+                    : 'â€”'
 
                 return (
                   <tr key={row.label}>
@@ -1736,7 +1701,7 @@ const heroTitleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -1789,7 +1754,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '1.24rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -1923,7 +1888,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1.1,
 }
 
@@ -1932,7 +1897,7 @@ const sectionTitleSmall: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   lineHeight: 1.15,
 }
 
@@ -2088,7 +2053,7 @@ const projectionValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '36px',
   lineHeight: 1,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   marginTop: '8px',
   marginBottom: '10px',
 }
@@ -2235,7 +2200,7 @@ const finalizeValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const finalizeTextStyle: CSSProperties = {
@@ -2272,7 +2237,7 @@ const takeawayValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const takeawayTextStyle: CSSProperties = {
@@ -2310,7 +2275,7 @@ const scenarioCommandValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const scenarioCommandTextStyle: CSSProperties = {
@@ -2348,7 +2313,7 @@ const deltaSummaryValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const deltaSummaryTextStyle: CSSProperties = {
@@ -2386,7 +2351,7 @@ const readinessValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const readinessTextStyle: CSSProperties = {
@@ -2424,7 +2389,7 @@ const confidenceLadderValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const confidenceLadderTextStyle: CSSProperties = {
@@ -2469,7 +2434,7 @@ const scoreboardValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const scoreboardTextStyle: CSSProperties = {
@@ -2514,7 +2479,7 @@ const changeDigestValueStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: '20px',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const changeDigestTextStyle: CSSProperties = {

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -123,7 +123,7 @@ const NAV_LINKS = [
   { href: '/mylab', label: 'My Lab' },
   { href: '/leagues', label: 'Leagues' },
   { href: '/teams', label: 'Teams' },
-  { href: '/captain', label: 'Captain Console' },
+  { href: '/captain', label: 'Captain' },
 ]
 
 function normalizePlayerRelation(player: PlayerRelation) {
@@ -800,44 +800,6 @@ export default function LineupAvailabilityPage() {
     [availabilitySummary]
   )
 
-  const availabilitySignals = useMemo(
-    () => [
-      {
-        label: 'Match scope',
-        value: selectedDate ? formatDate(selectedDate) : 'Select match date',
-        note: selectedTeam
-          ? `${selectedTeam}${selectedLeagueLabel ? ` - ${selectedLeagueLabel}` : ''}`
-          : 'Choose a team context before setting statuses.',
-      },
-      {
-        label: 'Roster read',
-        value: roster.length ? `${availabilitySummary.available} available / ${roster.length} total` : 'Roster pending',
-        note:
-          viability === 'Strong'
-            ? 'You have enough playable options to build with flexibility.'
-            : viability === 'Playable'
-              ? 'Lineup decisions are workable, but the margin is tighter.'
-              : 'This roster needs quick follow-up before lineup lock.',
-      },
-      {
-        label: 'Best next move',
-        value: !selectedLeagueKey
-          ? 'Choose league context'
-          : !selectedTeam
-            ? 'Choose team'
-            : !selectedDate
-              ? 'Choose match date'
-              : saving
-                ? 'Saving availability'
-                : 'Save and move to builder',
-        note: selectedDate
-          ? 'Saved availability feeds lineup projection and lineup builder.'
-          : 'Lock the date so every status is tied to the right match.',
-      },
-    ],
-    [availabilitySummary.available, roster.length, saving, selectedDate, selectedLeagueKey, selectedLeagueLabel, selectedTeam, viability]
-  )
-
   function updatePlayerStatus(playerId: string, status: AvailabilityStatus) {
     setAvailabilityMap((prev) => ({
       ...prev,
@@ -925,10 +887,9 @@ export default function LineupAvailabilityPage() {
       <section style={heroShellResponsive(isTablet, isMobile)}>
         <div>
           <div style={eyebrow}>Captain tools</div>
-          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Lineup Availability</h1>
+          <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Who can play?</h1>
           <p style={heroTextStyle}>
-            Set player availability for a team and match date so lineup decisions start from realistic
-            captain inputs instead of guesswork.
+            Pick the match, mark responses, then build from players who are actually available.
           </p>
 
           <div style={heroButtonRowStyle}>
@@ -947,30 +908,20 @@ export default function LineupAvailabilityPage() {
             <MetricStat label="Viability" value={viability} />
           </div>
 
-          <div style={signalGridStyle(isSmallMobile)}>
-            {availabilitySignals.map((signal) => (
-              <div key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div style={quickStartCard}>
           <div style={quickStartLabel}>Workflow</div>
-          <div style={quickStartValue}>Choose, set, save</div>
+          <div style={quickStartValue}>Ask, mark, build</div>
           <div style={quickStartText}>
-            Load the right roster, set each player’s status, capture notes, then save the match-date availability
-            that feeds your builder and projection pages.
+            Save one match-day list, then use it in projection and lineup builder.
           </div>
 
           <div style={workflowListStyle}>
             {[
-              ['1', 'Pick match context', 'Choose league, team, and date to pull the right roster usage pool.'],
-              ['2', 'Set every player', 'Mark available, out, singles-only, doubles-only, or limited.'],
-              ['3', 'Save once', 'Use the saved availability everywhere else in Captain tools.'],
+              ['1', 'Pick match', 'Choose league, team, and date.'],
+              ['2', 'Mark status', 'Set who is in, out, limited, singles-only, or doubles-only.'],
+              ['3', 'Build lineup', 'Send the saved list into the builder.'],
             ].map(([step, title, text]) => (
               <div key={step} style={workflowRowStyle}>
                 <div style={workflowNumberStyle}>{step}</div>
@@ -1155,7 +1106,7 @@ export default function LineupAvailabilityPage() {
                   <p style={sectionKicker}>Roster availability</p>
                   <h2 style={sectionTitle}>Set match-day status for each player</h2>
                   <p style={sectionBodyTextStyle}>
-                    Update each player’s status and add optional notes for lineup building context.
+                    Update each playerâ€™s status and add optional notes for lineup building context.
                   </p>
                 </div>
 
@@ -1257,8 +1208,8 @@ export default function LineupAvailabilityPage() {
 
       <section style={{ padding: '0 24px 32px' }}>
         <CaptainSubnav
-          title="Lineup Availability inside the captain command center"
-          description="Jump between availability, lineup building, projection, messaging, and season management from any point in the captain workflow."
+          title="Lineup Availability"
+          description="Start with who can play, then move into projection or the builder."
           tierLabel={access.captainTierLabel}
           tierActive={access.captainSubscriptionActive}
         />
@@ -1277,11 +1228,11 @@ export default function LineupAvailabilityPage() {
               <Link href="/mylab" style={footerUtilityLink}>My Lab</Link>
               <Link href="/leagues" style={footerUtilityLink}>Leagues</Link>
               <Link href="/teams" style={footerUtilityLink}>Teams</Link>
-              <Link href="/captain" style={footerUtilityLink}>Captain Console</Link>
+              <Link href="/captain" style={footerUtilityLink}>Captain</Link>
             </div>
 
             <div style={{ ...footerBottom, ...(isTablet ? {} : { marginLeft: 'auto' }) }}>
-              © {new Date().getFullYear()} TenAceIQ
+              Â© {new Date().getFullYear()} TenAceIQ
             </div>
           </div>
         </div>
@@ -1565,7 +1516,7 @@ const heroTitleStyle: CSSProperties = {
   color: '#f7fbff',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -1674,7 +1625,7 @@ const quickStartValue: CSSProperties = {
   fontSize: '30px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const quickStartText: CSSProperties = {
@@ -1776,7 +1727,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1.1,
 }
 
@@ -1785,7 +1736,7 @@ const sectionTitleSmall: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   lineHeight: 1.15,
 }
 

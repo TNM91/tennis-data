@@ -14,6 +14,7 @@ import { MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
+import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -149,6 +150,8 @@ function hasValidRating(value: number | null | undefined): value is number {
 export default function MatchupPage() {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [profileLink, setProfileLink] = useState<UserProfileLink | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -171,6 +174,7 @@ export default function MatchupPage() {
   const [formScores, setFormScores] = useState<{ left: number | null; right: number | null }>({ left: null, right: null })
   const [trajectories, setTrajectories] = useState<{ left: Array<{ date: string; rating: number }>; right: Array<{ date: string; rating: number }> }>({ left: [], right: [] })
   const urlReadyRef = useRef(false)
+  const profilePrefillAttemptedRef = useRef(false)
   const [accuracy, setAccuracy] = useState<AccuracyState>({
     overall: null,
     high: null,
@@ -193,10 +197,12 @@ export default function MatchupPage() {
         if (!active) return
         setRole(authState.role)
         setEntitlements(authState.entitlements)
+        setUserId(authState.user?.id || null)
       } catch {
         if (!active) return
         setRole('public')
         setEntitlements(null)
+        setUserId(null)
       }
     }
 
@@ -206,6 +212,27 @@ export default function MatchupPage() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!userId) {
+      setProfileLink(null)
+      return
+    }
+
+    let active = true
+
+    async function loadProfileForMatchup() {
+      const result = await loadUserProfileLink(userId)
+      if (!active) return
+      setProfileLink(result.data)
+    }
+
+    void loadProfileForMatchup()
+
+    return () => {
+      active = false
+    }
+  }, [userId])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -230,6 +257,16 @@ export default function MatchupPage() {
 
     urlReadyRef.current = true
   }, [])
+
+  useEffect(() => {
+    if (profilePrefillAttemptedRef.current) return
+    if (!urlReadyRef.current || !profileLink?.linked_player_id) return
+    if (matchType !== 'singles') return
+    if (playerAId || playerBId) return
+
+    profilePrefillAttemptedRef.current = true
+    setPlayerAId(profileLink.linked_player_id)
+  }, [matchType, playerAId, playerBId, profileLink?.linked_player_id])
 
   useEffect(() => {
     if (!urlReadyRef.current || typeof window === 'undefined') return
@@ -848,6 +885,10 @@ export default function MatchupPage() {
     () => players.find((player) => player.id === playerAId) || null,
     [players, playerAId],
   )
+  const profilePlayer = useMemo(
+    () => players.find((player) => player.id === profileLink?.linked_player_id) || null,
+    [players, profileLink?.linked_player_id],
+  )
   const playerB = useMemo(
     () => players.find((player) => player.id === playerBId) || null,
     [players, playerBId],
@@ -892,14 +933,37 @@ export default function MatchupPage() {
   const selectionProgressText = `${selectionCount} of ${selectionTarget} slots selected`
   const selectionGuidance =
     matchType === 'singles'
-      ? 'Pick two different players to see the projection, edge, and head-to-head history.'
-      : 'Pick four different players to compare doubles teams and see partner-aware projections.'
+      ? 'Pick two players. Get the edge, the why, and the watch item.'
+      : 'Build both sides. The read updates once all four spots are set.'
+  const profileAlreadyInDoubles =
+    Boolean(profilePlayer) &&
+    [teamA1Id, teamA2Id, teamB1Id, teamB2Id].includes(profilePlayer?.id || '')
+  const doublesPreview = matchType === 'doubles'
+    ? [
+        {
+          label: 'Your side',
+          players: [teamA1, teamA2].filter(Boolean) as Player[],
+          rating:
+            teamA1 && teamA2
+              ? averageAvailable([getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')])
+              : null,
+        },
+        {
+          label: 'Other side',
+          players: [teamB1, teamB2].filter(Boolean) as Player[],
+          rating:
+            teamB1 && teamB2
+              ? averageAvailable([getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')])
+              : null,
+        },
+      ]
+    : []
 
   const insufficientDataMessage = useMemo(() => {
     if (matchType === 'singles') {
       if (!hasSinglesSelection) return ''
-      const left = playerA ? getSelectedRating(playerA, getEngineRatingView(matchType)) : null
-      const right = playerB ? getSelectedRating(playerB, getEngineRatingView(matchType)) : null
+      const left = playerA ? getProjectionRating(playerA, getEngineRatingView(matchType)) : null
+      const right = playerB ? getProjectionRating(playerB, getEngineRatingView(matchType)) : null
       if (!hasValidRating(left) || !hasValidRating(right)) {
         return 'Not enough rating data to generate a projection for this singles matchup.'
       }
@@ -909,14 +973,14 @@ export default function MatchupPage() {
     if (!hasDoublesSelection) return ''
 
     const ratings = [
-      teamA1 ? getSelectedRating(teamA1, 'doubles') : null,
-      teamA2 ? getSelectedRating(teamA2, 'doubles') : null,
-      teamB1 ? getSelectedRating(teamB1, 'doubles') : null,
-      teamB2 ? getSelectedRating(teamB2, 'doubles') : null,
+      teamA1 ? getProjectionRating(teamA1, 'doubles') : null,
+      teamA2 ? getProjectionRating(teamA2, 'doubles') : null,
+      teamB1 ? getProjectionRating(teamB1, 'doubles') : null,
+      teamB2 ? getProjectionRating(teamB2, 'doubles') : null,
     ]
 
     if (!ratings.every(hasValidRating)) {
-      return 'Not enough doubles rating data to generate a projection for this team matchup.'
+      return 'Not enough rating data to generate a projection for this doubles matchup.'
     }
 
     return ''
@@ -970,8 +1034,8 @@ export default function MatchupPage() {
     if (matchType === 'singles') {
       if (!singlesSelected || !playerA || !playerB) return null
 
-      const left = getSelectedRating(playerA, engineRatingView)
-      const right = getSelectedRating(playerB, engineRatingView)
+      const left = getProjectionRating(playerA, engineRatingView)
+      const right = getProjectionRating(playerB, engineRatingView)
 
       if (!hasValidRating(left) || !hasValidRating(right)) return null
 
@@ -1034,8 +1098,8 @@ export default function MatchupPage() {
     const teamBSinglesRatings = [getSelectedRating(teamB1, 'singles'), getSelectedRating(teamB2, 'singles')]
     const teamBDoublesRatings = [getSelectedRating(teamB1, 'doubles'), getSelectedRating(teamB2, 'doubles')]
 
-    const leftEngineRatings = teamADoublesRatings
-    const rightEngineRatings = teamBDoublesRatings
+    const leftEngineRatings = [getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')]
+    const rightEngineRatings = [getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')]
 
     if (
       !leftEngineRatings.every(hasValidRating) ||
@@ -1066,8 +1130,8 @@ export default function MatchupPage() {
     return {
       leftLabel: teamALabel,
       rightLabel: teamBLabel,
-      leftLocation: 'Team A',
-      rightLocation: 'Team B',
+      leftLocation: 'Your side',
+      rightLocation: 'Other side',
       leftRatings: teamARatings,
       rightRatings: teamBRatings,
       leftUstaRatings: {
@@ -1169,37 +1233,14 @@ export default function MatchupPage() {
     }
   }, [comparison])
 
-  const recommendationText = useMemo(() => {
-    if (!projection || !comparison) return ''
-
-    const favoriteProbability = Math.max(
-      projection.leftWinProbability,
-      projection.rightWinProbability,
-    )
-
-    if (favoriteProbability >= 0.75) {
-      return `${projection.favoriteLabel} should be treated as a strong anchor match. If this is part of a lineup decision, this is one of your cleaner spots to trust the favorite.`
-    }
-
-    if (favoriteProbability >= 0.66) {
-      return `${projection.favoriteLabel} has a real edge here. This should lean favorite, but it is still competitive enough that placement and partner context matter.`
-    }
-
-    if (favoriteProbability >= 0.58) {
-      return `${projection.favoriteLabel} is favored, but this is still very live. Treat this as a swing match where lineup context, court assignment, and recent form can shift the outcome.`
-    }
-
-    return `This matchup is close to even. Treat it as a true swing match and avoid assuming either side is safe.`
-  }, [projection, comparison])
-
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
-    padding: isMobile ? '14px 16px 22px' : '10px 18px 24px',
+    padding: isMobile ? '12px 16px 18px' : '8px 18px 18px',
   }
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
+    padding: isMobile ? '24px 18px 20px' : '28px 28px 22px',
   }
 
   const dynamicHeroContent: CSSProperties = {
@@ -1210,7 +1251,7 @@ export default function MatchupPage() {
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '46px' : '60px',
+    fontSize: isSmallMobile ? '34px' : isMobile ? '44px' : '54px',
     lineHeight: isMobile ? 1.04 : 0.98,
     maxWidth: '560px',
   }
@@ -1304,6 +1345,18 @@ export default function MatchupPage() {
                 <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
                 <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
               </div>
+              {profilePlayer ? (
+                <div style={profileContextCalloutStyle}>
+                  <strong>{profilePlayer.name} is loaded from your profile.</strong>
+                  <span>Choose an opponent to turn your My Lab read into a matchup.</span>
+                </div>
+              ) : userId ? (
+                <div style={profileContextCalloutStyle}>
+                  <strong>Matchup can start with you automatically.</strong>
+                  <span>Set your player identity once in Profile, then this page opens with you in Player A.</span>
+                  <Link href="/profile" style={profileContextLinkStyle}>Manage profile</Link>
+                </div>
+              ) : null}
 
               {!access.canUseAdvancedPlayerInsights ? (
                 <div style={{ marginTop: 18, maxWidth: 560 }}>
@@ -1326,8 +1379,8 @@ export default function MatchupPage() {
               <div style={engineLabel}>Projection engine</div>
               <div style={engineValue}>{capitalize(getEngineRatingView(matchType))}</div>
               <div style={engineText}>
-                Projections always use match-type-specific dynamic ratings even when the on-screen
-                comparison display is switched to overall, singles, or doubles.
+                The result starts with the court-specific rating and falls back to overall when
+                doubles history is still thin.
               </div>
             </div>
           </div>
@@ -1341,7 +1394,10 @@ export default function MatchupPage() {
               <div style={toggleLabel}>Match type</div>
               <div style={toggleGroup}>
                 <button
-                  onClick={() => setMatchType('singles')}
+                  onClick={() => {
+                    setMatchType('singles')
+                    setRatingView('singles')
+                  }}
                   style={{
                     ...toggleButton,
                     ...(matchType === 'singles' ? toggleButtonGreen : {}),
@@ -1350,7 +1406,10 @@ export default function MatchupPage() {
                   Singles
                 </button>
                 <button
-                  onClick={() => setMatchType('doubles')}
+                  onClick={() => {
+                    setMatchType('doubles')
+                    setRatingView('doubles')
+                  }}
                   style={{
                     ...toggleButton,
                     ...(matchType === 'doubles' ? toggleButtonGreen : {}),
@@ -1395,7 +1454,7 @@ export default function MatchupPage() {
             </div>
 
             <div style={selectionProgressCard}>
-              <div style={selectionProgressLabel}>Comparison readiness</div>
+              <div style={selectionProgressLabel}>Setup</div>
               <div style={selectionProgressValue}>{selectionProgressText}</div>
               <div style={selectionProgressTextStyle}>{selectionGuidance}</div>
             </div>
@@ -1420,35 +1479,59 @@ export default function MatchupPage() {
             </div>
           ) : (
             <>
+              {profilePlayer && !profileAlreadyInDoubles ? (
+                <div style={doublesQuickStartStyle}>
+                  <div style={doublesQuickStartTextStyle}>
+                    <strong>Start doubles with {profilePlayer.name}</strong>
+                    <span>Put your profile on Your side, then add a partner and opponents.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTeamA1Id(profilePlayer.id)}
+                    style={quickStartButtonStyle}
+                  >
+                    Start with me
+                  </button>
+                </div>
+              ) : null}
               <div style={dynamicSelectorGrid}>
                 <SelectField
-                  label="Team A · Player 1"
+                  label="Your side - Player 1"
                   value={teamA1Id}
                   onChange={setTeamA1Id}
                   options={availableTeamA1}
                   disabled={loading}
                 />
                 <SelectField
-                  label="Team A · Player 2"
+                  label="Your side - Player 2"
                   value={teamA2Id}
                   onChange={setTeamA2Id}
                   options={availableTeamA2}
                   disabled={loading}
                 />
                 <SelectField
-                  label="Team B · Player 1"
+                  label="Other side - Player 1"
                   value={teamB1Id}
                   onChange={setTeamB1Id}
                   options={availableTeamB1}
                   disabled={loading}
                 />
                 <SelectField
-                  label="Team B · Player 2"
+                  label="Other side - Player 2"
                   value={teamB2Id}
                   onChange={setTeamB2Id}
                   options={availableTeamB2}
                   disabled={loading}
                 />
+              </div>
+              <div style={doublesPreviewGridStyle}>
+                {doublesPreview.map((side) => (
+                  <div key={side.label} style={doublesPreviewCardStyle}>
+                    <span style={doublesPreviewLabelStyle}>{side.label}</span>
+                    <strong style={doublesPreviewNamesStyle}>{side.players.length ? side.players.map((player) => player.name).join(' / ') : 'Choose 2 players'}</strong>
+                    <em style={doublesPreviewMetaStyle}>{side.rating === null ? 'Rating appears when side is set' : `Projected ${formatRating(side.rating)}`}</em>
+                  </div>
+                ))}
               </div>
               {(teamA1Id || teamA2Id || teamB1Id || teamB2Id) ? (
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
@@ -1472,7 +1555,7 @@ export default function MatchupPage() {
                 <div style={prefillPromptKicker}>Matchup is ready for one more player</div>
                 <h2 style={prefillPromptTitle}>Choose an opponent for {playerA.name}</h2>
                 <p style={prefillPromptText}>
-                  Pick Player B to see rating gap, projected edge, form, and head-to-head history.
+                  Pick Player B to get the edge, the why, and what to watch.
                 </p>
               </div>
 
@@ -1517,11 +1600,17 @@ export default function MatchupPage() {
               <div style={emptyStateText}>
                 {insufficientDataMessage ||
                   (matchType === 'singles'
-                    ? 'Select two different players to compare.'
+                    ? profilePlayer
+                      ? `${profilePlayer.name} is already in Player A. Choose Player B to compare.`
+                      : 'Select two different players to compare.'
                     : 'Select four different players to compare doubles teams.')}
               </div>
               <div style={emptyStateHint}>
-                Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.
+                {matchType === 'singles' && profilePlayer
+                  ? 'Tip: use this from My Lab when you want a quick read on who to play next, then save the takeaway in your goals or notes.'
+                  : matchType === 'doubles'
+                    ? 'Tip: start with your likely partner on Your side, then test opponent pairings before court time.'
+                    : 'Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.'}
               </div>
               <button
                 type="button"
@@ -1562,6 +1651,26 @@ export default function MatchupPage() {
                         Send to team
                       </Link>
                     </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {projection ? (
+                <div style={prepReadGrid}>
+                  <div style={prepReadCardAccent}>
+                    <div style={prepReadLabel}>Who has the edge?</div>
+                    <div style={prepReadValue}>{projection.likelyWinner}</div>
+                    <div style={prepReadText}>{projection.favoriteEdgeText} with {projection.confidenceLabel.toLowerCase()} confidence.</div>
+                  </div>
+                  <div style={prepReadCard}>
+                    <div style={prepReadLabel}>Why?</div>
+                    <div style={prepReadValue}>{projection.ratingDiffText}</div>
+                    <div style={prepReadText}>{projection.expectedOutcome}</div>
+                  </div>
+                  <div style={prepReadCard}>
+                    <div style={prepReadLabel}>What to watch?</div>
+                    <div style={prepReadValue}>{projection.matchTier}</div>
+                    <div style={prepReadText}>{projection.swapImpactHint}</div>
                   </div>
                 </div>
               ) : null}
@@ -1646,7 +1755,7 @@ export default function MatchupPage() {
 
               {projection ? (
                 <article style={summaryCard}>
-                  <h2 style={projectionSectionTitle}>Match projection</h2>
+                  <h2 style={projectionSectionTitle}>Supporting probabilities</h2>
 
                   <div style={dynamicMetricGrid}>
                     <MetricCard
@@ -1657,10 +1766,7 @@ export default function MatchupPage() {
                       label={`${comparison.rightLabel} win probability`}
                       value={formatPercent(projection.rightWinProbability)}
                     />
-                    <MetricCard label="Projected winner" value={projection.likelyWinner} />
-                    <MetricCard label="Confidence" value={projection.confidenceLabel} />
                     <MetricCard label="Projection gap" value={projection.ratingDiffText} />
-                    <MetricCard label="Favorite edge" value={projection.favoriteEdgeText} />
                   </div>
 
                   <div style={calloutCard}>
@@ -1676,12 +1782,7 @@ export default function MatchupPage() {
                   </div>
 
                   <div style={recommendationCard}>
-                    <div style={recommendationTitle}>Recommended move</div>
-                    <div style={recommendationTextStyle}>{recommendationText}</div>
-                  </div>
-
-                  <div style={recommendationCard}>
-                    <div style={recommendationTitle}>Match intelligence</div>
+                    <div style={recommendationTitle}>Use it this way</div>
                     <div style={intelligenceTierRow}>
                       <span style={intelligenceTierPill}>{projection.matchTier}</span>
                       {projection.isSwingMatch ? (
@@ -1699,7 +1800,7 @@ export default function MatchupPage() {
 
               <article style={summaryCard}>
                 <div style={summaryHead}>
-                  <h2 style={sectionTitle}>Model accuracy</h2>
+                  <h2 style={sectionTitle}>Confidence check</h2>
                   <div style={metaNote}>Based on recent {matchType} matches</div>
                 </div>
 
@@ -2020,6 +2121,7 @@ function CopyLinkButton() {
   const [copied, setCopied] = useState(false)
 
   function handleCopy() {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
     void navigator.clipboard.writeText(window.location.href).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -2029,6 +2131,8 @@ function CopyLinkButton() {
   return (
     <button
       type="button"
+      title="Copy a link that reopens this exact matchup setup"
+      aria-label="Copy this matchup setup link"
       onClick={handleCopy}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -2049,7 +2153,7 @@ function CopyLinkButton() {
         whiteSpace: 'nowrap' as const,
       }}
     >
-      {copied ? '✓ Copied' : '⎘ Copy link'}
+      {copied ? 'Copied' : 'Copy matchup'}
     </button>
   )
 }
@@ -2131,10 +2235,19 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
+function averageAvailable(values: Array<number | null>) {
+  const validValues = values.filter(hasValidRating)
+  return validValues.length === values.length ? average(validValues) : null
+}
+
 function getSelectedRating(player: Player, view: RatingView): number | null {
   if (view === 'singles') return hasValidRating(player.singles_dynamic_rating) ? player.singles_dynamic_rating : null
   if (view === 'doubles') return hasValidRating(player.doubles_dynamic_rating) ? player.doubles_dynamic_rating : null
   return hasValidRating(player.overall_dynamic_rating) ? player.overall_dynamic_rating : null
+}
+
+function getProjectionRating(player: Player, view: RatingView): number | null {
+  return getSelectedRating(player, view) ?? getSelectedRating(player, 'overall')
 }
 
 function getEngineRatingView(matchType: MatchType): RatingView {
@@ -2434,6 +2547,28 @@ const exploreNavLink: CSSProperties = {
   fontWeight: 800,
 }
 
+const profileContextCalloutStyle: CSSProperties = {
+  marginTop: '8px',
+  maxWidth: 620,
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: '8px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'rgba(244,249,255,0.88)',
+  padding: '11px 13px',
+  fontSize: '13px',
+  lineHeight: 1.45,
+}
+
+const profileContextLinkStyle: CSSProperties = {
+  color: '#d9f84a',
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
 const controlsCard: CSSProperties = {
   borderRadius: '28px',
   padding: '20px',
@@ -2689,6 +2824,79 @@ const selectionProgressTextStyle: CSSProperties = {
   lineHeight: 1.6,
 }
 
+const doublesQuickStartStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  marginBottom: '14px',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.08) 0%, rgba(13,27,52,0.82) 100%)',
+}
+
+const doublesQuickStartTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  lineHeight: 1.4,
+}
+
+const quickStartButtonStyle: CSSProperties = {
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
+  color: 'var(--text-dark)',
+  fontSize: '13px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const doublesPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+  marginTop: '-2px',
+  marginBottom: '14px',
+}
+
+const doublesPreviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minHeight: '98px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const doublesPreviewLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const doublesPreviewNamesStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  fontWeight: 900,
+  lineHeight: 1.25,
+}
+
+const doublesPreviewMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontStyle: 'normal',
+  fontWeight: 700,
+}
+
 const prefillPromptCard: CSSProperties = {
   marginTop: '16px',
   display: 'grid',
@@ -2764,7 +2972,7 @@ const decisionBanner: CSSProperties = {
   marginBottom: '18px',
   padding: '20px',
   borderRadius: '22px',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.12) 0%, rgba(20,40,80,0.9) 100%)',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(13,27,52,0.88) 100%)',
   border: '1px solid rgba(155,225,29,0.25)',
   boxShadow: '0 20px 50px rgba(155,225,29,0.15)',
 }
@@ -2817,6 +3025,53 @@ const decisionCtaRow: CSSProperties = {
   display: 'flex',
   gap: '10px',
   flexWrap: 'wrap',
+}
+
+const prepReadGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+  marginBottom: '16px',
+}
+
+const prepReadCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '150px',
+  padding: '18px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const prepReadCardAccent: CSSProperties = {
+  ...prepReadCard,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.88) 72%)',
+}
+
+const prepReadLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const prepReadValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '25px',
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const prepReadText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 600,
 }
 
 const ctaPrimary: CSSProperties = {
@@ -3173,7 +3428,7 @@ const calloutCard: CSSProperties = {
   flexWrap: 'wrap',
   borderRadius: '16px',
   padding: '16px',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.12) 0%, rgba(20,40,80,0.85) 100%)',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.86) 100%)',
   border: '1px solid rgba(155,225,29,0.25)',
 }
 

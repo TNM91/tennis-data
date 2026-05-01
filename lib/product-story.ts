@@ -180,15 +180,15 @@ export const HOME_HERO_STORY = {
 } as const
 
 export const MY_LAB_STORY = {
-  eyebrow: 'Player unlock',
-  headline: 'My Lab makes TenAceIQ personal.',
+  eyebrow: 'Player home base',
+  headline: 'Welcome to your tennis lab.',
   body:
-    'Follow the players, teams, leagues, and rankings that matter to you. Link your player identity, compare matchups, and turn scattered tennis activity into a clearer next step.',
-  railKicker: 'Why Player unlocks it',
-  railTitle: 'Your tennis life, cleaned up',
-  upgradeHeadline: 'Build your personal tennis lab',
+    'See where you are, how you are playing, what to work on next, and who makes sense to play.',
+  railKicker: 'Your home base',
+  railTitle: 'Built around you',
+  upgradeHeadline: 'Make My Lab yours',
   upgradeBody:
-    'Player unlocks My Lab, follows, matchup insight, and a player-linked experience built around your game.',
+    'Player unlocks a profile-linked home base with self-analysis, matchup prep, who-to-play-next context, and follows for fun.',
   upgradeCta: 'Unlock My Lab with Player',
   upgradeSecondary: 'See Player plan',
   upgradeFootnote: 'Best for players who want smarter match prep and one home for their tennis.',
@@ -196,28 +196,28 @@ export const MY_LAB_STORY = {
 
 export const MATCHUP_STORY = {
   eyebrow: 'Player unlock',
-  headline: 'See how the match may play before you play it.',
+  headline: 'Know the edge before you play.',
   body:
-    'Compare players or doubles teams by rating, form, head-to-head history, and projected edge. Matchup turns scattered results into a clearer read on what to expect next.',
+    'Pick the court. See who has the edge, why it leans that way, and what to watch before the match starts.',
   upgradeHeadline: 'Unlock Matchup with Player',
   upgradeBody:
     'Player unlocks Matchup, My Lab, follows, and player-linked prep so your tennis context follows you from scouting to match day.',
   upgradeCta: 'Unlock Matchup with Player',
   upgradeSecondary: 'See Player plan',
   upgradeFootnote: 'Best for players who want less guessing before the next match.',
-  proof: ['Player prep', 'Rating gap', 'Recent form', 'Head-to-head'],
-  readoutTitle: 'Use Matchup as a decision aid, not a guarantee.',
+  proof: ['Who has the edge?', 'Why?', 'What should I watch?'],
+  readoutTitle: 'Use Matchup as a quick prep read.',
   readoutBody:
-    'The projection is most useful when you combine probability, confidence, head-to-head history, and the surrounding roster decision.',
+    'Start with the edge, then check the rating gap, confidence, form, and head-to-head context before you decide how much to trust it.',
 } as const
 
 export const CAPTAIN_STORY = {
   eyebrow: 'Captain unlock',
-  headline: 'Make the team week easier to run.',
+  headline: 'Run the week without chasing answers.',
   body:
-    'Use Player features plus captain tools for availability, lineup decisions, scenario testing, scouting, messaging, and match-day readiness.',
+    'See who can play, build the lineup, test the choice, and send the plan from one captain workspace.',
   quickStartKicker: 'Captain weekly flow',
-  quickStartTitle: 'Move from uncertainty to a team plan',
+  quickStartTitle: 'Four steps to match day',
   activeTitle: 'Captain keeps this team organized.',
   activeBody:
     'Save time, build smarter lineups, keep availability visible, and send team updates from one place.',
@@ -233,21 +233,20 @@ export const CAPTAIN_STORY = {
     ['2', 'Build your lineup', 'Turn the player pool into the strongest weekly shape.'],
     ['3', 'Test the alternatives', 'Compare scenarios before you commit.'],
     ['4', 'Send the plan', 'Share lineup, logistics, reminders, and follow-ups.'],
-    ['5', 'Review match day', 'Open the brief and check the next action.'],
   ],
 } as const
 
 export const LEAGUE_COORDINATOR_STORY = {
   eyebrow: 'TIQ League Coordinator unlock',
-  headline: 'Run player or team leagues with less manual work.',
+  headline: 'Create and run TIQ leagues.',
   body:
-    'Create the league container, choose the format, seed players or teams, and keep league structure, visibility, participation, rankings, and operations in one place.',
-  subnavTitle: 'League Coordinator tools inside the captain command center',
+    'Set the format, add teams or players, and keep season structure ready for schedules, standings, and results.',
+  subnavTitle: 'League Coordinator',
   subnavDescription:
-    'Create and manage TIQ seasons while staying connected to captain and player workflows.',
+    'Manage league setup separately from weekly captain tools.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
-    'Team leagues are roster-oriented. Individual leagues are player-vs-player. Both need clean structure before standings, schedules, and communication can work.',
+    'Choose team or individual format, name the season, then add participants.',
   upgradeHeadline: 'Ready to run organized competition without spreadsheets?',
   upgradeBody:
     'TIQ League Coordinator gives organizers a cleaner way to create seasons, structure participation, track results, and keep standings and communication in one place.',
@@ -256,7 +255,7 @@ export const LEAGUE_COORDINATOR_STORY = {
     'TIQ League Coordinator turns setup into a usable organizer layer with season structure, scheduling, standings, participants, and clearer league coordination.',
   registryTitle: 'Current TIQ league definitions',
   registryBody:
-    'These league records power team views, player workflows, standings, and organizer operations while keeping team leagues and individual leagues clearly separated.',
+    'Manage the league records that can power schedules, standings, results, and organizer workflows.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
     'TIQ League Coordinator turns league records into one cleaner system for scheduling, standings, team or player structure, and league-wide communication.',
