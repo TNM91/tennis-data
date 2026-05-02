@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
@@ -295,9 +296,24 @@ function ProfilePageInner() {
     .map((part) => part[0]?.toUpperCase())
     .join('') || 'TIQ'
   const toolFlowCards = [
-    { label: 'Profile', value: profileComplete ? 'Linked' : 'Set once', note: profileDisplayName },
-    { label: 'My Lab', value: 'Personal', note: 'Stats, goals, next read' },
-    { label: 'Matchup', value: profileComplete || selectedPlayerId ? 'Ready' : 'Waiting', note: 'Starts with you' },
+    {
+      label: 'Identity',
+      value: profileComplete ? 'Linked' : 'Set once',
+      note: profileDisplayName,
+      icon: 'accountSecurity' as TiqFeatureIconName,
+    },
+    {
+      label: 'My Lab',
+      value: 'Personal',
+      note: 'Stats, goals, next read',
+      icon: 'myLab' as TiqFeatureIconName,
+    },
+    {
+      label: 'Matchup',
+      value: profileComplete || selectedPlayerId ? 'Ready' : 'Waiting',
+      note: 'Starts with you',
+      icon: 'matchupAnalysis' as TiqFeatureIconName,
+    },
   ]
   const ratingTiles = [
     { label: 'TIQ', value: formatRating(getTiqRating(primaryRating, 'overall')) },
@@ -306,14 +322,15 @@ function ProfilePageInner() {
     { label: 'Doubles', value: formatRating(getTiqRating(primaryRating, 'doubles')) },
   ]
   const toolActionCards = [
-    { label: 'My Lab', value: 'Scorecard', href: '/mylab', note: 'Stats, goals, next read' },
+    { label: 'My Lab', value: 'Scorecard', href: '/mylab', note: 'Stats, goals, next read', icon: 'myLab' as TiqFeatureIconName },
     {
       label: 'Matchup',
       value: profileComplete || selectedPlayerId ? 'Ready' : 'Waiting',
       href: profileMatchupHref,
       note: 'Compare from your profile',
+      icon: 'matchupAnalysis' as TiqFeatureIconName,
     },
-    { label: 'Captain', value: 'Context', href: '/captain', note: 'Roster and team tools' },
+    { label: 'Captain', value: 'Context', href: '/captain', note: 'Roster and team tools', icon: 'captainDashboard' as TiqFeatureIconName },
   ]
 
   return (
@@ -323,12 +340,12 @@ function ProfilePageInner() {
             <div style={eyebrowStyle}>Manage profile</div>
             <h1 style={heroTitleStyle}>Your player identity, connected.</h1>
             <p style={heroTextStyle}>
-              Pick your player once. My Lab, Matchup, and team tools use it from there.
+              Pick your player once. TenAceIQ pulls your tennis context forward from there.
             </p>
             <div style={toolFlowStyle(isMobile)}>
-              {toolFlowCards.map((card, index) => (
+              {toolFlowCards.map((card) => (
                 <div key={card.label} style={toolFlowCardStyle(isMobile)}>
-                  <span style={toolFlowStepStyle(isMobile)}>{index + 1}</span>
+                  <TiqFeatureIcon name={card.icon} size={isMobile ? 'sm' : 'md'} variant="ghost" />
                   <div>
                     <div style={toolFlowLabelStyle}>{card.label}</div>
                     <div style={toolFlowValueStyle}>{card.value}</div>
@@ -358,11 +375,11 @@ function ProfilePageInner() {
               </div>
             </div>
             <div style={miniGridStyle}>
-              <Metric label="Teams" value={selectedPlayerTeams.length ? String(selectedPlayerTeams.length) : 'Auto'} />
-              <Metric label="Leagues" value={detectedLeagueCount ? String(detectedLeagueCount) : 'Auto'} />
-              <Metric label="Matchup" value={profileComplete || selectedPlayerId ? 'Ready' : 'Set'} />
+                <Metric label="Teams" value={selectedPlayerTeams.length ? String(selectedPlayerTeams.length) : 'Detecting'} />
+                <Metric label="Leagues" value={detectedLeagueCount ? String(detectedLeagueCount) : 'Detecting'} />
+                <Metric label="Matchup" value={profileComplete || selectedPlayerId ? 'Ready' : 'Set'} />
+              </div>
             </div>
-          </div>
         </section>
 
         {loading ? (
@@ -373,7 +390,8 @@ function ProfilePageInner() {
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKickerStyle}>Identity</p>
-                  <h2 style={sectionTitleStyle}>Set your player</h2>
+                  <h2 style={sectionTitleStyle}>Set your player once</h2>
+                  <p style={sectionTextStyle}>Teams and leagues are detected from match history as your tennis footprint grows.</p>
                 </div>
                 <span style={profileComplete ? pillGreenStyle : pillSlateStyle}>
                   {profileComplete ? 'Linked' : 'Not linked'}
@@ -405,6 +423,16 @@ function ProfilePageInner() {
                   <Metric label="Teams" value={selectedPlayerTeams.length ? String(selectedPlayerTeams.length) : 'Auto'} />
                   <Metric label="Leagues" value={detectedLeagueCount ? String(detectedLeagueCount) : 'Auto'} />
                   <Metric label="Role" value={prefs.preferredRole === 'both' ? 'Both' : prefs.preferredRole} />
+                </div>
+              </div>
+
+              <div style={autoContextCalloutStyle(isMobile)}>
+                <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                <div>
+                  <strong style={autoContextTitleStyle}>Your tennis context updates automatically.</strong>
+                  <p style={autoContextTextStyle}>
+                    Link the player record. TenAceIQ uses match history to find teams, leagues, ratings, and matchup starting points.
+                  </p>
                 </div>
               </div>
 
@@ -444,7 +472,7 @@ function ProfilePageInner() {
 
               <div style={actionRowStyle}>
                 <button type="button" onClick={saveProfile} disabled={saving || !userId} style={primaryButtonStyle}>
-                  {saving ? 'Saving...' : 'Save profile'}
+                  {saving ? 'Saving...' : 'Save player identity'}
                 </button>
                 <Link href="/explore/players" style={secondaryButtonStyle}>Find players</Link>
               </div>
@@ -469,8 +497,8 @@ function ProfilePageInner() {
             </div>
 
             <aside style={surfaceStyle}>
-              <div style={sectionKickerStyle}>Ready when linked</div>
-              <h2 style={sectionTitleStyle}>Where this shows up</h2>
+              <div style={sectionKickerStyle}>Personalized tools</div>
+              <h2 style={sectionTitleStyle}>What this powers</h2>
               <div style={ratingTileGridStyle}>
                 {ratingTiles.map((tile) => (
                   <div key={tile.label} style={ratingTileStyle}>
@@ -482,6 +510,7 @@ function ProfilePageInner() {
               <div style={toolLaunchGridStyle}>
                 {toolActionCards.map((card) => (
                   <Link key={card.label} href={card.href} style={toolLaunchCardStyle}>
+                    <TiqFeatureIcon name={card.icon} size="sm" variant="ghost" />
                     <span style={toolLaunchCardMainStyle}>
                       <small style={toolLaunchKickerStyle}>{card.label}</small>
                       <strong style={toolLaunchValueStyle}>{card.value}</strong>
@@ -577,19 +606,6 @@ const toolFlowCardStyle = (isMobile: boolean): CSSProperties => ({
   background: 'var(--shell-chip-bg)',
   padding: isMobile ? '10px 9px' : 12,
   minHeight: isMobile ? 92 : 92,
-})
-
-const toolFlowStepStyle = (isMobile: boolean): CSSProperties => ({
-  width: isMobile ? 28 : 32,
-  height: isMobile ? 28 : 32,
-  borderRadius: 999,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
-  color: 'var(--text-dark)',
-  fontWeight: 950,
-  fontSize: isMobile ? 12 : 13,
 })
 
 const toolFlowLabelStyle: CSSProperties = {
@@ -809,6 +825,34 @@ const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   gap: isMobile ? 8 : 10,
 })
 
+const autoContextCalloutStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(0, 1fr)',
+  gap: 12,
+  alignItems: 'center',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 9%, transparent), transparent 62%), var(--shell-chip-bg)',
+  padding: isMobile ? 14 : 16,
+})
+
+const autoContextTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  fontWeight: 950,
+  lineHeight: 1.2,
+}
+
+const autoContextTextStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  fontWeight: 700,
+  lineHeight: 1.45,
+}
+
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
@@ -899,7 +943,9 @@ const toolLaunchGridStyle: CSSProperties = {
 
 const toolLaunchCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 5,
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: '8px 10px',
+  alignItems: 'center',
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -929,6 +975,7 @@ const toolLaunchValueStyle: CSSProperties = {
 }
 
 const toolLaunchNoteStyle: CSSProperties = {
+  gridColumn: '1 / -1',
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   fontStyle: 'normal',

@@ -1,0 +1,47 @@
+
+> tennis-data@0.1.0 dev
+> next dev --port 3000
+
+▲ Next.js 16.2.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.205:3000
+✓ Ready in 536ms
+
+ GET /rankings 200 in 750ms (next.js: 303ms, application-code: 446ms)
+✓ Compiled in 173ms
+✓ Compiled in 128ms
+✓ Compiled in 123ms
+✓ Compiled in 110ms
+ GET /rankings 200 in 332ms (next.js: 92ms, application-code: 241ms)
+✓ Compiled in 140ms
+✓ Compiled in 109ms
+✓ Compiled in 105ms
+ GET /manifest.webmanifest 200 in 287ms (next.js: 222ms, application-code: 65ms)
+ GET / 200 in 1341ms (next.js: 202ms, application-code: 1139ms)
+ GET /explore/players 200 in 188ms (next.js: 50ms, application-code: 137ms)
+✓ Compiled in 112ms
+ GET /explore/players 200 in 437ms (next.js: 153ms, application-code: 284ms)
+✓ Compiled in 109ms
+✓ Compiled in 108ms
+ GET /explore/players 200 in 395ms (next.js: 134ms, application-code: 261ms)
+ GET /players/f98c467c-58b8-4ce4-96c6-cc6832d54016 200 in 2.3s (next.js: 665ms, application-code: 1638ms)
+✓ Compiled in 142ms
+✓ Compiled in 188ms
+✓ Compiled in 109ms
+ GET /players/f98c467c-58b8-4ce4-96c6-cc6832d54016 200 in 1529ms (next.js: 135ms, application-code: 1393ms)
+✓ Compiled in 249ms
+ GET /players/f98c467c-58b8-4ce4-96c6-cc6832d54016 200 in 1274ms (next.js: 143ms, application-code: 1131ms)
+✓ Compiled in 142ms
+ GET /players/f98c467c-58b8-4ce4-96c6-cc6832d54016 200 in 1120ms (next.js: 139ms, application-code: 981ms)
+ GET /players/f98c467c-58b8-4ce4-96c6-cc6832d54016 200 in 358ms (next.js: 42ms, application-code: 316ms)
+ GET /pricing 200 in 224ms (next.js: 82ms, application-code: 141ms)
+ GET /rankings 200 in 563ms (next.js: 158ms, application-code: 405ms)
+ GET /rankings 200 in 691ms (next.js: 167ms, application-code: 524ms)
+ GET /rankings 200 in 365ms (next.js: 97ms, application-code: 267ms)
+✓ Compiled in 238ms
+ GET /rankings 200 in 613ms (next.js: 231ms, application-code: 382ms)
+ GET /rankings 200 in 224ms (next.js: 9ms, application-code: 215ms)
+✓ Compiled in 91ms
+ GET /rankings 200 in 479ms (next.js: 133ms, application-code: 347ms)
+ GET /explore 200 in 139ms (next.js: 35ms, application-code: 105ms)
+ GET /rankings 200 in 136ms (next.js: 3ms, application-code: 133ms)

@@ -4,7 +4,10 @@ import Link from 'next/link'
 import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
+import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 
 const FEATURE_CARDS = [
   {
@@ -157,6 +160,8 @@ const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLI
 export default function ExplorePage() {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { access } = useProductAccess()
+  const shouldShowAds = shouldShowSponsoredPlacements(access)
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -303,9 +308,11 @@ export default function ExplorePage() {
           </div>
         </div>
       </section>
-      <div style={{ marginTop: 12 }}>
-        <AdsenseSlot slot={EXPLORE_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
-      </div>
+      {shouldShowAds ? (
+        <div style={{ marginTop: 12 }}>
+          <AdsenseSlot slot={EXPLORE_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+        </div>
+      ) : null}
     </SiteShell>
   )
 }
@@ -329,11 +336,15 @@ function DiscoverySignal({
 }
 
 function getCardIcon(icon: string) {
-  if (icon === 'player') return <PlayerIcon />
-  if (icon === 'team') return <TeamIcon />
-  if (icon === 'chart') return <ChartIcon />
-  if (icon === 'trophy') return <TrophyIcon />
-  return <MatchupIcon />
+  const iconMap: Record<string, TiqFeatureIconName> = {
+    player: 'opponentScouting',
+    team: 'teamRankings',
+    chart: 'playerRatings',
+    trophy: 'reports',
+    matchup: 'matchupAnalysis',
+  }
+
+  return <TiqFeatureIcon name={iconMap[icon] || 'opponentScouting'} size="lg" variant="ghost" />
 }
 
 function GuideCard({ href, title, text, cta }: { href: string; title: string; text: string; cta: string }) {
@@ -428,116 +439,6 @@ function ActionCard({
         <span style={actionFooterArrow}>{'->'}</span>
       </div>
     </Link>
-  )
-}
-
-function TeamIcon() {
-  return (
-    <IconBase>
-      <circle cx="8" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="16" cy="8" r="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M4.5 18c.9-2.6 2.2-3.9 3.5-3.9s2.6 1.3 3.5 3.9M12.5 18c.9-2.6 2.2-3.9 3.5-3.9s2.6 1.3 3.5 3.9"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </IconBase>
-  )
-}
-
-function IconBase({ children }: { children: ReactNode }) {
-  return (
-    <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
-      {children}
-    </svg>
-  )
-}
-
-function PlayerIcon() {
-  return (
-    <IconBase>
-      <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="M6.5 19c1.3-3.1 3.4-4.7 5.5-4.7S16.2 15.9 17.5 19"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </IconBase>
-  )
-}
-
-function ChartIcon() {
-  return (
-    <IconBase>
-      <path
-        d="M5 18.5h14"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M7.5 15V11M12 15V8M16.5 15V5.5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </IconBase>
-  )
-}
-
-function TrophyIcon() {
-  return (
-    <IconBase>
-      <path
-        d="M8 5h8v2.3c0 2.5-1.8 4.7-4 5.2-2.2-.5-4-2.7-4-5.2z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M8 7H5.8c0 2 1 3.4 2.8 3.9M16 7h2.2c0 2-1 3.4-2.8 3.9M12 12.5v3.2M9.2 19h5.6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </IconBase>
-  )
-}
-
-function MatchupIcon() {
-  return (
-    <IconBase>
-      <path
-        d="M4 17.5V6.8c0-.7.6-1.3 1.3-1.3H12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M20 6.5v10.7c0 .7-.6 1.3-1.3 1.3H12"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9 8.8h5.5M9 12h6.6M9 15.2h4.3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </IconBase>
   )
 }
 
@@ -1016,9 +917,9 @@ const actionCardTop: CSSProperties = {
 }
 
 const actionCardIcon: CSSProperties = {
-  width: '58px',
-  height: '58px',
-  borderRadius: '18px',
+  width: '66px',
+  height: '66px',
+  borderRadius: '20px',
   display: 'grid',
   placeItems: 'center',
   border: '1px solid var(--shell-panel-border)',
@@ -1092,13 +993,4 @@ const actionFooterArrow: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '18px',
   fontWeight: 800,
-}
-
-const iconSvgStyle: CSSProperties = {
-  width: '24px',
-  height: '24px',
-  display: 'block',
-  color: 'currentColor',
-  flexShrink: 0,
-  overflow: 'visible',
 }

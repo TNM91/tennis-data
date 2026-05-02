@@ -56,6 +56,28 @@ const VALUE_MOMENTS: {
   },
 ]
 
+const PERSONALIZATION_FLOW: {
+  title: string
+  cue: string
+  icon: TiqFeatureIconName
+}[] = [
+  {
+    title: 'Create account',
+    cue: 'Start free and explore the tennis landscape.',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Connect identity',
+    cue: 'Player and higher tiers link your player record once.',
+    icon: 'playerRatings',
+  },
+  {
+    title: 'Open your tools',
+    cue: 'My Lab, Matchup, and captain flows start with your context.',
+    icon: 'myLab',
+  },
+]
+
 const PLAN_DECISION_HINTS: Record<PricingPlanId, string> = {
   free: 'Look around first',
   player_plus: 'Make it yours',
@@ -153,6 +175,27 @@ export default function PricingPage() {
           >
             {getPlanCta(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
           </Link>
+        </section>
+
+        <section style={identityBridgeStyle}>
+          <div style={identityBridgeHeaderStyle}>
+            <div>
+              <div style={sectionEyebrowStyle}>Personalization setup</div>
+              <h2 style={identityBridgeTitleStyle}>Player tools start by knowing who you are.</h2>
+            </div>
+            <Link href="/profile" style={ctaStyle}>Manage profile</Link>
+          </div>
+          <div style={identityFlowGridStyle}>
+            {PERSONALIZATION_FLOW.map((step) => (
+              <div key={step.title} style={identityFlowCardStyle}>
+                <TiqFeatureIcon name={step.icon} size="md" variant="ghost" />
+                <span style={identityFlowCopyStyle}>
+                  <strong>{step.title}</strong>
+                  <em style={identityFlowCueStyle}>{step.cue}</em>
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section style={cardGridStyle}>
@@ -271,12 +314,13 @@ function getPlanHref(planId: PricingPlanId, active: boolean) {
   if (active) {
     if (planId === 'captain') return '/captain'
     if (planId === 'league') return '/captain/season-dashboard'
-    if (planId === 'player_plus') return '/mylab'
+    if (planId === 'player_plus') return '/profile'
     return '/players'
   }
 
   if (planId === 'captain') return '/captain'
   if (planId === 'league') return '/captain/season-dashboard'
+  if (planId === 'player_plus') return '/profile'
   return '/join'
 }
 
@@ -284,12 +328,12 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   if (active) {
     if (planId === 'captain') return 'Open Captain tools'
     if (planId === 'league') return 'Open league desk'
-    if (planId === 'player_plus') return 'Open My Lab'
+    if (planId === 'player_plus') return 'Personalize My Lab'
     return 'Explore players'
   }
 
   if (planId === 'free') return 'Start free'
-  if (planId === 'player_plus') return 'Unlock My Lab'
+  if (planId === 'player_plus') return 'Set up My Lab'
   if (planId === 'captain') return 'Open Captain tools'
   return 'Run a league'
 }
@@ -453,6 +497,68 @@ const recommendationTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.55,
   fontWeight: 700,
+}
+
+const identityBridgeStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 28,
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-blue-2) 8%) 0%, var(--shell-panel-bg) 100%)',
+  boxShadow: '0 18px 44px rgba(2, 10, 24, 0.10)',
+}
+
+const identityBridgeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+}
+
+const identityBridgeTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.4rem, 2.2vw, 2rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const identityFlowGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 12,
+}
+
+const identityFlowCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '54px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 12,
+  minHeight: 92,
+  padding: 14,
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const identityFlowCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+}
+
+const identityFlowCueStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontStyle: 'normal',
+  fontWeight: 700,
+  lineHeight: 1.45,
 }
 
 const cardGridStyle: CSSProperties = {

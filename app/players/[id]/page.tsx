@@ -469,7 +469,7 @@ export default function PlayerProfilePage() {
   )
 
   const totalMatches = filteredMatches.length
-  const winPct = totalMatches > 0 ? ((wins / totalMatches) * 100).toFixed(1) : '0.0'
+  const winPct = totalMatches > 0 ? String(Math.round((wins / totalMatches) * 100)) : '0'
   const [showAllMatches, setShowAllMatches] = useState(false)
   const [showAllHovered, setShowAllHovered] = useState(false)
   const [hoveredMatchRow, setHoveredMatchRow] = useState<string | null>(null)
@@ -901,9 +901,18 @@ export default function PlayerProfilePage() {
     maxWidth: '560px',
   }
 
+  const dynamicHeroScoreGrid: CSSProperties = {
+    ...heroScoreGrid,
+    gridTemplateColumns: isSmallMobile
+      ? 'repeat(2, minmax(0, 1fr))'
+      : isMobile
+        ? 'repeat(4, minmax(0, 1fr))'
+        : 'repeat(4, minmax(0, 1fr))',
+  }
+
   const dynamicRightColumn: CSSProperties = {
     ...heroRight,
-    display: isMobile ? 'none' : 'grid',
+    display: 'grid',
     position: isTablet ? 'relative' : 'sticky',
     top: isTablet ? 'auto' : '24px',
   }
@@ -1038,6 +1047,13 @@ export default function PlayerProfilePage() {
               <h1 style={dynamicHeroTitle}>{player.name}</h1>
 
               <p style={dynamicHeroText}>{player.location || 'Location not set'}</p>
+
+              <div style={dynamicHeroScoreGrid} aria-label="Player score summary">
+                <StatChip label={`TIQ ${ratingViewLabel}`} value={selectedDynamicRating.toFixed(2)} accent />
+                <StatChip label="Record" value={`${wins}-${losses}`} />
+                <StatChip label="Win rate" value={`${winPct}%`} />
+                <StatChip label="Trend" value={getTrendShortLabel(trendDirection)} />
+              </div>
 
               <div style={dynamicFollowRow}>
                 <FollowButton
@@ -1262,15 +1278,21 @@ export default function PlayerProfilePage() {
         </article>
 
         {access.canUseAdvancedPlayerInsights ? (
-          <section style={signalGridStyle(isMobile)}>
-            {playerSignals.map((signal) => (
-              <article key={signal.label} style={signalCardStyle}>
-                <div style={signalLabelStyle}>{signal.label}</div>
-                <div style={signalValueStyle}>{signal.value}</div>
-                <div style={signalNoteStyle}>{signal.note}</div>
-              </article>
-            ))}
-          </section>
+          <details style={profileReadDetailsStyle}>
+            <summary style={profileReadSummaryStyle}>
+              <span>How to read this profile</span>
+              <strong>{playerSignals.length} signals</strong>
+            </summary>
+            <section style={signalGridStyle(isMobile)}>
+              {playerSignals.map((signal) => (
+                <article key={signal.label} style={signalCardStyle}>
+                  <div style={signalLabelStyle}>{signal.label}</div>
+                  <div style={signalValueStyle}>{signal.value}</div>
+                  <div style={signalNoteStyle}>{signal.note}</div>
+                </article>
+              ))}
+            </section>
+          </details>
         ) : (
           <UpgradePrompt
             planId="player_plus"
@@ -1308,52 +1330,6 @@ export default function PlayerProfilePage() {
             </div>
           </article>
         ) : null}
-
-        <article style={glancePanelStyle}>
-          <div style={panelHead}>
-            <div>
-              <div style={sectionKicker}>At a glance</div>
-              <h2 style={panelTitle}>Player scorecard</h2>
-            </div>
-            <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
-          </div>
-          <div style={dynamicGlanceGrid}>
-            <article style={{ ...glanceCardStyle, ...glanceCardAccentStyle }}>
-              <div style={glanceLabelStyle}>TIQ {ratingViewLabel}</div>
-              <div style={glanceValueStyle}>{selectedDynamicRating.toFixed(2)}</div>
-              <div style={glanceNoteStyle}>USTA {baseRating.toFixed(2)} baseline</div>
-            </article>
-            <article style={glanceCardStyle}>
-              <div style={glanceLabelStyle}>Record</div>
-              <div style={glanceValueStyle}>{wins}-{losses}</div>
-              <div style={glanceNoteStyle}>{winPct}% win rate</div>
-            </article>
-            <article style={glanceCardStyle}>
-              <div style={glanceLabelStyle}>Singles / Doubles</div>
-              <div style={glanceValueStyle}>
-                {singlesRecord.total > 0 ? `${singlesRecord.w}-${singlesRecord.l}` : '-'} / {doublesRecord.total > 0 ? `${doublesRecord.w}-${doublesRecord.l}` : '-'}
-              </div>
-              <div style={glanceNoteStyle}>Split by match type</div>
-            </article>
-            <article style={glanceCardStyle}>
-              <div style={glanceLabelStyle}>Form</div>
-              <div
-                style={{
-                  ...glanceValueStyle,
-                  color:
-                    formScore !== null
-                      ? formScore >= 0
-                        ? 'var(--brand-green)'
-                        : '#f87171'
-                      : 'var(--foreground-strong)',
-                }}
-              >
-                {formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '-'}
-              </div>
-              <div style={glanceNoteStyle}>Last 5 rating moves</div>
-            </article>
-          </div>
-        </article>
 
         <details style={advancedStatsDetailsStyle}>
           <summary style={advancedStatsSummaryStyle}>
@@ -3006,6 +2982,12 @@ const heroHintPill: CSSProperties = {
   fontWeight: 700,
 }
 
+const heroScoreGrid: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  maxWidth: '640px',
+}
+
 const stalenessPill: CSSProperties = {
   ...heroHintPill,
   background: 'rgba(251,146,60,0.08)',
@@ -3347,6 +3329,28 @@ const glanceNoteStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.45,
   fontWeight: 700,
+}
+
+const profileReadDetailsStyle: CSSProperties = {
+  marginBottom: '18px',
+  borderRadius: '24px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: '0 16px 36px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
+  overflow: 'hidden',
+}
+
+const profileReadSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  cursor: 'pointer',
+  padding: '16px 18px',
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  listStyle: 'none',
 }
 
 const advancedStatsDetailsStyle: CSSProperties = {

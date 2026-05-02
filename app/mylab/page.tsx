@@ -319,6 +319,19 @@ function compactOpponentLabel(value: string | null | undefined) {
   return `${parts.slice(0, 2).join(' / ')} +${parts.length - 2}`
 }
 
+function buildSinglesMatchupHref(linkedPlayerId: string | null | undefined, opponentId: string | null | undefined) {
+  const params = new URLSearchParams({ type: 'singles' })
+  if (linkedPlayerId) params.set('playerA', linkedPlayerId)
+  if (opponentId) params.set('playerB', opponentId)
+  return `/matchup?${params.toString()}`
+}
+
+function getMatchupRead(gap: number) {
+  if (gap <= 0.08) return 'Very close'
+  if (gap <= 0.18) return 'Good test'
+  return 'Stretch test'
+}
+
 function accentForType(type: FeedType): FeedItem['accent'] {
   if (type === 'achievement' || type === 'rating') return 'green'
   if (type === 'community') return 'violet'
@@ -1706,32 +1719,34 @@ function MyLabPageInner() {
           .filter((player) => player.id !== linkedPlayer.id)
           .map((player) => {
             const rating = player.singles_dynamic_rating ?? player.overall_dynamic_rating
-            return typeof rating === 'number'
-              ? {
-                  player,
-                  rating,
-                  gap: Math.abs(rating - anchorRating),
-                }
-              : null
+            if (typeof rating !== 'number') return null
+            const gap = Math.abs(rating - anchorRating)
+            const fitScore = Math.max(0, Math.min(100, Math.round(100 - gap * 100)))
+            return {
+              player,
+              rating,
+              gap,
+              fitScore,
+              read: getMatchupRead(gap),
+              href: buildSinglesMatchupHref(linkedPlayer.id, player.id),
+            }
           })
-          .filter((item): item is { player: PlayerRow; rating: number; gap: number } => Boolean(item))
+          .filter((item): item is {
+            player: PlayerRow
+            rating: number
+            gap: number
+            fitScore: number
+            read: string
+            href: string
+          } => Boolean(item))
           .sort((left, right) => left.gap - right.gap)
-          .slice(0, 4)
+          .slice(0, 5)
       : []
   const topMatchupCandidate = matchupCandidates[0] || null
-  const secondaryMatchupCandidates = matchupCandidates.slice(1, 4)
-  const matchupHref = linkedPlayer
-    ? `/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayer.id)}${topMatchupCandidate ? `&playerB=${encodeURIComponent(topMatchupCandidate.player.id)}` : ''}`
-    : '/matchup'
-  const matchupGapScore = topMatchupCandidate ? Math.max(0, Math.min(100, 100 - topMatchupCandidate.gap * 100)) : 0
-  const matchupReadLabel =
-    topMatchupCandidate == null
-      ? 'Build player link'
-      : topMatchupCandidate.gap <= 0.08
-        ? 'Very close'
-        : topMatchupCandidate.gap <= 0.18
-          ? 'Good test'
-          : 'Stretch test'
+  const matchupQueue = matchupCandidates.slice(0, 3)
+  const matchupHref = linkedPlayer ? buildSinglesMatchupHref(linkedPlayer.id, topMatchupCandidate?.player.id) : '/matchup'
+  const matchupGapScore = topMatchupCandidate ? topMatchupCandidate.fitScore : 0
+  const matchupReadLabel = topMatchupCandidate?.read || 'Build player link'
   const matchupPreviewCards = [
     {
       label: 'Match quality',
@@ -1954,6 +1969,8 @@ function MyLabPageInner() {
             </Link>
           </div>
 
+          {linkedPlayer ? (
+            <>
           <section style={levelUpPanelStyle(isTablet)}>
             <div style={levelMeterStyle}>
               <div style={levelMeterHeaderStyle}>
@@ -2030,7 +2047,7 @@ function MyLabPageInner() {
                 </h3>
                 <p style={sectionTextStyle}>
                   {topMatchupCandidate
-                    ? 'Use the closest rating gap as a fast read before you choose who to play next.'
+                    ? 'Pick a close test, open the read, then decide what to work on next.'
                     : 'Link your player profile and My Lab will turn the player pool into matchup suggestions.'}
                 </p>
                 </div>
@@ -2057,6 +2074,34 @@ function MyLabPageInner() {
                 </div>
               ))}
             </div>
+            {matchupQueue.length ? (
+              <div style={matchupQueueGridStyle(isTablet)}>
+                {matchupQueue.map((candidate, index) => (
+                  <Link key={candidate.player.id} href={candidate.href} style={matchupQueueCardStyle}>
+                    <div style={matchupQueueRankStyle}>{index + 1}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={matchupQueueNameStyle}>{candidate.player.name}</div>
+                      <div style={matchupQueueMetaStyle}>
+                        {candidate.read} - gap {candidate.gap.toFixed(2)}
+                      </div>
+                    </div>
+                    <div style={matchupQueueFitStyle}>
+                      <strong>{candidate.fitScore}%</strong>
+                      <span>fit</span>
+                    </div>
+                    <div style={matchupQueueTrackStyle}>
+                      <span style={matchupQueueFillStyle(candidate.fitScore)} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={emptyStateStyle}>
+                {isProfileConfirmed
+                  ? 'Matchup queue appears when your rating and player pool are available.'
+                  : 'Manage your profile to unlock matchup suggestions.'}
+              </div>
+            )}
           </section>
 
           <section style={performancePanelStyle}>
@@ -2105,6 +2150,46 @@ function MyLabPageInner() {
               ))}
             </div>
           </section>
+            </>
+          ) : (
+            <section style={setupPanelStyle(isTablet)}>
+              <div style={setupHeroStyle}>
+                <TiqFeatureIcon name="accountSecurity" size="lg" variant="surface" />
+                <div>
+                  <p style={sectionKickerStyle}>Finish setup</p>
+                  <h3 style={setupTitleStyle}>Connect your player record once.</h3>
+                  <p style={sectionTextStyle}>
+                    My Lab becomes your scorecard after your account knows which player is you.
+                  </p>
+                </div>
+              </div>
+              <div style={setupStepGridStyle(isTablet)}>
+                <div style={setupStepCardStyle}>
+                  <span style={setupStepNumberStyle}>1</span>
+                  <strong>Match identity</strong>
+                  <p>Choose your player record in Profile.</p>
+                </div>
+                <div style={setupStepCardStyle}>
+                  <span style={setupStepNumberStyle}>2</span>
+                  <strong>Pull tennis context</strong>
+                  <p>Ratings, teams, leagues, and history connect automatically.</p>
+                </div>
+                <div style={setupStepCardStyle}>
+                  <span style={setupStepNumberStyle}>3</span>
+                  <strong>Open your lab</strong>
+                  <p>Scorecard, matchup queue, goals, and recent matches unlock here.</p>
+                </div>
+              </div>
+              <div style={setupActionRowStyle}>
+                <Link href="/profile" style={matchupPrimaryLinkStyle}>
+                  Finish profile
+                </Link>
+                <Link href="/explore/players" style={secondaryButtonStyle}>
+                  Find player
+                </Link>
+              </div>
+            </section>
+          )}
         </div>
       </section>
 
@@ -2114,6 +2199,7 @@ function MyLabPageInner() {
         </div>
       ) : null}
 
+      {linkedPlayer ? (
       <section id="player-tools" style={profileLinkSectionStyle}>
         <div style={profileLinkCardStyle}>
           <div style={sectionHeaderStyle}>
@@ -2295,77 +2381,79 @@ function MyLabPageInner() {
             </div>
 
             <div style={workshopPanelStyle}>
-              <div style={sectionKickerStyle}>More close tests</div>
-              <div style={workshopListStyle}>
-                {secondaryMatchupCandidates.length ? (
-                  secondaryMatchupCandidates.map(({ player, rating, gap }) => (
-                    <Link
-                      key={player.id}
-                      href={`/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayer?.id || '')}&playerB=${encodeURIComponent(player.id)}`}
-                      style={matchupSuggestionStyle}
-                    >
-                      <span>
-                        <strong>{player.name}</strong>
-                        <small>{player.location || 'Player'} - S {formatRating(player.singles_dynamic_rating)} - O {formatRating(player.overall_dynamic_rating)}</small>
-                      </span>
-                      <em>{gap.toFixed(2)}</em>
-                    </Link>
-                  ))
-                ) : (
-                  <div style={emptyStateStyle}>
-                    {topMatchupCandidate
-                      ? 'The spotlight above is your closest current read.'
-                      : isProfileConfirmed
-                        ? 'Matchup suggestions appear when your rating and player pool are available.'
-                        : 'Manage your profile to unlock matchup suggestions.'}
+              <div style={sectionKickerStyle}>Next action</div>
+              <div style={nextActionCardStyle}>
+                <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+                <div>
+                  <div style={workshopRowTitleStyle}>
+                    {topMatchupCandidate ? `Open the read vs ${topMatchupCandidate.player.name}` : 'Build your first read'}
                   </div>
-                )}
+                  <div style={workshopRowMetaStyle}>
+                    {topMatchupCandidate
+                      ? 'Use the staged matchup to compare the edge, what to watch, and whether it fits your current focus.'
+                      : 'Once your profile has a connected rating, this will become a direct matchup recommendation.'}
+                  </div>
+                </div>
+                <Link href={matchupHref} style={miniActionPillStyle}>
+                  Matchup
+                </Link>
               </div>
             </div>
 
           </div>
         </div>
       </section>
-
-      {followedPlayerSignals.length > 0 ? (
-        <section style={profileLinkSectionStyle}>
-          <div style={{ borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', padding: '18px 20px' }}>
-            <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>
-              Watchlist signals
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-              {followedPlayerSignals.map((s) => {
-                const positive = s.status === 'Bump Up Pace' || s.status === 'Trending Up'
-                const negative = s.status === 'At Risk' || s.status === 'Drop Watch'
-                const pillStyle: React.CSSProperties = positive
-                  ? { background: 'rgba(155,225,29,0.10)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.20)' }
-                  : negative
-                    ? { background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
-                    : { background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
-                return (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 12, background: 'var(--shell-chip-bg)', border: '1px solid var(--shell-panel-border)' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ color: 'var(--foreground)', fontWeight: 800, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
-                      {s.tiq != null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 600, marginTop: 2 }}>TIQ {s.tiq.toFixed(2)}</div> : null}
-                    </div>
-                    {s.status ? (
-                      <span style={{ ...pillStyle, display: 'inline-flex', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' as const }}>{s.status}</span>
-                    ) : null}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
       ) : null}
 
-      <section style={contentGridStyle(isTablet)}>
-        <div style={leftColumnStyle}>
+      <details style={optionalContextDetailsStyle}>
+        <summary style={optionalContextSummaryStyle}>
+          <span>
+            <strong>More tennis context</strong>
+            <em>Watchlist, follows, and updates when you want the wider picture.</em>
+          </span>
+          <span style={optionalContextCountStyle}>
+            {follows.length} follows
+          </span>
+        </summary>
+
+        <section style={contentGridStyle(isTablet)}>
+          <div style={leftColumnStyle}>
+            {followedPlayerSignals.length > 0 ? (
+              <section style={compactSignalsPanelStyle}>
+                <div style={compactSignalsHeaderStyle}>
+                  <span>Player signals</span>
+                  <strong>{followedPlayerSignals.length}</strong>
+                </div>
+                <div style={compactSignalsGridStyle}>
+                  {followedPlayerSignals.slice(0, 6).map((s) => {
+                    const positive = s.status === 'Bump Up Pace' || s.status === 'Trending Up'
+                    const negative = s.status === 'At Risk' || s.status === 'Drop Watch'
+                    const pillStyle: React.CSSProperties = positive
+                      ? { background: 'rgba(155,225,29,0.10)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.20)' }
+                      : negative
+                        ? { background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
+                        : { background: 'rgba(116,190,255,0.08)', color: '#93c5fd', border: '1px solid rgba(116,190,255,0.16)' }
+                    return (
+                      <div key={s.id} style={compactSignalCardStyle}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={compactSignalNameStyle}>{s.name}</div>
+                          {s.tiq != null ? <div style={compactSignalMetaStyle}>TIQ {s.tiq.toFixed(2)}</div> : null}
+                        </div>
+                        {s.status ? (
+                          <span style={{ ...pillStyle, display: 'inline-flex', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' as const }}>{s.status}</span>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            ) : null}
+
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
               <div>
                 <p style={sectionKickerStyle}>Watchlist</p>
-                <h2 style={sectionTitleStyle}>Track extra players, teams, and leagues</h2>
+                <h2 style={sectionTitleStyle}>Follow tennis context</h2>
                 <p style={sectionTextStyle}>
                   Keep optional tennis context close without crowding your own lab.
                 </p>
@@ -2580,7 +2668,8 @@ function MyLabPageInner() {
             ) : null}
           </section>
         </div>
-      </section>
+        </section>
+      </details>
     </section>
   )
 }
@@ -2853,6 +2942,68 @@ const quickProfileValueStyle: CSSProperties = {
   lineHeight: 1,
 }
 
+const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 12%, transparent) 0%, transparent 36%), var(--shell-panel-bg)',
+  padding: isTablet ? 18 : 22,
+  display: 'grid',
+  gap: 18,
+  boxShadow: 'var(--shadow-soft)',
+})
+
+const setupHeroStyle: CSSProperties = {
+  display: 'flex',
+  gap: 14,
+  alignItems: 'center',
+}
+
+const setupTitleStyle: CSSProperties = {
+  margin: '4px 0 8px',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.55rem',
+  lineHeight: 1.06,
+  fontWeight: 950,
+}
+
+const setupStepGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const setupStepCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 8,
+  minHeight: 138,
+  alignContent: 'start',
+  color: 'var(--foreground-strong)',
+}
+
+const setupStepNumberStyle: CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: '50%',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',
+  color: 'var(--text-dark)',
+  fontSize: 13,
+  fontWeight: 950,
+}
+
+const setupActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
 const todayReadPanelStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
@@ -2965,6 +3116,86 @@ const matchupPreviewCardStyle: CSSProperties = {
   gap: 6,
   minHeight: 104,
 }
+
+const matchupQueueGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const matchupQueueCardStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 10,
+  minHeight: 104,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 20%, var(--shell-panel-border) 80%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 8%, transparent) 0%, var(--shell-panel-bg) 72%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflow: 'hidden',
+}
+
+const matchupQueueRankStyle: CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: '50%',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',
+  color: 'var(--text-dark)',
+  fontSize: 14,
+  fontWeight: 950,
+}
+
+const matchupQueueNameStyle: CSSProperties = {
+  fontSize: '1rem',
+  fontWeight: 950,
+  lineHeight: 1.15,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const matchupQueueMetaStyle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const matchupQueueFitStyle: CSSProperties = {
+  display: 'grid',
+  justifyItems: 'end',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  lineHeight: 1,
+}
+
+const matchupQueueTrackStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  height: 8,
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  overflow: 'hidden',
+}
+
+const matchupQueueFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  width: `${Math.max(0, Math.min(value, 100))}%`,
+  minWidth: value > 0 ? 10 : 0,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+})
 
 const performancePanelStyle: CSSProperties = {
   borderRadius: 22,
@@ -3305,6 +3536,33 @@ const matchupSuggestionStyle: CSSProperties = {
   textDecoration: 'none',
 }
 
+const nextActionCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-panel-bg)',
+  padding: 14,
+  minHeight: 112,
+}
+
+const miniActionPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  textDecoration: 'none',
+}
+
 const notebookFooterStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -3353,6 +3611,96 @@ const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   gap: 18,
   marginTop: 18,
 })
+
+const optionalContextDetailsStyle: CSSProperties = {
+  marginTop: 18,
+  borderRadius: 24,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 84%, transparent)',
+  padding: 0,
+  overflow: 'hidden',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const optionalContextSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  padding: '16px 18px',
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  listStyle: 'none',
+}
+
+const optionalContextCountStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 32,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
+const compactSignalsPanelStyle: CSSProperties = {
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: '14px 16px',
+  display: 'grid',
+  gap: 12,
+}
+
+const compactSignalsHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const compactSignalsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+  gap: 10,
+}
+
+const compactSignalCardStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 8,
+  padding: '10px 12px',
+  borderRadius: 12,
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const compactSignalNameStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontWeight: 800,
+  fontSize: 13,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+}
+
+const compactSignalMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 600,
+  marginTop: 2,
+}
 
 const leftColumnStyle: CSSProperties = {
   display: 'flex',

@@ -5,11 +5,10 @@ import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'rea
 import AdsenseSlot from '@/app/components/adsense-slot'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
-import { type UserRole } from '@/lib/roles'
+import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
+import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 
@@ -97,8 +96,6 @@ function chunkArray<T>(rows: T[], size: number) {
 }
 
 export default function TeamsPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TeamDirectoryEntry[]>([])
@@ -109,33 +106,11 @@ export default function TeamsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('matches')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const { access } = useProductAccess()
+  const shouldShowAds = shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadTeams()
-  }, [])
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
   }, [])
 
   useEffect(() => {
@@ -682,9 +657,11 @@ export default function TeamsPage() {
           )}
         </section>
       </main>
-      <div style={{ marginTop: 12 }}>
-        <AdsenseSlot slot={TEAMS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
-      </div>
+      {shouldShowAds ? (
+        <div style={{ marginTop: 12 }}>
+          <AdsenseSlot slot={TEAMS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+        </div>
+      ) : null}
     </SiteShell>
   )
 }

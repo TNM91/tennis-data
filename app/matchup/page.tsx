@@ -8,12 +8,11 @@ import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
+import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
+import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
@@ -149,9 +148,6 @@ function hasValidRating(value: number | null | undefined): value is number {
 }
 
 export default function MatchupPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
   const [profileLink, setProfileLink] = useState<UserProfileLink | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
@@ -183,38 +179,15 @@ export default function MatchupPage() {
     low: null,
     sampleSize: 0,
   })
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const { access, user } = useProductAccess()
+  const shouldShowAds = shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadPlayers()
   }, [])
 
   useEffect(() => {
-    let active = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-        setUserId(authState.user?.id || null)
-      } catch {
-        if (!active) return
-        setRole('public')
-        setEntitlements(null)
-        setUserId(null)
-      }
-    }
-
-    void loadAuth()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  useEffect(() => {
+    const userId = user?.id || null
     if (!userId) {
       setProfileLink(null)
       return
@@ -233,7 +206,7 @@ export default function MatchupPage() {
     return () => {
       active = false
     }
-  }, [userId])
+  }, [user?.id])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -263,7 +236,8 @@ export default function MatchupPage() {
     if (profilePrefillAttemptedRef.current) return
     if (!urlReadyRef.current || !profileLink?.linked_player_id) return
     if (matchType !== 'singles') return
-    if (playerAId || playerBId) return
+    if (playerAId) return
+    if (playerBId === profileLink.linked_player_id) return
 
     profilePrefillAttemptedRef.current = true
     setPlayerAId(profileLink.linked_player_id)
@@ -890,6 +864,7 @@ export default function MatchupPage() {
     () => players.find((player) => player.id === profileLink?.linked_player_id) || null,
     [players, profileLink?.linked_player_id],
   )
+  const needsProfileSetup = Boolean(user?.id) && access.canUseAdvancedPlayerInsights && !profilePlayer
   const playerB = useMemo(
     () => players.find((player) => player.id === playerBId) || null,
     [players, playerBId],
@@ -1011,6 +986,46 @@ export default function MatchupPage() {
       })
       .slice(0, 6)
   }, [availablePlayersForB, matchType, playerA, playerB])
+
+  const selectedMatchupContext = useMemo(() => {
+    if (matchType === 'singles') {
+      return [
+        {
+          label: profilePlayer && playerA?.id === profilePlayer.id ? 'You' : 'Player A',
+          name: playerA?.name || 'Choose Player A',
+          rating: playerA ? getProjectionRating(playerA, getEngineRatingView(matchType)) : null,
+          selected: Boolean(playerA),
+        },
+        {
+          label: profilePlayer && playerB?.id === profilePlayer.id ? 'You' : 'Player B',
+          name: playerB?.name || 'Choose Player B',
+          rating: playerB ? getProjectionRating(playerB, getEngineRatingView(matchType)) : null,
+          selected: Boolean(playerB),
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Your side',
+        name: [teamA1, teamA2].filter(Boolean).map((player) => player?.name).join(' / ') || 'Choose 2 players',
+        rating:
+          teamA1 && teamA2
+            ? averageAvailable([getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')])
+            : null,
+        selected: Boolean(teamA1 && teamA2),
+      },
+      {
+        label: 'Other side',
+        name: [teamB1, teamB2].filter(Boolean).map((player) => player?.name).join(' / ') || 'Choose 2 players',
+        rating:
+          teamB1 && teamB2
+            ? averageAvailable([getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')])
+            : null,
+        selected: Boolean(teamB1 && teamB2),
+      },
+    ]
+  }, [matchType, playerA, playerB, profilePlayer, teamA1, teamA2, teamB1, teamB2])
 
   const availableTeamA1 = useMemo(
     () => players.filter((player) => ![teamA2Id, teamB1Id, teamB2Id].includes(player.id)),
@@ -1234,6 +1249,30 @@ export default function MatchupPage() {
     }
   }, [comparison])
 
+  const handoffState = useMemo(() => {
+    if (selectionCount === 0) return null
+    const missing = Math.max(selectionTarget - selectionCount, 0)
+    if (comparison) {
+      return {
+        title: 'Matchup ready',
+        body: projection?.expectedOutcome || 'The read is ready below.',
+        status: 'Ready',
+      }
+    }
+    return {
+      title: 'Context loaded',
+      body:
+        matchType === 'singles'
+          ? missing === 1
+            ? 'Choose the other player to unlock the edge.'
+            : 'Choose two players to unlock the edge.'
+          : missing === 1
+            ? 'Add the final doubles slot to unlock the read.'
+            : `Add ${missing} doubles slots to unlock the read.`,
+      status: `${selectionCount}/${selectionTarget}`,
+    }
+  }, [comparison, matchType, projection?.expectedOutcome, selectionCount, selectionTarget])
+
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
     padding: isMobile ? '12px 16px 18px' : '8px 18px 18px',
@@ -1345,7 +1384,7 @@ export default function MatchupPage() {
                   <strong>{profilePlayer.name} is loaded from your profile.</strong>
                   <span>Choose an opponent to turn your My Lab read into a matchup.</span>
                 </div>
-              ) : userId ? (
+              ) : user?.id ? (
                 <div style={profileContextCalloutStyle}>
                   <strong>Matchup can start with you automatically.</strong>
                   <span>Set your player identity once in Profile, then this page opens with you in Player A.</span>
@@ -1382,6 +1421,20 @@ export default function MatchupPage() {
             </div>
             <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div>
           </div>
+
+          {needsProfileSetup ? (
+            <article style={identitySetupStripStyle}>
+              <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
+              <div style={identitySetupCopyStyle}>
+                <div style={identitySetupKickerStyle}>Finish personalization</div>
+                <h3 style={identitySetupTitleStyle}>Connect your player record before running your own matchups.</h3>
+                <p style={identitySetupTextStyle}>
+                  You can still explore any players here, but linking your identity lets Matchup start with you and lets My Lab save the read back to your game.
+                </p>
+              </div>
+              <Link href="/profile" style={identitySetupButtonStyle}>Finish profile</Link>
+            </article>
+          ) : null}
 
           <div style={dynamicToolbarTop}>
             <div style={toggleStack}>
@@ -1454,6 +1507,38 @@ export default function MatchupPage() {
               <div style={selectionProgressTextStyle}>{selectionGuidance}</div>
             </div>
           </div>
+
+          {handoffState ? (
+            <article style={handoffCardStyle}>
+              <div style={handoffHeaderStyle}>
+                <div style={handoffTitleClusterStyle}>
+                  <TiqFeatureIcon name="matchupAnalysis" size="sm" variant="surface" />
+                  <div>
+                    <div style={handoffKickerStyle}>{handoffState.status}</div>
+                    <h3 style={handoffTitleStyle}>{handoffState.title}</h3>
+                  </div>
+                </div>
+                <p style={handoffTextStyle}>{handoffState.body}</p>
+              </div>
+              <div style={handoffSidesGridStyle}>
+                {selectedMatchupContext.map((side) => (
+                  <div
+                    key={side.label}
+                    style={{
+                      ...handoffSideCardStyle,
+                      ...(side.selected ? handoffSideCardActiveStyle : {}),
+                    }}
+                  >
+                    <span style={handoffSideLabelStyle}>{side.label}</span>
+                    <strong style={handoffSideNameStyle}>{side.name}</strong>
+                    <span style={handoffSideMetaStyle}>
+                      {side.rating === null ? 'Rating pending' : `TIQ ${formatRating(side.rating)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
 
           {matchType === 'singles' ? (
             <div style={dynamicSelectorGrid}>
@@ -1999,9 +2084,11 @@ export default function MatchupPage() {
           </article>
         </section>
       ) : null}
-      <div style={{ marginTop: 12 }}>
-        <AdsenseSlot slot={MATCHUP_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
-      </div>
+      {shouldShowAds ? (
+        <div style={{ marginTop: 12 }}>
+          <AdsenseSlot slot={MATCHUP_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+        </div>
+      ) : null}
     </SiteShell>
   )
 }
@@ -2662,6 +2749,64 @@ const toolHeaderTextStyle: CSSProperties = {
   fontWeight: 800,
 }
 
+const identitySetupStripStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '56px minmax(0, 1fr) auto',
+  gap: 14,
+  alignItems: 'center',
+  marginBottom: 18,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 60%), var(--shell-chip-bg)',
+}
+
+const identitySetupCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const identitySetupKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const identitySetupTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1.12rem',
+  lineHeight: 1.15,
+  fontWeight: 950,
+}
+
+const identitySetupTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const identitySetupButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  padding: '0 15px',
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  color: 'var(--text-dark)',
+  textDecoration: 'none',
+  fontSize: 13,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
+}
+
 const toolbarTop: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -2904,6 +3049,99 @@ const selectionProgressTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+}
+
+const handoffCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '16px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background:
+    'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(48,99,180,0.10) 46%, var(--shell-panel-bg) 100%)',
+  boxShadow: '0 18px 42px rgba(0,0,0,0.16)',
+}
+
+const handoffHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const handoffTitleClusterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+}
+
+const handoffKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const handoffTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '20px',
+  fontWeight: 950,
+  letterSpacing: '-0.03em',
+}
+
+const handoffTextStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: '520px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  fontWeight: 700,
+  lineHeight: 1.55,
+}
+
+const handoffSidesGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '10px',
+}
+
+const handoffSideCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minHeight: '92px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const handoffSideCardActiveStyle: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(var(--brand-green-rgb),0.08)',
+}
+
+const handoffSideLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const handoffSideNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '17px',
+  fontWeight: 950,
+  lineHeight: 1.18,
+}
+
+const handoffSideMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 800,
 }
 
 const doublesQuickStartStyle: CSSProperties = {

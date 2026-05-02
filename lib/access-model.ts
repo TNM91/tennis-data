@@ -220,6 +220,10 @@ export function buildProductAccessState(
   }
 }
 
+export function shouldShowSponsoredPlacements(access: ProductAccessState) {
+  return !access.canUseAdvancedPlayerInsights && !access.canUseCaptainWorkflow && !access.canUseLeagueTools
+}
+
 export async function getClientEntitlementSnapshot(
   userId: string | null | undefined,
 ): Promise<ProductEntitlementSnapshot | null> {

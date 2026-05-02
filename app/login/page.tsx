@@ -7,34 +7,47 @@ import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { loadUserProfileLink } from '@/lib/user-profile'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 
-function getDefaultPostLoginRoute(
+async function getDefaultPostLoginRoute(
   role: UserRole = 'member',
   entitlements?: ProductEntitlementSnapshot | null,
+  userId?: string | null,
 ) {
   const access = buildProductAccessState(role, entitlements)
+  if (access.canUseAdvancedPlayerInsights) {
+    const profileRes = await loadUserProfileLink(userId)
+    const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
+    if (!hasLinkedPlayer) return '/profile'
+  }
   if (access.canUseLeagueTools) return '/captain/season-dashboard'
   if (access.canUseCaptainWorkflow) return '/captain'
   return DEFAULT_POST_LOGIN_ROUTE
 }
 
-function resolvePostLoginRoute(
+async function resolvePostLoginRoute(
   candidate: string | null | undefined,
   role: UserRole = 'member',
   entitlements?: ProductEntitlementSnapshot | null,
+  userId?: string | null,
 ) {
-  const fallback = getDefaultPostLoginRoute(role, entitlements)
+  const fallback = await getDefaultPostLoginRoute(role, entitlements, userId)
   if (!candidate) return fallback
   if (!candidate.startsWith('/')) return fallback
   if (candidate.startsWith('//')) return fallback
   if (candidate.startsWith('/login')) return fallback
   if (candidate.startsWith('/join')) return fallback
+  if (fallback === '/profile' && requiresPersonalIdentity(candidate)) return fallback
   return candidate
+}
+
+function requiresPersonalIdentity(candidate: string) {
+  return candidate.startsWith('/mylab') || candidate.startsWith('/matchup') || candidate.startsWith('/captain')
 }
 
 export default function LoginPage() {
@@ -58,12 +71,14 @@ export default function LoginPage() {
   function getPostLoginRoute(
     nextRole: UserRole = role === 'public' ? 'member' : role,
     nextEntitlements: ProductEntitlementSnapshot | null = null,
+    userId?: string | null,
   ) {
-    if (typeof window === 'undefined') return getDefaultPostLoginRoute(nextRole, nextEntitlements)
+    if (typeof window === 'undefined') return getDefaultPostLoginRoute(nextRole, nextEntitlements, userId)
     return resolvePostLoginRoute(
       new URLSearchParams(window.location.search).get('next'),
       nextRole,
       nextEntitlements,
+      userId,
     )
   }
 
@@ -71,6 +86,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
+    router.prefetch('/profile')
     router.prefetch('/captain')
     router.prefetch('/captain/season-dashboard')
   }, [router])
@@ -78,9 +94,10 @@ export default function LoginPage() {
   useEffect(() => {
     let mounted = true
 
-    const redirectAuthenticatedUser = (
+    const redirectAuthenticatedUser = async (
       nextRole: UserRole,
       nextEntitlements: ProductEntitlementSnapshot | null,
+      userId?: string | null,
     ) => {
       if (nextRole === 'public' || hasRedirectedRef.current) return
 
@@ -92,7 +109,7 @@ export default function LoginPage() {
         setAuthLoading(false)
       }
 
-      router.replace(getPostLoginRoute(nextRole, nextEntitlements))
+      router.replace(await getPostLoginRoute(nextRole, nextEntitlements, userId))
     }
 
     async function loadAuth() {
@@ -104,7 +121,7 @@ export default function LoginPage() {
         setRole(nextRole)
 
         if (nextRole !== 'public') {
-          redirectAuthenticatedUser(nextRole, authState.entitlements)
+          void redirectAuthenticatedUser(nextRole, authState.entitlements, authState.user?.id)
           return
         }
       } catch (err) {
@@ -130,7 +147,7 @@ export default function LoginPage() {
       setRole(nextRole)
 
       if (nextRole !== 'public') {
-        redirectAuthenticatedUser(nextRole, authState.entitlements)
+        void redirectAuthenticatedUser(nextRole, authState.entitlements, authState.user?.id)
         return
       }
 
@@ -178,7 +195,7 @@ export default function LoginPage() {
       setRedirecting(true)
       setRole(nextRole)
       setAuthLoading(false)
-      router.replace(getPostLoginRoute(nextRole, authState.entitlements))
+      router.replace(await getPostLoginRoute(nextRole, authState.entitlements, authState.user?.id))
     } catch (err) {
       hasRedirectedRef.current = false
       setRedirecting(false)

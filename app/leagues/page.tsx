@@ -11,8 +11,10 @@ import {
   getCompetitionLayerLabel,
   getLeagueFormatLabel,
 } from '@/lib/competition-layers'
+import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { formatDate, cleanText as safeText } from '@/lib/captain-formatters'
+import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
@@ -63,6 +65,8 @@ export default function LeaguesPage() {
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { access } = useProductAccess()
+  const shouldShowAds = shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadLeagueSummary()
@@ -471,9 +475,11 @@ export default function LeaguesPage() {
           )}
         </article>
       </section>
-      <div style={{ marginTop: 12 }}>
-        <AdsenseSlot slot={LEAGUES_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
-      </div>
+      {shouldShowAds ? (
+        <div style={{ marginTop: 12 }}>
+          <AdsenseSlot slot={LEAGUES_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+        </div>
+      ) : null}
     </SiteShell>
   )
 }

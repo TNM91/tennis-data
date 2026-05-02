@@ -34,6 +34,7 @@ type TiqFeatureIconProps = {
 type IconDrawProps = {
   accent: string
   muted: string
+  accentSoft: string
 }
 
 const iconSizes: Record<TiqFeatureIconSize, number> = {
@@ -108,6 +109,11 @@ export default function TiqFeatureIcon({
   const pixelSize = iconSizes[size]
   const IconBody = iconRegistry[name]
   const label = title || tiqFeatureIconLabels[name]
+  const reactId = useId()
+  const cleanId = reactId.replaceAll(':', '')
+  const plateId = `tiq-icon-plate-${cleanId}`
+  const ballFillId = `tiq-icon-ball-fill-${cleanId}`
+  const ballGlowId = `tiq-icon-ball-glow-${cleanId}`
 
   return (
     <span
@@ -128,20 +134,64 @@ export default function TiqFeatureIcon({
         aria-hidden="true"
         style={svgStyle}
       >
+        <defs>
+          <radialGradient id={plateId} cx="50%" cy="34%" r="64%">
+            <stop offset="0%" stopColor="var(--tiq-icon-plate-hot)" />
+            <stop offset="58%" stopColor="var(--tiq-icon-plate-mid)" />
+            <stop offset="100%" stopColor="var(--tiq-icon-plate-cool)" />
+          </radialGradient>
+          <radialGradient id={ballFillId} cx="38%" cy="28%" r="78%">
+            <stop offset="0%" stopColor="var(--tiq-icon-ball-hot)" />
+            <stop offset="100%" stopColor="var(--tiq-icon-ball-fill)" />
+          </radialGradient>
+          <filter id={ballGlowId} x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="5" stdDeviation="4" floodColor="var(--tiq-icon-accent)" floodOpacity="0.18" />
+          </filter>
+        </defs>
+        {variant !== 'ghost' ? (
+          <circle cx="48" cy="48" r="43" fill={`url(#${plateId})`} opacity="0.58" />
+        ) : null}
         {IconBody({
           accent: 'var(--tiq-icon-accent, var(--brand-green, #9be11d))',
           muted: 'var(--tiq-icon-muted, var(--brand-blue-2, #74beff))',
+          accentSoft: 'var(--tiq-icon-accent-soft, rgba(155,225,29,0.18))',
         })}
       </svg>
       <style jsx>{`
+        .tiq-feature-icon {
+          --tiq-icon-primary: var(--foreground-strong, #f8fbff);
+          --tiq-icon-accent: var(--brand-green, #9be11d);
+          --tiq-icon-accent-soft: rgba(var(--brand-green-rgb, 155, 225, 29), 0.18);
+          --tiq-icon-muted: color-mix(in srgb, var(--brand-blue-2, #74beff) 64%, var(--foreground-strong, #f8fbff) 36%);
+          --tiq-icon-ball-fill: color-mix(in srgb, var(--shell-panel-bg-strong, #0f203a) 72%, transparent);
+          --tiq-icon-ball-hot: color-mix(in srgb, var(--foreground-strong, #f8fbff) 10%, transparent);
+          --tiq-icon-plate-hot: color-mix(in srgb, var(--brand-blue-2, #74beff) 16%, transparent);
+          --tiq-icon-plate-mid: color-mix(in srgb, var(--brand-green, #9be11d) 5%, transparent);
+          --tiq-icon-plate-cool: transparent;
+        }
+
+        :global(:root[data-theme='light']) .tiq-feature-icon {
+          --tiq-icon-primary: #0b1b31;
+          --tiq-icon-muted: color-mix(in srgb, var(--brand-blue-2, #2f6fcf) 72%, #0b1b31 28%);
+          --tiq-icon-ball-fill: rgba(255, 255, 255, 0.86);
+          --tiq-icon-ball-hot: #ffffff;
+          --tiq-icon-plate-hot: rgba(47, 111, 207, 0.10);
+          --tiq-icon-plate-mid: rgba(155, 225, 29, 0.08);
+        }
+
         .tiq-feature-icon:hover {
-          --tiq-icon-shadow: rgba(155, 225, 29, 0.18);
-          transform: translateY(-1px);
-          border-color: color-mix(in srgb, var(--brand-green, #9be11d) 34%, transparent);
+          --tiq-icon-shadow: rgba(155, 225, 29, 0.22);
+          transform: translateY(-2px) scale(1.015);
+          border-color: color-mix(in srgb, var(--brand-green, #9be11d) 42%, transparent);
         }
 
         .tiq-feature-icon:hover :global(.tiq-accent-shift) {
-          transform: translateX(1px);
+          transform: translateX(1.6px);
+        }
+
+        .tiq-feature-icon:hover :global(.tiq-icon-pulse) {
+          opacity: 1;
+          transform: scale(1.04);
         }
       `}</style>
     </span>
@@ -150,15 +200,13 @@ export default function TiqFeatureIcon({
 
 function shellStyle(pixelSize: number, variant: TiqFeatureIconVariant): CSSProperties {
   const base = {
-    '--tiq-icon-accent': 'var(--brand-green, #9be11d)',
-    '--tiq-icon-muted': 'color-mix(in srgb, var(--brand-blue-2, #74beff) 62%, var(--foreground, #f8fbff) 38%)',
-    '--tiq-icon-border': 'color-mix(in srgb, var(--brand-blue-2, #74beff) 18%, transparent)',
+    '--tiq-icon-border': 'color-mix(in srgb, var(--brand-blue-2, #74beff) 22%, transparent)',
     '--tiq-icon-shadow': 'rgba(155,225,29,0)',
     display: 'inline-grid',
     placeItems: 'center',
     width: pixelSize,
     height: pixelSize,
-    color: 'var(--foreground-strong, var(--foreground, #f8fbff))',
+    color: 'var(--tiq-icon-primary, var(--foreground-strong, var(--foreground, #f8fbff)))',
     transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
   } as CSSProperties
 
@@ -166,16 +214,20 @@ function shellStyle(pixelSize: number, variant: TiqFeatureIconVariant): CSSPrope
 
   return {
     ...base,
-    borderRadius: Math.max(12, Math.round(pixelSize * 0.2)),
+    borderRadius: Math.max(12, Math.round(pixelSize * 0.22)),
     border: variant === 'surface' ? '1px solid var(--tiq-icon-border)' : '1px solid transparent',
-    background: variant === 'surface' ? 'color-mix(in srgb, var(--surface-soft, #0f203a) 72%, transparent)' : 'transparent',
-    boxShadow: '0 16px 32px var(--tiq-icon-shadow)',
+    background:
+      variant === 'surface'
+        ? 'linear-gradient(145deg, color-mix(in srgb, var(--shell-chip-bg, #10213b) 86%, transparent), color-mix(in srgb, var(--shell-panel-bg, #071326) 78%, transparent))'
+        : 'transparent',
+    boxShadow: '0 18px 38px var(--tiq-icon-shadow), inset 0 1px 0 rgba(255,255,255,0.08)',
   }
 }
 
 const svgStyle: CSSProperties = {
   display: 'block',
   overflow: 'visible',
+  shapeRendering: 'geometricPrecision',
 }
 
 function iconGroup(children: ReactNode) {
@@ -183,7 +235,7 @@ function iconGroup(children: ReactNode) {
     <g
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="4"
+      strokeWidth="3.45"
       style={{ vectorEffect: 'non-scaling-stroke' }}
     >
       {children}
@@ -205,14 +257,17 @@ function BallHead({
   seam?: 'low' | 'high'
 }) {
   const reactId = useId()
-  const strokeWidth = Math.max(1.7, r * 0.16)
-  const offset = seam === 'high' ? -r * 0.06 : 0
+  const strokeWidth = Math.max(1.65, r * 0.15)
+  const offset = seam === 'high' ? -r * 0.08 : 0
   const clipId = `tiq-ball-${reactId.replaceAll(':', '')}`
   const seamPath = [
-    `M${cx - r * 0.818} ${cy - r * 0.091 + offset}`,
-    `C${cx - r * 0.5} ${cy - r * 0.727 + offset}`,
-    `${cx + r * 0.364} ${cy + r * 0.636 + offset}`,
-    `${cx + r * 0.818} ${cy + offset}`,
+    `M${cx - r * 0.86} ${cy - r * 0.02 + offset}`,
+    `C${cx - r * 0.58} ${cy - r * 0.54 + offset}`,
+    `${cx - r * 0.08} ${cy - r * 0.20 + offset}`,
+    `${cx + r * 0.12} ${cy + r * 0.06 + offset}`,
+    `C${cx + r * 0.38} ${cy + r * 0.40 + offset}`,
+    `${cx + r * 0.70} ${cy + r * 0.34 + offset}`,
+    `${cx + r * 0.90} ${cy + r * 0.05 + offset}`,
   ].join(' ')
 
   return (
@@ -222,13 +277,20 @@ function BallHead({
           <circle cx={cx} cy={cy} r={r - strokeWidth * 0.35} />
         </clipPath>
       </defs>
-      <circle cx={cx} cy={cy} r={r} stroke="currentColor" strokeWidth={strokeWidth} />
+      <circle className="tiq-icon-pulse" cx={cx} cy={cy} r={r + 4} fill={accent} opacity="0.08" style={{ transformOrigin: `${cx}px ${cy}px`, transition: 'opacity 160ms ease, transform 160ms ease' }} />
+      <circle cx={cx} cy={cy} r={r} fill="var(--tiq-icon-ball-fill, transparent)" stroke="currentColor" strokeWidth={strokeWidth} />
       <g clipPath={`url(#${clipId})`}>
+        <path
+          d={seamPath}
+          stroke="color-mix(in srgb, var(--tiq-icon-primary, currentColor) 22%, transparent)"
+          strokeWidth={strokeWidth + 1.35}
+          opacity="0.36"
+        />
         <path
           className="tiq-accent-shift"
           d={seamPath}
           stroke={accent}
-          strokeWidth={strokeWidth}
+          strokeWidth={strokeWidth + 0.2}
           style={{ transition: 'transform 160ms ease' }}
         />
       </g>
@@ -258,53 +320,58 @@ function PlayerBust({
   )
 }
 
-function CaptainDashboardIcon({ accent, muted }: IconDrawProps) {
+function CaptainDashboardIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <path d="M17 34h52a6 6 0 0 1 6 6v38H17z" stroke="currentColor" />
-      <BallHead cx={48} cy={23} r={11} accent={accent} />
-      <path d="M27 48h18M27 60h14M27 72h24" stroke={muted} />
-      <path d="M57 61h13M64 54v14" stroke={accent} />
-      <path d="M56 61a11 11 0 1 0 11-11v11H56z" stroke={accent} />
-      <path d="M48 34v8" stroke="currentColor" />
+      <path d="M16 36h52a7 7 0 0 1 7 7v35H16z" fill={accentSoft} opacity="0.2" stroke="currentColor" />
+      <BallHead cx={47} cy={25} r={10.5} accent={accent} />
+      <path d="M47 35v8" stroke="currentColor" />
+      <path d="M27 50h18M27 61h14M27 72h22" stroke={muted} />
+      <path d="M57 54h9a9 9 0 0 1 0 18h-9z" stroke="currentColor" />
+      <path d="M63 48v30" stroke={accent} />
+      <path d="M58 66h12M64 59v14" stroke={accent} />
     </>,
   )
 }
 
-function MatchupAnalysisIcon({ accent, muted }: IconDrawProps) {
+function MatchupAnalysisIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <PlayerBust cx={29} headCy={26} r={11} accent={accent} />
-      <PlayerBust cx={67} headCy={26} r={11} accent={accent} />
-      <path d="M43 40h10" stroke={accent} />
-      <path d="M43 52h10" stroke={muted} strokeDasharray="3 7" />
-      <path d="M43 64h10" stroke={accent} />
+      <PlayerBust cx={27} headCy={27} r={10.5} accent={accent} />
+      <PlayerBust cx={69} headCy={27} r={10.5} accent={accent} />
+      <path d="M42 38h12M42 52h12M42 66h12" stroke={muted} />
+      <circle cx="48" cy="38" r="4.5" fill={accentSoft} stroke={accent} />
+      <circle cx="48" cy="66" r="4.5" fill={accentSoft} stroke={accent} />
+      <path d="M35 52h26" stroke={accent} strokeDasharray="2 7" />
+      <path d="M40 76h16" stroke="currentColor" />
     </>,
   )
 }
 
-function LineupBuilderIcon({ accent, muted }: IconDrawProps) {
+function LineupBuilderIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={48} cy={20} r={11} accent={accent} />
-      <path d="M48 31v9M19 40h58M19 40v17M38 40v17M58 40v17M77 40v17" stroke="currentColor" />
-      <circle cx="19" cy="68" r="8" stroke="currentColor" />
-      <circle cx="38" cy="68" r="8" stroke={accent} />
-      <circle cx="58" cy="68" r="8" stroke="currentColor" />
-      <circle cx="77" cy="68" r="8" stroke={accent} />
-      <path d="M16 68h6M35 68h6M55 68h6M74 68h6" stroke={muted} />
+      <BallHead cx={48} cy={21} r={10.5} accent={accent} />
+      <path d="M48 32v9M20 41h56M20 41v14M39 41v14M57 41v14M76 41v14" stroke="currentColor" />
+      <circle cx="20" cy="66" r="8.5" fill="transparent" stroke="currentColor" />
+      <circle cx="39" cy="66" r="8.5" fill={accentSoft} stroke={accent} />
+      <circle cx="57" cy="66" r="8.5" fill="transparent" stroke="currentColor" />
+      <circle cx="76" cy="66" r="8.5" fill={accentSoft} stroke={accent} />
+      <path d="M17 66h6M36 66h6M54 66h6M73 66h6" stroke={muted} />
+      <path d="M32 79h32" stroke={accent} />
     </>,
   )
 }
 
-function ScenarioBuilderIcon({ accent, muted }: IconDrawProps) {
+function ScenarioBuilderIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <PlayerBust cx={31} headCy={27} r={11} accent={accent} />
-      <path d="M52 70c17-2 16-16 5-18s-7-17 13-17" stroke="currentColor" strokeDasharray="5 8" />
-      <circle cx="52" cy="70" r="4.5" stroke="currentColor" />
-      <circle cx="70" cy="35" r="4.5" stroke="currentColor" />
-      <path d="M72 18v26M72 18l17 7-17 7" stroke={accent} />
+      <PlayerBust cx={29} headCy={28} r={10.5} accent={accent} />
+      <path d="M48 72c18-2 19-16 8-19s-7-17 14-18" stroke="currentColor" strokeDasharray="4 7" />
+      <circle cx="48" cy="72" r="4.5" fill={accentSoft} stroke="currentColor" />
+      <circle cx="70" cy="35" r="4.5" fill={accentSoft} stroke="currentColor" />
+      <path d="M72 18v27M72 18l17 7-17 7" stroke={accent} />
+      <path d="M52 52l10-8" stroke={muted} />
     </>,
   )
 }
@@ -319,39 +386,42 @@ function MessagingCenterIcon({ accent }: IconDrawProps) {
   )
 }
 
-function PlayerRatingsIcon({ accent }: IconDrawProps) {
+function PlayerRatingsIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <PlayerBust cx={25} headCy={30} r={11} accent={accent} />
-      <path d="M52 76V62M66 76V52M80 76V40" stroke="currentColor" />
-      <path d="M50 56l12-11 10 7 12-18" stroke={accent} />
-      <circle cx="50" cy="56" r="3.5" stroke={accent} />
-      <circle cx="62" cy="45" r="3.5" stroke={accent} />
-      <circle cx="72" cy="52" r="3.5" stroke={accent} />
-      <circle cx="84" cy="34" r="3.5" stroke={accent} />
+      <PlayerBust cx={24} headCy={31} r={10.5} accent={accent} />
+      <path d="M48 78h39" stroke={muted} />
+      <path d="M53 78V64M66 78V54M79 78V42" stroke="currentColor" />
+      <path d="M50 58l12-12 10 7 13-19" stroke={accent} />
+      <circle cx="50" cy="58" r="3.5" fill={accentSoft} stroke={accent} />
+      <circle cx="62" cy="46" r="3.5" fill={accentSoft} stroke={accent} />
+      <circle cx="72" cy="53" r="3.5" fill={accentSoft} stroke={accent} />
+      <circle cx="85" cy="34" r="3.5" fill={accentSoft} stroke={accent} />
     </>,
   )
 }
 
-function OpponentScoutingIcon({ accent, muted }: IconDrawProps) {
+function OpponentScoutingIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <PlayerBust cx={28} headCy={29} r={11} accent={accent} />
-      <circle cx="64" cy="49" r="19" stroke="currentColor" />
-      <path d="M64 37v24M52 49h24" stroke={muted} />
-      <path d="M78 63l12 12" stroke="currentColor" />
-      <path d="M58 58V46M65 58V38M72 58V50" stroke={accent} />
+      <PlayerBust cx={27} headCy={30} r={10.5} accent={accent} />
+      <circle cx="65" cy="49" r="19" fill={accentSoft} opacity="0.2" stroke="currentColor" />
+      <circle cx="65" cy="49" r="8" stroke={muted} />
+      <path d="M65 35v28M51 49h28" stroke={muted} />
+      <path d="M79 63l11 11" stroke="currentColor" />
+      <path d="M58 58V49M65 58V41M72 58V52" stroke={accent} />
     </>,
   )
 }
 
-function MatchPrepIcon({ accent, muted }: IconDrawProps) {
+function MatchPrepIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <path d="M27 21h42v58H27z" stroke="currentColor" />
-      <path d="M39 21v-7h18v7" stroke="currentColor" />
-      <path d="M38 39l6 6 10-11M38 55l6 6 10-11M38 71l6 6 10-11" stroke={accent} />
+      <path d="M26 23h44v56H26z" fill={accentSoft} opacity="0.16" stroke="currentColor" />
+      <path d="M39 23v-7h18v7" stroke="currentColor" />
+      <path d="M38 40l6 6 10-11M38 56l6 6 10-11M38 72l6 6 10-11" stroke={accent} />
       <path d="M60 41h16M60 57h16M60 73h16" stroke={muted} />
+      <path d="M33 29h30" stroke="currentColor" />
     </>,
   )
 }
@@ -416,14 +486,16 @@ function AlertsIcon({ accent, muted }: IconDrawProps) {
   )
 }
 
-function MyLabIcon({ accent, muted }: IconDrawProps) {
+function MyLabIcon({ accent, muted, accentSoft }: IconDrawProps) {
   return iconGroup(
     <>
-      <path d="M18 73h60v8H18z" stroke="currentColor" />
-      <path d="M24 36h48v37H24z" stroke="currentColor" />
-      <BallHead cx={48} cy={29} r={11} accent={accent} />
-      <path d="M34 60l10-10 9 7 13-17" stroke={accent} />
-      <path d="M34 66h31M59 61v-9M67 61V44" stroke={muted} />
+      <path d="M17 74h62v7H17z" stroke="currentColor" />
+      <path d="M24 36h48v38H24z" fill={accentSoft} opacity="0.16" stroke="currentColor" />
+      <BallHead cx={48} cy={29} r={10.5} accent={accent} />
+      <path d="M34 62l10-10 9 7 13-18" stroke={accent} />
+      <circle cx="44" cy="52" r="3" fill={accentSoft} stroke={accent} />
+      <circle cx="53" cy="59" r="3" fill={accentSoft} stroke={accent} />
+      <path d="M34 67h31M59 63v-9M67 63V44" stroke={muted} />
     </>,
   )
 }

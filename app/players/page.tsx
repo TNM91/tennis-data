@@ -7,11 +7,10 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
-import { getClientAuthState } from '@/lib/auth'
-import { type UserRole } from '@/lib/roles'
+import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
+import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -76,8 +75,6 @@ type PlayerCard = PlayerRow & {
 const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE || null
 
 export default function PlayersPage() {
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [linkedPlayerId, setLinkedPlayerId] = useState('')
   const [players, setPlayers] = useState<PlayerCard[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,7 +87,8 @@ export default function PlayersPage() {
   const [searchFocused, setSearchFocused] = useState(false)
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
-  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const { access, user } = useProductAccess()
+  const shouldShowAds = shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadPlayers()
@@ -98,30 +96,30 @@ export default function PlayersPage() {
 
   useEffect(() => {
     let active = true
+    const userId = user?.id || null
 
-    async function loadAuth() {
+    async function loadProfileLink() {
+      if (!userId) {
+        setLinkedPlayerId('')
+        return
+      }
+
       try {
-        const authState = await getClientAuthState()
-        if (!active) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-        const profileResult = await loadUserProfileLink(authState.user?.id)
+        const profileResult = await loadUserProfileLink(userId)
         if (!active) return
         setLinkedPlayerId(profileResult.data?.linked_player_id || '')
       } catch {
         if (!active) return
-        setRole('public')
-        setEntitlements(null)
         setLinkedPlayerId('')
       }
     }
 
-    void loadAuth()
+    void loadProfileLink()
 
     return () => {
       active = false
     }
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
@@ -557,36 +555,42 @@ export default function PlayersPage() {
                 <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={() => setFilterBy('with-matches')}
                     style={{
                       ...quickFilterButton,
+                      ...(loading ? quickFilterButtonDisabled : null),
                       ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
                     }}
                   >
                     <span>Match data</span>
-                    <strong>{playersWithMatches}</strong>
+                    <strong>{loading ? '-' : playersWithMatches}</strong>
                   </button>
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={() => setFilterBy('trending-up')}
                     style={{
                       ...quickFilterButton,
+                      ...(loading ? quickFilterButtonDisabled : null),
                       ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
                     }}
                   >
                     <span>Trending</span>
-                    <strong>{trendingPlayers}</strong>
+                    <strong>{loading ? '-' : trendingPlayers}</strong>
                   </button>
                   <button
                     type="button"
+                    disabled={loading}
                     onClick={() => setFilterBy('high-rated')}
                     style={{
                       ...quickFilterButton,
+                      ...(loading ? quickFilterButtonDisabled : null),
                       ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
                     }}
                   >
                     <span>4.0+</span>
-                    <strong>{highRatedPlayers}</strong>
+                    <strong>{loading ? '-' : highRatedPlayers}</strong>
                   </button>
                 </div>
                 {hasActiveFilters ? (
@@ -611,8 +615,8 @@ export default function PlayersPage() {
                 <div style={summaryTitle}>Directory</div>
 
                 <div style={dynamicHeroStatsGrid}>
-                  <StatChip label="Players" value={String(players.length)} />
-                  <StatChip label="Showing" value={String(filteredPlayers.length)} accent />
+                  <StatChip label="Players" value={loading ? '-' : String(players.length)} />
+                  <StatChip label="Showing" value={loading ? '-' : String(filteredPlayers.length)} accent />
                 </div>
 
                 <div style={summaryFooterWrap}>
@@ -720,6 +724,23 @@ export default function PlayersPage() {
                   </Link>
                   <div style={playerLocation}>{player.location || 'Location not set'}</div>
 
+                  <div style={playerScorecard}>
+                    <div style={playerScorePrimary}>
+                      <span style={scoreLabel}>TIQ overall</span>
+                      <strong style={scoreValue}>{formatRating(getRating(player, 'overall'))}</strong>
+                    </div>
+                    <div style={playerScoreMiniGrid}>
+                      <div style={scoreMini}>
+                        <span style={scoreMiniLabel}>USTA</span>
+                        <strong style={scoreMiniValue}>{player.baseOverall.toFixed(2)}</strong>
+                      </div>
+                      <div style={scoreMini}>
+                        <span style={scoreMiniLabel}>Confidence</span>
+                        <strong style={scoreMiniValue}>{player.confidence}</strong>
+                      </div>
+                    </div>
+                  </div>
+
                   <div style={followButtonWrap}>
                     <FollowButton
                       entityType="player"
@@ -757,12 +778,6 @@ export default function PlayersPage() {
                     <span style={signalConfidencePill}>{player.confidence}</span>
                   </div>
 
-                  <div style={dynamicRatingRow}>
-                    <RatingPill label="TIQ Overall" value={getRating(player, 'overall')} accent />
-                    <RatingPill label="TIQ Singles" value={getRating(player, 'singles')} />
-                    <RatingPill label="TIQ Doubles" value={getRating(player, 'doubles')} />
-                  </div>
-
                   <div style={deltaRow}>
                     <div style={deltaStat}>
                       <span style={deltaLabel}>USTA</span>
@@ -778,11 +793,19 @@ export default function PlayersPage() {
                   </div>
 
                   <div style={playerCardFooter}>
-                    <Link href={`/players/${player.id}`} style={profileLinkText}>
-                      Open profile
+                    <Link
+                      href={`/players/${player.id}`}
+                      aria-label={`View ${player.name} profile`}
+                      style={profileLinkText}
+                    >
+                      View profile
                     </Link>
-                    <Link href={compareHref} style={compareLinkText}>
-                      {canCompareAgainstMe ? 'Compare vs me' : 'Open Matchup'}
+                    <Link
+                      href={compareHref}
+                      aria-label={canCompareAgainstMe ? `Compare ${player.name} against me` : `Open Matchup for ${player.name}`}
+                      style={compareLinkText}
+                    >
+                      {canCompareAgainstMe ? 'Compare vs me' : 'Compare'}
                     </Link>
                     <span style={arrowText}>→</span>
                   </div>
@@ -792,9 +815,11 @@ export default function PlayersPage() {
           </div>
         )}
       </section>
-      <div style={{ marginTop: 12 }}>
-        <AdsenseSlot slot={PLAYERS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
-      </div>
+      {shouldShowAds ? (
+        <div style={{ marginTop: 12 }}>
+          <AdsenseSlot slot={PLAYERS_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+        </div>
+      ) : null}
     </SiteShell>
   )
 }
@@ -920,57 +945,57 @@ function getTrendShortLabel(direction: TrendDirection) {
 }
 
 function getTrendIcon(direction: TrendDirection) {
-  if (direction === 'up') return '▲'
-  if (direction === 'down') return '▼'
-  return '→'
+  if (direction === 'up') return '^'
+  if (direction === 'down') return 'v'
+  return '->'
 }
 
 function getMeterTheme(status: RatingStatus) {
   switch (status) {
     case 'Bump Up Pace':
       return {
-        pillBackground: 'rgba(155,225,29,0.16)',
-        pillColor: '#d9f84a',
-        pillBorder: 'rgba(155,225,29,0.28)',
-        trendBackground: 'rgba(46, 204, 113, 0.12)',
-        trendColor: '#bef264',
-        trendBorder: 'rgba(132, 204, 22, 0.24)',
+        pillBackground: 'color-mix(in srgb, var(--brand-lime) 18%, var(--shell-chip-bg) 82%)',
+        pillColor: 'var(--foreground-strong)',
+        pillBorder: 'color-mix(in srgb, var(--brand-lime) 34%, var(--shell-panel-border) 66%)',
+        trendBackground: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+        trendColor: 'var(--foreground-strong)',
+        trendBorder: 'color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
       }
     case 'Trending Up':
       return {
-        pillBackground: 'rgba(52,211,153,0.14)',
-        pillColor: '#a7f3d0',
-        pillBorder: 'rgba(52,211,153,0.24)',
-        trendBackground: 'rgba(52,211,153,0.10)',
-        trendColor: '#a7f3d0',
-        trendBorder: 'rgba(52,211,153,0.22)',
+        pillBackground: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
+        pillColor: 'var(--foreground-strong)',
+        pillBorder: 'color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+        trendBackground: 'color-mix(in srgb, var(--brand-lime) 12%, var(--shell-chip-bg) 88%)',
+        trendColor: 'var(--foreground-strong)',
+        trendBorder: 'color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
       }
     case 'Holding':
       return {
-        pillBackground: 'rgba(63,167,255,0.12)',
-        pillColor: '#bfdbfe',
-        pillBorder: 'rgba(63,167,255,0.22)',
-        trendBackground: 'rgba(96,165,250,0.10)',
-        trendColor: '#dbeafe',
-        trendBorder: 'rgba(96,165,250,0.20)',
+        pillBackground: 'color-mix(in srgb, #60a5fa 14%, var(--shell-chip-bg) 86%)',
+        pillColor: 'var(--foreground-strong)',
+        pillBorder: 'color-mix(in srgb, #60a5fa 30%, var(--shell-panel-border) 70%)',
+        trendBackground: 'color-mix(in srgb, #60a5fa 10%, var(--shell-chip-bg) 90%)',
+        trendColor: 'var(--foreground-strong)',
+        trendBorder: 'color-mix(in srgb, #60a5fa 24%, var(--shell-panel-border) 76%)',
       }
     case 'At Risk':
       return {
-        pillBackground: 'rgba(251,146,60,0.14)',
-        pillColor: '#fed7aa',
-        pillBorder: 'rgba(251,146,60,0.24)',
-        trendBackground: 'rgba(245,158,11,0.10)',
-        trendColor: '#fde68a',
-        trendBorder: 'rgba(245,158,11,0.22)',
+        pillBackground: 'color-mix(in srgb, #fb923c 16%, var(--shell-chip-bg) 84%)',
+        pillColor: 'var(--foreground-strong)',
+        pillBorder: 'color-mix(in srgb, #fb923c 30%, var(--shell-panel-border) 70%)',
+        trendBackground: 'color-mix(in srgb, #fb923c 12%, var(--shell-chip-bg) 88%)',
+        trendColor: 'var(--foreground-strong)',
+        trendBorder: 'color-mix(in srgb, #fb923c 26%, var(--shell-panel-border) 74%)',
       }
     case 'Drop Watch':
       return {
-        pillBackground: 'rgba(239,68,68,0.14)',
-        pillColor: '#fecaca',
-        pillBorder: 'rgba(239,68,68,0.24)',
-        trendBackground: 'rgba(239,68,68,0.10)',
-        trendColor: '#fecaca',
-        trendBorder: 'rgba(239,68,68,0.22)',
+        pillBackground: 'color-mix(in srgb, #ef4444 15%, var(--shell-chip-bg) 85%)',
+        pillColor: 'var(--foreground-strong)',
+        pillBorder: 'color-mix(in srgb, #ef4444 30%, var(--shell-panel-border) 70%)',
+        trendBackground: 'color-mix(in srgb, #ef4444 11%, var(--shell-chip-bg) 89%)',
+        trendColor: 'var(--foreground-strong)',
+        trendBorder: 'color-mix(in srgb, #ef4444 26%, var(--shell-panel-border) 74%)',
       }
   }
 }
@@ -1184,6 +1209,11 @@ const quickFilterButtonActive: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
   background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
   color: 'var(--foreground-strong)',
+}
+
+const quickFilterButtonDisabled: CSSProperties = {
+  opacity: 0.62,
+  cursor: 'wait',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -1531,6 +1561,76 @@ const playerLocation: CSSProperties = {
   marginBottom: '16px',
 }
 
+const playerScorecard: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gap: '10px',
+  marginBottom: '16px',
+}
+
+const playerScorePrimary: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '6px',
+  minHeight: '96px',
+  borderRadius: '20px',
+  padding: '14px',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 18%, var(--shell-chip-bg) 82%), var(--shell-chip-bg))',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const scoreLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const scoreValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '34px',
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '-0.05em',
+}
+
+const playerScoreMiniGrid: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const scoreMini: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  minHeight: '43px',
+  borderRadius: '16px',
+  padding: '0 12px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const scoreMiniLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+const scoreMiniValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  textAlign: 'right',
+}
+
 const ratingRow: CSSProperties = {
   position: 'relative',
   display: 'grid',
@@ -1672,9 +1772,9 @@ const signalConfidencePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.08)',
-  color: '#e2efff',
-  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '11px',
   fontWeight: 800,
 }
@@ -1691,14 +1791,14 @@ const deltaRow: CSSProperties = {
 const deltaStat: CSSProperties = {
   borderRadius: '16px',
   padding: '10px 12px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const deltaLabel: CSSProperties = {
   display: 'block',
-  color: 'rgba(224,234,247,0.68)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 700,
   marginBottom: '6px',
@@ -1708,7 +1808,7 @@ const deltaLabel: CSSProperties = {
 
 const deltaValue: CSSProperties = {
   display: 'block',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 900,
   letterSpacing: '-0.03em',

@@ -14,13 +14,37 @@ import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+
+const SETUP_STEPS: {
+  title: string
+  text: string
+  icon: TiqFeatureIconName
+}[] = [
+  {
+    title: 'Explore free',
+    text: 'Search players, teams, leagues, and rankings first.',
+    icon: 'opponentScouting',
+  },
+  {
+    title: 'Connect your player',
+    text: 'Player and higher tiers set identity once.',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Open your lab',
+    text: 'My Lab and Matchup start around your game.',
+    icon: 'myLab',
+  },
+]
 
 function getDefaultSignedInRoute(
   role: UserRole,
   entitlements?: ProductEntitlementSnapshot | null,
 ) {
   const access = buildProductAccessState(role, entitlements)
+  if (access.canUseAdvancedPlayerInsights) return '/profile'
   if (access.canUseLeagueTools) return '/captain/season-dashboard'
   if (access.canUseCaptainWorkflow) return '/captain'
   return '/mylab'
@@ -118,7 +142,7 @@ export default function JoinPage() {
 
       if (error) throw new Error(error.message)
 
-      setMessage('Account created. Sign in to open your TenAceIQ workspace.')
+      setMessage('Account created. Sign in, then connect your player identity when you upgrade.')
       setTimeout(() => {
         router.push('/login')
       }, 1000)
@@ -182,16 +206,16 @@ export default function JoinPage() {
           {isMobile ? (
             <div style={mobilePromiseBar}>
               <span style={mobilePromiseChip}>Explore</span>
-              <span style={mobilePromiseChip}>Personalize</span>
-              <span style={mobilePromiseChip}>Collaborate</span>
+              <span style={mobilePromiseChip}>Connect</span>
+              <span style={mobilePromiseChip}>Play smarter</span>
             </div>
           ) : (
             <div style={joinPromisePanel}>
-              <div style={promiseLabel}>Why join</div>
+              <div style={promiseLabel}>Simple setup</div>
               <div style={promiseStack}>
-                <JoinPromiseStep number="1" title="Explore" text="Players, teams, leagues, rankings." />
-                <JoinPromiseStep number="2" title="Personalize" text="Profile, follows, My Lab, matchups." />
-                <JoinPromiseStep number="3" title="Collaborate" text="Captain messages, lineups, league results." />
+                {SETUP_STEPS.map((step) => (
+                  <JoinPromiseStep key={step.title} icon={step.icon} title={step.title} text={step.text} />
+                ))}
               </div>
             </div>
           )}
@@ -211,6 +235,10 @@ export default function JoinPage() {
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
               <div style={formLabel}>New member setup</div>
               <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
+              <div style={identityCueStyle}>
+                <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
+                <span>After upgrade, profile setup connects your player record before My Lab opens around you.</span>
+              </div>
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -341,10 +369,10 @@ export default function JoinPage() {
   )
 }
 
-function JoinPromiseStep({ number, title, text }: { number: string; title: string; text: string }) {
+function JoinPromiseStep({ icon, title, text }: { icon: TiqFeatureIconName; title: string; text: string }) {
   return (
     <div style={promiseStep}>
-      <div style={promiseNumber}>{number}</div>
+      <TiqFeatureIcon name={icon} size="sm" variant="ghost" />
       <div>
         <div style={promiseTitle}>{title}</div>
         <div style={promiseText}>{text}</div>
@@ -487,25 +515,13 @@ const promiseStack: CSSProperties = {
 
 const promiseStep: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '38px minmax(0, 1fr)',
+  gridTemplateColumns: '42px minmax(0, 1fr)',
   gap: '12px',
-  alignItems: 'start',
+  alignItems: 'center',
   borderRadius: '18px',
   padding: '14px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
-}
-
-const promiseNumber: CSSProperties = {
-  width: '34px',
-  height: '34px',
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: '12px',
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  color: '#08111d',
-  fontSize: '13px',
-  fontWeight: 900,
 }
 
 const promiseTitle: CSSProperties = {
@@ -648,6 +664,21 @@ const formTitle: CSSProperties = {
 const formTitleMobile: CSSProperties = {
   ...formTitle,
   fontSize: '24px',
+}
+
+const identityCueStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '36px minmax(0, 1fr)',
+  gap: '10px',
+  alignItems: 'center',
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 800,
+  lineHeight: 1.4,
 }
 
 const inputLabel: CSSProperties = {
