@@ -13,6 +13,8 @@ import { type UserRole } from '@/lib/roles'
 import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { loadUserProfileLink } from '@/lib/user-profile'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
@@ -76,6 +78,7 @@ const PLAYERS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLI
 export default function PlayersPage() {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  const [linkedPlayerId, setLinkedPlayerId] = useState('')
   const [players, setPlayers] = useState<PlayerCard[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -102,10 +105,14 @@ export default function PlayersPage() {
         if (!active) return
         setRole(authState.role)
         setEntitlements(authState.entitlements)
+        const profileResult = await loadUserProfileLink(authState.user?.id)
+        if (!active) return
+        setLinkedPlayerId(profileResult.data?.linked_player_id || '')
       } catch {
         if (!active) return
         setRole('public')
         setEntitlements(null)
+        setLinkedPlayerId('')
       }
     }
 
@@ -310,6 +317,12 @@ export default function PlayersPage() {
     return next
   }, [filterBy, flightFilter, players, search, sortBy])
   const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
+  const playersWithMatches = useMemo(() => players.filter((player) => player.matches > 0).length, [players])
+  const trendingPlayers = useMemo(
+    () => players.filter((player) => player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace').length,
+    [players],
+  )
+  const highRatedPlayers = useMemo(() => players.filter((player) => getRating(player, 'overall') >= 4).length, [players])
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -420,6 +433,11 @@ export default function PlayersPage() {
 
   const dynamicRatingRow: CSSProperties = {
     ...ratingRow,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicQuickFilterGrid: CSSProperties = {
+    ...quickFilterGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
   }
 
@@ -536,6 +554,41 @@ export default function PlayersPage() {
                 <div id="players-directory-helper" style={controlsHelperText}>
                   Start with a name. Use filters only when the list is too wide.
                 </div>
+                <div style={dynamicQuickFilterGrid} aria-label="Quick player filters">
+                  <button
+                    type="button"
+                    onClick={() => setFilterBy('with-matches')}
+                    style={{
+                      ...quickFilterButton,
+                      ...(filterBy === 'with-matches' ? quickFilterButtonActive : null),
+                    }}
+                  >
+                    <span>Match data</span>
+                    <strong>{playersWithMatches}</strong>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterBy('trending-up')}
+                    style={{
+                      ...quickFilterButton,
+                      ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
+                    }}
+                  >
+                    <span>Trending</span>
+                    <strong>{trendingPlayers}</strong>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterBy('high-rated')}
+                    style={{
+                      ...quickFilterButton,
+                      ...(filterBy === 'high-rated' ? quickFilterButtonActive : null),
+                    }}
+                  >
+                    <span>4.0+</span>
+                    <strong>{highRatedPlayers}</strong>
+                  </button>
+                </div>
                 {hasActiveFilters ? (
                   <div style={controlsActionRow}>
                     <button
@@ -559,7 +612,7 @@ export default function PlayersPage() {
 
                 <div style={dynamicHeroStatsGrid}>
                   <StatChip label="Players" value={String(players.length)} />
-                  <StatChip label="Showing" value={String(filteredPlayers.length)} />
+                  <StatChip label="Showing" value={String(filteredPlayers.length)} accent />
                 </div>
 
                 <div style={summaryFooterWrap}>
@@ -639,11 +692,12 @@ export default function PlayersPage() {
             {filteredPlayers.map((player) => {
               const isHovered = hoveredCard === player.id
               const theme = getMeterTheme(player.overallStatus)
+              const compareHref = buildCompareHref(linkedPlayerId, player.id)
+              const canCompareAgainstMe = Boolean(access.canUseAdvancedPlayerInsights && linkedPlayerId && linkedPlayerId !== player.id)
 
               return (
-                <Link
+                <article
                   key={player.id}
-                  href={`/players/${player.id}`}
                   style={{
                     ...playerCard,
                     ...(isHovered ? playerCardHover : {}),
@@ -654,18 +708,19 @@ export default function PlayersPage() {
                   <div style={cardAccentGlow} />
 
                   <div style={playerCardTopRow}>
-                    <div style={miniKicker}>Player</div>
+                    <div style={miniKicker}>
+                      <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+                      <span>Player</span>
+                    </div>
                     <div style={matchCountPill}>{player.matches} matches</div>
                   </div>
 
-                  <div style={playerName}>{player.name}</div>
+                  <Link href={`/players/${player.id}`} style={playerNameLink}>
+                    {player.name}
+                  </Link>
                   <div style={playerLocation}>{player.location || 'Location not set'}</div>
 
-                  <div
-                    style={followButtonWrap}
-                    onClick={(event) => event.preventDefault()}
-                    onMouseDown={(event) => event.stopPropagation()}
-                  >
+                  <div style={followButtonWrap}>
                     <FollowButton
                       entityType="player"
                       entityId={player.id}
@@ -723,10 +778,15 @@ export default function PlayersPage() {
                   </div>
 
                   <div style={playerCardFooter}>
-                    <span style={profileLinkText}>Open full profile</span>
+                    <Link href={`/players/${player.id}`} style={profileLinkText}>
+                      Open profile
+                    </Link>
+                    <Link href={compareHref} style={compareLinkText}>
+                      {canCompareAgainstMe ? 'Compare vs me' : 'Open Matchup'}
+                    </Link>
                     <span style={arrowText}>→</span>
                   </div>
-                </Link>
+                </article>
               )
             })}
           </div>
@@ -790,6 +850,17 @@ function SearchIcon() {
       <path d="M16 16l3.5 3.5" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
     </svg>
   )
+}
+
+function buildCompareHref(linkedPlayerId: string, scoutPlayerId: string) {
+  const params = new URLSearchParams({ type: 'singles' })
+  if (linkedPlayerId && linkedPlayerId !== scoutPlayerId) {
+    params.set('playerA', linkedPlayerId)
+    params.set('playerB', scoutPlayerId)
+  } else {
+    params.set('playerB', scoutPlayerId)
+  }
+  return `/matchup?${params.toString()}`
 }
 
 function getRating(player: PlayerRow, view: Exclude<SortKey, 'name'>) {
@@ -1086,6 +1157,33 @@ const controlsActionRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '12px',
+}
+
+const quickFilterGrid: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  marginTop: '12px',
+}
+
+const quickFilterButton: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  minHeight: '48px',
+  padding: '0 12px',
+  borderRadius: '16px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const quickFilterButtonActive: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -1386,6 +1484,9 @@ const playerCardTopRow: CSSProperties = {
 }
 
 const miniKicker: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
   color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
@@ -1414,6 +1515,12 @@ const playerName: CSSProperties = {
   letterSpacing: '-0.04em',
   lineHeight: 1.05,
   marginBottom: '8px',
+}
+
+const playerNameLink: CSSProperties = {
+  ...playerName,
+  display: 'block',
+  textDecoration: 'none',
 }
 
 const playerLocation: CSSProperties = {
@@ -1464,7 +1571,7 @@ const playerCardFooter: CSSProperties = {
   marginTop: '18px',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
+  flexWrap: 'wrap',
   color: '#dfe9fb',
   gap: '12px',
 }
@@ -1484,7 +1591,7 @@ const profileLinkText: CSSProperties = {
 }
 
 const arrowText: CSSProperties = {
-  display: 'inline-flex',
+  display: 'none',
   alignItems: 'center',
   justifyContent: 'center',
   width: '40px',
@@ -1495,6 +1602,20 @@ const arrowText: CSSProperties = {
   color: '#9df0bf',
   fontWeight: 900,
   fontSize: '18px',
+}
+
+const compareLinkText: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  fontWeight: 900,
+  fontSize: '13px',
+  textDecoration: 'none',
 }
 
 const iconSvgStyle: CSSProperties = {

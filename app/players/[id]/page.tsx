@@ -933,6 +933,15 @@ export default function PlayerProfilePage() {
         : 'repeat(4, minmax(0, 1fr))',
   }
 
+  const dynamicGlanceGrid: CSSProperties = {
+    ...glanceGridStyle,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isMobile
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(4, minmax(0, 1fr))',
+  }
+
   const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
     gridTemplateColumns: '1fr',
@@ -1300,7 +1309,58 @@ export default function PlayerProfilePage() {
           </article>
         ) : null}
 
-        <div style={dynamicStatsGrid}>
+        <article style={glancePanelStyle}>
+          <div style={panelHead}>
+            <div>
+              <div style={sectionKicker}>At a glance</div>
+              <h2 style={panelTitle}>Player scorecard</h2>
+            </div>
+            <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
+          </div>
+          <div style={dynamicGlanceGrid}>
+            <article style={{ ...glanceCardStyle, ...glanceCardAccentStyle }}>
+              <div style={glanceLabelStyle}>TIQ {ratingViewLabel}</div>
+              <div style={glanceValueStyle}>{selectedDynamicRating.toFixed(2)}</div>
+              <div style={glanceNoteStyle}>USTA {baseRating.toFixed(2)} baseline</div>
+            </article>
+            <article style={glanceCardStyle}>
+              <div style={glanceLabelStyle}>Record</div>
+              <div style={glanceValueStyle}>{wins}-{losses}</div>
+              <div style={glanceNoteStyle}>{winPct}% win rate</div>
+            </article>
+            <article style={glanceCardStyle}>
+              <div style={glanceLabelStyle}>Singles / Doubles</div>
+              <div style={glanceValueStyle}>
+                {singlesRecord.total > 0 ? `${singlesRecord.w}-${singlesRecord.l}` : '-'} / {doublesRecord.total > 0 ? `${doublesRecord.w}-${doublesRecord.l}` : '-'}
+              </div>
+              <div style={glanceNoteStyle}>Split by match type</div>
+            </article>
+            <article style={glanceCardStyle}>
+              <div style={glanceLabelStyle}>Form</div>
+              <div
+                style={{
+                  ...glanceValueStyle,
+                  color:
+                    formScore !== null
+                      ? formScore >= 0
+                        ? 'var(--brand-green)'
+                        : '#f87171'
+                      : 'var(--foreground-strong)',
+                }}
+              >
+                {formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : '-'}
+              </div>
+              <div style={glanceNoteStyle}>Last 5 rating moves</div>
+            </article>
+          </div>
+        </article>
+
+        <details style={advancedStatsDetailsStyle}>
+          <summary style={advancedStatsSummaryStyle}>
+            <span>More stats</span>
+            <strong>{totalMatches} tracked matches</strong>
+          </summary>
+          <div style={dynamicStatsGrid}>
           <article style={{ ...statCard, ...statCardAccentGreen }}>
             <div style={statLabel}>TIQ {ratingViewLabel}</div>
             <div style={statValue}>{selectedDynamicRating.toFixed(2)}</div>
@@ -1501,7 +1561,8 @@ export default function PlayerProfilePage() {
               ) : null}
             </>
           ) : null}
-        </div>
+          </div>
+        </details>
 
         {(careerHighs.peakRating !== null || careerHighs.longestStreak > 0 || careerHighs.bestSeason) ? (
           <article style={panelCard}>
@@ -3233,6 +3294,79 @@ const statsGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
   marginBottom: '26px',
+}
+
+const glancePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  marginBottom: '16px',
+  padding: '20px',
+  borderRadius: '28px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const glanceGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const glanceCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '126px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const glanceCardAccentStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+}
+
+const glanceLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const glanceValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.85rem, 3vw, 2.55rem)',
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const glanceNoteStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.45,
+  fontWeight: 700,
+}
+
+const advancedStatsDetailsStyle: CSSProperties = {
+  marginBottom: '18px',
+}
+
+const advancedStatsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  minHeight: '54px',
+  padding: '0 18px',
+  marginBottom: '14px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  cursor: 'pointer',
 }
 
 const statCard: CSSProperties = {
