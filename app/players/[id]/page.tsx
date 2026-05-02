@@ -9,6 +9,7 @@ import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { getClientAuthState } from '@/lib/auth'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import {
   formatRatingValue,
@@ -25,6 +26,7 @@ import {
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { loadUserProfileLink } from '@/lib/user-profile'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
@@ -151,6 +153,8 @@ export default function PlayerProfilePage() {
   const [error, setError] = useState('')
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [chartWindow, setChartWindow] = useState<'all' | '90d' | '30d'>('all')
   const [historyMode, setHistoryMode] = useState<'chart' | 'table'>('chart')
@@ -169,12 +173,32 @@ export default function PlayerProfilePage() {
       if (!active) return
       setRole(authState.role)
       setEntitlements(authState.entitlements)
+      setCurrentUserId(authState.user?.id || null)
     })()
 
     return () => {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setLinkedPlayerId(null)
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      const result = await loadUserProfileLink(currentUserId)
+      if (!active) return
+      setLinkedPlayerId(result.data?.linked_player_id || null)
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [currentUserId])
 
   useEffect(() => {
     const tiq = player?.overall_dynamic_rating
@@ -746,7 +770,14 @@ export default function PlayerProfilePage() {
     })
   }, [matches, rosterMemberships])
 
-  const matchupHref = `/matchup?playerA=${encodeURIComponent(playerId)}`
+  const isOwnProfile = linkedPlayerId === playerId
+  const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
+    ? `/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayerId)}&playerB=${encodeURIComponent(playerId)}`
+    : `/matchup?type=singles&playerA=${encodeURIComponent(playerId)}`
+  const primaryActionHref = isOwnProfile ? '/mylab' : matchupHref
+  const primaryActionLabel = isOwnProfile ? 'Open My Lab' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
+  const secondaryActionHref = isOwnProfile ? '/matchup?type=singles' : '/mylab'
+  const secondaryActionLabel = isOwnProfile ? 'Find a matchup' : 'Open My Lab'
   const primaryUstaMembership = ustaTeamMemberships[0] ?? null
   const primaryTeamHref = primaryUstaMembership
     ? `/teams/${encodeURIComponent(primaryUstaMembership.teamName)}?layer=usta${primaryUstaMembership.leagueName ? `&league=${encodeURIComponent(primaryUstaMembership.leagueName)}` : ''}${primaryUstaMembership.flight ? `&flight=${encodeURIComponent(primaryUstaMembership.flight)}` : ''}`
@@ -872,6 +903,7 @@ export default function PlayerProfilePage() {
 
   const dynamicRightColumn: CSSProperties = {
     ...heroRight,
+    display: isMobile ? 'none' : 'grid',
     position: isTablet ? 'relative' : 'sticky',
     top: isTablet ? 'auto' : '24px',
   }
@@ -991,7 +1023,8 @@ export default function PlayerProfilePage() {
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <BreadcrumbLink href="/players" label="Back to players" />
-              <div style={eyebrow}>Player profile preview</div>
+              <TiqFeatureIcon name="playerRatings" size="lg" variant="surface" />
+              <div style={eyebrow}>{isOwnProfile ? 'Your player scorecard' : 'Player scorecard'}</div>
 
               <h1 style={dynamicHeroTitle}>{player.name}</h1>
 
@@ -1004,8 +1037,8 @@ export default function PlayerProfilePage() {
                   entityName={player.name}
                   subtitle={player.location || ''}
                 />
-                <MiniLink href={matchupHref}>Open Matchup</MiniLink>
-                <MiniLink href="/mylab">Open My Lab</MiniLink>
+                <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
+                <MiniLink href={secondaryActionHref}>{secondaryActionLabel}</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>
               </div>
 
@@ -1170,29 +1203,52 @@ export default function PlayerProfilePage() {
       </section>
 
       <section style={contentWrap}>
-        <article
-          style={{
-            display: 'grid',
-            gap: 14,
-            marginBottom: 18,
-            padding: 24,
-            borderRadius: 26,
-            background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
-            border: '1px solid rgba(116,190,255,0.14)',
-            boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
-          }}
-        >
-          <div style={sectionKicker}>Profile context</div>
-          <h2 style={sectionTitle}>Know the player before the match starts.</h2>
-          <p style={sectionText}>
-            See public ratings, roster teams, recent form, and the prep tools that help you decide
-            how to play them. Use USTA teams for official context and TIQ leagues for TenAceIQ play.
-          </p>
-          <div style={dynamicFollowRow}>
-            <MiniLink href={matchupHref}>Open Matchup</MiniLink>
-            <MiniLink href="/rankings">Compare on rankings</MiniLink>
-            <MiniLink href="/mylab">Use My Lab</MiniLink>
-            <MiniLink href="/advertising-disclosure">Advertising disclosure</MiniLink>
+        <article style={scorecardPanelStyle}>
+          <div style={scorecardMainStyle}>
+            <div style={scorecardHeaderStyle}>
+              <TiqFeatureIcon name={isOwnProfile ? 'myLab' : 'opponentScouting'} size="md" variant="surface" />
+              <div>
+                <div style={sectionKicker}>{isOwnProfile ? 'Your read' : 'Quick read'}</div>
+                <h2 style={scorecardTitleStyle}>
+                  {isOwnProfile ? 'Your scorecard is ready.' : 'Scout, compare, then play.'}
+                </h2>
+              </div>
+            </div>
+
+            <div style={scorecardMetricGridStyle}>
+              <div style={scorecardMetricStyle}>
+                <span style={scorecardMetricLabelStyle}>TIQ {ratingViewLabel}</span>
+                <strong style={scorecardMetricValueStyle}>{selectedDynamicRating.toFixed(2)}</strong>
+              </div>
+              <div style={scorecardMetricStyle}>
+                <span style={scorecardMetricLabelStyle}>Record</span>
+                <strong style={scorecardMetricValueStyle}>{wins}-{losses}</strong>
+              </div>
+              <div style={scorecardMetricStyle}>
+                <span style={scorecardMetricLabelStyle}>Win rate</span>
+                <strong style={scorecardMetricValueStyle}>{winPct}%</strong>
+              </div>
+              <div style={scorecardMetricStyle}>
+                <span style={scorecardMetricLabelStyle}>Trend</span>
+                <strong style={scorecardMetricValueStyle}>{getTrendShortLabel(trendDirection)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div style={scorecardActionRailStyle}>
+            <div style={scorecardRailLabelStyle}>Next move</div>
+            <div style={scorecardRailValueStyle}>{primaryActionLabel}</div>
+            <p style={scorecardRailTextStyle}>
+              {isOwnProfile
+                ? 'Use My Lab for your goals, matches, follows, and matchup shortcuts.'
+                : linkedPlayerId
+                  ? 'Your profile is loaded, so this opens a direct player-to-player comparison.'
+                  : 'Start a matchup from this player, then choose the other side.'}
+            </p>
+            <div style={dynamicFollowRow}>
+              <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
+              <MiniLink href="/rankings">Rankings</MiniLink>
+            </div>
           </div>
         </article>
 
@@ -2153,8 +2209,13 @@ function MiniLink({ href, children }: { href: string; children: React.ReactNode 
       onMouseLeave={() => setHovered(false)}
       style={{
         ...secondaryMiniLink,
-        background: hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
-        borderColor: hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+        background: hovered
+          ? 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)'
+          : 'var(--shell-chip-bg)',
+        borderColor: hovered
+          ? 'color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)'
+          : 'var(--shell-panel-border)',
+        color: 'var(--foreground-strong)',
         transform: hovered ? 'translateY(-1px)' : 'none',
         transition: 'all 140ms ease',
       }}
@@ -2174,8 +2235,13 @@ function MiniButton({ onClick, children }: { onClick: () => void; children: Reac
       onMouseLeave={() => setHovered(false)}
       style={{
         ...secondaryMiniButton,
-        background: hovered ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
-        borderColor: hovered ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.10)',
+        background: hovered
+          ? 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)'
+          : 'var(--shell-chip-bg)',
+        borderColor: hovered
+          ? 'color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)'
+          : 'var(--shell-panel-border)',
+        color: 'var(--foreground-strong)',
         transform: hovered ? 'translateY(-1px)' : 'none',
         transition: 'all 140ms ease',
       }}
@@ -2194,7 +2260,7 @@ function BreadcrumbLink({ href, label }: { href: string; label: string }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         ...breadcrumbLink,
-        color: hovered ? 'rgba(190,210,240,0.92)' : 'rgba(190,210,240,0.60)',
+        color: hovered ? 'var(--foreground-strong)' : 'var(--shell-copy-muted)',
         transform: hovered ? 'translateX(-2px)' : 'none',
         transition: 'color 140ms ease, transform 140ms ease',
       }}
@@ -3254,6 +3320,113 @@ const contentWrap: CSSProperties = {
   maxWidth: '1240px',
   margin: '0 auto',
   padding: '32px 18px 10px',
+}
+
+const scorecardPanelStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: '14px',
+  marginBottom: '18px',
+  padding: '18px',
+  borderRadius: '28px',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%) 0%, color-mix(in srgb, var(--shell-panel-bg) 86%, var(--brand-green) 14%) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const scorecardMainStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  minWidth: 0,
+}
+
+const scorecardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const scorecardTitleStyle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: '-0.04em',
+}
+
+const scorecardMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+  gap: '10px',
+}
+
+const scorecardMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  minHeight: '92px',
+  padding: '14px 16px',
+  borderRadius: '20px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const scorecardMetricLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const scorecardMetricValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.7rem, 3vw, 2.45rem)',
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '-0.05em',
+  textTransform: 'none',
+}
+
+const scorecardActionRailStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: '10px',
+  minWidth: 0,
+  padding: '18px',
+  borderRadius: '24px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-green) 12%)',
+}
+
+const scorecardRailLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const scorecardRailValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '24px',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: '-0.04em',
+}
+
+const scorecardRailTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 650,
 }
 
 const contentGrid: CSSProperties = {

@@ -1241,20 +1241,20 @@ export default function MatchupPage() {
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isMobile ? '24px 18px 20px' : '28px 28px 22px',
+    padding: isMobile ? '18px 18px 16px' : '24px 28px 20px',
   }
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
-    gap: isMobile ? '18px' : '22px',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(280px, 0.8fr)',
+    gap: isMobile ? '14px' : '20px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '44px' : '54px',
-    lineHeight: isMobile ? 1.04 : 0.98,
-    maxWidth: '560px',
+    fontSize: isSmallMobile ? '32px' : isMobile ? '40px' : '48px',
+    lineHeight: isMobile ? 1.05 : 1,
+    maxWidth: '620px',
   }
 
   const dynamicHeroText: CSSProperties = {
@@ -1265,6 +1265,7 @@ export default function MatchupPage() {
 
   const dynamicEngineCard: CSSProperties = {
     ...engineCard,
+    display: isMobile ? 'none' : 'block',
     position: isTablet ? 'relative' : 'sticky',
     top: isTablet ? 'auto' : '24px',
   }
@@ -1336,16 +1337,8 @@ export default function MatchupPage() {
               </p>
 
               <div style={heroHintRow}>
-                {MATCHUP_STORY.proof.map((item) => (
-                  <span key={item} style={heroHintPill}>{item}</span>
-                ))}
                 <span style={heroHintPill}>{capitalize(matchType)} mode</span>
                 <CopyLinkButton />
-              </div>
-              <div style={exploreNavRow}>
-                <Link href="/explore/players" style={exploreNavLink}>Players</Link>
-                <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
-                <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
               </div>
               {profilePlayer ? (
                 <div style={profileContextCalloutStyle}>
@@ -1360,21 +1353,6 @@ export default function MatchupPage() {
                 </div>
               ) : null}
 
-              {!access.canUseAdvancedPlayerInsights ? (
-                <div style={{ marginTop: 18, maxWidth: 560 }}>
-                  <UpgradePrompt
-                    planId="player_plus"
-                    compact
-                    headline={MATCHUP_STORY.upgradeHeadline}
-                    body={MATCHUP_STORY.upgradeBody}
-                    ctaLabel={MATCHUP_STORY.upgradeCta}
-                    ctaHref="/pricing"
-                    secondaryLabel={MATCHUP_STORY.upgradeSecondary}
-                    secondaryHref="/pricing"
-                    footnote={MATCHUP_STORY.upgradeFootnote}
-                  />
-                </div>
-              ) : null}
             </div>
 
             <div style={dynamicEngineCard}>
@@ -1392,6 +1370,19 @@ export default function MatchupPage() {
 
       <section style={contentWrap}>
         <article style={controlsCard}>
+          <div style={toolHeaderStyle}>
+            <div style={toolHeaderTitleClusterStyle}>
+              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="md" variant="surface" />
+              <div>
+                <div style={toolHeaderKickerStyle}>Build the matchup</div>
+                <h2 style={toolHeaderTitleStyle}>
+                  {matchType === 'doubles' ? 'Choose both sides.' : 'Choose two players.'}
+                </h2>
+              </div>
+            </div>
+            <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div>
+          </div>
+
           <div style={dynamicToolbarTop}>
             <div style={toggleStack}>
               <div style={toggleLabel}>Match type</div>
@@ -1583,6 +1574,29 @@ export default function MatchupPage() {
                 <p style={prefillPromptText}>Use the Player B selector above to finish the matchup.</p>
               )}
             </article>
+          ) : null}
+
+          <div style={exploreNavRow}>
+            <span style={exploreNavLabelStyle}>Need context?</span>
+            <Link href="/explore/players" style={exploreNavLink}>Players</Link>
+            <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
+            <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
+          </div>
+
+          {!access.canUseAdvancedPlayerInsights ? (
+            <div style={{ marginBottom: 16 }}>
+              <UpgradePrompt
+                planId="player_plus"
+                compact
+                headline={MATCHUP_STORY.upgradeHeadline}
+                body={MATCHUP_STORY.upgradeBody}
+                ctaLabel={MATCHUP_STORY.upgradeCta}
+                ctaHref="/pricing"
+                secondaryLabel={MATCHUP_STORY.upgradeSecondary}
+                secondaryHref="/pricing"
+                footnote={MATCHUP_STORY.upgradeFootnote}
+              />
+            </div>
           ) : null}
 
           {error ? (
@@ -2146,9 +2160,21 @@ function CopyLinkButton() {
         gap: '6px',
         padding: '8px 14px',
         borderRadius: '999px',
-        border: `1px solid ${copied ? 'rgba(155,225,29,0.35)' : hovered ? 'rgba(116,190,255,0.30)' : 'rgba(116,190,255,0.14)'}`,
-        background: copied ? 'rgba(155,225,29,0.08)' : hovered ? 'rgba(116,190,255,0.07)' : 'rgba(255,255,255,0.03)',
-        color: copied ? '#d8ffa8' : hovered ? '#cde1ff' : 'rgba(210,226,244,0.68)',
+        border: `1px solid ${
+          copied
+            ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)'
+            : hovered
+              ? 'color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)'
+              : 'var(--shell-panel-border)'
+        }`,
+        background: copied
+          ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)'
+          : hovered
+            ? 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)'
+            : 'var(--shell-chip-bg)',
+        color: copied
+          ? 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)'
+          : 'var(--foreground-strong)',
         fontSize: '13px',
         fontWeight: 700,
         cursor: 'pointer',
@@ -2480,8 +2506,8 @@ const heroHintRow: CSSProperties = {
 
 const heroHintPill: CSSProperties = {
   border: '1px solid rgba(137,182,255,0.14)',
-  background: 'rgba(43,78,138,0.34)',
-  color: '#e2efff',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '10px 14px',
   fontSize: '13px',
@@ -2497,7 +2523,7 @@ const engineCard: CSSProperties = {
 }
 
 const engineLabel: CSSProperties = {
-  color: 'rgba(217,231,255,0.82)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2506,7 +2532,7 @@ const engineLabel: CSSProperties = {
 
 const engineValue: CSSProperties = {
   marginTop: '8px',
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
@@ -2515,7 +2541,7 @@ const engineValue: CSSProperties = {
 
 const engineText: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(219,234,254,0.88)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -2533,7 +2559,17 @@ const exploreNavRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
-  marginTop: '2px',
+  alignItems: 'center',
+  margin: '4px 0 16px',
+  paddingTop: '4px',
+}
+
+const exploreNavLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
 }
 
 const exploreNavLink: CSSProperties = {
@@ -2584,6 +2620,48 @@ const controlsCard: CSSProperties = {
   marginBottom: '16px',
 }
 
+const toolHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  paddingBottom: '16px',
+  marginBottom: '16px',
+  borderBottom: '1px solid var(--shell-panel-border)',
+}
+
+const toolHeaderTitleClusterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const toolHeaderKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const toolHeaderTitleStyle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: '-0.04em',
+}
+
+const toolHeaderTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
 const toolbarTop: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -2599,7 +2677,7 @@ const toggleStack: CSSProperties = {
 }
 
 const toggleLabel: CSSProperties = {
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.08em',
@@ -2621,7 +2699,7 @@ const toggleButton: CSSProperties = {
   border: 0,
   borderRadius: '14px',
   background: 'transparent',
-  color: 'rgba(224,236,249,0.78)',
+  color: 'var(--foreground)',
   padding: '12px 18px',
   fontSize: '14px',
   fontWeight: 800,
@@ -2651,7 +2729,7 @@ const selectorGrid: CSSProperties = {
 const inputLabel: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--brand-blue-2)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -2695,7 +2773,7 @@ const editorialPanel: CSSProperties = {
 
 const editorialText: CSSProperties = {
   margin: 0,
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
@@ -2712,12 +2790,12 @@ const editorialCard: CSSProperties = {
   gap: '8px',
   padding: '18px',
   borderRadius: '20px',
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const editorialCardLabel: CSSProperties = {
-  color: 'rgba(188,208,232,0.78)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
@@ -2725,7 +2803,7 @@ const editorialCardLabel: CSSProperties = {
 }
 
 const editorialCardValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
@@ -2733,7 +2811,7 @@ const editorialCardValue: CSSProperties = {
 }
 
 const editorialCardText: CSSProperties = {
-  color: 'rgba(215,229,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.65,
 }
@@ -2800,13 +2878,13 @@ const resetButton: CSSProperties = {
 const selectionProgressCard: CSSProperties = {
   borderRadius: '20px',
   padding: '14px 16px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: '220px',
 }
 
 const selectionProgressLabel: CSSProperties = {
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2815,7 +2893,7 @@ const selectionProgressLabel: CSSProperties = {
 }
 
 const selectionProgressValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
@@ -2823,7 +2901,7 @@ const selectionProgressValue: CSSProperties = {
 }
 
 const selectionProgressTextStyle: CSSProperties = {
-  color: 'rgba(224,236,249,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
 }

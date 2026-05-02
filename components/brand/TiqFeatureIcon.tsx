@@ -183,7 +183,7 @@ function iconGroup(children: ReactNode) {
     <g
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="3.4"
+      strokeWidth="4"
       style={{ vectorEffect: 'non-scaling-stroke' }}
     >
       {children}
@@ -236,15 +236,37 @@ function BallHead({
   )
 }
 
+function PlayerBust({
+  cx = 48,
+  headCy = 28,
+  r = 11,
+  accent,
+}: {
+  cx?: number
+  headCy?: number
+  r?: number
+  accent: string
+}) {
+  return (
+    <>
+      <BallHead cx={cx} cy={headCy} r={r} accent={accent} />
+      <path
+        d={`M${cx - 17} ${headCy + 34}v-8a17 17 0 0 1 ${34} 0v8`}
+        stroke="currentColor"
+      />
+    </>
+  )
+}
+
 function CaptainDashboardIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={48} cy={23} r={10} accent={accent} />
-      <path d="M18 42h44a5 5 0 0 1 5 5v24H13V47a5 5 0 0 1 5-5z" stroke="currentColor" />
-      <path d="M23 53h14M23 62h10M23 71h22" stroke="currentColor" />
-      <path d="M48 66h13M56 59v14" stroke={accent} />
-      <path d="M50 66a10 10 0 1 0 10-10v10H50z" stroke={accent} />
-      <path d="M48 42V34" stroke={muted} />
+      <path d="M17 34h52a6 6 0 0 1 6 6v38H17z" stroke="currentColor" />
+      <BallHead cx={48} cy={23} r={11} accent={accent} />
+      <path d="M27 48h18M27 60h14M27 72h24" stroke={muted} />
+      <path d="M57 61h13M64 54v14" stroke={accent} />
+      <path d="M56 61a11 11 0 1 0 11-11v11H56z" stroke={accent} />
+      <path d="M48 34v8" stroke="currentColor" />
     </>,
   )
 }
@@ -252,12 +274,11 @@ function CaptainDashboardIcon({ accent, muted }: IconDrawProps) {
 function MatchupAnalysisIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={30} cy={26} r={10.5} accent={accent} />
-      <BallHead cx={66} cy={26} r={10.5} accent={accent} />
-      <path d="M18 70v-8a12 12 0 0 1 24 0v8M54 70v-8a12 12 0 0 1 24 0v8" stroke="currentColor" />
-      <path d="M42 38h12" stroke={accent} />
-      <path d="M42 50h12" stroke="currentColor" strokeDasharray="3 7" />
-      <path d="M42 61h12" stroke={accent} strokeDasharray="8 7" />
+      <PlayerBust cx={29} headCy={26} r={11} accent={accent} />
+      <PlayerBust cx={67} headCy={26} r={11} accent={accent} />
+      <path d="M43 40h10" stroke={accent} />
+      <path d="M43 52h10" stroke={muted} strokeDasharray="3 7" />
+      <path d="M43 64h10" stroke={accent} />
     </>,
   )
 }
@@ -265,13 +286,13 @@ function MatchupAnalysisIcon({ accent, muted }: IconDrawProps) {
 function LineupBuilderIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={48} cy={21} r={10} accent={accent} />
-      <path d="M48 31v8M18 39h60M18 39v15M38 39v15M58 39v15M78 39v15" stroke="currentColor" />
-      <circle cx="18" cy="64" r="7" stroke="currentColor" />
-      <circle cx="38" cy="64" r="7" stroke={accent} />
-      <circle cx="58" cy="64" r="7" stroke="currentColor" />
-      <circle cx="78" cy="64" r="7" stroke={accent} />
-      <path d="M15.5 64h5M35.5 64h5M55.5 64h5M75.5 64h5" stroke={muted} />
+      <BallHead cx={48} cy={20} r={11} accent={accent} />
+      <path d="M48 31v9M19 40h58M19 40v17M38 40v17M58 40v17M77 40v17" stroke="currentColor" />
+      <circle cx="19" cy="68" r="8" stroke="currentColor" />
+      <circle cx="38" cy="68" r="8" stroke={accent} />
+      <circle cx="58" cy="68" r="8" stroke="currentColor" />
+      <circle cx="77" cy="68" r="8" stroke={accent} />
+      <path d="M16 68h6M35 68h6M55 68h6M74 68h6" stroke={muted} />
     </>,
   )
 }
@@ -279,12 +300,11 @@ function LineupBuilderIcon({ accent, muted }: IconDrawProps) {
 function ScenarioBuilderIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={34} cy={26} r={10.5} accent={accent} />
-      <path d="M22 70v-8a12 12 0 0 1 24 0v8" stroke="currentColor" />
-      <path d="M50 62c7-1 8-7 4-10s-1-10 10-10" stroke="currentColor" strokeDasharray="5 8" />
-      <circle cx="50" cy="62" r="4" stroke="currentColor" />
-      <circle cx="66" cy="42" r="4" stroke="currentColor" />
-      <path d="M68 20v24M68 20l17 7-17 7" stroke={accent} />
+      <PlayerBust cx={31} headCy={27} r={11} accent={accent} />
+      <path d="M52 70c17-2 16-16 5-18s-7-17 13-17" stroke="currentColor" strokeDasharray="5 8" />
+      <circle cx="52" cy="70" r="4.5" stroke="currentColor" />
+      <circle cx="70" cy="35" r="4.5" stroke="currentColor" />
+      <path d="M72 18v26M72 18l17 7-17 7" stroke={accent} />
     </>,
   )
 }
@@ -292,10 +312,9 @@ function ScenarioBuilderIcon({ accent, muted }: IconDrawProps) {
 function MessagingCenterIcon({ accent }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={34} cy={26} r={10.5} accent={accent} />
-      <path d="M22 70v-8a12 12 0 0 1 24 0v8" stroke="currentColor" />
-      <path d="M54 34h27a5 5 0 0 1 5 5v20a5 5 0 0 1-5 5H68L55 75V64h-1a5 5 0 0 1-5-5V39a5 5 0 0 1 5-5z" stroke="currentColor" />
-      <path d="M61 49h.1M70 49h.1M79 49h.1" stroke={accent} />
+      <PlayerBust cx={31} headCy={27} r={11} accent={accent} />
+      <path d="M52 34h29a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H69L55 79V68h-3a6 6 0 0 1-6-6V40a6 6 0 0 1 6-6z" stroke="currentColor" />
+      <path d="M59 51h.1M70 51h.1M81 51h.1" stroke={accent} strokeWidth="5" />
     </>,
   )
 }
@@ -303,14 +322,13 @@ function MessagingCenterIcon({ accent }: IconDrawProps) {
 function PlayerRatingsIcon({ accent }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={28} cy={30} r={11} accent={accent} />
-      <path d="M15 78v-8a13 13 0 0 1 26 0v8" stroke="currentColor" />
-      <path d="M50 75V58M64 75V49M78 75V38" stroke="currentColor" />
-      <path d="M47 49l13-13 10 7 12-17" stroke={accent} />
-      <circle cx="47" cy="49" r="3" stroke={accent} />
-      <circle cx="60" cy="36" r="3" stroke={accent} />
-      <circle cx="70" cy="43" r="3" stroke={accent} />
-      <circle cx="82" cy="26" r="3" stroke={accent} />
+      <PlayerBust cx={25} headCy={30} r={11} accent={accent} />
+      <path d="M52 76V62M66 76V52M80 76V40" stroke="currentColor" />
+      <path d="M50 56l12-11 10 7 12-18" stroke={accent} />
+      <circle cx="50" cy="56" r="3.5" stroke={accent} />
+      <circle cx="62" cy="45" r="3.5" stroke={accent} />
+      <circle cx="72" cy="52" r="3.5" stroke={accent} />
+      <circle cx="84" cy="34" r="3.5" stroke={accent} />
     </>,
   )
 }
@@ -318,12 +336,11 @@ function PlayerRatingsIcon({ accent }: IconDrawProps) {
 function OpponentScoutingIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={28} cy={30} r={11} accent={accent} />
-      <path d="M15 78v-8a13 13 0 0 1 26 0v8" stroke="currentColor" />
-      <circle cx="62" cy="49" r="18" stroke="currentColor" />
-      <path d="M62 37v24M50 49h24" stroke={muted} />
-      <path d="M75 62l13 13" stroke="currentColor" />
-      <path d="M56 57V45M63 57V37M70 57V49" stroke={accent} />
+      <PlayerBust cx={28} headCy={29} r={11} accent={accent} />
+      <circle cx="64" cy="49" r="19" stroke="currentColor" />
+      <path d="M64 37v24M52 49h24" stroke={muted} />
+      <path d="M78 63l12 12" stroke="currentColor" />
+      <path d="M58 58V46M65 58V38M72 58V50" stroke={accent} />
     </>,
   )
 }
@@ -331,10 +348,10 @@ function OpponentScoutingIcon({ accent, muted }: IconDrawProps) {
 function MatchPrepIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <path d="M29 22h38v55H29z" stroke="currentColor" />
-      <path d="M40 22v-6h16v6" stroke="currentColor" />
-      <path d="M39 40l5 5 9-10M39 54l5 5 9-10M39 68l5 5 9-10" stroke={accent} />
-      <path d="M59 42h15M59 56h15M59 70h15" stroke={muted} />
+      <path d="M27 21h42v58H27z" stroke="currentColor" />
+      <path d="M39 21v-7h18v7" stroke="currentColor" />
+      <path d="M38 39l6 6 10-11M38 55l6 6 10-11M38 71l6 6 10-11" stroke={accent} />
+      <path d="M60 41h16M60 57h16M60 73h16" stroke={muted} />
     </>,
   )
 }
@@ -354,10 +371,11 @@ function ReliabilityIndexIcon({ accent, muted }: IconDrawProps) {
 function TeamRankingsIcon({ accent }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={48} cy={24} r={10} accent={accent} />
-      <path d="M24 75V61h48v14M34 61V50h28v11M43 50V39h10v11" stroke="currentColor" />
-      <path d="M48 61v14" stroke="currentColor" />
-      <path d="M45 45h6M48 45v12" stroke={accent} />
+      <BallHead cx={48} cy={24} r={11} accent={accent} />
+      <path d="M22 77V62h52v15M34 62V50h28v12M43 50V38h10v12" stroke="currentColor" />
+      <path d="M48 61v16" stroke="currentColor" />
+      <path d="M48 42v14" stroke={accent} />
+      <path d="M45 45l3-3 3 3" stroke={accent} />
     </>,
   )
 }
@@ -389,8 +407,8 @@ function ReportsIcon({ accent, muted }: IconDrawProps) {
 function AlertsIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <BallHead cx={48} cy={23} r={9.5} accent={accent} />
-      <path d="M29 72c0-13 4-20 4-31a15 15 0 0 1 30 0c0 11 4 18 4 31H29z" stroke="currentColor" />
+      <BallHead cx={48} cy={22} r={10.5} accent={accent} />
+      <path d="M28 72c0-13 5-21 5-32a15 15 0 0 1 30 0c0 11 5 19 5 32H28z" stroke="currentColor" />
       <path d="M40 79c2 5 14 5 16 0" stroke="currentColor" />
       <path d="M22 49c-5 8-5 15 0 22M74 49c5 8 5 15 0 22" stroke={accent} />
       <path d="M36 72h24" stroke={muted} />
@@ -401,11 +419,11 @@ function AlertsIcon({ accent, muted }: IconDrawProps) {
 function MyLabIcon({ accent, muted }: IconDrawProps) {
   return iconGroup(
     <>
-      <path d="M18 72h60v8H18z" stroke="currentColor" />
-      <path d="M25 35h46v37H25z" stroke="currentColor" />
-      <BallHead cx={48} cy={28} r={10} accent={accent} />
-      <path d="M34 59l10-10 9 7 12-16" stroke={accent} />
-      <path d="M34 65h30M59 60v-9M66 60V44" stroke={muted} />
+      <path d="M18 73h60v8H18z" stroke="currentColor" />
+      <path d="M24 36h48v37H24z" stroke="currentColor" />
+      <BallHead cx={48} cy={29} r={11} accent={accent} />
+      <path d="M34 60l10-10 9 7 13-17" stroke={accent} />
+      <path d="M34 66h31M59 61v-9M67 61V44" stroke={muted} />
     </>,
   )
 }

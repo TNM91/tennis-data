@@ -41,6 +41,7 @@ import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type ContactRow = {
   id: string
@@ -2034,9 +2035,10 @@ function importScenarioToLineup() {
   return (
     <SiteShell active="/captain">
       <section style={pageContentStyle}>
-        <section style={heroShellResponsive(isTablet, isMobile)}>
-          <div>
-            <div style={eyebrow}>Captain communications</div>
+         <section style={heroShellResponsive(isTablet, isMobile)}>
+            <div>
+              <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
+              <div style={eyebrow}>Captain communications</div>
             <h1 style={heroTitleResponsive(isSmallMobile, isMobile)}>Send the plan.</h1>
             <p style={heroTextStyle}>
               Choose the audience, load the right lineup context, and prepare the message your team needs next.
@@ -2092,9 +2094,11 @@ function importScenarioToLineup() {
                   ['1', 'Pick scope', 'Load the team and match week.'],
                   ['2', 'Choose audience', 'Use lineup, availability, or follow-up groups.'],
                   ['3', 'Prepare text', 'Send lineup, logistics, reminders, or blockers.'],
-                ].map(([step, title, text]) => (
-                  <div key={step} style={workflowRowStyle}>
-                    <div style={workflowNumberStyle}>{step}</div>
+                  ].map(([step, title, text]) => (
+                    <div key={step} style={workflowRowStyle}>
+                      <div style={workflowNumberStyle}>
+                        <TiqFeatureIcon name={step === '1' ? 'schedule' : step === '2' ? 'lineupBuilder' : 'messagingCenter'} size="sm" variant="ghost" />
+                      </div>
                     <div>
                       <div style={workflowTitleStyle}>{title}</div>
                       <div style={workflowTextStyle}>{text}</div>

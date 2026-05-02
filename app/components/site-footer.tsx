@@ -82,41 +82,43 @@ export default function SiteFooter() {
           {PRIMARY_NAV_ITEMS.map((item) => {
             const visual = FOOTER_JOURNEY[item.href]
             return (
-              <Link key={item.href} href={item.href} style={footerJourneyCardStyle}>
-                <span style={footerJourneyStepStyle}>{visual.step}</span>
+              <Link key={item.href} href={item.href} style={footerJourneyCardStyle(isMobile)}>
+                <span style={footerJourneyStepStyle(isMobile)}>{visual.step}</span>
                 <span style={footerJourneyTextStyle}>
-                  <strong style={footerJourneyLabelStyle}>{item.label}</strong>
-                  <small style={footerJourneyIntentStyle}>{visual.intent}</small>
-                  <em style={footerJourneyNoteStyle}>{visual.note}</em>
+                  <strong style={footerJourneyLabelStyle(isMobile)}>{item.label}</strong>
+                  {isMobile ? null : <small style={footerJourneyIntentStyle}>{visual.intent}</small>}
+                  {isMobile ? null : <em style={footerJourneyNoteStyle}>{visual.note}</em>}
                 </span>
               </Link>
             )
           })}
         </div>
 
-        <nav
-          aria-label="Footer"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
-            gap: isMobile ? 18 : 22,
-            paddingTop: 14,
-            borderTop: '1px solid rgba(116, 190, 255, 0.08)',
-          }}
-        >
-          {FOOTER_NAV_SECTIONS.map((section) => (
-            <div key={section.title} style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
-              <div style={footerSectionTitleStyle}>{section.title}</div>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {section.items.map((item) => (
-                  <Link key={`${section.title}-${item.href}`} href={item.href} style={footerNavLinkStyle}>
-                    {item.label}
-                  </Link>
-                ))}
+        {isMobile ? null : (
+          <nav
+            aria-label="Footer"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+              gap: 22,
+              paddingTop: 14,
+              borderTop: '1px solid rgba(116, 190, 255, 0.08)',
+            }}
+          >
+            {FOOTER_NAV_SECTIONS.map((section) => (
+              <div key={section.title} style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+                <div style={footerSectionTitleStyle}>{section.title}</div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {section.items.map((item) => (
+                    <Link key={`${section.title}-${item.href}`} href={item.href} style={footerNavLinkStyle}>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </nav>
+            ))}
+          </nav>
+        )}
 
         <div
           style={{
@@ -200,29 +202,31 @@ const footerSecondaryCtaStyle = {
 
 const footerJourneyGridStyle = (isMobile: boolean) => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(0, 1fr))',
-  gap: isMobile ? '10px' : '12px',
+  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gap: isMobile ? '8px' : '12px',
   paddingTop: 12,
   borderTop: '1px solid rgba(116, 190, 255, 0.08)',
 }) as const
 
-const footerJourneyCardStyle = {
+const footerJourneyCardStyle = (isMobile: boolean) => ({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
-  gap: '12px',
+  gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(0, 1fr)',
+  justifyItems: isMobile ? 'center' : 'start',
+  gap: isMobile ? '6px' : '12px',
   alignItems: 'center',
-  minHeight: '72px',
-  padding: '12px 14px',
+  minHeight: isMobile ? '78px' : '72px',
+  padding: isMobile ? '10px 8px' : '12px 14px',
   borderRadius: '14px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
-} as const
+  textAlign: isMobile ? 'center' : 'left',
+}) as const
 
-const footerJourneyStepStyle = {
-  width: '34px',
-  height: '34px',
+const footerJourneyStepStyle = (isMobile: boolean) => ({
+  width: isMobile ? '30px' : '34px',
+  height: isMobile ? '30px' : '34px',
   borderRadius: '999px',
   display: 'inline-flex',
   alignItems: 'center',
@@ -230,11 +234,11 @@ const footerJourneyStepStyle = {
   background: 'linear-gradient(135deg, var(--brand-green) 0%, var(--brand-lime) 100%)',
   border: '1px solid rgba(255, 255, 255, 0.36)',
   color: '#06121f',
-  fontSize: '13px',
+  fontSize: isMobile ? '12px' : '13px',
   fontWeight: 950,
   lineHeight: 1,
   boxShadow: '0 10px 22px rgba(155, 225, 29, 0.20)',
-} as const
+}) as const
 
 const footerJourneyTextStyle = {
   display: 'grid',
@@ -242,11 +246,11 @@ const footerJourneyTextStyle = {
   lineHeight: 1.12,
 } as const
 
-const footerJourneyLabelStyle = {
+const footerJourneyLabelStyle = (isMobile: boolean) => ({
   color: 'var(--foreground-strong)',
-  fontSize: '13.5px',
+  fontSize: isMobile ? '13px' : '13.5px',
   fontWeight: 900,
-} as const
+}) as const
 
 const footerJourneyIntentStyle = {
   color: 'var(--brand-blue-2)',

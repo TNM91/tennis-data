@@ -196,16 +196,16 @@ export const MY_LAB_STORY = {
 
 export const MATCHUP_STORY = {
   eyebrow: 'Player unlock',
-  headline: 'Know the edge before you play.',
+  headline: 'Choose. Compare. Play smarter.',
   body:
-    'Pick the court. See who has the edge, why it leans that way, and what to watch before the match starts.',
+    'Pick the court, choose the players, and get the read before match time.',
   upgradeHeadline: 'Unlock Matchup with Player',
   upgradeBody:
     'Player unlocks Matchup, My Lab, follows, and player-linked prep so your tennis context follows you from scouting to match day.',
   upgradeCta: 'Unlock Matchup with Player',
   upgradeSecondary: 'See Player plan',
   upgradeFootnote: 'Best for players who want less guessing before the next match.',
-  proof: ['Who has the edge?', 'Why?', 'What should I watch?'],
+  proof: ['Edge', 'Why it leans', 'What to watch'],
   readoutTitle: 'Use Matchup as a quick prep read.',
   readoutBody:
     'Start with the edge, then check the rating gap, confidence, form, and head-to-head context before you decide how much to trust it.',

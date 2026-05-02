@@ -11,24 +11,56 @@ import {
   PRICING_HOW_IT_WORKS,
   PRICING_PLANS,
   PRICING_PROOF_POINTS,
-  WHY_TENACEIQ_POINTS,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
 import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
-
-const PLAN_JOB_GUIDE = [
-  ['Explore', 'Start free', 'Look up players, teams, leagues, and rankings.', 'playerRatings'],
-  ['Personalize', 'Choose Player', 'Save follows, use My Lab, and prep matchups.', 'myLab'],
-  ['Lead', 'Choose Captain', 'Run availability, lineups, briefs, and team messages.', 'captainDashboard'],
-  ['Organize', 'Choose League Coordinator', 'Manage league structure, standings, seasons, and results.', 'teamRankings'],
-] as const
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
   player_plus: 'myLab',
   captain: 'lineupBuilder',
   league: 'teamRankings',
+}
+
+const PLAN_VERBS: Record<PricingPlanId, string> = {
+  free: 'Explore',
+  player_plus: 'Personalize',
+  captain: 'Lead',
+  league: 'Organize',
+}
+
+const VALUE_MOMENTS: {
+  title: string
+  cue: string
+  icon: TiqFeatureIconName
+  href: string
+}[] = [
+  {
+    title: 'Need context?',
+    cue: 'Search players, teams, leagues, and rankings first.',
+    icon: 'opponentScouting',
+    href: '/explore',
+  },
+  {
+    title: 'Want your scorecard?',
+    cue: 'Unlock My Lab when the site should revolve around your game.',
+    icon: 'myLab',
+    href: '#player_plus',
+  },
+  {
+    title: 'Making decisions?',
+    cue: 'Use Captain tools when lineup week needs one cleaner flow.',
+    icon: 'lineupBuilder',
+    href: '#captain',
+  },
+]
+
+const PLAN_DECISION_HINTS: Record<PricingPlanId, string> = {
+  free: 'Look around first',
+  player_plus: 'Make it yours',
+  captain: 'Run match week',
+  league: 'Organize the season',
 }
 
 export default function PricingPage() {
@@ -51,6 +83,8 @@ export default function PricingPage() {
   }, [])
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const recommendedPlan = getPricingPlan(access.recommendedUpgradePlanId ?? access.currentPlanId)
+  const currentPlan = getPricingPlan(access.currentPlanId)
 
   return (
     <SiteShell active="">
@@ -71,18 +105,54 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section style={jobGuideStyle} aria-label="Choose a plan by job">
-          <div style={sectionEyebrowStyle}>Pick by job</div>
-          <div style={jobGuideGridStyle}>
-            {PLAN_JOB_GUIDE.map(([job, title, text, icon]) => (
-              <div key={job} style={jobGuideCardStyle}>
-                <TiqFeatureIcon name={icon} size="md" variant="surface" />
-                <div style={jobGuideJobStyle}>{job}</div>
-                <div style={jobGuideTitleStyle}>{title}</div>
-                <div style={jobGuideTextStyle}>{text}</div>
-              </div>
-            ))}
+        <section style={decisionPathStyle} aria-label="Membership path">
+          {PRICING_PLANS.map((plan, index) => {
+            const active = isPlanActive(plan.id, access)
+            const recommended = !active && (access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular')
+            return (
+              <a
+                key={plan.id}
+                href={`#${plan.id}`}
+                style={{
+                  ...decisionStepStyle,
+                  ...(active ? decisionStepActiveStyle : null),
+                  ...(recommended ? decisionStepRecommendedStyle : null),
+                }}
+              >
+                <span style={decisionNumberStyle}>{index + 1}</span>
+                <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size="sm" variant="ghost" />
+                <span style={decisionStepTextStyle}>
+                  <strong>{PLAN_VERBS[plan.id]}</strong>
+                  <em>{plan.name}</em>
+                </span>
+              </a>
+            )
+          })}
+        </section>
+
+        <section style={recommendationStripStyle}>
+          <TiqFeatureIcon name={PLAN_ICON_BY_ID[recommendedPlan.id]} size="md" variant="surface" />
+          <div style={recommendationCopyStyle}>
+            <div style={sectionEyebrowStyle}>
+              {access.currentPlanId === recommendedPlan.id ? 'Current access' : 'Recommended next'}
+            </div>
+            <h2 style={recommendationTitleStyle}>
+              {access.currentPlanId === recommendedPlan.id
+                ? `${currentPlan.name} is active.`
+                : `${PLAN_VERBS[recommendedPlan.id]} with ${recommendedPlan.name}.`}
+            </h2>
+            <p style={recommendationTextStyle}>
+              {access.currentPlanId === recommendedPlan.id
+                ? 'You already have the right access for this role. Open the tools that match how you play or lead.'
+                : recommendedPlan.outcome}
+            </p>
           </div>
+          <Link
+            href={getPlanHref(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
+            style={featuredCtaStyle}
+          >
+            {getPlanCta(recommendedPlan.id, access.currentPlanId === recommendedPlan.id)}
+          </Link>
         </section>
 
         <section style={cardGridStyle}>
@@ -91,9 +161,11 @@ export default function PricingPage() {
             const recommended = access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular'
             return (
               <article
+                id={plan.id}
                 key={plan.id}
                 style={{
                   ...planCardStyle,
+                  ...(recommended ? recommendedCardStyle : null),
                   ...(plan.id === 'captain' ? featuredCardStyle : null),
                   ...(active ? activeCardStyle : null),
                 }}
@@ -103,36 +175,22 @@ export default function PricingPage() {
                   <div style={cardLabelRowStyle}>
                     <span style={cardPlanStyle}>{plan.name}</span>
                     {!active && plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
+                    {recommended && !active ? <span style={recommendedBadgeStyle}>Recommended next</span> : null}
                     {active ? <span style={activeBadgeStyle}>Access active</span> : null}
                   </div>
                   <div style={cardPriceStyle}>{active ? 'Unlocked' : plan.priceLabel}</div>
                   {!active && plan.alternatePriceNote ? <div style={altPriceStyle}>{plan.alternatePriceNote}</div> : null}
                   <div style={cardSubtitleStyle}>{plan.subtitle}</div>
-                  <div style={audienceStyle}>{plan.audience}</div>
+                  <div style={decisionHintStyle}>{PLAN_DECISION_HINTS[plan.id]}</div>
                 </div>
 
-                <div style={planSummaryStyle}>
-                  {active ? (
-                    <div style={solutionCardStyle}>
-                      <div style={problemLabelStyle}>Your access</div>
-                      <div style={solutionTextStyle}>{plan.outcome}</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={solutionCardStyle}>
-                        <div style={problemLabelStyle}>Use this when</div>
-                        <div style={solutionTextStyle}>{plan.problem}</div>
-                      </div>
-                      <div style={solutionCardStyle}>
-                        <div style={problemLabelStyle}>What gets easier</div>
-                        <div style={solutionTextStyle}>{plan.outcome}</div>
-                      </div>
-                    </>
-                  )}
+                <div style={solutionCardStyle}>
+                  <div style={problemLabelStyle}>{active ? 'Your access' : 'Result'}</div>
+                  <div style={solutionTextStyle}>{plan.outcome}</div>
                 </div>
 
                 <div style={featureListStyle}>
-                  {plan.valueProps.map((valueProp) => (
+                  {plan.valueProps.slice(0, 2).map((valueProp) => (
                     <div key={valueProp} style={featureRowStyle}>
                       <span style={featureDotStyle} />
                       <span>{valueProp}</span>
@@ -159,14 +217,17 @@ export default function PricingPage() {
 
         <section style={supportGridStyle}>
           <article style={supportCardStyle}>
-            <div style={sectionEyebrowStyle}>Why TenAceIQ</div>
-            <h2 style={sectionTitleStyle}>Built for match week.</h2>
-            <div style={supportStackStyle}>
-              {WHY_TENACEIQ_POINTS.map((point) => (
-                <div key={point.title} style={supportItemStyle}>
-                  <div style={supportItemTitleStyle}>{point.title}</div>
-                  <div style={supportItemTextStyle}>{point.text}</div>
-                </div>
+            <div style={sectionEyebrowStyle}>Pick by need</div>
+            <h2 style={sectionTitleStyle}>Upgrade when the next job is obvious.</h2>
+            <div style={momentGridStyle}>
+              {VALUE_MOMENTS.map((moment) => (
+                <Link key={moment.title} href={moment.href} style={momentCardStyle}>
+                  <TiqFeatureIcon name={moment.icon} size="md" variant="ghost" />
+                  <span style={momentCopyStyle}>
+                    <strong>{moment.title}</strong>
+                    <em>{moment.cue}</em>
+                  </span>
+                </Link>
               ))}
             </div>
           </article>
@@ -210,8 +271,8 @@ function getPlanHref(planId: PricingPlanId, active: boolean) {
   if (active) {
     if (planId === 'captain') return '/captain'
     if (planId === 'league') return '/captain/season-dashboard'
-    if (planId === 'player_plus') return '/players'
-    return '/join'
+    if (planId === 'player_plus') return '/mylab'
+    return '/players'
   }
 
   if (planId === 'captain') return '/captain'
@@ -221,15 +282,16 @@ function getPlanHref(planId: PricingPlanId, active: boolean) {
 
 function getPlanCta(planId: PricingPlanId, active: boolean) {
   if (active) {
-    if (planId === 'captain') return 'Open Captain'
-    if (planId === 'league') return 'Open League Tools'
-    if (planId === 'player_plus') return 'Open Player Tools'
-    return 'Get Started Free'
+    if (planId === 'captain') return 'Open Captain tools'
+    if (planId === 'league') return 'Open league desk'
+    if (planId === 'player_plus') return 'Open My Lab'
+    return 'Explore players'
   }
 
-  if (planId === 'captain') return 'Build Smarter Lineups'
-  if (planId === 'player_plus') return 'Unlock Matchup with Player'
-  return getPricingPlan(planId).ctaLabel
+  if (planId === 'free') return 'Start free'
+  if (planId === 'player_plus') return 'Unlock My Lab'
+  if (planId === 'captain') return 'Open Captain tools'
+  return 'Run a league'
 }
 
 const pageWrapStyle: CSSProperties = {
@@ -259,7 +321,7 @@ const eyebrowStyle: CSSProperties = {
   borderRadius: 999,
   background: 'rgba(37, 91, 227, 0.12)',
   border: '1px solid rgba(116, 190, 255, 0.16)',
-  color: '#dbeafe',
+  color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 900,
   letterSpacing: '0.12em',
@@ -271,7 +333,7 @@ const heroTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 'clamp(2.5rem, 4vw, 4.6rem)',
   lineHeight: 0.98,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   maxWidth: 980,
 }
 
@@ -302,49 +364,93 @@ const proofPillStyle: CSSProperties = {
   fontWeight: 800,
 }
 
-const jobGuideStyle: CSSProperties = {
+const decisionPathStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
-  padding: 20,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gap: 10,
+  padding: 12,
   borderRadius: 24,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
-  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.10)',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.08)',
 }
 
-const jobGuideGridStyle: CSSProperties = {
+const decisionStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-  gap: 12,
-}
-
-const jobGuideCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  padding: 14,
+  gridTemplateColumns: '28px 34px 1fr',
+  alignItems: 'center',
+  gap: 10,
+  minHeight: 76,
+  padding: '12px',
   borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
 }
 
-const jobGuideJobStyle: CSSProperties = {
-  color: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
+const decisionStepActiveStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+}
+
+const decisionStepRecommendedStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+}
+
+const decisionNumberStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 900,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
 }
 
-const jobGuideTitleStyle: CSSProperties = {
+const decisionStepTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  fontSize: 14,
+  lineHeight: 1.15,
+}
+
+const recommendationStripStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 16,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, var(--shell-panel-bg) 100%)',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.10)',
+}
+
+const recommendationCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const recommendationTitleStyle: CSSProperties = {
+  margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 17,
-  lineHeight: 1.2,
-  fontWeight: 900,
+  fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
 }
 
-const jobGuideTextStyle: CSSProperties = {
+const recommendationTextStyle: CSSProperties = {
+  margin: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
+  fontSize: 14,
   lineHeight: 1.55,
   fontWeight: 700,
 }
@@ -357,12 +463,16 @@ const cardGridStyle: CSSProperties = {
 
 const planCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 18,
+  gap: 15,
   padding: 22,
   borderRadius: 28,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: '0 18px 44px rgba(2, 10, 24, 0.12)',
+}
+
+const recommendedCardStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
 }
 
 const featuredCardStyle: CSSProperties = {
@@ -425,12 +535,27 @@ const activeBadgeStyle: CSSProperties = {
   textTransform: 'uppercase',
 }
 
+const recommendedBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '26px',
+  padding: '0 10px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
 const cardPriceStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 32,
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const altPriceStyle: CSSProperties = {
@@ -447,16 +572,18 @@ const cardSubtitleStyle: CSSProperties = {
   textTransform: 'uppercase',
 }
 
-const audienceStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.6,
-}
-
-const planSummaryStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-  gap: 10,
+const decisionHintStyle: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  alignItems: 'center',
+  minHeight: 30,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: 13,
+  fontWeight: 900,
 }
 
 const problemLabelStyle: CSSProperties = {
@@ -576,33 +703,34 @@ const sectionTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 28,
   lineHeight: 1.1,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
-const supportStackStyle: CSSProperties = {
+const momentGridStyle: CSSProperties = {
   display: 'grid',
+  gap: 12,
+}
+
+const momentCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '56px 1fr',
+  alignItems: 'center',
   gap: 14,
-}
-
-const supportItemStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  padding: 16,
-  borderRadius: 20,
+  minHeight: 92,
+  padding: 14,
+  borderRadius: 22,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-}
-
-const supportItemTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 18,
-  fontWeight: 800,
+  textDecoration: 'none',
 }
 
-const supportItemTextStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.7,
+const momentCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  fontSize: 15,
+  lineHeight: 1.25,
 }
 
 const stepsStyle: CSSProperties = {
