@@ -174,6 +174,8 @@ type LabGoalState = {
   updatedAt: string | null
 }
 
+type GoalTemplate = Pick<LabGoalState, 'goal' | 'progressUpdate' | 'doingWell' | 'improveNext' | 'notes'>
+
 const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
 const LOCAL_GOAL_KEY = 'tenaceiq-my-lab-goal-v1'
 const LOCAL_NOTEBOOK_KEY = 'tenaceiq-my-lab-notebook-v1'
@@ -307,6 +309,22 @@ function goalStatusLabel(value: LabGoalState['progressStatus']) {
   if (value === 'in-progress') return 'In progress'
   if (value === 'improving') return 'Improving'
   return 'Completed'
+}
+
+function goalReadinessChecksFor(goal: LabGoalState) {
+  return [
+    { label: 'Goal', complete: Boolean(goal.goal.trim()) },
+    { label: 'Update', complete: Boolean(goal.progressUpdate.trim()) },
+    { label: 'Strength', complete: Boolean(goal.doingWell.trim()) },
+    { label: 'Improve', complete: Boolean(goal.improveNext.trim()) },
+    { label: 'Notes', complete: Boolean(goal.notes.trim()) },
+  ]
+}
+
+function goalReadinessScoreFor(goal: LabGoalState) {
+  if (goal.progressStatus === 'completed') return 100
+  const checks = goalReadinessChecksFor(goal)
+  return Math.round((checks.filter((item) => item.complete).length / checks.length) * 100)
 }
 
 function compactOpponentLabel(value: string | null | undefined) {
@@ -1521,6 +1539,39 @@ function MyLabPageInner() {
     persistGoalList(normalizedGoals, nextActiveGoalId, 'Goal removed')
   }
 
+  function applyGoalTemplate(template: GoalTemplate) {
+    const now = new Date().toISOString()
+    const nextGoals = goals.map((goal) => (
+      goal.id === activeGoalId
+        ? {
+            ...goal,
+            ...template,
+            progressStatus: 'in-progress' as const,
+            updatedAt: now,
+          }
+        : goal
+    ))
+    persistGoalList(nextGoals, activeGoalId, 'Focus added')
+  }
+
+  function reflectOnMatch(match: PersonalMatchRow) {
+    const opponent = compactOpponentLabel(match.opponent)
+    const resultLabel = match.result === 'W' ? 'win' : match.result === 'L' ? 'loss' : 'match'
+    const matchContext = [safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')
+    applyGoalTemplate({
+      goal: `Review ${resultLabel} vs ${opponent}`,
+      progressUpdate: matchContext ? `Logged from ${matchContext}.` : 'Logged from recent match history.',
+      doingWell: match.result === 'W' ? 'Identify what traveled well from this win.' : doingWellDefault,
+      improveNext: match.result === 'L' ? 'Choose one pattern to clean up before the next match.' : improvementDefault,
+      notes: [
+        `Opponent: ${match.opponent}`,
+        matchContext ? `Match: ${matchContext}` : '',
+        'What decided it:',
+        'Next test:',
+      ].filter(Boolean).join('\n'),
+    })
+  }
+
   const followedPlayers = follows.filter((item) => item.entity_type === 'player')
   const followedTeams = follows.filter((item) => item.entity_type === 'team')
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
@@ -1665,6 +1716,9 @@ function MyLabPageInner() {
   const activeGoal = goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL
   const activeGoals = goals.filter((goal) => goal.progressStatus !== 'completed')
   const completedGoals = goals.filter((goal) => goal.progressStatus === 'completed')
+  const goalReadinessChecks = goalReadinessChecksFor(activeGoal)
+  const goalReadinessScore = goalReadinessScoreFor(activeGoal)
+  const nextReadinessStep = goalReadinessChecks.find((item) => !item.complete)?.label || 'Ready'
   const focusSuggestion =
     activeGoal.goal.trim() ||
     (recentDecisionMatches.length >= 3 && recentLosses > recentWins
@@ -1691,6 +1745,78 @@ function MyLabPageInner() {
         : linkedPlayer
           ? 'Pick one measurable goal and update it after your next match so My Lab can start showing progress.'
           : 'Link your player record to unlock recommendations from ratings, match history, and matchup context.'
+  const nextMoveHref = !isProfileConfirmed
+    ? '/profile'
+    : topMatchupCandidate
+      ? matchupHref
+      : '#player-notebook'
+  const nextMoveCta = !isProfileConfirmed
+    ? 'Connect profile'
+    : topMatchupCandidate
+      ? 'Open matchup'
+      : 'Set focus'
+  const personalReadCards: Array<{
+    label: string
+    value: string
+    note: string
+    href?: string
+  }> = [
+    {
+      label: 'Form',
+      value: recentDecisionMatches.length ? recentRecordLabel : 'New',
+      note: lastMatchSummary,
+    },
+    {
+      label: 'Best test',
+      value: topMatchupCandidate?.player.name || 'Waiting',
+      note: topMatchupCandidate ? `${topMatchupCandidate.read} - ${topMatchupCandidate.gap.toFixed(2)} rating gap` : 'Link your profile to build a matchup queue.',
+    },
+    {
+      label: 'Focus',
+      value: activeGoal.goal.trim() || 'Choose one',
+      note: activeGoal.progressUpdate || focusSuggestion,
+    },
+    {
+      label: 'Next move',
+      value: nextMoveCta,
+      note: tiqRecommendation,
+      href: nextMoveHref,
+    },
+  ]
+  const focusTemplates: Array<{ label: string } & GoalTemplate> = [
+    {
+      label: 'Next match plan',
+      goal: topMatchupCandidate
+        ? `Prepare for ${topMatchupCandidate.player.name}`
+        : 'Build a plan for my next match',
+      progressUpdate: topMatchupCandidate
+        ? `Use the matchup read, then track what held up against ${topMatchupCandidate.player.name}.`
+        : 'Choose one pattern to test, then update this after the next match.',
+      doingWell: doingWellDefault,
+      improveNext: improvementDefault,
+      notes: topMatchupCandidate
+        ? `Watch the ${topMatchupCandidate.read.toLowerCase()} and compare the rating gap after play.`
+        : 'Write the opponent, score, and one pattern that decided the match.',
+    },
+    {
+      label: 'Clean up losses',
+      goal: 'Find one repeat pattern in recent losses',
+      progressUpdate: recentLosses
+        ? `Review ${recentLosses} recent loss${recentLosses === 1 ? '' : 'es'} and pick one fix.`
+        : 'Use the next tough set as the first data point.',
+      doingWell: doingWellDefault,
+      improveNext: recentLosses > recentWins ? 'Turn one losing pattern into a practice target.' : improvementDefault,
+      notes: 'After each match, record the point pattern that showed up most often.',
+    },
+    {
+      label: 'Two-week focus',
+      goal: 'Set a two-week tennis focus',
+      progressUpdate: 'Keep this small enough to update after every match or practice.',
+      doingWell: doingWellDefault,
+      improveNext: improvementDefault,
+      notes: 'Pick one skill, one measure, and the next time I will test it.',
+    },
+  ]
   const goalSummaryCards = [
     {
       label: 'Active goals',
@@ -1858,11 +1984,11 @@ function MyLabPageInner() {
             <div style={sectionTitleClusterStyle}>
               <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
               <div>
-              <p style={sectionKickerStyle}>Player scorecard</p>
-              <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
-              <p style={sectionTextStyle}>
-                Start with the score: ratings, progress to the next level, records, and the next useful matchup.
-              </p>
+                <p style={sectionKickerStyle}>Player scorecard</p>
+                <h2 style={sectionTitleStyle}>{welcomeLine}</h2>
+                <p style={sectionTextStyle}>
+                  Start with the score: ratings, progress to the next level, records, and the next useful matchup.
+                </p>
               </div>
             </div>
             <Link href={matchupHref} style={secondaryButtonStyle}>
@@ -1870,187 +1996,218 @@ function MyLabPageInner() {
             </Link>
           </div>
 
-          {linkedPlayer ? (
-            <>
-          <section style={levelUpPanelStyle(isTablet)}>
-            <div style={levelMeterStyle}>
-              <div style={levelMeterHeaderStyle}>
-                <div>
-                  <div style={levelMeterTitleStyle}>Level-up meter</div>
-                  <div style={levelBadgeRowStyle}>
-                    <span style={levelStatus === 'Trending up' ? pillGreenStyle : levelStatus === 'Needs work' ? pillRedStyle : pillBlueStyle}>
-                      {levelStatus}
-                    </span>
-                    <span style={pillSlateStyle}>{confidenceLabel}</span>
-                  </div>
-                </div>
-                <div style={levelRatingBlockStyle}>
-                  <strong style={levelRatingNumberStyle}>{formatRating(currentTiq)}</strong>
-                  <span>
-                    {ustaBase == null || nextUstaLevel == null
-                      ? 'Build match history'
-                      : `USTA ${ustaBase.toFixed(2)} - next ${nextUstaLevel.toFixed(1)}`}
-                  </span>
-                  <small>{tiqVsUsta == null ? 'TIQ vs USTA appears after linking' : `TIQ vs USTA ${tiqVsUsta >= 0 ? '+' : ''}${tiqVsUsta.toFixed(2)}`}</small>
-                </div>
-              </div>
-              <div style={levelMeterMetaStyle}>
-                <strong>{ustaBase == null ? 'USTA base pending' : `USTA ${ustaBase.toFixed(2)} - TIQ overall ${formatRating(currentTiq)}`}</strong>
-                <span>{ratingToGo == null ? 'Link your player profile to show your next level path.' : `${ratingToGo.toFixed(2)} to go`}</span>
-              </div>
-              <div style={progressTrackStyle} aria-label={hasLevelProgress ? `Level progress ${Math.round(levelProgress)} percent` : 'Level progress pending'}>
-                <div style={levelProgressFillStyle(levelProgress, hasLevelProgress)} />
-              </div>
-              <div style={levelMeterScaleStyle}>
-                <span>{ustaBase == null ? 'Base' : ustaBase.toFixed(1)}</span>
-                <span>{ratingToGo == null ? 'Next level' : `${ratingToGo.toFixed(2)} to go`}</span>
-                <span>{nextUstaLevel == null ? 'Next' : nextUstaLevel.toFixed(1)}</span>
-              </div>
-            </div>
-
-            <div style={quickProfileStyle}>
-              <h3 style={quickProfileTitleStyle}>Quick profile view</h3>
-              <div style={quickProfileGridStyle(isTablet)}>
-                {ratingVisuals.map((rating) => (
-                  <div key={rating.label} style={quickProfileCardStyle}>
-                    <div style={metricLabelStyle}>{rating.label}</div>
-                    <div style={quickProfileValueStyle}>{rating.display}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section style={todayReadPanelStyle}>
-            <div style={workshopContextRowStyle}>
-              <span>Today&apos;s read</span>
-              <strong>{linkedPlayer?.name || profileLink?.linked_player_name || 'Player profile'}</strong>
-            </div>
-            <div style={todayReadGridStyle(isTablet)}>
-              {scorecardSummaryCards.map((item) => (
-                <div key={item.label} style={todayReadCardStyle}>
-                  <div style={metricLabelStyle}>{item.label}</div>
-                  <div style={todayReadValueStyle}>{item.value}</div>
-                  <div style={metricNoteStyle}>{item.note}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section style={matchupSpotlightStyle}>
-            <div style={matchupSpotlightHeroStyle(isTablet)}>
-              <div style={sectionTitleClusterStyle}>
-                <TiqFeatureIcon name="matchupAnalysis" size="md" variant="surface" />
-                <div>
-                <p style={sectionKickerStyle}>Matchup spotlight</p>
-                <h3 style={matchupSpotlightTitleStyle}>
-                  {topMatchupCandidate ? `${linkedPlayer?.name || 'You'} vs ${topMatchupCandidate.player.name}` : 'Find your next useful test'}
+          <section style={personalReadPanelStyle}>
+            <div style={personalReadHeaderStyle}>
+              <div>
+                <p style={sectionKickerStyle}>Today&apos;s next move</p>
+                <h3 style={personalReadTitleStyle}>
+                  {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Connect your profile to unlock your read'}
                 </h3>
-                <p style={sectionTextStyle}>
-                  {topMatchupCandidate
-                    ? 'Pick a close test, open the read, then decide what to work on next.'
-                    : 'Link your player profile and My Lab will turn the player pool into matchup suggestions.'}
-                </p>
-                </div>
               </div>
-              <Link href={matchupHref} style={matchupPrimaryLinkStyle}>
-                Compare now
+              <Link href={nextMoveHref} style={matchupPrimaryLinkStyle}>
+                {nextMoveCta}
               </Link>
             </div>
-            <div style={matchupMeterStyle}>
-              <div style={workshopContextRowStyle}>
-                <span>{matchupReadLabel}</span>
-                <strong>{topMatchupCandidate ? `${matchupGapScore.toFixed(0)}% fit` : 'No read yet'}</strong>
-              </div>
-              <div style={matchupTrackStyle}>
-                <div style={matchupFillStyle(matchupGapScore)} />
-              </div>
-            </div>
-            <div style={matchupPreviewGridStyle(isTablet)}>
-              {matchupPreviewCards.map((card) => (
-                <div key={card.label} style={matchupPreviewCardStyle}>
-                  <div style={metricLabelStyle}>{card.label}</div>
-                  <div style={todayReadValueStyle}>{card.value}</div>
-                  <div style={metricNoteStyle}>{card.note}</div>
-                </div>
+            <div style={personalReadGridStyle(isTablet)}>
+              {personalReadCards.map((card) => (
+                card.href ? (
+                  <Link key={card.label} href={card.href} style={personalReadCardLinkStyle}>
+                    <div style={metricLabelStyle}>{card.label}</div>
+                    <div style={personalReadValueStyle}>{card.value}</div>
+                    <div style={metricNoteStyle}>{card.note}</div>
+                  </Link>
+                ) : (
+                  <div key={card.label} style={personalReadCardStyle}>
+                    <div style={metricLabelStyle}>{card.label}</div>
+                    <div style={personalReadValueStyle}>{card.value}</div>
+                    <div style={metricNoteStyle}>{card.note}</div>
+                  </div>
+                )
               ))}
             </div>
-            {matchupQueue.length ? (
-              <div style={matchupQueueGridStyle(isTablet)}>
-                {matchupQueue.map((candidate, index) => (
-                  <Link key={candidate.player.id} href={candidate.href} style={matchupQueueCardStyle}>
-                    <div style={matchupQueueRankStyle}>{index + 1}</div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={matchupQueueNameStyle}>{candidate.player.name}</div>
-                      <div style={matchupQueueMetaStyle}>
-                        {candidate.read} - gap {candidate.gap.toFixed(2)}
+          </section>
+
+          {linkedPlayer ? (
+            <>
+              <section style={levelUpPanelStyle(isTablet)}>
+                <div style={levelMeterStyle}>
+                  <div style={levelMeterHeaderStyle}>
+                    <div>
+                      <div style={levelMeterTitleStyle}>Level-up meter</div>
+                      <div style={levelBadgeRowStyle}>
+                        <span style={levelStatus === 'Trending up' ? pillGreenStyle : levelStatus === 'Needs work' ? pillRedStyle : pillBlueStyle}>
+                          {levelStatus}
+                        </span>
+                        <span style={pillSlateStyle}>{confidenceLabel}</span>
                       </div>
                     </div>
-                    <div style={matchupQueueFitStyle}>
-                      <strong>{candidate.fitScore}%</strong>
-                      <span>fit</span>
+                    <div style={levelRatingBlockStyle}>
+                      <strong style={levelRatingNumberStyle}>{formatRating(currentTiq)}</strong>
+                      <span>
+                        {ustaBase == null || nextUstaLevel == null
+                          ? 'Build match history'
+                          : `USTA ${ustaBase.toFixed(2)} - next ${nextUstaLevel.toFixed(1)}`}
+                      </span>
+                      <small>{tiqVsUsta == null ? 'TIQ vs USTA appears after linking' : `TIQ vs USTA ${tiqVsUsta >= 0 ? '+' : ''}${tiqVsUsta.toFixed(2)}`}</small>
                     </div>
-                    <div style={matchupQueueTrackStyle}>
-                      <span style={matchupQueueFillStyle(candidate.fitScore)} />
+                  </div>
+                  <div style={levelMeterMetaStyle}>
+                    <strong>{ustaBase == null ? 'USTA base pending' : `USTA ${ustaBase.toFixed(2)} - TIQ overall ${formatRating(currentTiq)}`}</strong>
+                    <span>{ratingToGo == null ? 'Link your player profile to show your next level path.' : `${ratingToGo.toFixed(2)} to go`}</span>
+                  </div>
+                  <div style={progressTrackStyle} aria-label={hasLevelProgress ? `Level progress ${Math.round(levelProgress)} percent` : 'Level progress pending'}>
+                    <div style={levelProgressFillStyle(levelProgress, hasLevelProgress)} />
+                  </div>
+                  <div style={levelMeterScaleStyle}>
+                    <span>{ustaBase == null ? 'Base' : ustaBase.toFixed(1)}</span>
+                    <span>{ratingToGo == null ? 'Next level' : `${ratingToGo.toFixed(2)} to go`}</span>
+                    <span>{nextUstaLevel == null ? 'Next' : nextUstaLevel.toFixed(1)}</span>
+                  </div>
+                </div>
+
+                <div style={quickProfileStyle}>
+                  <h3 style={quickProfileTitleStyle}>Quick profile view</h3>
+                  <div style={quickProfileGridStyle(isTablet)}>
+                    {ratingVisuals.map((rating) => (
+                      <div key={rating.label} style={quickProfileCardStyle}>
+                        <div style={metricLabelStyle}>{rating.label}</div>
+                        <div style={quickProfileValueStyle}>{rating.display}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+
+              <section style={todayReadPanelStyle}>
+                <div style={workshopContextRowStyle}>
+                  <span>Today&apos;s read</span>
+                  <strong>{linkedPlayer?.name || profileLink?.linked_player_name || 'Player profile'}</strong>
+                </div>
+                <div style={todayReadGridStyle(isTablet)}>
+                  {scorecardSummaryCards.map((item) => (
+                    <div key={item.label} style={todayReadCardStyle}>
+                      <div style={metricLabelStyle}>{item.label}</div>
+                      <div style={todayReadValueStyle}>{item.value}</div>
+                      <div style={metricNoteStyle}>{item.note}</div>
                     </div>
+                  ))}
+                </div>
+              </section>
+
+              <section style={matchupSpotlightStyle}>
+                <div style={matchupSpotlightHeroStyle(isTablet)}>
+                  <div style={sectionTitleClusterStyle}>
+                    <TiqFeatureIcon name="matchupAnalysis" size="md" variant="surface" />
+                    <div>
+                      <p style={sectionKickerStyle}>Matchup spotlight</p>
+                      <h3 style={matchupSpotlightTitleStyle}>
+                        {topMatchupCandidate ? `${linkedPlayer?.name || 'You'} vs ${topMatchupCandidate.player.name}` : 'Find your next useful test'}
+                      </h3>
+                      <p style={sectionTextStyle}>
+                        {topMatchupCandidate
+                          ? 'Pick a close test, open the read, then decide what to work on next.'
+                          : 'Link your player profile and My Lab will turn the player pool into matchup suggestions.'}
+                      </p>
+                    </div>
+                  </div>
+                  <Link href={matchupHref} style={matchupPrimaryLinkStyle}>
+                    Compare now
                   </Link>
-                ))}
-              </div>
-            ) : (
-              <div style={emptyStateStyle}>
-                {isProfileConfirmed
-                  ? 'Matchup queue appears when your rating and player pool are available.'
-                  : 'Manage your profile to unlock matchup suggestions.'}
-              </div>
-            )}
-          </section>
-
-          <section style={performancePanelStyle}>
-            <div style={sectionHeaderStyle}>
-              <div style={sectionTitleClusterStyle}>
-                <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
-                <div>
-                <p style={sectionKickerStyle}>Performance mix</p>
-                <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
                 </div>
-              </div>
-            </div>
-            <div style={performanceGridStyle(isTablet)}>
-              {visualStatBars.map((bar) => (
-                <div key={bar.label} style={performanceCardStyle}>
-                  <div style={statRingStyle(bar.value)}>
-                    <span>{bar.figure}</span>
+                <div style={matchupMeterStyle}>
+                  <div style={workshopContextRowStyle}>
+                    <span>{matchupReadLabel}</span>
+                    <strong>{topMatchupCandidate ? `${matchupGapScore.toFixed(0)}% fit` : 'No read yet'}</strong>
                   </div>
-                  <div>
-                    <div style={performanceCardTitleStyle}>{bar.label}</div>
-                    <div style={metricNoteStyle}>{bar.text}</div>
+                  <div style={matchupTrackStyle}>
+                    <div style={matchupFillStyle(matchupGapScore)} />
                   </div>
                 </div>
-              ))}
-            </div>
-          </section>
+                <div style={matchupPreviewGridStyle(isTablet)}>
+                  {matchupPreviewCards.map((card) => (
+                    <div key={card.label} style={matchupPreviewCardStyle}>
+                      <div style={metricLabelStyle}>{card.label}</div>
+                      <div style={todayReadValueStyle}>{card.value}</div>
+                      <div style={metricNoteStyle}>{card.note}</div>
+                    </div>
+                  ))}
+                </div>
+                {matchupQueue.length ? (
+                  <div style={matchupQueueGridStyle(isTablet)}>
+                    {matchupQueue.map((candidate, index) => (
+                      <Link key={candidate.player.id} href={candidate.href} style={matchupQueueCardStyle}>
+                        <div style={matchupQueueRankStyle}>{index + 1}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={matchupQueueNameStyle}>{candidate.player.name}</div>
+                          <div style={matchupQueueMetaStyle}>
+                            {candidate.read} - gap {candidate.gap.toFixed(2)}
+                          </div>
+                        </div>
+                        <div style={matchupQueueFitStyle}>
+                          <strong>{candidate.fitScore}%</strong>
+                          <span>fit</span>
+                        </div>
+                        <div style={matchupQueueTrackStyle}>
+                          <span style={matchupQueueFillStyle(candidate.fitScore)} />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={emptyStateStyle}>
+                    {isProfileConfirmed
+                      ? 'Matchup queue appears when your rating and player pool are available.'
+                      : 'Manage your profile to unlock matchup suggestions.'}
+                  </div>
+                )}
+              </section>
 
-          <section style={trophyRoomPanelStyle}>
-            <div style={sectionHeaderStyle}>
-              <div style={sectionTitleClusterStyle}>
-                <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
-                <div>
-                <p style={sectionKickerStyle}>Trophy room</p>
-                <h3 style={compactSectionTitleStyle}>Personal records</h3>
-                <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+              <section style={performancePanelStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div style={sectionTitleClusterStyle}>
+                    <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                    <div>
+                      <p style={sectionKickerStyle}>Performance mix</p>
+                      <h3 style={compactSectionTitleStyle}>Stats that explain the score</h3>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div style={trophyRoomGridStyle(isTablet)}>
-              {trophyRoomCards.map((record) => (
-                <div key={record.label} style={trophyCardStyle}>
-                  <div style={metricLabelStyle}>{record.label}</div>
-                  <div style={trophyValueStyle}>{record.value}</div>
-                  <div style={metricNoteStyle}>{record.note}</div>
+                <div style={performanceGridStyle(isTablet)}>
+                  {visualStatBars.map((bar) => (
+                    <div key={bar.label} style={performanceCardStyle}>
+                      <div style={statRingStyle(bar.value)}>
+                        <span>{bar.figure}</span>
+                      </div>
+                      <div>
+                        <div style={performanceCardTitleStyle}>{bar.label}</div>
+                        <div style={metricNoteStyle}>{bar.text}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </section>
+              </section>
+
+              <section style={trophyRoomPanelStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div style={sectionTitleClusterStyle}>
+                    <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
+                    <div>
+                      <p style={sectionKickerStyle}>Trophy room</p>
+                      <h3 style={compactSectionTitleStyle}>Personal records</h3>
+                      <p style={sectionTextStyle}>Best marks across the tracked history for this profile.</p>
+                    </div>
+                  </div>
+                </div>
+                <div style={trophyRoomGridStyle(isTablet)}>
+                  {trophyRoomCards.map((record) => (
+                    <div key={record.label} style={trophyCardStyle}>
+                      <div style={metricLabelStyle}>{record.label}</div>
+                      <div style={trophyValueStyle}>{record.value}</div>
+                      <div style={metricNoteStyle}>{record.note}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </>
           ) : (
             <section style={setupPanelStyle(isTablet)}>
@@ -2101,209 +2258,262 @@ function MyLabPageInner() {
       ) : null}
 
       {linkedPlayer ? (
-      <section id="player-tools" style={profileLinkSectionStyle}>
-        <div style={profileLinkCardStyle}>
-          <div style={sectionHeaderStyle}>
-            <div>
-              <p style={sectionKickerStyle}>Player workshop</p>
-              <h2 style={sectionTitleStyle}>What should I do next?</h2>
-              <p style={sectionTextStyle}>
-                Turn the scorecard into action: review, compare, choose one focus, then go play.
-              </p>
-            </div>
-            <Link href={matchupHref} style={secondaryButtonStyle}>
-              Open Matchup
-            </Link>
-          </div>
-
-          <div style={personalCommandGridStyle(isTablet)}>
-            {personalCommandCards.map((card) => (
-              <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
-                <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
-                <div style={metricLabelStyle}>{card.label}</div>
-                <div style={personalHomeTitleStyle}>{card.value}</div>
-                <div style={metricNoteStyle}>{card.note}</div>
-                <span style={miniActionLinkStyle}>{card.cta}</span>
-              </Link>
-            ))}
-          </div>
-
-          <section id="goal-progress" style={goalProgressPanelStyle}>
+        <section id="player-tools" style={profileLinkSectionStyle}>
+          <div style={profileLinkCardStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Optional goals</p>
-                <h3 style={compactSectionTitleStyle}>Training notes when you need them</h3>
+                <p style={sectionKickerStyle}>Player workshop</p>
+                <h2 style={sectionTitleStyle}>What should I do next?</h2>
+                <p style={sectionTextStyle}>
+                  Turn the scorecard into action: review, compare, choose one focus, then go play.
+                </p>
               </div>
-              <button type="button" onClick={addGoal} style={smallGhostButtonStyle}>
-                Add goal
-              </button>
+              <Link href={matchupHref} style={secondaryButtonStyle}>
+                Open Matchup
+              </Link>
             </div>
-            <div style={goalSummaryGridStyle(isTablet)}>
-              {goalSummaryCards.map((item) => (
-                <div key={item.label} style={goalSummaryCardStyle}>
-                  <div style={metricLabelStyle}>{item.label}</div>
-                  <div style={goalSummaryValueStyle}>{item.value}</div>
-                  <div style={metricNoteStyle}>{item.note}</div>
-                </div>
+
+            <div style={personalCommandGridStyle(isTablet)}>
+              {personalCommandCards.map((card) => (
+                <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
+                  <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+                  <div style={metricLabelStyle}>{card.label}</div>
+                  <div style={personalHomeTitleStyle}>{card.value}</div>
+                  <div style={metricNoteStyle}>{card.note}</div>
+                  <span style={miniActionLinkStyle}>{card.cta}</span>
+                </Link>
               ))}
             </div>
-            <div style={recommendationCardStyle}>
-              <div style={metricLabelStyle}>TenAceIQ recommendation</div>
-              <p style={recommendationTextStyle}>{tiqRecommendation}</p>
-            </div>
-            <div id="player-notebook" style={goalWorkspaceStyle}>
-              <div style={goalListStyle}>
-                {goals.map((goal, index) => (
-                  <button
-                    key={goal.id}
-                    type="button"
-                    onClick={() => setActiveGoalId(goal.id)}
-                    style={goal.id === activeGoalId ? goalTabActiveStyle : goalTabStyle}
-                  >
-                    <span>{goal.goal || `Goal ${index + 1}`}</span>
-                    <em>{goalStatusLabel(goal.progressStatus)}</em>
-                  </button>
+
+            <section id="goal-progress" style={goalProgressPanelStyle}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKickerStyle}>Optional goals</p>
+                  <h3 style={compactSectionTitleStyle}>Training notes when you need them</h3>
+                </div>
+                <button type="button" onClick={addGoal} style={smallGhostButtonStyle}>
+                  Add goal
+                </button>
+              </div>
+              <div style={goalSummaryGridStyle(isTablet)}>
+                {goalSummaryCards.map((item) => (
+                  <div key={item.label} style={goalSummaryCardStyle}>
+                    <div style={metricLabelStyle}>{item.label}</div>
+                    <div style={goalSummaryValueStyle}>{item.value}</div>
+                    <div style={metricNoteStyle}>{item.note}</div>
+                  </div>
                 ))}
               </div>
-
-              <details style={goalEditorDetailsStyle}>
-                <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
-                <div style={goalEditorStyle}>
-                  <div style={inputWrapStyle}>
-                    <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
-                    <input
-                      id={`my-lab-goal-${activeGoal.id}`}
-                      value={activeGoal.goal}
-                      onChange={(event) => updateGoal(activeGoal.id, { goal: event.target.value })}
-                      placeholder="Example: attack second serves this month"
-                      style={inputStyle}
-                    />
+              <div style={goalReadinessPanelStyle}>
+                <div style={goalReadinessHeaderStyle}>
+                  <div>
+                    <div style={metricLabelStyle}>Active goal readiness</div>
+                    <p style={goalReadinessTextStyle}>
+                      {goalReadinessScore === 100
+                        ? 'This focus is ready to take into your next match.'
+                        : `Next: add ${nextReadinessStep.toLowerCase()} detail.`}
+                    </p>
                   </div>
-                  <div style={inputWrapStyle}>
-                    <label style={labelStyle} htmlFor={`my-lab-progress-${activeGoal.id}`}>Status</label>
-                    <select
-                      id={`my-lab-progress-${activeGoal.id}`}
-                      value={activeGoal.progressStatus}
-                      onChange={(event) => {
-                        const nextStatus = event.target.value
-                        if (!isGoalProgressStatus(nextStatus)) return
-                        updateGoal(activeGoal.id, { progressStatus: nextStatus })
-                      }}
-                      style={inputStyle}
-                    >
-                      <option value="not-started">Not started</option>
-                      <option value="in-progress">In progress</option>
-                      <option value="improving">Improving</option>
-                      <option value="completed">Completed</option>
-                    </select>
-                  </div>
-                  <div style={inputWrapStyle}>
-                    <label style={labelStyle} htmlFor={`my-lab-progress-update-${activeGoal.id}`}>Progress update</label>
-                    <textarea
-                      id={`my-lab-progress-update-${activeGoal.id}`}
-                      value={activeGoal.progressUpdate}
-                      onChange={(event) => updateGoal(activeGoal.id, { progressUpdate: event.target.value })}
-                      placeholder="What changed since the last match or practice?"
-                      style={shortTextAreaStyle}
-                    />
-                  </div>
-                  <div style={goalFieldGridStyle(isTablet)}>
-                    <div style={inputWrapStyle}>
-                      <label style={labelStyle} htmlFor={`my-lab-doing-well-${activeGoal.id}`}>What am I doing well?</label>
-                      <textarea
-                        id={`my-lab-doing-well-${activeGoal.id}`}
-                        value={activeGoal.doingWell}
-                        onChange={(event) => updateGoal(activeGoal.id, { doingWell: event.target.value })}
-                        placeholder="Example: holding serve under pressure"
-                        style={shortTextAreaStyle}
-                      />
-                    </div>
-                    <div style={inputWrapStyle}>
-                      <label style={labelStyle} htmlFor={`my-lab-improve-next-${activeGoal.id}`}>Where can I improve?</label>
-                      <textarea
-                        id={`my-lab-improve-next-${activeGoal.id}`}
-                        value={activeGoal.improveNext}
-                        onChange={(event) => updateGoal(activeGoal.id, { improveNext: event.target.value })}
-                        placeholder="Example: return depth on second serves"
-                        style={shortTextAreaStyle}
-                      />
-                    </div>
-                  </div>
-                  <div style={inputWrapStyle}>
-                    <label style={labelStyle} htmlFor={`my-lab-notebook-${activeGoal.id}`}>Notes</label>
-                    <textarea
-                      id={`my-lab-notebook-${activeGoal.id}`}
-                      value={activeGoal.notes}
-                      onChange={(event) => updateGoal(activeGoal.id, { notes: event.target.value })}
-                      placeholder="What felt good? What broke down? What should I test next?"
-                      style={textAreaStyle}
-                    />
-                  </div>
-                  <div style={notebookFooterStyle}>
-                    <span>{notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
-                    <div style={goalFooterActionsStyle}>
-                      <button type="button" onClick={() => removeGoal(activeGoal.id)} style={smallGhostButtonStyle}>
-                        Remove goal
-                      </button>
-                      <button type="button" onClick={saveNotebook} style={saveNotebookButtonStyle}>
-                        Save goals
-                      </button>
-                    </div>
-                  </div>
+                  <strong style={goalReadinessScoreStyle}>{goalReadinessScore}%</strong>
                 </div>
-              </details>
-            </div>
-          </section>
-
-          <div style={workshopGridStyle(isTablet)}>
-            <div id="recent-matches" style={workshopPanelStyle}>
-              <div style={sectionKickerStyle}>Recent matches</div>
-              <div style={workshopListStyle}>
-                {personalMatches.length ? (
-                  personalMatches.slice(0, 5).map((match) => (
-                    <div key={match.id} style={workshopMatchRowStyle}>
-                      <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
-                        {match.result}
+                <div style={goalReadinessTrackStyle} aria-label={`Active goal readiness ${goalReadinessScore} percent`}>
+                  <span style={goalReadinessFillStyle(goalReadinessScore)} />
+                </div>
+                <div style={goalReadinessChecklistStyle}>
+                  {goalReadinessChecks.map((item) => (
+                    <span key={item.label} style={item.complete ? readinessPillCompleteStyle : readinessPillStyle}>
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div style={recommendationCardStyle}>
+                <div style={metricLabelStyle}>TenAceIQ recommendation</div>
+                <p style={recommendationTextStyle}>{tiqRecommendation}</p>
+              </div>
+              <div style={quickStartPanelStyle}>
+                <div>
+                  <div style={metricLabelStyle}>Quick starts</div>
+                  <p style={quickStartTextStyle}>Drop a practical focus into the active goal, then adjust the details.</p>
+                </div>
+                <div style={quickStartButtonRowStyle}>
+                  {focusTemplates.map((template) => (
+                    <button
+                      key={template.label}
+                      type="button"
+                      onClick={() => applyGoalTemplate(template)}
+                      style={quickStartButtonStyle}
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div id="player-notebook" style={goalWorkspaceStyle}>
+                <div style={goalListStyle}>
+                  {goals.map((goal, index) => (
+                    <button
+                      key={goal.id}
+                      type="button"
+                      onClick={() => setActiveGoalId(goal.id)}
+                      style={goal.id === activeGoalId ? goalTabActiveStyle : goalTabStyle}
+                    >
+                      <span>{goal.goal || `Goal ${index + 1}`}</span>
+                      <span style={goalTabMetaRowStyle}>
+                        <em>{goalStatusLabel(goal.progressStatus)}</em>
+                        <strong>{goalReadinessScoreFor(goal)}%</strong>
                       </span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={workshopRowTitleStyle}>{match.opponent}</div>
-                        <div style={workshopRowMetaStyle}>
-                          {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
-                        </div>
+                      <span style={goalTabTrackStyle}>
+                        <span style={goalTabTrackFillStyle(goalReadinessScoreFor(goal))} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <details style={goalEditorDetailsStyle}>
+                  <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
+                  <div style={goalEditorStyle}>
+                    <div style={inputWrapStyle}>
+                      <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
+                      <input
+                        id={`my-lab-goal-${activeGoal.id}`}
+                        value={activeGoal.goal}
+                        onChange={(event) => updateGoal(activeGoal.id, { goal: event.target.value })}
+                        placeholder="Example: attack second serves this month"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div style={inputWrapStyle}>
+                      <label style={labelStyle} htmlFor={`my-lab-progress-${activeGoal.id}`}>Status</label>
+                      <select
+                        id={`my-lab-progress-${activeGoal.id}`}
+                        value={activeGoal.progressStatus}
+                        onChange={(event) => {
+                          const nextStatus = event.target.value
+                          if (!isGoalProgressStatus(nextStatus)) return
+                          updateGoal(activeGoal.id, { progressStatus: nextStatus })
+                        }}
+                        style={inputStyle}
+                      >
+                        <option value="not-started">Not started</option>
+                        <option value="in-progress">In progress</option>
+                        <option value="improving">Improving</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                    </div>
+                    <div style={inputWrapStyle}>
+                      <label style={labelStyle} htmlFor={`my-lab-progress-update-${activeGoal.id}`}>Progress update</label>
+                      <textarea
+                        id={`my-lab-progress-update-${activeGoal.id}`}
+                        value={activeGoal.progressUpdate}
+                        onChange={(event) => updateGoal(activeGoal.id, { progressUpdate: event.target.value })}
+                        placeholder="What changed since the last match or practice?"
+                        style={shortTextAreaStyle}
+                      />
+                    </div>
+                    <div style={goalFieldGridStyle(isTablet)}>
+                      <div style={inputWrapStyle}>
+                        <label style={labelStyle} htmlFor={`my-lab-doing-well-${activeGoal.id}`}>What am I doing well?</label>
+                        <textarea
+                          id={`my-lab-doing-well-${activeGoal.id}`}
+                          value={activeGoal.doingWell}
+                          onChange={(event) => updateGoal(activeGoal.id, { doingWell: event.target.value })}
+                          placeholder="Example: holding serve under pressure"
+                          style={shortTextAreaStyle}
+                        />
+                      </div>
+                      <div style={inputWrapStyle}>
+                        <label style={labelStyle} htmlFor={`my-lab-improve-next-${activeGoal.id}`}>Where can I improve?</label>
+                        <textarea
+                          id={`my-lab-improve-next-${activeGoal.id}`}
+                          value={activeGoal.improveNext}
+                          onChange={(event) => updateGoal(activeGoal.id, { improveNext: event.target.value })}
+                          placeholder="Example: return depth on second serves"
+                          style={shortTextAreaStyle}
+                        />
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div style={emptyStateStyle}>
-                    {isProfileConfirmed ? 'Match history will appear as imported results connect to your player record.' : 'Set up your profile to unlock your personal match history.'}
+                    <div style={inputWrapStyle}>
+                      <label style={labelStyle} htmlFor={`my-lab-notebook-${activeGoal.id}`}>Notes</label>
+                      <textarea
+                        id={`my-lab-notebook-${activeGoal.id}`}
+                        value={activeGoal.notes}
+                        onChange={(event) => updateGoal(activeGoal.id, { notes: event.target.value })}
+                        placeholder="What felt good? What broke down? What should I test next?"
+                        style={textAreaStyle}
+                      />
+                    </div>
+                    <div style={notebookFooterStyle}>
+                      <span>{notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
+                      <div style={goalFooterActionsStyle}>
+                        <button type="button" onClick={() => removeGoal(activeGoal.id)} style={smallGhostButtonStyle}>
+                          Remove goal
+                        </button>
+                        <button type="button" onClick={saveNotebook} style={saveNotebookButtonStyle}>
+                          Save goals
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </details>
               </div>
-            </div>
+            </section>
 
-            <div style={workshopPanelStyle}>
-              <div style={sectionKickerStyle}>Next action</div>
-              <div style={nextActionCardStyle}>
-                <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
-                <div>
-                  <div style={workshopRowTitleStyle}>
-                    {topMatchupCandidate ? `Open the read vs ${topMatchupCandidate.player.name}` : 'Build your first read'}
-                  </div>
-                  <div style={workshopRowMetaStyle}>
-                    {topMatchupCandidate
-                      ? 'Use the staged matchup to compare the edge, what to watch, and whether it fits your current focus.'
-                      : 'Once your profile has a connected rating, this will become a direct matchup recommendation.'}
-                  </div>
+            <div style={workshopGridStyle(isTablet)}>
+              <div id="recent-matches" style={workshopPanelStyle}>
+                <div style={sectionKickerStyle}>Recent matches</div>
+                <div style={workshopListStyle}>
+                  {personalMatches.length ? (
+                    personalMatches.slice(0, 5).map((match) => (
+                      <div key={match.id} style={workshopMatchRowStyle}>
+                        <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
+                          {match.result}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={workshopRowTitleStyle}>{match.opponent}</div>
+                          <div style={workshopRowMetaStyle}>
+                            {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => reflectOnMatch(match)}
+                          style={matchReflectButtonStyle}
+                        >
+                          Reflect
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={emptyStateStyle}>
+                      {isProfileConfirmed ? 'Match history will appear as imported results connect to your player record.' : 'Set up your profile to unlock your personal match history.'}
+                    </div>
+                  )}
                 </div>
-                <Link href={matchupHref} style={miniActionPillStyle}>
-                  Matchup
-                </Link>
+              </div>
+
+              <div style={workshopPanelStyle}>
+                <div style={sectionKickerStyle}>Next action</div>
+                <div style={nextActionCardStyle}>
+                  <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+                  <div>
+                    <div style={workshopRowTitleStyle}>
+                      {topMatchupCandidate ? `Open the read vs ${topMatchupCandidate.player.name}` : 'Build your first read'}
+                    </div>
+                    <div style={workshopRowMetaStyle}>
+                      {topMatchupCandidate
+                        ? 'Use the staged matchup to compare the edge, what to watch, and whether it fits your current focus.'
+                        : 'Once your profile has a connected rating, this will become a direct matchup recommendation.'}
+                    </div>
+                  </div>
+                  <Link href={matchupHref} style={miniActionPillStyle}>
+                    Matchup
+                  </Link>
+                </div>
               </div>
             </div>
-
           </div>
-        </div>
-      </section>
+        </section>
       ) : null}
 
       <details style={optionalContextDetailsStyle}>
@@ -2700,6 +2910,64 @@ const personalHomeTitleStyle: CSSProperties = {
   fontSize: '1.08rem',
   fontWeight: 900,
   lineHeight: 1.2,
+}
+
+const personalReadPanelStyle: CSSProperties = {
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-lime) 9%, transparent) 0%, var(--shell-panel-bg) 66%)',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const personalReadHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+}
+
+const personalReadTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.35rem',
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const personalReadGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const personalReadCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  minHeight: 128,
+  display: 'grid',
+  gap: 7,
+  alignContent: 'start',
+}
+
+const personalReadCardLinkStyle: CSSProperties = {
+  ...personalReadCardStyle,
+  textDecoration: 'none',
+  color: 'inherit',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+}
+
+const personalReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.12rem',
+  fontWeight: 950,
+  lineHeight: 1.12,
 }
 
 const levelUpPanelStyle = (isTablet: boolean): CSSProperties => ({
@@ -3230,6 +3498,76 @@ const goalSummaryValueStyle: CSSProperties = {
   lineHeight: 1.25,
 }
 
+const goalReadinessPanelStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 10,
+}
+
+const goalReadinessHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+}
+
+const goalReadinessTextStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const goalReadinessScoreStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.35rem',
+  lineHeight: 1,
+  whiteSpace: 'nowrap',
+}
+
+const goalReadinessTrackStyle: CSSProperties = {
+  height: 12,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--foreground-strong) 12%, var(--shell-panel-border) 88%)',
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+  padding: 2,
+}
+
+const goalReadinessFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  width: `${Math.max(0, Math.min(value, 100))}%`,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+})
+
+const goalReadinessChecklistStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+}
+
+const readinessPillStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  borderRadius: 999,
+  padding: '4px 8px',
+  fontSize: 12,
+  fontWeight: 900,
+}
+
+const readinessPillCompleteStyle: CSSProperties = {
+  ...readinessPillStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+}
+
 const recommendationCardStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
@@ -3243,6 +3581,40 @@ const recommendationTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const quickStartPanelStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 10,
+}
+
+const quickStartTextStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const quickStartButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
+const quickStartButtonStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  borderRadius: 999,
+  minHeight: 34,
+  padding: '0 12px',
+  fontSize: 13,
+  fontWeight: 900,
+  cursor: 'pointer',
 }
 
 const smallGhostButtonStyle: CSSProperties = {
@@ -3307,6 +3679,30 @@ const goalTabActiveStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
 }
 
+const goalTabMetaRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+}
+
+const goalTabTrackStyle: CSSProperties = {
+  height: 6,
+  borderRadius: 999,
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+}
+
+const goalTabTrackFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  width: `${Math.max(0, Math.min(value, 100))}%`,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+})
+
 const goalEditorDetailsStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
@@ -3356,13 +3752,26 @@ const goalEditorStyle: CSSProperties = {
 
 const workshopMatchRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
   gap: 10,
   alignItems: 'center',
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
+}
+
+const matchReflectButtonStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  borderRadius: 999,
+  minHeight: 32,
+  padding: '0 10px',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'nowrap',
 }
 
 const workshopContextRowStyle: CSSProperties = {
