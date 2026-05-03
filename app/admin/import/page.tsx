@@ -11,7 +11,6 @@ import {
   useState,
   type CSSProperties,
   type ChangeEvent,
-  type ReactNode,
 } from 'react'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import AdminGate from '@/app/components/admin-gate'
@@ -173,11 +172,6 @@ const textareaStyle: CSSProperties = {
     'ui-monospace, SFMono-Regular, SF Mono, Menlo, Monaco, Consolas, Liberation Mono, monospace',
   fontSize: '0.82rem',
   lineHeight: 1.5,
-}
-
-const selectStyle: CSSProperties = {
-  ...inputStyle,
-  minHeight: 48,
 }
 
 const primaryButtonStyle: CSSProperties = {
@@ -349,15 +343,6 @@ function buildScorecardPreview(payload: unknown): {
   }
 }
 
-function getScorecardWinnerLabel(
-  match: PreviewScorecardMatch,
-  winnerSide: 'A' | 'B' | null,
-): string {
-  if (winnerSide === 'A') return match.homeTeam || 'Home'
-  if (winnerSide === 'B') return match.awayTeam || 'Away'
-  return '—'
-}
-
 function summarizeUploadedFile(
   fileName: string,
   payload: unknown,
@@ -455,44 +440,6 @@ function SummaryMetric({
       <div style={{ ...labelStyle, fontSize: '0.72rem' }}>{label}</div>
       <div style={{ ...summaryValueStyle, marginTop: 8 }}>{value}</div>
       <div style={{ ...subtleTextStyle, marginTop: 8, fontSize: '0.82rem' }}>{helper}</div>
-    </div>
-  )
-}
-
-function StatusPanel({
-  title,
-  tone,
-  children,
-}: {
-  title: string
-  tone: 'blue' | 'green' | 'slate'
-  children: ReactNode
-}) {
-  const border =
-    tone === 'green'
-      ? '1px solid rgba(155,225,29,0.12)'
-      : tone === 'slate'
-        ? '1px solid rgba(148,163,184,0.14)'
-        : '1px solid rgba(116,190,255,0.12)'
-
-  const background =
-    tone === 'green'
-      ? 'linear-gradient(180deg, rgba(18,38,33,0.66) 0%, rgba(9,18,34,0.92) 100%)'
-      : tone === 'slate'
-        ? 'linear-gradient(180deg, rgba(19,28,45,0.74) 0%, rgba(9,18,34,0.92) 100%)'
-        : 'linear-gradient(180deg, rgba(17,34,63,0.72) 0%, rgba(9,18,34,0.92) 100%)'
-
-  return (
-    <div
-      style={{
-        borderRadius: 22,
-        border,
-        background,
-        padding: '16px',
-      }}
-    >
-      <div style={{ color: '#F8FBFF', fontWeight: 800, fontSize: '1rem' }}>{title}</div>
-      <div style={{ marginTop: 10 }}>{children}</div>
     </div>
   )
 }
@@ -1820,7 +1767,6 @@ export default function AdminImportPage() {
               reviewerName={reviewerName}
               onReviewerNameChange={setReviewerName}
               onMatchDecisionChange={handleMatchDecisionChange}
-              onApproveMatch={handleApproveMatch}
               onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
               onQuickWinnerAndSubmit={(preview, lineNumber, winnerSide) => void handleQuickWinnerAndSubmit(preview, lineNumber, winnerSide)}
               onReviewerNoteChange={handleReviewerNoteChange}
@@ -1852,7 +1798,6 @@ export default function AdminImportPage() {
                   reviewerName={reviewerName}
                   onReviewerNameChange={setReviewerName}
                   onMatchDecisionChange={handleMatchDecisionChange}
-                  onApproveMatch={handleApproveMatch}
                   onApproveAndSubmitMatch={(preview) => void handleApproveAndSubmitMatch(preview)}
                   onQuickWinnerAndSubmit={(preview, lineNumber, winnerSide) => void handleQuickWinnerAndSubmit(preview, lineNumber, winnerSide)}
                   onReviewerNoteChange={handleReviewerNoteChange}

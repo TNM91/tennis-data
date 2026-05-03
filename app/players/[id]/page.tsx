@@ -23,7 +23,7 @@ import {
   type TiqLeagueStorageSource,
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
-import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { formatDate } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -935,15 +935,6 @@ export default function PlayerProfilePage() {
 
   const dynamicStatsGrid: CSSProperties = {
     ...statsGrid,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isMobile
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(4, minmax(0, 1fr))',
-  }
-
-  const dynamicGlanceGrid: CSSProperties = {
-    ...glanceGridStyle,
     gridTemplateColumns: isSmallMobile
       ? '1fr'
       : isMobile
@@ -2741,11 +2732,6 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : fallback
-}
-
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
@@ -3276,59 +3262,6 @@ const statsGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
   marginBottom: '26px',
-}
-
-const glancePanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: '16px',
-  marginBottom: '16px',
-  padding: '20px',
-  borderRadius: '28px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const glanceGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-}
-
-const glanceCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  minHeight: '126px',
-  padding: '16px',
-  borderRadius: '22px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const glanceCardAccentStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
-}
-
-const glanceLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: '12px',
-  fontWeight: 950,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const glanceValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.85rem, 3vw, 2.55rem)',
-  lineHeight: 1,
-  fontWeight: 950,
-}
-
-const glanceNoteStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.45,
-  fontWeight: 700,
 }
 
 const profileReadDetailsStyle: CSSProperties = {

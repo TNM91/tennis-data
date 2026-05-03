@@ -63,6 +63,11 @@ type RatingSnapshotInsert = {
   multiplier: number
 }
 
+type LegacyRatingSnapshotInsert = Omit<
+  RatingSnapshotInsert,
+  'delta' | 'opponent_rating' | 'win_probability' | 'multiplier'
+>
+
 type ParsedSetScore = {
   sideA: number
   sideB: number
@@ -638,7 +643,7 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
       // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
       if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
           error.message.includes('win_probability') || error.message.includes('multiplier')) {
-        const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
+        const stripped = chunk.map(stripSnapshotMetrics)
         const { error: fallbackError } = await client.from('rating_snapshots').upsert(stripped, {
           onConflict: 'player_id,match_id,rating_type',
         })
@@ -672,13 +677,24 @@ async function insertRatingSnapshotChunk(chunk: RatingSnapshotInsert[], client: 
     error.message.includes('win_probability') ||
     error.message.includes('multiplier')
   ) {
-    const stripped = chunk.map(({ delta: _d, opponent_rating: _o, win_probability: _w, multiplier: _m, ...rest }) => rest)
+    const stripped = chunk.map(stripSnapshotMetrics)
     const { error: fallbackError } = await client.from('rating_snapshots').insert(stripped)
     if (!fallbackError) return
     throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
   }
 
   throw new Error(`Failed to insert rating snapshots: ${error.message}`)
+}
+
+function stripSnapshotMetrics(snapshot: RatingSnapshotInsert): LegacyRatingSnapshotInsert {
+  return {
+    player_id: snapshot.player_id,
+    match_id: snapshot.match_id,
+    snapshot_date: snapshot.snapshot_date,
+    rating_type: snapshot.rating_type,
+    dynamic_rating: snapshot.dynamic_rating,
+    track: snapshot.track,
+  }
 }
 
 export function parseScoreMetrics(score: string | null | undefined, winnerSide: MatchSide): ScoreMetrics {

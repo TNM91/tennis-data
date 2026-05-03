@@ -612,23 +612,12 @@ function normalizeTime(record: UnknownRecord): string | null {
   return null
 }
 
-function splitFlagDelimitedTeamParts(value: string): string[] {
-  return value
-    .split(/\(\s*F\s*\)?/i)
-    .map((part) => cleanString(part))
-    .filter(Boolean)
-}
-
 function normalizeTeamToken(value: string): string {
   return cleanString(value)
     .replace(/\(\s*F\s*\)?/gi, ' ')
     .replace(/\s*\/\s*/g, '/')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-function normalizeRawTeamValue(value: unknown): string {
-  return normalizeTeamToken(cleanString(value))
 }
 
 function extractTeamsFromScheduleFields(record: UnknownRecord): { home: string; away: string } {

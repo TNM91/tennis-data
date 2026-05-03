@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -118,19 +118,7 @@ function ProfilePageInner() {
     setPrefs(readProfilePrefs())
   }, [])
 
-  useEffect(() => {
-    if (!authResolved) return
-    if (!userId) {
-      setProfile(null)
-      setSelectedPlayerId('')
-      setLoading(false)
-      setError('')
-      return
-    }
-    void loadProfile()
-  }, [authResolved, userId])
-
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     setLoading(true)
     setError('')
 
@@ -183,7 +171,19 @@ function ProfilePageInner() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+    if (!userId) {
+      setProfile(null)
+      setSelectedPlayerId('')
+      setLoading(false)
+      setError('')
+      return
+    }
+    void loadProfile()
+  }, [authResolved, loadProfile, userId])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
   const selectedPlayer = selectedPlayerId ? playerMap.get(selectedPlayerId) || null : null

@@ -44,6 +44,16 @@ type AvailabilityPlayer = {
   note?: string
 }
 
+type AvailabilityActionCard = {
+  label: string
+  title: string
+  detail: string
+  value: string
+  tone: 'green' | 'blue' | 'slate' | 'warn'
+  cta: string
+  href: string
+}
+
 type TeamOptionMatchRow = {
   home_team: string | null
   away_team: string | null
@@ -421,6 +431,12 @@ export default function CaptainAvailabilityPage() {
     league: hasScope ? selectedLeague : undefined,
     flight: hasScope ? selectedFlight : undefined,
   })
+  const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', {
+    competitionLayer: hasScope ? competitionLayerParam : undefined,
+    team: hasScope ? selectedTeam : undefined,
+    league: hasScope ? selectedLeague : undefined,
+    flight: hasScope ? selectedFlight : undefined,
+  })
 
   const counts = useMemo(() => {
     return {
@@ -448,6 +464,64 @@ export default function CaptainAvailabilityPage() {
       : counts.in === 0 && counts.out === 0 && counts.maybe === 0
         ? 'Start by picking a team to load the weekly roster.'
         : 'The roster is fully answered, so you can move straight into lineup planning.'
+  const selectedMatch = scheduledMatches.find((match) => match.id === selectedMatchId) ?? null
+  const availabilityActionCards = useMemo<AvailabilityActionCard[]>(() => {
+    const responseValue =
+      responseTotal > 0
+        ? `${responseAnswered}/${responseTotal}`
+        : 'No roster'
+    const responseTone = counts.unanswered > 0 ? 'warn' : responseTotal > 0 ? 'green' : 'slate'
+    const lineupTone = lineupPoolCount >= 8 ? 'green' : lineupPoolCount >= 4 ? 'blue' : 'warn'
+    const maybeText =
+      counts.maybe > 0
+        ? `${counts.maybe} maybe ${counts.maybe === 1 ? 'player' : 'players'} can swing the final courts.`
+        : 'No maybe replies are waiting on a captain call.'
+
+    return [
+      {
+        label: 'Reply chase',
+        title: counts.unanswered > 0 ? 'Chase the missing replies' : 'Responses are covered',
+        detail:
+          counts.unanswered > 0
+            ? 'Send the short availability nudge before you spend time on court order.'
+            : 'Everyone loaded for this roster has a saved answer.',
+        value: responseValue,
+        tone: responseTone,
+        cta: counts.unanswered > 0 ? 'Text Team' : 'Review Message',
+        href: messagingHref,
+      },
+      {
+        label: 'Lineup pool',
+        title: lineupPoolCount >= 4 ? 'Pool is usable' : 'Pool needs help',
+        detail:
+          lineupPoolCount >= 4
+            ? `${lineupPoolCount} players are in or maybe, enough to start shaping courts.`
+            : 'Mark more yes or maybe replies before building the week.',
+        value: String(lineupPoolCount),
+        tone: lineupTone,
+        cta: 'Build Lineup',
+        href: lineupBuilderHref,
+      },
+      {
+        label: 'Maybe list',
+        title: counts.maybe > 0 ? 'Resolve the swing players' : 'No swing players',
+        detail: maybeText,
+        value: String(counts.maybe),
+        tone: counts.maybe > 0 ? 'blue' : 'slate',
+        cta: 'Project Courts',
+        href: lineupProjectionHref,
+      },
+    ]
+  }, [
+    counts.maybe,
+    counts.unanswered,
+    lineupBuilderHref,
+    lineupPoolCount,
+    lineupProjectionHref,
+    messagingHref,
+    responseAnswered,
+    responseTotal,
+  ])
   const dynamicQuickStartCard: CSSProperties = {
     ...quickStartCard,
     position: 'relative',
@@ -687,6 +761,60 @@ export default function CaptainAvailabilityPage() {
           </section>
         ) : null}
 
+        <section style={decisionPanel}>
+          <div style={sectionHeadResponsive(isTablet)}>
+            <div>
+              <div style={sectionKicker}>Availability read</div>
+              <h2 style={sectionTitle}>Turn replies into the next move.</h2>
+              <div style={sectionSub}>
+                {selectedMatch
+                  ? `${getOpponent(selectedMatch, selectedTeam) || 'Opponent'} - ${formatScheduleLabel(selectedMatch)}`
+                  : 'Choose a scheduled match to make this read specific.'}
+              </div>
+            </div>
+            <div style={sectionChipRow}>
+              <span style={responseProgress >= 80 ? badgeGreen : responseProgress >= 50 ? badgeBlue : badgeSlate}>
+                {responseProgress}% answered
+              </span>
+              <span style={lineupPoolCount >= 8 ? badgeGreen : lineupPoolCount >= 4 ? badgeBlue : badgeSlate}>
+                {lineupPoolLabel}
+              </span>
+            </div>
+          </div>
+
+          <div style={availabilityActionGridResponsive(isSmallMobile)}>
+            {availabilityActionCards.map((card) => (
+              <article
+                key={card.label}
+                style={{
+                  ...availabilityActionCard,
+                  ...(card.tone === 'green'
+                    ? availabilityActionCardGreen
+                    : card.tone === 'blue'
+                      ? availabilityActionCardBlue
+                      : card.tone === 'warn'
+                        ? availabilityActionCardWarn
+                        : availabilityActionCardSlate),
+                }}
+              >
+                <div style={availabilityActionTop}>
+                  <span style={availabilityActionLabel}>{card.label}</span>
+                  <span style={card.tone === 'green' ? badgeGreen : card.tone === 'blue' ? badgeBlue : card.tone === 'warn' ? warnBadge : badgeSlate}>
+                    {card.value}
+                  </span>
+                </div>
+                <div>
+                  <div style={availabilityActionTitle}>{card.title}</div>
+                  <div style={availabilityActionText}>{card.detail}</div>
+                </div>
+                <Link href={card.href} style={sectionCtaSecondary}>
+                  {card.cta}
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section style={contentWrap}>
           <div style={metricGridResponsive(isSmallMobile, isMobile)}>
             <MetricCard label="Available" value={String(counts.in)} accent="green" />
@@ -838,6 +966,13 @@ function metricGridResponsive(isSmallMobile: boolean, isMobile: boolean): CSSPro
   return {
     ...metricGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  }
+}
+
+function availabilityActionGridResponsive(isSmallMobile: boolean): CSSProperties {
+  return {
+    ...availabilityActionGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : availabilityActionGrid.gridTemplateColumns,
   }
 }
 
@@ -1012,6 +1147,13 @@ const badgeSlate: CSSProperties = {
   borderColor: 'var(--shell-panel-border)',
 }
 
+const warnBadge: CSSProperties = {
+  ...badgeBase,
+  background: 'rgba(60,16,24,0.76)',
+  color: '#fecaca',
+  borderColor: 'rgba(248,113,113,0.22)',
+}
+
 const quickStartCard: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
@@ -1166,13 +1308,27 @@ const metricGrid: CSSProperties = {
   gap: '14px',
 }
 
-const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+const decisionPanel: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  gap: '14px',
-})
+  gap: 18,
+  borderRadius: '28px',
+  padding: '24px',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
 
-const signalCardStyle: CSSProperties = {
+const availabilityActionGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: '14px',
+}
+
+const availabilityActionCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 14,
+  minHeight: 210,
   borderRadius: '22px',
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
@@ -1180,7 +1336,31 @@ const signalCardStyle: CSSProperties = {
   boxShadow: 'var(--shadow-soft)',
 }
 
-const signalLabelStyle: CSSProperties = {
+const availabilityActionCardGreen: CSSProperties = {
+  borderColor: 'rgba(130,244,118,0.2)',
+}
+
+const availabilityActionCardBlue: CSSProperties = {
+  borderColor: 'rgba(98,154,255,0.2)',
+}
+
+const availabilityActionCardSlate: CSSProperties = {
+  borderColor: 'var(--shell-panel-border)',
+}
+
+const availabilityActionCardWarn: CSSProperties = {
+  borderColor: 'rgba(248,113,113,0.22)',
+}
+
+const availabilityActionTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const availabilityActionLabel: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
@@ -1188,15 +1368,15 @@ const signalLabelStyle: CSSProperties = {
   letterSpacing: '0.08em',
 }
 
-const signalValueStyle: CSSProperties = {
-  marginTop: '10px',
+const availabilityActionTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.24rem',
   fontWeight: 900,
+  lineHeight: 1.12,
   letterSpacing: 0,
 }
 
-const signalNoteStyle: CSSProperties = {
+const availabilityActionText: CSSProperties = {
   marginTop: '8px',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,

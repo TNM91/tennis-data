@@ -1303,26 +1303,6 @@ export default function RankingsPage() {
   )
 }
 
-function SortableHeaderUnused({
-  col, label, sortCol, sortDir, onSort,
-}: {
-  col: 'trend' | 'form' | 'winRate' | 'matches'
-  label: string
-  sortCol: string
-  sortDir: 'asc' | 'desc'
-  onSort: (col: 'trend' | 'form' | 'winRate' | 'matches') => void
-}) {
-  const active = sortCol === col
-  return (
-    <th
-      style={{ ...tableHead, cursor: 'pointer', userSelect: 'none', ...(active ? activeTableHead : {}) }}
-      onClick={() => onSort(col)}
-    >
-      {label}{active ? (sortDir === 'desc' ? ' ↓' : ' ↑') : ''}
-    </th>
-  )
-}
-
 function SortableHeaderClean({
   col, label, sortCol, sortDir, onSort,
 }: {

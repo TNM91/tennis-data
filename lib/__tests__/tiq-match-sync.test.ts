@@ -26,11 +26,6 @@ function makeChain(result: ChainResult | (() => ChainResult)) {
   return chain
 }
 
-function setupFrom(responses: Record<string, ChainResult>) {
-  const fromMock = supabase.from as Mock
-  fromMock.mockImplementation((table: string) => makeChain(responses[table] ?? { data: null, error: null }))
-}
-
 // ─── normalizePlayerName ──────────────────────────────────────────────────────
 
 describe('normalizePlayerName', () => {

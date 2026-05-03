@@ -30,7 +30,6 @@ import {
   parseBooleanLike,
   pickFirstString,
   pickNullableString,
-  cleanPhone,
   formatPhone,
   buildSmsHref,
   cleanText,
@@ -149,6 +148,13 @@ type NormalizedSlot = {
   label: string
   slotType: 'singles' | 'doubles'
   players: string[]
+}
+
+type MessagingHandoffCard = {
+  label: string
+  value: string
+  detail: string
+  tone: 'good' | 'warn' | 'info'
 }
 
 const CONTACTS_TABLE = 'captain_message_contacts'
@@ -1436,6 +1442,51 @@ export default function CaptainMessagingPage() {
     })
   }, [scopedContacts, availabilityMap, responseMap])
 
+  const builderHandoffCards = useMemo<MessagingHandoffCard[]>(() => {
+    const lineupComplete = lineupRows.length > 0 && lineupRows.every((row) =>
+      row.players.every((player) => normalizeText(player))
+    )
+
+    return [
+      {
+        label: 'Builder handoff',
+        value: selectedScenario?.scenario_name || (prefillFlowSource ? 'Scenario received' : 'No scenario'),
+        detail: selectedScenario
+          ? 'Messaging is anchored to the selected lineup scenario.'
+          : prefillFlowSource
+            ? 'A builder handoff was detected. Match it to a saved scenario before the final send.'
+            : 'Select or import a scenario so this message stays tied to the lineup plan.',
+        tone: selectedScenario ? 'good' : prefillFlowSource ? 'info' : 'warn',
+      },
+      {
+        label: 'Weekly lineup',
+        value: lineupRows.length ? `${lineupRows.length} court${lineupRows.length === 1 ? '' : 's'}` : 'Not loaded',
+        detail: lineupComplete
+          ? 'Every loaded court has player names ready for the lineup message.'
+          : lineupRows.length
+            ? 'At least one loaded court still has an open player spot.'
+            : 'Sync the scenario into the weekly lineup before announcing assignments.',
+        tone: lineupComplete ? 'good' : lineupRows.length ? 'warn' : 'info',
+      },
+      {
+        label: 'Reply pressure',
+        value: followUpTargets.length ? `${followUpTargets.length} follow-up` : 'Clear',
+        detail: followUpTargets.length
+          ? 'Outstanding replies should be cleared before a final lineup announcement.'
+          : 'No major response blocker is currently visible.',
+        tone: followUpTargets.length ? 'warn' : 'good',
+      },
+      {
+        label: 'Send move',
+        value: sendStrategy.label,
+        detail: messageBody.trim()
+          ? 'The composer has text loaded. Review audience fit, then send.'
+          : 'Use the recommended strategy to load the right message into the composer.',
+        tone: messageBody.trim() && selectedRecipients.length ? 'good' : 'info',
+      },
+    ]
+  }, [followUpTargets.length, lineupRows, messageBody, prefillFlowSource, selectedRecipients.length, selectedScenario, sendStrategy.label])
+
   const needSubContacts = useMemo(() => {
     return scopedContacts.filter((contact) => {
       const responseStatus = responseMap.get(contact.id)?.status ?? 'no-response'
@@ -2203,6 +2254,44 @@ function importScenarioToLineup() {
           <p style={teamRoomNoteStyle}>
             Start with text handoff. Later this can become an in-app thread or connect to GroupMe-style channels.
           </p>
+        </section>
+
+        <section style={builderHandoffSurfaceStyle}>
+          <div style={tableHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Builder handoff</p>
+              <h2 style={sectionTitle}>Is this ready to message?</h2>
+              <p style={mutedTextStyle}>
+                Check the scenario, lineup, replies, and next send before the team text goes out.
+              </p>
+            </div>
+            <span style={finalizationReadiness.ready ? miniPillGreen : warnPill}>{finalizationReadiness.label}</span>
+          </div>
+
+          <div style={builderHandoffGridStyle}>
+            {builderHandoffCards.map((card) => (
+              <div
+                key={card.label}
+                style={
+                  card.tone === 'good'
+                    ? builderHandoffCardGoodStyle
+                    : card.tone === 'warn'
+                      ? builderHandoffCardWarnStyle
+                      : builderHandoffCardInfoStyle
+                }
+              >
+                <div style={builderHandoffLabelStyle}>{card.label}</div>
+                <div style={builderHandoffValueStyle}>{card.value}</div>
+                <div style={builderHandoffTextStyle}>{card.detail}</div>
+              </div>
+            ))}
+          </div>
+
+          <div style={actionRowStyle}>
+            <PrimaryBtn onClick={applyRecommendedSendStrategy}>Apply Best Send</PrimaryBtn>
+            <GhostSmallBtn onClick={importScenarioToLineup}>Sync Scenario</GhostSmallBtn>
+            <GhostSmallBtn onClick={loadAutoFollowUpMessage}>Load Follow-Up</GhostSmallBtn>
+          </div>
         </section>
 
         {!captainAccess ? (
@@ -3798,15 +3887,6 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
   }
 }
 
-function signalGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    display: 'grid',
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-    gap: 14,
-    marginTop: 18,
-  }
-}
-
 function twoColumnGridResponsive(isTablet: boolean): CSSProperties {
   return {
     display: 'grid',
@@ -3933,37 +4013,6 @@ const heroMetricCardStyle: CSSProperties = {
   padding: '16px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-}
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: '22px',
-  padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '10px',
-  color: 'var(--foreground)',
-  fontSize: '1.24rem',
-  fontWeight: 900,
-  letterSpacing: 0,
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  fontSize: '.94rem',
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -4118,13 +4167,65 @@ const teamRoomNoteStyle: CSSProperties = {
   lineHeight: 1.5,
 }
 
-const sectionHeaderStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: 16,
-  flexWrap: 'wrap',
-  marginBottom: 16,
+const builderHandoffSurfaceStyle: CSSProperties = {
+  ...surfaceCardStrong,
+  maxWidth: 1280,
+  margin: '0 auto 18px',
+  border: '1px solid rgba(111, 236, 168, 0.22)',
+}
+
+const builderHandoffGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gap: 12,
+  marginTop: 16,
+}
+
+const builderHandoffCardBaseStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minHeight: 148,
+}
+
+const builderHandoffCardGoodStyle: CSSProperties = {
+  ...builderHandoffCardBaseStyle,
+  border: '1px solid rgba(34, 197, 94, 0.22)',
+}
+
+const builderHandoffCardWarnStyle: CSSProperties = {
+  ...builderHandoffCardBaseStyle,
+  border: '1px solid rgba(251, 191, 36, 0.24)',
+}
+
+const builderHandoffCardInfoStyle: CSSProperties = {
+  ...builderHandoffCardBaseStyle,
+  border: '1px solid rgba(96, 165, 250, 0.22)',
+}
+
+const builderHandoffLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const builderHandoffValueStyle: CSSProperties = {
+  marginTop: 10,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const builderHandoffTextStyle: CSSProperties = {
+  marginTop: 10,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
 }
 
 const sectionKicker: CSSProperties = {

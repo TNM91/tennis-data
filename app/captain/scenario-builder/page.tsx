@@ -1819,43 +1819,6 @@ const heroMetricGridBaseStyle: CSSProperties = {
   gap: '14px',
 }
 
-const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  gap: '14px',
-})
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: '22px',
-  padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '10px',
-  color: 'var(--foreground)',
-  fontSize: '1.24rem',
-  fontWeight: 900,
-  letterSpacing: 0,
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  fontSize: '.94rem',
-}
-
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: '22px',
   padding: '16px',
@@ -2023,15 +1986,6 @@ const deepDiveShellStyle: CSSProperties = {
   borderRadius: '28px',
   border: '1px solid var(--shell-panel-border)',
   background: 'rgba(255,255,255,0.035)',
-}
-
-const sectionHeaderStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap',
-  marginBottom: '16px',
 }
 
 const sectionKicker: CSSProperties = {

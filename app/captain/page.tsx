@@ -154,6 +154,31 @@ type CaptainWorkspaceState = {
   lastUpdatedLabel: string
 }
 
+type CaptainResumeStage =
+  | 'lineup'
+  | 'projection'
+  | 'scenario'
+  | 'messaging'
+  | 'analytics'
+  | 'availability'
+  | 'team'
+  | 'brief'
+  | 'season-dashboard'
+  | 'tiq-team-matches'
+
+type CaptainCommandStep = {
+  label: string
+  title: string
+  detail: string
+  href: string
+  stage: CaptainResumeStage
+  icon: TiqFeatureIconName
+  stateLabel: string
+  tone: 'good' | 'warn' | 'info'
+  cta: string
+  premium?: boolean
+}
+
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
@@ -261,7 +286,6 @@ export default function CaptainHubPage() {
   const [refreshTick, setRefreshTick] = useState(0)
 
   const [scenarioCount, setScenarioCount] = useState(0)
-  const [latestScenarioName, setLatestScenarioName] = useState('')
   const [workspaceState, setWorkspaceState] = useState<CaptainWorkspaceState>({
     lineupReady: false,
     scenarioReady: false,
@@ -540,7 +564,6 @@ export default function CaptainHubPage() {
 
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
       setScenarioCount(typedScenarios.length)
-      setLatestScenarioName(typedScenarios[0]?.scenario_name || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load captain tools')
     } finally {
@@ -944,6 +967,13 @@ export default function CaptainHubPage() {
     flight: selectedFlight,
   })
 
+  const lineupProjectionHref = buildCaptainScopedHref('/captain/lineup-projection', {
+    competitionLayer: selectedCompetitionLayer,
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+  })
+
   const availabilityHref = buildCaptainScopedHref('/captain/availability', {
     competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
@@ -1114,6 +1144,11 @@ const dynamicHeroRightCard: CSSProperties = {
     gridTemplateColumns: isSmallMobile ? '1fr' : statusStrip.gridTemplateColumns,
   }
 
+  const dynamicCommandCenterGrid: CSSProperties = {
+    ...commandCenterGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : commandCenterGrid.gridTemplateColumns,
+  }
+
   const dynamicNextActionButtonRow: CSSProperties = {
     ...nextActionButtonRow,
     display: isSmallMobile ? 'grid' : nextActionButtonRow.display,
@@ -1235,6 +1270,81 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     }
   }, [selectedTeam, matches.length, workspaceState, currentTeamHref, lineupBuilderHref, messagingHref, weeklyBriefHref])
 
+  const captainCommandSteps = useMemo<CaptainCommandStep[]>(() => {
+    const pendingCount = workspaceState.pendingResponseCount
+    const lineupCount = workspaceState.lineupCount
+
+    return [
+      {
+        label: '1. Availability',
+        title: pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
+        detail:
+          pendingCount > 0
+            ? `${pendingCount} player${pendingCount === 1 ? '' : 's'} still need a usable response before you lock courts.`
+            : 'No saved response blockers are holding up this week.',
+        href: availabilityHref,
+        stage: 'availability',
+        icon: 'schedule',
+        stateLabel: pendingCount > 0 ? `${pendingCount} waiting` : 'Clear',
+        tone: pendingCount > 0 ? 'warn' : 'good',
+        cta: pendingCount > 0 ? 'Follow Up' : 'Review',
+      },
+      {
+        label: '2. Projection',
+        title: matches.length > 0 ? 'Check the court shape' : 'Load match context',
+        detail:
+          matches.length > 0
+            ? 'Compare court strength and opponent pressure before you pick the final lineup.'
+            : 'Team match history unlocks a more useful projection read.',
+        href: lineupProjectionHref,
+        stage: 'projection',
+        icon: 'matchPrep',
+        stateLabel: matches.length > 0 ? 'Ready' : 'Needs data',
+        tone: matches.length > 0 ? 'info' : 'warn',
+        cta: 'Project',
+        premium: true,
+      },
+      {
+        label: '3. Builder',
+        title: workspaceState.lineupReady ? 'Lineup is drafted' : 'Build the courts',
+        detail: workspaceState.lineupReady
+          ? `${lineupCount} lineup slot${lineupCount === 1 ? '' : 's'} saved for the week.`
+          : 'Turn availability and projection reads into a playable weekly lineup.',
+        href: lineupBuilderHref,
+        stage: 'lineup',
+        icon: 'lineupBuilder',
+        stateLabel: workspaceState.lineupReady ? 'Built' : 'Draft',
+        tone: workspaceState.lineupReady ? 'good' : 'info',
+        cta: workspaceState.lineupReady ? 'Edit' : 'Build',
+        premium: true,
+      },
+      {
+        label: '4. Messaging',
+        title: workspaceState.messagingReady ? 'Team note is ready' : 'Prep the send',
+        detail: workspaceState.messagingReady
+          ? 'Lineup and event context are ready for a clean player update.'
+          : 'Use the saved lineup to send the right update and chase the right replies.',
+        href: messagingHref,
+        stage: 'messaging',
+        icon: 'messagingCenter',
+        stateLabel: workspaceState.messagingReady ? 'Ready' : 'Needs setup',
+        tone: workspaceState.messagingReady ? 'good' : 'warn',
+        cta: 'Message',
+        premium: true,
+      },
+    ]
+  }, [
+    availabilityHref,
+    lineupBuilderHref,
+    lineupProjectionHref,
+    matches.length,
+    messagingHref,
+    workspaceState.lineupCount,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+
   const weeklyOpsStatus = useMemo(() => {
     if (!selectedTeam) {
       return {
@@ -1313,7 +1423,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     workspaceState.messagingReady,
   ])
 
-  function rememberCaptainResume(stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief' | 'season-dashboard' | 'tiq-team-matches') {
+  function rememberCaptainResume(stage: CaptainResumeStage) {
     writeCaptainResumeState({
       competitionLayer: selectedCompetitionLayer || undefined,
       team: selectedTeam,
@@ -1322,6 +1432,8 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       lastTool:
         stage === 'lineup'
           ? 'lineup-builder'
+          : stage === 'projection'
+            ? 'lineup-projection'
           : stage === 'scenario'
             ? 'scenario-builder'
             : stage === 'messaging'
@@ -1340,6 +1452,8 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       lastToolLabel:
         stage === 'lineup'
           ? 'Lineup Builder'
+          : stage === 'projection'
+            ? 'Lineup Projection'
           : stage === 'scenario'
             ? 'Scenario Builder'
             : stage === 'messaging'
@@ -1360,7 +1474,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
   function handleCaptainNav(
     href: string,
-    stage: 'lineup' | 'scenario' | 'messaging' | 'analytics' | 'availability' | 'team' | 'brief' | 'season-dashboard' | 'tiq-team-matches',
+    stage: CaptainResumeStage,
   ) {
     rememberCaptainResume(stage)
     router.push(href)
@@ -1552,6 +1666,72 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             detail={workspaceState.briefReady ? 'Open the captain or team brief' : 'Add lineup, event, or response context'}
             tone={workspaceState.briefReady ? 'good' : 'info'}
           />
+        </section>
+
+        <section style={commandCenterShell}>
+          <div style={commandCenterHeader}>
+            <div>
+              <div style={sectionKicker}>Weekly command center</div>
+              <h2 style={sectionTitle}>Move from replies to a sent lineup.</h2>
+            </div>
+            <span style={workspaceState.briefReady ? badgeGreen : badgeSlate}>
+              {workspaceState.lastUpdatedLabel}
+            </span>
+          </div>
+          <div style={sectionSub}>
+            A captain flow for the week: confirm who can play, read the matchup, build courts, then send the team note.
+          </div>
+
+          <div style={dynamicCommandCenterGrid}>
+            {captainCommandSteps.map((step) => {
+              const locked = !hasTeamScope || (step.premium && !premiumEnabled)
+              const toneBadge = step.tone === 'good' ? badgeGreen : step.tone === 'warn' ? warnBadge : badgeBlue
+
+              return (
+                <article
+                  key={step.label}
+                  style={{
+                    ...commandCenterCard,
+                    ...(step.tone === 'good'
+                      ? commandCenterCardGood
+                      : step.tone === 'warn'
+                        ? commandCenterCardWarn
+                        : commandCenterCardInfo),
+                    ...(locked ? commandCenterCardLocked : null),
+                  }}
+                >
+                  <div style={commandCenterTopRow}>
+                    <div style={commandCenterLabelCluster}>
+                      <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
+                      <span style={commandCenterLabel}>{step.label}</span>
+                    </div>
+                    <span style={locked ? badgeSlate : toneBadge}>
+                      {!hasTeamScope ? 'Choose team' : step.premium && !premiumEnabled ? 'Captain tier' : step.stateLabel}
+                    </span>
+                  </div>
+
+                  <div>
+                    <div style={commandCenterTitle}>{step.title}</div>
+                    <div style={commandCenterText}>
+                      {locked && step.premium && !premiumEnabled ? CAPTAIN_STORY.lockedMessage : step.detail}
+                    </div>
+                  </div>
+
+                  <div style={commandCenterActionRow}>
+                    <PrimarySmallBtn
+                      disabled={locked}
+                      onClick={() => {
+                        if (locked) return
+                        handleCaptainNav(step.href, step.stage)
+                      }}
+                    >
+                      {step.cta}
+                    </PrimarySmallBtn>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
         </section>
 
         <section style={dynamicNextActionShell}>
@@ -2105,69 +2285,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
   )
 }
 
-function ActionCard({
-  badge,
-  title,
-  description,
-  href,
-  cta,
-  accent = false,
-  premium = false,
-  premiumEnabled = true,
-  lockedMessage = CAPTAIN_STORY.lockedMessage,
-  onAction,
-}: {
-  badge: string
-  title: string
-  description: string
-  href: string
-  cta: string
-  accent?: boolean
-  premium?: boolean
-  premiumEnabled?: boolean
-  lockedMessage?: string
-  onAction?: () => void
-}) {
-  const { isSmallMobile } = useViewportBreakpoints()
-  const locked = premium && !premiumEnabled
-
-  return (
-    <article style={{ ...actionCard, ...(accent ? actionCardAccent : null), ...(locked ? actionCardLocked : null) }}>
-      <div style={actionGlow} />
-      <div style={actionCardTopRow}>
-        <span style={badgePill}>{badge}</span>
-        {premium ? (
-          <span style={premiumEnabled ? badgeGreen : badgeSlate}>
-            {premiumEnabled ? 'Captain tier' : 'Premium'}
-          </span>
-        ) : null}
-      </div>
-      <h3 style={actionTitle}>{title}</h3>
-      <p style={actionText}>{description}</p>
-      {locked ? (
-        <div style={{ display: 'grid', gap: 10 }}>
-          <div style={lockedText}>{lockedMessage}</div>
-          <PrimarySmallLink href="/join?plan=captain&next=%2Fcaptain" fullWidth={isSmallMobile}>
-            Unlock Captain Tools
-          </PrimarySmallLink>
-        </div>
-      ) : onAction ? (
-        accent ? (
-          <PrimarySmallBtn onClick={onAction} fullWidth={isSmallMobile}>{cta}</PrimarySmallBtn>
-        ) : (
-          <SecondarySmallBtn onClick={onAction} fullWidth={isSmallMobile}>{cta}</SecondarySmallBtn>
-        )
-      ) : (
-        accent ? (
-          <PrimarySmallLink href={href} fullWidth={isSmallMobile}>{cta}</PrimarySmallLink>
-        ) : (
-          <SecondarySmallLink href={href} fullWidth={isSmallMobile}>{cta}</SecondarySmallLink>
-        )
-      )}
-    </article>
-  )
-}
-
 function StatusStripCard({
   label,
   icon,
@@ -2198,23 +2315,6 @@ function StatusStripCard({
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string
-  value: string
-  accent?: boolean
-}) {
-  return (
-    <div style={{ ...metricCard, ...(accent ? metricCardAccent : null) }}>
-      <div style={metricLabel}>{label}</div>
-      <div style={metricValue}>{value}</div>
-    </div>
-  )
-}
-
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div style={miniStatCard}>
@@ -2236,26 +2336,6 @@ function PrimaryLink({ href, children, fullWidth = false }: { href: string; chil
         width: fullWidth ? '100%' : undefined,
         transform: hovered ? 'translateY(-2px)' : 'none',
         boxShadow: hovered ? '0 22px 44px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
-        transition: 'transform 150ms ease, box-shadow 150ms ease',
-      }}
-    >
-      {children}
-    </Link>
-  )
-}
-
-function PrimarySmallLink({ href, children, fullWidth = false }: { href: string; children: ReactNode; fullWidth?: boolean }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <Link
-      href={href}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...primaryButtonSmall,
-        width: fullWidth ? '100%' : undefined,
-        transform: hovered ? 'translateY(-2px)' : 'none',
-        boxShadow: hovered ? '0 20px 38px rgba(74,222,128,0.28)' : primaryButton.boxShadow,
         transition: 'transform 150ms ease, box-shadow 150ms ease',
       }}
     >
@@ -2664,40 +2744,6 @@ const errorCard: CSSProperties = {
   fontWeight: 700,
 }
 
-const premiumStrip: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 16,
-  flexWrap: 'wrap',
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-}
-
-const premiumTitle: CSSProperties = {
-  margin: '6px 0 0',
-  color: 'var(--foreground-strong)',
-  fontSize: 22,
-  lineHeight: 1.08,
-  letterSpacing: 0,
-}
-
-const premiumText: CSSProperties = {
-  marginTop: 8,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.65,
-}
-
-const pillGroupWrap: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
-  alignItems: 'center',
-}
-
 const statusStrip: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -2732,6 +2778,101 @@ const statusDetail: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.6,
+}
+
+const commandCenterShell: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 28,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.12)',
+}
+
+const commandCenterHeader: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 14,
+  flexWrap: 'wrap',
+}
+
+const commandCenterGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 14,
+}
+
+const commandCenterCard: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 14,
+  minHeight: 230,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+}
+
+const commandCenterCardGood: CSSProperties = {
+  border: '1px solid rgba(74,222,128,0.18)',
+}
+
+const commandCenterCardWarn: CSSProperties = {
+  border: '1px solid rgba(248,113,113,0.2)',
+}
+
+const commandCenterCardInfo: CSSProperties = {
+  border: '1px solid rgba(147,197,253,0.18)',
+}
+
+const commandCenterCardLocked: CSSProperties = {
+  opacity: 0.82,
+}
+
+const commandCenterTopRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  flexWrap: 'wrap',
+}
+
+const commandCenterLabelCluster: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const commandCenterLabel: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const commandCenterTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  fontWeight: 900,
+  lineHeight: 1.12,
+  letterSpacing: 0,
+}
+
+const commandCenterText: CSSProperties = {
+  marginTop: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.65,
+}
+
+const commandCenterActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
 }
 
 const nextActionShell: CSSProperties = {
@@ -2842,20 +2983,6 @@ const scopeBannerWarn: CSSProperties = {
   color: '#fde68a',
 }
 
-const metricGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: 16,
-}
-
-const metricCard: CSSProperties = {
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 10px 30px rgba(2,10,24,0.14)',
-}
-
 const glanceGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -2931,26 +3058,12 @@ const weekStatusButtonRow: CSSProperties = {
   gap: 10,
 }
 
-const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(74,222,128,0.18)',
-  boxShadow: '0 10px 24px rgba(74,222,128,0.08)',
-}
-
 const metricLabel: CSSProperties = {
   fontSize: 12,
   color: 'var(--foreground)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
   fontWeight: 800,
-}
-
-const metricValue: CSSProperties = {
-  marginTop: 10,
-  color: 'var(--foreground-strong)',
-  fontSize: 24,
-  fontWeight: 900,
-  lineHeight: 1.05,
-  letterSpacing: 0,
 }
 
 const sectionCard: CSSProperties = {
@@ -3116,148 +3229,6 @@ const captainLaneActions: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   alignSelf: 'end',
-}
-
-const actionGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 16,
-}
-
-const actionCard: CSSProperties = {
-  position: 'relative',
-  overflow: 'hidden',
-  display: 'grid',
-  gap: 12,
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  backdropFilter: 'blur(10px)',
-  WebkitBackdropFilter: 'blur(10px)',
-}
-
-const actionCardAccent: CSSProperties = {
-  border: '1px solid rgba(74,222,128,0.18)',
-  boxShadow: '0 14px 34px rgba(74,222,128,0.08)',
-}
-
-const actionGlow: CSSProperties = {
-  position: 'absolute',
-  inset: 'auto -10% -40% auto',
-  width: 180,
-  height: 180,
-  borderRadius: 999,
-  background: 'radial-gradient(circle, rgba(74,163,255,0.14), transparent 70%)',
-  pointerEvents: 'none',
-}
-
-const actionCardLocked: CSSProperties = {
-  opacity: 0.82,
-}
-
-const actionCardTopRow: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 10,
-  flexWrap: 'wrap',
-}
-
-const lockedText: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.6,
-}
-
-const badgePill: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  display: 'inline-flex',
-  width: 'fit-content',
-  padding: '7px 11px',
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 800,
-  color: 'var(--foreground)',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const actionTitle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 20,
-  lineHeight: 1.1,
-  letterSpacing: 0,
-}
-
-const actionText: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.7,
-}
-
-const commandGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-  gap: 16,
-}
-
-const commandCard: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const commandCardAccent: CSSProperties = {
-  ...commandCard,
-  border: '1px solid rgba(74,222,128,0.18)',
-  boxShadow: '0 14px 34px rgba(74,222,128,0.08)',
-}
-
-const commandStep: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  padding: '7px 11px',
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 800,
-  color: '#dcfce7',
-  border: '1px solid rgba(74,222,128,0.2)',
-  background: 'rgba(17,39,27,0.88)',
-}
-
-const commandTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 20,
-  fontWeight: 900,
-  lineHeight: 1.1,
-  letterSpacing: 0,
-}
-
-const commandText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 14,
-  lineHeight: 1.7,
-}
-
-const commandButtonRow: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
 }
 
 const insightGrid: CSSProperties = {

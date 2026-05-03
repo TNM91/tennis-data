@@ -1,20 +1,7 @@
 import type { Metadata, Viewport } from 'next'
-import { JetBrains_Mono, Manrope } from 'next/font/google'
 import Script from 'next/script'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import './globals.css'
-
-const appSans = Manrope({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-  display: 'swap',
-})
-
-const appMono = JetBrains_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-  display: 'swap',
-})
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -110,7 +97,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${appSans.variable} ${appMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full">
         <Script id="theme-init" strategy="beforeInteractive">{`

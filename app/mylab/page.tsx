@@ -31,12 +31,11 @@ import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import {
   listTiqLeagues,
   listTiqPlayerParticipations,
-  type TiqLeagueStorageSource,
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
 import { MY_LAB_STORY } from '@/lib/product-story'
-import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -507,13 +506,8 @@ function MyLabPageInner() {
   const [tiqIndividualSuggestions, setTiqIndividualSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
   const [tiqLeagues, setTiqLeagues] = useState<TiqLeagueRecord[]>([])
   const [tiqPlayerParticipations, setTiqPlayerParticipations] = useState<TiqPlayerParticipationRecord[]>([])
-  const [tiqPlayerParticipationSource, setTiqPlayerParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqPlayerParticipationWarning, setTiqPlayerParticipationWarning] = useState<string | null>(null)
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
-  const [selectedPlayerLinkId, setSelectedPlayerLinkId] = useState('')
-  const [selectedTeamLinkId, setSelectedTeamLinkId] = useState('')
-  const [savingProfileLink, setSavingProfileLink] = useState(false)
-  const [profileLinkMessage, setProfileLinkMessage] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
   const [feedFilter, setFeedFilter] = useState<'all' | FeedType>('all')
@@ -526,7 +520,7 @@ function MyLabPageInner() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
-  const { isTablet, isMobile } = useViewportBreakpoints()
+  const { isTablet } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, null), [role])
 
   useEffect(() => {
@@ -634,7 +628,6 @@ function MyLabPageInner() {
     setTiqIndividualResults(tiqResultsRes.results)
     setTiqIndividualSuggestions(tiqSuggestionsRes.suggestions)
     setTiqPlayerParticipations(tiqParticipationRes.entries)
-    setTiqPlayerParticipationSource(tiqParticipationRes.source)
     setTiqPlayerParticipationWarning(tiqParticipationRes.warning)
     let linkedPlayerIdForWorkshop = ''
 
@@ -642,17 +635,6 @@ function MyLabPageInner() {
       const nextProfileLink = profileLinkRes.data as ProfileLinkRow
       linkedPlayerIdForWorkshop = nextProfileLink.linked_player_id || ''
       setProfileLink(nextProfileLink)
-      setSelectedPlayerLinkId(nextProfileLink.linked_player_id || '')
-      setSelectedTeamLinkId(
-        nextProfileLink.linked_team_name
-          ? buildScopedTeamEntityId({
-              competitionLayer: '',
-              teamName: nextProfileLink.linked_team_name,
-              leagueName: nextProfileLink.linked_league_name || '',
-              flight: nextProfileLink.linked_flight || '',
-            })
-          : '',
-      )
     }
 
     if (linkedPlayerIdForWorkshop) {
@@ -891,34 +873,6 @@ function MyLabPageInner() {
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [matches, matchPlayersByMatch])
 
-  const selectedPlayerTeamSummaries = useMemo(() => {
-    if (!selectedPlayerLinkId) return []
-
-    const teamIds = new Set<string>()
-
-    for (const match of matches) {
-      const participants = matchPlayersByMatch.get(match.id) ?? []
-      const selectedParticipant = participants.find((participant) => participant.player_id === selectedPlayerLinkId)
-      if (!selectedParticipant) continue
-
-      const teamName = cleanText(selectedParticipant.side === 'A' ? match.home_team : match.away_team)
-      const leagueName = cleanText(match.league_name)
-      const flight = cleanText(match.flight)
-      if (!teamName) continue
-
-      teamIds.add(
-        buildScopedTeamEntityId({
-          competitionLayer: inferCompetitionLayerForContext({ leagueName }),
-          teamName,
-          leagueName,
-          flight,
-        }),
-      )
-    }
-
-    return teamSummaries.filter((team) => teamIds.has(team.id))
-  }, [matches, matchPlayersByMatch, selectedPlayerLinkId, teamSummaries])
-
   const linkedPlayerTeamSummaries = useMemo(() => {
     const linkedPlayerId = profileLink?.linked_player_id
     if (!linkedPlayerId) return []
@@ -947,57 +901,6 @@ function MyLabPageInner() {
 
     return teamSummaries.filter((team) => teamIds.has(team.id))
   }, [matches, matchPlayersByMatch, profileLink?.linked_player_id, teamSummaries])
-
-  const profileTeamOptions = selectedPlayerTeamSummaries.length ? selectedPlayerTeamSummaries : teamSummaries
-
-  useEffect(() => {
-    if (!selectedPlayerLinkId || selectedTeamLinkId || selectedPlayerTeamSummaries.length !== 1) return
-    setSelectedTeamLinkId(selectedPlayerTeamSummaries[0].id)
-  }, [selectedPlayerLinkId, selectedPlayerTeamSummaries, selectedTeamLinkId])
-
-  async function saveProfileTeamLink() {
-    if (!userId) {
-      setProfileLinkMessage('Sign in to confirm your player profile.')
-      return
-    }
-
-    const selectedPlayer = players.find((player) => player.id === selectedPlayerLinkId) ?? null
-    const selectedTeam = selectedTeamLinkId ? parseTeamEntityId(selectedTeamLinkId) : null
-
-    setSavingProfileLink(true)
-    setProfileLinkMessage('')
-
-    const payload: ProfileLinkRow & { linked_team_at: string } = {
-      linked_player_id: selectedPlayer?.id || null,
-      linked_player_name: selectedPlayer?.name || null,
-      linked_team_name: selectedTeam?.teamName || null,
-      linked_league_name: selectedTeam?.leagueName || null,
-      linked_flight: selectedTeam?.flight || null,
-      linked_team_at: new Date().toISOString(),
-    }
-
-    const saveRes = await saveUserProfileLink(userId, payload)
-    if (saveRes.error) {
-      setSavingProfileLink(false)
-      setProfileLinkMessage(saveRes.error.message)
-      return
-    }
-
-    setSavingProfileLink(false)
-
-    setProfileLink({
-      linked_player_id: payload.linked_player_id,
-      linked_player_name: payload.linked_player_name,
-      linked_team_name: payload.linked_team_name,
-      linked_league_name: payload.linked_league_name,
-      linked_flight: payload.linked_flight,
-    })
-    setProfileLinkMessage(
-      saveRes.source === 'local'
-        ? 'Profile saved on this device. Apply the profile-link migration for cloud sync.'
-        : 'Your player home base is confirmed.',
-    )
-  }
 
   const searchOptions = useMemo<SearchOption[]>(() => {
     const playerOptions = players.slice(0, 300).map((player) => ({
@@ -1035,11 +938,6 @@ function MyLabPageInner() {
       })
       .slice(0, 12)
   }, [searchOptions, search, filter])
-
-  const followedIds = useMemo(
-    () => new Set(follows.map((item) => `${item.entity_type}:${item.entity_id}`)),
-    [follows],
-  )
 
   const followedPlayerNameSet = useMemo(() => {
     const names = new Set<string>()
@@ -1475,12 +1373,12 @@ function MyLabPageInner() {
     feedFilter,
     cloudFeedRows,
     tiqIndividualResults,
-    tiqIndividualSuggestions,
     tiqLeagues,
     followedTiqSuggestionItems,
     followedTiqIndividualLeagueInsights,
     followedTiqIndividualParticipations,
     followedLeagueIds,
+    followedPlayerNameSet,
     tiqLeagueContextById,
   ])
 
@@ -1627,7 +1525,6 @@ function MyLabPageInner() {
   const followedTeams = follows.filter((item) => item.entity_type === 'team')
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
   const isProfileConfirmed = Boolean(profileLink?.linked_player_id || profileLink?.linked_player_name)
-  const confirmedPlayerHref = profileLink?.linked_player_id ? `/players/${profileLink.linked_player_id}` : '/explore/players'
   const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `Welcome back, ${firstName}.` : 'Welcome to your lab.'
@@ -1847,15 +1744,6 @@ function MyLabPageInner() {
       icon: 'myLab' as TiqFeatureIconName,
     },
   ]
-  const confirmedTeamEntityId = profileLink?.linked_team_name
-    ? buildScopedTeamEntityId({
-        competitionLayer: '',
-        teamName: profileLink.linked_team_name,
-        leagueName: profileLink.linked_league_name || '',
-        flight: profileLink.linked_flight || '',
-      })
-    : ''
-  const confirmedTeamHref = confirmedTeamEntityId ? buildTeamHrefFromEntityId(confirmedTeamEntityId) : null
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -2807,13 +2695,6 @@ const profileLinkCardStyle: CSSProperties = {
   gap: 18,
 }
 
-const profileHintStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.5,
-  fontWeight: 700,
-}
-
 const personalHomeTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.08rem',
@@ -3467,27 +3348,6 @@ const workshopListStyle: CSSProperties = {
   gap: 9,
 }
 
-const goalAccordionListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 10,
-}
-
-const goalAccordionStyle: CSSProperties = {
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: 12,
-}
-
-const goalSummaryHeaderStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  cursor: 'pointer',
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 12,
-}
-
 const goalEditorStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
@@ -3534,19 +3394,6 @@ const workshopRowMetaStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
-}
-
-const matchupSuggestionStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  gap: 12,
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '10px 12px',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
 }
 
 const nextActionCardStyle: CSSProperties = {

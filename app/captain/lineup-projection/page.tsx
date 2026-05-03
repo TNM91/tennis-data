@@ -124,6 +124,13 @@ type DoublesPair = {
   notes: string[]
 }
 
+type ProjectionActionCard = {
+  label: string
+  value: string
+  detail: string
+  tone: 'green' | 'amber' | 'red' | 'blue'
+}
+
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/players', label: 'Players' },
@@ -690,12 +697,6 @@ export default function LineupProjectionPage() {
     }
   }, [singlesProjection, doublesPairs, roster])
 
-  const selectedLeagueLabel = useMemo(() => {
-    if (!selectedLeagueKey) return ''
-    const [leagueName, flight] = selectedLeagueKey.split('___')
-    return `${leagueName} - ${flight}`
-  }, [selectedLeagueKey])
-
   const selectedLeagueDisplayLabel = useMemo(() => {
     if (!selectedLeagueKey) return ''
     const [leagueName, flight] = selectedLeagueKey.split('___')
@@ -736,15 +737,54 @@ export default function LineupProjectionPage() {
     return 'Risky'
   }, [lineupStrength])
 
-  const builderHref = useMemo(() => {
-    const params = new URLSearchParams()
-    if (selectedLeagueLabel) params.set('league', selectedLeagueLabel.split(' - ')[0])
-    if (selectedLeagueKey) params.set('flight', selectedLeagueKey.split('___')[1] || '')
-    if (selectedTeam) params.set('team', selectedTeam)
-    if (selectedDate) params.set('date', selectedDate)
-    const query = params.toString()
-    return query ? `/captain/lineup-builder?${query}` : '/captain/lineup-builder'
-  }, [selectedLeagueLabel, selectedLeagueKey, selectedTeam, selectedDate])
+  const projectionActionCards = useMemo<ProjectionActionCard[]>(() => {
+    const playableCount = roster.filter((player) => player.availabilityStatus !== 'unavailable').length
+    const singlesCount = roster.filter(canPlaySingles).length
+    const doublesPairCount = Math.floor(roster.filter(canPlayDoubles).length / 2)
+    const restrictionCount = availabilitySummary.singlesOnly + availabilitySummary.doublesOnly + availabilitySummary.limited
+
+    return [
+      {
+        label: 'Trust level',
+        value: confidenceLabel,
+        detail:
+          confidenceLabel === 'Strong'
+            ? 'This projection is a useful starting point. Take it into the builder and fine-tune courts.'
+            : confidenceLabel === 'Balanced'
+              ? 'Good enough for a first pass. Check availability restrictions before saving.'
+              : 'Treat this as a warning read. Fix availability or roster depth before trusting the lineup.',
+        tone: confidenceLabel === 'Strong' ? 'green' : confidenceLabel === 'Balanced' ? 'amber' : 'red',
+      },
+      {
+        label: 'Lineup cover',
+        value: `${playableCount} playable`,
+        detail:
+          playableCount >= 7
+            ? 'You have enough playable players for a normal lineup plus movement.'
+            : playableCount >= 5
+              ? 'You can build, but the bench is thin.'
+              : 'Too few playable players for a comfortable lineup.',
+        tone: playableCount >= 7 ? 'green' : playableCount >= 5 ? 'amber' : 'red',
+      },
+      {
+        label: 'Court shape',
+        value: `${singlesCount} S / ${doublesPairCount} D`,
+        detail:
+          singlesCount >= 2 && doublesPairCount >= 3
+            ? 'Singles and doubles both have enough eligible options.'
+            : 'One court group is tight. Review role-only players before sending to the builder.',
+        tone: singlesCount >= 2 && doublesPairCount >= 3 ? 'green' : 'amber',
+      },
+      {
+        label: 'Next move',
+        value: restrictionCount ? 'Resolve flags' : 'Build it',
+        detail: restrictionCount
+          ? `${restrictionCount} restriction${restrictionCount === 1 ? '' : 's'} could change the suggested lineup.`
+          : 'No restrictions are blocking the projection. Move it into the builder.',
+        tone: restrictionCount ? 'blue' : 'green',
+      },
+    ]
+  }, [availabilitySummary, confidenceLabel, roster])
 
   const builderHrefResolved = useMemo(() => {
     const params = new URLSearchParams()
@@ -994,6 +1034,31 @@ export default function LineupProjectionPage() {
                 subtext="Carry this scoped estimate into the full Lineup Builder when you are ready to save a scenario."
                 accent
               />
+            </section>
+
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Captain action read</p>
+                  <h2 style={sectionTitle}>What to do with this projection</h2>
+                  <p style={sectionBodyTextStyle}>
+                    Use this as the bridge between availability and a saved lineup scenario.
+                  </p>
+                </div>
+                <PrimaryLink href={builderHrefResolved}>Open Builder</PrimaryLink>
+              </div>
+
+              <div style={actionReadGridResponsive(isSmallMobile, isTablet)}>
+                {projectionActionCards.map((card) => (
+                  <div key={card.label} style={actionReadCardStyle}>
+                    <div style={actionReadTopStyle}>
+                      <span style={actionReadLabelStyle}>{card.label}</span>
+                      <span style={summaryPillStyle(card.tone)}>{card.value}</span>
+                    </div>
+                    <p style={actionReadDetailStyle}>{card.detail}</p>
+                  </div>
+                ))}
+              </div>
             </section>
 
             {!access.canUseCaptainWorkflow ? (
@@ -1418,6 +1483,13 @@ function projectionGridResponsive(isSmallMobile: boolean, isTablet: boolean): CS
   }
 }
 
+function actionReadGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...actionReadGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  }
+}
+
 function compareGridResponsive(isTablet: boolean): CSSProperties {
   return {
     ...compareGridStyle,
@@ -1568,13 +1640,6 @@ const brandWrap: CSSProperties = {
   textDecoration: 'none',
 }
 
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-}
-
 const navStyle: CSSProperties = {
   display: 'flex',
   gap: '10px',
@@ -1662,46 +1727,6 @@ const heroMetricCardStyle: CSSProperties = {
   padding: '16px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-}
-
-function signalGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    marginTop: 16,
-    display: 'grid',
-    gap: '12px',
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-}
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: '20px',
-  padding: '16px 18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '0.72rem',
-  fontWeight: 800,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '0.45rem',
-  color: 'var(--foreground)',
-  fontSize: '1rem',
-  fontWeight: 800,
-  lineHeight: 1.35,
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: '0.45rem',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '0.88rem',
-  lineHeight: 1.5,
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -1960,6 +1985,42 @@ function getProjectionStatusStyle(status: ProjectionRatingStatus): CSSProperties
 const projectionGridStyle: CSSProperties = {
   display: 'grid',
   gap: '16px',
+}
+
+const actionReadGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  marginTop: 16,
+}
+
+const actionReadCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minHeight: 150,
+}
+
+const actionReadTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+}
+
+const actionReadLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '0.76rem',
+  fontWeight: 900,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const actionReadDetailStyle: CSSProperties = {
+  margin: '14px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '0.92rem',
+  lineHeight: 1.55,
 }
 
 const projectionCardAccentStyle: CSSProperties = {

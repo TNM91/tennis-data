@@ -703,26 +703,6 @@ export default function CaptainWeeklyBriefPage() {
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  detail,
-  accent = false,
-}: {
-  label: string
-  value: string
-  detail: string
-  accent?: boolean
-}) {
-  return (
-    <div style={accent ? metricCardAccent : metricCard}>
-      <div style={metricLabel}>{label}</div>
-      <div style={metricValue}>{value}</div>
-      <div style={metricDetail}>{detail}</div>
-    </div>
-  )
-}
-
 function BriefSignal({
   label,
   value,
@@ -836,16 +816,6 @@ const heroButtonRow: CSSProperties = {
   flexWrap: 'wrap',
 }
 
-const statusShell: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)',
-  marginTop: 18,
-}
-
 const statusValue: CSSProperties = {
   color: '#f8fbff',
   fontSize: 26,
@@ -955,62 +925,6 @@ const progressFillStyle: CSSProperties = {
   borderRadius: 999,
   background: 'linear-gradient(90deg, #60a5fa 0%, #45e3a1 58%, #9be11d 100%)',
   boxShadow: '0 0 16px rgba(155,225,29,0.32)',
-}
-
-const metricGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: 14,
-}
-
-const signalGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: 14,
-}
-
-const signalCardStyle: CSSProperties = {
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.16)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
-  fontSize: 12,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: 10,
-  color: '#f8fbff',
-  fontSize: '1.24rem',
-  fontWeight: 900,
-  letterSpacing: 0,
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: 8,
-  color: 'rgba(224,234,247,0.74)',
-  fontSize: '.94rem',
-  lineHeight: 1.6,
-}
-
-const metricCard: CSSProperties = {
-  padding: 16,
-  borderRadius: 22,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(15,23,42,0.52)',
-}
-
-const metricCardAccent: CSSProperties = {
-  ...metricCard,
-  border: '1px solid rgba(74,222,128,0.18)',
-  boxShadow: '0 10px 24px rgba(74,222,128,0.08)',
 }
 
 const metricLabel: CSSProperties = {

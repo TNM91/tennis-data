@@ -66,95 +66,6 @@ const START_STEPS = [
   },
 ]
 
-const GLOBAL_FEED = [
-  {
-    title: 'Biggest Movers',
-    body: 'Track the players making the largest jumps in recent rating and ranking updates.',
-    tag: 'Trending',
-  },
-  {
-    title: 'League Activity',
-    body: 'See which leagues and teams have posted recent results and new season movement.',
-    tag: 'Live',
-  },
-  {
-    title: 'Fresh Match Results',
-    body: 'Follow newly posted results and shifts in competitive balance across flights.',
-    tag: 'New',
-  },
-]
-
-const DISCOVERY_STREAM = [
-  {
-    title: 'Players near your level',
-    detail: 'Search by name, area, or flight to narrow the field before you compare.',
-    badge: 'Players',
-    accent: 'blue' as const,
-  },
-  {
-    title: 'USTA leagues',
-    detail: 'Find official league, flight, team, and match pages.',
-    badge: 'USTA',
-    accent: 'green' as const,
-  },
-  {
-    title: 'TIQ leagues',
-    detail: 'Explore TenAceIQ leagues for teams, rosters, schedules, and results.',
-    badge: 'TIQ',
-    accent: 'green' as const,
-  },
-]
-
-const DISCOVERY_CHANNELS = [
-  {
-    title: 'Search first',
-    text: 'Player names, teams, flights, and areas route into the right discovery surface fast.',
-  },
-  {
-    title: 'Compare second',
-    text: 'Use rankings and My Lab once you know who or what you want to pressure-test.',
-  },
-]
-
-const DISCOVERY_GUIDES = [
-  {
-    title: 'Start with a player',
-    text: 'Open the player directory when you know a name and want teams, ratings, and recent match history.',
-    href: '/explore/players',
-    cta: 'Open players',
-  },
-  {
-    title: 'Scan the field first',
-    text: 'Use rankings when you want a wider leaderboard view before drilling into a specific player, team, or flight.',
-    href: '/explore/rankings',
-    cta: 'View rankings',
-  },
-  {
-    title: 'Prepare a comparison',
-    text: 'Use Matchup when you want to compare players before you play.',
-    href: '/matchup',
-    cta: 'Open Matchup',
-  },
-]
-
-const DISCOVERY_SIGNALS = [
-  {
-    label: 'Start here',
-    value: 'Explore',
-    text: 'Search players, teams, rankings, and leagues from one place.',
-  },
-  {
-    label: 'Official truth',
-    value: 'USTA',
-    text: 'Use USTA pages for official leagues, flights, teams, and match results.',
-  },
-  {
-    label: 'Player tools',
-    value: 'Player',
-    text: 'Use Matchup and My Lab when you want smarter prep before you play.',
-  },
-]
-
 const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE || null
 
 export default function ExplorePage() {
@@ -317,24 +228,6 @@ export default function ExplorePage() {
   )
 }
 
-function DiscoverySignal({
-  label,
-  value,
-  text,
-}: {
-  label: string
-  value: string
-  text: string
-}) {
-  return (
-    <div style={signalCard}>
-      <div style={signalLabel}>{label}</div>
-      <div style={signalValue}>{value}</div>
-      <div style={signalText}>{text}</div>
-    </div>
-  )
-}
-
 function getCardIcon(icon: string) {
   const iconMap: Record<string, TiqFeatureIconName> = {
     player: 'opponentScouting',
@@ -345,39 +238,6 @@ function getCardIcon(icon: string) {
   }
 
   return <TiqFeatureIcon name={iconMap[icon] || 'opponentScouting'} size="lg" variant="ghost" />
-}
-
-function GuideCard({ href, title, text, cta }: { href: string; title: string; text: string; cta: string }) {
-  const [hovered, setHovered] = useState(false)
-
-  return (
-    <Link
-      href={href}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        ...guideCard,
-        border: hovered
-          ? '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)'
-          : '1px solid var(--shell-panel-border)',
-        transform: hovered ? 'translateY(-3px)' : 'none',
-        boxShadow: hovered ? 'var(--shadow-card)' : 'var(--shadow-soft)',
-        transition: 'transform 160ms ease, box-shadow 160ms ease, border 160ms ease',
-      }}
-    >
-      <div style={guideCardTitle}>{title}</div>
-      <div style={guideCardText}>{text}</div>
-      <div
-        style={{
-          ...guideCardCta,
-          color: hovered ? 'var(--brand-lime)' : 'var(--foreground)',
-          transition: 'color 160ms ease',
-        }}
-      >
-        {cta} {'->'}
-      </div>
-    </Link>
-  )
 }
 
 function ActionCard({
@@ -559,46 +419,6 @@ const pillGreen: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
 }
 
-const signalGrid: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  marginBottom: '18px',
-  position: 'relative',
-  zIndex: 1,
-}
-
-const signalCard: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  padding: '18px',
-  borderRadius: '22px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const signalLabel: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '11px',
-  fontWeight: 800,
-  letterSpacing: '0.12em',
-  textTransform: 'uppercase',
-}
-
-const signalValue: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '24px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
-}
-
-const signalText: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '13px',
-  lineHeight: 1.65,
-}
-
 const featurePanel: CSSProperties = {
   borderRadius: '24px',
   background: 'var(--shell-panel-bg)',
@@ -681,47 +501,6 @@ const startStepText: CSSProperties = {
   lineHeight: 1.6,
 }
 
-const feedGrid: CSSProperties = {
-  display: 'grid',
-}
-
-const feedCard: CSSProperties = {
-  borderRadius: '20px',
-  padding: '16px 15px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minHeight: '150px',
-}
-
-const feedTag: CSSProperties = {
-  display: 'inline-flex',
-  width: 'fit-content',
-  marginBottom: '10px',
-  color: 'var(--foreground-strong)',
-  background: 'color-mix(in srgb, var(--brand-lime) 11%, var(--shell-chip-bg) 89%)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  borderRadius: '999px',
-  padding: '5px 10px',
-  fontSize: '11px',
-  fontWeight: 800,
-  letterSpacing: '0.06em',
-  textTransform: 'uppercase',
-}
-
-const feedTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '18px',
-  fontWeight: 800,
-  letterSpacing: '-0.02em',
-  marginBottom: '8px',
-}
-
-const feedText: CSSProperties = {
-  color: 'var(--foreground)',
-  fontSize: '14px',
-  lineHeight: 1.65,
-}
-
 const discoveryBoardGlow: CSSProperties = {
   position: 'absolute',
   inset: 0,
@@ -740,152 +519,10 @@ const discoveryBoardGrid: CSSProperties = {
   pointerEvents: 'none',
 }
 
-const discoveryStreamStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: '12px',
-}
-
-const discoveryStreamCard: CSSProperties = {
-  borderRadius: '20px',
-  padding: '16px 16px 15px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  display: 'grid',
-  gap: '10px',
-}
-
-const discoveryStreamTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  fontWeight: 800,
-  lineHeight: 1.25,
-}
-
-const discoveryStreamText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.65,
-}
-
-const discoveryChannelGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '12px',
-}
-
-const discoveryChannelCard: CSSProperties = {
-  borderRadius: '20px',
-  padding: '16px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  minHeight: '112px',
-  alignContent: 'start',
-}
-
-const discoveryChannelTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '14px',
-  fontWeight: 800,
-  lineHeight: 1.3,
-}
-
-const discoveryChannelText: CSSProperties = {
-  marginTop: '8px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.65,
-}
-
 const actionGrid: CSSProperties = {
   display: 'grid',
   position: 'relative',
   zIndex: 1,
-}
-
-const guidePanel: CSSProperties = {
-  marginTop: '20px',
-  position: 'relative',
-  zIndex: 1,
-  borderRadius: '26px',
-  padding: '22px',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-card)',
-}
-
-const guideHeader: CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  gap: '16px',
-  flexWrap: 'wrap',
-  marginBottom: '16px',
-}
-
-const guideEyebrow: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontWeight: 800,
-  fontSize: '12px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.12em',
-  marginBottom: '8px',
-}
-
-const guideTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: '28px',
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
-}
-
-const guideIntro: CSSProperties = {
-  margin: 0,
-  maxWidth: '520px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.7,
-}
-
-const guideGrid: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-}
-
-const guideCard: CSSProperties = {
-  display: 'grid',
-  gap: '10px',
-  minHeight: '180px',
-  padding: '18px',
-  borderRadius: '22px',
-  textDecoration: 'none',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const guideCardTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '22px',
-  lineHeight: 1.1,
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
-
-const guideCardText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.7,
-}
-
-const guideCardCta: CSSProperties = {
-  marginTop: 'auto',
-  color: 'var(--foreground)',
-  fontSize: '13px',
-  fontWeight: 800,
 }
 
 const actionCard: CSSProperties = {

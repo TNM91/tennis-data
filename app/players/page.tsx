@@ -429,11 +429,6 @@ export default function PlayersPage() {
         : 'repeat(3, minmax(0, 1fr))',
   }
 
-  const dynamicRatingRow: CSSProperties = {
-    ...ratingRow,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-
   const dynamicQuickFilterGrid: CSSProperties = {
     ...quickFilterGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
@@ -844,28 +839,6 @@ function StatChip({
   )
 }
 
-function RatingPill({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string
-  value: number
-  accent?: boolean
-}) {
-  return (
-    <div
-      style={{
-        ...ratingPill,
-        ...(accent ? ratingPillAccent : {}),
-      }}
-    >
-      <div style={ratingPillLabel}>{label}</div>
-      <div style={ratingPillValue}>{formatRating(value)}</div>
-    </div>
-  )
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" style={iconSvgStyle} aria-hidden="true">
@@ -892,10 +865,6 @@ function getRating(player: PlayerRow, view: Exclude<SortKey, 'name'>) {
 
 function getBaseRating(player: PlayerRow, view: RatingView) {
   return getUstaRating(player, view)
-}
-
-function toNumber(value?: number | null) {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
 function roundToTwo(value: number) {
@@ -1285,32 +1254,6 @@ const summaryFooterWrap: CSSProperties = {
   marginTop: '14px',
 }
 
-const summaryInlineStat: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px',
-  padding: '14px 16px',
-  borderRadius: '20px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const summaryInlineLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontWeight: 700,
-  fontSize: '14px',
-}
-
-const summaryInlineValue: CSSProperties = {
-  background: 'linear-gradient(135deg, #9af2bd, #4ade80 55%, #22c55e)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  fontWeight: 900,
-  fontSize: '22px',
-  letterSpacing: '-0.04em',
-}
-
 const summaryHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
@@ -1334,62 +1277,6 @@ const contentWrap: CSSProperties = {
   maxWidth: '1280px',
   margin: '0 auto',
   padding: '0 18px 0',
-}
-
-const editorialPanel: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  padding: '24px',
-  borderRadius: '26px',
-  background: 'var(--shell-panel-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  boxShadow: 'var(--shadow-soft)',
-  marginBottom: '18px',
-}
-
-const editorialText: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '15px',
-  lineHeight: 1.8,
-  maxWidth: '860px',
-}
-
-const editorialGrid: CSSProperties = {
-  display: 'grid',
-  gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-}
-
-const editorialCard: CSSProperties = {
-  display: 'grid',
-  gap: '8px',
-  padding: '18px',
-  borderRadius: '20px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-}
-
-const editorialCardLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  fontWeight: 800,
-  letterSpacing: '0.11em',
-  textTransform: 'uppercase',
-}
-
-const editorialCardValue: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '24px',
-  lineHeight: 1.04,
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
-}
-
-const editorialCardText: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.65,
 }
 
 const sectionHeader: CSSProperties = {
@@ -1627,41 +1514,6 @@ const scoreMiniValue: CSSProperties = {
   fontSize: '14px',
   fontWeight: 900,
   textAlign: 'right',
-}
-
-const ratingRow: CSSProperties = {
-  position: 'relative',
-  display: 'grid',
-  gap: '10px',
-}
-
-const ratingPill: CSSProperties = {
-  borderRadius: '18px',
-  padding: '12px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  minWidth: 0,
-}
-
-const ratingPillAccent: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
-  boxShadow: 'var(--shadow-soft)',
-}
-
-const ratingPillLabel: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
-  fontSize: '12px',
-  fontWeight: 700,
-  marginBottom: '6px',
-}
-
-const ratingPillValue: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: '24px',
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
-  lineHeight: 1,
 }
 
 const playerCardFooter: CSSProperties = {

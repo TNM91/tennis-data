@@ -116,6 +116,13 @@ type LeagueOption = {
   flight: string
 }
 
+type AvailabilityReadinessCard = {
+  label: string
+  value: string
+  detail: string
+  tone: 'green' | 'amber' | 'red' | 'blue'
+}
+
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
   { href: '/players', label: 'Players' },
@@ -800,6 +807,79 @@ export default function LineupAvailabilityPage() {
     [availabilitySummary]
   )
 
+  const availabilityReadiness = useMemo(() => {
+    const playablePlayers = roster.filter((player) => {
+      const playerStatus = availabilityMap[player.id]?.status || 'available'
+      return playerStatus !== 'unavailable'
+    })
+
+    const singlesReadyPlayers = roster.filter((player) => {
+      const playerStatus = availabilityMap[player.id]?.status || 'available'
+      return playerStatus !== 'unavailable' && playerStatus !== 'doubles_only'
+    })
+
+    const doublesReadyPlayers = roster.filter((player) => {
+      const playerStatus = availabilityMap[player.id]?.status || 'available'
+      return playerStatus !== 'unavailable' && playerStatus !== 'singles_only'
+    })
+
+    const limitedPlayers = roster.filter((player) => {
+      const playerStatus = availabilityMap[player.id]?.status || 'available'
+      return playerStatus === 'limited' || playerStatus === 'singles_only' || playerStatus === 'doubles_only'
+    })
+
+    const playableCount = playablePlayers.length
+    const singlesCount = singlesReadyPlayers.length
+    const doublesPairs = Math.floor(doublesReadyPlayers.length / 2)
+
+    const cards: AvailabilityReadinessCard[] = [
+      {
+        label: 'Lineup pool',
+        value: `${playableCount} playable`,
+        detail:
+          playableCount >= 7
+            ? 'Enough bodies for a normal five-line build with room for late movement.'
+            : playableCount >= 5
+              ? 'Playable, but every absence matters. Confirm maybes before setting the final lineup.'
+              : 'Too thin for a reliable full lineup. Start chasing responses now.',
+        tone: playableCount >= 7 ? 'green' : playableCount >= 5 ? 'amber' : 'red',
+      },
+      {
+        label: 'Singles cover',
+        value: `${singlesCount} options`,
+        detail:
+          singlesCount >= 3
+            ? 'Singles has enough options to support lineup choices.'
+            : singlesCount >= 2
+              ? 'Singles can work, but one change could squeeze the lineup.'
+              : 'Singles is exposed. Find another singles-capable player before building.',
+        tone: singlesCount >= 3 ? 'green' : singlesCount >= 2 ? 'amber' : 'red',
+      },
+      {
+        label: 'Doubles cover',
+        value: `${doublesPairs} pair${doublesPairs === 1 ? '' : 's'}`,
+        detail:
+          doublesPairs >= 2
+            ? 'Doubles has enough pair coverage for the expected lines.'
+            : doublesPairs === 1
+              ? 'One doubles pair is ready. You need another pair or a format adjustment.'
+              : 'No doubles pair is currently safe to build around.',
+        tone: doublesPairs >= 2 ? 'green' : doublesPairs === 1 ? 'amber' : 'red',
+      },
+      {
+        label: 'Restrictions',
+        value: `${limitedPlayers.length} flagged`,
+        detail:
+          limitedPlayers.length
+            ? 'Resolve limited and role-only players before the builder locks in choices.'
+            : 'No restrictions marked yet. This is clean if the responses are current.',
+        tone: limitedPlayers.length ? 'blue' : 'green',
+      },
+    ]
+
+    return { playableCount, singlesCount, doublesPairs, limitedCount: limitedPlayers.length, cards }
+  }, [availabilityMap, roster])
+
   function updatePlayerStatus(playerId: string, status: AvailabilityStatus) {
     setAvailabilityMap((prev) => ({
       ...prev,
@@ -1077,6 +1157,37 @@ export default function LineupAvailabilityPage() {
             <section style={sectionCard}>
               <div style={sectionHeaderStyle}>
                 <div>
+                  <p style={sectionKicker}>Lineup readiness</p>
+                  <h2 style={sectionTitle}>Can this roster cover the match?</h2>
+                  <p style={sectionBodyTextStyle}>
+                    Use this read before you move into the builder. It turns availability into lineup pressure points.
+                  </p>
+                </div>
+                <span style={summaryPillStyle(viability === 'Strong' ? 'green' : viability === 'Playable' ? 'amber' : 'red')}>
+                  {viability}
+                </span>
+              </div>
+
+              <div style={readinessGridResponsive(isSmallMobile, isTablet)}>
+                {availabilityReadiness.cards.map((card) => (
+                  <div key={card.label} style={readinessCardStyle}>
+                    <div style={readinessCardTopStyle}>
+                      <span style={readinessLabelStyle}>{card.label}</span>
+                      <span style={summaryPillStyle(card.tone)}>{card.value}</span>
+                    </div>
+                    <p style={readinessDetailStyle}>{card.detail}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div style={noticeStyle}>
+                Builder handoff: {availabilityReadiness.playableCount} playable, {availabilityReadiness.singlesCount} singles-capable, {availabilityReadiness.doublesPairs} doubles pair{availabilityReadiness.doublesPairs === 1 ? '' : 's'}, {availabilityReadiness.limitedCount} restriction{availabilityReadiness.limitedCount === 1 ? '' : 's'}.
+              </div>
+            </section>
+
+            <section style={sectionCard}>
+              <div style={sectionHeaderStyle}>
+                <div>
                   <p style={sectionKicker}>Bulk actions</p>
                   <h2 style={sectionTitle}>Set the whole roster faster</h2>
                   <p style={sectionBodyTextStyle}>
@@ -1106,7 +1217,7 @@ export default function LineupAvailabilityPage() {
                   <p style={sectionKicker}>Roster availability</p>
                   <h2 style={sectionTitle}>Set match-day status for each player</h2>
                   <p style={sectionBodyTextStyle}>
-                    Update each player's status and add optional notes for lineup building context.
+                    Update each player&apos;s status and add optional notes for lineup building context.
                   </p>
                 </div>
 
@@ -1355,6 +1466,13 @@ function metricsGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSPr
   }
 }
 
+function readinessGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
+  return {
+    ...readinessGridStyle,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  }
+}
+
 function rosterGridResponsive(isSmallMobile: boolean, isTablet: boolean): CSSProperties {
   return {
     ...rosterGridStyle,
@@ -1453,13 +1571,6 @@ const brandWrap: CSSProperties = {
   textDecoration: 'none',
 }
 
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9ef767 0%, #55d8ae 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-}
-
 const navStyle: CSSProperties = {
   display: 'flex',
   gap: '10px',
@@ -1547,46 +1658,6 @@ const heroMetricCardStyle: CSSProperties = {
   padding: '16px',
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(255,255,255,0.06)',
-}
-
-function signalGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    marginTop: 16,
-    display: 'grid',
-    gap: '12px',
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-}
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: '20px',
-  padding: '16px 18px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.04))',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.7)',
-  fontSize: '0.72rem',
-  fontWeight: 800,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '0.45rem',
-  color: '#f8fbff',
-  fontSize: '1rem',
-  fontWeight: 800,
-  lineHeight: 1.35,
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: '0.45rem',
-  color: 'rgba(217, 231, 255, 0.72)',
-  fontSize: '0.88rem',
-  lineHeight: 1.5,
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -1821,6 +1892,42 @@ const pillRowStyle: CSSProperties = {
 const availabilityMetricsStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
+}
+
+const readinessGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  marginTop: 16,
+}
+
+const readinessCardStyle: CSSProperties = {
+  borderRadius: 18,
+  padding: 16,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.055)',
+  minHeight: 150,
+}
+
+const readinessCardTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+}
+
+const readinessLabelStyle: CSSProperties = {
+  color: 'rgba(217, 231, 255, 0.72)',
+  fontSize: '0.76rem',
+  fontWeight: 900,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const readinessDetailStyle: CSSProperties = {
+  margin: '14px 0 0',
+  color: 'rgba(217, 231, 255, 0.78)',
+  fontSize: '0.92rem',
+  lineHeight: 1.55,
 }
 
 const bulkActionsWrapStyle: CSSProperties = {

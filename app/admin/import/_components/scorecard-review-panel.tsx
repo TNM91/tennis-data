@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type {
   ReviewDecision,
   ReviewedScorecardLine,
-  ScorecardMatchReviewOverride,
   ScorecardPreviewModel,
   ScorecardLineOverride,
 } from '@/lib/ingestion/scorecardReview'
@@ -17,7 +16,6 @@ type Props = {
   reviewerName: string
   onReviewerNameChange: (value: string) => void
   onMatchDecisionChange: (externalMatchId: string, decision: ReviewDecision) => void
-  onApproveMatch: (externalMatchId: string) => void
   onApproveAndSubmitMatch: (preview: ScorecardPreviewModel) => void
   onQuickWinnerAndSubmit: (preview: ScorecardPreviewModel, lineNumber: number, winnerSide: MatchSide) => void
   onReviewerNoteChange: (externalMatchId: string, note: string) => void
@@ -249,7 +247,6 @@ export default function ScorecardReviewPanel({
   reviewerName,
   onReviewerNameChange,
   onMatchDecisionChange,
-  onApproveMatch,
   onApproveAndSubmitMatch,
   onQuickWinnerAndSubmit,
   onReviewerNoteChange,

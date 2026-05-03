@@ -1,5 +1,7 @@
 # TenAceIQ
 
+[![CI](https://github.com/TNM91/tennis-data/actions/workflows/ci.yml/badge.svg)](https://github.com/TNM91/tennis-data/actions/workflows/ci.yml)
+
 TenAceIQ is a tennis intelligence platform focused on player discovery, rankings, leagues, matchup analysis, and captain workflow tools.
 
 ## Local development
@@ -14,12 +16,13 @@ Then open [http://localhost:3000](http://localhost:3000).
 
 ## Production build
 
-Run the verification commands before deploy:
+Run the full verification gate before deploy:
 
 ```bash
-npm run lint
-npm run build
+npm run verify
 ```
+
+`npm run verify` runs strict linting with zero warnings, TypeScript checking, the Vitest suite, capture-extension syntax checking, and the production build. The CI workflow uses the same command.
 
 ## Scorecard Review Persistence
 

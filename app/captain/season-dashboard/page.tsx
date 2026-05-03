@@ -897,12 +897,6 @@ const noteBanner: CSSProperties = {
   color: '#dcfce7',
 }
 
-const warningBanner: CSSProperties = {
-  border: '1px solid rgba(245, 158, 11, 0.2)',
-  background: 'rgba(120, 53, 15, 0.34)',
-  color: '#fde68a',
-}
-
 const buttonRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',

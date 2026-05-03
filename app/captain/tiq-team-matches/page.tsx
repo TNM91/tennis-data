@@ -35,16 +35,6 @@ const introCard: CSSProperties = {
   padding: '24px',
   marginBottom: 22,
 }
-const introStats: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }
-const introStat: CSSProperties = {
-  minWidth: 120,
-  padding: '10px 12px',
-  borderRadius: 12,
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.09)',
-}
-const introStatLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }
-const introStatValue: CSSProperties = { color: '#f8fbff', fontSize: 22, fontWeight: 900, marginTop: 4 }
 const sectionTitle: CSSProperties = { fontSize: 16, fontWeight: 700, marginBottom: 14, marginTop: 28 }
 const card: CSSProperties = {
   background: 'rgba(255,255,255,0.04)',

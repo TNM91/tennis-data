@@ -386,14 +386,14 @@ export default function ExploreSearchPage() {
 
             <label style={{ display: 'grid', gap: 6 }}>
               <span style={searchLabelStyle}>Search term</span>
-              <div style={getSearchInputWrapStyle(theme)}>
+              <div style={getSearchInputWrapStyle()}>
                 <SearchIcon />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={`Search ${selectedScopeLabel.toLowerCase()}...`}
                   aria-label={`Search ${selectedScopeLabel.toLowerCase()}`}
-                  style={getSearchInputStyle(theme)}
+                  style={getSearchInputStyle()}
                 />
               </div>
             </label>
@@ -939,7 +939,7 @@ function getSearchOptionStyle(theme: ThemeMode): CSSProperties {
   }
 }
 
-function getSearchInputWrapStyle(_theme: ThemeMode): CSSProperties {
+function getSearchInputWrapStyle(): CSSProperties {
   return {
     ...surfaceCard,
     minHeight: 56,
@@ -954,7 +954,7 @@ function getSearchInputWrapStyle(_theme: ThemeMode): CSSProperties {
   }
 }
 
-function getSearchInputStyle(_theme: ThemeMode): CSSProperties {
+function getSearchInputStyle(): CSSProperties {
   return {
     flex: 1,
     minWidth: 0,

@@ -11,7 +11,6 @@ import { getClientAuthState } from '@/lib/auth'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import {
   buildCaptainWeekStatusKey,
-  getCaptainWeekStatusMeta,
   readCaptainWeekStatus,
   upsertCaptainWeekStatus,
   type CaptainWeekStatus,
@@ -231,7 +230,6 @@ export default function CaptainTeamBriefPage() {
     () => (weekStatusState.key === weekStatusKey ? weekStatusState.status : readCaptainWeekStatus(weekStatusScope)?.status || 'draft-lineup'),
     [weekStatusKey, weekStatusScope, weekStatusState],
   )
-  const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
 
   useEffect(() => {
     if (!team && !league && !flight) return
@@ -358,10 +356,6 @@ export default function CaptainTeamBriefPage() {
   const lineupUpdatedLabel = lineupRows.length ? `${lineupRows.length} assignments ready` : 'No lineup saved yet'
   const eventUpdatedLabel = eventDetail ? 'Event details saved' : 'No event details saved'
   const responseUpdatedLabel = latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
-  function handlePrint() {
-    if (typeof window === 'undefined') return
-    window.print()
-  }
 
   async function handleCopyMessage() {
     if (typeof navigator === 'undefined' || !navigator.clipboard) {

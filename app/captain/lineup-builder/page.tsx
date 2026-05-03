@@ -429,6 +429,26 @@ function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
+function filledSlotPlayerCount(players: SlotPlayer[]) {
+  return players.filter((player) => player.playerId).length
+}
+
+function isProjectedLineComplete(line: LineProjection) {
+  return (
+    filledSlotPlayerCount(line.teamPlayers) === line.playerCount &&
+    filledSlotPlayerCount(line.opponentPlayers) === line.playerCount
+  )
+}
+
+function formatLineGap(line: LineProjection) {
+  return typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '-'
+}
+
+function formatSlotPlayerNames(players: SlotPlayer[], fallback: string) {
+  const names = players.map((player) => player.playerName).filter(Boolean)
+  return names.length ? names.join(' / ') : fallback
+}
+
 function probabilityFromDiff(diff: number | null | undefined) {
   if (typeof diff !== 'number' || Number.isNaN(diff)) return null
   return 1 / (1 + Math.exp(-diff * 3.2))
@@ -1587,12 +1607,15 @@ function sendCurrentScenarioToMessaging() {
     }
   }, [analysis.lines])
 
+  const incompleteLines = useMemo(
+    () => analysis.lines.filter((line) => !isProjectedLineComplete(line)),
+    [analysis.lines]
+  )
+
   const confidenceScore = useMemo(() => {
     const completionScore = analysis.lines.length
       ? analysis.lines.filter((line) => {
-          const teamFilled = line.teamPlayers.filter((player) => player.playerId).length === line.playerCount
-          const oppFilled = line.opponentPlayers.filter((player) => player.playerId).length === line.playerCount
-          return teamFilled && oppFilled
+          return isProjectedLineComplete(line)
         }).length / analysis.lines.length
       : 0
 
@@ -1616,6 +1639,56 @@ function sendCurrentScenarioToMessaging() {
       tier: score >= 0.75 ? 'High confidence' : score >= 0.55 ? 'Moderate confidence' : 'Low confidence',
     }
   }, [analysis.lines, myPlayerPool])
+
+  const captainDecisionQueue = useMemo<RecommendationCard[]>(() => {
+    const cards: RecommendationCard[] = []
+    const firstIncompleteLine = incompleteLines[0] ?? null
+
+    if (firstIncompleteLine) {
+      const teamMissing = Math.max(0, firstIncompleteLine.playerCount - filledSlotPlayerCount(firstIncompleteLine.teamPlayers))
+      const opponentMissing = Math.max(0, firstIncompleteLine.playerCount - filledSlotPlayerCount(firstIncompleteLine.opponentPlayers))
+
+      cards.push({
+        title: 'Fill first',
+        body: `${firstIncompleteLine.label} needs ${teamMissing} team spot(s) and ${opponentMissing} opponent spot(s) before the read is fully trustworthy.`,
+        tone: 'warn',
+      })
+    }
+
+    if (weakestLine && typeof weakestLine.diff === 'number' && weakestLine.diff < 0) {
+      cards.push({
+        title: 'Protect',
+        body: `${weakestLine.label} is underwater at ${formatLineGap(weakestLine)}. Try a safer pair or spend your strongest available player here.`,
+        tone: 'warn',
+      })
+    }
+
+    if (bestLine && typeof bestLine.diff === 'number') {
+      cards.push({
+        title: 'Preserve',
+        body: `${bestLine.label} is your cleanest edge at ${formatLineGap(bestLine)}. Keep this court stable unless you need help elsewhere.`,
+        tone: 'good',
+      })
+    }
+
+    if (swingLine) {
+      cards.push({
+        title: 'Decide',
+        body: `${swingLine.label} is closest to even. A small player swap here has the highest chance to move the team score.`,
+        tone: 'info',
+      })
+    }
+
+    if (!cards.length) {
+      cards.push({
+        title: 'Build the first read',
+        body: 'Add players on both sides, then use the optimizer to turn this draft into a lineup you can compare and send.',
+        tone: 'info',
+      })
+    }
+
+    return cards.slice(0, 4)
+  }, [bestLine, incompleteLines, swingLine, weakestLine])
 
   const explainabilityCards = useMemo<RecommendationCard[]>(() => {
     const cards: RecommendationCard[] = []
@@ -2825,6 +2898,9 @@ function sendCurrentScenarioToMessaging() {
                           <div style={listMetaStyle}>
                             You {formatRating(line.yourRating)} - Opp {formatRating(line.opponentRating)} - {typeof line.diff === 'number' ? `${line.diff >= 0 ? '+' : ''}${line.diff.toFixed(2)}` : '-'}
                           </div>
+                          <div style={listMetaStyle}>
+                            {formatSlotPlayerNames(line.teamPlayers, 'Team spots open')} vs {formatSlotPlayerNames(line.opponentPlayers, 'Opponent spots open')}
+                          </div>
                         </div>
                         <span style={{ fontSize: 15, fontWeight: 900, color: isFavored ? '#86efac' : pct !== null ? '#fca5a5' : 'var(--shell-copy-muted)', flexShrink: 0 }}>
                           {pct !== null ? `${pct}%` : '-'}
@@ -2886,6 +2962,15 @@ function sendCurrentScenarioToMessaging() {
                       : 'The recommended lineup currently uses the available player pool tightly.'}
                   </div>
                 </div>
+              </div>
+
+              <div style={decisionQueueGridStyle}>
+                {captainDecisionQueue.map((card) => (
+                  <div key={card.title} style={toneCardStyle(card.tone)}>
+                    <div style={actionPlanLabelStyle}>{card.title}</div>
+                    <div style={listMetaStyleStrong}>{card.body}</div>
+                  </div>
+                ))}
               </div>
 
               <div style={actionPlanInsightStyle}>
@@ -3200,50 +3285,12 @@ const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   marginTop: 22,
 })
 
-const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  gap: 14,
-  marginTop: 18,
-})
-
 const heroMetricCardStyle: CSSProperties = {
   borderRadius: 22,
   padding: '16px 16px 14px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   minHeight: 96,
-}
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: 22,
-  padding: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
-  fontSize: 12,
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: 10,
-  color: 'var(--foreground)',
-  fontSize: '1.24rem',
-  fontWeight: 900,
-  letterSpacing: 0,
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: 8,
-  color: 'var(--shell-copy-muted)',
-  lineHeight: 1.6,
-  fontSize: '.94rem',
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -3833,6 +3880,13 @@ const actionPlanGridStyle: CSSProperties = {
   gridTemplateColumns: '1fr',
   gap: 12,
   marginTop: 4,
+}
+
+const decisionQueueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: 10,
+  marginTop: 12,
 }
 
 const actionPlanCardStyle: CSSProperties = {

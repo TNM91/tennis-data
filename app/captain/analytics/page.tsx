@@ -1626,37 +1626,12 @@ const heroMetricCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
 }
 
-function signalGridStyle(isSmallMobile: boolean): CSSProperties {
-  return {
-    marginTop: 16,
-    display: 'grid',
-    gap: '12px',
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  }
-}
-
-const signalCardStyle: CSSProperties = {
-  borderRadius: '20px',
-  padding: '16px 18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
-}
-
 const signalLabelStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '0.72rem',
   fontWeight: 800,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '0.45rem',
-  color: 'var(--foreground)',
-  fontSize: '1rem',
-  fontWeight: 800,
-  lineHeight: 1.35,
 }
 
 const signalNoteStyle: CSSProperties = {

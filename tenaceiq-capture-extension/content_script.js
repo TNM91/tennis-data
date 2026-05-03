@@ -578,35 +578,6 @@
     };
   }
 
-  function splitDoubleTeam(homeTeam) {
-    const value = normalizeTeamName(homeTeam || '');
-    if (!value) return null;
-
-    if (value.includes('/')) return null;
-
-    if (
-      /the other guys/i.test(value) ||
-      /wily wolverines/i.test(value) ||
-      /badly badgered badgers/i.test(value)
-    ) {
-      return null;
-    }
-
-    const parts = value
-      .split(/\s{2,}/)
-      .map((part) => normalizeWhitespace(part))
-      .filter(Boolean);
-
-    if (parts.length === 2) {
-      return {
-        home: parts[0],
-        away: parts[1],
-      };
-    }
-
-    return null;
-  }
-
   function normalizeLineNumber(lineNumber, matchType) {
     const num = Number(lineNumber);
     if (!Number.isFinite(num)) return null;
@@ -1501,172 +1472,6 @@
     return 'standard';
   }
 
-  function collectCellScoreCandidates(cell) {
-    if (!cell) return [];
-
-    const htmlish = normalizeWhitespace(
-      String(cell.innerHTML || '')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/div>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<[^>]+>/g, ' ')
-    );
-
-    const candidates = [
-      textOf(cell),
-      innerTextOf(cell),
-      htmlish,
-      normalizeWhitespace(cell.getAttribute?.('title') || ''),
-      normalizeWhitespace(cell.getAttribute?.('aria-label') || ''),
-      normalizeWhitespace(cell.getAttribute?.('data-original-title') || ''),
-      normalizeWhitespace(cell.getAttribute?.('alt') || ''),
-      normalizeWhitespace(cell.getAttribute?.('value') || ''),
-    ].filter(Boolean);
-
-    const descendants = Array.from(cell.querySelectorAll('*'));
-    for (const node of descendants) {
-      candidates.push(
-        normalizeWhitespace(node.getAttribute?.('title') || ''),
-        normalizeWhitespace(node.getAttribute?.('aria-label') || ''),
-        normalizeWhitespace(node.getAttribute?.('alt') || ''),
-        normalizeWhitespace(node.textContent || ''),
-        normalizeWhitespace(
-          String(node.innerHTML || '')
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/div>/gi, '\n')
-            .replace(/<\/p>/gi, '\n')
-            .replace(/<[^>]+>/g, ' ')
-        )
-      );
-    }
-
-    return unique(candidates.filter(Boolean));
-  }
-
-  function extractSetPairsDeepFromNode(node) {
-    if (!node) return [];
-
-    const rawBlocks = [];
-    if (node.innerText) rawBlocks.push(...String(node.innerText).split(/\n+/));
-    if (node.textContent && node.textContent !== node.innerText) {
-      rawBlocks.push(...String(node.textContent).split(/\n+/));
-    }
-    const rawHtml = String(node.innerHTML || '')
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/div>/gi, '\n')
-      .replace(/<\/p>/gi, '\n')
-      .replace(/<[^>]+>/g, ' ');
-    rawBlocks.push(...rawHtml.split(/\n+/));
-
-    // Deduplicate normalized blocks before processing to avoid scoring duplicate sets
-    const blocks = unique(rawBlocks.map((b) => normalizeWhitespace(b)).filter(Boolean));
-
-    const sets = [];
-    for (const block of blocks) {
-      const extracted = extractSetPairsFromText(block);
-      for (const set of extracted) {
-        sets.push(set);
-      }
-    }
-
-    return filterMeaningfulSets(sets);
-  }
-
-  function extractSetPairsFromCellNode(cell) {
-    const values = collectCellScoreCandidates(cell);
-    const sets = [];
-
-    for (const value of values) {
-      const extracted = extractSetPairsFromText(value);
-      for (const set of extracted) {
-        sets.push(set);
-      }
-    }
-
-    const deepSets = extractSetPairsDeepFromNode(cell);
-    for (const set of deepSets) {
-      sets.push(set);
-    }
-
-    return filterMeaningfulSets(sets);
-  }
-
-  function detectLockedSetColumnIndexes(headerMap, rowNode) {
-    const explicit = ['set1', 'set2', 'set3']
-      .map((key) => (typeof headerMap[key] === 'number' ? headerMap[key] : null))
-      .filter((value) => value !== null);
-
-    if (explicit.length >= 2) {
-      return explicit.slice(0, 3);
-    }
-
-    if (!rowNode) return explicit;
-
-    const rowCells = Array.from(rowNode.querySelectorAll('th, td'));
-    const candidateIndexes = [];
-
-    for (let i = 0; i < rowCells.length; i += 1) {
-      const candidates = collectCellScoreCandidates(rowCells[i]);
-      const joined = candidates.join(' | ');
-      const extracted = extractSetPairsFromText(joined);
-      if (extracted.length) {
-        candidateIndexes.push(i);
-      }
-    }
-
-    if (candidateIndexes.length >= 2) {
-      return candidateIndexes.slice(-3);
-    }
-
-    return explicit;
-  }
-
-  function extractLockedSetPairsFromRow(rowNode, headerMap) {
-    if (!rowNode) return [];
-
-    const rowCells = Array.from(rowNode.querySelectorAll('th, td'));
-    const lockedIndexes = detectLockedSetColumnIndexes(headerMap, rowNode);
-    const sets = [];
-
-    for (const index of lockedIndexes) {
-      const cellNode = rowCells[index];
-      if (!cellNode) continue;
-
-      const fromCell = extractSetPairsFromCellNode(cellNode);
-      if (fromCell.length) {
-        sets.push(fromCell[0]);
-        continue;
-      }
-
-      const raw = collectCellScoreCandidates(cellNode).join(' ').replace(/\s+/g, ' ').trim();
-      const pair = raw.match(/(\d{1,2})\s*[-–]\s*(\d{1,2})/);
-      if (pair) {
-        sets.push(
-          normalizeScorePair(pair[1], pair[2], {
-            isMatchTiebreak: index === lockedIndexes[lockedIndexes.length - 1] && looksLikeMatchTiebreakSet(pair[1], pair[2], raw),
-            isTimed: isTimedScoreText(raw),
-          })
-        );
-      }
-    }
-
-    if (sets.length < 3) {
-      const deepRowSets = extractSetPairsDeepFromNode(rowNode);
-      for (const set of deepRowSets) {
-        const duplicate = sets.some((existing) =>
-          toNumber(existing?.homeGames) === toNumber(set?.homeGames) &&
-          toNumber(existing?.awayGames) === toNumber(set?.awayGames) &&
-          Boolean(existing?.isMatchTiebreak) === Boolean(set?.isMatchTiebreak)
-        );
-        if (!duplicate && sets.length < 3) {
-          sets.push(set);
-        }
-      }
-    }
-
-    return filterMeaningfulSets(sets);
-  }
-
   function setsAreSplitWithoutDecider(sets) {
     const meaningful = filterMeaningfulSets(sets);
     if (meaningful.length < 2) return false;
@@ -2316,78 +2121,6 @@ if (awayHits > homeHits) return 'away';
     return filterMeaningfulSets(parsed);
   }
 
-  function extractSetPairsFromColumns(cells, headerMap, rowNode) {
-    const sets = [];
-    const lockedSets = extractLockedSetPairsFromRow(rowNode, headerMap);
-
-    for (const set of lockedSets) {
-      sets.push(set);
-    }
-
-    if (!sets.length) {
-      for (const key of ['set1', 'set2', 'set3']) {
-        const index = headerMap[key];
-        if (typeof index !== 'number') continue;
-
-        const raw = cells[index];
-        const extracted = extractSetPairsFromText(raw);
-
-        if (extracted.length) {
-          sets.push(extracted[0]);
-          continue;
-        }
-
-        const cellNode =
-          rowNode && typeof index === 'number'
-            ? rowNode.querySelectorAll('th, td')[index]
-            : null;
-
-        const fromCell = extractSetPairsFromCellNode(cellNode);
-        if (fromCell.length) {
-          sets.push(fromCell[0]);
-          continue;
-        }
-
-        const pair = String(raw || '').match(/(\d{1,2})\s*[-–]\s*(\d{1,2})/);
-        if (pair) {
-          sets.push(
-            normalizeScorePair(pair[1], pair[2], {
-              isMatchTiebreak: key === 'set3' && looksLikeMatchTiebreakSet(pair[1], pair[2], String(raw || '')),
-              isTimed: isTimedScoreText(String(raw || '')),
-            })
-          );
-        }
-      }
-    }
-
-    if (rowNode && sets.length < 3) {
-      const rowCells = Array.from(rowNode.querySelectorAll('th, td'));
-      const extraSets = [];
-
-      for (let i = 0; i < rowCells.length; i += 1) {
-        const isDeclaredSetCell = detectLockedSetColumnIndexes(headerMap, rowNode).includes(i);
-        if (isDeclaredSetCell) continue;
-        const fromCell = extractSetPairsFromCellNode(rowCells[i]);
-        for (const set of fromCell) {
-          extraSets.push(set);
-        }
-      }
-
-      for (const set of extraSets) {
-        const duplicate = sets.some((existing) =>
-          toNumber(existing?.homeGames) === toNumber(set?.homeGames) &&
-          toNumber(existing?.awayGames) === toNumber(set?.awayGames) &&
-          Boolean(existing?.isMatchTiebreak) === Boolean(set?.isMatchTiebreak)
-        );
-        if (!duplicate && sets.length < 3) {
-          sets.push(set);
-        }
-      }
-    }
-
-    return filterMeaningfulSets(sets);
-  }
-
   function determineWinnerSideFromSets(sets) {
     const safeSets = safeArray(sets);
     const timedSets = safeSets.filter((set) => Boolean(set?.isTimed));
@@ -2450,28 +2183,6 @@ if (awayHits > homeHits) return 'away';
       if (diff > 0) return 'home';
       if (diff < 0) return 'away';
     }
-
-    return null;
-  }
-
-  function inferMatchType(value, lineNumber, homePlayers, awayPlayers) {
-    const text = lower(value);
-
-    if (text.includes('single')) return 'singles';
-    if (text.includes('double')) return 'doubles';
-
-    if (safeArray(homePlayers).length >= 2 || safeArray(awayPlayers).length >= 2) {
-      return 'doubles';
-    }
-
-    if (safeArray(homePlayers).length === 1 && safeArray(awayPlayers).length === 1) {
-      return 'singles';
-    }
-
-    const line = toNumber(lineNumber);
-    if (line === null) return null;
-    if (line === 1 || line === 2) return 'singles';
-    if (line >= 3) return 'doubles';
 
     return null;
   }
@@ -2544,38 +2255,6 @@ if (awayHits > homeHits) return 'away';
     return { home: null, away: null };
   }
 
-  function getHeaderMap(headerCells) {
-    const map = {};
-
-    headerCells.forEach((cellText, index) => {
-      const key = lower(cellText);
-      if (!key) return;
-
-      if (key.includes('line') || key.includes('position') || key === '#') map.lineNumber = index;
-      if (key.includes('match type') || key === 'type' || key.includes('court')) map.matchType = index;
-      if (key.includes('individual score')) map.individualScore = index;
-      if (key === 'set 1' || key.includes('1st set') || key.includes('first set')) map.set1 = index;
-      if (key === 'set 2' || key.includes('2nd set') || key.includes('second set')) map.set2 = index;
-      if (
-        key === 'set 3' ||
-        key.includes('3rd set') ||
-        key.includes('third set') ||
-        key.includes('set 3') ||
-        key.includes('match tiebreak') ||
-        key.includes('match tie-break')
-      ) map.set3 = index;
-      if (key.includes('winner')) map.winner = index;
-
-      if (key.includes('home') && key.includes('player')) map.homePlayers = index;
-      if (key.includes('visiting') && key.includes('player')) map.awayPlayers = index;
-      if (key.includes('away') && key.includes('player')) map.awayPlayers = index;
-      if (key.includes('team 1') && key.includes('player')) map.homePlayers = index;
-      if (key.includes('team 2') && key.includes('player')) map.awayPlayers = index;
-    });
-
-    return map;
-  }
-
   function findLabelValue(labelRegex) {
     const labelPattern = labelRegex instanceof RegExp ? labelRegex : new RegExp(labelRegex, 'i');
     const rows = Array.from(document.querySelectorAll('tr'));
@@ -2645,28 +2324,6 @@ if (awayHits > homeHits) return 'away';
     return null;
   }
 
-  function isLikelyRenderedScorecardTable(table) {
-    const rows = getRows(table);
-    if (rows.length < 2) return false;
-
-    const preview = rows
-      .slice(0, 14)
-      .map((row) => lower(rowTexts(row).join(' | ')))
-      .join(' || ');
-
-    let score = 0;
-
-    if (preview.includes('home team')) score += 4;
-    if (preview.includes('visiting team') || preview.includes('away team')) score += 4;
-    if (preview.includes('3rd set tie-break')) score += 4;
-    if (preview.includes('vs.') || preview.includes('vs')) score += 2;
-    if (preview.includes('singles')) score += 2;
-    if (preview.includes('doubles')) score += 2;
-    if (preview.includes('completed')) score += 2;
-
-    return score >= 8;
-  }
-
   function getLeafScorecardTables() {
     const allTables = getTables();
 
@@ -2679,43 +2336,6 @@ if (awayHits > homeHits) return 'away';
       return true;
     });
   }
-
-function extractBestScorecardTable() {
-  const tables = Array.from(document.querySelectorAll('table'));
-
-  let bestTable = null;
-  let bestScore = -1;
-
-  for (const table of tables) {
-    const text = normalizeWhitespace(table.innerText || table.textContent || '');
-    const lowerText = text.toLowerCase();
-
-    const lineLabels = text.match(/\b\d+\s*#\s*(singles|doubles)\b/gi) || [];
-    const scorePairs = text.match(/\b\d{1,2}\s*[-–]\s*\d{1,2}\b/g) || [];
-    const vsMatches = text.match(/\bvs\.?\b/gi) || [];
-
-    let score = 0;
-
-    // Most important: full scorecard should contain all 5 line labels.
-    score += lineLabels.length * 20;
-
-    // Score rows help distinguish the match table from header/layout tables.
-    score += scorePairs.length * 4;
-    score += vsMatches.length * 3;
-
-    if (lowerText.includes('home team')) score += 5;
-    if (lowerText.includes('visiting team') || lowerText.includes('away team')) score += 5;
-    if (lowerText.includes('total team score')) score += 8;
-    if (lowerText.includes('3rd set tie-break')) score += 4;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestTable = table;
-    }
-  }
-
-  return bestTable;
-}
 
   function dedupeAndSortLines(lines) {
     const deduped = [];
@@ -3434,7 +3054,6 @@ function extractBestScorecardTable() {
 
   function extractScorecard(cachedScheduleEntry) {
     const text = document.body?.innerText || '';
-    const bestTable = extractBestScorecardTable();
 
        let lines = [];
     let captureMethod = 'table';
