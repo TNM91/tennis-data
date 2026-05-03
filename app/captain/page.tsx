@@ -1423,6 +1423,80 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     workspaceState.messagingReady,
   ])
 
+  const captainReadinessChecks = useMemo(() => [
+    {
+      label: 'Team scope',
+      complete: hasTeamScope,
+      href: '#captain-team-scope',
+      stage: 'team' as CaptainResumeStage,
+      cta: 'Choose team',
+    },
+    {
+      label: 'Availability',
+      complete: workspaceState.pendingResponseCount === 0,
+      href: availabilityHref,
+      stage: 'availability' as CaptainResumeStage,
+      cta: 'Review availability',
+    },
+    {
+      label: 'Projection',
+      complete: matches.length > 0,
+      href: lineupProjectionHref,
+      stage: 'projection' as CaptainResumeStage,
+      cta: 'Open projection',
+    },
+    {
+      label: 'Lineup',
+      complete: workspaceState.lineupReady,
+      href: lineupBuilderHref,
+      stage: 'lineup' as CaptainResumeStage,
+      cta: 'Build lineup',
+    },
+    {
+      label: 'Message',
+      complete: workspaceState.messagingReady,
+      href: messagingHref,
+      stage: 'messaging' as CaptainResumeStage,
+      cta: 'Prep message',
+    },
+  ], [
+    availabilityHref,
+    hasTeamScope,
+    lineupBuilderHref,
+    lineupProjectionHref,
+    matches.length,
+    messagingHref,
+    workspaceState.lineupReady,
+    workspaceState.messagingReady,
+    workspaceState.pendingResponseCount,
+  ])
+  const captainReadinessCompleteCount = captainReadinessChecks.filter((item) => item.complete).length
+  const captainReadinessScore = Math.round((captainReadinessCompleteCount / captainReadinessChecks.length) * 100)
+  const captainReadinessNext = captainReadinessChecks.find((item) => !item.complete) || captainReadinessChecks[captainReadinessChecks.length - 1]
+
+  const captainPrimaryAction = captainReadinessScore < 100 ? {
+    title: captainReadinessNext.label === 'Team scope' ? 'Choose the team week' : nextAction.title,
+    detail: captainReadinessNext.label === 'Team scope'
+      ? 'Pick the team, league, and flight first so Captain can scope lineup, availability, and messaging.'
+      : nextAction.detail,
+    href: captainReadinessNext.href,
+    stage: captainReadinessNext.stage,
+    cta: captainReadinessNext.cta,
+    tone: captainReadinessNext.label === 'Team scope' ? 'info' as const : nextAction.tone,
+  } : {
+    ...nextAction,
+    stage: 'brief' as CaptainResumeStage,
+  }
+
+  function handleCaptainAction(href: string, stage: CaptainResumeStage) {
+    if (href.startsWith('#')) {
+      document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+
+    handleCaptainNav(href, stage)
+  }
+
   function rememberCaptainResume(stage: CaptainResumeStage) {
     writeCaptainResumeState({
       competitionLayer: selectedCompetitionLayer || undefined,
@@ -1509,7 +1583,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               {CAPTAIN_STORY.body}
             </p>
 
-            <div style={dynamicHeroControlRow}>
+            <div id="captain-team-scope" style={dynamicHeroControlRow}>
               <select
                 value={selectedTeamOptionKey}
                 onChange={(e) => {
@@ -1668,6 +1742,60 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           />
         </section>
 
+        <section style={captainReadinessPanelStyle}>
+          <div style={captainReadinessHeaderStyle}>
+            <div>
+              <div style={sectionKicker}>Captain readiness</div>
+              <h2 style={captainReadinessTitleStyle}>
+                {captainReadinessScore === 100 ? 'This week is ready to send.' : 'Tighten the week before match day.'}
+              </h2>
+              <div style={sectionSub}>
+                {captainReadinessScore === 100
+                  ? 'Availability, match context, lineup, and messaging are all in place.'
+                  : `Next: ${captainReadinessNext.label.toLowerCase()}.`}
+              </div>
+            </div>
+            <div style={captainReadinessScoreBlockStyle}>
+              <strong>{captainReadinessScore}%</strong>
+              <span>{captainReadinessCompleteCount}/{captainReadinessChecks.length} ready</span>
+            </div>
+          </div>
+          <div style={captainReadinessTrackStyle} aria-label={`Captain readiness ${captainReadinessScore} percent`}>
+            <span style={captainReadinessFillStyle(captainReadinessScore)} />
+          </div>
+          <div style={captainReadinessChecklistStyle}>
+            {captainReadinessChecks.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  handleCaptainAction(item.href, item.stage)
+                }}
+                style={item.complete ? captainReadinessPillCompleteStyle : captainReadinessPillStyle}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div style={captainReadinessActionRowStyle}>
+            <PrimarySmallBtn
+              disabled={captainReadinessScore === 100 || (!hasTeamScope && !captainReadinessNext.href.startsWith('#'))}
+              onClick={() => {
+                if (!captainReadinessNext) return
+                handleCaptainAction(captainReadinessNext.href, captainReadinessNext.stage)
+              }}
+            >
+              {captainReadinessScore === 100 ? 'Week ready' : captainReadinessNext.cta}
+            </PrimarySmallBtn>
+            <SecondarySmallBtn
+              disabled={!hasTeamScope}
+              onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}
+            >
+              Open brief
+            </SecondarySmallBtn>
+          </div>
+        </section>
+
         <section style={commandCenterShell}>
           <div style={commandCenterHeader}>
             <div>
@@ -1746,34 +1874,34 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
           <div style={nextActionCard}>
             <div style={nextActionHeader}>
-              <span style={nextAction.tone === 'good' ? badgeGreen : nextAction.tone === 'warn' ? warnBadge : badgeBlue}>
-                {nextAction.tone === 'good' ? 'Ready to move' : nextAction.tone === 'warn' ? 'Needs attention' : 'Recommended'}
+              <span style={captainPrimaryAction.tone === 'good' ? badgeGreen : captainPrimaryAction.tone === 'warn' ? warnBadge : badgeBlue}>
+                {captainPrimaryAction.tone === 'good' ? 'Ready to move' : captainPrimaryAction.tone === 'warn' ? 'Needs attention' : 'Recommended'}
               </span>
               <span style={badgeSlate}>Resume</span>
             </div>
 
-            <div style={nextActionTitle}>{nextAction.title}</div>
-            <div style={nextActionText}>{nextAction.detail}</div>
+            <div style={nextActionTitle}>{captainPrimaryAction.title}</div>
+            <div style={nextActionText}>{captainPrimaryAction.detail}</div>
 
             <div style={dynamicNextActionButtonRow}>
               <PrimaryBtn
-                disabled={!hasTeamScope}
-                onClick={() => handleCaptainNav(
-                  nextAction.href,
-                  nextAction.href === lineupBuilderHref
+                disabled={!hasTeamScope && !captainPrimaryAction.href.startsWith('#')}
+                onClick={() => handleCaptainAction(
+                  captainPrimaryAction.href,
+                  captainPrimaryAction.href === lineupBuilderHref
                     ? 'lineup'
-                    : nextAction.href === scenarioHref
+                    : captainPrimaryAction.href === scenarioHref
                       ? 'scenario'
-                      : nextAction.href === messagingHref
+                      : captainPrimaryAction.href === messagingHref
                         ? 'messaging'
-                        : nextAction.href === weeklyBriefHref
+                        : captainPrimaryAction.href === weeklyBriefHref
                           ? 'brief'
-                          : nextAction.href === analyticsHref
+                          : captainPrimaryAction.href === analyticsHref
                             ? 'analytics'
-                            : 'team',
+                            : captainPrimaryAction.stage,
                 )}
               >
-                {nextAction.cta}
+                {captainPrimaryAction.cta}
               </PrimaryBtn>
               <SecondarySmallBtn
                 disabled={!hasTeamScope}
@@ -2748,6 +2876,90 @@ const statusStrip: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   gap: 14,
+}
+
+const captainReadinessPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, transparent) 0%, var(--shell-panel-bg-strong) 68%)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const captainReadinessHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 16,
+  flexWrap: 'wrap',
+}
+
+const captainReadinessTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.12,
+  fontWeight: 950,
+}
+
+const captainReadinessScoreBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  justifyItems: 'end',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+}
+
+const captainReadinessTrackStyle: CSSProperties = {
+  height: 14,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--foreground-strong) 12%, var(--shell-panel-border) 88%)',
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+  padding: 2,
+}
+
+const captainReadinessFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  width: `${Math.max(0, Math.min(value, 100))}%`,
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
+})
+
+const captainReadinessChecklistStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
+const captainReadinessPillStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  borderRadius: 999,
+  minHeight: 34,
+  padding: '0 11px',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const captainReadinessPillCompleteStyle: CSSProperties = {
+  ...captainReadinessPillStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainReadinessActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
 }
 
 const statusCard: CSSProperties = {
