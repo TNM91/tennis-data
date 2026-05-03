@@ -1,10 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
-import AdsenseSlot from '@/app/components/adsense-slot'
-import { RoleValueStrip } from '@/app/components/tier-pathway'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -34,8 +33,6 @@ import {
   type MembershipTierId,
 } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-
-const HOME_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_HOME_INLINE || null
 
 type TierTheme = {
   shellBorder: string
@@ -141,6 +138,9 @@ const tierSections: TierSectionConfig[] = [
   buildTierSection('captain', <CaptainSnapshot />, true),
   buildTierSection('league', <LeagueSnapshot />),
 ]
+
+const paidTierSections = tierSections.filter((section) => section.planId !== 'free')
+const conversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
 
 function buildTierSection(planId: MembershipTierId, snapshot: ReactNode, featured = false): TierSectionConfig {
   const tier = getMembershipTier(planId)
@@ -289,8 +289,6 @@ export default function PreviewHomepage() {
                 </p>
               </div>
 
-              <HeroSearchPreview compact={isSmallMobile} />
-
               <div
                 style={{
                   display: 'flex',
@@ -298,13 +296,15 @@ export default function PreviewHomepage() {
                   gap: 10,
                 }}
               >
-                <Link href="/join" style={buttonPrimary}>
+                <Link href="/pricing" style={buttonPrimary}>
+                  Compare tiers
+                </Link>
+                <Link href="/join" style={buttonGhost}>
                   Get Started Free
                 </Link>
-                <Link href="/explore" style={buttonGhost}>
-                  Explore
-                </Link>
               </div>
+
+              <HeroSearchPreview compact={isSmallMobile} />
 
               <div
                 style={{
@@ -346,18 +346,18 @@ export default function PreviewHomepage() {
               >
                 {[
                   {
-                    planId: 'free' as PricingPlanId,
-                    stage: getMembershipTier('free').name,
-                    label: TIER_HOMEPAGE_STORY.free.stage,
-                    value: 'Explore',
-                    text: getMembershipTier('free').shortPromise,
-                  },
-                  {
                     planId: 'player_plus' as PricingPlanId,
                     stage: getMembershipTier('player_plus').name,
                     label: TIER_HOMEPAGE_STORY.player_plus.stage,
-                    value: 'Personalize',
-                    text: getMembershipTier('player_plus').shortPromise,
+                    value: 'Player',
+                    text: 'My Lab, follows, matchup insight, and player-linked prep.',
+                  },
+                  {
+                    planId: 'captain' as PricingPlanId,
+                    stage: getMembershipTier('captain').name,
+                    label: TIER_HOMEPAGE_STORY.captain.stage,
+                    value: 'Captain',
+                    text: 'Lineups, scouting, readiness, and weekly team decisions.',
                   },
                 ].map((item) => {
                   const theme = getTierTheme(item.planId)
@@ -420,11 +420,11 @@ export default function PreviewHomepage() {
               </div>
             </div>
 
-            <HeroWorkspacePreview />
+            <TierConversionPreview />
           </div>
         </section>
 
-        <HeroTrustStrip />
+        <TierChoiceGrid />
 
         <section style={sectionStack}>
           <div
@@ -436,12 +436,12 @@ export default function PreviewHomepage() {
             }}
           >
             <div style={{ display: 'grid', gap: 12, maxWidth: 860 }}>
-              <div style={sectionKicker}>Plans by role</div>
+              <div style={sectionKicker}>Paid unlocks</div>
               <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
-                Choose what helps now.
+                What opens after Free.
               </h2>
               <p style={{ ...pageSubtitle, marginTop: 0 }}>
-                Free explores the tennis landscape. Player personalizes it. Captain and TIQ League Coordinator add the tools for team and league work.
+                Free gets people oriented. Player, Captain, and TIQ League Coordinator unlock the higher-value workflows: personal prep, team decisions, and league operations.
               </p>
             </div>
 
@@ -456,19 +456,19 @@ export default function PreviewHomepage() {
               }}
             >
               <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Most teams
+                Paid upgrade path
               </div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
-                Player is where the site becomes yours.
+                Captain is the clearest team conversion.
               </div>
               <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.68 }}>
-                My Lab, follows, matchups, and player-linked context turn public tennis data into your own tennis workspace.
+                Player makes TenAceIQ personal. Captain turns that intelligence into weekly decisions for the whole team.
               </div>
             </div>
           </div>
 
           <div style={{ display: 'grid', gap: isMobile ? 16 : 20 }}>
-            {tierSections.map((section, index) => (
+            {paidTierSections.map((section, index) => (
               <TierSection
                 key={section.planId}
                 {...section}
@@ -478,69 +478,7 @@ export default function PreviewHomepage() {
           </div>
         </section>
 
-        <AdsenseSlot slot={HOME_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
-
-        <section
-          style={{
-            ...heroPanel,
-            padding: isSmallMobile ? 18 : isMobile ? 22 : 26,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              pointerEvents: 'none',
-              background:
-                'radial-gradient(circle at 78% 22%, rgba(155,225,29,0.16) 0%, transparent 26%), radial-gradient(circle at 20% 80%, rgba(74,163,255,0.14) 0%, transparent 26%)',
-            }}
-          />
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 1,
-              display: 'grid',
-              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) auto',
-              gap: 18,
-              alignItems: 'center',
-            }}
-          >
-            <div style={{ display: 'grid', gap: 12, maxWidth: 760 }}>
-              <div style={sectionKicker}>Next step</div>
-              <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
-                Start with search. Add tools when they help.
-              </h2>
-              <RoleValueStrip compact />
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gap: 10,
-                padding: 14,
-                borderLeft: '2px solid rgba(155,225,29,0.42)',
-                background: 'transparent',
-                alignSelf: isTablet ? 'stretch' : 'start',
-              }}
-            >
-              <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                Choose the package that clears the next bottleneck
-              </div>
-              <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>
-                Unlock only what solves the next real problem.
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                <Link href="/join" style={buttonPrimary}>
-                  Get Started Free
-                </Link>
-                <Link href="/pricing" style={buttonGhost}>
-                  Compare plans
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
+        <FinalConversionRow />
       </div>
     </SiteShell>
   )
@@ -579,13 +517,15 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
     <div
         style={{
           ...glassCard,
-          padding: isSmallMobile ? 14 : compact || isMobile ? 16 : 18,
+          padding: isSmallMobile ? 12 : compact || isMobile ? 14 : 18,
           display: 'grid',
-          gap: 12,
+          gap: isMobile ? 10 : 12,
           maxWidth: isMobile ? '100%' : 760,
           border: '1px solid var(--home-search-frame-border)',
-          background: 'var(--home-search-frame-bg)',
-          boxShadow: 'var(--home-search-frame-shadow)',
+          background: isMobile
+            ? 'color-mix(in srgb, var(--home-search-frame-bg) 78%, transparent 22%)'
+            : 'var(--home-search-frame-bg)',
+          boxShadow: isMobile ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'var(--home-search-frame-shadow)',
           backdropFilter: 'blur(10px)',
           WebkitBackdropFilter: 'blur(10px)',
         }}
@@ -608,17 +548,18 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         <div
           style={{
             color: colors.textStrong,
-            fontSize: isSmallMobile ? 18 : compact || isMobile ? 20 : 24,
+            fontSize: isSmallMobile ? 17 : compact || isMobile ? 19 : 24,
             fontWeight: 900,
             letterSpacing: '-0.03em',
             lineHeight: 1.12,
           }}
         >
-          Find what you need without digging through the product.
+          {isMobile ? 'Search the tennis map first.' : 'Find what you need without digging through the product.'}
         </div>
         <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.65 }}>
-          Start with a targeted search by player, team, league, flight, or area, then unlock the tools that
-          solve the next problem in your week.
+          {isMobile
+            ? 'Find a player, team, league, flight, or area, then choose the tier that helps next.'
+            : 'Start with a targeted search by player, team, league, flight, or area, then unlock the tools that solve the next problem in your week.'}
         </div>
       </div>
 
@@ -628,7 +569,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           display: 'grid',
           gridTemplateColumns:
             compact || isMobile ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) minmax(148px, 156px)',
-          gap: 10,
+          gap: isMobile ? 8 : 10,
           alignItems: compact || isMobile ? 'stretch' : 'end',
         }}
       >
@@ -682,7 +623,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
 
         <div
           style={{
-            minHeight: isSmallMobile ? 52 : 56,
+            minHeight: isMobile ? 50 : 56,
             padding: '0 16px',
             display: 'flex',
             alignItems: 'center',
@@ -714,7 +655,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
           type="submit"
           style={{
             ...buttonPrimary,
-            minHeight: isSmallMobile ? 52 : 56,
+            minHeight: isMobile ? 50 : 56,
             minWidth: compact || isMobile ? '100%' : 148,
             width: compact || isMobile ? '100%' : undefined,
             paddingInline: compact || isMobile ? 20 : 22,
@@ -738,32 +679,264 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
         <div style={{ color: colors.mutedStrong, fontSize: 12, lineHeight: 1.55 }}>
           {selectedFilter.hint}
         </div>
-        <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+        {isMobile ? null : <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
           Opens focused Explore results
-        </div>
+        </div>}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+      {isMobile ? null : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         {selectedFilter.links.map((item) => (
           <Link key={item.href} href={item.href} style={chipLinkStyle}>
             {item.label}
           </Link>
         ))}
-      </div>
+      </div>}
     </div>
   )
 }
 
-function HeroWorkspacePreview() {
-  const { isMobile, isTablet, isSmallMobile } = useViewportBreakpoints()
+function TierChoiceGrid() {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <section
+      style={{
+        display: 'grid',
+        gap: isMobile ? 14 : 16,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 14,
+          alignItems: 'end',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
+          <div style={sectionKicker}>Choose your tier</div>
+          <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
+            Start free. Upgrade by the job.
+          </h2>
+          <p style={{ ...pageSubtitle, marginTop: 0 }}>
+            Every tier has a clear reason to exist: discovery, personal prep, team decisions, or league operations.
+          </p>
+        </div>
+        <Link href="/pricing" style={{ ...buttonGhost, minHeight: 44 }}>
+          Full plan comparison
+        </Link>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+          gap: 12,
+          alignItems: 'stretch',
+        }}
+      >
+        {conversionTierIds.map((planId) => {
+          const tier = getMembershipTier(planId)
+          const plan = getPricingPlan(planId)
+          const story = TIER_HOMEPAGE_STORY[planId]
+          const theme = getTierTheme(planId)
+          const featured = planId === 'captain'
+
+          return (
+            <article
+              key={planId}
+              style={{
+                position: 'relative',
+                display: 'grid',
+                gap: 12,
+                alignContent: 'start',
+                minHeight: 300,
+                padding: isSmallMobile ? 16 : 18,
+                overflow: 'hidden',
+                borderRadius: 22,
+                border: featured ? '1px solid rgba(155,225,29,0.32)' : '1px solid rgba(116,190,255,0.12)',
+                borderTop: `3px solid ${theme.priceColor}`,
+                background: featured
+                  ? 'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)'
+                  : 'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface) 96%, var(--foreground) 4%) 100%)',
+                boxShadow: featured ? '0 22px 48px rgba(155,225,29,0.10)' : 'var(--shadow-soft)',
+              }}
+            >
+              {featured ? (
+                <div style={{ ...mostPopularBadgeStyle, width: 'fit-content' }}>Best team value</div>
+              ) : null}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{tier.name}</span>
+                  <h3
+                    style={{
+                      margin: 0,
+                      color: 'var(--foreground-strong)',
+                      fontSize: 22,
+                      lineHeight: 1.04,
+                      letterSpacing: '-0.04em',
+                      fontWeight: 900,
+                    }}
+                  >
+                    {tier.shortPromise}
+                  </h3>
+                </div>
+                <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'nowrap' }}>
+                  {plan.priceLabel}
+                </div>
+              </div>
+
+              <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.62 }}>
+                {story.copy}
+              </p>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 8,
+                  padding: 11,
+                  borderRadius: 16,
+                  border: '1px solid rgba(116,190,255,0.10)',
+                  background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                }}
+              >
+                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Best for</div>
+                <div style={{ color: 'var(--foreground-strong)', fontSize: 13, lineHeight: 1.48, fontWeight: 800 }}>
+                  {tier.audience}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 5,
+                  paddingLeft: 11,
+                  borderLeft: `2px solid ${theme.priceColor}`,
+                }}
+              >
+                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Upgrade trigger</div>
+                <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.5, fontWeight: 700 }}>
+                  {tier.upgradeCue}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: 7 }}>
+                {story.bullets.slice(0, 2).map((bullet) => (
+                  <div key={bullet} style={{ ...bulletRowStyle, fontSize: 13, lineHeight: 1.48 }}>
+                    <span style={{ ...bulletDotStyle, marginTop: 6, background: theme.priceColor }} />
+                    <span>{bullet}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 'auto' }}>
+                <Link href={story.primaryCta.href} style={featured ? theme.primaryButton : getTierSecondaryButton(theme)}>
+                  {story.primaryCta.label}
+                </Link>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function FinalConversionRow() {
+  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <section
+      style={{
+        ...surfaceCardStrong,
+        display: 'grid',
+        gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) auto',
+        gap: 16,
+        alignItems: 'center',
+        padding: isSmallMobile ? 18 : 22,
+        border: '1px solid rgba(155,225,29,0.18)',
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue) 4%) 100%)',
+      }}
+    >
+      <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
+        <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Ready when the next tennis job appears</div>
+        <h2
+          style={{
+            margin: 0,
+            color: 'var(--foreground-strong)',
+            fontSize: 'clamp(1.45rem, 2.1vw, 2.2rem)',
+            lineHeight: 1.04,
+            letterSpacing: '-0.04em',
+            fontWeight: 900,
+          }}
+        >
+          Start free, then choose the tier that saves the most time.
+        </h2>
+        <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 14, lineHeight: 1.65 }}>
+          Search first. Upgrade for Player prep, Captain decisions, or league operations when those tools matter.
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: isTablet ? 'start' : 'end' }}>
+        <Link href="/join" style={buttonPrimary}>
+          Get Started Free
+        </Link>
+        <Link href="/pricing" style={buttonGhost}>
+          Compare tiers
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function TierConversionPreview() {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const conversionSteps: Array<{
+    planId: PricingPlanId
+    step: string
+    title: string
+    text: string
+    href: string
+  }> = [
+    {
+      planId: 'free',
+      step: '01',
+      title: 'Search the field',
+      text: 'Find players, teams, leagues, rankings, flights, and areas.',
+      href: '/explore',
+    },
+    {
+      planId: 'player_plus',
+      step: '02',
+      title: 'Make it yours',
+      text: 'Unlock My Lab, follows, matchup reads, and player-linked prep.',
+      href: '/pricing#player_plus',
+    },
+    {
+      planId: 'captain',
+      step: '03',
+      title: 'Run the week',
+      text: 'Build lineups, scout opponents, track readiness, and send the plan.',
+      href: '/pricing#captain',
+    },
+    {
+      planId: 'league',
+      step: '04',
+      title: 'Operate the season',
+      text: 'Manage structure, visibility, standings, schedules, and results.',
+      href: '/pricing#league',
+    },
+  ]
 
   return (
     <div
       style={{
         ...surfaceCardStrong,
-        padding: isSmallMobile ? 16 : 18,
+        padding: isSmallMobile ? 16 : 20,
         display: 'grid',
-        gap: 14,
+        gap: 16,
         minHeight: 100,
         position: 'relative',
         overflow: 'hidden',
@@ -787,32 +960,73 @@ function HeroWorkspacePreview() {
 
       <div
         style={{
-          display: 'flex',
+          display: 'grid',
           gap: 12,
-          alignItems: 'start',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
-        <div style={{ display: 'grid', gap: 10, maxWidth: 460 }}>
-          <div style={{ ...badgeBlue, width: 'fit-content' }}>Work from one place</div>
-          <div style={{ color: colors.textStrong, fontSize: 28, fontWeight: 900, lineHeight: 1.02, letterSpacing: '-0.04em' }}>
-            Search, compare, plan, and run the week.
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: 10, maxWidth: 440 }}>
+            <div style={{ ...badgeGreen, width: 'fit-content' }}>Tier path</div>
+            <div style={{ color: colors.textStrong, fontSize: 30, fontWeight: 900, lineHeight: 1, letterSpacing: '-0.04em' }}>
+              See the product in four decisions.
+            </div>
+            <div style={{ color: colors.mutedStrong, fontSize: 14, lineHeight: 1.7, maxWidth: 420 }}>
+              Start with the free tennis map, then unlock the role-based tools that make the next decision easier.
+            </div>
           </div>
-          <div style={{ color: colors.mutedStrong, fontSize: 14, lineHeight: 1.7, maxWidth: 420 }}>
-            Use the right view for the decision in front of you.
+          <Link href="/pricing" style={{ ...buttonPrimary, minHeight: 42, paddingInline: 16 }}>
+            Compare tiers
+          </Link>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: isSmallMobile ? '1fr' : 'auto minmax(0, 1fr)',
+            gap: 12,
+            alignItems: 'center',
+            padding: isSmallMobile ? 14 : 16,
+            borderRadius: 22,
+            border: '1px solid rgba(116,190,255,0.12)',
+            background:
+              'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 88%, var(--brand-blue-2) 12%) 0%, color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%) 100%)',
+          }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              width: isSmallMobile ? 84 : 104,
+              aspectRatio: '1 / 1',
+              borderRadius: 26,
+              border: '1px solid rgba(155,225,29,0.24)',
+              background:
+                'radial-gradient(circle at 34% 30%, rgba(155,225,29,0.28) 0%, transparent 36%), linear-gradient(145deg, rgba(13,27,51,0.96) 0%, rgba(24,48,86,0.92) 100%)',
+              overflow: 'hidden',
+              boxShadow: '0 18px 42px rgba(5,12,26,0.28)',
+            }}
+            aria-hidden="true"
+          >
+            <Image
+              src="/logo-icon.png"
+              alt=""
+              fill
+              sizes="104px"
+              style={{
+                objectFit: 'contain',
+                padding: isSmallMobile ? 14 : 16,
+              }}
+            />
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, color: 'var(--muted-strong)', fontSize: 12, fontWeight: 700 }}>
-            {['Free entry', 'Player insight', 'Captain tools'].map((item, index) => (
-              <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span
-                  style={{
-                    color: index === 2 ? 'var(--brand-green)' : 'var(--foreground-strong)',
-                  }}
-                >
-                  {item}
-                </span>
-                {index < 2 ? <span style={{ opacity: 0.28 }}>{'\u2022'}</span> : null}
-              </div>
-            ))}
+          <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>TenAceIQ pathway</div>
+            <div style={{ color: 'var(--foreground-strong)', fontSize: isSmallMobile ? 20 : 24, fontWeight: 900, lineHeight: 1.08, letterSpacing: '-0.04em' }}>
+              Search, personalize, lead, or run a league.
+            </div>
+            <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.65 }}>
+              Each tier answers a specific tennis job, so visitors can choose the right path in one glance.
+            </div>
           </div>
         </div>
       </div>
@@ -820,134 +1034,50 @@ function HeroWorkspacePreview() {
       <div
         style={{
           display: 'grid',
-          gap: 12,
+          gap: 10,
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div
           style={{
             display: 'grid',
-            gridTemplateRows: 'auto minmax(220px, 1fr) auto',
-            gap: 12,
-            borderRadius: 24,
-            overflow: 'hidden',
-            border: '1px solid var(--shell-panel-border)',
-            background: 'color-mix(in srgb, var(--shell-panel-bg) 94%, var(--foreground) 6%)',
-            padding: 14,
+            gap: 9,
           }}
         >
-          <div
-            style={{
-              ...snapshotPanelStyle,
-              gap: 6,
-              padding: 12,
-            }}
-          >
-            <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Inside TenAceIQ</div>
-            <div style={{ color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 900 }}>
-              Search first. Open the tool that helps next.
-            </div>
-            <div
+          {conversionSteps.map((item) => {
+            const tier = getMembershipTier(item.planId)
+            const theme = getTierTheme(item.planId)
+            return (
+              <Link
+              key={item.planId}
+              href={item.href}
               style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 10,
-                color: 'var(--muted-strong)',
-                fontSize: 12,
-                fontWeight: 700,
-              }}
-            >
-              {['Search', 'Player', 'Captain', 'Coordinator'].map((item, index) => (
-                <div key={item} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span>{item}</span>
-                  {index < 3 ? <span style={{ opacity: 0.35 }}>{'\u2022'}</span> : null}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div
-            style={{
-              ...snapshotPanelStyle,
-              gap: 10,
-              padding: 12,
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Player insight board</div>
-              <span style={{ ...badgeBlue, width: 'fit-content' }}>Player</span>
-            </div>
-
-            <div
-            style={{
-              display: 'grid',
-              gap: 10,
-              padding: 12,
-              borderRadius: 18,
-              border: '1px solid var(--shell-panel-border)',
-              background:
-                'radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--brand-blue-2) 16%, transparent) 0%, color-mix(in srgb, var(--brand-blue-2) 6%, transparent) 24%, transparent 54%), radial-gradient(circle at 22% 80%, color-mix(in srgb, var(--brand-green) 14%, transparent) 0%, color-mix(in srgb, var(--brand-green) 5%, transparent) 20%, transparent 48%), linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface-soft) 97%, var(--foreground) 3%) 100%)',
-            }}
-          >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-                  gap: 8,
-                }}
-              >
-                <SnapshotCard title="Fit score" value="78" text="Best at S2 / D1" accent="blue" />
-                <SnapshotCard title="Projection" value="+6%" text="Versus recent baseline" accent="green" />
-                <SnapshotCard title="Trend" value="Up" text="Recent form is improving" accent="blue" />
-              </div>
-
-              <div style={listShellStyle}>
-                <ListRow title="Recommended role" meta="Best current slot based on results and lineup fit." trailing="S2 / D1" />
-                <ListRow title="Recent signal" meta="Stronger doubles results over the last three match windows." trailing="Doubles up" />
-                <ListRow title="Next question" meta="Compare player fit before locking the weekly lineup." trailing="Compare" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-            gap: 8,
-          }}
-        >
-          {[
-            {
-              label: 'Free',
-              text: 'Search, join, and set availability.',
-            },
-            {
-              label: 'Player',
-              text: 'See fit, projections, and matchup context faster.',
-            },
-            {
-              label: 'Captain',
-              text: 'Bring lineups, scenarios, and team execution together.',
-            },
-          ].map((item, index) => (
-            <div
-              key={item.label}
-              style={{
-                padding: '10px 10px 12px',
                 display: 'grid',
-                gap: 6,
-                alignContent: 'start',
-                borderTop:
-                  index === 2 ? '2px solid rgba(155,225,29,0.5)' : '2px solid rgba(116,190,255,0.35)',
-                background: 'transparent',
-                minHeight: 92,
+                gridTemplateColumns: isSmallMobile ? '1fr' : '44px minmax(0, 1fr) auto',
+                gap: 12,
+                alignItems: 'center',
+                padding: 12,
+                minHeight: isSmallMobile ? 112 : 92,
+                borderRadius: 18,
+                border: '1px solid rgba(116,190,255,0.10)',
+                borderLeft: `3px solid ${theme.priceColor}`,
+                background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                color: 'inherit',
+                textDecoration: 'none',
               }}
             >
-              <div style={{ color: index === 2 ? 'var(--brand-green)' : 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
-              <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.6 }}>{item.text}</div>
-            </div>
-          ))}
+              <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950 }}>{item.step}</div>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  <span style={{ color: 'var(--foreground-strong)', fontSize: 15, fontWeight: 900 }}>{item.title}</span>
+                  <span style={{ ...snapshotChipStyle, minHeight: 24, fontSize: 11 }}>{tier.name}</span>
+                </div>
+                <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.5 }}>{item.text}</div>
+              </div>
+              <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Open</div>
+            </Link>
+          )})}
         </div>
       </div>
     </div>
@@ -1146,48 +1276,6 @@ function TierSection({
   )
 }
 
-function HeroTrustStrip() {
-  const { isMobile } = useViewportBreakpoints()
-
-  return (
-    <section
-      style={{
-        ...surfaceCard,
-        position: 'relative',
-        padding: isMobile ? 14 : 16,
-        display: 'grid',
-        gap: 10,
-        overflow: 'hidden',
-        background: 'transparent',
-        border: '1px solid rgba(116,190,255,0.10)',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          background:
-            'radial-gradient(circle at 12% 18%, color-mix(in srgb, var(--brand-blue-2) 14%, transparent) 0%, transparent 26%), radial-gradient(circle at 86% 82%, color-mix(in srgb, var(--brand-green) 12%, transparent) 0%, transparent 24%)',
-        }}
-      />
-      <div style={{ display: 'grid', gap: 6, maxWidth: 760 }}>
-        <div style={sectionKicker}>Why it works</div>
-        <div style={{ color: colors.textStrong, fontSize: 22, fontWeight: 900, letterSpacing: '-0.04em' }}>
-          Start free. Add the right tools as you go.
-        </div>
-        <div style={{ color: colors.mutedStrong, fontSize: 14, lineHeight: 1.72 }}>
-          Start free. Add Player, Captain, or TIQ League Coordinator when it solves the next job.
-        </div>
-      </div>
-
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <RoleValueStrip compact={isMobile} />
-      </div>
-    </section>
-  )
-}
-
 function FreeSnapshot() {
   const { isSmallMobile } = useViewportBreakpoints()
 
@@ -1302,7 +1390,7 @@ function CaptainSnapshot() {
 }
 
 function LeagueSnapshot() {
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isSmallMobile } = useViewportBreakpoints()
 
   return (
     <SnapshotShell planId="league" title="League workspace" subtitle="Standings, schedule, teams, and season operations">
@@ -1898,28 +1986,6 @@ const featuredNoteTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
   fontWeight: 700,
-}
-
-const trustCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  padding: 12,
-  borderRadius: 16,
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'transparent',
-}
-
-const trustCardTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 15,
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
-
-const trustCardTextStyle: CSSProperties = {
-  color: 'var(--muted-strong)',
-  fontSize: 13,
-  lineHeight: 1.65,
 }
 
 const captainSignalRowStyle: CSSProperties = {

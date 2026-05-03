@@ -13,6 +13,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
   { href: '/mylab', label: 'My Lab' },
   { href: '/matchup', label: 'Matchup' },
   { href: '/captain', label: 'Captain' },
+  { href: '/pricing', label: 'Pricing' },
 ]
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [

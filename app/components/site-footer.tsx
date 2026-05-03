@@ -17,6 +17,7 @@ const FOOTER_JOURNEY: Record<string, { step: string; intent: string; note: strin
   '/mylab': { step: '2', intent: 'You', note: 'Your scorecard' },
   '/matchup': { step: '3', intent: 'Compare', note: 'Who to play next' },
   '/captain': { step: '4', intent: 'Run', note: 'Team decisions' },
+  '/pricing': { step: '$', intent: 'Plans', note: 'Choose a tier' },
 }
 
 export default function SiteFooter() {
@@ -202,7 +203,7 @@ const footerSecondaryCtaStyle = {
 
 const footerJourneyGridStyle = (isMobile: boolean) => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: isMobile ? '8px' : '12px',
   paddingTop: 12,
   borderTop: '1px solid rgba(116, 190, 255, 0.08)',

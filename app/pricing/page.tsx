@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -13,8 +13,9 @@ import {
   PRICING_PROOF_POINTS,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
-import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
+import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE, getMembershipTier } from '@/lib/product-story'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
@@ -85,6 +86,43 @@ const PLAN_DECISION_HINTS: Record<PricingPlanId, string> = {
   league: 'Organize the season',
 }
 
+const PLAN_FIT_ROWS: Array<{
+  job: string
+  free: string
+  player_plus: string
+  captain: string
+  league: string
+}> = [
+  {
+    job: 'Explore public tennis context',
+    free: 'Included',
+    player_plus: 'Included',
+    captain: 'Included',
+    league: 'Included',
+  },
+  {
+    job: 'Personalize around your game',
+    free: '-',
+    player_plus: 'Best fit',
+    captain: 'Included',
+    league: 'Included',
+  },
+  {
+    job: 'Make weekly team decisions',
+    free: '-',
+    player_plus: '-',
+    captain: 'Best fit',
+    league: 'Included',
+  },
+  {
+    job: 'Run organized league play',
+    free: '-',
+    player_plus: '-',
+    captain: '-',
+    league: 'Best fit',
+  },
+]
+
 export default function PricingPage() {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -113,10 +151,19 @@ export default function PricingPage() {
       <section style={pageWrapStyle}>
         <section style={heroStyle}>
           <div style={eyebrowStyle}>Pricing</div>
-          <h1 style={heroTitleStyle}>Free to explore. Player to personalize. Captain to lead.</h1>
+          <h1 style={heroTitleStyle}>Choose the tier that clears the next tennis job.</h1>
           <p style={heroTextStyle}>
             {PRODUCT_NORTH_STAR} {PRODUCT_UPGRADE_MESSAGE}
           </p>
+
+          <div style={heroActionRowStyle}>
+            <Link href="/join" style={featuredCtaStyle}>
+              Start Free
+            </Link>
+            <a href="#captain" style={ctaStyle}>
+              Jump to Captain
+            </a>
+          </div>
 
           <div style={proofRowStyle}>
             {PRICING_PROOF_POINTS.map((point) => (
@@ -151,6 +198,8 @@ export default function PricingPage() {
             )
           })}
         </section>
+
+        <PlanFitMatrix />
 
         <section style={recommendationStripStyle}>
           <TiqFeatureIcon name={PLAN_ICON_BY_ID[recommendedPlan.id]} size="md" variant="surface" />
@@ -202,6 +251,7 @@ export default function PricingPage() {
           {PRICING_PLANS.map((plan) => {
             const active = isPlanActive(plan.id, access)
             const recommended = access.recommendedUpgradePlanId === plan.id || plan.badge === 'Most Popular'
+            const tier = getMembershipTier(plan.id)
             return (
               <article
                 id={plan.id}
@@ -230,6 +280,17 @@ export default function PricingPage() {
                 <div style={solutionCardStyle}>
                   <div style={problemLabelStyle}>{active ? 'Your access' : 'Result'}</div>
                   <div style={solutionTextStyle}>{plan.outcome}</div>
+                </div>
+
+                <div style={selectionCueGridStyle}>
+                  <div style={selectionCueCardStyle}>
+                    <div style={problemLabelStyle}>Best for</div>
+                    <div style={selectionCueTextStyle}>{tier.audience}</div>
+                  </div>
+                  <div style={selectionCueCardStyle}>
+                    <div style={problemLabelStyle}>Upgrade trigger</div>
+                    <div style={selectionCueTextStyle}>{tier.upgradeCue}</div>
+                  </div>
                 </div>
 
                 <div style={featureListStyle}>
@@ -298,6 +359,8 @@ export default function PricingPage() {
           </article>
         </section>
 
+        <PricingFinalCta />
+
       </section>
     </SiteShell>
   )
@@ -336,6 +399,294 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   if (planId === 'player_plus') return 'Set up My Lab'
   if (planId === 'captain') return 'Open Captain tools'
   return 'Run a league'
+}
+
+function PlanFitMatrix() {
+  const { isMobile } = useViewportBreakpoints()
+
+  return (
+    <section style={fitMatrixShellStyle} aria-labelledby="plan-fit-title">
+      <div style={fitMatrixHeaderStyle}>
+        <div>
+          <div style={sectionEyebrowStyle}>Compare by job</div>
+          <h2 id="plan-fit-title" style={fitMatrixTitleStyle}>
+            Pick the tier by what you need to do next.
+          </h2>
+        </div>
+        <Link href="#captain" style={ctaStyle}>
+          Captain is the team path
+        </Link>
+      </div>
+
+      {isMobile ? (
+        <div style={fitMatrixMobileStackStyle}>
+          {PLAN_FIT_ROWS.map((row) => (
+            <article key={row.job} style={fitMatrixMobileCardStyle}>
+              <div style={fitMatrixJobCellStyle}>{row.job}</div>
+              <div style={fitMatrixMobilePlanGridStyle}>
+                {PRICING_PLANS.map((plan) => {
+                  const value = row[plan.id]
+                  if (value === '-') return null
+                  const best = value === 'Best fit'
+                  return (
+                    <div
+                      key={`${row.job}-${plan.id}`}
+                      style={{
+                        ...fitMatrixMobilePlanStyle,
+                        ...(best ? fitMatrixBestCellStyle : null),
+                        ...(plan.id === 'captain' ? fitMatrixCaptainCellStyle : null),
+                      }}
+                    >
+                      <span style={fitMatrixMobilePlanNameStyle}>{plan.name}</span>
+                      <span style={best ? fitMatrixPositiveStyle : fitMatrixIncludedStyle}>{value}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div style={fitMatrixGridStyle}>
+        <div style={fitMatrixHeadCellStyle}>Tennis job</div>
+        {PRICING_PLANS.map((plan) => (
+          <div
+            key={plan.id}
+            style={{
+              ...fitMatrixHeadCellStyle,
+              ...(plan.id === 'captain' ? fitMatrixCaptainHeadStyle : null),
+            }}
+          >
+            {plan.name}
+          </div>
+        ))}
+
+        {PLAN_FIT_ROWS.map((row) => (
+          <Fragment key={row.job}>
+            <div key={`${row.job}-job`} style={fitMatrixJobCellStyle}>
+              {row.job}
+            </div>
+            {PRICING_PLANS.map((plan) => {
+              const value = row[plan.id]
+              const positive = value !== '-'
+              const best = value === 'Best fit'
+              return (
+                <div
+                  key={`${row.job}-${plan.id}`}
+                  style={{
+                    ...fitMatrixCellStyle,
+                    ...(plan.id === 'captain' ? fitMatrixCaptainCellStyle : null),
+                    ...(best ? fitMatrixBestCellStyle : null),
+                  }}
+                >
+                  <span style={positive ? fitMatrixPositiveStyle : fitMatrixEmptyStyle}>{value}</span>
+                </div>
+              )
+            })}
+          </Fragment>
+        ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function PricingFinalCta() {
+  return (
+    <section style={pricingFinalCtaStyle}>
+      <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
+        <div style={sectionEyebrowStyle}>Make the next move</div>
+        <h2 style={pricingFinalTitleStyle}>Start with Free, or jump straight into the tier that saves time.</h2>
+        <p style={pricingFinalTextStyle}>
+          Search the landscape first, then unlock Player, Captain, or League Coordinator when the job gets bigger.
+        </p>
+      </div>
+      <div style={pricingFinalActionStyle}>
+        <Link href="/join" style={featuredCtaStyle}>
+          Start Free
+        </Link>
+        <a href="#captain" style={ctaStyle}>
+          Compare Captain
+        </a>
+      </div>
+    </section>
+  )
+}
+
+const pricingFinalCtaStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+  gap: 16,
+  alignItems: 'center',
+  padding: 22,
+  borderRadius: 28,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--brand-blue-2) 4%) 100%)',
+  boxShadow: '0 18px 44px rgba(2, 10, 24, 0.10)',
+}
+
+const pricingFinalTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.25vw, 2.25rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const pricingFinalTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.65,
+  fontWeight: 700,
+}
+
+const pricingFinalActionStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  justifyContent: 'flex-end',
+}
+
+const fitMatrixShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 26,
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 0%, var(--shell-panel-bg) 100%)',
+  boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
+  overflowX: 'auto',
+}
+
+const fitMatrixHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 14,
+  alignItems: 'end',
+  flexWrap: 'wrap',
+}
+
+const fitMatrixTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2vw, 1.9rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const fitMatrixGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(210px, 1.25fr) repeat(4, minmax(132px, 1fr))',
+  gap: 8,
+  minWidth: 760,
+}
+
+const fitMatrixMobileStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+}
+
+const fitMatrixMobileCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const fitMatrixMobilePlanGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))',
+  gap: 8,
+}
+
+const fitMatrixMobilePlanStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minHeight: 62,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 94%, var(--surface) 6%)',
+}
+
+const fitMatrixMobilePlanNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const fitMatrixHeadCellStyle: CSSProperties = {
+  minHeight: 42,
+  padding: '10px 11px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const fitMatrixCaptainHeadStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+}
+
+const fitMatrixJobCellStyle: CSSProperties = {
+  minHeight: 46,
+  padding: '11px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--surface) 12%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 850,
+}
+
+const fitMatrixCellStyle: CSSProperties = {
+  minHeight: 46,
+  padding: '11px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 94%, var(--surface) 6%)',
+  display: 'flex',
+  alignItems: 'center',
+}
+
+const fitMatrixCaptainCellStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const fitMatrixBestCellStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+}
+
+const fitMatrixPositiveStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const fitMatrixIncludedStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 850,
+}
+
+const fitMatrixEmptyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 900,
+  opacity: 0.55,
 }
 
 const pageWrapStyle: CSSProperties = {
@@ -387,6 +738,13 @@ const heroTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 16,
   lineHeight: 1.75,
+}
+
+const heroActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  alignItems: 'center',
 }
 
 const proofRowStyle: CSSProperties = {
@@ -571,6 +929,7 @@ const planCardStyle: CSSProperties = {
   display: 'grid',
   gap: 15,
   padding: 22,
+  scrollMarginTop: 120,
   borderRadius: 28,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -714,6 +1073,27 @@ const solutionTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
   fontWeight: 700,
+}
+
+const selectionCueGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const selectionCueCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--surface) 8%)',
+}
+
+const selectionCueTextStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
 }
 
 const featureListStyle: CSSProperties = {

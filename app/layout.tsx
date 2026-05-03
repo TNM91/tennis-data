@@ -30,11 +30,11 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL('https://tenaceiq.com'),
   title: {
-    default: 'TenAceIQ',
+    default: 'TenAceIQ | Premium Tennis Intelligence',
     template: '%s | TenAceIQ',
   },
   description:
-    'Explore tennis for free, then upgrade to Player, Captain, or TIQ League Coordinator tools when you want less guessing and more playing.',
+    'Explore tennis for free, then unlock Player, Captain, or TIQ League Coordinator tools for personalized prep, team decisions, and league operations.',
   keywords: [
     'TenAceIQ',
     'tennis analytics',
@@ -79,8 +79,9 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://tenaceiq.com',
     siteName: 'TenAceIQ',
-    title: 'TenAceIQ',
-    description: 'Less time guessing. More time understanding. More time playing.',
+    title: 'TenAceIQ | Premium Tennis Intelligence',
+    description:
+      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
     images: [
       {
         url: '/df190aef-4a8e-4587-bce8-7e2e22655646.png',
@@ -92,8 +93,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TenAceIQ',
-    description: 'Less time guessing. More time understanding. More time playing.',
+    title: 'TenAceIQ | Premium Tennis Intelligence',
+    description:
+      'Choose the right TenAceIQ tier for free discovery, Player insight, Captain tools, or league operations.',
     images: ['/df190aef-4a8e-4587-bce8-7e2e22655646.png'],
   },
   manifest: '/manifest.webmanifest',

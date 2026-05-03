@@ -138,7 +138,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Follow players, teams, leagues, and rankings',
       'Compare matchups before you play',
     ],
-    primaryCta: { label: 'Unlock Player', href: '/pricing' },
+    primaryCta: { label: 'Unlock Player', href: '/pricing#player_plus' },
     secondaryCta: { label: 'Open My Lab', href: '/mylab' },
   },
   captain: {
@@ -150,7 +150,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Scout players and teams before decisions',
       'Track readiness and keep the week moving',
     ],
-    primaryCta: { label: 'Unlock Captain Tools', href: '/pricing' },
+    primaryCta: { label: 'Unlock Captain Tools', href: '/pricing#captain' },
     secondaryCta: { label: 'See Captain tools', href: '/captain' },
     featuredNote: 'Best for captains who want fewer scattered texts and clearer weekly decisions.',
   },
@@ -163,20 +163,20 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
       'Coordinate players or teams',
       'Track rankings, schedules, and results',
     ],
-    primaryCta: { label: 'Run Your League on TIQ', href: '/pricing' },
+    primaryCta: { label: 'Run Your League on TIQ', href: '/pricing#league' },
     secondaryCta: { label: 'Explore Leagues', href: '/explore/leagues' },
   },
 }
 
 export const HOME_HERO_STORY = {
-  eyebrow: 'Tennis intelligence by role',
-  badge: 'Explore. Personalize. Lead.',
-  kicker: 'Start free. Upgrade when it makes tennis easier.',
-  headlineTop: 'Less time guessing.',
-  headlineBottom: 'More time understanding.',
+  eyebrow: 'Premium tennis intelligence',
+  badge: 'Built by role',
+  kicker: 'Choose the tier that solves the tennis job in front of you.',
+  headlineTop: 'Tennis decisions,',
+  headlineBottom: 'made clearer.',
   body:
-    'Explore the tennis landscape for free. Upgrade to Player, Captain, or TIQ League Coordinator when you want personal insight, team decisions, or league operations in one place. Then all that is left is to go play.',
-  proof: ['Free exploration', 'Player My Lab', 'Captain tools', 'Go play'],
+    'Start free. Unlock Player, Captain, or TIQ League Coordinator when you need personal prep, team decisions, or league operations.',
+  proof: ['Free search', 'Player insight', 'Captain decisions', 'League operations'],
 } as const
 
 export const MY_LAB_STORY = {
