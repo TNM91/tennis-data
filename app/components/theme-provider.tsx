@@ -28,19 +28,34 @@ function applyTheme(theme: ThemeMode) {
   document.documentElement.style.colorScheme = theme
 }
 
-function getPreferredTheme(): ThemeMode {
+function getStoredTheme(): ThemeMode | null {
   if (typeof window === 'undefined') return 'dark'
 
-  const storedTheme = window.localStorage.getItem(STORAGE_KEY)
-  if (storedTheme === 'light' || storedTheme === 'dark') {
-    return storedTheme
+  try {
+    const storedTheme = window.localStorage.getItem(STORAGE_KEY)
+    if (storedTheme === 'light' || storedTheme === 'dark') {
+      return storedTheme
+    }
+  } catch {
+    return null
   }
 
-  return 'dark'
+  return null
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>(() => getPreferredTheme())
+  const [theme, setThemeState] = useState<ThemeMode>('dark')
+
+  useEffect(() => {
+    const storedTheme = getStoredTheme()
+    if (!storedTheme) return undefined
+
+    const timeout = window.setTimeout(() => {
+      setThemeState(storedTheme)
+    }, 0)
+
+    return () => window.clearTimeout(timeout)
+  }, [])
 
   useEffect(() => {
     applyTheme(theme)
@@ -49,7 +64,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback((nextTheme: ThemeMode) => {
     setThemeState(nextTheme)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, nextTheme)
+      try {
+        window.localStorage.setItem(STORAGE_KEY, nextTheme)
+      } catch {
+        // Ignore storage failures; the in-memory theme still updates.
+      }
     }
   }, [])
 
