@@ -125,6 +125,46 @@ export default function CaptainSeasonDashboardPage() {
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
+  const leagueOpsChecks = [
+    {
+      label: 'Access',
+      complete: access.canUseLeagueTools,
+      detail: access.canUseLeagueTools ? 'Coordinator tools are active.' : 'Coordinator access is not active yet.',
+      href: '/pricing#league',
+      cta: 'See plan',
+    },
+    {
+      label: 'Setup',
+      complete: records.length > 0,
+      detail: records.length > 0 ? `${records.length} league setup${records.length === 1 ? '' : 's'} saved.` : 'Create the first league setup.',
+      href: '#league-setup-form',
+      cta: records.length > 0 ? 'Edit setup' : 'Add league',
+    },
+    {
+      label: 'Participants',
+      complete: activeParticipantCount > 0,
+      detail: activeParticipantCount > 0 ? `${activeParticipantCount} participants tracked.` : 'Add teams or players to the league.',
+      href: '#league-setup-form',
+      cta: 'Add participants',
+    },
+    {
+      label: 'Sync',
+      complete: storageSource === 'supabase',
+      detail: storageSource === 'supabase' ? 'League setup is synced.' : 'League setup is saved as a local preview.',
+      href: '#league-registry',
+      cta: 'Review registry',
+    },
+    {
+      label: 'Results',
+      complete: leagueCards.length > 0,
+      detail: leagueCards.length > 0 ? 'League records are ready for result entry.' : 'Save a league before logging results.',
+      href: leagueCards.length > 0 ? '/captain/tiq-team-matches' : '#league-setup-form',
+      cta: leagueCards.length > 0 ? 'Record results' : 'Finish setup',
+    },
+  ]
+  const leagueOpsCompleteCount = leagueOpsChecks.filter((item) => item.complete).length
+  const leagueOpsReadinessScore = Math.round((leagueOpsCompleteCount / leagueOpsChecks.length) * 100)
+  const nextLeagueOpsStep = leagueOpsChecks.find((item) => !item.complete) || leagueOpsChecks[leagueOpsChecks.length - 1]
 
   function resetDraft() {
     setDraft(EMPTY_DRAFT)
@@ -278,8 +318,47 @@ export default function CaptainSeasonDashboardPage() {
           </div>
         </section>
 
+        <section style={leagueOpsPanelStyle}>
+          <div style={leagueOpsHeaderStyle}>
+            <div>
+              <div style={sectionEyebrow}>Season readiness</div>
+              <h2 style={leagueOpsTitleStyle}>
+                {leagueOpsReadinessScore === 100 ? 'This league is ready to operate.' : 'Tighten setup before the season moves.'}
+              </h2>
+              <p style={leagueOpsTextStyle}>
+                {leagueOpsReadinessScore === 100
+                  ? 'Setup, participants, sync, and result entry are all in usable shape.'
+                  : `Next: ${nextLeagueOpsStep.label.toLowerCase()}. ${nextLeagueOpsStep.detail}`}
+              </p>
+            </div>
+            <div style={leagueOpsScoreStyle}>
+              <strong>{leagueOpsReadinessScore}%</strong>
+              <span>{leagueOpsCompleteCount}/{leagueOpsChecks.length} ready</span>
+            </div>
+          </div>
+          <div style={leagueOpsTrackStyle} aria-label={`League season readiness ${leagueOpsReadinessScore} percent`}>
+            <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
+          </div>
+          <div style={leagueOpsCheckGridStyle}>
+            {leagueOpsChecks.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                style={item.complete ? leagueOpsCheckCompleteStyle : leagueOpsCheckStyle}
+              >
+                <span>{item.label}</span>
+                <small>{item.detail}</small>
+              </Link>
+            ))}
+          </div>
+          <div style={heroActionRow}>
+            <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
+            <GhostLink href="/captain/tiq-team-matches">Record results</GhostLink>
+          </div>
+        </section>
+
         <div style={layoutGrid}>
-          <details style={panelCard} open={!!editingId || records.length === 0}>
+          <details id="league-setup-form" style={panelCard} open={!!editingId || records.length === 0}>
             <summary style={detailsSummary}>
               <div>
                 <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
@@ -498,7 +577,7 @@ export default function CaptainSeasonDashboardPage() {
             ) : null}
           </details>
 
-          <section style={panelCard}>
+          <section id="league-registry" style={panelCard}>
             <div style={sectionEyebrow}>League registry</div>
             <h2 style={sectionTitle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
             <p style={sectionText}>
@@ -795,6 +874,92 @@ const commandText: CSSProperties = {
   color: 'rgba(229,238,251,0.72)',
   fontSize: '13px',
   lineHeight: 1.5,
+}
+
+const leagueOpsPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(23,47,37,0.72) 0%, rgba(10,24,45,0.94) 68%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
+const leagueOpsHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '16px',
+  flexWrap: 'wrap',
+}
+
+const leagueOpsTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: '#f8fbff',
+  fontSize: '24px',
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const leagueOpsTextStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'rgba(229,238,251,0.76)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+}
+
+const leagueOpsScoreStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  justifyItems: 'end',
+  color: 'rgba(229,238,251,0.76)',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
+const leagueOpsTrackStyle: CSSProperties = {
+  height: '14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(7,17,33,0.72)',
+  overflow: 'hidden',
+  padding: '2px',
+}
+
+const leagueOpsFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  height: '100%',
+  width: `${Math.max(0, Math.min(value, 100))}%`,
+  borderRadius: '999px',
+  background: 'linear-gradient(90deg, #4ade80, #9be11d)',
+})
+
+const leagueOpsCheckGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '10px',
+}
+
+const leagueOpsCheckStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minHeight: '94px',
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'rgba(229,238,251,0.76)',
+  textDecoration: 'none',
+  fontSize: '12px',
+  fontWeight: 750,
+}
+
+const leagueOpsCheckCompleteStyle: CSSProperties = {
+  ...leagueOpsCheckStyle,
+  border: '1px solid rgba(74,222,128,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: '#f8fbff',
 }
 
 const panelCard: CSSProperties = {
