@@ -461,9 +461,7 @@ export default function TeamsPage() {
                       headline="Need team context to turn into smarter lineups?"
                       body="Unlock Captain to move from the team directory into availability, lineup building, messaging, and weekly execution without guesswork."
                       ctaLabel="Unlock Captain Tools"
-                      ctaHref="/pricing"
                       secondaryLabel="See Captain value"
-                      secondaryHref="/pricing"
                     />
                   ) : null}
                   {!access.canUseLeagueTools ? (
@@ -473,9 +471,7 @@ export default function TeamsPage() {
                       headline="Organizing team seasons outside the app?"
                       body="League tools give you one place for scheduling, standings, structure, and league-wide coordination instead of spreadsheet cleanup."
                       ctaLabel="Run Your League on TIQ"
-                      ctaHref="/pricing"
                       secondaryLabel="See league plan"
-                      secondaryHref="/pricing"
                     />
                   ) : null}
                 </div>

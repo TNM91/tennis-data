@@ -171,11 +171,11 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
 export const HOME_HERO_STORY = {
   eyebrow: 'Premium tennis intelligence',
   badge: 'Built by role',
-  kicker: 'Choose the tier that solves the tennis job in front of you.',
+  kicker: 'Choose the tennis job you need solved.',
   headlineTop: 'Tennis decisions,',
   headlineBottom: 'made clearer.',
   body:
-    'Start free. Unlock Player, Captain, or TIQ League Coordinator when you need personal prep, team decisions, or league operations.',
+    'Start free. Upgrade when you need your lab, your lineup, or your league.',
   proof: ['Free search', 'Player insight', 'Captain decisions', 'League operations'],
 } as const
 

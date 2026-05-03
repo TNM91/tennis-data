@@ -98,6 +98,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Access control',
   },
   {
+    title: 'Upgrade Requests',
+    href: '/admin/upgrade-requests',
+    description:
+      'Review paid-plan requests, follow up with leads, and activate Player, Captain, or TIQ League access once an account is linked.',
+    badge: 'Leads',
+    accent: 'green',
+    highlights: ['Plan intent', 'Email follow-up', 'Account activation', 'Request status'],
+    statLabel: 'Best for',
+    statValue: 'Upgrade ops',
+  },
+  {
     title: 'Manage Players',
     href: '/admin/manage-players',
     description:
@@ -148,7 +159,7 @@ const importTools = adminTools.filter((tool) =>
 )
 
 const managementTools = adminTools.filter((tool) =>
-  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/tiq-team-matches', '/admin/deduplicate', '/admin/anomalies'].includes(tool.href)
+  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/upgrade-requests', '/admin/tiq-team-matches', '/admin/deduplicate', '/admin/anomalies'].includes(tool.href)
 )
 
 function accentStyles(accent: Accent) {
@@ -231,9 +242,9 @@ export default function AdminDashboardPage() {
 
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
-              <MetricCard label="Admin Tools" value="10" helper="Includes access control and data quality" />
+              <MetricCard label="Admin Tools" value={String(adminTools.length)} helper="Includes access control and upgrade requests" />
               <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
-              <MetricCard label="Data Control" value="5" helper="Imports, availability, match, player, and access ops" />
+              <MetricCard label="Data Control" value="6" helper="Imports, availability, match, player, access, and lead ops" />
               <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
             </div>
 
@@ -386,6 +397,11 @@ export default function AdminDashboardPage() {
                     <td>Best for subscription and league-access operations</td>
                   </tr>
                   <tr>
+                    <td>/admin/upgrade-requests</td>
+                    <td>Plan request review</td>
+                    <td>Best for following up on captured upgrade intent</td>
+                  </tr>
+                  <tr>
                     <td>/admin/deduplicate</td>
                     <td>Duplicate player detection and merge</td>
                     <td>Run after bulk imports or when player identity looks fragmented</td>
@@ -454,6 +470,11 @@ export default function AdminDashboardPage() {
                   title="Update access explicitly"
                   text="Use Access Control when captain subscriptions or TIQ league permissions need to be granted, adjusted, or revoked."
                 />
+                <WorkflowStep
+                  number="06"
+                  title="Convert upgrade intent"
+                  text="Use Upgrade Requests to follow up with paid-plan leads and activate access after the account is linked."
+                />
               </div>
             </div>
 
@@ -490,6 +511,7 @@ export default function AdminDashboardPage() {
                 <QuickAction href="/admin/manage-matches" label="Open Manage Matches" />
                 <QuickAction href="/admin/manage-players" label="Open Manage Players" />
                 <QuickAction href="/admin/access" label="Open Access Control" />
+                <QuickAction href="/admin/upgrade-requests" label="Open Upgrade Requests" />
                 <RecalculateRatingsAction />
               </div>
             </div>
@@ -507,8 +529,9 @@ function DataQualityPanel() {
     matchesWithScores: number | null
     matchesWithPlayers: number | null
     totalPlayers: number | null
+    pendingUpgradeRequests: number | null
     lastSnapshotDate: string | null
-  }>({ totalMatches: null, matchesWithScores: null, matchesWithPlayers: null, totalPlayers: null, lastSnapshotDate: null })
+  }>({ totalMatches: null, matchesWithScores: null, matchesWithPlayers: null, totalPlayers: null, pendingUpgradeRequests: null, lastSnapshotDate: null })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -517,12 +540,14 @@ function DataQualityPanel() {
         { count: totalMatches },
         { count: matchesWithScores },
         { count: totalPlayers },
+        { count: pendingUpgradeRequests },
         { data: lastSnap },
         { data: matchesWithPlayersData },
       ] = await Promise.all([
         supabase.from('matches').select('*', { count: 'exact', head: true }).not('match_type', 'is', null),
         supabase.from('matches').select('*', { count: 'exact', head: true }).not('score', 'is', null).neq('score', ''),
         supabase.from('players').select('*', { count: 'exact', head: true }),
+        supabase.from('upgrade_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
         supabase.from('rating_snapshots').select('snapshot_date').order('snapshot_date', { ascending: false }).limit(1),
         supabase.from('match_players').select('match_id').limit(500),
       ])
@@ -532,20 +557,19 @@ function DataQualityPanel() {
         matchesWithScores,
         matchesWithPlayers: linkedMatchIds.size,
         totalPlayers,
+        pendingUpgradeRequests,
         lastSnapshotDate: (lastSnap?.[0] as { snapshot_date: string } | undefined)?.snapshot_date ?? null,
       })
       setLoading(false)
     })()
   }, [])
 
-  const scorePct = stats.totalMatches && stats.matchesWithScores != null
-    ? Math.round((stats.matchesWithScores / stats.totalMatches) * 100) : null
-  const linkedPct = stats.totalMatches && stats.matchesWithPlayers != null
-    ? Math.round((stats.matchesWithPlayers / Math.min(stats.totalMatches, 500)) * 100) : null
+  const scorePct = getCoveragePercent(stats.matchesWithScores, stats.totalMatches)
+  const linkedPct = getCoveragePercent(stats.matchesWithPlayers, stats.totalMatches)
 
   return (
     <section style={{ marginTop: 18, padding: '18px 20px', borderRadius: 20, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(116,190,255,0.03)' }}>
-      <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>Data quality</div>
+      <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>Operating health</div>
       {loading ? (
         <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 13 }}>Loading health metrics…</div>
       ) : (
@@ -553,19 +577,49 @@ function DataQualityPanel() {
           {[
             { label: 'Total matches', value: stats.totalMatches?.toLocaleString() ?? '—' },
             { label: 'Scores entered', value: scorePct != null ? `${scorePct}%` : '—', flag: scorePct != null && scorePct < 80 },
-            { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%+` : '—', flag: linkedPct != null && linkedPct < 80 },
+            { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%` : '—', flag: linkedPct != null && linkedPct < 80 },
             { label: 'Total players', value: stats.totalPlayers?.toLocaleString() ?? '—' },
+            {
+              label: 'Pending upgrades',
+              value: stats.pendingUpgradeRequests?.toLocaleString() ?? '—',
+              flag: Boolean(stats.pendingUpgradeRequests),
+              href: '/admin/upgrade-requests',
+            },
             { label: 'Last recalculate', value: stats.lastSnapshotDate ? new Date(stats.lastSnapshotDate).toLocaleDateString() : 'Never' },
-          ].map((item) => (
-            <div key={item.label} style={{ padding: '10px 14px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.flag ? 'rgba(251,146,60,0.22)' : 'rgba(255,255,255,0.07)'}` }}>
-              <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{item.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: item.flag ? '#fed7aa' : 'var(--foreground)', letterSpacing: '-0.02em' }}>{item.value}</div>
-            </div>
-          ))}
+          ].map((item) => {
+            const cardStyle = {
+              padding: '10px 14px',
+              borderRadius: 14,
+              background: 'rgba(255,255,255,0.03)',
+              border: `1px solid ${item.flag ? 'rgba(251,146,60,0.22)' : 'rgba(255,255,255,0.07)'}`,
+              textDecoration: 'none',
+            }
+            const content = (
+              <>
+                <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{item.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: item.flag ? '#fed7aa' : 'var(--foreground)', letterSpacing: '-0.02em' }}>{item.value}</div>
+              </>
+            )
+
+            return item.href ? (
+              <Link key={item.label} href={item.href} style={cardStyle}>
+                {content}
+              </Link>
+            ) : (
+              <div key={item.label} style={cardStyle}>
+                {content}
+              </div>
+            )
+          })}
         </div>
       )}
     </section>
   )
+}
+
+function getCoveragePercent(value: number | null, total: number | null) {
+  if (!total || value == null) return null
+  return Math.min(100, Math.max(0, Math.round((value / total) * 100)))
 }
 
 function HeroSection() {

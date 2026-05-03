@@ -13,6 +13,8 @@ export const TIQ_SEASON_FEE_PRICE_LABEL = '$25/season'
 export type CaptainSubscriptionStatus = 'inactive' | 'trial' | 'active' | 'past_due' | 'canceled'
 
 export type ProductEntitlementSnapshot = {
+  playerPlusSubscriptionActive: boolean
+  playerPlusSubscriptionStatus: CaptainSubscriptionStatus
   captainSubscriptionActive: boolean
   captainSubscriptionStatus: CaptainSubscriptionStatus
   tiqTeamLeagueEntryEnabled: boolean
@@ -47,6 +49,8 @@ export type ProductAccessState = {
 }
 
 type ProductEntitlementRow = {
+  player_plus_subscription_active?: boolean | null
+  player_plus_subscription_status?: string | null
   captain_subscription_active?: boolean | null
   captain_subscription_status?: string | null
   tiq_team_league_entry_enabled?: boolean | null
@@ -54,6 +58,8 @@ type ProductEntitlementRow = {
 }
 
 const DEFAULT_ENTITLEMENTS: ProductEntitlementSnapshot = {
+  playerPlusSubscriptionActive: false,
+  playerPlusSubscriptionStatus: 'inactive',
   captainSubscriptionActive: false,
   captainSubscriptionStatus: 'inactive',
   tiqTeamLeagueEntryEnabled: false,
@@ -110,6 +116,8 @@ export function getRoleBackedEntitlements(role: UserRole): ProductEntitlementSna
   return {
     captainSubscriptionActive,
     captainSubscriptionStatus: captainSubscriptionActive ? 'active' : 'inactive',
+    playerPlusSubscriptionActive: captainSubscriptionActive,
+    playerPlusSubscriptionStatus: captainSubscriptionActive ? 'active' : 'inactive',
     tiqTeamLeagueEntryEnabled: isPlatformAdmin,
     tiqIndividualLeagueCreatorEnabled: isPlatformAdmin,
   }
@@ -124,6 +132,9 @@ export function buildProductAccessState(
     ...DEFAULT_ENTITLEMENTS,
     ...fallback,
     ...entitlements,
+    playerPlusSubscriptionStatus: normalizeCaptainSubscriptionStatus(
+      entitlements?.playerPlusSubscriptionStatus ?? fallback.playerPlusSubscriptionStatus,
+    ),
     captainSubscriptionStatus: normalizeCaptainSubscriptionStatus(
       entitlements?.captainSubscriptionStatus ?? fallback.captainSubscriptionStatus,
     ),
@@ -131,7 +142,7 @@ export function buildProductAccessState(
 
   const signedInMember = isMember(role)
   const captainSubscriptionActive = snapshot.captainSubscriptionActive
-  const playerPlusActive = captainSubscriptionActive || role === 'admin'
+  const playerPlusActive = snapshot.playerPlusSubscriptionActive || captainSubscriptionActive || role === 'admin'
   const leagueToolsActive =
     role === 'admin' || snapshot.tiqTeamLeagueEntryEnabled || snapshot.tiqIndividualLeagueCreatorEnabled
 
@@ -230,20 +241,40 @@ export async function getClientEntitlementSnapshot(
   if (!userId) return null
 
   try {
-    const { data, error } = await supabase
+    const result = await supabase
       .from('profiles')
       .select(
-        'captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+        'player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
       )
       .eq('id', userId)
       .maybeSingle()
 
-    if (error) throw error
+    let data = result.data
+    if (result.error) {
+      const legacyResult = await supabase
+        .from('profiles')
+        .select(
+          'captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+        )
+        .eq('id', userId)
+        .maybeSingle()
+
+      if (legacyResult.error) throw legacyResult.error
+      data = legacyResult.data
+        ? {
+            ...legacyResult.data,
+            player_plus_subscription_active: false,
+            player_plus_subscription_status: 'inactive',
+          }
+        : null
+    }
 
     const row = (data || null) as ProductEntitlementRow | null
     if (!row) return null
 
     return {
+      playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
+      playerPlusSubscriptionStatus: normalizeCaptainSubscriptionStatus(row.player_plus_subscription_status),
       captainSubscriptionActive: Boolean(row.captain_subscription_active),
       captainSubscriptionStatus: normalizeCaptainSubscriptionStatus(row.captain_subscription_status),
       tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),

@@ -7,6 +7,7 @@ import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
   inferCompetitionLayerFromValues,
   type CompetitionLayer,
@@ -1951,6 +1952,18 @@ function MyLabPageInner() {
   ]
   return (
     <section style={pageStyle}>
+      {!access.canUseAdvancedPlayerInsights ? (
+        <UpgradePrompt
+          planId="player_plus"
+          headline={MY_LAB_STORY.upgradeHeadline}
+          body={MY_LAB_STORY.upgradeBody}
+          ctaLabel={MY_LAB_STORY.upgradeCta}
+          secondaryLabel={MY_LAB_STORY.upgradeSecondary}
+          footnote={MY_LAB_STORY.upgradeFootnote}
+          compact
+        />
+      ) : null}
+
       <section id="player-workshop" style={profileLinkSectionStyle}>
         <div style={profileLinkCardStyle}>
           <div style={sectionHeaderStyle}>

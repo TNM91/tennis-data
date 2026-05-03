@@ -307,7 +307,6 @@ export default function CaptainSeasonDashboardPage() {
                     : LEAGUE_COORDINATOR_STORY.upgradeBody
                 }
                 ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
-                ctaHref="/pricing"
                 secondaryLabel="Keep drafting"
                 footnote={accessBannerText}
                 compact
@@ -493,9 +492,7 @@ export default function CaptainSeasonDashboardPage() {
                       : LEAGUE_COORDINATOR_STORY.draftUpgradeBody
                   }
                   ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
-                  ctaHref="/pricing"
                   secondaryLabel="Compare plans"
-                  secondaryHref="/pricing"
                 />
               </div>
             ) : null}
@@ -575,9 +572,7 @@ export default function CaptainSeasonDashboardPage() {
                   headline={LEAGUE_COORDINATOR_STORY.finalUpgradeHeadline}
                   body={LEAGUE_COORDINATOR_STORY.finalUpgradeBody}
                   ctaLabel={LEAGUE_COORDINATOR_STORY.cta}
-                  ctaHref="/pricing"
                   secondaryLabel="See league value"
-                  secondaryHref="/pricing"
                 />
               </div>
             ) : null}

@@ -1657,7 +1657,6 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             body={CAPTAIN_STORY.upgradeBody}
             result={CAPTAIN_STORY.upgradeResult}
             ctaLabel={CAPTAIN_STORY.upgradeCta}
-            ctaHref="/pricing"
             compact
           />
         ) : null}
@@ -2146,7 +2145,12 @@ function ActionCard({
       <h3 style={actionTitle}>{title}</h3>
       <p style={actionText}>{description}</p>
       {locked ? (
-        <div style={lockedText}>{lockedMessage}</div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          <div style={lockedText}>{lockedMessage}</div>
+          <PrimarySmallLink href="/join?plan=captain&next=%2Fcaptain" fullWidth={isSmallMobile}>
+            Unlock Captain Tools
+          </PrimarySmallLink>
+        </div>
       ) : onAction ? (
         accent ? (
           <PrimarySmallBtn onClick={onAction} fullWidth={isSmallMobile}>{cta}</PrimarySmallBtn>

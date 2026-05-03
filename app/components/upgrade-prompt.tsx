@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { CSSProperties, ReactNode } from 'react'
 import { useTheme } from '@/app/components/theme-provider'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import { getPlanSignupHref } from '@/lib/plan-intent'
 
 type UpgradePromptProps = {
   planId: PricingPlanId
@@ -25,7 +26,7 @@ export default function UpgradePrompt({
   body,
   result,
   ctaLabel,
-  ctaHref = '/pricing',
+  ctaHref,
   secondaryLabel = 'See plans',
   secondaryHref,
   footnote,
@@ -36,6 +37,8 @@ export default function UpgradePrompt({
   const isLight = theme === 'light'
   const plan = getPricingPlan(planId)
   const resolvedResult = result || plan.outcome
+  const resolvedCtaHref = ctaHref || getPlanSignupHref(planId)
+  const resolvedSecondaryHref = secondaryHref || '/pricing'
 
   return (
     <section
@@ -83,11 +86,11 @@ export default function UpgradePrompt({
       </div>
 
       <div style={actionRowStyle}>
-        <Link href={ctaHref} style={primaryActionStyle}>
+        <Link href={resolvedCtaHref} style={primaryActionStyle}>
           {ctaLabel || plan.ctaLabel}
         </Link>
-        {secondaryHref ? (
-          <Link href={secondaryHref} style={{ ...secondaryActionStyle, ...(isLight ? lightSecondaryActionStyle : null) }}>
+        {resolvedSecondaryHref ? (
+          <Link href={resolvedSecondaryHref} style={{ ...secondaryActionStyle, ...(isLight ? lightSecondaryActionStyle : null) }}>
             {secondaryLabel}
           </Link>
         ) : (

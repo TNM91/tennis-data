@@ -13,7 +13,8 @@ import {
   PRICING_PROOF_POINTS,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
-import { PRODUCT_NORTH_STAR, PRODUCT_UPGRADE_MESSAGE, getMembershipTier } from '@/lib/product-story'
+import { getMembershipTier } from '@/lib/product-story'
+import { getPlanDestinationHref, getPlanSignupHref } from '@/lib/plan-intent'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -153,11 +154,11 @@ export default function PricingPage() {
           <div style={eyebrowStyle}>Pricing</div>
           <h1 style={heroTitleStyle}>Choose the tier that clears the next tennis job.</h1>
           <p style={heroTextStyle}>
-            {PRODUCT_NORTH_STAR} {PRODUCT_UPGRADE_MESSAGE}
+            Search for free. Upgrade when TenAceIQ needs to become your lab, your lineup desk, or your league operations layer.
           </p>
 
           <div style={heroActionRowStyle}>
-            <Link href="/join" style={featuredCtaStyle}>
+            <Link href={getPlanSignupHref('free')} style={featuredCtaStyle}>
               Start Free
             </Link>
             <a href="#captain" style={ctaStyle}>
@@ -375,16 +376,10 @@ function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProd
 
 function getPlanHref(planId: PricingPlanId, active: boolean) {
   if (active) {
-    if (planId === 'captain') return '/captain'
-    if (planId === 'league') return '/captain/season-dashboard'
-    if (planId === 'player_plus') return '/profile'
-    return '/players'
+    return getPlanDestinationHref(planId)
   }
 
-  if (planId === 'captain') return '/captain'
-  if (planId === 'league') return '/captain/season-dashboard'
-  if (planId === 'player_plus') return '/profile'
-  return '/join'
+  return getPlanSignupHref(planId)
 }
 
 function getPlanCta(planId: PricingPlanId, active: boolean) {
@@ -498,11 +493,11 @@ function PricingFinalCta() {
         <div style={sectionEyebrowStyle}>Make the next move</div>
         <h2 style={pricingFinalTitleStyle}>Start with Free, or jump straight into the tier that saves time.</h2>
         <p style={pricingFinalTextStyle}>
-          Search the landscape first, then unlock Player, Captain, or League Coordinator when the job gets bigger.
+          Search the landscape first, then create the account with the tier path you are most likely to need.
         </p>
       </div>
       <div style={pricingFinalActionStyle}>
-        <Link href="/join" style={featuredCtaStyle}>
+        <Link href={getPlanSignupHref('free')} style={featuredCtaStyle}>
           Start Free
         </Link>
         <a href="#captain" style={ctaStyle}>

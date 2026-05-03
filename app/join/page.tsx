@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { getClientAuthState } from '@/lib/auth'
@@ -16,6 +16,61 @@ import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
+import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+
+const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
+
+const JOIN_INTENT_COPY: Record<MembershipTierId, {
+  eyebrow: string
+  mobileTitle: string
+  desktopTitle: string
+  mobileText: string
+  desktopText: string
+  formCue: string
+  success: string
+}> = {
+  free: {
+    eyebrow: 'Create your account',
+    mobileTitle: 'Start free.',
+    desktopTitle: 'Start free. Add tools when you need them.',
+    mobileText: 'Create an account and explore tennis context.',
+    desktopText: 'Explore tennis context first. Upgrade when you want My Lab, team-week tools, or league operations.',
+    formCue: 'Create the free account first. Your tier path stays simple from there.',
+    success: 'Account created. Sign in, then explore the tennis map.',
+  },
+  player_plus: {
+    eyebrow: 'Player path',
+    mobileTitle: 'Set up your lab.',
+    desktopTitle: 'Create your account. Make TenAceIQ personal.',
+    mobileText: 'Start with an account, then connect your player identity.',
+    desktopText: 'Player starts with your account, then opens My Lab, follows, matchup reads, and player-linked prep around your game.',
+    formCue: 'After signup, connect your player record so My Lab can revolve around your tennis.',
+    success: 'Account created. Sign in, then connect your player identity for My Lab.',
+  },
+  captain: {
+    eyebrow: 'Captain path',
+    mobileTitle: 'Set up Captain.',
+    desktopTitle: 'Create your account. Run the team week.',
+    mobileText: 'Start with an account, then open the captain workflow.',
+    desktopText: 'Captain starts with your account, then brings lineups, scouting, readiness, and weekly team decisions into one flow.',
+    formCue: 'After signup, open Captain tools to start organizing lineups, scouting, and readiness.',
+    success: 'Account created. Sign in, then open Captain tools.',
+  },
+  league: {
+    eyebrow: 'Coordinator path',
+    mobileTitle: 'Set up league tools.',
+    desktopTitle: 'Create your account. Operate the season.',
+    mobileText: 'Start with an account, then set up the league path.',
+    desktopText: 'Coordinator starts with your account, then supports league structure, visibility, rankings, schedules, results, and admin workflows.',
+    formCue: 'After signup, move into league setup when you are ready to organize the season.',
+    success: 'Account created. Sign in, then continue into league setup.',
+  },
+}
+
+function getJoinNextRoute(planId: MembershipTierId) {
+  return getPlanUnlockHref(planId, getPlanDestinationHref(planId))
+}
 
 const SETUP_STEPS: {
   title: string
@@ -52,6 +107,7 @@ function getDefaultSignedInRoute(
 
 export default function JoinPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [role, setRole] = useState<UserRole>('public')
   const [authLoading, setAuthLoading] = useState(true)
@@ -66,6 +122,13 @@ export default function JoinPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const requestedPlan = searchParams.get('plan')
+  const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
+    ? (requestedPlan as MembershipTierId)
+    : 'free'
+  const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
+  const selectedTier = getMembershipTier(selectedPlanId)
+  const selectedNextRoute = isSafeLocalNextHref(searchParams.get('next'), getJoinNextRoute(selectedPlanId))
 
   useEffect(() => {
     async function loadAuth() {
@@ -142,9 +205,9 @@ export default function JoinPage() {
 
       if (error) throw new Error(error.message)
 
-      setMessage('Account created. Sign in, then connect your player identity when you upgrade.')
+      setMessage(selectedIntent.success)
       setTimeout(() => {
-        router.push('/login')
+        router.push(`/login?plan=${selectedPlanId}&next=${encodeURIComponent(selectedNextRoute)}`)
       }, 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
@@ -193,15 +256,22 @@ export default function JoinPage() {
     <SiteShell active="/join">
       <section style={heroShellResponsive}>
         <div>
-          <div style={eyebrow}>Create your account</div>
+          <div style={eyebrow}>{selectedIntent.eyebrow}</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
-            {isMobile ? 'Start free.' : 'Start free. Add tools when you need them.'}
+            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
-            {isMobile
-              ? 'Create an account and explore tennis context.'
-              : 'Explore tennis context first. Upgrade when you want My Lab, team-week tools, or league operations.'}
+            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
           </p>
+
+          <div style={selectedPlanCardStyle}>
+            <div style={selectedPlanLabelStyle}>Selected path</div>
+            <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
+            <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
+            <Link href="/pricing" style={selectedPlanLinkStyle}>
+              Compare tiers
+            </Link>
+          </div>
 
           {isMobile ? (
             <div style={mobilePromiseBar}>
@@ -237,7 +307,7 @@ export default function JoinPage() {
               <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
               <div style={identityCueStyle}>
                 <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
-                <span>After upgrade, profile setup connects your player record before My Lab opens around you.</span>
+                <span>{selectedIntent.formCue}</span>
               </div>
 
               <label htmlFor="email" style={inputLabel}>
@@ -381,14 +451,6 @@ function JoinPromiseStep({ icon, title, text }: { icon: TiqFeatureIconName; titl
   )
 }
 
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
 const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
@@ -436,38 +498,53 @@ const heroText: CSSProperties = {
   maxWidth: '760px',
 }
 
-const pillRow: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
-  marginTop: '8px',
+const selectedPlanCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  width: 'min(100%, 560px)',
+  margin: '18px 0 0',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--brand-blue-2) 4%) 100%)',
 }
 
-const pillBase: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '36px',
-  padding: '0 14px',
-  borderRadius: '999px',
-  fontSize: '13px',
+const selectedPlanLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const selectedPlanTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
   lineHeight: 1,
   fontWeight: 900,
-  border: '1px solid transparent',
 }
 
-const pillBlue: CSSProperties = {
-  ...pillBase,
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--brand-blue-2) 12%)',
-  color: 'var(--foreground)',
-  borderColor: 'var(--shell-panel-border)',
+const selectedPlanTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
 }
 
-const pillGreen: CSSProperties = {
-  ...pillBase,
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 84%, var(--brand-green) 16%)',
-  color: 'var(--foreground)',
-  borderColor: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+const selectedPlanLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  alignItems: 'center',
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '13px',
+  fontWeight: 900,
 }
 
 const joinPromisePanel: CSSProperties = {
@@ -574,59 +651,6 @@ const loginBrandWrap: CSSProperties = {
   alignItems: 'center',
   textAlign: 'center',
   marginBottom: '18px',
-}
-
-const logoOrbWrap: CSSProperties = {
-  position: 'relative',
-  width: '188px',
-  height: '188px',
-  display: 'grid',
-  placeItems: 'center',
-  margin: '8px auto 12px',
-}
-
-const logoOrbOuter: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(1px)',
-}
-
-const logoOrbMiddle: CSSProperties = {
-  position: 'absolute',
-  inset: '14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.28)',
-  boxShadow:
-    '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)',
-}
-
-const logoOrbInner: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  width: '142px',
-  height: '142px',
-  borderRadius: '999px',
-  display: 'grid',
-  placeItems: 'center',
-  background:
-    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow:
-    '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)',
-}
-
-const loginBrandText: CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'center',
-  gap: '2px',
-  fontWeight: 900,
-  letterSpacing: 0,
-  fontSize: '36px',
-  lineHeight: 1,
 }
 
 const formCard: CSSProperties = {

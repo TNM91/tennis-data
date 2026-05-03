@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, FormEvent, useEffect, useRef, useState } from 'react'
+import { CSSProperties, FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
@@ -11,8 +11,58 @@ import { loadUserProfileLink } from '@/lib/user-profile'
 import SiteShell from '@/app/components/site-shell'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
+const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
+
+const LOGIN_INTENT_COPY: Record<MembershipTierId, {
+  eyebrow: string
+  mobileTitle: string
+  desktopTitle: string
+  mobileText: string
+  desktopText: string
+  destination: string
+}> = {
+  free: {
+    eyebrow: 'TenAceIQ access',
+    mobileTitle: 'Sign in.',
+    desktopTitle: 'Sign in. Start exploring.',
+    mobileText: 'Open your free tennis workspace.',
+    desktopText: 'Open TenAceIQ and start with the public tennis map before adding deeper tools.',
+    destination: 'Free tennis map',
+  },
+  player_plus: {
+    eyebrow: 'Player path',
+    mobileTitle: 'Open your lab.',
+    desktopTitle: 'Sign in. Connect your player path.',
+    mobileText: 'Continue toward My Lab and player-linked prep.',
+    desktopText: 'Sign in to continue toward My Lab, follows, matchup reads, and player-linked prep.',
+    destination: 'My Lab setup',
+  },
+  captain: {
+    eyebrow: 'Captain path',
+    mobileTitle: 'Open Captain.',
+    desktopTitle: 'Sign in. Run the team week.',
+    mobileText: 'Continue into lineups, readiness, and team decisions.',
+    desktopText: 'Sign in to continue toward lineups, scouting, readiness, and the weekly captain flow.',
+    destination: 'Captain tools',
+  },
+  league: {
+    eyebrow: 'Coordinator path',
+    mobileTitle: 'Open league tools.',
+    desktopTitle: 'Sign in. Operate the season.',
+    mobileText: 'Continue into league setup and season operations.',
+    desktopText: 'Sign in to continue toward league structure, visibility, rankings, schedules, and results.',
+    destination: 'League desk',
+  },
+}
+
+function getLoginPlanIntent() {
+  if (typeof window === 'undefined') return 'free'
+  const plan = new URLSearchParams(window.location.search).get('plan')
+  return LOGIN_PLAN_IDS.includes(plan as MembershipTierId) ? (plan as MembershipTierId) : 'free'
+}
 
 async function getDefaultPostLoginRoute(
   role: UserRole = 'member',
@@ -68,11 +118,11 @@ export default function LoginPage() {
 
   // Read fresh at redirect time rather than once at mount to avoid stale values when
   // Next.js serves a cached page instance for a navigation with a different ?next= param.
-  function getPostLoginRoute(
+  const getPostLoginRoute = useCallback((
     nextRole: UserRole = role === 'public' ? 'member' : role,
     nextEntitlements: ProductEntitlementSnapshot | null = null,
     userId?: string | null,
-  ) {
+  ) => {
     if (typeof window === 'undefined') return getDefaultPostLoginRoute(nextRole, nextEntitlements, userId)
     return resolvePostLoginRoute(
       new URLSearchParams(window.location.search).get('next'),
@@ -80,16 +130,19 @@ export default function LoginPage() {
       nextEntitlements,
       userId,
     )
-  }
+  }, [role])
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const selectedPlanId = getLoginPlanIntent()
+  const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
+  const selectedTier = getMembershipTier(selectedPlanId)
 
   useEffect(() => {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
     router.prefetch('/profile')
     router.prefetch('/captain')
     router.prefetch('/captain/season-dashboard')
-  }, [router])
+  }, [router, getPostLoginRoute])
 
   useEffect(() => {
     let mounted = true
@@ -159,7 +212,7 @@ export default function LoginPage() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [router])
+  }, [router, getPostLoginRoute])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -259,15 +312,19 @@ export default function LoginPage() {
     <SiteShell active="login">
       <section style={heroShellResponsive}>
         <div>
-          <div style={eyebrow}>TenAceIQ access</div>
+          <div style={eyebrow}>{selectedIntent.eyebrow}</div>
           <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '32px' : isMobile ? '36px' : '58px' }}>
-            {isMobile ? 'Sign in.' : 'Sign in. Get to the work.'}
+            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
           </h1>
           <p style={{ ...heroText, fontSize: isSmallMobile ? '16px' : '18px' }}>
-            {isMobile
-              ? 'Open the right workspace for your role.'
-              : 'TenAceIQ opens the right workspace for your role so you can review, decide, message, and play.'}
+            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
           </p>
+
+          <div style={selectedPlanCardStyle}>
+            <div style={selectedPlanLabelStyle}>After sign in</div>
+            <div style={selectedPlanTitleStyle}>{selectedIntent.destination}</div>
+            <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
+          </div>
 
           {isMobile ? (
             <div style={mobilePromiseBar}>
@@ -435,14 +492,6 @@ function passwordWrapResponsive(isSmallMobile: boolean): CSSProperties {
   }
 }
 
-const brandIQ: CSSProperties = {
-  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
-  marginLeft: '2px',
-}
-
 const heroShell: CSSProperties = {
   position: 'relative',
   zIndex: 2,
@@ -490,38 +539,38 @@ const heroText: CSSProperties = {
   maxWidth: '760px',
 }
 
-const pillRow: CSSProperties = {
-  display: 'flex',
-  gap: '10px',
-  flexWrap: 'wrap',
-  marginTop: '8px',
+const selectedPlanCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  width: 'min(100%, 560px)',
+  margin: '18px 0 0',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--shell-panel-bg) 96%, var(--brand-blue-2) 4%) 100%)',
 }
 
-const pillBase: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '36px',
-  padding: '0 14px',
-  borderRadius: '999px',
-  fontSize: '13px',
+const selectedPlanLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const selectedPlanTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
   lineHeight: 1,
   fontWeight: 900,
-  border: '1px solid transparent',
 }
 
-const pillBlue: CSSProperties = {
-  ...pillBase,
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--brand-blue-2) 12%)',
-  color: 'var(--foreground)',
-  borderColor: 'var(--shell-panel-border)',
-}
-
-const pillGreen: CSSProperties = {
-  ...pillBase,
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 84%, var(--brand-green) 16%)',
-  color: 'var(--foreground)',
-  borderColor: 'color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+const selectedPlanTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.55,
+  fontWeight: 750,
 }
 
 const accessPanel: CSSProperties = {
@@ -686,59 +735,6 @@ const loginBrandWrap: CSSProperties = {
   alignItems: 'center',
   textAlign: 'center',
   marginBottom: '18px',
-}
-
-const logoOrbWrap: CSSProperties = {
-  position: 'relative',
-  width: '188px',
-  height: '188px',
-  display: 'grid',
-  placeItems: 'center',
-  margin: '8px auto 12px',
-}
-
-const logoOrbOuter: CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  borderRadius: '999px',
-  background:
-    'radial-gradient(circle, rgba(116,190,255,0.30) 0%, rgba(116,190,255,0.12) 42%, rgba(116,190,255,0) 74%)',
-  filter: 'blur(1px)',
-}
-
-const logoOrbMiddle: CSSProperties = {
-  position: 'absolute',
-  inset: '14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.28)',
-  boxShadow:
-    '0 0 0 1px rgba(155,225,29,0.08), inset 0 0 38px rgba(74,163,255,0.18)',
-}
-
-const logoOrbInner: CSSProperties = {
-  position: 'relative',
-  zIndex: 2,
-  width: '142px',
-  height: '142px',
-  borderRadius: '999px',
-  display: 'grid',
-  placeItems: 'center',
-  background:
-    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 36%, rgba(8,26,49,0.78) 100%)',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow:
-    '0 18px 38px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(74,163,255,0.08)',
-}
-
-const loginBrandText: CSSProperties = {
-  display: 'flex',
-  alignItems: 'baseline',
-  justifyContent: 'center',
-  gap: '2px',
-  fontWeight: 900,
-  letterSpacing: 0,
-  fontSize: '36px',
-  lineHeight: 1,
 }
 
 const formCard: CSSProperties = {

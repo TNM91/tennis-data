@@ -16,6 +16,8 @@ import { supabase } from '@/lib/supabase'
 type ProfileAccessRow = {
   id: string
   role: string | null
+  player_plus_subscription_active: boolean | null
+  player_plus_subscription_status: CaptainSubscriptionStatus | null
   captain_subscription_active: boolean | null
   captain_subscription_status: CaptainSubscriptionStatus | null
   tiq_team_league_entry_enabled: boolean | null
@@ -23,6 +25,8 @@ type ProfileAccessRow = {
 }
 
 type EditableProfileAccess = {
+  player_plus_subscription_active: boolean
+  player_plus_subscription_status: CaptainSubscriptionStatus
   captain_subscription_active: boolean
   captain_subscription_status: CaptainSubscriptionStatus
   tiq_team_league_entry_enabled: boolean
@@ -39,6 +43,12 @@ const STATUS_OPTIONS: CaptainSubscriptionStatus[] = [
 
 function normalizeEditable(row: ProfileAccessRow): EditableProfileAccess {
   return {
+    player_plus_subscription_active: Boolean(row.player_plus_subscription_active),
+    player_plus_subscription_status: STATUS_OPTIONS.includes(
+      row.player_plus_subscription_status ?? 'inactive',
+    )
+      ? (row.player_plus_subscription_status ?? 'inactive')
+      : 'inactive',
     captain_subscription_active: Boolean(row.captain_subscription_active),
     captain_subscription_status: STATUS_OPTIONS.includes(
       row.captain_subscription_status ?? 'inactive',
@@ -72,6 +82,7 @@ export default function AdminAccessPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'captain' | 'member' | 'public'>(
     'all',
   )
@@ -80,6 +91,10 @@ export default function AdminAccessPage() {
   const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
+    const initialSearch = new URLSearchParams(window.location.search).get('search')
+    if (initialSearch) {
+      setSearch(initialSearch)
+    }
     void loadProfiles()
   }, [])
 
@@ -93,14 +108,33 @@ export default function AdminAccessPage() {
     setError('')
 
     try {
-      const { data, error: loadError } = await supabase
+      const result = await supabase
         .from('profiles')
         .select(
-          'id, role, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+          'id, role, player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
         )
         .limit(500)
 
-      if (loadError) throw new Error(loadError.message)
+      let data = result.data
+      if (result.error) {
+        setPlayerEntitlementsAvailable(false)
+        const legacyResult = await supabase
+          .from('profiles')
+          .select(
+            'id, role, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+          )
+          .limit(500)
+
+        if (legacyResult.error) throw new Error(legacyResult.error.message)
+        data = (legacyResult.data ?? []).map((row) => ({
+          ...row,
+          player_plus_subscription_active: false,
+          player_plus_subscription_status: 'inactive' as CaptainSubscriptionStatus,
+        }))
+        setMessage('Player entitlement columns are not migrated yet. Showing legacy access fields.')
+      } else {
+        setPlayerEntitlementsAvailable(true)
+      }
 
       const rows = ((data || []) as ProfileAccessRow[]).sort((a, b) =>
         compactUserId(a.id).localeCompare(compactUserId(b.id)),
@@ -136,6 +170,8 @@ export default function AdminAccessPage() {
         ...(current[profileId] || {
           captain_subscription_active: false,
           captain_subscription_status: 'inactive',
+          player_plus_subscription_active: false,
+          player_plus_subscription_status: 'inactive',
           tiq_team_league_entry_enabled: false,
           tiq_individual_league_creator_enabled: false,
         }),
@@ -160,11 +196,15 @@ export default function AdminAccessPage() {
     setError('')
 
     try {
-      const payload = {
+      const payload: Record<string, boolean | CaptainSubscriptionStatus> = {
         captain_subscription_active: draft.captain_subscription_active,
         captain_subscription_status: draft.captain_subscription_status,
         tiq_team_league_entry_enabled: draft.tiq_team_league_entry_enabled,
         tiq_individual_league_creator_enabled: draft.tiq_individual_league_creator_enabled,
+      }
+      if (playerEntitlementsAvailable) {
+        payload.player_plus_subscription_active = draft.player_plus_subscription_active
+        payload.player_plus_subscription_status = draft.player_plus_subscription_status
       }
 
       const { error: updateError } = await supabase
@@ -207,6 +247,9 @@ export default function AdminAccessPage() {
 
   const activeCaptainCount = profiles.filter((profile) =>
     Boolean(profile.captain_subscription_active),
+  ).length
+  const activePlayerCount = profiles.filter((profile) =>
+    Boolean(profile.player_plus_subscription_active || profile.captain_subscription_active),
   ).length
   const teamEntryCount = profiles.filter((profile) =>
     Boolean(profile.tiq_team_league_entry_enabled),
@@ -259,6 +302,7 @@ export default function AdminAccessPage() {
               }}
             >
               <MetricCard label="Profiles Loaded" value={profiles.length} />
+              <MetricCard label="Player Active" value={activePlayerCount} />
               <MetricCard label="Captain Active" value={activeCaptainCount} />
               <MetricCard label="Team Entry Enabled" value={teamEntryCount} />
               <MetricCard label="Individual Creator Enabled" value={individualCreatorCount} />
@@ -391,11 +435,13 @@ export default function AdminAccessPage() {
               </div>
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
-                <table className="data-table" style={{ minWidth: 1240 }}>
+                <table className="data-table" style={{ minWidth: 1460 }}>
                   <thead>
                     <tr>
                       <th>User</th>
                       <th>Role</th>
+                      <th>Player Active</th>
+                      <th>Player Status</th>
                       <th>Captain Active</th>
                       <th>Captain Status</th>
                       <th>TIQ Team Entry</th>
@@ -419,6 +465,44 @@ export default function AdminAccessPage() {
                             </div>
                           </td>
                           <td>{roleLabel(profile.role)}</td>
+                          <td>
+                            <label style={toggleWrap}>
+                              <input
+                                type="checkbox"
+                                checked={draft.player_plus_subscription_active}
+                                onChange={(event) =>
+                                  updateProfileField(
+                                    profile.id,
+                                    'player_plus_subscription_active',
+                                    event.target.checked,
+                                  )
+                                }
+                                disabled={savingId === profile.id || !playerEntitlementsAvailable}
+                              />
+                              <span>{draft.player_plus_subscription_active ? 'Active' : 'Inactive'}</span>
+                            </label>
+                          </td>
+                          <td>
+                            <select
+                              value={draft.player_plus_subscription_status}
+                              onChange={(event) =>
+                                updateProfileField(
+                                  profile.id,
+                                  'player_plus_subscription_status',
+                                  event.target.value as CaptainSubscriptionStatus,
+                                )
+                              }
+                              className="select"
+                              style={{ minWidth: 140 }}
+                              disabled={savingId === profile.id || !playerEntitlementsAvailable}
+                            >
+                              {STATUS_OPTIONS.map((status) => (
+                                <option key={status} value={status}>
+                                  {status}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                           <td>
                             <label style={toggleWrap}>
                               <input

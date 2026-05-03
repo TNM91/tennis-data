@@ -232,13 +232,13 @@ const footerJourneyStepStyle = (isMobile: boolean) => ({
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, var(--brand-lime) 100%)',
-  border: '1px solid rgba(255, 255, 255, 0.36)',
+  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
+  border: '1px solid rgba(199, 243, 107, 0.58)',
   color: '#06121f',
   fontSize: isMobile ? '12px' : '13px',
   fontWeight: 950,
   lineHeight: 1,
-  boxShadow: '0 10px 22px rgba(155, 225, 29, 0.20)',
+  boxShadow: '0 10px 22px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.38)',
 }) as const
 
 const footerJourneyTextStyle = {

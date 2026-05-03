@@ -1676,9 +1676,7 @@ export default function MatchupPage() {
                 headline={MATCHUP_STORY.upgradeHeadline}
                 body={MATCHUP_STORY.upgradeBody}
                 ctaLabel={MATCHUP_STORY.upgradeCta}
-                ctaHref="/pricing"
                 secondaryLabel={MATCHUP_STORY.upgradeSecondary}
-                secondaryHref="/pricing"
                 footnote={MATCHUP_STORY.upgradeFootnote}
               />
             </div>
