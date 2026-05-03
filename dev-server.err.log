@@ -1,0 +1,98 @@
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] ReferenceError: insightDetails is not defined
+    at RankingsPage (app/rankings/page.tsx:1173:27)
+    at Set.forEach (<anonymous>)
+  1171 |       {!loading && !error ? (
+  1172 |         <section style={contentWrap}>
+> 1173 |           <details style={insightDetails}>
+       |                           ^
+  1174 |             <summary style={insightSummary}>
+  1175 |               <span>
+  1176 |                 <span style={sectionKicker}>More board signals</span> (app/error.tsx:14:13)
+[browser] ReferenceError: insightDetails is not defined
+    at RankingsPage (app/rankings/page.tsx:1173:27)
+    at Set.forEach (<anonymous>)
+  1171 |       {!loading && !error ? (
+  1172 |         <section style={contentWrap}>
+> 1173 |           <details style={insightDetails}>
+       |                           ^
+  1174 |             <summary style={insightSummary}>
+  1175 |               <span>
+  1176 |                 <span style={sectionKicker}>More board signals</span> (app/error.tsx:14:13)
+[browser] ReferenceError: insightDetails is not defined
+    at RankingsPage (app/rankings/page.tsx:1173:27)
+  1171 |       {!loading && !error ? (
+  1172 |         <section style={contentWrap}>
+> 1173 |           <details style={insightDetails}>
+       |                           ^
+  1174 |             <summary style={insightSummary}>
+  1175 |               <span>
+  1176 |                 <span style={sectionKicker}>More board signals</span> (app/error.tsx:14:13)
+[browser] ReferenceError: insightDetails is not defined
+    at RankingsPage (app/rankings/page.tsx:1173:27)
+  1171 |       {!loading && !error ? (
+  1172 |         <section style={contentWrap}>
+> 1173 |           <details style={insightDetails}>
+       |                           ^
+  1174 |             <summary style={insightSummary}>
+  1175 |               <span>
+  1176 |                 <span style={sectionKicker}>More board signals</span> (app/error.tsx:14:13)
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] ReferenceError: leaderboardActionBody is not defined
+    at RankingsPage (app/rankings/page.tsx:930:27)
+  928 |             <Link href="/explore/players" style={leaderboardActionCard}>
+  929 |               <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
+> 930 |               <div style={leaderboardActionBody}>
+      |                           ^
+  931 |                 <div style={leaderboardActionLabel}>1. Scout</div>
+  932 |                 <div style={leaderboardActionTitle}>Open a player</div>
+  933 |                 <div style={leaderboardActionText}>Check stats, history, and trend before... (app/error.tsx:14:13)
+[browser] ReferenceError: leaderboardActionBody is not defined
+    at RankingsPage (app/rankings/page.tsx:930:27)
+  928 |             <Link href="/explore/players" style={leaderboardActionCard}>
+  929 |               <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
+> 930 |               <div style={leaderboardActionBody}>
+      |                           ^
+  931 |                 <div style={leaderboardActionLabel}>1. Scout</div>
+  932 |                 <div style={leaderboardActionTitle}>Open a player</div>
+  933 |                 <div style={leaderboardActionText}>Check stats, history, and trend before... (app/error.tsx:14:13)
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)
+[browser] Image with src "/logo-header-light.svg" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+[browser] AdSense head tag doesn't support data-nscript attribute. (https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789:221:302)

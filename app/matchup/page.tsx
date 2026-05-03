@@ -1,34 +1,363 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import AdsenseSlot from '@/app/components/adsense-slot'
+import UpgradePrompt from '@/app/components/upgrade-prompt'
+import SiteShell from '@/app/components/site-shell'
+import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { MATCHUP_STORY } from '@/lib/product-story'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { formatDate, formatRating } from '@/lib/captain-formatters'
+import { useProductAccess } from '@/lib/use-product-access'
+import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
+type MatchType = 'singles' | 'doubles'
+type MatchSide = 'A' | 'B'
+type AccuracyBand = 'high' | 'medium' | 'low'
 
 type Player = {
   id: string
   name: string
   location?: string | null
-  rating?: string | number | null
-  dynamic_rating?: number | null
   overall_dynamic_rating?: number | null
   singles_dynamic_rating?: number | null
   doubles_dynamic_rating?: number | null
+  overall_usta_dynamic_rating?: number | null
+  singles_usta_dynamic_rating?: number | null
+  doubles_usta_dynamic_rating?: number | null
+}
+
+type MatchRow = {
+  id: string
+  match_date: string
+  match_type: MatchType
+  score: string
+  winner_side: MatchSide
+}
+
+type MatchPlayerRow = {
+  match_id: string
+  player_id: string
+  side: MatchSide
+  seat: number | null
+  players:
+    | {
+        id: string
+        name: string
+      }
+    | {
+        id: string
+        name: string
+      }[]
+    | null
+}
+
+type HeadToHeadState = {
+  total: number
+  winsA: number
+  winsB: number
+  singlesA: number
+  singlesB: number
+  doublesA: number
+  doublesB: number
+  lastMatch: {
+    matchDate: string
+    matchType: MatchType
+    score: string
+    winner: 'A' | 'B'
+  } | null
+  recentMatches: Array<{
+    matchDate: string
+    matchType: MatchType
+    score: string
+    winner: 'A' | 'B'
+  }>
+}
+
+type ComparisonState = {
+  leftLabel: string
+  rightLabel: string
+  leftLocation: string
+  rightLocation: string
+  leftRatings: {
+    overall: number | null
+    singles: number | null
+    doubles: number | null
+  }
+  rightRatings: {
+    overall: number | null
+    singles: number | null
+    doubles: number | null
+  }
+  leftUstaRatings: {
+    overall: number | null
+    singles: number | null
+    doubles: number | null
+  }
+  rightUstaRatings: {
+    overall: number | null
+    singles: number | null
+    doubles: number | null
+  }
+  leftSelected: number
+  rightSelected: number
+  gap: number
+  higherRatedLabel: string
+  favoredSide: 'left' | 'right' | 'even'
+  leftProfileHref: string | null
+  rightProfileHref: string | null
+  engineRatingView: RatingView
+}
+
+type ProjectionState = {
+  leftWinProbability: number
+  rightWinProbability: number
+  likelyWinner: string
+  confidenceLabel: string
+  upsetIndicator: string
+  expectedOutcome: string
+  ratingDiffText: string
+  favoriteEdgeText: string
+  favoriteLabel: string
+  underdogLabel: string
+  matchTier: string
+  isSwingMatch: boolean
+  captainInsight: string
+  swapImpactHint: string
+}
+
+type AccuracyState = {
+  overall: number | null
+  high: number | null
+  medium: number | null
+  low: number | null
+  sampleSize: number
+}
+
+const RATING_DIVISOR = 0.45
+const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
+
+function hasValidRating(value: number | null | undefined): value is number {
+  return typeof value === 'number' && !Number.isNaN(value)
 }
 
 export default function MatchupPage() {
+  const [profileLink, setProfileLink] = useState<UserProfileLink | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
+  const [accuracyLoading, setAccuracyLoading] = useState(false)
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  const [matchType, setMatchType] = useState<MatchType>('singles')
 
   const [playerAId, setPlayerAId] = useState('')
   const [playerBId, setPlayerBId] = useState('')
+
+  const [teamA1Id, setTeamA1Id] = useState('')
+  const [teamA2Id, setTeamA2Id] = useState('')
+  const [teamB1Id, setTeamB1Id] = useState('')
+  const [teamB2Id, setTeamB2Id] = useState('')
+
   const [ratingView, setRatingView] = useState<RatingView>('overall')
+  const [headToHead, setHeadToHead] = useState<HeadToHeadState | null>(null)
+  const [formScores, setFormScores] = useState<{ left: number | null; right: number | null }>({ left: null, right: null })
+  const [trajectories, setTrajectories] = useState<{ left: Array<{ date: string; rating: number }>; right: Array<{ date: string; rating: number }> }>({ left: [], right: [] })
+  const urlReadyRef = useRef(false)
+  const profilePrefillAttemptedRef = useRef(false)
+  const [accuracy, setAccuracy] = useState<AccuracyState>({
+    overall: null,
+    high: null,
+    medium: null,
+    low: null,
+    sampleSize: 0,
+  })
+  const { access, user } = useProductAccess()
+  const shouldShowAds = shouldShowSponsoredPlacements(access)
 
   useEffect(() => {
     void loadPlayers()
   }, [])
+
+  useEffect(() => {
+    const userId = user?.id || null
+    if (!userId) {
+      setProfileLink(null)
+      return
+    }
+
+    let active = true
+
+    async function loadProfileForMatchup() {
+      const result = await loadUserProfileLink(userId)
+      if (!active) return
+      setProfileLink(result.data)
+    }
+
+    void loadProfileForMatchup()
+
+    return () => {
+      active = false
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const typeFromUrl = params.get('type')
+    if (typeFromUrl === 'doubles') setMatchType('doubles')
+
+    const playerAFromUrl = params.get('playerA') || ''
+    const playerBFromUrl = params.get('playerB') || ''
+    if (playerAFromUrl) setPlayerAId(playerAFromUrl)
+    if (playerBFromUrl) setPlayerBId(playerBFromUrl)
+
+    const a1 = params.get('a1') || ''
+    const a2 = params.get('a2') || ''
+    const b1 = params.get('b1') || ''
+    const b2 = params.get('b2') || ''
+    if (a1) setTeamA1Id(a1)
+    if (a2) setTeamA2Id(a2)
+    if (b1) setTeamB1Id(b1)
+    if (b2) setTeamB2Id(b2)
+
+    urlReadyRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (profilePrefillAttemptedRef.current) return
+    if (!urlReadyRef.current || !profileLink?.linked_player_id) return
+    if (matchType !== 'singles') return
+    if (playerAId) return
+    if (playerBId === profileLink.linked_player_id) return
+
+    profilePrefillAttemptedRef.current = true
+    setPlayerAId(profileLink.linked_player_id)
+  }, [matchType, playerAId, playerBId, profileLink?.linked_player_id])
+
+  useEffect(() => {
+    if (!urlReadyRef.current || typeof window === 'undefined') return
+    const params = new URLSearchParams()
+    params.set('type', matchType)
+    if (matchType === 'singles') {
+      if (playerAId) params.set('playerA', playerAId)
+      if (playerBId) params.set('playerB', playerBId)
+    } else {
+      if (teamA1Id) params.set('a1', teamA1Id)
+      if (teamA2Id) params.set('a2', teamA2Id)
+      if (teamB1Id) params.set('b1', teamB1Id)
+      if (teamB2Id) params.set('b2', teamB2Id)
+    }
+    const search = params.toString()
+    window.history.replaceState(null, '', search ? `?${search}` : window.location.pathname)
+  }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+
+  useEffect(() => {
+    if (matchType === 'singles') {
+      setTeamA1Id('')
+      setTeamA2Id('')
+      setTeamB1Id('')
+      setTeamB2Id('')
+    } else {
+      setPlayerAId('')
+      setPlayerBId('')
+    }
+    setHeadToHead(null)
+  }, [matchType])
+
+  useEffect(() => {
+    if (matchType === 'singles') {
+      if (playerAId && playerBId && playerAId !== playerBId) {
+        void loadSinglesHeadToHead(playerAId, playerBId)
+      } else {
+        setHeadToHead(null)
+      }
+      return
+    }
+
+    if (
+      teamA1Id &&
+      teamA2Id &&
+      teamB1Id &&
+      teamB2Id &&
+      areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+    ) {
+      void loadDoublesHeadToHead([teamA1Id, teamA2Id], [teamB1Id, teamB2Id])
+    } else {
+      setHeadToHead(null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+
+  useEffect(() => {
+    if (!players.length) return
+    void loadPredictionAccuracy()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, matchType])
+
+  useEffect(() => {
+    const idA = playerAId || null
+    const idB = playerBId || null
+    if (!idA || !idB || idA === idB) {
+      setFormScores({ left: null, right: null })
+      return
+    }
+    let active = true
+    void (async () => {
+      const view = matchType === 'doubles' ? 'doubles' : 'singles'
+      const { data } = await supabase
+        .from('rating_snapshots')
+        .select('player_id, delta, snapshot_date, rating_type')
+        .in('player_id', [idA, idB])
+        .eq('track', 'tiq')
+        .in('rating_type', [view, 'overall'])
+        .order('snapshot_date', { ascending: false })
+        .limit(30)
+      if (!active || !data) return
+      function computeForm(id: string) {
+        const snaps = (data as Array<{ player_id: string; delta: number | null; rating_type: string }>)
+          .filter((s) => s.player_id === id && s.rating_type === view)
+          .slice(0, 5)
+        const deltas = snaps.map((s) => s.delta).filter((d): d is number => d != null)
+        if (deltas.length === 0) return null
+        return Math.round(deltas.reduce((sum, d) => sum + d, 0) * 1000) / 1000
+      }
+      setFormScores({ left: computeForm(idA), right: computeForm(idB) })
+    })()
+    return () => { active = false }
+  }, [playerAId, playerBId, matchType])
+
+  useEffect(() => {
+    const idA = playerAId || null
+    const idB = playerBId || null
+    if (!idA || !idB || idA === idB) { setTrajectories({ left: [], right: [] }); return }
+    let active = true
+    void (async () => {
+      const { data } = await supabase
+        .from('rating_snapshots')
+        .select('player_id, snapshot_date, dynamic_rating, rating_type')
+        .in('player_id', [idA, idB])
+        .eq('track', 'tiq')
+        .in('rating_type', ['overall'])
+        .order('snapshot_date', { ascending: true })
+        .limit(120)
+      if (!active || !data) return
+      const rows = data as Array<{ player_id: string; snapshot_date: string; dynamic_rating: number }>
+      setTrajectories({
+        left: rows.filter((r) => r.player_id === idA).map((r) => ({ date: r.snapshot_date, rating: r.dynamic_rating })),
+        right: rows.filter((r) => r.player_id === idB).map((r) => ({ date: r.snapshot_date, rating: r.dynamic_rating })),
+      })
+    })()
+    return () => { active = false }
+  }, [playerAId, playerBId])
 
   async function loadPlayers() {
     setLoading(true)
@@ -41,17 +370,16 @@ export default function MatchupPage() {
           id,
           name,
           location,
-          rating,
-          dynamic_rating,
           overall_dynamic_rating,
           singles_dynamic_rating,
-          doubles_dynamic_rating
+          doubles_dynamic_rating,
+          overall_usta_dynamic_rating,
+          singles_usta_dynamic_rating,
+          doubles_usta_dynamic_rating
         `)
         .order('name', { ascending: true })
 
-      if (error) {
-        throw new Error(error.message)
-      }
+      if (error) throw new Error(error.message)
 
       setPlayers((data || []) as Player[])
     } catch (err) {
@@ -61,251 +389,1793 @@ export default function MatchupPage() {
     }
   }
 
+  async function loadSinglesHeadToHead(playerAIdValue: string, playerBIdValue: string) {
+    setHeadToHeadLoading(true)
+
+    try {
+      const { data: aRefs, error: aRefsError } = await supabase
+        .from('match_players')
+        .select('match_id')
+        .eq('player_id', playerAIdValue)
+
+      if (aRefsError) throw new Error(aRefsError.message)
+
+      const matchIds = [...new Set((aRefs || []).map((row) => row.match_id))]
+
+      if (matchIds.length === 0) {
+        setEmptyHeadToHead()
+        return
+      }
+
+      const [
+        { data: matchesData, error: matchesError },
+        { data: participantsData, error: participantsError },
+      ] = await Promise.all([
+        supabase
+          .from('matches')
+          .select(`
+            id,
+            match_date,
+            match_type,
+            score,
+            winner_side
+          `)
+          .in('id', matchIds),
+        supabase
+          .from('match_players')
+          .select(`
+            match_id,
+            player_id,
+            side,
+            seat,
+            players (
+              id,
+              name
+            )
+          `)
+          .in('match_id', matchIds),
+      ])
+
+      if (matchesError) throw new Error(matchesError.message)
+      if (participantsError) throw new Error(participantsError.message)
+
+      const typedMatches = (matchesData || []) as MatchRow[]
+      const typedParticipants = (participantsData || []) as MatchPlayerRow[]
+      const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
+
+      for (const participant of typedParticipants) {
+        const existing = participantsByMatchId.get(participant.match_id) ?? []
+        existing.push(participant)
+        participantsByMatchId.set(participant.match_id, existing)
+      }
+
+      let total = 0
+      let winsA = 0
+      let winsB = 0
+      let singlesA = 0
+      let singlesB = 0
+      let doublesA = 0
+      let doublesB = 0
+      let lastMatch: HeadToHeadState['lastMatch'] = null
+      const allH2H: HeadToHeadState['recentMatches'] = []
+
+      for (const match of typedMatches) {
+        const participants = participantsByMatchId.get(match.id) ?? []
+        const participantA = participants.find((p) => p.player_id === playerAIdValue)
+        const participantB = participants.find((p) => p.player_id === playerBIdValue)
+
+        if (!participantA || !participantB) continue
+        if (participantA.side === participantB.side) continue
+
+        total += 1
+        const playerAWon = participantA.side === match.winner_side
+
+        if (playerAWon) {
+          winsA += 1
+          if (match.match_type === 'singles') singlesA += 1
+          else doublesA += 1
+        } else {
+          winsB += 1
+          if (match.match_type === 'singles') singlesB += 1
+          else doublesB += 1
+        }
+
+        allH2H.push({
+          matchDate: match.match_date,
+          matchType: match.match_type,
+          score: match.score,
+          winner: playerAWon ? 'A' : 'B',
+        })
+
+        if (
+          !lastMatch ||
+          new Date(match.match_date).getTime() > new Date(lastMatch.matchDate).getTime()
+        ) {
+          lastMatch = {
+            matchDate: match.match_date,
+            matchType: match.match_type,
+            score: match.score,
+            winner: playerAWon ? 'A' : 'B',
+          }
+        }
+      }
+
+      const recentMatches = allH2H
+        .sort((a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime())
+        .slice(0, 5)
+
+      setHeadToHead({
+        total,
+        winsA,
+        winsB,
+        singlesA,
+        singlesB,
+        doublesA,
+        doublesB,
+        lastMatch,
+        recentMatches,
+      })
+    } catch (err) {
+      console.error('Failed to load singles head-to-head', err)
+      setHeadToHead(null)
+    } finally {
+      setHeadToHeadLoading(false)
+    }
+  }
+
+  async function loadDoublesHeadToHead(teamAIds: string[], teamBIds: string[]) {
+    setHeadToHeadLoading(true)
+
+    try {
+      const { data: teamARefs, error: teamARefsError } = await supabase
+        .from('match_players')
+        .select('match_id')
+        .in('player_id', teamAIds)
+
+      if (teamARefsError) throw new Error(teamARefsError.message)
+
+      const candidateMatchIds = [...new Set((teamARefs || []).map((row) => row.match_id))]
+
+      if (candidateMatchIds.length === 0) {
+        setEmptyHeadToHead()
+        return
+      }
+
+      const { data: matchesData, error: matchesError } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          match_date,
+          match_type,
+          score,
+          winner_side
+        `)
+        .in('id', candidateMatchIds)
+        .eq('match_type', 'doubles')
+
+      if (matchesError) throw new Error(matchesError.message)
+
+      const doublesMatchIds = (matchesData || []).map((m) => m.id)
+
+      if (doublesMatchIds.length === 0) {
+        setEmptyHeadToHead()
+        return
+      }
+
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('match_players')
+        .select(`
+          match_id,
+          player_id,
+          side,
+          seat,
+          players (
+            id,
+            name
+          )
+        `)
+        .in('match_id', doublesMatchIds)
+
+      if (participantsError) throw new Error(participantsError.message)
+
+      const typedMatches = (matchesData || []) as MatchRow[]
+      const typedParticipants = (participantsData || []) as MatchPlayerRow[]
+      const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
+
+      for (const participant of typedParticipants) {
+        const existing = participantsByMatchId.get(participant.match_id) ?? []
+        existing.push(participant)
+        participantsByMatchId.set(participant.match_id, existing)
+      }
+
+      const normalizedTeamA = normalizeIdSet(teamAIds)
+      const normalizedTeamB = normalizeIdSet(teamBIds)
+
+      let total = 0
+      let winsA = 0
+      let winsB = 0
+      const singlesA = 0
+      const singlesB = 0
+      let doublesA = 0
+      let doublesB = 0
+      let lastMatch: HeadToHeadState['lastMatch'] = null
+      const allH2H: HeadToHeadState['recentMatches'] = []
+
+      for (const match of typedMatches) {
+        const participants = participantsByMatchId.get(match.id) ?? []
+
+        const sideAIds = participants.filter((p) => p.side === 'A').map((p) => p.player_id)
+        const sideBIds = participants.filter((p) => p.side === 'B').map((p) => p.player_id)
+
+        const normalizedSideA = normalizeIdSet(sideAIds)
+        const normalizedSideB = normalizeIdSet(sideBIds)
+
+        let teamASide: MatchSide | null = null
+
+        if (normalizedSideA === normalizedTeamA && normalizedSideB === normalizedTeamB) {
+          teamASide = 'A'
+        } else if (normalizedSideA === normalizedTeamB && normalizedSideB === normalizedTeamA) {
+          teamASide = 'B'
+        } else {
+          continue
+        }
+
+        total += 1
+        const teamAWon = teamASide === match.winner_side
+
+        if (teamAWon) {
+          winsA += 1
+          doublesA += 1
+        } else {
+          winsB += 1
+          doublesB += 1
+        }
+
+        allH2H.push({
+          matchDate: match.match_date,
+          matchType: match.match_type,
+          score: match.score,
+          winner: teamAWon ? 'A' : 'B',
+        })
+
+        if (
+          !lastMatch ||
+          new Date(match.match_date).getTime() > new Date(lastMatch.matchDate).getTime()
+        ) {
+          lastMatch = {
+            matchDate: match.match_date,
+            matchType: match.match_type,
+            score: match.score,
+            winner: teamAWon ? 'A' : 'B',
+          }
+        }
+      }
+
+      const recentMatches = allH2H
+        .sort((a, b) => new Date(b.matchDate).getTime() - new Date(a.matchDate).getTime())
+        .slice(0, 5)
+
+      setHeadToHead({
+        total,
+        winsA,
+        winsB,
+        singlesA,
+        singlesB,
+        doublesA,
+        doublesB,
+        lastMatch,
+        recentMatches,
+      })
+    } catch (err) {
+      console.error('Failed to load doubles head-to-head', err)
+      setHeadToHead(null)
+    } finally {
+      setHeadToHeadLoading(false)
+    }
+  }
+
+  async function loadPredictionAccuracy() {
+    setAccuracyLoading(true)
+
+    try {
+      const engineView = getEngineRatingView(matchType)
+
+      const { data: matchesData, error: matchesError } = await supabase
+        .from('matches')
+        .select(`
+          id,
+          match_date,
+          match_type,
+          score,
+          winner_side
+        `)
+        .eq('match_type', matchType)
+        .order('match_date', { ascending: false })
+        .limit(500)
+
+      if (matchesError) throw new Error(matchesError.message)
+
+      const typedMatches = (matchesData || []) as MatchRow[]
+      const matchIds = typedMatches.map((match) => match.id)
+
+      if (!matchIds.length) {
+        setAccuracy({
+          overall: null,
+          high: null,
+          medium: null,
+          low: null,
+          sampleSize: 0,
+        })
+        return
+      }
+
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('match_players')
+        .select(`
+          match_id,
+          player_id,
+          side,
+          seat,
+          players (
+            id,
+            name
+          )
+        `)
+        .in('match_id', matchIds)
+
+      if (participantsError) throw new Error(participantsError.message)
+
+      const typedParticipants = (participantsData || []) as MatchPlayerRow[]
+      const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
+
+      for (const participant of typedParticipants) {
+        const existing = participantsByMatchId.get(participant.match_id) ?? []
+        existing.push(participant)
+        participantsByMatchId.set(participant.match_id, existing)
+      }
+
+      let overallTotal = 0
+      let overallCorrect = 0
+      let highTotal = 0
+      let highCorrect = 0
+      let mediumTotal = 0
+      let mediumCorrect = 0
+      let lowTotal = 0
+      let lowCorrect = 0
+
+      for (const match of typedMatches) {
+        const participants = participantsByMatchId.get(match.id) ?? []
+
+        if (matchType === 'singles') {
+          const leftParticipant = participants.find((p) => p.side === 'A')
+          const rightParticipant = participants.find((p) => p.side === 'B')
+          if (!leftParticipant || !rightParticipant) continue
+
+          const leftPlayer = players.find((player) => player.id === leftParticipant.player_id)
+          const rightPlayer = players.find((player) => player.id === rightParticipant.player_id)
+          if (!leftPlayer || !rightPlayer) continue
+
+          const leftRating = getSelectedRating(leftPlayer, engineView)
+          const rightRating = getSelectedRating(rightPlayer, engineView)
+          if (!hasValidRating(leftRating) || !hasValidRating(rightRating)) continue
+          if (leftRating === rightRating) continue
+
+          const leftWinProbability = expectedScore(leftRating, rightRating)
+          const predictedWinner: MatchSide = leftWinProbability >= 0.5 ? 'A' : 'B'
+          const band = getAccuracyBand(leftWinProbability)
+          const wasCorrect = predictedWinner === match.winner_side
+
+          overallTotal += 1
+          if (wasCorrect) overallCorrect += 1
+
+          if (band === 'high') {
+            highTotal += 1
+            if (wasCorrect) highCorrect += 1
+          } else if (band === 'medium') {
+            mediumTotal += 1
+            if (wasCorrect) mediumCorrect += 1
+          } else {
+            lowTotal += 1
+            if (wasCorrect) lowCorrect += 1
+          }
+        } else {
+          const sideAPlayers = participants
+            .filter((p) => p.side === 'A')
+            .map((p) => players.find((player) => player.id === p.player_id))
+            .filter(Boolean) as Player[]
+
+          const sideBPlayers = participants
+            .filter((p) => p.side === 'B')
+            .map((p) => players.find((player) => player.id === p.player_id))
+            .filter(Boolean) as Player[]
+
+          if (sideAPlayers.length !== 2 || sideBPlayers.length !== 2) continue
+
+          const leftRatings = sideAPlayers.map((player) => getSelectedRating(player, engineView))
+          const rightRatings = sideBPlayers.map((player) => getSelectedRating(player, engineView))
+
+          if (!leftRatings.every(hasValidRating) || !rightRatings.every(hasValidRating)) continue
+
+          const leftRating = average(leftRatings)
+          const rightRating = average(rightRatings)
+          if (leftRating === rightRating) continue
+
+          const leftWinProbability = expectedScore(leftRating, rightRating)
+          const predictedWinner: MatchSide = leftWinProbability >= 0.5 ? 'A' : 'B'
+          const band = getAccuracyBand(leftWinProbability)
+          const wasCorrect = predictedWinner === match.winner_side
+
+          overallTotal += 1
+          if (wasCorrect) overallCorrect += 1
+
+          if (band === 'high') {
+            highTotal += 1
+            if (wasCorrect) highCorrect += 1
+          } else if (band === 'medium') {
+            mediumTotal += 1
+            if (wasCorrect) mediumCorrect += 1
+          } else {
+            lowTotal += 1
+            if (wasCorrect) lowCorrect += 1
+          }
+        }
+      }
+
+      setAccuracy({
+        overall: toAccuracyValue(overallCorrect, overallTotal),
+        high: toAccuracyValue(highCorrect, highTotal),
+        medium: toAccuracyValue(mediumCorrect, mediumTotal),
+        low: toAccuracyValue(lowCorrect, lowTotal),
+        sampleSize: overallTotal,
+      })
+    } catch (err) {
+      console.error('Failed to load prediction accuracy', err)
+      setAccuracy({
+        overall: null,
+        high: null,
+        medium: null,
+        low: null,
+        sampleSize: 0,
+      })
+    } finally {
+      setAccuracyLoading(false)
+    }
+  }
+
+  function setEmptyHeadToHead() {
+    setHeadToHead({
+      total: 0,
+      winsA: 0,
+      winsB: 0,
+      singlesA: 0,
+      singlesB: 0,
+      doublesA: 0,
+      doublesB: 0,
+      lastMatch: null,
+      recentMatches: [],
+    })
+  }
+
   const playerA = useMemo(
     () => players.find((player) => player.id === playerAId) || null,
-    [players, playerAId]
+    [players, playerAId],
   )
-
+  const profilePlayer = useMemo(
+    () => players.find((player) => player.id === profileLink?.linked_player_id) || null,
+    [players, profileLink?.linked_player_id],
+  )
+  const needsProfileSetup = Boolean(user?.id) && access.canUseAdvancedPlayerInsights && !profilePlayer
   const playerB = useMemo(
     () => players.find((player) => player.id === playerBId) || null,
-    [players, playerBId]
+    [players, playerBId],
   )
+  const teamA1 = useMemo(
+    () => players.find((player) => player.id === teamA1Id) || null,
+    [players, teamA1Id],
+  )
+  const teamA2 = useMemo(
+    () => players.find((player) => player.id === teamA2Id) || null,
+    [players, teamA2Id],
+  )
+  const teamB1 = useMemo(
+    () => players.find((player) => player.id === teamB1Id) || null,
+    [players, teamB1Id],
+  )
+  const teamB2 = useMemo(
+    () => players.find((player) => player.id === teamB2Id) || null,
+    [players, teamB2Id],
+  )
+
+  const singlesSelected = !!playerA && !!playerB && playerAId !== playerBId
+  const doublesSelected =
+    !!teamA1 &&
+    !!teamA2 &&
+    !!teamB1 &&
+    !!teamB2 &&
+    areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+
+  const hasSinglesSelection = !!playerA && !!playerB && playerAId !== playerBId
+  const hasDoublesSelection =
+    !!teamA1 &&
+    !!teamA2 &&
+    !!teamB1 &&
+    !!teamB2 &&
+    areUniqueIds([teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+  const selectionCount =
+    matchType === 'singles'
+      ? [playerAId, playerBId].filter(Boolean).length
+      : [teamA1Id, teamA2Id, teamB1Id, teamB2Id].filter(Boolean).length
+  const selectionTarget = matchType === 'singles' ? 2 : 4
+  const selectionProgressText = `${selectionCount} of ${selectionTarget} slots selected`
+  const selectionGuidance =
+    matchType === 'singles'
+      ? 'Pick two players. Get the edge, the why, and the watch item.'
+      : 'Build both sides. The read updates once all four spots are set.'
+  const profileAlreadyInDoubles =
+    Boolean(profilePlayer) &&
+    [teamA1Id, teamA2Id, teamB1Id, teamB2Id].includes(profilePlayer?.id || '')
+  const doublesPreview = matchType === 'doubles'
+    ? [
+        {
+          label: 'Your side',
+          players: [teamA1, teamA2].filter(Boolean) as Player[],
+          rating:
+            teamA1 && teamA2
+              ? averageAvailable([getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')])
+              : null,
+        },
+        {
+          label: 'Other side',
+          players: [teamB1, teamB2].filter(Boolean) as Player[],
+          rating:
+            teamB1 && teamB2
+              ? averageAvailable([getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')])
+              : null,
+        },
+      ]
+    : []
+
+  const insufficientDataMessage = useMemo(() => {
+    if (matchType === 'singles') {
+      if (!hasSinglesSelection) return ''
+      const left = playerA ? getProjectionRating(playerA, getEngineRatingView(matchType)) : null
+      const right = playerB ? getProjectionRating(playerB, getEngineRatingView(matchType)) : null
+      if (!hasValidRating(left) || !hasValidRating(right)) {
+        return 'Not enough rating data to generate a projection for this singles matchup.'
+      }
+      return ''
+    }
+
+    if (!hasDoublesSelection) return ''
+
+    const ratings = [
+      teamA1 ? getProjectionRating(teamA1, 'doubles') : null,
+      teamA2 ? getProjectionRating(teamA2, 'doubles') : null,
+      teamB1 ? getProjectionRating(teamB1, 'doubles') : null,
+      teamB2 ? getProjectionRating(teamB2, 'doubles') : null,
+    ]
+
+    if (!ratings.every(hasValidRating)) {
+      return 'Not enough rating data to generate a projection for this doubles matchup.'
+    }
+
+    return ''
+  }, [matchType, hasSinglesSelection, hasDoublesSelection, playerA, playerB, teamA1, teamA2, teamB1, teamB2])
 
   const availablePlayersForA = useMemo(
     () => players.filter((player) => player.id !== playerBId),
-    [players, playerBId]
+    [players, playerBId],
   )
-
   const availablePlayersForB = useMemo(
     () => players.filter((player) => player.id !== playerAId),
-    [players, playerAId]
+    [players, playerAId],
   )
 
-  const playerARating = playerA ? getSelectedRating(playerA, ratingView) : null
-  const playerBRating = playerB ? getSelectedRating(playerB, ratingView) : null
+  const opponentSuggestions = useMemo(() => {
+    if (matchType !== 'singles' || !playerA || playerB) return []
+    const anchorRating = getSelectedRating(playerA, 'singles') ?? getSelectedRating(playerA, 'overall') ?? 0
 
-  const ratingGap =
-    playerARating !== null && playerBRating !== null
-      ? Math.abs(playerARating - playerBRating)
-      : null
+    return availablePlayersForB
+      .filter((player) => hasValidRating(getSelectedRating(player, 'singles')) || hasValidRating(getSelectedRating(player, 'overall')))
+      .sort((left, right) => {
+        const leftRating = getSelectedRating(left, 'singles') ?? getSelectedRating(left, 'overall') ?? 0
+        const rightRating = getSelectedRating(right, 'singles') ?? getSelectedRating(right, 'overall') ?? 0
+        const diff = Math.abs(leftRating - anchorRating) - Math.abs(rightRating - anchorRating)
+        if (diff !== 0) return diff
+        return left.name.localeCompare(right.name)
+      })
+      .slice(0, 6)
+  }, [availablePlayersForB, matchType, playerA, playerB])
 
-  const higherRatedLabel =
-    playerARating !== null && playerBRating !== null
-      ? playerARating === playerBRating
-        ? 'Even matchup'
-        : playerARating > playerBRating
-          ? `${playerA?.name} leads`
-          : `${playerB?.name} leads`
-      : ''
+  const selectedMatchupContext = useMemo(() => {
+    if (matchType === 'singles') {
+      return [
+        {
+          label: profilePlayer && playerA?.id === profilePlayer.id ? 'You' : 'Player A',
+          name: playerA?.name || 'Choose Player A',
+          rating: playerA ? getProjectionRating(playerA, getEngineRatingView(matchType)) : null,
+          selected: Boolean(playerA),
+        },
+        {
+          label: profilePlayer && playerB?.id === profilePlayer.id ? 'You' : 'Player B',
+          name: playerB?.name || 'Choose Player B',
+          rating: playerB ? getProjectionRating(playerB, getEngineRatingView(matchType)) : null,
+          selected: Boolean(playerB),
+        },
+      ]
+    }
+
+    return [
+      {
+        label: 'Your side',
+        name: [teamA1, teamA2].filter(Boolean).map((player) => player?.name).join(' / ') || 'Choose 2 players',
+        rating:
+          teamA1 && teamA2
+            ? averageAvailable([getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')])
+            : null,
+        selected: Boolean(teamA1 && teamA2),
+      },
+      {
+        label: 'Other side',
+        name: [teamB1, teamB2].filter(Boolean).map((player) => player?.name).join(' / ') || 'Choose 2 players',
+        rating:
+          teamB1 && teamB2
+            ? averageAvailable([getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')])
+            : null,
+        selected: Boolean(teamB1 && teamB2),
+      },
+    ]
+  }, [matchType, playerA, playerB, profilePlayer, teamA1, teamA2, teamB1, teamB2])
+
+  const availableTeamA1 = useMemo(
+    () => players.filter((player) => ![teamA2Id, teamB1Id, teamB2Id].includes(player.id)),
+    [players, teamA2Id, teamB1Id, teamB2Id],
+  )
+  const availableTeamA2 = useMemo(
+    () => players.filter((player) => ![teamA1Id, teamB1Id, teamB2Id].includes(player.id)),
+    [players, teamA1Id, teamB1Id, teamB2Id],
+  )
+  const availableTeamB1 = useMemo(
+    () => players.filter((player) => ![teamA1Id, teamA2Id, teamB2Id].includes(player.id)),
+    [players, teamA1Id, teamA2Id, teamB2Id],
+  )
+  const availableTeamB2 = useMemo(
+    () => players.filter((player) => ![teamA1Id, teamA2Id, teamB1Id].includes(player.id)),
+    [players, teamA1Id, teamA2Id, teamB1Id],
+  )
+
+  const comparison = useMemo<ComparisonState | null>(() => {
+    const engineRatingView = getEngineRatingView(matchType)
+
+    if (matchType === 'singles') {
+      if (!singlesSelected || !playerA || !playerB) return null
+
+      const left = getProjectionRating(playerA, engineRatingView)
+      const right = getProjectionRating(playerB, engineRatingView)
+
+      if (!hasValidRating(left) || !hasValidRating(right)) return null
+
+      const leftOverall = getSelectedRating(playerA, 'overall')
+      const leftSingles = getSelectedRating(playerA, 'singles')
+      const leftDoubles = getSelectedRating(playerA, 'doubles')
+      const rightOverall = getSelectedRating(playerB, 'overall')
+      const rightSingles = getSelectedRating(playerB, 'singles')
+      const rightDoubles = getSelectedRating(playerB, 'doubles')
+      const gap = Math.abs(left - right)
+
+      return {
+        leftLabel: playerA.name,
+        rightLabel: playerB.name,
+        leftLocation: playerA.location || 'No location set',
+        rightLocation: playerB.location || 'No location set',
+        leftRatings: {
+          overall: leftOverall,
+          singles: leftSingles,
+          doubles: leftDoubles,
+        },
+        rightRatings: {
+          overall: rightOverall,
+          singles: rightSingles,
+          doubles: rightDoubles,
+        },
+        leftUstaRatings: {
+          overall: playerA.overall_usta_dynamic_rating ?? null,
+          singles: playerA.singles_usta_dynamic_rating ?? null,
+          doubles: playerA.doubles_usta_dynamic_rating ?? null,
+        },
+        rightUstaRatings: {
+          overall: playerB.overall_usta_dynamic_rating ?? null,
+          singles: playerB.singles_usta_dynamic_rating ?? null,
+          doubles: playerB.doubles_usta_dynamic_rating ?? null,
+        },
+        leftSelected: left,
+        rightSelected: right,
+        gap,
+        higherRatedLabel:
+          left === right
+            ? 'Even matchup'
+            : left > right
+              ? `${playerA.name} leads`
+              : `${playerB.name} leads`,
+        favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
+        leftProfileHref: `/players/${playerA.id}`,
+        rightProfileHref: `/players/${playerB.id}`,
+        engineRatingView,
+      }
+    }
+
+    if (!doublesSelected || !teamA1 || !teamA2 || !teamB1 || !teamB2) return null
+
+    const teamAOverallRatings = [getSelectedRating(teamA1, 'overall'), getSelectedRating(teamA2, 'overall')]
+    const teamASinglesRatings = [getSelectedRating(teamA1, 'singles'), getSelectedRating(teamA2, 'singles')]
+    const teamADoublesRatings = [getSelectedRating(teamA1, 'doubles'), getSelectedRating(teamA2, 'doubles')]
+
+    const teamBOverallRatings = [getSelectedRating(teamB1, 'overall'), getSelectedRating(teamB2, 'overall')]
+    const teamBSinglesRatings = [getSelectedRating(teamB1, 'singles'), getSelectedRating(teamB2, 'singles')]
+    const teamBDoublesRatings = [getSelectedRating(teamB1, 'doubles'), getSelectedRating(teamB2, 'doubles')]
+
+    const leftEngineRatings = [getProjectionRating(teamA1, 'doubles'), getProjectionRating(teamA2, 'doubles')]
+    const rightEngineRatings = [getProjectionRating(teamB1, 'doubles'), getProjectionRating(teamB2, 'doubles')]
+
+    if (
+      !leftEngineRatings.every(hasValidRating) ||
+      !rightEngineRatings.every(hasValidRating)
+    ) {
+      return null
+    }
+
+    const teamALabel = `${teamA1.name} / ${teamA2.name}`
+    const teamBLabel = `${teamB1.name} / ${teamB2.name}`
+
+    const teamARatings = {
+      overall: teamAOverallRatings.every(hasValidRating) ? average(teamAOverallRatings) : null,
+      singles: teamASinglesRatings.every(hasValidRating) ? average(teamASinglesRatings) : null,
+      doubles: teamADoublesRatings.every(hasValidRating) ? average(teamADoublesRatings) : null,
+    }
+
+    const teamBRatings = {
+      overall: teamBOverallRatings.every(hasValidRating) ? average(teamBOverallRatings) : null,
+      singles: teamBSinglesRatings.every(hasValidRating) ? average(teamBSinglesRatings) : null,
+      doubles: teamBDoublesRatings.every(hasValidRating) ? average(teamBDoublesRatings) : null,
+    }
+
+    const left = average(leftEngineRatings)
+    const right = average(rightEngineRatings)
+    const gap = Math.abs(left - right)
+
+    return {
+      leftLabel: teamALabel,
+      rightLabel: teamBLabel,
+      leftLocation: 'Your side',
+      rightLocation: 'Other side',
+      leftRatings: teamARatings,
+      rightRatings: teamBRatings,
+      leftUstaRatings: {
+        overall: [teamA1.overall_usta_dynamic_rating ?? null, teamA2.overall_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.overall_usta_dynamic_rating!, teamA2.overall_usta_dynamic_rating!]) : null,
+        singles: [teamA1.singles_usta_dynamic_rating ?? null, teamA2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.singles_usta_dynamic_rating!, teamA2.singles_usta_dynamic_rating!]) : null,
+        doubles: [teamA1.doubles_usta_dynamic_rating ?? null, teamA2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamA1.doubles_usta_dynamic_rating!, teamA2.doubles_usta_dynamic_rating!]) : null,
+      },
+      rightUstaRatings: {
+        overall: [teamB1.overall_usta_dynamic_rating ?? null, teamB2.overall_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.overall_usta_dynamic_rating!, teamB2.overall_usta_dynamic_rating!]) : null,
+        singles: [teamB1.singles_usta_dynamic_rating ?? null, teamB2.singles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.singles_usta_dynamic_rating!, teamB2.singles_usta_dynamic_rating!]) : null,
+        doubles: [teamB1.doubles_usta_dynamic_rating ?? null, teamB2.doubles_usta_dynamic_rating ?? null].every(hasValidRating) ? average([teamB1.doubles_usta_dynamic_rating!, teamB2.doubles_usta_dynamic_rating!]) : null,
+      },
+      leftSelected: left,
+      rightSelected: right,
+      gap,
+      higherRatedLabel:
+        left === right
+          ? 'Even matchup'
+          : left > right
+            ? `${teamALabel} leads`
+            : `${teamBLabel} leads`,
+      favoredSide: left === right ? 'even' : left > right ? 'left' : 'right',
+      leftProfileHref: null,
+      rightProfileHref: null,
+      engineRatingView,
+    }
+  }, [matchType, singlesSelected, doublesSelected, playerA, playerB, teamA1, teamA2, teamB1, teamB2])
+
+  const displayGap = useMemo(() => {
+    if (!comparison) return null
+
+    const left =
+      ratingView === 'overall'
+        ? comparison.leftRatings.overall
+        : ratingView === 'singles'
+          ? comparison.leftRatings.singles
+          : comparison.leftRatings.doubles
+    const right =
+      ratingView === 'overall'
+        ? comparison.rightRatings.overall
+        : ratingView === 'singles'
+          ? comparison.rightRatings.singles
+          : comparison.rightRatings.doubles
+
+    if (!hasValidRating(left) || !hasValidRating(right)) return null
+    return Math.abs(left - right)
+  }, [comparison, ratingView])
+
+  const displayHigherRatedLabel = useMemo(() => {
+    if (!comparison) return ''
+    const left =
+      ratingView === 'overall'
+        ? comparison.leftRatings.overall
+        : ratingView === 'singles'
+          ? comparison.leftRatings.singles
+          : comparison.leftRatings.doubles
+    const right =
+      ratingView === 'overall'
+        ? comparison.rightRatings.overall
+        : ratingView === 'singles'
+          ? comparison.rightRatings.singles
+          : comparison.rightRatings.doubles
+
+    if (!hasValidRating(left) || !hasValidRating(right)) return 'Insufficient rating data'
+    if (left === right) return 'Even matchup'
+    return left > right ? `${comparison.leftLabel} leads` : `${comparison.rightLabel} leads`
+  }, [comparison, ratingView])
+
+  const projection = useMemo<ProjectionState | null>(() => {
+    if (!comparison) return null
+
+    const leftWinProbability = expectedScore(comparison.leftSelected, comparison.rightSelected)
+    const rightWinProbability = 1 - leftWinProbability
+    const favoriteProbability = Math.max(leftWinProbability, rightWinProbability)
+    const underdogProbability = Math.min(leftWinProbability, rightWinProbability)
+
+    const favoriteLabel =
+      leftWinProbability >= rightWinProbability ? comparison.leftLabel : comparison.rightLabel
+    const underdogLabel =
+      favoriteLabel === comparison.leftLabel ? comparison.rightLabel : comparison.leftLabel
+
+    const likelyWinner = leftWinProbability === rightWinProbability ? 'Even' : favoriteLabel
+
+    return {
+      leftWinProbability,
+      rightWinProbability,
+      likelyWinner,
+      confidenceLabel: getConfidenceLabel(favoriteProbability),
+      upsetIndicator: getUpsetIndicator(favoriteProbability),
+      expectedOutcome: getExpectedOutcomeText(favoriteProbability, favoriteLabel, underdogLabel),
+      ratingDiffText: `${formatRating(comparison.gap)} pts`,
+      favoriteEdgeText: `${formatPercent(favoriteProbability)} vs ${formatPercent(underdogProbability)}`,
+      favoriteLabel,
+      underdogLabel,
+      matchTier: getMatchTier(favoriteProbability),
+      isSwingMatch: isSwingMatch(favoriteProbability),
+      captainInsight: getCaptainInsight(favoriteProbability, favoriteLabel, underdogLabel),
+      swapImpactHint: getSwapImpactHint(favoriteProbability, comparison.gap),
+    }
+  }, [comparison])
+
+  const handoffState = useMemo(() => {
+    if (selectionCount === 0) return null
+    const missing = Math.max(selectionTarget - selectionCount, 0)
+    if (comparison) {
+      return {
+        title: 'Matchup ready',
+        body: projection?.expectedOutcome || 'The read is ready below.',
+        status: 'Ready',
+      }
+    }
+    return {
+      title: 'Context loaded',
+      body:
+        matchType === 'singles'
+          ? missing === 1
+            ? 'Choose the other player to unlock the edge.'
+            : 'Choose two players to unlock the edge.'
+          : missing === 1
+            ? 'Add the final doubles slot to unlock the read.'
+            : `Add ${missing} doubles slots to unlock the read.`,
+      status: `${selectionCount}/${selectionTarget}`,
+    }
+  }, [comparison, matchType, projection?.expectedOutcome, selectionCount, selectionTarget])
+
+  const dynamicHeroWrap: CSSProperties = {
+    ...heroWrap,
+    padding: isMobile ? '12px 16px 18px' : '8px 18px 18px',
+  }
+
+  const dynamicHeroShell: CSSProperties = {
+    ...heroShell,
+    padding: isMobile ? '18px 18px 16px' : '24px 28px 20px',
+  }
+
+  const dynamicHeroContent: CSSProperties = {
+    ...heroContent,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(280px, 0.8fr)',
+    gap: isMobile ? '14px' : '20px',
+  }
+
+  const dynamicHeroTitle: CSSProperties = {
+    ...heroTitle,
+    fontSize: isSmallMobile ? '32px' : isMobile ? '40px' : '48px',
+    lineHeight: isMobile ? 1.05 : 1,
+    maxWidth: '620px',
+  }
+
+  const dynamicHeroText: CSSProperties = {
+    ...heroText,
+    fontSize: isMobile ? '16px' : '18px',
+    maxWidth: '560px',
+  }
+
+  const dynamicEngineCard: CSSProperties = {
+    ...engineCard,
+    display: isMobile ? 'none' : 'block',
+    position: isTablet ? 'relative' : 'sticky',
+    top: isTablet ? 'auto' : '24px',
+  }
+
+  const dynamicToolbarTop: CSSProperties = {
+    ...toolbarTop,
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
+  }
+
+  const dynamicSelectorGrid: CSSProperties = {
+    ...selectorGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : matchType === 'singles'
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(2, minmax(0, 1fr))',
+  }
+
+  const dynamicCompareGrid: CSSProperties = {
+    ...compareGrid,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) 220px minmax(0, 1fr)',
+  }
+
+  const dynamicCenterColumn: CSSProperties = {
+    ...centerColumn,
+    order: isTablet ? -1 : 0,
+  }
+
+  const dynamicRatingGrid: CSSProperties = {
+    ...ratingGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicMetricGrid: CSSProperties = {
+    ...metricGrid,
+    gridTemplateColumns: isSmallMobile
+      ? '1fr'
+      : isMobile
+        ? 'repeat(2, minmax(0, 1fr))'
+        : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicDecisionBanner: CSSProperties = {
+    ...decisionBanner,
+    flexDirection: isMobile ? 'column' : 'row',
+    alignItems: isMobile ? 'flex-start' : 'center',
+  }
+
+  const dynamicDecisionRight: CSSProperties = {
+    ...decisionRight,
+    alignItems: isMobile ? 'flex-start' : 'flex-end',
+    width: isMobile ? '100%' : 'auto',
+  }
 
   return (
-    <main style={mainStyle}>
-      <div style={navRowStyle}>
-        <Link href="/" style={navLinkStyle}>Home</Link>
-        <Link href="/rankings" style={navLinkStyle}>Rankings</Link>
-        <Link href="/add-match" style={navLinkStyle}>Add Match</Link>
-        <Link href="/csv-import" style={navLinkStyle}>CSV Import</Link>
-        <Link href="/paste-results" style={navLinkStyle}>Paste Results</Link>
-        <Link href="/matchup" style={navLinkStyle}>Matchup</Link>
-        <Link href="/manage-matches" style={navLinkStyle}>Manage Matches</Link>
-        <Link href="/manage-players" style={navLinkStyle}>Manage Players</Link>
-      </div>
+    <SiteShell active="/matchup">
+      <section style={dynamicHeroWrap}>
+        <div style={dynamicHeroShell}>
+          <div style={heroNoise} />
 
-      <div style={heroCardStyle}>
-        <h1 style={{ margin: 0, fontSize: '36px' }}>Matchup Comparison</h1>
-        <p style={{ margin: '12px 0 0 0', color: '#dbeafe', fontSize: '17px', maxWidth: '760px' }}>
-          Compare two players across overall, singles, or doubles dynamic ratings.
-        </p>
-      </div>
+          <div style={dynamicHeroContent}>
+            <div style={heroLeft}>
+              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="lg" variant="surface" />
+              <div style={eyebrow}>{MATCHUP_STORY.eyebrow}</div>
+              <h1 style={dynamicHeroTitle}>{MATCHUP_STORY.headline}</h1>
+              <p style={dynamicHeroText}>
+                {MATCHUP_STORY.body}
+              </p>
 
-      <div style={cardStyle}>
-        <div style={toolbarStyle}>
-          <div style={selectGridStyle}>
-            <div>
-              <label style={labelStyle}>Player A</label>
-              <select
-                value={playerAId}
-                onChange={(e) => setPlayerAId(e.target.value)}
-                style={inputStyle}
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availablePlayersForA.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
+              <div style={heroHintRow}>
+                <span style={heroHintPill}>{capitalize(matchType)} mode</span>
+                <CopyLinkButton />
+              </div>
+              {profilePlayer ? (
+                <div style={profileContextCalloutStyle}>
+                  <strong>{profilePlayer.name} is loaded from your profile.</strong>
+                  <span>Choose an opponent to turn your My Lab read into a matchup.</span>
+                </div>
+              ) : user?.id ? (
+                <div style={profileContextCalloutStyle}>
+                  <strong>Matchup can start with you automatically.</strong>
+                  <span>Set your player identity once in Profile, then this page opens with you in Player A.</span>
+                  <Link href="/profile" style={profileContextLinkStyle}>Manage profile</Link>
+                </div>
+              ) : null}
+
             </div>
 
-            <div>
-              <label style={labelStyle}>Player B</label>
-              <select
-                value={playerBId}
-                onChange={(e) => setPlayerBId(e.target.value)}
-                style={inputStyle}
-                disabled={loading}
-              >
-                <option value="">Select player</option>
-                {availablePlayersForB.map((player) => (
-                  <option key={player.id} value={player.id}>
-                    {player.name}
-                  </option>
-                ))}
-              </select>
+            <div style={dynamicEngineCard}>
+              <TiqFeatureIcon name="matchPrep" size="md" variant="ghost" />
+              <div style={engineLabel}>Projection engine</div>
+              <div style={engineValue}>{capitalize(getEngineRatingView(matchType))}</div>
+              <div style={engineText}>
+                The result starts with the court-specific rating and falls back to overall when
+                doubles history is still thin.
+              </div>
             </div>
-          </div>
-
-          <div style={segmentContainerStyle}>
-            <button
-              onClick={() => setRatingView('overall')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'overall' ? activeSegmentButtonStyle : {}),
-              }}
-            >
-              Overall
-            </button>
-            <button
-              onClick={() => setRatingView('singles')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'singles' ? activeSegmentButtonStyle : {}),
-              }}
-            >
-              Singles
-            </button>
-            <button
-              onClick={() => setRatingView('doubles')}
-              style={{
-                ...segmentButtonStyle,
-                ...(ratingView === 'doubles' ? activeSegmentButtonStyle : {}),
-              }}
-            >
-              Doubles
-            </button>
           </div>
         </div>
+      </section>
 
-        {error && (
-          <div style={errorBoxStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>{error}</p>
-          </div>
-        )}
-
-        {loading ? (
-          <div style={{ marginTop: '18px', color: '#64748b' }}>Loading players...</div>
-        ) : !playerA || !playerB ? (
-          <div style={emptyStateStyle}>
-            Select two different players to compare their {ratingView} ratings.
-          </div>
-        ) : (
-          <>
-            <div style={comparisonGridStyle}>
-              <div style={playerCardStyle}>
-                <div style={playerCardHeaderStyle}>
-                  <div>
-                    <div style={playerNameStyle}>{playerA.name}</div>
-                    <div style={playerMetaStyle}>{playerA.location || 'No location set'}</div>
-                  </div>
-
-                  <Link href={`/players/${playerA.id}`} style={profileLinkStyle}>
-                    View Profile
-                  </Link>
-                </div>
-
-                <div style={ratingGridStyle}>
-                  <RatingPill
-                    label="Overall"
-                    value={getSelectedRating(playerA, 'overall')}
-                    active={ratingView === 'overall'}
-                  />
-                  <RatingPill
-                    label="Singles"
-                    value={getSelectedRating(playerA, 'singles')}
-                    active={ratingView === 'singles'}
-                  />
-                  <RatingPill
-                    label="Doubles"
-                    value={getSelectedRating(playerA, 'doubles')}
-                    active={ratingView === 'doubles'}
-                  />
-                </div>
-
-                <div style={highlightBoxStyle}>
-                  <div style={highlightLabelStyle}>Selected Rating</div>
-                  <div style={highlightValueStyle}>
-                    {formatRating(getSelectedRating(playerA, ratingView))}
-                  </div>
-                </div>
+      <section style={contentWrap}>
+        <article style={controlsCard}>
+          <div style={toolHeaderStyle}>
+            <div style={toolHeaderTitleClusterStyle}>
+              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="md" variant="surface" />
+              <div>
+                <div style={toolHeaderKickerStyle}>Build the matchup</div>
+                <h2 style={toolHeaderTitleStyle}>
+                  {matchType === 'doubles' ? 'Choose both sides.' : 'Choose two players.'}
+                </h2>
               </div>
+            </div>
+            <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div>
+          </div>
 
-              <div style={centerComparisonCardStyle}>
-                <div style={vsBadgeStyle}>VS</div>
-
-                <div style={gapCardStyle}>
-                  <div style={gapLabelStyle}>{capitalize(ratingView)} Rating Gap</div>
-                  <div style={gapValueStyle}>
-                    {ratingGap !== null ? formatRating(ratingGap) : '—'}
-                  </div>
-                  <div style={gapMetaStyle}>{higherRatedLabel}</div>
-                </div>
+          {needsProfileSetup ? (
+            <article style={identitySetupStripStyle}>
+              <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
+              <div style={identitySetupCopyStyle}>
+                <div style={identitySetupKickerStyle}>Finish personalization</div>
+                <h3 style={identitySetupTitleStyle}>Connect your player record before running your own matchups.</h3>
+                <p style={identitySetupTextStyle}>
+                  You can still explore any players here, but linking your identity lets Matchup start with you and lets My Lab save the read back to your game.
+                </p>
               </div>
+              <Link href="/profile" style={identitySetupButtonStyle}>Finish profile</Link>
+            </article>
+          ) : null}
 
-              <div style={playerCardStyle}>
-                <div style={playerCardHeaderStyle}>
-                  <div>
-                    <div style={playerNameStyle}>{playerB.name}</div>
-                    <div style={playerMetaStyle}>{playerB.location || 'No location set'}</div>
-                  </div>
-
-                  <Link href={`/players/${playerB.id}`} style={profileLinkStyle}>
-                    View Profile
-                  </Link>
-                </div>
-
-                <div style={ratingGridStyle}>
-                  <RatingPill
-                    label="Overall"
-                    value={getSelectedRating(playerB, 'overall')}
-                    active={ratingView === 'overall'}
-                  />
-                  <RatingPill
-                    label="Singles"
-                    value={getSelectedRating(playerB, 'singles')}
-                    active={ratingView === 'singles'}
-                  />
-                  <RatingPill
-                    label="Doubles"
-                    value={getSelectedRating(playerB, 'doubles')}
-                    active={ratingView === 'doubles'}
-                  />
-                </div>
-
-                <div style={highlightBoxStyle}>
-                  <div style={highlightLabelStyle}>Selected Rating</div>
-                  <div style={highlightValueStyle}>
-                    {formatRating(getSelectedRating(playerB, ratingView))}
-                  </div>
-                </div>
+          <div style={dynamicToolbarTop}>
+            <div style={toggleStack}>
+              <div style={toggleLabel}>Match type</div>
+              <div style={toggleGroup}>
+                <button
+                  onClick={() => {
+                    setMatchType('singles')
+                    setRatingView('singles')
+                  }}
+                  style={{
+                    ...toggleButton,
+                    ...(matchType === 'singles' ? toggleButtonGreen : {}),
+                  }}
+                >
+                  Singles
+                </button>
+                <button
+                  onClick={() => {
+                    setMatchType('doubles')
+                    setRatingView('doubles')
+                  }}
+                  style={{
+                    ...toggleButton,
+                    ...(matchType === 'doubles' ? toggleButtonGreen : {}),
+                  }}
+                >
+                  Doubles
+                </button>
               </div>
             </div>
 
-            <div style={summaryCardStyle}>
-              <h2 style={{ marginTop: 0 }}>Quick Read</h2>
-              <p style={{ margin: 0, color: '#334155', lineHeight: 1.6 }}>
-                In <strong>{ratingView}</strong>,{' '}
-                {playerARating === playerBRating
-                  ? `${playerA.name} and ${playerB.name} are currently even at ${formatRating(playerARating!)}.`
-                  : playerARating! > playerBRating!
-                    ? `${playerA.name} leads ${playerB.name} by ${formatRating(ratingGap!)} points.`
-                    : `${playerB.name} leads ${playerA.name} by ${formatRating(ratingGap!)} points.`}
-              </p>
+            <div style={toggleStack}>
+              <div style={toggleLabel}>Display ratings</div>
+              <div style={toggleGroup}>
+                <button
+                  onClick={() => setRatingView('overall')}
+                  style={{
+                    ...toggleButton,
+                    ...(ratingView === 'overall' ? toggleButtonBlue : {}),
+                  }}
+                >
+                  Overall
+                </button>
+                <button
+                  onClick={() => setRatingView('singles')}
+                  style={{
+                    ...toggleButton,
+                    ...(ratingView === 'singles' ? toggleButtonBlue : {}),
+                  }}
+                >
+                  Singles
+                </button>
+                <button
+                  onClick={() => setRatingView('doubles')}
+                  style={{
+                    ...toggleButton,
+                    ...(ratingView === 'doubles' ? toggleButtonBlue : {}),
+                  }}
+                >
+                  Doubles
+                </button>
+              </div>
             </div>
-          </>
-        )}
+
+            <div style={selectionProgressCard}>
+              <TiqFeatureIcon name="scenarioBuilder" size="sm" variant="ghost" />
+              <div style={selectionProgressLabel}>Setup</div>
+              <div style={selectionProgressValue}>{selectionProgressText}</div>
+              <div style={selectionProgressTextStyle}>{selectionGuidance}</div>
+            </div>
+          </div>
+
+          {handoffState ? (
+            <article style={handoffCardStyle}>
+              <div style={handoffHeaderStyle}>
+                <div style={handoffTitleClusterStyle}>
+                  <TiqFeatureIcon name="matchupAnalysis" size="sm" variant="surface" />
+                  <div>
+                    <div style={handoffKickerStyle}>{handoffState.status}</div>
+                    <h3 style={handoffTitleStyle}>{handoffState.title}</h3>
+                  </div>
+                </div>
+                <p style={handoffTextStyle}>{handoffState.body}</p>
+              </div>
+              <div style={handoffSidesGridStyle}>
+                {selectedMatchupContext.map((side) => (
+                  <div
+                    key={side.label}
+                    style={{
+                      ...handoffSideCardStyle,
+                      ...(side.selected ? handoffSideCardActiveStyle : {}),
+                    }}
+                  >
+                    <span style={handoffSideLabelStyle}>{side.label}</span>
+                    <strong style={handoffSideNameStyle}>{side.name}</strong>
+                    <span style={handoffSideMetaStyle}>
+                      {side.rating === null ? 'Rating pending' : `TIQ ${formatRating(side.rating)}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ) : null}
+
+          {matchType === 'singles' ? (
+            <div style={dynamicSelectorGrid}>
+              <SelectField
+                label="Player A"
+                value={playerAId}
+                onChange={setPlayerAId}
+                options={availablePlayersForA}
+                disabled={loading}
+              />
+              <SelectField
+                label="Player B"
+                value={playerBId}
+                onChange={setPlayerBId}
+                options={availablePlayersForB}
+                disabled={loading}
+              />
+            </div>
+          ) : (
+            <>
+              {profilePlayer && !profileAlreadyInDoubles ? (
+                <div style={doublesQuickStartStyle}>
+                  <div style={doublesQuickStartTextStyle}>
+                    <strong>Start doubles with {profilePlayer.name}</strong>
+                    <span>Put your profile on Your side, then add a partner and opponents.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTeamA1Id(profilePlayer.id)}
+                    style={quickStartButtonStyle}
+                  >
+                    Start with me
+                  </button>
+                </div>
+              ) : null}
+              <div style={dynamicSelectorGrid}>
+                <SelectField
+                  label="Your side - Player 1"
+                  value={teamA1Id}
+                  onChange={setTeamA1Id}
+                  options={availableTeamA1}
+                  disabled={loading}
+                />
+                <SelectField
+                  label="Your side - Player 2"
+                  value={teamA2Id}
+                  onChange={setTeamA2Id}
+                  options={availableTeamA2}
+                  disabled={loading}
+                />
+                <SelectField
+                  label="Other side - Player 1"
+                  value={teamB1Id}
+                  onChange={setTeamB1Id}
+                  options={availableTeamB1}
+                  disabled={loading}
+                />
+                <SelectField
+                  label="Other side - Player 2"
+                  value={teamB2Id}
+                  onChange={setTeamB2Id}
+                  options={availableTeamB2}
+                  disabled={loading}
+                />
+              </div>
+              <div style={doublesPreviewGridStyle}>
+                {doublesPreview.map((side) => (
+                  <div key={side.label} style={doublesPreviewCardStyle}>
+                    <span style={doublesPreviewLabelStyle}>{side.label}</span>
+                    <strong style={doublesPreviewNamesStyle}>{side.players.length ? side.players.map((player) => player.name).join(' / ') : 'Choose 2 players'}</strong>
+                    <em style={doublesPreviewMetaStyle}>{side.rating === null ? 'Rating appears when side is set' : `Projected ${formatRating(side.rating)}`}</em>
+                  </div>
+                ))}
+              </div>
+              {(teamA1Id || teamA2Id || teamB1Id || teamB2Id) ? (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
+                  <SwapSidesButton
+                    onClick={() => {
+                      const [a1, a2, b1, b2] = [teamA1Id, teamA2Id, teamB1Id, teamB2Id]
+                      setTeamA1Id(b1)
+                      setTeamA2Id(b2)
+                      setTeamB1Id(a1)
+                      setTeamB2Id(a2)
+                    }}
+                  />
+                </div>
+              ) : null}
+            </>
+          )}
+
+          {matchType === 'singles' && playerA && !playerB ? (
+            <article style={prefillPromptCard}>
+              <div>
+                <div style={prefillPromptKicker}>Matchup is ready for one more player</div>
+                <h2 style={prefillPromptTitle}>Choose an opponent for {playerA.name}</h2>
+                <p style={prefillPromptText}>
+                  Pick Player B to get the edge, the why, and what to watch.
+                </p>
+              </div>
+
+              {opponentSuggestions.length ? (
+                <div style={suggestionGrid}>
+                  {opponentSuggestions.map((player) => (
+                    <button
+                      key={player.id}
+                      type="button"
+                      onClick={() => setPlayerBId(player.id)}
+                      style={suggestionButton}
+                    >
+                      <span style={suggestionName}>{player.name}</span>
+                      <span style={suggestionMeta}>
+                        S {formatRating(getSelectedRating(player, 'singles'))} · O {formatRating(getSelectedRating(player, 'overall'))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p style={prefillPromptText}>Use the Player B selector above to finish the matchup.</p>
+              )}
+            </article>
+          ) : null}
+
+          <div style={exploreNavRow}>
+            <span style={exploreNavLabelStyle}>Need context?</span>
+            <Link href="/explore/players" style={exploreNavLink}>Players</Link>
+            <Link href="/explore/rankings" style={exploreNavLink}>Rankings</Link>
+            <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
+          </div>
+
+          {!access.canUseAdvancedPlayerInsights ? (
+            <div style={{ marginBottom: 16 }}>
+              <UpgradePrompt
+                planId="player_plus"
+                compact
+                headline={MATCHUP_STORY.upgradeHeadline}
+                body={MATCHUP_STORY.upgradeBody}
+                ctaLabel={MATCHUP_STORY.upgradeCta}
+                secondaryLabel={MATCHUP_STORY.upgradeSecondary}
+                footnote={MATCHUP_STORY.upgradeFootnote}
+              />
+            </div>
+          ) : null}
+
+          {error ? (
+            <div style={errorBanner}>
+              <div>{error}</div>
+              <div style={{ marginTop: 12 }}>
+                <button type="button" onClick={() => void loadPlayers()} style={retryButtonStyle}>
+                  Retry matchup load
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {loading ? (
+            <div style={emptyState}>Loading players...</div>
+          ) : !comparison ? (
+            <div style={emptyState}>
+              <div style={emptyStateTitle}>Build the matchup first</div>
+              <div style={emptyStateText}>
+                {insufficientDataMessage ||
+                  (matchType === 'singles'
+                    ? profilePlayer
+                      ? `${profilePlayer.name} is already in Player A. Choose Player B to compare.`
+                      : 'Select two different players to compare.'
+                    : 'Select four different players to compare doubles teams.')}
+              </div>
+              <div style={emptyStateHint}>
+                {matchType === 'singles' && profilePlayer
+                  ? 'Tip: use this from My Lab when you want a quick read on who to play next, then save the takeaway in your goals or notes.'
+                  : matchType === 'doubles'
+                    ? 'Tip: start with your likely partner on Your side, then test opponent pairings before court time.'
+                    : 'Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.'}
+              </div>
+              <button
+                type="button"
+                style={resetButton}
+                onClick={() => {
+                  setPlayerAId('')
+                  setPlayerBId('')
+                  setTeamA1Id('')
+                  setTeamA2Id('')
+                  setTeamB1Id('')
+                  setTeamB2Id('')
+                  setHeadToHead(null)
+                }}
+              >
+                Reset selections
+              </button>
+            </div>
+          ) : (
+            <>
+              {projection ? (
+                <div style={dynamicDecisionBanner}>
+                  <div>
+                    <div style={decisionLabel}>Matchup edge</div>
+                    <div style={decisionWinner}>{projection.likelyWinner}</div>
+                    <div style={decisionSub}>
+                      {projection.favoriteEdgeText} · {projection.confidenceLabel} confidence
+                    </div>
+                  </div>
+
+                  <div style={dynamicDecisionRight}>
+                    <div style={decisionPill}>{projection.upsetIndicator}</div>
+
+                    <div style={decisionCtaRow}>
+                      <Link href="/captain/lineup-builder" style={ctaPrimary}>
+                        Build lineup
+                      </Link>
+                      <Link href="/captain/messaging" style={ctaSecondary}>
+                        Send to team
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {projection ? (
+                <div style={prepReadGrid}>
+                  <div style={prepReadCardAccent}>
+                    <div style={prepReadLabel}>Who has the edge?</div>
+                    <div style={prepReadValue}>{projection.likelyWinner}</div>
+                    <div style={prepReadText}>{projection.favoriteEdgeText} with {projection.confidenceLabel.toLowerCase()} confidence.</div>
+                  </div>
+                  <div style={prepReadCard}>
+                    <div style={prepReadLabel}>Why?</div>
+                    <div style={prepReadValue}>{projection.ratingDiffText}</div>
+                    <div style={prepReadText}>{projection.expectedOutcome}</div>
+                  </div>
+                  <div style={prepReadCard}>
+                    <div style={prepReadLabel}>What to watch?</div>
+                    <div style={prepReadValue}>{projection.matchTier}</div>
+                    <div style={prepReadText}>{projection.swapImpactHint}</div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div style={dynamicCompareGrid}>
+                <CompareCard
+                  title={comparison.leftLabel}
+                  subtitle={comparison.leftLocation}
+                  ratings={comparison.leftRatings}
+                  ustaRatings={comparison.leftUstaRatings}
+                  projectionRating={comparison.leftSelected}
+                  ratingView={ratingView}
+                  projectionView={comparison.engineRatingView}
+                  profileHref={comparison.leftProfileHref}
+                  favored={comparison.favoredSide === 'left'}
+                  dynamicRatingGrid={dynamicRatingGrid}
+                />
+
+                <div style={dynamicCenterColumn}>
+                  <div style={vsBadge}>VS</div>
+
+                  <div style={gapCard}>
+                    <div style={gapLabel}>{capitalize(ratingView)} rating gap</div>
+                    <div style={gapValue}>{formatRating(displayGap)}</div>
+                    <div style={gapMeta}>{displayHigherRatedLabel}</div>
+                  </div>
+                </div>
+
+                <CompareCard
+                  title={comparison.rightLabel}
+                  subtitle={comparison.rightLocation}
+                  ratings={comparison.rightRatings}
+                  ustaRatings={comparison.rightUstaRatings}
+                  projectionRating={comparison.rightSelected}
+                  ratingView={ratingView}
+                  projectionView={comparison.engineRatingView}
+                  profileHref={comparison.rightProfileHref}
+                  favored={comparison.favoredSide === 'right'}
+                  dynamicRatingGrid={dynamicRatingGrid}
+                />
+              </div>
+
+              {(formScores.left !== null || formScores.right !== null) ? (
+                <div style={formCompareRow}>
+                  <div style={formCompareCell}>
+                    <div style={formCellLabel}>{comparison.leftLabel}</div>
+                    <div style={formCellValue(formScores.left)}>
+                      {formScores.left !== null
+                        ? `${formScores.left > 0 ? '+' : ''}${formScores.left.toFixed(2)} form`
+                        : '—'}
+                    </div>
+                    <div style={formCellMeta}>Last 5 rating delta</div>
+                  </div>
+
+                  <div style={formCompareDivider}>
+                    <div style={formCompareLabel}>Form comparison</div>
+                  </div>
+
+                  <div style={formCompareCell}>
+                    <div style={formCellLabel}>{comparison.rightLabel}</div>
+                    <div style={formCellValue(formScores.right)}>
+                      {formScores.right !== null
+                        ? `${formScores.right > 0 ? '+' : ''}${formScores.right.toFixed(2)} form`
+                        : '—'}
+                    </div>
+                    <div style={formCellMeta}>Last 5 rating delta</div>
+                  </div>
+                </div>
+              ) : null}
+
+              {trajectories.left.length >= 3 && trajectories.right.length >= 3 ? (
+                <div style={{ marginTop: 12, padding: '16px 18px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 12 }}>Rating trajectory comparison</div>
+                  <DualTrajectoryChart
+                    leftPoints={trajectories.left}
+                    rightPoints={trajectories.right}
+                    leftLabel={comparison?.leftLabel ?? 'Player A'}
+                    rightLabel={comparison?.rightLabel ?? 'Player B'}
+                  />
+                </div>
+              ) : null}
+
+              {projection ? (
+                <article style={summaryCard}>
+                  <h2 style={projectionSectionTitle}>Supporting probabilities</h2>
+
+                  <div style={dynamicMetricGrid}>
+                    <MetricCard
+                      label={`${comparison.leftLabel} win probability`}
+                      value={formatPercent(projection.leftWinProbability)}
+                    />
+                    <MetricCard
+                      label={`${comparison.rightLabel} win probability`}
+                      value={formatPercent(projection.rightWinProbability)}
+                    />
+                    <MetricCard label="Projection gap" value={projection.ratingDiffText} />
+                  </div>
+
+                  <div style={calloutCard}>
+                    <div>
+                      <div style={calloutTitle}>{projection.expectedOutcome}</div>
+                      <div style={calloutSub}>
+                        Favorite: <strong>{projection.favoriteLabel}</strong> · Underdog:{' '}
+                        <strong>{projection.underdogLabel}</strong>
+                      </div>
+                    </div>
+
+                    <div style={upsetPill}>{projection.upsetIndicator}</div>
+                  </div>
+
+                  <div style={recommendationCard}>
+                    <div style={recommendationTitle}>Use it this way</div>
+                    <div style={intelligenceTierRow}>
+                      <span style={intelligenceTierPill}>{projection.matchTier}</span>
+                      {projection.isSwingMatch ? (
+                        <span style={intelligenceWarningPill}>Swing court</span>
+                      ) : null}
+                    </div>
+                    <div style={recommendationTextStyle}>{projection.captainInsight}</div>
+                    <div style={intelligenceHintBox}>
+                      <div style={intelligenceHintLabel}>Swap impact</div>
+                      <div style={intelligenceHintText}>{projection.swapImpactHint}</div>
+                    </div>
+                  </div>
+                </article>
+              ) : null}
+
+              <article style={summaryCard}>
+                <div style={summaryHead}>
+                  <h2 style={sectionTitle}>Confidence check</h2>
+                  <div style={metaNote}>Based on recent {matchType} matches</div>
+                </div>
+
+                {accuracyLoading ? (
+                  <p style={paragraph}>Calculating accuracy...</p>
+                ) : accuracy.sampleSize === 0 ? (
+                  <p style={paragraph}>Not enough history yet.</p>
+                ) : (
+                  <>
+                    <div style={dynamicMetricGrid}>
+                      <MetricCard label="Overall" value={formatNullablePercent(accuracy.overall)} />
+                      <MetricCard
+                        label="High confidence"
+                        value={formatNullablePercent(accuracy.high)}
+                      />
+                      <MetricCard
+                        label="Medium confidence"
+                        value={formatNullablePercent(accuracy.medium)}
+                      />
+                      <MetricCard label="Low confidence" value={formatNullablePercent(accuracy.low)} />
+                    </div>
+
+                    <p style={{ ...paragraph, marginTop: '16px' }}>
+                      Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the
+                      current rating favorite would have been correct on recent historical matchups.
+                    </p>
+                  </>
+                )}
+              </article>
+
+              <article style={summaryCard}>
+                <h2 style={sectionTitle}>Head-to-head</h2>
+
+                {headToHeadLoading ? (
+                  <p style={paragraph}>Loading head-to-head...</p>
+                ) : !headToHead || headToHead.total === 0 ? (
+                  <div style={emptyHeadToHeadCard}>
+                    <div style={emptyHeadToHeadTitle}>No direct head-to-head history yet.</div>
+                    <p style={emptyHeadToHeadText}>
+                      The projection still uses current ratings, but there are no recorded matches for this
+                      exact singles pairing or doubles team matchup.
+                    </p>
+                    <div style={emptyHeadToHeadActions}>
+                      <Link href="/players" style={miniGhostButton}>
+                        Browse players
+                      </Link>
+                      <Link href="/rankings" style={miniGhostButton}>
+                        Check rankings
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={dynamicMetricGrid}>
+                      <MetricCard label="Total matches" value={String(headToHead.total)} />
+                      <MetricCard
+                        label="Overall record"
+                        value={`${headToHead.winsA} - ${headToHead.winsB}`}
+                        sub={`${comparison.leftLabel} vs ${comparison.rightLabel}`}
+                      />
+                      <MetricCard
+                        label="Singles record"
+                        value={`${headToHead.singlesA} - ${headToHead.singlesB}`}
+                      />
+                      <MetricCard
+                        label="Doubles record"
+                        value={`${headToHead.doublesA} - ${headToHead.doublesB}`}
+                      />
+                    </div>
+
+                    {headToHead.total > 0 ? (() => {
+                      const pctA = Math.round((headToHead.winsA / headToHead.total) * 100)
+                      const pctB = 100 - pctA
+                      const leaderLabel = headToHead.winsA > headToHead.winsB
+                        ? comparison.leftLabel
+                        : headToHead.winsB > headToHead.winsA
+                          ? comparison.rightLabel
+                          : null
+                      return (
+                        <div style={{ marginTop: 18 }}>
+                          <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>
+                            Head-to-head dominance{leaderLabel ? ` · ${leaderLabel} leads` : ' · Even'}
+                          </div>
+                          <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 12, background: 'rgba(255,255,255,0.06)' }}>
+                            <div style={{ width: `${pctA}%`, background: 'linear-gradient(90deg, #9be11d, #4ade80)', transition: 'width 500ms ease', minWidth: pctA > 0 ? 4 : 0 }} />
+                            <div style={{ flex: 1, background: 'rgba(116,190,255,0.35)' }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                            <span style={{ color: '#d9f84a', fontWeight: 800, fontSize: 13 }}>{comparison.leftLabel} {pctA}%</span>
+                            <span style={{ color: '#93c5fd', fontWeight: 800, fontSize: 13 }}>{pctB}% {comparison.rightLabel}</span>
+                          </div>
+                        </div>
+                      )
+                    })() : null}
+
+                    {headToHead.recentMatches.length > 0 ? (() => {
+                      let threeSets = 0, tiebreaks = 0, scoredMatches = 0
+                      for (const m of headToHead.recentMatches) {
+                        if (!m.score) continue
+                        scoredMatches++
+                        const sets = m.score.split(/[;,|]/).map((s: string) => s.trim()).filter(Boolean)
+                        if (sets.length >= 3) threeSets++
+                        if (sets.some((s: string) => /^7-6$|^6-7$/.test(s))) tiebreaks++
+                      }
+                      return (
+                      <div style={{ marginTop: 18 }}>
+                        {scoredMatches > 0 ? (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, marginBottom: 12 }}>
+                            {threeSets > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{threeSets} went 3 sets</span> : null}
+                            {tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.18)', color: '#fed7aa', fontSize: 11, fontWeight: 800 }}>{tiebreaks} tiebreak{tiebreaks !== 1 ? 's' : ''}</span> : null}
+                            {scoredMatches - threeSets - tiebreaks > 0 ? <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(155,225,29,0.08)', border: '1px solid rgba(155,225,29,0.16)', color: '#d9f84a', fontSize: 11, fontWeight: 800 }}>{scoredMatches - threeSets - tiebreaks} straight sets</span> : null}
+                          </div>
+                        ) : null}
+                        <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>Match history</div>
+                        {headToHead.recentMatches.map((m, i) => {
+                          const quality = getH2HScoreQuality(m.score)
+                          const winnerLabel = m.winner === 'A' ? comparison.leftLabel : comparison.rightLabel
+                          return (
+                            <div
+                              key={i}
+                              style={{ display: 'flex', flexWrap: 'wrap' as const, alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 6 }}
+                            >
+                              <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 12, fontWeight: 700 }}>{formatDate(m.matchDate)}</span>
+                              <span style={{ color: 'rgba(190,210,240,0.5)', fontSize: 12 }}>{capitalize(m.matchType)}</span>
+                              <span style={{ color: '#f8fbff', fontWeight: 700, fontSize: 13 }}>{m.score || '—'}</span>
+                              {quality ? (
+                                <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{quality}</span>
+                              ) : null}
+                              <span style={{ marginLeft: 'auto', padding: '3px 10px', borderRadius: 999, background: m.winner === 'A' ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)', border: `1px solid ${m.winner === 'A' ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`, color: m.winner === 'A' ? '#d9f84a' : '#93c5fd', fontSize: 12, fontWeight: 800 }}>{winnerLabel}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      )
+                    })() : headToHead.lastMatch ? (
+                      <p style={{ ...paragraph, marginTop: '16px' }}>
+                        <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} ·{' '}
+                        {capitalize(headToHead.lastMatch.matchType)} ·{' '}
+                        {headToHead.lastMatch.score || 'No score entered'} · Winner:{' '}
+                        {headToHead.lastMatch.winner === 'A'
+                          ? comparison.leftLabel
+                          : comparison.rightLabel}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </article>
+            </>
+          )}
+        </article>
+      </section>
+      {!loading && !error ? (
+        <section style={contentWrap}>
+          <article style={editorialPanel}>
+            <div style={sectionKicker}>How to read matchup output</div>
+            <h2 style={sectionTitle}>{MATCHUP_STORY.readoutTitle}</h2>
+            <p style={editorialText}>
+              {MATCHUP_STORY.readoutBody} This page helps you compare options and
+              spot swing courts, but it should still sit inside a wider lineup or scouting conversation.
+            </p>
+            <div style={editorialGrid}>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Best use</div>
+                <div style={editorialCardValue}>Compare options</div>
+                <div style={editorialCardText}>Great for deciding between close lineup alternatives.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Strongest signals</div>
+                <div style={editorialCardValue}>Gap + confidence</div>
+                <div style={editorialCardText}>Those usually matter more than a single flashy percentage alone.</div>
+              </div>
+              <div style={editorialCard}>
+                <div style={editorialCardLabel}>Next move</div>
+                <div style={editorialCardValue}>Apply team context</div>
+                <div style={editorialCardText}>Take the result into captain tools when the decision affects a full lineup.</div>
+              </div>
+            </div>
+          </article>
+        </section>
+      ) : null}
+      {shouldShowAds ? (
+        <div style={{ marginTop: 12 }}>
+          <AdsenseSlot slot={MATCHUP_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />
+        </div>
+      ) : null}
+    </SiteShell>
+  )
+}
+
+function getH2HScoreQuality(score: string | null | undefined): string {
+  if (!score) return ''
+  if (/\b6-0\b/.test(score) || /\b0-6\b/.test(score)) return 'Dominant'
+  if (/7-6|6-7|\(/.test(score)) return 'Tiebreak'
+  return ''
+}
+
+function CompareCard({
+  title,
+  subtitle,
+  ratings,
+  ustaRatings,
+  projectionRating,
+  ratingView,
+  projectionView,
+  profileHref,
+  favored,
+  dynamicRatingGrid,
+}: {
+  title: string
+  subtitle: string
+  ratings: { overall: number | null; singles: number | null; doubles: number | null }
+  ustaRatings: { overall: number | null; singles: number | null; doubles: number | null }
+  projectionRating: number | null
+  ratingView: RatingView
+  projectionView: RatingView
+  profileHref: string | null
+  favored: boolean
+  dynamicRatingGrid: CSSProperties
+}) {
+  return (
+    <div
+      style={{
+        ...compareCard,
+        ...(favored ? favoredCompareCard : {}),
+      }}
+    >
+      <div style={compareHead}>
+        <div>
+          <div style={compareTitle}>{title}</div>
+          <div style={compareSubtitle}>{subtitle}</div>
+        </div>
+
+        {profileHref ? (
+          <Link href={profileHref} style={miniGhostButton}>
+            View profile
+          </Link>
+        ) : null}
       </div>
-    </main>
+
+      <div style={{ marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.04em' }}>TIQ DYNAMIC</div>
+      <div style={dynamicRatingGrid}>
+        <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} />
+        <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} />
+        <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} />
+      </div>
+
+      <div style={{ marginTop: 10, marginBottom: 6, fontSize: 11, color: '#888', fontWeight: 600, letterSpacing: '0.04em' }}>USTA DYNAMIC</div>
+      <div style={dynamicRatingGrid}>
+        <RatingPill label="Overall" value={ustaRatings.overall} active={ratingView === 'overall'} />
+        <RatingPill label="Singles" value={ustaRatings.singles} active={ratingView === 'singles'} />
+        <RatingPill label="Doubles" value={ustaRatings.doubles} active={ratingView === 'doubles'} />
+      </div>
+
+      <div style={highlightBox}>
+        <div style={highlightLabel}>
+          {projectionView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
+        </div>
+        <div style={highlightValue}>{formatRating(projectionRating)}</div>
+      </div>
+
+      {(() => {
+        const tiqVal = ratingView === 'singles' ? ratings.singles : ratingView === 'doubles' ? ratings.doubles : ratings.overall
+        const ustaVal = ratingView === 'singles' ? ustaRatings.singles : ratingView === 'doubles' ? ustaRatings.doubles : ustaRatings.overall
+        if (tiqVal == null || ustaVal == null) return null
+        const diff = tiqVal - ustaVal
+        const label = diff >= 0.15 ? '▲ Hot' : diff >= 0.07 ? '↑ Rising' : diff <= -0.15 ? '▼ Cooling' : diff <= -0.07 ? '↓ Softening' : '→ Stable'
+        const color = diff >= 0.07 ? '#9be11d' : diff <= -0.07 ? '#f87171' : 'rgba(190,210,240,0.6)'
+        return (
+          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 800, color }}>
+            {label} · TIQ signal {diff >= 0 ? '+' : ''}{diff.toFixed(2)}
+          </div>
+        )
+      })()}
+    </div>
   )
 }
 
@@ -315,335 +2185,1736 @@ function RatingPill({
   active,
 }: {
   label: string
-  value: number
-  active: boolean
+  value: number | null
+  active?: boolean
 }) {
   return (
     <div
       style={{
-        ...ratingPillStyle,
-        ...(active ? activeRatingPillStyle : {}),
+        ...ratingPill,
+        ...(active ? ratingPillActive : {}),
       }}
     >
-      <div style={ratingPillLabelStyle}>{label}</div>
-      <div style={ratingPillValueStyle}>{formatRating(value)}</div>
+      <div style={ratingPillLabel}>{label}</div>
+      <div style={ratingPillValue}>{formatRating(value)}</div>
     </div>
   )
 }
 
-function getSelectedRating(player: Player, view: RatingView) {
-  if (view === 'singles') {
-    return toRatingNumber(
-      player.singles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
-  }
-
-  if (view === 'doubles') {
-    return toRatingNumber(
-      player.doubles_dynamic_rating ??
-        player.overall_dynamic_rating ??
-        player.dynamic_rating ??
-        player.rating,
-      3.5
-    )
-  }
-
-  return toRatingNumber(
-    player.overall_dynamic_rating ??
-      player.dynamic_rating ??
-      player.rating,
-    3.5
+function MetricCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string
+  value: string
+  sub?: string
+}) {
+  return (
+    <div style={metricCard}>
+      <div style={metricLabel}>{label}</div>
+      <div style={metricValue}>{value}</div>
+      {sub ? <div style={metricSub}>{sub}</div> : null}
+    </div>
   )
 }
 
-function toRatingNumber(value: number | string | null | undefined, fallback = 3.5) {
-  const num = Number(value)
-  return Number.isFinite(num) ? num : fallback
+function CopyLinkButton() {
+  const [hovered, setHovered] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return
+    void navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <button
+      type="button"
+      title="Copy a link that reopens this exact matchup setup"
+      aria-label="Copy this matchup setup link"
+      onClick={handleCopy}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '8px 14px',
+        borderRadius: '999px',
+        border: `1px solid ${
+          copied
+            ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)'
+            : hovered
+              ? 'color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)'
+              : 'var(--shell-panel-border)'
+        }`,
+        background: copied
+          ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)'
+          : hovered
+            ? 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)'
+            : 'var(--shell-chip-bg)',
+        color: copied
+          ? 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)'
+          : 'var(--foreground-strong)',
+        fontSize: '13px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        transition: 'all 160ms ease',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        whiteSpace: 'nowrap' as const,
+      }}
+    >
+      {copied ? 'Copied' : 'Copy matchup'}
+    </button>
+  )
 }
 
-function formatRating(value: number) {
-  return value.toFixed(2)
+function SwapSidesButton({ onClick }: { onClick: () => void }) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '7px',
+        padding: '10px 20px',
+        borderRadius: '999px',
+        border: `1px solid ${hovered ? 'rgba(155,225,29,0.38)' : 'rgba(116,190,255,0.18)'}`,
+        background: hovered ? 'rgba(155,225,29,0.08)' : 'rgba(255,255,255,0.04)',
+        color: hovered ? '#d8ffa8' : 'rgba(214,228,246,0.82)',
+        fontSize: '13px',
+        fontWeight: 800,
+        cursor: 'pointer',
+        transition: 'all 160ms ease',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+        letterSpacing: '-0.01em',
+      }}
+    >
+      ↕ Swap sides
+    </button>
+  )
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Player[]
+  disabled: boolean
+}) {
+  return (
+    <div>
+      <label style={inputLabel}>{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={selectStyle}
+        disabled={disabled}
+      >
+        <option value="">Select player</option>
+        {options.map((player) => (
+          <option key={player.id} value={player.id}>
+            {player.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function areUniqueIds(ids: string[]) {
+  const filtered = ids.filter(Boolean)
+  return new Set(filtered).size === filtered.length
+}
+
+function normalizeIdSet(ids: string[]) {
+  return [...ids].sort().join('|')
+}
+
+function average(values: number[]) {
+  if (!values.length) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
+}
+
+function averageAvailable(values: Array<number | null>) {
+  const validValues = values.filter(hasValidRating)
+  return validValues.length === values.length ? average(validValues) : null
+}
+
+function getSelectedRating(player: Player, view: RatingView): number | null {
+  if (view === 'singles') return hasValidRating(player.singles_dynamic_rating) ? player.singles_dynamic_rating : null
+  if (view === 'doubles') return hasValidRating(player.doubles_dynamic_rating) ? player.doubles_dynamic_rating : null
+  return hasValidRating(player.overall_dynamic_rating) ? player.overall_dynamic_rating : null
+}
+
+function getProjectionRating(player: Player, view: RatingView): number | null {
+  return getSelectedRating(player, view) ?? getSelectedRating(player, 'overall')
+}
+
+function getEngineRatingView(matchType: MatchType): RatingView {
+  return matchType === 'singles' ? 'singles' : 'doubles'
+}
+
+function expectedScore(leftRating: number, rightRating: number) {
+  const exponent = (rightRating - leftRating) / RATING_DIVISOR
+  return 1 / (1 + Math.pow(10, exponent))
+}
+
+function getConfidenceLabel(favoriteProbability: number) {
+  if (favoriteProbability >= 0.75) return 'Very High'
+  if (favoriteProbability >= 0.66) return 'High'
+  if (favoriteProbability >= 0.58) return 'Moderate'
+  if (favoriteProbability >= 0.52) return 'Low'
+  return 'Toss-up'
+}
+
+function getUpsetIndicator(favoriteProbability: number) {
+  if (favoriteProbability >= 0.75) return 'Major upset needed'
+  if (favoriteProbability >= 0.66) return 'Upset possible'
+  if (favoriteProbability >= 0.58) return 'Slight upset risk'
+  return 'True coin flip'
+}
+
+function getMatchTier(favoriteProbability: number) {
+  if (favoriteProbability >= 0.75) return 'Anchor Match'
+  if (favoriteProbability >= 0.66) return 'Strong Lean'
+  if (favoriteProbability >= 0.58) return 'Lean Match'
+  if (favoriteProbability >= 0.52) return 'Swing Match'
+  return 'Toss-up'
+}
+
+function isSwingMatch(favoriteProbability: number) {
+  return favoriteProbability >= 0.45 && favoriteProbability <= 0.55
+}
+
+function getCaptainInsight(
+  favoriteProbability: number,
+  favoriteLabel: string,
+  underdogLabel: string,
+) {
+  if (favoriteProbability >= 0.75) {
+    return `${favoriteLabel} should be treated as an anchor court. This is one of your cleaner spots to trust the favorite and use elsewhere to absorb risk.`
+  }
+  if (favoriteProbability >= 0.66) {
+    return `${favoriteLabel} has a meaningful edge over ${underdogLabel}. This is a favorable court, but placement and surrounding lineup context still matter.`
+  }
+  if (favoriteProbability >= 0.58) {
+    return `${favoriteLabel} is favored, but not safely. This is a leverage court where a small lineup change or opponent adjustment can change the tie picture.`
+  }
+  if (favoriteProbability >= 0.52) {
+    return `This is a swing court. Treat it as one of the likely tie-deciding matches and be careful about where you expose weaker lineup spots around it.`
+  }
+  return `This is a true toss-up. Do not count this court as secure for either side without stronger lineup context or scouting.`
+}
+
+function getSwapImpactHint(favoriteProbability: number, ratingGap: number) {
+  if (favoriteProbability >= 0.75 && ratingGap >= 0.25) {
+    return 'Low swap urgency. This court is already carrying a strong edge.'
+  }
+  if (favoriteProbability >= 0.66) {
+    return 'Moderate swap value. A stronger opponent assignment could still tighten this court.'
+  }
+  if (favoriteProbability >= 0.58) {
+    return 'Meaningful swap opportunity. A better placement here can improve your overall tie odds.'
+  }
+  if (favoriteProbability >= 0.52) {
+    return 'High swap sensitivity. Even a small move could flip this court.'
+  }
+  return 'Maximum swap sensitivity. This matchup is close enough that player placement likely decides it.'
+}
+
+function getExpectedOutcomeText(
+  favoriteProbability: number,
+  favoriteLabel: string,
+  underdogLabel: string,
+) {
+  if (favoriteProbability >= 0.75) return `${favoriteLabel} is a strong favorite over ${underdogLabel}.`
+  if (favoriteProbability >= 0.66) return `${favoriteLabel} has a clear edge over ${underdogLabel}.`
+  if (favoriteProbability >= 0.58) return `${favoriteLabel} is favored, but ${underdogLabel} is very live.`
+  if (favoriteProbability >= 0.52) return `${favoriteLabel} has a slight edge in a tight matchup.`
+  return `This matchup projects as nearly even.`
+}
+
+function getAccuracyBand(probabilityLeft: number): AccuracyBand {
+  const favoriteProbability = Math.max(probabilityLeft, 1 - probabilityLeft)
+  if (favoriteProbability >= 0.72) return 'high'
+  if (favoriteProbability >= 0.6) return 'medium'
+  return 'low'
+}
+
+function toAccuracyValue(correct: number, total: number) {
+  if (!total) return null
+  return correct / total
+}
+
+function DualTrajectoryChart({ leftPoints, rightPoints, leftLabel, rightLabel }: {
+  leftPoints: Array<{ date: string; rating: number }>
+  rightPoints: Array<{ date: string; rating: number }>
+  leftLabel: string
+  rightLabel: string
+}) {
+  const W = 800, H = 160, pad = 28
+  const allRatings = [...leftPoints.map((p) => p.rating), ...rightPoints.map((p) => p.rating)]
+  const allDates = [...leftPoints.map((p) => p.date), ...rightPoints.map((p) => p.date)].sort()
+  const minR = Math.min(...allRatings) - 0.1
+  const maxR = Math.max(...allRatings) + 0.1
+  const spread = Math.max(maxR - minR, 0.1)
+  const minD = new Date(allDates[0]).getTime()
+  const maxD = new Date(allDates[allDates.length - 1]).getTime()
+  const xRange = Math.max(maxD - minD, 1)
+
+  function toX(date: string) { return pad + ((new Date(date).getTime() - minD) / xRange) * (W - pad * 2) }
+  function toY(r: number) { return H - pad - ((r - minR) / spread) * (H - pad * 2) }
+  function makePath(pts: typeof leftPoints) {
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(p.date)} ${toY(p.rating)}`).join(' ')
+  }
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', borderRadius: 12 }}>
+      <rect x={0} y={0} width={W} height={H} rx={12} fill="#0f1c38" />
+      {[0.25, 0.5, 0.75].map((t) => {
+        const y = pad + (H - pad * 2) * t
+        return <line key={t} x1={pad} x2={W - pad} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
+      })}
+      <path d={makePath(leftPoints)} fill="none" stroke="#9be11d" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={makePath(rightPoints)} fill="none" stroke="#3FA7FF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      {leftPoints.length > 0 && <circle cx={toX(leftPoints[leftPoints.length - 1].date)} cy={toY(leftPoints[leftPoints.length - 1].rating)} r={4} fill="#9be11d" />}
+      {rightPoints.length > 0 && <circle cx={toX(rightPoints[rightPoints.length - 1].date)} cy={toY(rightPoints[rightPoints.length - 1].rating)} r={4} fill="#3FA7FF" />}
+      <text x={pad + 4} y={H - 6} fill="rgba(155,225,29,0.7)" fontSize={10} fontWeight={700}>{leftLabel}</text>
+      <text x={W - pad - 4} y={H - 6} textAnchor="end" fill="rgba(63,167,255,0.7)" fontSize={10} fontWeight={700}>{rightLabel}</text>
+    </svg>
+  )
 }
 
 function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-const mainStyle = {
-  padding: '24px',
-  fontFamily: 'Arial, sans-serif',
-  maxWidth: '1250px',
-  margin: '0 auto',
-  background: '#f8fafc',
-  minHeight: '100vh',
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(1)}%`
 }
 
-const navRowStyle = {
-  display: 'flex',
-  gap: '12px',
-  marginBottom: '24px',
-  flexWrap: 'wrap' as const,
+function formatNullablePercent(value: number | null) {
+  if (value === null) return '—'
+  return formatPercent(value)
 }
 
-const navLinkStyle = {
-  padding: '10px 14px',
-  border: '1px solid #dbeafe',
-  borderRadius: '999px',
-  textDecoration: 'none',
-  color: '#1e3a8a',
-  background: '#eff6ff',
-  fontWeight: 600,
+const heroWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
 }
 
-const heroCardStyle = {
-  background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
-  color: 'white',
-  borderRadius: '20px',
-  padding: '28px',
-  boxShadow: '0 14px 30px rgba(37, 99, 235, 0.20)',
-  marginBottom: '22px',
-}
-
-const cardStyle = {
-  background: 'white',
-  borderRadius: '20px',
-  padding: '24px',
-  boxShadow: '0 10px 24px rgba(15, 23, 42, 0.08)',
-  border: '1px solid #e2e8f0',
-  marginBottom: '22px',
-}
-
-const toolbarStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '16px',
-  flexWrap: 'wrap' as const,
-}
-
-const selectGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: '12px',
-  flex: 1,
-  minWidth: '320px',
-}
-
-const labelStyle = {
-  display: 'block',
-  fontWeight: 700,
-  color: '#0f172a',
-  marginBottom: '8px',
-}
-
-const inputStyle = {
+const heroShell: CSSProperties = {
   width: '100%',
-  padding: '12px 14px',
-  border: '1px solid #cbd5e1',
-  borderRadius: '14px',
-  fontSize: '15px',
-  boxSizing: 'border-box' as const,
-  fontFamily: 'inherit',
-  background: 'white',
+  maxWidth: '1280px',
+  margin: '0 auto',
+  borderRadius: '30px',
+  background: 'var(--shell-panel-bg-strong)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-card)',
+  overflow: 'hidden',
+  position: 'relative',
 }
 
-const segmentContainerStyle = {
-  display: 'flex',
-  gap: '8px',
-  padding: '6px',
-  background: '#eff6ff',
-  borderRadius: '16px',
-  border: '1px solid #dbeafe',
+const heroNoise: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background:
+    'radial-gradient(circle at 12% 0%, rgba(116,190,255,0.26), transparent 28%), radial-gradient(circle at 72% 8%, rgba(88,170,255,0.18), transparent 24%), radial-gradient(circle at 100% 0%, rgba(155,225,29,0.10), transparent 26%), linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 26%)',
+  pointerEvents: 'none',
 }
 
-const segmentButtonStyle = {
-  padding: '10px 14px',
-  border: 'none',
-  borderRadius: '12px',
-  background: 'transparent',
-  color: '#1e3a8a',
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontSize: '14px',
-}
-
-const activeSegmentButtonStyle = {
-  background: '#2563eb',
-  color: 'white',
-}
-
-const errorBoxStyle = {
-  marginTop: '16px',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  background: '#fee2e2',
-  border: '1px solid #fca5a5',
-  color: '#991b1b',
-}
-
-const emptyStateStyle = {
-  marginTop: '18px',
-  padding: '18px',
-  borderRadius: '16px',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  color: '#64748b',
-}
-
-const comparisonGridStyle = {
+const heroContent: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(280px, 1fr) minmax(180px, 220px) minmax(280px, 1fr)',
-  gap: '18px',
-  marginTop: '22px',
+  alignItems: 'stretch',
+  position: 'relative',
+  zIndex: 1,
 }
 
-const playerCardStyle = {
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-}
-
-const playerCardHeaderStyle = {
+const heroLeft: CSSProperties = {
   display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '16px',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  gap: '16px',
+  minWidth: 0,
 }
 
-const playerNameStyle = {
-  color: '#0f172a',
-  fontSize: '24px',
+const heroTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  letterSpacing: '-0.045em',
+}
+
+const heroText: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const eyebrow: CSSProperties = {
+  display: 'inline-flex',
+  width: 'fit-content',
+  alignItems: 'center',
+  padding: '7px 11px',
+  borderRadius: '999px',
+  color: 'var(--home-eyebrow-color)',
+  background: 'var(--home-eyebrow-bg)',
+  border: '1px solid var(--home-eyebrow-border)',
+  fontSize: '12px',
   fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
 }
 
-const playerMetaStyle = {
-  color: '#64748b',
-  fontSize: '14px',
+const heroHintRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
   marginTop: '4px',
 }
 
-const profileLinkStyle = {
-  display: 'inline-block',
-  padding: '8px 10px',
-  borderRadius: '10px',
-  background: '#eff6ff',
-  color: '#1d4ed8',
-  textDecoration: 'none',
-  fontWeight: 700,
+const heroHintPill: CSSProperties = {
+  border: '1px solid rgba(137,182,255,0.14)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  borderRadius: '999px',
+  padding: '10px 14px',
   fontSize: '13px',
-  whiteSpace: 'nowrap' as const,
+  fontWeight: 700,
 }
 
-const ratingGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(90px, 1fr))',
-  gap: '10px',
-  marginBottom: '16px',
+const engineCard: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, var(--brand-blue-2) 12%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
-const ratingPillStyle = {
-  background: 'white',
-  border: '1px solid #e2e8f0',
-  borderRadius: '14px',
-  padding: '12px',
-}
-
-const activeRatingPillStyle = {
-  border: '1px solid #93c5fd',
-  background: '#eff6ff',
-}
-
-const ratingPillLabelStyle = {
-  color: '#64748b',
+const engineLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
-  marginBottom: '4px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
 }
 
-const ratingPillValueStyle = {
-  color: '#0f172a',
-  fontSize: '20px',
+const engineValue: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--foreground-strong)',
+  fontSize: '32px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const engineText: CSSProperties = {
+  marginTop: '10px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const contentWrap: CSSProperties = {
+  position: 'relative',
+  zIndex: 2,
+  maxWidth: '1280px',
+  margin: '0 auto',
+  padding: '0 18px 0',
+}
+
+const exploreNavRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  alignItems: 'center',
+  margin: '4px 0 16px',
+  paddingTop: '4px',
+}
+
+const exploreNavLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const exploreNavLink: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '36px',
+  padding: '0 13px',
+  borderRadius: '999px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: '13px',
   fontWeight: 800,
 }
 
-const highlightBoxStyle = {
-  background: 'white',
-  border: '1px solid #dbeafe',
+const profileContextCalloutStyle: CSSProperties = {
+  marginTop: '8px',
+  maxWidth: 620,
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: '8px 12px',
   borderRadius: '16px',
-  padding: '16px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'rgba(244,249,255,0.88)',
+  padding: '11px 13px',
+  fontSize: '13px',
+  lineHeight: 1.45,
 }
 
-const highlightLabelStyle = {
-  color: '#64748b',
+const profileContextLinkStyle: CSSProperties = {
+  color: '#d9f84a',
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
+const controlsCard: CSSProperties = {
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 12%, transparent), transparent 34%), var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
+  marginBottom: '16px',
+}
+
+const toolHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  paddingBottom: '16px',
+  marginBottom: '16px',
+  borderBottom: '1px solid var(--shell-panel-border)',
+}
+
+const toolHeaderTitleClusterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  minWidth: 0,
+}
+
+const toolHeaderKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const toolHeaderTitleStyle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: '-0.04em',
+}
+
+const toolHeaderTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
+const identitySetupStripStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '56px minmax(0, 1fr) auto',
+  gap: 14,
+  alignItems: 'center',
+  marginBottom: 18,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, transparent), transparent 60%), var(--shell-chip-bg)',
+}
+
+const identitySetupCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const identitySetupKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const identitySetupTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '1.12rem',
+  lineHeight: 1.15,
+  fontWeight: 950,
+}
+
+const identitySetupTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const identitySetupButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 42,
+  padding: '0 15px',
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  color: 'var(--text-dark)',
+  textDecoration: 'none',
+  fontSize: 13,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
+}
+
+const toolbarTop: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: '16px',
+  alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
+}
+
+const toggleStack: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const toggleLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const toggleGroup: CSSProperties = {
+  display: 'inline-flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  padding: '6px',
+  borderRadius: '20px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--home-control-shadow)',
+}
+
+const toggleButton: CSSProperties = {
+  border: 0,
+  borderRadius: '14px',
+  background: 'transparent',
+  color: 'var(--foreground)',
+  padding: '12px 18px',
+  fontSize: '14px',
+  fontWeight: 800,
+  cursor: 'pointer',
+  letterSpacing: '-0.01em',
+  transition: 'all 180ms ease',
+}
+
+const toggleButtonGreen: CSSProperties = {
+  background: 'linear-gradient(135deg, #67f19a 0%, #b8e61a 100%)',
+  color: '#06172f',
+  boxShadow: '0 14px 28px rgba(184,230,26,0.24), inset 0 1px 0 rgba(255,255,255,0.34)',
+}
+
+const toggleButtonBlue: CSSProperties = {
+  background: 'linear-gradient(135deg, #2f6ff5 0%, #61a6ff 100%)',
+  color: '#ffffff',
+  boxShadow: '0 14px 28px rgba(74,163,255,0.22), inset 0 1px 0 rgba(255,255,255,0.24)',
+}
+
+const selectorGrid: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  marginBottom: '16px',
+}
+
+const inputLabel: CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  color: 'var(--brand-blue-2)',
+  fontSize: '13px',
+  fontWeight: 800,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+}
+
+const selectStyle: CSSProperties = {
+  width: '100%',
+  height: '52px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 14px',
+  fontSize: '14px',
+  fontWeight: 700,
+  outline: 'none',
+  colorScheme: 'dark',
+}
+
+const errorBanner: CSSProperties = {
+  marginBottom: '16px',
+  borderRadius: '16px',
+  padding: '12px 14px',
+  background: 'rgba(239,68,68,0.08)',
+  border: '1px solid rgba(239,68,68,0.18)',
+  color: '#fecaca',
+  fontWeight: 700,
+  fontSize: '14px',
+}
+
+const editorialPanel: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '24px',
+  borderRadius: '26px',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const editorialText: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '15px',
+  lineHeight: 1.8,
+  maxWidth: '860px',
+}
+
+const editorialGrid: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+}
+
+const editorialCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '18px',
+  borderRadius: '20px',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const editorialCardLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const editorialCardValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '24px',
+  lineHeight: 1.04,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const editorialCardText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.65,
+}
+
+const retryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontWeight: 800,
+  cursor: 'pointer',
+}
+
+const emptyState: CSSProperties = {
+  borderRadius: '18px',
+  padding: '18px',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '15px',
+  lineHeight: 1.7,
+  fontWeight: 600,
+  textAlign: 'center',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const emptyStateTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '24px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+  marginBottom: '10px',
+}
+
+const emptyStateText: CSSProperties = {
+  color: 'var(--foreground)',
+  lineHeight: 1.65,
+  marginBottom: '10px',
+}
+
+const emptyStateHint: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.6,
+  marginBottom: '14px',
+}
+
+const resetButton: CSSProperties = {
+  minHeight: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
+  color: '#e7eefb',
+  fontWeight: 800,
+  fontSize: '13px',
+  cursor: 'pointer',
+}
+
+const selectionProgressCard: CSSProperties = {
+  borderRadius: '20px',
+  padding: '14px 16px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: '220px',
+}
+
+const selectionProgressLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '8px',
+}
+
+const selectionProgressValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
   marginBottom: '6px',
 }
 
-const highlightValueStyle = {
-  color: '#1d4ed8',
-  fontSize: '32px',
+const selectionProgressTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+}
+
+const handoffCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  marginBottom: '16px',
+  padding: '16px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background:
+    'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(48,99,180,0.10) 46%, var(--shell-panel-bg) 100%)',
+  boxShadow: '0 18px 42px rgba(0,0,0,0.16)',
+}
+
+const handoffHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const handoffTitleClusterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+}
+
+const handoffKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const handoffTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '20px',
+  fontWeight: 950,
+  letterSpacing: '-0.03em',
+}
+
+const handoffTextStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: '520px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  fontWeight: 700,
+  lineHeight: 1.55,
+}
+
+const handoffSidesGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '10px',
+}
+
+const handoffSideCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minHeight: '92px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const handoffSideCardActiveStyle: CSSProperties = {
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(var(--brand-green-rgb),0.08)',
+}
+
+const handoffSideLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const handoffSideNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '17px',
+  fontWeight: 950,
+  lineHeight: 1.18,
+}
+
+const handoffSideMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const doublesQuickStartStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  marginBottom: '14px',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.08) 0%, rgba(13,27,52,0.82) 100%)',
+}
+
+const doublesQuickStartTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  lineHeight: 1.4,
+}
+
+const quickStartButtonStyle: CSSProperties = {
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
+  color: 'var(--text-dark)',
+  fontSize: '13px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const doublesPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+  marginTop: '-2px',
+  marginBottom: '14px',
+}
+
+const doublesPreviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  minHeight: '98px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const doublesPreviewLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const doublesPreviewNamesStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  fontWeight: 900,
+  lineHeight: 1.25,
+}
+
+const doublesPreviewMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontStyle: 'normal',
+  fontWeight: 700,
+}
+
+const prefillPromptCard: CSSProperties = {
+  marginTop: '16px',
+  display: 'grid',
+  gap: '16px',
+  padding: '18px',
+  borderRadius: '22px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.86) 100%)',
+}
+
+const prefillPromptKicker: CSSProperties = {
+  color: '#d9f84a',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  marginBottom: '8px',
+}
+
+const prefillPromptTitle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const prefillPromptText: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+}
+
+const suggestionGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '10px',
+}
+
+const suggestionButton: CSSProperties = {
+  minHeight: '64px',
+  display: 'grid',
+  gap: '4px',
+  justifyItems: 'start',
+  padding: '12px 14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.05)',
+  color: 'var(--foreground)',
+  cursor: 'pointer',
+  textAlign: 'left',
+}
+
+const suggestionName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
   fontWeight: 900,
 }
 
-const centerComparisonCardStyle = {
+const suggestionMeta: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 800,
+}
+
+const decisionBanner: CSSProperties = {
   display: 'flex',
-  flexDirection: 'column' as const,
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '20px',
+  flexWrap: 'wrap',
+  marginBottom: '18px',
+  padding: '20px',
+  borderRadius: '22px',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.10) 0%, rgba(13,27,52,0.88) 100%)',
+  border: '1px solid rgba(155,225,29,0.25)',
+  boxShadow: '0 20px 50px rgba(155,225,29,0.15)',
+}
+
+const decisionLabel: CSSProperties = {
+  fontSize: '12px',
+  textTransform: 'uppercase',
+  color: 'rgba(200,220,255,0.7)',
+  fontWeight: 800,
+  letterSpacing: '0.1em',
+}
+
+const decisionWinner: CSSProperties = {
+  marginTop: '6px',
+  fontSize: '28px',
+  fontWeight: 900,
+  color: '#fff',
+  lineHeight: 1.05,
+  letterSpacing: '-0.04em',
+}
+
+const decisionSub: CSSProperties = {
+  marginTop: '6px',
+  fontSize: '14px',
+  color: 'rgba(220,235,255,0.8)',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const decisionRight: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '10px',
+  alignItems: 'flex-end',
+}
+
+const decisionPill: CSSProperties = {
+  background: 'rgba(0,0,0,0.3)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  padding: '8px 12px',
+  borderRadius: '999px',
+  fontWeight: 800,
+  fontSize: '12px',
+  color: '#eff8ff',
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const decisionCtaRow: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
+const prepReadGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+  marginBottom: '16px',
+}
+
+const prepReadCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '150px',
+  padding: '18px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const prepReadCardAccent: CSSProperties = {
+  ...prepReadCard,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.88) 72%)',
+}
+
+const prepReadLabel: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const prepReadValue: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '25px',
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const prepReadText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const ctaPrimary: CSSProperties = {
+  display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minHeight: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  color: '#08111d',
+  fontWeight: 900,
+  textDecoration: 'none',
+  border: '1px solid rgba(155,225,29,0.30)',
+  boxShadow: '0 10px 22px rgba(155,225,29,0.14)',
+}
+
+const ctaSecondary: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '42px',
+  padding: '0 16px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.18)',
+  color: '#fff',
+  textDecoration: 'none',
+  fontWeight: 800,
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const compareGrid: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  alignItems: 'stretch',
+}
+
+const compareCard: CSSProperties = {
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const favoredCompareCard: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.34)',
+  boxShadow: '0 10px 28px rgba(155,225,29,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const compareHead: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: '12px',
+  marginBottom: '16px',
+}
+
+const compareTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '24px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const compareSubtitle: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(224,236,249,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.5,
+  fontWeight: 500,
+}
+
+const miniGhostButton: CSSProperties = {
+  whiteSpace: 'nowrap',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '40px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.07)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 800,
+  fontSize: '13px',
+}
+
+const ratingGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  marginBottom: '16px',
+}
+
+const ratingPill: CSSProperties = {
+  borderRadius: '16px',
+  padding: '14px 14px',
+  background: 'rgba(18,34,64,0.85)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const ratingPillActive: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(26,56,108,0.92) 0%, rgba(16,31,59,0.92) 100%)',
+  borderColor: 'rgba(74,163,255,0.28)',
+  boxShadow: '0 10px 24px rgba(37,91,227,0.10), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const ratingPillLabel: CSSProperties = {
+  color: 'rgba(197,213,234,0.72)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const ratingPillValue: CSSProperties = {
+  marginTop: '4px',
+  color: '#f4f9ff',
+  fontSize: '20px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const highlightBox: CSSProperties = {
+  borderRadius: '16px',
+  padding: '16px',
+  background: 'rgba(18,34,64,0.9)',
+  border: '1px solid rgba(116,190,255,0.18)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const highlightLabel: CSSProperties = {
+  color: 'rgba(197,213,234,0.72)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 700,
+}
+
+const highlightValue: CSSProperties = {
+  marginTop: '6px',
+  color: '#9bd2ff',
+  fontSize: '32px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const centerColumn: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
   gap: '16px',
 }
 
-const vsBadgeStyle = {
-  width: '72px',
-  height: '72px',
+const vsBadge: CSSProperties = {
+  width: '76px',
+  height: '76px',
   borderRadius: '999px',
-  background: '#2563eb',
-  color: 'white',
+  background: 'linear-gradient(135deg, #255be3 0%, #3fa7ff 100%)',
+  color: '#ffffff',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontWeight: 900,
   fontSize: '22px',
-  boxShadow: '0 12px 24px rgba(37, 99, 235, 0.20)',
-}
-
-const gapCardStyle = {
-  width: '100%',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
-  borderRadius: '18px',
-  padding: '18px',
-  textAlign: 'center' as const,
-}
-
-const gapLabelStyle = {
-  color: '#64748b',
-  fontSize: '13px',
-  marginBottom: '6px',
-}
-
-const gapValueStyle = {
-  color: '#0f172a',
-  fontSize: '32px',
+  lineHeight: 1,
   fontWeight: 900,
+  boxShadow: '0 14px 30px rgba(37,91,227,0.22)',
 }
 
-const gapMetaStyle = {
-  color: '#1d4ed8',
+const gapCard: CSSProperties = {
+  width: '100%',
+  textAlign: 'center',
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const gapLabel: CSSProperties = {
+  color: 'rgba(217,231,255,0.82)',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+
+const gapValue: CSSProperties = {
+  marginTop: '6px',
+  color: '#ffffff',
+  fontSize: '32px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em',
+}
+
+const gapMeta: CSSProperties = {
+  marginTop: '6px',
+  color: '#d9f84a',
   fontSize: '14px',
-  fontWeight: 700,
-  marginTop: '8px',
+  lineHeight: 1.5,
+  fontWeight: 800,
 }
 
-const summaryCardStyle = {
-  marginTop: '20px',
-  background: '#f8fafc',
-  border: '1px solid #e2e8f0',
+const formCompareRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  marginTop: '12px',
+  padding: '16px 20px',
+  borderRadius: '20px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+}
+
+const formCompareCell: CSSProperties = {
+  flex: 1,
+  display: 'grid',
+  gap: '4px',
+}
+
+const formCompareDivider: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '4px',
+  minWidth: '90px',
+  flexShrink: 0,
+}
+
+const formCompareLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  textAlign: 'center',
+}
+
+const formCellLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+function formCellValue(delta: number | null): CSSProperties {
+  const positive = delta !== null && delta > 0
+  const negative = delta !== null && delta < 0
+  return {
+    fontSize: '22px',
+    fontWeight: 900,
+    letterSpacing: '-0.03em',
+    color: positive ? '#86efac' : negative ? '#fca5a5' : 'var(--foreground)',
+  }
+}
+
+const formCellMeta: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 600,
+}
+
+const summaryCard: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '24px',
+  padding: '18px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(22,46,88,0.74) 0%, rgba(13,27,52,0.84) 100%)',
+  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const sectionTitle: CSSProperties = {
+  margin: 0,
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: '-0.02em',
+}
+
+const sectionKicker: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.11em',
+  textTransform: 'uppercase',
+}
+
+const projectionSectionTitle: CSSProperties = {
+  ...sectionTitle,
+  fontSize: '28px',
+  lineHeight: 1.08,
+  letterSpacing: '-0.03em',
+}
+
+const paragraph: CSSProperties = {
+  margin: '12px 0 0',
+  color: 'rgba(224,236,249,0.78)',
+  fontSize: '15px',
+  lineHeight: 1.7,
+  fontWeight: 500,
+}
+
+const metricGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  marginTop: '16px',
+}
+
+const metricCard: CSSProperties = {
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.10)',
+}
+
+const metricLabel: CSSProperties = {
+  color: 'rgba(217,231,255,0.82)',
+  fontSize: '13px',
+  marginBottom: '8px',
+  fontWeight: 700,
+}
+
+const metricValue: CSSProperties = {
+  color: '#ffffff',
+  fontSize: '28px',
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const metricSub: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(197,213,234,0.72)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 600,
+}
+
+const calloutCard: CSSProperties = {
+  marginTop: '16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  borderRadius: '16px',
+  padding: '16px',
+  background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.86) 100%)',
+  border: '1px solid rgba(155,225,29,0.25)',
+}
+
+const calloutTitle: CSSProperties = {
+  color: '#f4f9ff',
+  fontSize: '16px',
+  lineHeight: 1.45,
+  fontWeight: 800,
+}
+
+const calloutSub: CSSProperties = {
+  marginTop: '4px',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 500,
+}
+
+const upsetPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  padding: '10px 12px',
+  background: 'rgba(10,20,35,0.42)',
+  border: '1px solid rgba(255,255,255,0.14)',
+  color: '#ecf8ff',
+  fontSize: '12px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+  whiteSpace: 'nowrap',
+}
+
+const recommendationCard: CSSProperties = {
+  marginTop: '16px',
+  borderRadius: '18px',
+  padding: '16px',
+  background: 'rgba(9,20,39,0.44)',
+  border: '1px solid rgba(116,190,255,0.14)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const recommendationTitle: CSSProperties = {
+  color: '#f4f9ff',
+  fontSize: '14px',
+  lineHeight: 1.2,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const recommendationTextStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.72,
+  fontWeight: 500,
+}
+
+const emptyHeadToHeadCard: CSSProperties = {
+  marginTop: '12px',
   borderRadius: '18px',
   padding: '18px',
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+}
+
+const emptyHeadToHeadTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '22px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  letterSpacing: '-0.03em',
+}
+
+const emptyHeadToHeadText: CSSProperties = {
+  margin: '10px 0 0',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const emptyHeadToHeadActions: CSSProperties = {
+  display: 'flex',
+  gap: '10px',
+  flexWrap: 'wrap',
+  marginTop: '14px',
+}
+
+
+const intelligenceTierRow: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '10px',
+}
+
+const intelligenceTierPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  padding: '8px 12px',
+  background: 'rgba(37,91,227,0.16)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  color: '#d6e9ff',
+  fontSize: '12px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const intelligenceWarningPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '999px',
+  padding: '8px 12px',
+  background: 'rgba(250,204,21,0.14)',
+  border: '1px solid rgba(250,204,21,0.24)',
+  color: '#fde68a',
+  fontSize: '12px',
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const intelligenceHintBox: CSSProperties = {
+  marginTop: '12px',
+  borderRadius: '14px',
+  padding: '12px 14px',
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+}
+
+const intelligenceHintLabel: CSSProperties = {
+  color: '#f4f9ff',
+  fontSize: '12px',
+  lineHeight: 1.2,
+  fontWeight: 800,
+  letterSpacing: '0.03em',
+  textTransform: 'uppercase',
+}
+
+const intelligenceHintText: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(220,233,248,0.78)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 500,
+}
+
+const summaryHead: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  flexWrap: 'wrap',
+}
+
+const metaNote: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontWeight: 700,
 }

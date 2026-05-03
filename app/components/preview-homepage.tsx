@@ -1,0 +1,1995 @@
+'use client'
+
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
+import SiteShell from '@/app/components/site-shell'
+import { useTheme } from '@/app/components/theme-provider'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import {
+  badgeBlue,
+  badgeGreen,
+  badgeSlate,
+  buttonGhost,
+  buttonPrimary,
+  colors,
+  glassCard,
+  heroPanel,
+  pageShell,
+  pageTitle,
+  pageSubtitle,
+  sectionKicker,
+  sectionStack,
+  sectionTitle,
+  surfaceCard,
+  surfaceCardStrong,
+} from '@/lib/design-system'
+import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import {
+  getMembershipTier,
+  HOME_HERO_STORY,
+  TIER_HOMEPAGE_STORY,
+  type MembershipTierId,
+} from '@/lib/product-story'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+
+type TierTheme = {
+  shellBorder: string
+  shellShadow: string
+  shellBackground: string
+  chapterGlow: string
+  contentBackground: string
+  previewBackground: string
+  previewDivider: string
+  tierBadge: CSSProperties
+  priceColor: string
+  numberColor: string
+  accentLabel: string
+  accentBorder: string
+  accentBackground: string
+  accentText: string
+  primaryButton: CSSProperties
+}
+
+type TierSectionConfig = {
+  planId: PricingPlanId
+  stage: string
+  label: string
+  headline: string
+  copy: string
+  bullets: string[]
+  primaryCta: { label: string; href: string }
+  secondaryCta?: { label: string; href: string }
+  snapshot: ReactNode
+  featured?: boolean
+  featuredNote?: string
+}
+
+type HeroSearchFilter = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
+
+const heroSearchFilters: Array<{
+  value: HeroSearchFilter
+  label: string
+  hint: string
+  placeholder: string
+  links: Array<{ href: string; label: string }>
+}> = [
+  {
+    value: 'players',
+    label: 'Player name',
+    hint: 'Results focus on player profiles, ratings, and Player prep.',
+    placeholder: 'Search a player name...',
+    links: [
+      { href: '/explore/players', label: 'Player directory' },
+      { href: '/explore/rankings', label: 'Rankings' },
+      { href: '/mylab', label: 'My Lab' },
+    ],
+  },
+  {
+    value: 'teams',
+    label: 'Team',
+    hint: 'Results focus on team pages, league context, and captain workflows.',
+    placeholder: 'Search a team name...',
+    links: [
+      { href: '/explore/teams', label: 'Teams' },
+      { href: '/captain', label: 'Captain hub' },
+      { href: '/compete/teams', label: 'My teams' },
+    ],
+  },
+  {
+    value: 'leagues',
+    label: 'League',
+    hint: 'Results focus on USTA and TIQ league containers.',
+    placeholder: 'Search a league name...',
+    links: [
+      { href: '/explore/leagues', label: 'Leagues' },
+      { href: '/compete/leagues', label: 'My leagues' },
+      { href: '/pricing', label: 'League tools' },
+    ],
+  },
+  {
+    value: 'flight',
+    label: 'Flight',
+    hint: 'Results focus on rating and flight filters across league views.',
+    placeholder: 'Search 3.5, 4.0, etc...',
+    links: [
+      { href: '/explore/leagues?scope=flight', label: 'Flights' },
+      { href: '/explore/rankings', label: 'Rankings' },
+      { href: '/explore/teams', label: 'Teams' },
+    ],
+  },
+  {
+    value: 'area',
+    label: 'Area',
+    hint: 'Results focus on districts, sections, and local league context.',
+    placeholder: 'Search city, district, or section...',
+    links: [
+      { href: '/explore/leagues?scope=area', label: 'Areas' },
+      { href: '/explore/teams', label: 'Teams nearby' },
+      { href: '/explore/players', label: 'Players nearby' },
+    ],
+  },
+]
+
+const tierSections: TierSectionConfig[] = [
+  buildTierSection('free', <FreeSnapshot />),
+  buildTierSection('player_plus', <PlayerPlusSnapshot />),
+  buildTierSection('captain', <CaptainSnapshot />, true),
+  buildTierSection('league', <LeagueSnapshot />),
+]
+
+const paidTierSections = tierSections.filter((section) => section.planId !== 'free')
+const conversionTierIds: PricingPlanId[] = ['free', 'player_plus', 'captain', 'league']
+
+function buildTierSection(planId: MembershipTierId, snapshot: ReactNode, featured = false): TierSectionConfig {
+  const tier = getMembershipTier(planId)
+  const story = TIER_HOMEPAGE_STORY[planId]
+  return {
+    planId,
+    label: tier.name,
+    stage: story.stage,
+    headline: story.headline,
+    copy: story.copy,
+    bullets: story.bullets,
+    primaryCta: story.primaryCta,
+    secondaryCta: story.secondaryCta,
+    snapshot,
+    featured,
+    featuredNote: story.featuredNote,
+  }
+}
+
+function getPlanIcon(planId: PricingPlanId): TiqFeatureIconName {
+  if (planId === 'player_plus') return 'myLab'
+  if (planId === 'captain') return 'captainDashboard'
+  if (planId === 'league') return 'teamRankings'
+  return 'playerRatings'
+}
+
+export default function PreviewHomepage() {
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <SiteShell active="">
+      <div
+        style={{
+          ...pageShell,
+          display: 'grid',
+          gap: isMobile ? 16 : 18,
+          paddingTop: isMobile ? 10 : 14,
+        }}
+      >
+        <section style={{ ...heroPanel, overflow: 'hidden' }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              background:
+                'radial-gradient(circle at 18% 18%, rgba(74,163,255,0.18) 0%, transparent 34%), radial-gradient(circle at 82% 20%, rgba(155,225,29,0.16) 0%, transparent 30%)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              pointerEvents: 'none',
+              backgroundImage:
+                'linear-gradient(rgba(116,190,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(116,190,255,0.05) 1px, transparent 1px)',
+              backgroundSize: isSmallMobile ? '26px 26px' : '34px 34px',
+              maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.2) 100%)',
+              WebkitMaskImage:
+                'linear-gradient(180deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.2) 100%)',
+              opacity: 0.42,
+            }}
+          />
+
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 1,
+              display: 'grid',
+              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.04fr) minmax(360px, 0.96fr)',
+              gap: isTablet ? 16 : 18,
+              padding: isSmallMobile ? 16 : isMobile ? 20 : 24,
+              alignItems: 'start',
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gap: isMobile ? 14 : 15,
+                alignContent: 'start',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  alignItems: 'center',
+                }}
+              >
+                <span
+                  style={{
+                    ...sectionKicker,
+                    marginBottom: 0,
+                    minHeight: 42,
+                    paddingInline: 16,
+                  }}
+                >
+                  {HOME_HERO_STORY.eyebrow}
+                </span>
+                <span
+                  style={{
+                    ...badgeBlue,
+                    color: colors.textStrong,
+                    minHeight: 42,
+                    paddingInline: 16,
+                  }}
+                >
+                  {HOME_HERO_STORY.badge}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div
+                  style={{
+                    color: 'var(--brand-blue-2)',
+                    fontSize: 12,
+                    fontWeight: 900,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {HOME_HERO_STORY.kicker}
+                </div>
+                <h1
+                  style={{
+                    ...pageTitle,
+                    fontSize: 'clamp(2.5rem, 5.6vw, 5rem)',
+                    lineHeight: 0.94,
+                    letterSpacing: '-0.05em',
+                    maxWidth: 700,
+                  }}
+                >
+                  {HOME_HERO_STORY.headlineTop}
+                  <br />
+                  {HOME_HERO_STORY.headlineBottom}
+                </h1>
+                <p
+                  style={{
+                    ...pageSubtitle,
+                    maxWidth: 700,
+                    fontSize: isMobile ? '15px' : '17px',
+                  }}
+                >
+                  {HOME_HERO_STORY.body}
+                </p>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                }}
+              >
+                <Link href="/pricing" style={buttonPrimary}>
+                  Compare tiers
+                </Link>
+                <Link href="/join" style={buttonGhost}>
+                  Get Started Free
+                </Link>
+              </div>
+
+              <HeroSearchPreview compact={true} />
+            </div>
+
+            <RoleChooserPreview />
+          </div>
+        </section>
+
+        <TierChoiceGrid />
+
+        <section style={{ ...sectionStack, gap: isMobile ? 14 : 16 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.1fr) minmax(280px, 0.9fr)',
+              gap: 12,
+              alignItems: 'stretch',
+            }}
+          >
+            <div style={{ display: 'grid', gap: 8, maxWidth: 860 }}>
+              <div style={sectionKicker}>Paid unlocks</div>
+              <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.7rem)', lineHeight: 1.02 }}>
+                What opens after Free.
+              </h2>
+              <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
+                Free gets people oriented. Player, Captain, and TIQ League Coordinator unlock the higher-value workflows: personal prep, team decisions, and league operations.
+              </p>
+            </div>
+
+            <div
+              style={{
+                ...surfaceCard,
+                display: 'grid',
+                gap: 7,
+                padding: isSmallMobile ? 13 : 14,
+                borderLeft: '2px solid rgba(155,225,29,0.42)',
+                background: 'transparent',
+              }}
+            >
+              <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                Paid upgrade path
+              </div>
+              <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>
+                Captain is the clearest team conversion.
+              </div>
+              <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.68 }}>
+                Player makes TenAceIQ personal. Captain turns that intelligence into weekly decisions for the whole team.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: isMobile ? 14 : 16 }}>
+            {paidTierSections.map((section, index) => (
+              <TierSection
+                key={section.planId}
+                {...section}
+                reverse={!isTablet && index % 2 === 1}
+              />
+            ))}
+          </div>
+        </section>
+
+        <FinalConversionRow />
+      </div>
+    </SiteShell>
+  )
+}
+
+function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
+  const router = useRouter()
+  const { theme } = useTheme()
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<HeroSearchFilter>('players')
+  const isLight = theme === 'light'
+  const selectedFilter = useMemo(
+    () => heroSearchFilters.find((item) => item.value === filter) ?? heroSearchFilters[0],
+    [filter],
+  )
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const trimmedQuery = query.trim()
+    const params = new URLSearchParams()
+
+    if (trimmedQuery) {
+      params.set('q', trimmedQuery)
+    }
+
+    const pathname = '/explore/search'
+    params.set('scope', filter)
+
+    const nextHref = params.size > 0 ? `${pathname}?${params.toString()}` : pathname
+    router.push(nextHref)
+  }
+
+  if (compact) {
+    return (
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          ...glassCard,
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'auto minmax(132px, 160px) minmax(0, 1fr) auto',
+          gap: 8,
+          alignItems: 'center',
+          padding: isSmallMobile ? 10 : 11,
+          maxWidth: isMobile ? '100%' : 760,
+          border: '1px solid var(--home-search-frame-border)',
+          background: isMobile
+            ? 'color-mix(in srgb, var(--home-search-frame-bg) 78%, transparent 22%)'
+            : 'var(--home-search-frame-bg)',
+          boxShadow: isMobile ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'var(--home-search-frame-shadow)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 8,
+            minWidth: 0,
+          }}
+        >
+          <span style={{ ...badgeGreen, minHeight: 32, paddingInline: 12, whiteSpace: 'nowrap' }}>
+            Free search
+          </span>
+          {isMobile ? (
+            <span
+              style={{
+                color: 'color-mix(in srgb, var(--brand-green) 78%, var(--foreground-strong) 22%)',
+                fontSize: 11,
+                fontWeight: 900,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Free entry
+            </span>
+          ) : null}
+        </div>
+
+        <select
+          value={filter}
+          onChange={(event) => setFilter(event.target.value as HeroSearchFilter)}
+          style={{
+            minHeight: 44,
+            padding: '0 32px 0 12px',
+            border: '1px solid var(--home-input-border)',
+            background: 'var(--home-input-bg)',
+            color: 'var(--foreground-strong)',
+            fontSize: 13,
+            fontWeight: 800,
+            outline: 'none',
+            borderRadius: 14,
+            boxShadow: 'var(--home-control-shadow)',
+            colorScheme: theme,
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            MozAppearance: 'none',
+            backgroundImage:
+              isLight
+                ? 'linear-gradient(45deg, transparent 50%, rgba(17,32,56,0.72) 50%), linear-gradient(135deg, rgba(17,32,56,0.72) 50%, transparent 50%)'
+                : 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
+            backgroundPosition: 'calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px)',
+            backgroundSize: '6px 6px, 6px 6px',
+            backgroundRepeat: 'no-repeat',
+          }}
+          aria-label="Search focus"
+        >
+          {heroSearchFilters.map((option) => (
+            <option
+              key={option.value}
+              value={option.value}
+              style={{
+                backgroundColor: isLight ? '#f4f7fb' : '#13233b',
+                color: isLight ? '#112038' : '#f5f8ff',
+              }}
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <div
+          style={{
+            minHeight: 44,
+            padding: '0 12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            border: '1px solid var(--home-input-border)',
+            background: 'var(--home-input-bg)',
+            borderRadius: 14,
+            boxShadow: 'var(--home-control-shadow)',
+          }}
+        >
+          <SearchIcon />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={selectedFilter.placeholder}
+            aria-label={`Search ${selectedFilter.label.toLowerCase()}`}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--foreground-strong)',
+              fontSize: 14,
+              outline: 'none',
+            }}
+          />
+        </div>
+
+        <button
+          type="submit"
+          style={{
+            ...buttonPrimary,
+            minHeight: 44,
+            minWidth: isMobile ? '100%' : 118,
+            width: isMobile ? '100%' : undefined,
+            paddingInline: 16,
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Search
+        </button>
+      </form>
+    )
+  }
+
+  return (
+    <div
+        style={{
+          ...glassCard,
+          padding: isSmallMobile ? 12 : compact || isMobile ? 13 : 18,
+          display: 'grid',
+          gap: compact ? 9 : isMobile ? 10 : 12,
+          maxWidth: isMobile ? '100%' : 760,
+          border: '1px solid var(--home-search-frame-border)',
+          background: isMobile
+            ? 'color-mix(in srgb, var(--home-search-frame-bg) 78%, transparent 22%)'
+            : 'var(--home-search-frame-bg)',
+          boxShadow: isMobile ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'var(--home-search-frame-shadow)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+        }}
+      >
+      <div style={{ display: 'grid', gap: compact ? 6 : 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ ...badgeGreen, width: 'fit-content' }}>Start with search</div>
+          <div
+            style={{
+              color: 'color-mix(in srgb, var(--brand-green) 78%, var(--foreground-strong) 22%)',
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Free entry
+          </div>
+        </div>
+        <div
+          style={{
+            color: colors.textStrong,
+            fontSize: isSmallMobile ? 17 : compact || isMobile ? 18 : 24,
+            fontWeight: 900,
+            letterSpacing: '-0.03em',
+            lineHeight: 1.12,
+          }}
+        >
+          {isMobile ? 'Search the tennis map first.' : 'Find what you need without digging through the product.'}
+        </div>
+        <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: compact ? 1.45 : 1.65 }}>
+          {isMobile
+            ? 'Find a player, team, league, flight, or area, then choose the tier that helps next.'
+            : compact
+              ? 'Search a player, team, league, flight, or area before choosing a tier.'
+              : 'Start with a targeted search by player, team, league, flight, or area, then unlock the tools that solve the next problem in your week.'}
+        </div>
+      </div>
+
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: 'grid',
+          gridTemplateColumns:
+            compact || isMobile ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) minmax(148px, 156px)',
+          gap: compact || isMobile ? 8 : 10,
+          alignItems: compact || isMobile ? 'stretch' : 'end',
+        }}
+      >
+        <label style={{ display: 'grid', gap: 6 }}>
+          <span style={{ color: 'var(--muted-strong)', fontSize: 11, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+            Search by
+          </span>
+          <select
+            value={filter}
+            onChange={(event) => setFilter(event.target.value as HeroSearchFilter)}
+            style={{
+              minHeight: isSmallMobile ? 52 : compact ? 48 : 56,
+              padding: '0 14px',
+              border: '1px solid var(--home-input-border)',
+              background: 'var(--home-input-bg)',
+              color: 'var(--foreground-strong)',
+              fontSize: 14,
+              fontWeight: 700,
+              outline: 'none',
+              borderRadius: 16,
+              boxShadow: 'var(--home-control-shadow)',
+              colorScheme: theme,
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              backgroundImage:
+                isLight
+                  ? 'linear-gradient(45deg, transparent 50%, rgba(17,32,56,0.72) 50%), linear-gradient(135deg, rgba(17,32,56,0.72) 50%, transparent 50%)'
+                  : 'linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.88) 50%), linear-gradient(135deg, rgba(255,255,255,0.88) 50%, transparent 50%)',
+              backgroundPosition: 'calc(100% - 20px) calc(50% - 2px), calc(100% - 14px) calc(50% - 2px)',
+              backgroundSize: '6px 6px, 6px 6px',
+              backgroundRepeat: 'no-repeat',
+              paddingRight: 34,
+            }}
+            aria-label="Search focus"
+          >
+            {heroSearchFilters.map((option) => (
+              <option
+                key={option.value}
+                value={option.value}
+                style={{
+                  backgroundColor: isLight ? '#f4f7fb' : '#13233b',
+                  color: isLight ? '#112038' : '#f5f8ff',
+                }}
+              >
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div
+          style={{
+            minHeight: isMobile ? 50 : compact ? 48 : 56,
+            padding: '0 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            border: '1px solid var(--home-input-border)',
+            background: 'var(--home-input-bg)',
+            borderRadius: 16,
+            boxShadow: 'var(--home-control-shadow)',
+          }}
+        >
+          <SearchIcon />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={selectedFilter.placeholder}
+            aria-label={`Search ${selectedFilter.label.toLowerCase()}`}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--foreground-strong)',
+              fontSize: 15,
+              outline: 'none',
+            }}
+          />
+        </div>
+        <button
+          type="submit"
+          style={{
+            ...buttonPrimary,
+            minHeight: isMobile ? 50 : compact ? 48 : 56,
+            minWidth: compact || isMobile ? '100%' : 148,
+            width: compact || isMobile ? '100%' : undefined,
+            paddingInline: compact || isMobile ? 20 : 22,
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          Search now
+        </button>
+      </form>
+
+      {compact ? null : <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+        }}
+      >
+        <div style={{ color: colors.mutedStrong, fontSize: 12, lineHeight: 1.55 }}>
+          {selectedFilter.hint}
+        </div>
+        {isMobile ? null : <div style={{ color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Opens focused Explore results
+        </div>}
+      </div>}
+
+      {compact || isMobile ? null : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        {selectedFilter.links.map((item) => (
+          <Link key={item.href} href={item.href} style={chipLinkStyle}>
+            {item.label}
+          </Link>
+        ))}
+      </div>}
+    </div>
+  )
+}
+
+function TierChoiceGrid() {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <section
+      style={{
+        display: 'grid',
+        gap: isMobile ? 12 : 13,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          alignItems: 'end',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
+          <div style={sectionKicker}>Choose your tier</div>
+          <h2 style={{ ...sectionTitle, fontSize: 'clamp(1.85rem, 2.8vw, 2.65rem)', lineHeight: 1.02 }}>
+            Start free. Upgrade by the job.
+          </h2>
+          <p style={{ ...pageSubtitle, marginTop: 0, fontSize: isMobile ? 14 : 15, lineHeight: 1.55 }}>
+            Every tier has a clear reason to exist: discovery, personal prep, team decisions, or league operations.
+          </p>
+        </div>
+        <Link href="/pricing" style={{ ...buttonGhost, minHeight: 40 }}>
+          Full plan comparison
+        </Link>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+          gap: 10,
+          alignItems: 'stretch',
+        }}
+      >
+        {conversionTierIds.map((planId) => {
+          const tier = getMembershipTier(planId)
+          const plan = getPricingPlan(planId)
+          const story = TIER_HOMEPAGE_STORY[planId]
+          const theme = getTierTheme(planId)
+          const featured = planId === 'captain'
+
+          return (
+            <article
+              key={planId}
+              style={{
+                position: 'relative',
+                display: 'grid',
+                gap: 10,
+                alignContent: 'start',
+                minHeight: isSmallMobile ? 0 : 248,
+                padding: isSmallMobile ? 15 : 16,
+                overflow: 'hidden',
+                borderRadius: 18,
+                border: featured ? '1px solid rgba(155,225,29,0.32)' : '1px solid rgba(116,190,255,0.12)',
+                borderTop: `3px solid ${theme.priceColor}`,
+                background: featured
+                  ? 'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 88%, var(--brand-green) 12%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)'
+                  : 'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface) 96%, var(--foreground) 4%) 100%)',
+                boxShadow: featured ? '0 22px 48px rgba(155,225,29,0.10)' : 'var(--shadow-soft)',
+              }}
+            >
+              {featured ? (
+                <div style={{ ...mostPopularBadgeStyle, width: 'fit-content' }}>Best team value</div>
+              ) : null}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
+                <div style={{ display: 'grid', gap: 7 }}>
+                  <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{tier.name}</span>
+                  <h3
+                    style={{
+                      margin: 0,
+                      color: 'var(--foreground-strong)',
+                      fontSize: 20,
+                      lineHeight: 1.04,
+                      letterSpacing: '-0.04em',
+                      fontWeight: 900,
+                    }}
+                  >
+                    {tier.shortPromise}
+                  </h3>
+                </div>
+                <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'nowrap' }}>
+                  {plan.priceLabel}
+                </div>
+              </div>
+
+              <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.48 }}>
+                {story.copy}
+              </p>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 6,
+                  padding: 10,
+                  borderRadius: 14,
+                  border: '1px solid rgba(116,190,255,0.10)',
+                  background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                }}
+              >
+                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Best for</div>
+                <div style={{ color: 'var(--foreground-strong)', fontSize: 12, lineHeight: 1.4, fontWeight: 800 }}>
+                  {tier.audience}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gap: 4,
+                  paddingLeft: 11,
+                  borderLeft: `2px solid ${theme.priceColor}`,
+                }}
+              >
+                <div style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>Upgrade trigger</div>
+                <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.42, fontWeight: 700 }}>
+                  {tier.upgradeCue}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gap: 6 }}>
+                {story.bullets.slice(0, 2).map((bullet) => (
+                  <div key={bullet} style={{ ...bulletRowStyle, fontSize: 12, lineHeight: 1.42 }}>
+                    <span style={{ ...bulletDotStyle, marginTop: 6, background: theme.priceColor }} />
+                    <span>{bullet}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 'auto' }}>
+                <Link href={story.primaryCta.href} style={featured ? theme.primaryButton : getTierSecondaryButton(theme)}>
+                  {story.primaryCta.label}
+                </Link>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function FinalConversionRow() {
+  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <section
+      style={{
+        ...surfaceCardStrong,
+        display: 'grid',
+        gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) auto',
+        gap: 14,
+        alignItems: 'center',
+        padding: isSmallMobile ? 16 : 18,
+        border: '1px solid rgba(155,225,29,0.18)',
+        background:
+          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue) 4%) 100%)',
+      }}
+    >
+      <div style={{ display: 'grid', gap: 6, maxWidth: 760 }}>
+        <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Ready when the next tennis job appears</div>
+        <h2
+          style={{
+            margin: 0,
+            color: 'var(--foreground-strong)',
+            fontSize: 'clamp(1.35rem, 1.9vw, 2rem)',
+            lineHeight: 1.04,
+            letterSpacing: '-0.04em',
+            fontWeight: 900,
+          }}
+        >
+          Start free, then choose the tier that saves the most time.
+        </h2>
+        <p style={{ margin: 0, color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.5 }}>
+          Search first. Upgrade for Player prep, Captain decisions, or league operations when those tools matter.
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: isTablet ? 'start' : 'end' }}>
+        <Link href="/join" style={buttonPrimary}>
+          Get Started Free
+        </Link>
+        <Link href="/pricing" style={buttonGhost}>
+          Compare tiers
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function RoleChooserPreview() {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const roleChoices: Array<{
+    planId: PricingPlanId
+    label: string
+    title: string
+    text: string
+    href: string
+    cta: string
+  }> = [
+    {
+      planId: 'free',
+      label: 'Explore tennis',
+      title: 'Find the public tennis map',
+      text: 'Players, teams, leagues, rankings, flights, and areas.',
+      href: '/explore',
+      cta: 'Explore',
+    },
+    {
+      planId: 'player_plus',
+      label: 'Improve my game',
+      title: 'Make TenAceIQ personal',
+      text: 'My Lab, follows, matchup reads, and player-linked prep.',
+      href: '/pricing#player_plus',
+      cta: 'Player',
+    },
+    {
+      planId: 'captain',
+      label: 'Run my team',
+      title: 'Make the weekly lineup call',
+      text: 'Lineups, scouting, readiness, and team decisions.',
+      href: '/pricing#captain',
+      cta: 'Captain',
+    },
+    {
+      planId: 'league',
+      label: 'Manage a league',
+      title: 'Operate the season',
+      text: 'Structure, visibility, standings, schedules, and results.',
+      href: '/pricing#league',
+      cta: 'Coordinator',
+    },
+  ]
+
+  return (
+    <div
+      style={{
+        ...surfaceCardStrong,
+        padding: isSmallMobile ? 16 : 20,
+        display: 'grid',
+        gap: isSmallMobile ? 12 : 14,
+        minHeight: 100,
+        position: 'relative',
+        overflow: 'hidden',
+        border: '1px solid var(--shell-panel-border)',
+        background: 'var(--shell-panel-bg)',
+        alignSelf: 'start',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: '-40px',
+          right: '-30px',
+          width: isMobile ? 180 : 240,
+          height: isMobile ? 180 : 240,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(155,225,29,0.18) 0%, rgba(74,163,255,0.08) 42%, transparent 72%)',
+          filter: 'blur(6px)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div
+        style={{
+          display: 'grid',
+          gap: 14,
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gap: 8, maxWidth: 440 }}>
+            <div style={{ ...badgeGreen, width: 'fit-content', minHeight: 34 }}>Choose your path</div>
+            <div style={{ color: colors.textStrong, fontSize: isSmallMobile ? 25 : 28, fontWeight: 900, lineHeight: 1.02, letterSpacing: '-0.04em' }}>
+              What are you here to do?
+            </div>
+            <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.55, maxWidth: 420 }}>
+              Pick the tennis job first. The tier decision follows naturally.
+            </div>
+          </div>
+          <Link href="/pricing" style={{ ...buttonPrimary, minHeight: 40, paddingInline: 15 }}>
+            Compare tiers
+          </Link>
+        </div>
+
+        <div style={{ display: 'grid', gap: 8 }}>
+          {roleChoices.map((item) => {
+            const theme = getTierTheme(item.planId)
+            return (
+              <Link
+                key={item.planId}
+                href={item.href}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: isSmallMobile ? '1fr' : '126px minmax(0, 1fr) auto',
+                  gap: 12,
+                  alignItems: 'center',
+                  minHeight: isSmallMobile ? 92 : 72,
+                  padding: isSmallMobile ? 12 : 11,
+                  borderRadius: 16,
+                  border: '1px solid rgba(116,190,255,0.10)',
+                  borderLeft: `3px solid ${theme.priceColor}`,
+                  background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                }}
+              >
+                <span style={{ ...theme.tierBadge, width: 'fit-content' }}>{item.label}</span>
+                <span style={{ display: 'grid', gap: 4 }}>
+                  <strong style={{ color: 'var(--foreground-strong)', fontSize: 14, lineHeight: 1.12 }}>{item.title}</strong>
+                  <span style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.35 }}>{item.text}</span>
+                </span>
+                <span style={{ ...snapshotPanelLabelStyle, color: theme.priceColor }}>{item.cta}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function TierSection({
+  planId,
+  stage,
+  label,
+  headline,
+  copy,
+  bullets,
+  primaryCta,
+  secondaryCta,
+  snapshot,
+  featured = false,
+  featuredNote,
+  reverse = false,
+}: TierSectionConfig & { reverse?: boolean }) {
+  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const plan = getPricingPlan(planId)
+  const theme = getTierTheme(planId)
+
+  return (
+    <section
+      style={{
+        ...surfaceCardStrong,
+        position: 'relative',
+        padding: 0,
+        overflow: 'hidden',
+        border: theme.shellBorder,
+        boxShadow: theme.shellShadow,
+        background: theme.shellBackground,
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: theme.chapterGlow,
+          opacity: 0.46,
+        }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          insetInline: 0,
+          top: 0,
+          height: 2,
+          background: `linear-gradient(90deg, ${theme.priceColor} 0%, transparent 72%)`,
+          opacity: 0.72,
+        }}
+      />
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          display: 'grid',
+          gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.92fr) minmax(320px, 1.08fr)',
+          gap: 0,
+        }}
+      >
+        <div
+          style={{
+            order: isTablet ? 1 : reverse ? 2 : 1,
+            padding: isSmallMobile ? 16 : 18,
+            display: 'grid',
+            gap: 10,
+            alignContent: 'start',
+            background: theme.contentBackground,
+          }}
+        >
+          <TiqFeatureIcon name={getPlanIcon(planId)} size="lg" variant="surface" />
+          <div style={tierHeaderWrapStyle}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+              <span style={theme.tierBadge}>{label}</span>
+              {plan.badge ? <span style={mostPopularBadgeStyle}>{plan.badge}</span> : null}
+            </div>
+            <span style={{ ...tierPriceStyle, color: theme.priceColor }}>{plan.priceLabel}</span>
+          </div>
+
+          <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ color: theme.accentLabel, fontSize: 12, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              {stage}
+            </div>
+            <h3
+              style={{
+                margin: 0,
+                color: 'var(--foreground-strong)',
+                fontSize: 'clamp(1.55rem, 2.2vw, 2.25rem)',
+                lineHeight: 1.04,
+                letterSpacing: '-0.04em',
+                fontWeight: 900,
+                maxWidth: 560,
+              }}
+            >
+              {headline}
+            </h3>
+            <p
+              style={{
+                margin: 0,
+                color: 'var(--muted-strong)',
+                fontSize: 13,
+                lineHeight: 1.55,
+                maxWidth: 560,
+              }}
+            >
+              {copy}
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gap: 7 }}>
+            {bullets.map((bullet) => (
+              <div key={bullet} style={bulletRowStyle}>
+                <span style={{ ...bulletDotStyle, background: `linear-gradient(135deg, ${theme.priceColor} 0%, rgba(255,255,255,0.98) 100%)` }} />
+                <span>{bullet}</span>
+              </div>
+            ))}
+          </div>
+
+          {featured && featuredNote ? (
+            <div
+              style={{
+                ...featuredNoteCardStyle,
+                border: '1px solid rgba(116,190,255,0.10)',
+                background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)',
+              }}
+            >
+              <div style={{ ...featuredNoteLabelStyle, color: theme.accentLabel }}>Why this tier matters</div>
+              <div style={featuredNoteTextStyle}>{featuredNote}</div>
+            </div>
+          ) : null}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <Link
+              href={primaryCta.href}
+              style={featured ? { ...theme.primaryButton, boxShadow: '0 16px 28px rgba(155, 225, 29, 0.18)' } : theme.primaryButton}
+            >
+              {primaryCta.label}
+            </Link>
+              {secondaryCta ? (
+                <Link href={secondaryCta.href} style={getTierSecondaryButton(theme)}>
+                  {secondaryCta.label}
+                </Link>
+              ) : null}
+          </div>
+
+          <div style={{ ...tierMetaCardStyle, border: '1px solid rgba(116,190,255,0.10)', background: 'color-mix(in srgb, var(--surface-soft) 94%, var(--foreground) 6%)' }}>
+            <div style={{ ...tierMetaLabelStyle, color: theme.accentLabel }}>Problem solved</div>
+            <div style={tierMetaTextStyle}>{plan.problem}</div>
+            <div style={{ ...tierMetaTextStyle, color: 'var(--foreground-strong)' }}>{plan.outcome}</div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              color: 'var(--muted-strong)',
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}
+          >
+            <span
+              style={{
+                width: 36,
+                height: 1,
+                background: theme.priceColor,
+                opacity: 0.7,
+              }}
+            />
+            Unlocked experience
+          </div>
+        </div>
+
+        <div
+          style={{
+            order: isTablet ? 2 : reverse ? 1 : 2,
+            padding: isSmallMobile ? 16 : 18,
+            background: theme.previewBackground,
+            borderLeft: isTablet ? 'none' : reverse ? 'none' : theme.previewDivider,
+            borderRight: isTablet ? 'none' : reverse ? theme.previewDivider : 'none',
+            borderTop: isTablet ? theme.previewDivider : 'none',
+            display: 'grid',
+            alignContent: 'center',
+          }}
+        >
+          {snapshot}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function FreeSnapshot() {
+  const { isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <SnapshotShell planId="free" title="Explore entry" subtitle="Search, profile, availability, lineup visibility">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={searchInputShellStyle}>
+          <SearchIcon />
+          <span style={{ color: colors.mutedStrong, fontSize: 14 }}>Search players, teams, leagues, or matches</span>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {['Players', 'Teams', 'Leagues', 'My Lab'].map((item) => (
+            <span key={item} style={snapshotChipStyle}>
+              {item}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+          <SnapshotCard title="Profile" value="Ready to join" text="Create your player profile and join your team." />
+          <SnapshotCard title="Availability" value="2 taps" text="Set in, out, or tentative before lineup decisions start." accent="green" />
+        </div>
+
+        <div style={listShellStyle}>
+          <ListRow title="Posted lineup" meta="View-only access on Free" trailing="Ready" />
+          <ListRow title="My next match" meta="Saturday, 9:00 AM" trailing="Upcoming" />
+        </div>
+      </div>
+    </SnapshotShell>
+  )
+}
+
+function PlayerPlusSnapshot() {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <SnapshotShell planId="player_plus" title="Player insight" subtitle="Role fit, projections, recent form, and matchup context">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+          <SnapshotCard title="TIQ" value="4.48" text="Current form rating" accent="green" />
+          <SnapshotCard title="Best fit" value="D2" text="Where you should play" accent="blue" />
+          <SnapshotCard title="Projection" value="63%" text="Match win estimate" accent="blue" />
+        </div>
+
+        <div style={snapshotPanelStyle}>
+          <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Where should I play?</div>
+          <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em' }}>
+            Your best edge is doubles this week.
+          </div>
+          <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.65 }}>
+            Higher doubles fit, steadier recent form, and better synergy with similar TIQ pair profiles.
+          </div>
+        </div>
+
+        <div style={snapshotPanelStyle}>
+          <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Recent form and matchup context</div>
+          <div style={{ color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 900 }}>
+            Trending up, with the clearest edge when the pace stays controlled.
+          </div>
+          <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.6 }}>
+            Recent TIQ movement and available opponent context both point to doubles as the stronger play this week.
+          </div>
+        </div>
+      </div>
+    </SnapshotShell>
+  )
+}
+
+function CaptainSnapshot() {
+  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <SnapshotShell
+      planId="captain"
+      title="Captain tools"
+      subtitle="Availability, lineup builder, scenarios, projections, and team messaging"
+      featured
+    >
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+          <SnapshotCard title="Availability" value="8 / 10" text="Players confirmed" accent="green" />
+          <SnapshotCard title="Best lineup" value="71%" text="Projected win rate" accent="green" />
+          <SnapshotCard title="Scenario delta" value="+8%" text="Compared with another option" accent="blue" />
+        </div>
+
+        <div style={{ ...snapshotPanelStyle, gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ ...snapshotPanelLabelStyle, color: 'var(--foreground)' }}>Projected lineup</div>
+            <span style={{ ...badgeGreen, width: 'fit-content' }}>Captain</span>
+          </div>
+          <div style={lineupShellStyle}>
+            <LineupRow label="S1" value="J. Walker" status="Available" projection="66%" />
+            <LineupRow label="S2" value="L. Carter" status="Available" projection="59%" />
+            <LineupRow label="D1" value="Mei + Brooks" status="Available" projection="74%" />
+            <LineupRow label="D2" value="Hart + Lyons" status="Tentative" projection="68%" />
+            <LineupRow label="D3" value="Cole + Ramos" status="Available" projection="71%" />
+          </div>
+        </div>
+
+        <div style={{ ...snapshotPanelStyle, gap: 10 }}>
+          <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)' }}>Captain signals</div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <CaptainSignalRow title="Availability check" text="Two tentative players affect doubles." tone="warn" />
+            <CaptainSignalRow title="Best projected court" text="D1 is the clearest swing court in the current recommended lineup." tone="good" />
+            <CaptainSignalRow title="Team message" text="Lineup, arrival time, and reminders can go out in one update." tone="info" />
+          </div>
+        </div>
+      </div>
+    </SnapshotShell>
+  )
+}
+
+function LeagueSnapshot() {
+  const { isSmallMobile } = useViewportBreakpoints()
+
+  return (
+    <SnapshotShell planId="league" title="League workspace" subtitle="Standings, schedule, teams, and season operations">
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+          <SnapshotCard title="Teams" value="10" text="Entered this season" accent="blue" />
+          <SnapshotCard title="Matches" value="36" text="Scheduled and tracked" accent="green" />
+        </div>
+
+        <div style={listShellStyle}>
+          <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-blue-2)', marginBottom: 4 }}>Standings</div>
+          <StandingsRow rank="1" team="Southside Aces" record="5-1" points="16" />
+          <StandingsRow rank="2" team="Wily Wolverines" record="4-2" points="14" />
+          <StandingsRow rank="3" team="Northline Volley" record="4-2" points="13" />
+          <StandingsRow rank="4" team="Baseline Union" record="3-3" points="11" />
+        </div>
+
+        <div style={snapshotPanelStyle}>
+          <div style={{ ...snapshotPanelLabelStyle, color: 'var(--brand-green)' }}>Upcoming schedule</div>
+          <ListRow title="Wolverines vs Aces" meta="Saturday - Court 3 - 9:00 AM" trailing="Ready" />
+          <ListRow title="Union vs Spin Club" meta="Saturday - Court 5 - 10:30 AM" trailing="Posted" />
+        </div>
+      </div>
+    </SnapshotShell>
+  )
+}
+
+function SnapshotShell({
+  planId,
+  title,
+  subtitle,
+  children,
+  featured = false,
+}: {
+  planId: PricingPlanId
+  title: string
+  subtitle: string
+  children: ReactNode
+  featured?: boolean
+}) {
+  const { isSmallMobile } = useViewportBreakpoints()
+  const theme = getTierTheme(planId)
+  return (
+    <div
+      style={{
+        ...surfaceCard,
+        position: 'relative',
+        padding: isSmallMobile ? 15 : 16,
+        display: 'grid',
+        gap: 12,
+        background: featured ? theme.previewBackground : theme.contentBackground,
+        border: '1px solid rgba(116,190,255,0.10)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: theme.chapterGlow,
+          opacity: 0.24,
+        }}
+      />
+      <div style={{ display: 'grid', gap: 5 }}>
+        <div style={{ ...snapshotPanelLabelStyle, color: theme.accentLabel }}>{title}</div>
+        <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, letterSpacing: '-0.03em', lineHeight: 1.1 }}>{subtitle}</div>
+      </div>
+      <div style={{ position: 'relative', zIndex: 1 }}>{children}</div>
+    </div>
+  )
+}
+
+function SnapshotCard({
+  title,
+  value,
+  text,
+  accent = 'slate',
+}: {
+  title: string
+  value: string
+  text: string
+  accent?: 'green' | 'blue' | 'slate'
+}) {
+  const tone =
+    accent === 'green'
+      ? 'color-mix(in srgb, var(--surface-soft) 88%, var(--brand-green) 12%)'
+      : accent === 'blue'
+        ? 'color-mix(in srgb, var(--surface-soft) 88%, var(--brand-blue-2) 12%)'
+        : 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)'
+
+  const border =
+    accent === 'green'
+      ? '1px solid rgba(155,225,29,0.18)'
+      : accent === 'blue'
+        ? '1px solid rgba(116,190,255,0.16)'
+        : '1px solid rgba(116,190,255,0.10)'
+
+  const labelColor =
+    accent === 'green'
+      ? 'color-mix(in srgb, var(--brand-green) 78%, var(--foreground-strong) 22%)'
+      : accent === 'blue'
+        ? 'color-mix(in srgb, var(--brand-blue) 74%, var(--foreground-strong) 26%)'
+        : 'var(--muted-strong)'
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: 6,
+        padding: 12,
+        borderRadius: 15,
+        background: tone,
+        border,
+      }}
+    >
+      <div style={{ color: labelColor, fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+        {title}
+      </div>
+      <div style={{ color: 'var(--foreground-strong)', fontSize: 22, fontWeight: 900, letterSpacing: '-0.04em' }}>{value}</div>
+      <div style={{ color: 'var(--foreground)', fontSize: 12, lineHeight: 1.55 }}>{text}</div>
+    </div>
+  )
+}
+
+function CaptainSignalRow({
+  title,
+  text,
+  tone,
+}: {
+  title: string
+  text: string
+  tone: 'warn' | 'good' | 'info'
+}) {
+  const chipStyle =
+    tone === 'warn'
+      ? signalWarnChipStyle
+      : tone === 'good'
+        ? signalGoodChipStyle
+        : signalInfoChipStyle
+
+  const chipLabel = tone === 'warn' ? 'Watch' : tone === 'good' ? 'Strong' : 'Ready'
+
+  return (
+    <div style={captainSignalRowStyle}>
+      <div style={{ display: 'grid', gap: 4 }}>
+        <div style={{ color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 800 }}>{title}</div>
+        <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.55 }}>{text}</div>
+      </div>
+      <span style={chipStyle}>{chipLabel}</span>
+    </div>
+  )
+}
+
+function LineupRow({
+  label,
+  value,
+  status,
+  projection,
+}: {
+  label: string
+  value: string
+  status: string
+  projection: string
+}) {
+  const { isSmallMobile } = useViewportBreakpoints()
+  const statusStyle =
+    status === 'Available'
+      ? badgeGreen
+      : status === 'Tentative'
+        ? badgeBlue
+        : badgeSlate
+
+  const projectionChipStyle: CSSProperties = {
+    width: 'fit-content',
+    minHeight: 28,
+    padding: '0 12px',
+    borderRadius: 999,
+    border: '1px solid rgba(155,225,29,0.24)',
+    background:
+      'color-mix(in srgb, var(--surface-soft) 82%, var(--brand-green) 18%)',
+    color: 'var(--foreground-strong)',
+    fontSize: 13,
+    fontWeight: 900,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    letterSpacing: '-0.01em',
+  }
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: isSmallMobile ? '44px minmax(0, 1fr)' : '52px minmax(0, 1fr) auto auto',
+        gap: 10,
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 15,
+        border: '1px solid rgba(116,190,255,0.1)',
+        background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
+      }}
+    >
+      <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>{label}</div>
+      <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800 }}>{value}</div>
+      {isSmallMobile ? (
+        <>
+          <span style={{ ...statusStyle, width: 'fit-content', minHeight: 28, gridColumn: '2 / 3' }}>{status}</span>
+          <div style={{ ...projectionChipStyle, gridColumn: '2 / 3' }}>{projection}</div>
+        </>
+      ) : (
+        <>
+          <span style={{ ...statusStyle, width: 'fit-content', minHeight: 28 }}>{status}</span>
+          <div style={projectionChipStyle}>{projection}</div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function ListRow({
+  title,
+  meta,
+  trailing,
+}: {
+  title: string
+  meta: string
+  trailing: string
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) auto',
+        gap: 12,
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 15,
+        border: '1px solid rgba(116,190,255,0.1)',
+        background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
+      }}
+    >
+      <div style={{ display: 'grid', gap: 4 }}>
+        <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800 }}>{title}</div>
+        <div style={{ color: 'var(--muted-strong)', fontSize: 12, lineHeight: 1.55 }}>{meta}</div>
+      </div>
+      <div style={{ ...badgeBlue, width: 'fit-content' }}>{trailing}</div>
+    </div>
+  )
+}
+
+function StandingsRow({
+  rank,
+  team,
+  record,
+  points,
+}: {
+  rank: string
+  team: string
+  record: string
+  points: string
+}) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '28px minmax(0, 1fr) auto auto',
+        gap: 10,
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 14,
+      }}
+    >
+      <div style={{ color: '#9be11d', fontWeight: 900 }}>{rank}</div>
+      <div style={{ color: 'var(--foreground-strong)', fontSize: 14, fontWeight: 800 }}>{team}</div>
+      <div style={{ color: 'var(--muted-strong)', fontSize: 12, fontWeight: 800 }}>{record}</div>
+      <div style={{ color: 'var(--foreground)', fontSize: 12, fontWeight: 900 }}>{points} pts</div>
+    </div>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true">
+      <path
+        d="M8.6 14.2a5.6 5.6 0 1 1 0-11.2 5.6 5.6 0 0 1 0 11.2Zm7 1.1-3.1-3.1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+const chipLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 34,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid var(--card-border-soft)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 13,
+  fontWeight: 800,
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const searchInputShellStyle: CSSProperties = {
+  ...surfaceCard,
+  minHeight: 50,
+  padding: '0 14px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+}
+
+const snapshotChipStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 30,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 98%, var(--foreground) 2%) 100%)',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const snapshotPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
+}
+
+const snapshotPanelLabelStyle: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const listShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: 10,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
+}
+
+const lineupShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const tierPriceStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 13,
+  fontWeight: 900,
+  letterSpacing: '-0.01em',
+}
+
+const mostPopularBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 26,
+  padding: '0 9px',
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: '#07121f',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const bulletRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '12px 1fr',
+  gap: 10,
+  alignItems: 'start',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.68,
+}
+
+const bulletDotStyle: CSSProperties = {
+  width: 8,
+  height: 8,
+  marginTop: 7,
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+}
+
+const tierMetaCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 11,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%)',
+}
+
+const tierMetaLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const tierMetaTextStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.6,
+  fontWeight: 700,
+}
+
+const tierHeaderWrapStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+function getTierTheme(planId: PricingPlanId): TierTheme {
+  switch (planId) {
+    case 'player_plus':
+      return {
+        shellBorder: '1px solid rgba(74,163,255,0.22)',
+        shellShadow: '0 24px 56px rgba(37,91,227,0.10)',
+        shellBackground:
+          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-blue) 8%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%) 100%)',
+        chapterGlow:
+          'radial-gradient(circle at 14% 16%, color-mix(in srgb, var(--brand-blue-2) 14%, transparent) 0%, transparent 34%), radial-gradient(circle at 88% 82%, color-mix(in srgb, var(--brand-blue) 12%, transparent) 0%, transparent 30%)',
+        contentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 96%, var(--brand-blue) 4%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue-2) 4%) 100%)',
+        previewBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, var(--brand-blue) 6%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue-2) 6%) 100%)',
+        previewDivider: '1px solid rgba(74,163,255,0.12)',
+        tierBadge: {
+          ...badgeBlue,
+          color: 'var(--foreground-strong)',
+          border: '1px solid rgba(74,163,255,0.22)',
+          background:
+            'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 80%, var(--brand-blue) 20%) 0%, color-mix(in srgb, var(--surface-soft) 92%, var(--brand-blue-2) 8%) 100%)',
+        },
+        priceColor: 'var(--brand-blue)',
+        numberColor: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
+        accentLabel: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
+        accentBorder: '1px solid rgba(74,163,255,0.18)',
+        accentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 80%, var(--brand-blue) 20%) 0%, color-mix(in srgb, var(--surface-soft) 86%, var(--brand-blue-2) 14%) 100%)',
+        accentText: 'var(--foreground-strong)',
+        primaryButton: {
+          ...buttonPrimary,
+          background: 'linear-gradient(135deg, #255be3 0%, #74beff 100%)',
+          border: '1px solid rgba(116,190,255,0.34)',
+          color: 'var(--foreground-strong)',
+          boxShadow: '0 16px 30px rgba(37,91,227,0.20)',
+        },
+      }
+    case 'captain':
+      return {
+        shellBorder: '1px solid rgba(155,225,29,0.24)',
+        shellShadow: '0 26px 60px rgba(155,225,29,0.10)',
+        shellBackground:
+          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 90%, var(--brand-green) 10%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)',
+        chapterGlow:
+          'radial-gradient(circle at 16% 14%, color-mix(in srgb, var(--brand-green) 16%, transparent) 0%, transparent 34%), radial-gradient(circle at 84% 80%, color-mix(in srgb, var(--brand-blue-2) 12%, transparent) 0%, transparent 28%)',
+        contentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 96%, var(--brand-blue) 4%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-green) 6%) 100%)',
+        previewBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--surface) 94%, var(--brand-blue) 6%) 100%)',
+        previewDivider: '1px solid rgba(155,225,29,0.10)',
+        tierBadge: {
+          ...badgeGreen,
+          color: 'var(--foreground-strong)',
+          border: '1px solid rgba(155,225,29,0.22)',
+          background:
+            'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 78%, var(--brand-green) 22%) 0%, color-mix(in srgb, var(--surface-soft) 90%, var(--brand-green) 10%) 100%)',
+        },
+        priceColor: 'var(--brand-green)',
+        numberColor: 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)',
+        accentLabel: 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)',
+        accentBorder: '1px solid rgba(155,225,29,0.18)',
+        accentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 78%, var(--brand-green) 22%) 0%, color-mix(in srgb, var(--surface-soft) 84%, var(--brand-blue) 16%) 100%)',
+        accentText: 'var(--foreground-strong)',
+        primaryButton: {
+          ...buttonPrimary,
+          boxShadow: '0 18px 34px rgba(155, 225, 29, 0.22)',
+        },
+      }
+    case 'league':
+      return {
+        shellBorder: '1px solid rgba(245,158,11,0.22)',
+        shellShadow: '0 24px 56px rgba(245,158,11,0.10)',
+        shellBackground:
+          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, #f59e0b 8%) 0%, color-mix(in srgb, var(--surface) 96%, #fcd34d 4%) 100%)',
+        chapterGlow:
+          'radial-gradient(circle at 16% 18%, color-mix(in srgb, #f59e0b 12%, transparent) 0%, transparent 34%), radial-gradient(circle at 86% 80%, color-mix(in srgb, #fcd34d 10%, transparent) 0%, transparent 28%)',
+        contentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 96%, #f59e0b 4%) 0%, color-mix(in srgb, var(--surface) 96%, var(--brand-blue) 4%) 100%)',
+        previewBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, #f59e0b 6%) 0%, color-mix(in srgb, var(--surface) 96%, #fcd34d 4%) 100%)',
+        previewDivider: '1px solid rgba(245,158,11,0.12)',
+        tierBadge: {
+          ...badgeSlate,
+          color: 'var(--foreground-strong)',
+          border: '1px solid rgba(245,158,11,0.22)',
+          background:
+            'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 78%, #f59e0b 22%) 0%, color-mix(in srgb, var(--surface-soft) 90%, #fcd34d 10%) 100%)',
+        },
+        priceColor: '#f59e0b',
+        numberColor: 'color-mix(in srgb, #f59e0b 74%, var(--foreground-strong) 26%)',
+        accentLabel: 'color-mix(in srgb, #f59e0b 74%, var(--foreground-strong) 26%)',
+        accentBorder: '1px solid rgba(245,158,11,0.18)',
+        accentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 78%, #f59e0b 22%) 0%, color-mix(in srgb, var(--surface-soft) 86%, #fcd34d 14%) 100%)',
+        accentText: 'var(--foreground-strong)',
+        primaryButton: {
+          ...buttonPrimary,
+          background: 'linear-gradient(135deg, #f59e0b 0%, #fcd34d 100%)',
+          border: '1px solid rgba(245,158,11,0.34)',
+          color: '#111827',
+          boxShadow: '0 16px 30px rgba(245,158,11,0.20)',
+        },
+      }
+    case 'free':
+    default:
+      return {
+        shellBorder: '1px solid rgba(148,163,184,0.18)',
+        shellShadow: 'var(--shadow-card)',
+        shellBackground:
+          'linear-gradient(135deg, color-mix(in srgb, var(--surface-strong) 92%, var(--brand-blue) 8%) 0%, color-mix(in srgb, var(--surface) 96%, var(--foreground) 4%) 100%)',
+        chapterGlow:
+          'radial-gradient(circle at 16% 16%, color-mix(in srgb, var(--brand-blue-2) 12%, transparent) 0%, transparent 34%), radial-gradient(circle at 84% 84%, color-mix(in srgb, var(--foreground) 8%, transparent) 0%, transparent 30%)',
+        contentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 96%, var(--brand-blue) 4%) 0%, color-mix(in srgb, var(--surface) 98%, var(--foreground) 2%) 100%)',
+        previewBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, var(--brand-blue-2) 6%) 0%, color-mix(in srgb, var(--surface) 96%, var(--foreground) 4%) 100%)',
+        previewDivider: '1px solid rgba(116,190,255,0.08)',
+        tierBadge: {
+          ...badgeSlate,
+          color: 'var(--foreground-strong)',
+          background: 'var(--surface-soft)',
+        },
+        priceColor: 'var(--foreground)',
+        numberColor: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
+        accentLabel: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
+        accentBorder: '1px solid rgba(116,190,255,0.12)',
+        accentBackground:
+          'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 92%, var(--brand-blue-2) 8%) 0%, color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%) 100%)',
+        accentText: 'var(--foreground-strong)',
+        primaryButton: buttonPrimary,
+      }
+  }
+}
+
+const featuredNoteCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 80%, var(--brand-green) 20%) 0%, color-mix(in srgb, var(--surface-soft) 88%, var(--brand-blue) 12%) 100%)',
+}
+
+const featuredNoteLabelStyle: CSSProperties = {
+  color: 'color-mix(in srgb, var(--brand-green) 78%, var(--foreground-strong) 22%)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const featuredNoteTextStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.6,
+  fontWeight: 700,
+}
+
+const captainSignalRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 10,
+  alignItems: 'center',
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.08)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--surface-soft-strong) 90%, var(--brand-blue-2) 10%) 0%, color-mix(in srgb, var(--surface-soft) 96%, var(--foreground) 4%) 100%)',
+}
+
+const signalWarnChipStyle: CSSProperties = {
+  ...badgeSlate,
+  width: 'fit-content',
+  border: '1px solid rgba(245, 158, 11, 0.22)',
+  background: 'rgba(245, 158, 11, 0.12)',
+  color: 'var(--foreground-strong)',
+}
+
+const signalGoodChipStyle: CSSProperties = {
+  ...badgeGreen,
+  width: 'fit-content',
+}
+
+const signalInfoChipStyle: CSSProperties = {
+  ...badgeBlue,
+  width: 'fit-content',
+}
+
+function getTierSecondaryButton(theme: TierTheme): CSSProperties {
+  return {
+    ...buttonGhost,
+    border: theme.accentBorder,
+    background: theme.accentBackground,
+    color: theme.accentText,
+  }
+}

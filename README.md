@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TenAceIQ
 
-## Getting Started
+[![CI](https://github.com/TNM91/tennis-data/actions/workflows/ci.yml/badge.svg)](https://github.com/TNM91/tennis-data/actions/workflows/ci.yml)
 
-First, run the development server:
+TenAceIQ is a tennis intelligence platform focused on player discovery, rankings, leagues, matchup analysis, and captain workflow tools.
+
+## Local development
+
+Run the app locally with:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run the full verification gate before deploy:
 
-## Learn More
+```bash
+npm run verify
+```
 
-To learn more about Next.js, take a look at the following resources:
+`npm run verify` runs strict linting with zero warnings, TypeScript checking, the Vitest suite, capture-extension syntax checking, and the production build. The CI workflow uses the same command.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scorecard Review Persistence
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The admin import flow now supports review-safe scorecard preview, approval, and audit metadata.
 
-## Deploy on Vercel
+- Local browser persistence for reviewer name and per-line review overrides is automatic in `/admin/import`.
+- Best-effort server persistence is wired into the ingestion engine and will write review metadata when your Supabase schema supports it.
+- An optional SQL starter for review/audit columns and a dedicated audit table lives in [docs/scorecard-review-audit.sql](./docs/scorecard-review-audit.sql).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## AdSense rollout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The site is already wired for:
+
+- publisher id `ca-pub-1351888380884789`
+- `ads.txt`
+- ad-safe route gating
+- prepared public placements on content-rich pages only
+
+To activate prepared placements, add real slot ids to your production environment:
+
+```bash
+NEXT_PUBLIC_ADSENSE_SLOT_HOME_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_RANKINGS_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_PLAYERS_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_LEAGUES_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE=
+NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE=
+```
+
+You can copy the variable names from [.env.example](./.env.example).
+
+## Launch checklist
+
+Use the full rollout checklist in [docs/adsense-launch-checklist.md](./docs/adsense-launch-checklist.md).
+
+The most important live checks are:
+
+- verify `https://tenaceiq.com/ads.txt`
+- verify `support@tenaceiq.com` and `hello@tenaceiq.com`
+- confirm ads only render on approved public pages
+- confirm private and utility routes remain ad-free and `noindex`
+- re-read the live public site as a first-time visitor before requesting review
