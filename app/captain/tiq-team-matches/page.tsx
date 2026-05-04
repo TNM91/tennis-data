@@ -121,16 +121,21 @@ function PlayerSelect({
   onChange,
   players,
   placeholder,
+  excludedPlayerIds = [],
 }: {
   value: string
   onChange: (v: string) => void
   players: PlayerOption[]
   placeholder?: string
+  excludedPlayerIds?: string[]
 }) {
+  const excludedIds = new Set(excludedPlayerIds.filter((id) => id && id !== value))
+  const availablePlayers = players.filter((player) => !excludedIds.has(player.id))
+
   return (
     <select style={selectStyle} value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">{placeholder ?? 'Select player...'}</option>
-      {players.map((p) => (
+      {availablePlayers.map((p) => (
         <option key={p.id} value={p.id}>{p.name}</option>
       ))}
     </select>
@@ -248,6 +253,9 @@ function LineForm({
   }
 
   const isDoubles = form.matchType === 'doubles'
+  const activePlayerIds = isDoubles
+    ? [form.sideAPlayer1Id, form.sideAPlayer2Id, form.sideBPlayer1Id, form.sideBPlayer2Id]
+    : [form.sideAPlayer1Id, form.sideBPlayer1Id]
 
   return (
     <div style={card}>
@@ -291,22 +299,42 @@ function LineForm({
 
       <div style={row}>
         <Field label={`SIDE A - ${event.teamAName} - P1`}>
-          <PlayerSelect value={form.sideAPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer1Id: v }))} players={players} />
+          <PlayerSelect
+            value={form.sideAPlayer1Id}
+            onChange={(v) => setForm((f) => ({ ...f, sideAPlayer1Id: v }))}
+            players={players}
+            excludedPlayerIds={activePlayerIds}
+          />
         </Field>
         {isDoubles && (
           <Field label="SIDE A - P2">
-            <PlayerSelect value={form.sideAPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer2Id: v }))} players={players} />
+            <PlayerSelect
+              value={form.sideAPlayer2Id}
+              onChange={(v) => setForm((f) => ({ ...f, sideAPlayer2Id: v }))}
+              players={players}
+              excludedPlayerIds={activePlayerIds}
+            />
           </Field>
         )}
       </div>
 
       <div style={row}>
         <Field label={`SIDE B - ${event.teamBName} - P1`}>
-          <PlayerSelect value={form.sideBPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer1Id: v }))} players={players} />
+          <PlayerSelect
+            value={form.sideBPlayer1Id}
+            onChange={(v) => setForm((f) => ({ ...f, sideBPlayer1Id: v }))}
+            players={players}
+            excludedPlayerIds={activePlayerIds}
+          />
         </Field>
         {isDoubles && (
           <Field label="SIDE B - P2">
-            <PlayerSelect value={form.sideBPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer2Id: v }))} players={players} />
+            <PlayerSelect
+              value={form.sideBPlayer2Id}
+              onChange={(v) => setForm((f) => ({ ...f, sideBPlayer2Id: v }))}
+              players={players}
+              excludedPlayerIds={activePlayerIds}
+            />
           </Field>
         )}
       </div>
