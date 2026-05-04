@@ -69,6 +69,13 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
 }
 
+const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
+  free: ['Open Explore', 'Search public tennis context', 'Upgrade when a tool helps'],
+  player_plus: ['Request Player access', 'Link your player identity', 'Use My Lab and Matchup'],
+  captain: ['Request Captain access', 'Choose the team context', 'Build lineup and weekly flow'],
+  league: ['Request Coordinator access', 'Structure the season', 'Track participants and results'],
+}
+
 type UpgradePageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
@@ -315,6 +322,17 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
               {plan.valueProps.map((valueProp) => (
                 <span key={valueProp} style={valuePillStyle}>{valueProp}</span>
               ))}
+            </div>
+            <div style={activationPathStyle}>
+              <span style={labelStyle}>Activation path</span>
+              <div style={activationStepGridStyle}>
+                {ACTIVATION_STEPS[planId].map((step, index) => (
+                  <span key={step} style={activationStepStyle}>
+                    <strong>{index + 1}</strong>
+                    {step}
+                  </span>
+                ))}
+              </div>
             </div>
           </aside>
         </section>
@@ -622,6 +640,35 @@ const valuePillStyle: CSSProperties = {
   borderRadius: 999,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const activationPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const activationStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const activationStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gap: 8,
+  alignItems: 'center',
+  minHeight: 34,
+  padding: '5px 9px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--surface) 88%, var(--shell-chip-bg) 12%)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
