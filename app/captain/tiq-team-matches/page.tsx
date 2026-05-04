@@ -289,30 +289,42 @@ function LineForm({
 function EventCard({
   event,
   players,
+  startLineEntry = false,
   onDeleted,
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
+  startLineEntry?: boolean
   onDeleted: (id: string) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(startLineEntry)
   const [lines, setLines] = useState<TiqTeamMatchLineRecord[]>([])
   const [linesLoaded, setLinesLoaded] = useState(false)
-  const [addingLine, setAddingLine] = useState(false)
+  const [addingLine, setAddingLine] = useState(startLineEntry)
   const [editingLine, setEditingLine] = useState<TiqTeamMatchLineRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [warning, setWarning] = useState('')
 
-  async function loadLines() {
+  const loadLines = useCallback(async () => {
     const { lines: l } = await listTiqTeamMatchLines(event.id)
     setLines(l)
     setLinesLoaded(true)
-  }
+  }, [event.id])
 
   async function handleExpand() {
     setExpanded((v) => !v)
     if (!linesLoaded) await loadLines()
   }
+
+  useEffect(() => {
+    if (!startLineEntry || linesLoaded) return
+
+    const timeoutId = window.setTimeout(() => {
+      void loadLines()
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [linesLoaded, loadLines, startLineEntry])
 
   async function handleDeleteEvent() {
     if (!confirm(`Delete "${event.teamAName} vs ${event.teamBName}" on ${formatDate(event.matchDate)}? This cannot be undone.`)) return
@@ -635,6 +647,7 @@ export default function CaptainTiqTeamMatchesPage() {
   const [filterLeagueId, setFilterLeagueId] = useState(initialLeagueId)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeEntryEventId, setActiveEntryEventId] = useState('')
   const latestEvent = useMemo(
     () =>
       [...events].sort(
@@ -759,7 +772,10 @@ export default function CaptainTiqTeamMatchesPage() {
             key={filterLeagueId || 'all-leagues'}
             leagues={leagues}
             defaultLeagueId={filterLeagueId}
-            onCreated={(event) => setEvents((prev) => [event, ...prev])}
+            onCreated={(event) => {
+              setActiveEntryEventId(event.id)
+              setEvents((prev) => [event, ...prev])
+            }}
           />
         </details>
 
@@ -788,6 +804,7 @@ export default function CaptainTiqTeamMatchesPage() {
               key={event.id}
               event={event}
               players={players}
+              startLineEntry={event.id === activeEntryEventId}
               onDeleted={(id) => setEvents((prev) => prev.filter((e) => e.id !== id))}
             />
           ))
