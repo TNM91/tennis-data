@@ -149,8 +149,8 @@ type LineFormState = {
   score: string
 }
 
-const emptyLine = (): LineFormState => ({
-  lineNumber: '',
+const emptyLine = (lineNumber = ''): LineFormState => ({
+  lineNumber,
   matchType: 'singles',
   sideAPlayer1Id: '',
   sideAPlayer2Id: '',
@@ -164,12 +164,14 @@ function LineForm({
   event,
   players,
   existingLine,
+  defaultLineNumber = '',
   onSaved,
   onCancel,
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
   existingLine?: TiqTeamMatchLineRecord
+  defaultLineNumber?: string
   onSaved: (line: TiqTeamMatchLineRecord) => void
   onCancel: () => void
 }) {
@@ -185,7 +187,7 @@ function LineForm({
           winnerSide: existingLine.winnerSide ?? '',
           score: existingLine.score,
         }
-      : emptyLine()
+      : emptyLine(defaultLineNumber)
   )
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
@@ -342,8 +344,17 @@ function EventCard({
     setEditingLine(null)
   }
 
+  function nextOpenLineNumber() {
+    const usedLines = new Set(lines.map((line) => line.lineNumber))
+    for (let lineNumber = 1; lineNumber <= 20; lineNumber += 1) {
+      if (!usedLines.has(lineNumber)) return String(lineNumber)
+    }
+    return ''
+  }
+
   const teamAWins = lines.filter((l) => l.winnerSide === 'A').length
   const teamBWins = lines.filter((l) => l.winnerSide === 'B').length
+  const defaultLineNumber = nextOpenLineNumber()
 
   return (
     <div style={card}>
@@ -424,7 +435,7 @@ function EventCard({
 
           {!addingLine && !editingLine && (
             <button style={{ ...btnSecondary, marginTop: 12 }} onClick={() => setAddingLine(true)}>
-              + Add line
+              {defaultLineNumber ? `+ Add line ${defaultLineNumber}` : '+ Add line'}
             </button>
           )}
 
@@ -433,6 +444,7 @@ function EventCard({
               <LineForm
                 event={event}
                 players={players}
+                defaultLineNumber={defaultLineNumber}
                 onSaved={handleLineSaved}
                 onCancel={() => setAddingLine(false)}
               />
