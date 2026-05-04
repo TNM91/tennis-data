@@ -444,6 +444,8 @@ function EventCard({
 
   const teamAWins = lines.filter((l) => l.winnerSide === 'A').length
   const teamBWins = lines.filter((l) => l.winnerSide === 'B').length
+  const completedLines = teamAWins + teamBWins
+  const pendingLines = Math.max(lines.length - completedLines, 0)
   const defaultLineNumber = nextOpenLineNumber()
 
   return (
@@ -456,8 +458,14 @@ function EventCard({
           <div style={{ fontSize: 13, color: '#94a3b8' }}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
-          {linesLoaded && (teamAWins > 0 || teamBWins > 0) && (
+          {linesLoaded && lines.length > 0 && (
             <div style={{ marginTop: 6, fontSize: 13 }}>
+              <span style={pill}>{lines.length} line{lines.length === 1 ? '' : 's'}</span>
+              {' '}
+              <span style={completedLines === lines.length ? pillGreen : pill}>{completedLines} complete</span>
+              {' '}
+              <span style={pendingLines > 0 ? pill : pillGreen}>{pendingLines} pending</span>
+              {' '}
               <span style={teamAWins > teamBWins ? pillGreen : pill}>{event.teamAName}: {teamAWins}</span>
               {' '}
               <span style={teamBWins > teamAWins ? pillGreen : pill}>{event.teamBName}: {teamBWins}</span>
