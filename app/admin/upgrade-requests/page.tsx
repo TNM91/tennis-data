@@ -66,6 +66,13 @@ export default function AdminUpgradeRequestsPage() {
   const leagueCount = requests.filter((request) => request.planId === 'league').length
   const playerCount = requests.filter((request) => request.planId === 'player_plus').length
   const localCount = requests.filter((request) => request.source === 'local').length
+  const readyToActivateCount = requests.filter(canActivateRequest).length
+  const needsAccountCount = requests.filter((request) =>
+    request.source === 'supabase' &&
+    !request.userId &&
+    !isClosedRequest(request),
+  ).length
+  const convertedCount = requests.filter((request) => request.status === 'converted').length
   const hasSetupIssue = setupStatus
     ? !setupStatus.upgradeRequestsTable ||
       !setupStatus.playerPlusEntitlements ||
@@ -240,6 +247,24 @@ export default function AdminUpgradeRequestsPage() {
               </div>
             ) : null}
 
+            <div style={triageGridStyle}>
+              <TriageCard
+                label="Ready to activate"
+                value={String(readyToActivateCount)}
+                text="Supabase requests with a linked account and active status."
+              />
+              <TriageCard
+                label="Needs account"
+                value={String(needsAccountCount)}
+                text="Ask these requesters to sign in or create an account first."
+              />
+              <TriageCard
+                label="Converted"
+                value={String(convertedCount)}
+                text="Requests already moved into active access."
+              />
+            </div>
+
             <div style={toolbarStyle}>
               <div style={filterWrapStyle}>
                 {[
@@ -325,14 +350,14 @@ export default function AdminUpgradeRequestsPage() {
                       <button
                         type="button"
                         onClick={() => void activateRequest(request)}
-                        disabled={activatingId === request.id || !request.userId || request.source !== 'supabase'}
+                        disabled={activatingId === request.id || !canActivateRequest(request)}
                         style={{
                           ...activateButtonStyle,
-                          opacity: activatingId === request.id || !request.userId || request.source !== 'supabase' ? 0.58 : 1,
-                          cursor: activatingId === request.id || !request.userId || request.source !== 'supabase' ? 'not-allowed' : 'pointer',
+                          opacity: activatingId === request.id || !canActivateRequest(request) ? 0.58 : 1,
+                          cursor: activatingId === request.id || !canActivateRequest(request) ? 'not-allowed' : 'pointer',
                         }}
                       >
-                        {activatingId === request.id ? 'Activating...' : `Activate ${request.planName}`}
+                        {activatingId === request.id ? 'Activating...' : getActivateButtonLabel(request)}
                       </button>
                     </div>
                     <div style={statusActionRowStyle}>
@@ -367,6 +392,22 @@ export default function AdminUpgradeRequestsPage() {
       </AdminGate>
     </SiteShell>
   )
+}
+
+function canActivateRequest(request: UpgradeRequestRecord) {
+  return request.source === 'supabase' && Boolean(request.userId) && !isClosedRequest(request)
+}
+
+function isClosedRequest(request: UpgradeRequestRecord) {
+  return request.status === 'converted' || request.status === 'closed'
+}
+
+function getActivateButtonLabel(request: UpgradeRequestRecord) {
+  if (request.status === 'converted') return 'Activated'
+  if (request.status === 'closed') return 'Closed'
+  if (request.source !== 'supabase') return 'Needs Supabase'
+  if (!request.userId) return 'Needs account'
+  return `Activate ${request.planName}`
 }
 
 function readStoredRequests() {
@@ -417,6 +458,24 @@ function Metric({ label, value }: { label: string; value: string }) {
     <div className="metric-card">
       <div className="metric-label">{label}</div>
       <div className="metric-value">{value}</div>
+    </div>
+  )
+}
+
+function TriageCard({
+  label,
+  value,
+  text,
+}: {
+  label: string
+  value: string
+  text: string
+}) {
+  return (
+    <div style={triageCardStyle}>
+      <span style={triageLabelStyle}>{label}</span>
+      <strong style={triageValueStyle}>{value}</strong>
+      <small style={triageTextStyle}>{text}</small>
     </div>
   )
 }
@@ -502,6 +561,44 @@ const setupCheckStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 850,
+}
+
+const triageGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+}
+
+const triageCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+}
+
+const triageLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const triageValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 28,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const triageTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
 }
 
 const toolbarStyle: CSSProperties = {
