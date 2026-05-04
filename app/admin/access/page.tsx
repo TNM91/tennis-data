@@ -33,6 +33,8 @@ type EditableProfileAccess = {
   tiq_individual_league_creator_enabled: boolean
 }
 
+type AccessPreset = 'player_plus' | 'captain' | 'league'
+
 const STATUS_OPTIONS: CaptainSubscriptionStatus[] = [
   'inactive',
   'trial',
@@ -74,6 +76,12 @@ function roleLabel(value: string | null | undefined) {
   return 'Public'
 }
 
+function formatAccessPreset(value: AccessPreset) {
+  if (value === 'player_plus') return 'Player'
+  if (value === 'captain') return 'Captain'
+  return 'League'
+}
+
 export default function AdminAccessPage() {
   const [profiles, setProfiles] = useState<ProfileAccessRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,6 +90,7 @@ export default function AdminAccessPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [handoffSearch, setHandoffSearch] = useState('')
   const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
   const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'captain' | 'member' | 'public'>(
     'all',
@@ -94,6 +103,7 @@ export default function AdminAccessPage() {
     const initialSearch = new URLSearchParams(window.location.search).get('search')
     if (initialSearch) {
       setSearch(initialSearch)
+      setHandoffSearch(initialSearch)
     }
     void loadProfiles()
   }, [])
@@ -187,6 +197,30 @@ export default function AdminAccessPage() {
     return JSON.stringify(current) !== JSON.stringify(normalizeEditable(profile))
   }
 
+  function applyAccessPreset(profileId: string, preset: AccessPreset) {
+    const profile = profiles.find((item) => item.id === profileId)
+    if (!profile) return
+
+    setEditedProfiles((current) => {
+      const base = current[profileId] ?? normalizeEditable(profile)
+      return {
+        ...current,
+        [profileId]: {
+          ...base,
+          player_plus_subscription_active: true,
+          player_plus_subscription_status: 'active',
+          captain_subscription_active: preset === 'captain' ? true : base.captain_subscription_active,
+          captain_subscription_status: preset === 'captain' ? 'active' : base.captain_subscription_status,
+          tiq_team_league_entry_enabled: preset === 'league' ? true : base.tiq_team_league_entry_enabled,
+          tiq_individual_league_creator_enabled:
+            preset === 'league' ? true : base.tiq_individual_league_creator_enabled,
+        },
+      }
+    })
+    setMessage(`Drafted ${formatAccessPreset(preset)} access. Save the row to apply it.`)
+    setError('')
+  }
+
   async function saveProfile(profile: ProfileAccessRow) {
     const draft = editedProfiles[profile.id]
     if (!draft) return
@@ -257,6 +291,7 @@ export default function AdminAccessPage() {
   const individualCreatorCount = profiles.filter((profile) =>
     Boolean(profile.tiq_individual_league_creator_enabled),
   ).length
+  const handoffProfile = handoffSearch && filteredProfiles.length === 1 ? filteredProfiles[0] : null
 
   return (
     <SiteShell active="/admin">
@@ -377,6 +412,48 @@ export default function AdminAccessPage() {
               TIQ league permissions now live in profile-level fields instead of being implied only
               by role names.
             </p>
+
+            {handoffSearch ? (
+              <div style={handoffPanelStyle}>
+                <div>
+                  <div className="section-kicker">Upgrade request handoff</div>
+                  <h2 style={handoffTitleStyle}>
+                    {handoffProfile ? 'One account is in scope.' : 'Review the filtered account set.'}
+                  </h2>
+                  <p style={handoffTextStyle}>
+                    Search was prefilled from the upgrade request queue. Use the presets when one
+                    linked account is visible, then save the row.
+                  </p>
+                </div>
+                {handoffProfile ? (
+                  <div style={handoffActionStyle}>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => applyAccessPreset(handoffProfile.id, 'player_plus')}
+                    >
+                      Draft Player
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => applyAccessPreset(handoffProfile.id, 'captain')}
+                    >
+                      Draft Captain
+                    </button>
+                    <button
+                      type="button"
+                      className="button-secondary"
+                      onClick={() => applyAccessPreset(handoffProfile.id, 'league')}
+                    >
+                      Draft League
+                    </button>
+                  </div>
+                ) : (
+                  <span className="badge badge-slate">{filteredProfiles.length} matches</span>
+                )}
+              </div>
+            ) : null}
 
             {message ? (
               <div
@@ -637,6 +714,42 @@ function MetricCard({ label, value }: { label: string; value: number }) {
     </div>
   )
 }
+
+const handoffPanelStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+  marginTop: 18,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+} as const
+
+const handoffTitleStyle = {
+  margin: '5px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+} as const
+
+const handoffTextStyle = {
+  margin: '7px 0 0',
+  maxWidth: 680,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
+} as const
+
+const handoffActionStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexWrap: 'wrap',
+} as const
 
 const toggleWrap = {
   display: 'inline-flex',
