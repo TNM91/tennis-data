@@ -121,14 +121,40 @@ function getOpponent(match: TeamRosterMatchRow, team: string) {
   return [home, away].filter(Boolean).join(' vs ')
 }
 
+function readInitialAvailabilityContext() {
+  if (typeof window === 'undefined') {
+    return {
+      competitionLayer: '',
+      team: '',
+      league: '',
+      flight: '',
+      eventDate: '',
+      opponentTeam: '',
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const resumeState = readCaptainResumeState()
+
+  return {
+    competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
+    team: params.get('team') || resumeState?.team || '',
+    league: params.get('league') || resumeState?.league || '',
+    flight: params.get('flight') || resumeState?.flight || '',
+    eventDate: params.get('date') || resumeState?.eventDate || '',
+    opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
+  }
+}
+
 export default function CaptainAvailabilityPage() {
   const router = useRouter()
   const { theme } = useTheme()
+  const initialContext = readInitialAvailabilityContext()
 
-  const [teamParam, setTeamParam] = useState('')
-  const [competitionLayerParam, setCompetitionLayerParam] = useState('')
-  const [leagueParam, setLeagueParam] = useState('')
-  const [flightParam, setFlightParam] = useState('')
+  const [teamParam] = useState(initialContext.team)
+  const [competitionLayerParam] = useState(initialContext.competitionLayer)
+  const [leagueParam] = useState(initialContext.league)
+  const [flightParam] = useState(initialContext.flight)
 
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -146,9 +172,11 @@ export default function CaptainAvailabilityPage() {
   const [players, setPlayers] = useState<AvailabilityPlayer[]>([])
   const [scheduledMatches, setScheduledMatches] = useState<TeamRosterMatchRow[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState('')
-  const [weekLabel, setWeekLabel] = useState('Select a scheduled match')
-  const [preferredMatchDate, setPreferredMatchDate] = useState('')
-  const [preferredOpponent, setPreferredOpponent] = useState('')
+  const [weekLabel, setWeekLabel] = useState(
+    initialContext.eventDate ? new Date(initialContext.eventDate).toLocaleDateString() : 'Select a scheduled match',
+  )
+  const [preferredMatchDate] = useState(initialContext.eventDate)
+  const [preferredOpponent] = useState(initialContext.opponentTeam)
   const [requestSent, setRequestSent] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -323,27 +351,6 @@ export default function CaptainAvailabilityPage() {
   }, [preferredMatchDate, preferredOpponent, selectedFlight, selectedLeague, selectedMatchId, selectedTeam])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    const resumeState = readCaptainResumeState()
-    setCompetitionLayerParam(params.get('layer') || resumeState?.competitionLayer || '')
-    setTeamParam(params.get('team') || resumeState?.team || '')
-    setLeagueParam(params.get('league') || resumeState?.league || '')
-    setFlightParam(params.get('flight') || resumeState?.flight || '')
-    const nextDate = params.get('date') || resumeState?.eventDate || ''
-    const nextOpponent = params.get('opponent') || resumeState?.opponentTeam || ''
-    setPreferredMatchDate(nextDate)
-    setPreferredOpponent(nextOpponent)
-    if (nextDate) setWeekLabel(new Date(nextDate).toLocaleDateString())
-    if (nextOpponent) {
-      writeCaptainResumeState({
-        eventDate: nextDate || undefined,
-        opponentTeam: nextOpponent,
-      })
-    }
-  }, [])
-
-  useEffect(() => {
     if (!selectedTeam && !selectedLeague && !selectedFlight) return
 
     writeCaptainResumeState({
@@ -351,10 +358,12 @@ export default function CaptainAvailabilityPage() {
       team: selectedTeam,
       league: selectedLeague,
       flight: selectedFlight,
+      eventDate: preferredMatchDate || undefined,
+      opponentTeam: preferredOpponent || undefined,
       lastTool: 'availability',
       lastToolLabel: 'Availability',
     })
-  }, [competitionLayerParam, selectedFlight, selectedLeague, selectedTeam])
+  }, [competitionLayerParam, preferredMatchDate, preferredOpponent, selectedFlight, selectedLeague, selectedTeam])
 
   useEffect(() => {
     let mounted = true
