@@ -864,7 +864,7 @@ export default function TeamPage() {
   }, [roster, selectedRosterPlayerIds])
 
   const rosterCompareHref = selectedRosterPlayerIds.length === 2
-    ? `/matchup?playerA=${encodeURIComponent(selectedRosterPlayerIds[0])}&playerB=${encodeURIComponent(selectedRosterPlayerIds[1])}`
+    ? `/matchup?type=singles&playerA=${encodeURIComponent(selectedRosterPlayerIds[0])}&playerB=${encodeURIComponent(selectedRosterPlayerIds[1])}`
     : '/matchup'
 
   function handleRosterCompareToggle(playerId: string) {
@@ -1778,11 +1778,14 @@ export default function TeamPage() {
                                 <Link href={`/players/${player.id}`} style={rosterActionLink}>
                                   Profile
                                 </Link>
-                                <Link href={`/matchup?playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>
+                                <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>
                                   Matchup
                                 </Link>
                               </>
                             )}
+                            <Link href={captainLinks[0].href} style={rosterActionLink}>
+                              Availability
+                            </Link>
                             <Link href={captainLinks[1].href} style={rosterActionLink}>
                               Lineup
                             </Link>
