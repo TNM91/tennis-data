@@ -2222,6 +2222,7 @@ export default function PlayerProfilePage() {
                 const diff = p.overall_dynamic_rating - selectedDynamicRating
                 const isHigher = diff > 0.02
                 const isLower = diff < -0.02
+                const nearbyMatchupHref = `/matchup?type=singles&playerA=${encodeURIComponent(playerId)}&playerB=${encodeURIComponent(p.id)}`
                 return (
                   <div
                     key={p.id}
@@ -2236,7 +2237,8 @@ export default function PlayerProfilePage() {
                       <span style={{ fontSize: 12, fontWeight: 700, color: isHigher ? '#93c5fd' : isLower ? '#9be11d' : 'rgba(224,234,247,0.5)' }}>
                         {isHigher ? `▲ +${diff.toFixed(2)}` : isLower ? `▼ ${diff.toFixed(2)}` : '≈ even'}
                       </span>
-                      <Link href="/mylab" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.18)', background: 'rgba(116,190,255,0.07)', color: '#93c5fd', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>My Lab</Link>
+                      <Link href={nearbyMatchupHref} style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(155,225,29,0.24)', background: 'rgba(155,225,29,0.08)', color: '#d9f84a', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>Compare</Link>
+                      <Link href="/mylab#player-notebook" style={{ padding: '5px 12px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.18)', background: 'rgba(116,190,255,0.07)', color: '#93c5fd', fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>Log</Link>
                     </div>
                   </div>
                 )
