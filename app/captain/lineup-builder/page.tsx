@@ -884,9 +884,41 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
   return bannerBlueStyle
 }
 
+function readInitialLineupBuilderContext() {
+  if (typeof window === 'undefined') {
+    return {
+      competitionLayer: '',
+      team: '',
+      league: '',
+      flight: '',
+      eventDate: '',
+      opponentTeam: '',
+      scenario: '',
+      pairIds: [] as string[],
+      singleId: '',
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const resumeState = readCaptainResumeState()
+
+  return {
+    competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
+    team: params.get('team') || resumeState?.team || '',
+    league: params.get('league') || resumeState?.league || '',
+    flight: params.get('flight') || resumeState?.flight || '',
+    eventDate: params.get('date') || resumeState?.eventDate || '',
+    opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
+    scenario: params.get('scenario') || params.get('left') || '',
+    pairIds: (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean),
+    singleId: params.get('single') || '',
+  }
+}
+
 export default function LineupBuilderPage() {
   const router = useRouter()
   const { theme } = useTheme()
+  const initialContext = readInitialLineupBuilderContext()
 
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -909,12 +941,12 @@ export default function LineupBuilderPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
-  const [competitionLayer, setCompetitionLayer] = useState('')
-  const [leagueName, setLeagueName] = useState('')
-  const [flight, setFlight] = useState('')
-  const [teamName, setTeamName] = useState('')
-  const [opponentTeam, setOpponentTeam] = useState('')
-  const [matchDate, setMatchDate] = useState('')
+  const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
+  const [leagueName, setLeagueName] = useState(initialContext.league)
+  const [flight, setFlight] = useState(initialContext.flight)
+  const [teamName, setTeamName] = useState(initialContext.team)
+  const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
+  const [matchDate, setMatchDate] = useState(initialContext.eventDate)
   const [selectedMatchId, setSelectedMatchId] = useState('')
   const [scenarioName, setScenarioName] = useState('')
   const [notes, setNotes] = useState('')
@@ -927,9 +959,9 @@ export default function LineupBuilderPage() {
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
 
-  const [prefillScenarioId, setPrefillScenarioId] = useState('')
-  const [prefillPairIds, setPrefillPairIds] = useState<string[]>([])
-  const [prefillSingleId, setPrefillSingleId] = useState('')
+  const [prefillScenarioId] = useState(initialContext.scenario)
+  const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
+  const [prefillSingleId] = useState(initialContext.singleId)
   const [prefillApplied, setPrefillApplied] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -976,31 +1008,6 @@ export default function LineupBuilderPage() {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
-    const resumeState = readCaptainResumeState()
-    const scenario = params.get('scenario') || params.get('left') || ''
-    const nextCompetitionLayer = params.get('layer') || resumeState?.competitionLayer || ''
-    const team = params.get('team') || resumeState?.team || ''
-    const league = params.get('league') || resumeState?.league || ''
-    const nextFlight = params.get('flight') || resumeState?.flight || ''
-    const nextDate = params.get('date') || resumeState?.eventDate || ''
-    const opponent = params.get('opponent') || resumeState?.opponentTeam || ''
-    const pair = (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean)
-    const single = params.get('single') || ''
-
-    if (scenario) setPrefillScenarioId(scenario)
-    if (nextCompetitionLayer) setCompetitionLayer(nextCompetitionLayer)
-    if (team) setTeamName(team)
-    if (league) setLeagueName(league)
-    if (nextFlight) setFlight(nextFlight)
-    if (nextDate) setMatchDate(nextDate)
-    if (opponent) setOpponentTeam(opponent)
-    if (pair.length) setPrefillPairIds(pair)
-    if (single) setPrefillSingleId(single)
   }, [])
 
   useEffect(() => {
