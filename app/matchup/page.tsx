@@ -1272,6 +1272,12 @@ export default function MatchupPage() {
       status: `${selectionCount}/${selectionTarget}`,
     }
   }, [comparison, matchType, projection?.expectedOutcome, selectionCount, selectionTarget])
+  const labTakeawayHref = comparison
+    ? `/mylab#player-notebook`
+    : '/mylab'
+  const labTakeawayText = projection
+    ? `Log ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
+    : 'Compare, then log the one thing you want to test next.'
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
@@ -1745,6 +1751,9 @@ export default function MatchupPage() {
                     <div style={decisionPill}>{projection.upsetIndicator}</div>
 
                     <div style={decisionCtaRow}>
+                      <Link href={labTakeawayHref} style={ctaPrimary}>
+                        Log in My Lab
+                      </Link>
                       <Link href="/captain/lineup-builder" style={ctaPrimary}>
                         Build lineup
                       </Link>
@@ -1773,6 +1782,11 @@ export default function MatchupPage() {
                     <div style={prepReadValue}>{projection.matchTier}</div>
                     <div style={prepReadText}>{projection.swapImpactHint}</div>
                   </div>
+                  <Link href={labTakeawayHref} style={prepReadCardLink}>
+                    <div style={prepReadLabel}>My Lab takeaway</div>
+                    <div style={prepReadValue}>Log one focus</div>
+                    <div style={prepReadText}>{labTakeawayText}</div>
+                  </Link>
                 </div>
               ) : null}
 
@@ -3367,6 +3381,14 @@ const prepReadCardAccent: CSSProperties = {
   ...prepReadCard,
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'linear-gradient(135deg, rgba(var(--brand-green-rgb),0.09) 0%, rgba(13,27,52,0.88) 72%)',
+}
+
+const prepReadCardLink: CSSProperties = {
+  ...prepReadCard,
+  textDecoration: 'none',
+  color: 'inherit',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
 }
 
 const prepReadLabel: CSSProperties = {
