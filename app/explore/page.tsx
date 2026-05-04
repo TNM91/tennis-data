@@ -5,6 +5,7 @@ import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -63,6 +64,33 @@ const START_STEPS = [
     label: 'Save effort',
     title: 'Upgrade when it helps',
     text: 'Use My Lab and Matchup when you want follows, prep, and a personal tennis home.',
+  },
+]
+
+const DISCOVERY_PATHS = [
+  {
+    label: 'I know a name',
+    title: 'Search players',
+    text: 'Start from a player record, then open teams, leagues, or match history.',
+    href: '/explore/search?scope=players',
+  },
+  {
+    label: 'I know the team',
+    title: 'Find team context',
+    text: 'Use a team page to check roster shape, flight, league, and recent results.',
+    href: '/explore/search?scope=teams',
+  },
+  {
+    label: 'I know the league',
+    title: 'Browse leagues',
+    text: 'Separate USTA and TIQ league context before drilling into teams or players.',
+    href: '/explore/leagues',
+  },
+  {
+    label: 'I need the field',
+    title: 'Check rankings',
+    text: 'Scan ratings and rankings before choosing who or what to inspect.',
+    href: '/explore/rankings',
   },
 ]
 
@@ -146,6 +174,16 @@ export default function ExplorePage() {
     gap: isMobile ? '14px' : '16px',
   }
 
+  const dynamicDiscoveryPathGrid: CSSProperties = {
+    ...discoveryPathGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  }
+
+  const dynamicDiscoveryPathHeader: CSSProperties = {
+    ...discoveryPathHeader,
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.72fr) minmax(260px, 0.55fr)',
+  }
+
   return (
     <SiteShell active="explore">
       <section style={dynamicHeroWrap}>
@@ -197,6 +235,26 @@ export default function ExplorePage() {
                   ))}
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div style={discoveryPathPanel}>
+            <div style={dynamicDiscoveryPathHeader}>
+              <div>
+                <div style={discoveryPathKicker}>{MEMBERSHIP_TIERS.free.name}</div>
+                <h2 style={discoveryPathTitle}>Start with what you know.</h2>
+              </div>
+              <p style={discoveryPathCopy}>{MEMBERSHIP_TIERS.free.description}</p>
+            </div>
+
+            <div style={dynamicDiscoveryPathGrid}>
+              {DISCOVERY_PATHS.map((path) => (
+                <Link key={path.href} href={path.href} style={discoveryPathCard}>
+                  <span style={discoveryPathLabel}>{path.label}</span>
+                  <span style={discoveryPathCardTitle}>{path.title}</span>
+                  <span style={discoveryPathCardText}>{path.text}</span>
+                </Link>
+              ))}
             </div>
           </div>
 
@@ -517,6 +575,91 @@ const discoveryBoardGrid: CSSProperties = {
   backgroundSize: '28px 28px',
   opacity: 0.18,
   pointerEvents: 'none',
+}
+
+const discoveryPathPanel: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: '16px',
+  marginBottom: '18px',
+  padding: '18px',
+  borderRadius: '24px',
+  background: 'color-mix(in srgb, var(--surface-strong) 82%, transparent)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
+}
+
+const discoveryPathHeader: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 0.72fr) minmax(260px, 0.55fr)',
+  gap: '16px',
+  alignItems: 'end',
+}
+
+const discoveryPathKicker: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const discoveryPathTitle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: '28px',
+  lineHeight: 1.05,
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
+const discoveryPathCopy: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const discoveryPathGrid: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+}
+
+const discoveryPathCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '142px',
+  padding: '16px',
+  borderRadius: '18px',
+  textDecoration: 'none',
+  color: 'var(--foreground)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--card-border-soft)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const discoveryPathLabel: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const discoveryPathCardTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '19px',
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
+const discoveryPathCardText: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.55,
+  fontWeight: 600,
 }
 
 const actionGrid: CSSProperties = {
