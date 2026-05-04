@@ -87,6 +87,38 @@ const PLAN_DECISION_HINTS: Record<PricingPlanId, string> = {
   league: 'Organize the season',
 }
 
+const UNLOCK_PATHS: Array<{
+  planId: PricingPlanId
+  title: string
+  cue: string
+  steps: string[]
+}> = [
+  {
+    planId: 'free',
+    title: 'Explore the landscape',
+    cue: 'Use public search until a tennis job becomes personal.',
+    steps: ['Search players', 'Open teams or leagues', 'Check rankings'],
+  },
+  {
+    planId: 'player_plus',
+    title: 'Make TenAceIQ yours',
+    cue: 'Upgrade when profiles, follows, and matchups should revolve around your game.',
+    steps: ['Link your player', 'Follow what matters', 'Prep matchups'],
+  },
+  {
+    planId: 'captain',
+    title: 'Run match week',
+    cue: 'Upgrade when team decisions need less scattered work.',
+    steps: ['Confirm availability', 'Build the lineup', 'Send the plan'],
+  },
+  {
+    planId: 'league',
+    title: 'Operate the season',
+    cue: 'Upgrade when you need league structure, results, and visibility.',
+    steps: ['Set structure', 'Track participants', 'Manage results'],
+  },
+]
+
 const PLAN_FIT_ROWS: Array<{
   job: string
   free: string
@@ -201,6 +233,44 @@ export default function PricingPage() {
         </section>
 
         <PlanFitMatrix />
+
+        <section style={unlockPathShellStyle} aria-labelledby="unlock-path-title">
+          <div style={unlockPathHeaderStyle}>
+            <div>
+              <div style={sectionEyebrowStyle}>Unlock path</div>
+              <h2 id="unlock-path-title" style={unlockPathTitleStyle}>Move from public context to the right tool.</h2>
+            </div>
+            <Link href="#player_plus" style={ctaStyle}>
+              Start with Player
+            </Link>
+          </div>
+
+          <div style={unlockPathGridStyle}>
+            {UNLOCK_PATHS.map((path) => {
+              const plan = getPricingPlan(path.planId)
+              return (
+                <article key={path.planId} style={unlockPathCardStyle}>
+                  <div style={unlockPathCardHeaderStyle}>
+                    <TiqFeatureIcon name={PLAN_ICON_BY_ID[path.planId]} size="md" variant="ghost" />
+                    <div>
+                      <div style={unlockPathPlanStyle}>{plan.name}</div>
+                      <h3 style={unlockPathCardTitleStyle}>{path.title}</h3>
+                    </div>
+                  </div>
+                  <p style={unlockPathCueStyle}>{path.cue}</p>
+                  <div style={unlockStepListStyle}>
+                    {path.steps.map((step, index) => (
+                      <span key={step} style={unlockStepPillStyle}>
+                        <strong>{index + 1}</strong>
+                        {step}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        </section>
 
         <section style={recommendationStripStyle}>
           <TiqFeatureIcon name={PLAN_ICON_BY_ID[recommendedPlan.id]} size="md" variant="surface" />
@@ -682,6 +752,104 @@ const fitMatrixEmptyStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 900,
   opacity: 0.55,
+}
+
+const unlockPathShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 26,
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-green) 8%) 0%, var(--shell-panel-bg) 100%)',
+  boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
+}
+
+const unlockPathHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 14,
+  alignItems: 'end',
+  flexWrap: 'wrap',
+}
+
+const unlockPathTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2vw, 1.9rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const unlockPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 12,
+}
+
+const unlockPathCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minHeight: 238,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const unlockPathCardHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 11,
+  alignItems: 'center',
+}
+
+const unlockPathPlanStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const unlockPathCardTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+}
+
+const unlockPathCueStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.6,
+  fontWeight: 700,
+}
+
+const unlockStepListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 'auto',
+}
+
+const unlockStepPillStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '24px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minHeight: 34,
+  padding: '5px 9px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'color-mix(in srgb, var(--surface) 88%, var(--shell-chip-bg) 12%)',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 850,
 }
 
 const pageWrapStyle: CSSProperties = {
