@@ -423,26 +423,27 @@ function EventCard({
     setLines((prev) => prev.filter((l) => l.id !== lineId))
   }
 
-  function handleLineSaved(line: TiqTeamMatchLineRecord, keepAddingLine = false) {
-    setLines((prev) => {
-      const idx = prev.findIndex((l) => l.lineNumber === line.lineNumber)
-      if (idx >= 0) {
-        const next = [...prev]
-        next[idx] = line
-        return next
-      }
-      return [...prev, line].sort((a, b) => a.lineNumber - b.lineNumber)
-    })
-    setAddingLine(keepAddingLine)
-    setEditingLine(null)
-  }
-
-  function nextOpenLineNumber() {
-    const usedLines = new Set(lines.map((line) => line.lineNumber))
+  function nextOpenLineNumberForLines(matchLines: TiqTeamMatchLineRecord[]) {
+    const usedLines = new Set(matchLines.map((line) => line.lineNumber))
     for (let lineNumber = 1; lineNumber <= 20; lineNumber += 1) {
       if (!usedLines.has(lineNumber)) return String(lineNumber)
     }
     return ''
+  }
+
+  function handleLineSaved(line: TiqTeamMatchLineRecord, keepAddingLine = false) {
+    const idx = lines.findIndex((l) => l.lineNumber === line.lineNumber)
+    const nextLines = idx >= 0
+      ? lines.map((item, itemIndex) => (itemIndex === idx ? line : item))
+      : [...lines, line].sort((a, b) => a.lineNumber - b.lineNumber)
+
+    setLines(nextLines)
+    setAddingLine(keepAddingLine && Boolean(nextOpenLineNumberForLines(nextLines)))
+    setEditingLine(null)
+  }
+
+  function nextOpenLineNumber() {
+    return nextOpenLineNumberForLines(lines)
   }
 
   const teamAWins = lines.filter((l) => l.winnerSide === 'A').length
@@ -538,10 +539,14 @@ function EventCard({
             </div>
           )}
 
-          {!addingLine && !editingLine && (
+          {!addingLine && !editingLine && defaultLineNumber && (
             <button style={{ ...btnSecondary, marginTop: 12 }} onClick={() => setAddingLine(true)}>
-              {defaultLineNumber ? `+ Add line ${defaultLineNumber}` : '+ Add line'}
+              + Add line {defaultLineNumber}
             </button>
+          )}
+
+          {!addingLine && !editingLine && !defaultLineNumber && (
+            <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 12 }}>All 20 line slots are filled.</p>
           )}
 
           {addingLine && (
