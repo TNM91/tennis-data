@@ -17,6 +17,7 @@ import {
   type LeagueFormat,
 } from '@/lib/competition-layers'
 import { formatDate, cleanText } from '@/lib/captain-formatters'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type LeagueMatchRow = {
@@ -594,6 +595,33 @@ export default function LeagueDetailPage() {
           },
         ]
       : []
+  const leagueDiscoveryActions = [
+    {
+      label: 'Read',
+      title: 'Check standings and schedule',
+      text: `${stats.teams} teams, ${stats.completed} completed matches, and ${stats.scheduled} scheduled matches show where this league stands.`,
+      href: '#league-teams',
+      cta: 'View teams',
+    },
+    {
+      label: 'Trace',
+      title: leagueLeader ? 'Open the leading team' : 'Browse team context',
+      text: leagueLeader
+        ? `${leagueLeader.name} leads this slice at ${leagueLeader.wins}-${leagueLeader.losses}. Open the team page for roster and form context.`
+        : 'Use team pages to move from league standings into roster, player, and recent form context.',
+      href: leagueLeader
+        ? buildTeamHref(leagueLeader.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)
+        : '/teams',
+      cta: leagueLeader ? 'Open leader' : 'Browse teams',
+    },
+    {
+      label: 'Act',
+      title: 'Move into season work',
+      text: 'Captain and coordinator tools turn league context into availability, lineup, scorecard, and weekly planning work.',
+      href: competeHref,
+      cta: 'Open Compete',
+    },
+  ]
 
   return (
     <SiteShell active="/leagues">
@@ -691,25 +719,30 @@ export default function LeagueDetailPage() {
           ))}
         </section>
 
-        <article
-          style={{
-            ...panelCard,
-            marginTop: '18px',
-          }}
-        >
-          <div style={sectionKicker}>Season context</div>
-          <h2 style={sectionTitle}>Find your league. Track your team. Prepare for the next match.</h2>
-          <div style={sectionSub}>
-            Use this page to see completed results, scheduled matches, missing scorecards, and the teams that matter.
-            Captains can jump into lineup, scenario, availability, and messaging tools when they need to act.
+        <article style={leagueDiscoveryPanelStyle}>
+          <div style={leagueDiscoveryHeaderStyle}>
+            <div>
+              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} league path</div>
+              <h2 style={sectionTitle}>Use this league page in three moves.</h2>
+            </div>
+            <p style={leagueDiscoveryCopyStyle}>
+              {MEMBERSHIP_TIERS.free.shortPromise} Captain and coordinator tiers unlock the planning and operating tools once this league becomes active work.
+            </p>
           </div>
-          <div style={dynamicStateActionRow}>
-            <GhostLink href="/leagues">Back to leagues</GhostLink>
-            <GhostLink href="/advertising-disclosure">Advertising disclosure</GhostLink>
+
+          <div style={leagueDiscoveryGridStyle(isMobile)}>
+            {leagueDiscoveryActions.map((item) => (
+              <Link key={item.title} href={item.href} style={leagueDiscoveryCardStyle}>
+                <span style={leagueDiscoveryLabelStyle}>{item.label}</span>
+                <strong style={leagueDiscoveryCardTitleStyle}>{item.title}</strong>
+                <span style={leagueDiscoveryCardTextStyle}>{item.text}</span>
+                <span style={leagueDiscoveryCtaStyle}>{item.cta} {'->'}</span>
+              </Link>
+            ))}
           </div>
         </article>
 
-        <article style={panelCard}>
+        <article style={panelCard} id="league-teams">
           {loading ? (
             <div style={stateBox}>Loading season data...</div>
           ) : error ? (
@@ -1307,6 +1340,77 @@ const panelCard: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
+}
+
+const leagueDiscoveryPanelStyle: CSSProperties = {
+  ...panelCard,
+  display: 'grid',
+  gap: '16px',
+  marginTop: '18px',
+}
+
+const leagueDiscoveryHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '14px',
+  alignItems: 'end',
+}
+
+const leagueDiscoveryCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 600,
+}
+
+const leagueDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '12px',
+})
+
+const leagueDiscoveryCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '160px',
+  padding: '16px',
+  borderRadius: '18px',
+  textDecoration: 'none',
+  color: 'var(--foreground)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--card-border-soft)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const leagueDiscoveryLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const leagueDiscoveryCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '18px',
+  lineHeight: 1.14,
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
+const leagueDiscoveryCardTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const leagueDiscoveryCtaStyle: CSSProperties = {
+  alignSelf: 'end',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
 }
 
 const stateBox: CSSProperties = {
