@@ -9,7 +9,7 @@ import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
-import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -886,14 +886,29 @@ export default function LineupBuilderPage() {
 
   const compareHref = useMemo(() => {
     const params = new URLSearchParams()
+    if (competitionLayer) params.set('layer', competitionLayer)
     if (leagueName) params.set('league', leagueName)
     if (flight) params.set('flight', flight)
     if (teamName) params.set('team', teamName)
     if (matchDate) params.set('date', matchDate)
+    if (opponentTeam) params.set('opponent', opponentTeam)
     if (currentScenarioId) params.set('left', currentScenarioId)
     const query = params.toString()
     return query ? `/captain/scenario-builder?${query}` : '/captain/scenario-builder'
-  }, [leagueName, flight, teamName, matchDate, currentScenarioId])
+  }, [competitionLayer, currentScenarioId, flight, leagueName, matchDate, opponentTeam, teamName])
+
+  const messagingHref = useMemo(
+    () =>
+      buildCaptainScopedHref('/captain/messaging', {
+        competitionLayer,
+        team: teamName,
+        league: leagueName,
+        flight,
+        date: matchDate,
+        opponent: opponentTeam,
+      }),
+    [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName],
+  )
 
   const analysis = useMemo(() => {
     return compareLineupStrength(teamSlots, opponentSlots, players)
@@ -1026,7 +1041,7 @@ export default function LineupBuilderPage() {
             </p>
             <div style={heroButtonRowStyle}>
               <PrimaryLink href={compareHref}>{captainNextAction}</PrimaryLink>
-              <SecondaryLink href="/captain/messaging">Move to messaging</SecondaryLink>
+              <SecondaryLink href={messagingHref}>Move to messaging</SecondaryLink>
             </div>
           </div>
           <div style={decisionMetricGridStyle}>
