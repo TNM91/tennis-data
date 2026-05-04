@@ -327,10 +327,39 @@ async function writeScenarioFeedEvents({
   }
 }
 
+function readInitialScenarioBuilderContext() {
+  if (typeof window === 'undefined') {
+    return {
+      competitionLayer: '',
+      league: '',
+      flight: '',
+      team: '',
+      eventDate: '',
+      opponentTeam: '',
+      leftId: '',
+      rightId: '',
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const resumeState = readCaptainResumeState()
+
+  return {
+    competitionLayer: params.get('layer') ?? resumeState?.competitionLayer ?? '',
+    league: params.get('league') ?? resumeState?.league ?? '',
+    flight: params.get('flight') ?? resumeState?.flight ?? '',
+    team: params.get('team') ?? resumeState?.team ?? '',
+    eventDate: params.get('date') ?? resumeState?.eventDate ?? '',
+    opponentTeam: params.get('opponent') ?? resumeState?.opponentTeam ?? '',
+    leftId: params.get('left') ?? '',
+    rightId: params.get('right') ?? '',
+  }
+}
 
 export default function ScenarioComparisonPage() {
   const router = useRouter()
   const { theme } = useTheme()
+  const initialContext = readInitialScenarioBuilderContext()
 
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -341,13 +370,14 @@ export default function ScenarioComparisonPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [competitionLayer, setCompetitionLayer] = useState('')
-  const [leagueFilter, setLeagueFilter] = useState('')
-  const [flightFilter, setFlightFilter] = useState('')
-  const [teamFilter, setTeamFilter] = useState('')
-  const [dateFilter, setDateFilter] = useState('')
-  const [leftId, setLeftId] = useState('')
-  const [rightId, setRightId] = useState('')
+  const [competitionLayer] = useState(initialContext.competitionLayer)
+  const [leagueFilter, setLeagueFilter] = useState(initialContext.league)
+  const [flightFilter, setFlightFilter] = useState(initialContext.flight)
+  const [teamFilter, setTeamFilter] = useState(initialContext.team)
+  const [dateFilter, setDateFilter] = useState(initialContext.eventDate)
+  const [opponentTeam] = useState(initialContext.opponentTeam)
+  const [leftId, setLeftId] = useState(initialContext.leftId)
+  const [rightId, setRightId] = useState(initialContext.rightId)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const heroArtworkSrc = theme === 'dark'
@@ -394,30 +424,17 @@ export default function ScenarioComparisonPage() {
   }, [router])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const params = new URLSearchParams(window.location.search)
-    const resumeState = readCaptainResumeState()
-    setCompetitionLayer(params.get('layer') ?? resumeState?.competitionLayer ?? '')
-    setLeagueFilter(params.get('league') ?? resumeState?.league ?? '')
-    setFlightFilter(params.get('flight') ?? resumeState?.flight ?? '')
-    setTeamFilter(params.get('team') ?? resumeState?.team ?? '')
-    setDateFilter(params.get('date') ?? resumeState?.eventDate ?? '')
-    setLeftId(params.get('left') ?? '')
-    setRightId(params.get('right') ?? '')
-  }, [])
-
-  useEffect(() => {
     writeCaptainResumeState({
       competitionLayer: competitionLayer || undefined,
       team: teamFilter || undefined,
       league: leagueFilter || undefined,
       flight: flightFilter || undefined,
       eventDate: dateFilter || undefined,
+      opponentTeam: opponentTeam || undefined,
       lastTool: 'scenario-builder',
       lastToolLabel: 'Scenario Builder',
     })
-  }, [competitionLayer, dateFilter, flightFilter, leagueFilter, teamFilter])
+  }, [competitionLayer, dateFilter, flightFilter, leagueFilter, opponentTeam, teamFilter])
 
   const refreshScenarioData = useCallback(async () => {
     setLoading(true)
@@ -592,7 +609,26 @@ export default function ScenarioComparisonPage() {
     if (flightFilter) params.set('flight', flightFilter)
     if (teamFilter) params.set('team', teamFilter)
     if (dateFilter) params.set('date', dateFilter)
+    if (opponentTeam) params.set('opponent', opponentTeam)
     return `/captain/lineup-builder?${params.toString()}`
+  }
+
+  const messagingHref = (scenario: ScenarioRow) => {
+    const params = new URLSearchParams()
+    const team = scenario.team_name || ''
+    const league = scenario.league_name || ''
+    const flight = scenario.flight || ''
+    const eventDate = scenario.match_date || dateFilter
+    const opponent = scenario.opponent_team || opponentTeam
+
+    if (team) params.set('team', team)
+    if (league) params.set('league', league)
+    if (flight) params.set('flight', flight)
+    if (eventDate) params.set('date', eventDate)
+    if (opponent) params.set('opponent', opponent)
+    params.set('source', 'scenario_builder')
+
+    return `/captain/messaging?${params.toString()}`
   }
   const winningBuilderHref =
     overallProjection >= 0.5
@@ -873,7 +909,7 @@ export default function ScenarioComparisonPage() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                          window.location.href = messagingHref(winningScenario)
                         }}>
                           Send to messaging
                         </GhostSmallBtn>
@@ -1237,7 +1273,7 @@ export default function ScenarioComparisonPage() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                          window.location.href = messagingHref(winningScenario)
                         }}>
                         Send Winning Scenario
                       </GhostSmallBtn>
