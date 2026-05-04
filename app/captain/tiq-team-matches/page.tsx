@@ -614,7 +614,12 @@ export default function CaptainTiqTeamMatchesPage() {
 
   async function handleFilterChange(leagueId: string) {
     setFilterLeagueId(leagueId)
+    const nextHref = leagueId
+      ? `/captain/tiq-team-matches?leagueId=${encodeURIComponent(leagueId)}`
+      : '/captain/tiq-team-matches'
+    router.replace(nextHref, { scroll: false })
     setLoading(true)
+    setError('')
     const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: leagueId || null })
     if (warning) setError(warning)
     setEvents(evts)
@@ -688,7 +693,7 @@ export default function CaptainTiqTeamMatchesPage() {
           <select
             style={{ ...selectStyle, maxWidth: 260 }}
             value={filterLeagueId}
-            onChange={(e) => handleFilterChange(e.target.value)}
+            onChange={(e) => void handleFilterChange(e.target.value)}
           >
             <option value="">All leagues</option>
             {leagues.map((l) => (
