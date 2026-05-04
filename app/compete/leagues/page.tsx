@@ -23,6 +23,7 @@ import {
   getTiqIndividualCompetitionFormatNextAction,
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -174,6 +175,34 @@ function RowLink({ href, children }: { href: string; children: ReactNode }) {
   )
 }
 
+function buildTiqLeagueDetailHref(record: TiqLeagueRecord) {
+  return `/explore/leagues/tiq/${encodeURIComponent(record.id)}?league_id=${encodeURIComponent(record.id)}`
+}
+
+function buildTiqTeamResultsHref(record: TiqLeagueRecord) {
+  return `/captain/tiq-team-matches?leagueId=${encodeURIComponent(record.id)}`
+}
+
+function buildTiqLeagueLineupHref(record: TiqLeagueRecord) {
+  const team = record.captainTeamName || record.teams[0] || ''
+  return buildCaptainScopedHref('/captain/lineup-builder', {
+    competitionLayer: 'tiq',
+    team,
+    league: record.leagueName,
+    flight: record.flight || record.seasonLabel,
+  })
+}
+
+function buildTiqIndividualResultHref(record: TiqLeagueRecord) {
+  const params = new URLSearchParams({ league_id: record.id })
+  const [playerA, playerB] = record.players
+  if (playerA && playerB) {
+    params.set('suggest_player_a', `name:${playerA}`)
+    params.set('suggest_player_b', `name:${playerB}`)
+  }
+  return `/explore/leagues/tiq/${encodeURIComponent(record.id)}?${params.toString()}`
+}
+
 function LeagueListSection({
   title,
   body,
@@ -199,6 +228,13 @@ function LeagueListSection({
           {records.map((record) => {
             const summary = individualSummaries?.get(record.id)
             const suggestionSummary = individualSuggestionSummaries?.get(record.id)
+            const leagueHref = buildTiqLeagueDetailHref(record)
+            const primaryActionLabel = record.leagueFormat === 'team' ? 'Record results' : 'Log result'
+            const primaryActionHref =
+              record.leagueFormat === 'team' ? buildTiqTeamResultsHref(record) : buildTiqIndividualResultHref(record)
+            const secondaryActionLabel = record.leagueFormat === 'team' ? 'Lineup' : 'Results'
+            const secondaryActionHref =
+              record.leagueFormat === 'team' ? buildTiqLeagueLineupHref(record) : '/compete/results'
 
             return (
               <div key={record.id} style={rowStyle}>
@@ -246,8 +282,14 @@ function LeagueListSection({
                       ? `${record.teams.length} teams`
                       : `${summary?.resultCount || 0} results`}
                   </div>
-                  <RowLink href={`/explore/leagues/tiq/${encodeURIComponent(record.id)}?league_id=${encodeURIComponent(record.id)}`}>
+                  <RowLink href={leagueHref}>
                     Open league
+                  </RowLink>
+                  <RowLink href={primaryActionHref}>
+                    {primaryActionLabel}
+                  </RowLink>
+                  <RowLink href={secondaryActionHref}>
+                    {secondaryActionLabel}
                   </RowLink>
                 </div>
               </div>
@@ -342,8 +384,8 @@ const listStyle = {
 } as const
 
 const rowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '12px',
   alignItems: 'center',
   padding: '14px',
@@ -387,8 +429,9 @@ const rowSuggestionStyle = {
 } as const
 
 const rowActionStackStyle = {
-  display: 'grid',
-  justifyItems: 'end',
+  display: 'flex',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
   gap: '8px',
 } as const
 
@@ -404,4 +447,5 @@ const rowLinkStyle = {
   fontSize: '13px',
   fontWeight: 800,
   textDecoration: 'none',
+  whiteSpace: 'nowrap',
 } as const
