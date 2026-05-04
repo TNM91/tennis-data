@@ -107,6 +107,10 @@ export default function CaptainSeasonDashboardPage() {
     () => records.filter((record) => record.leagueFormat === 'team'),
     [records],
   )
+  const latestTeamLeague = useMemo(
+    () => [...teamLeagues].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
+    [teamLeagues],
+  )
   const individualLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'individual'),
     [records],
@@ -125,6 +129,9 @@ export default function CaptainSeasonDashboardPage() {
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
+  const resultEntryHref = latestTeamLeague
+    ? `/captain/tiq-team-matches?leagueId=${encodeURIComponent(latestTeamLeague.id)}`
+    : '/captain/tiq-team-matches'
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -156,10 +163,10 @@ export default function CaptainSeasonDashboardPage() {
     },
     {
       label: 'Results',
-      complete: leagueCards.length > 0,
-      detail: leagueCards.length > 0 ? 'League records are ready for result entry.' : 'Save a league before logging results.',
-      href: leagueCards.length > 0 ? '/captain/tiq-team-matches' : '#league-setup-form',
-      cta: leagueCards.length > 0 ? 'Record results' : 'Finish setup',
+      complete: teamLeagues.length > 0,
+      detail: teamLeagues.length > 0 ? 'Team leagues are ready for result entry.' : 'Save a team league before logging results.',
+      href: teamLeagues.length > 0 ? resultEntryHref : '#league-setup-form',
+      cta: teamLeagues.length > 0 ? 'Record results' : 'Finish setup',
     },
   ]
   const leagueOpsCompleteCount = leagueOpsChecks.filter((item) => item.complete).length
@@ -273,7 +280,7 @@ export default function CaptainSeasonDashboardPage() {
           {!access.canUseLeagueTools ? <div style={noteBanner}>{access.leagueTierMessage}</div> : null}
 
           <div style={heroActionRow}>
-            <GhostLink href="/captain/tiq-team-matches">Record results</GhostLink>
+            <GhostLink href={resultEntryHref}>Record results</GhostLink>
             <GhostLink href="/compete/leagues">My leagues</GhostLink>
             <GhostLink href="/explore/leagues">Browse leagues</GhostLink>
           </div>
@@ -312,7 +319,7 @@ export default function CaptainSeasonDashboardPage() {
             </div>
           </div>
           <div style={heroActionRow}>
-            <GhostLink href="/captain/tiq-team-matches">Record results</GhostLink>
+            <GhostLink href={resultEntryHref}>Record results</GhostLink>
             <GhostLink href="/compete/leagues">View leagues</GhostLink>
             <GhostLink href="/explore/rankings">View rankings</GhostLink>
           </div>
@@ -353,7 +360,7 @@ export default function CaptainSeasonDashboardPage() {
           </div>
           <div style={heroActionRow}>
             <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
-            <GhostLink href="/captain/tiq-team-matches">Record results</GhostLink>
+            <GhostLink href={resultEntryHref}>Record results</GhostLink>
           </div>
         </section>
 
