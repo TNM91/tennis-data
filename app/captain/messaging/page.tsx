@@ -446,10 +446,45 @@ function buildDemoLineupRows(): LineupAssignment[] {
   }))
 }
 
+function readInitialMessagingContext() {
+  const emptyContext = {
+    competitionLayer: '',
+    team: '',
+    league: '',
+    flight: '',
+    eventDate: '',
+    opponentTeam: '',
+    flowSource: '',
+    scenario: null as ScenarioRow | null,
+  }
+
+  if (typeof window === 'undefined') return emptyContext
+
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const resumeState = readCaptainResumeState()
+    const rawScenario = window.localStorage.getItem('tenace_selected_scenario')
+    const rawFlowSource = window.localStorage.getItem('tenace_flow_source') || ''
+
+    return {
+      competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
+      team: params.get('team') || resumeState?.team || '',
+      league: params.get('league') || resumeState?.league || '',
+      flight: params.get('flight') || resumeState?.flight || '',
+      eventDate: params.get('date') || resumeState?.eventDate || '',
+      opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
+      flowSource: params.get('source') || rawFlowSource,
+      scenario: rawScenario ? (JSON.parse(rawScenario) as ScenarioRow) : null,
+    }
+  } catch {
+    return emptyContext
+  }
+}
 
 export default function CaptainMessagingPage() {
   const router = useRouter()
   const { theme } = useTheme()
+  const initialContext = readInitialMessagingContext()
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -459,7 +494,7 @@ export default function CaptainMessagingPage() {
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
   const [refreshTick, setRefreshTick] = useState(0)
-  const [competitionLayer, setCompetitionLayer] = useState('')
+  const [competitionLayer] = useState(initialContext.competitionLayer)
 
   const [contacts, setContacts] = useState<ContactRow[]>([])
   const [templates, setTemplates] = useState<TemplateRow[]>([])
@@ -471,20 +506,22 @@ export default function CaptainMessagingPage() {
   const [externalAvailabilityRows, setExternalAvailabilityRows] = useState<ExternalAvailabilityRow[]>([])
   const [availabilitySyncSource, setAvailabilitySyncSource] = useState<string | null>(null)
 
-  const [leagueFilter, setLeagueFilter] = useState('')
-  const [flightFilter, setFlightFilter] = useState('')
+  const [leagueFilter, setLeagueFilter] = useState(initialContext.league)
+  const [flightFilter, setFlightFilter] = useState(initialContext.flight)
   const [seasonFilter, setSeasonFilter] = useState('')
   const [sessionFilter, setSessionFilter] = useState('')
-  const [teamFilter, setTeamFilter] = useState('')
+  const [teamFilter, setTeamFilter] = useState(initialContext.team)
   const [eventMatchId, setEventMatchId] = useState('')
   const [eventLocation, setEventLocation] = useState('')
   const [eventDirections, setEventDirections] = useState('')
   const [eventArrivalTime, setEventArrivalTime] = useState('')
   const [eventNotes, setEventNotes] = useState('')
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
+  const [preferredEventDate] = useState(initialContext.eventDate)
+  const [preferredOpponent] = useState(initialContext.opponentTeam)
 
-  const [prefillScenarioRaw, setPrefillScenarioRaw] = useState<ScenarioRow | null>(null)
-  const [prefillFlowSource, setPrefillFlowSource] = useState('')
+  const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
+  const [prefillFlowSource] = useState(initialContext.flowSource)
   const [prefillApplied, setPrefillApplied] = useState(false)
 
   const [draftContact, setDraftContact] = useState<DraftContact>({
@@ -565,39 +602,6 @@ export default function CaptainMessagingPage() {
       router.replace('/login')
     }
   }, [authLoading, role, router])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    try {
-      const rawScenario = window.localStorage.getItem('tenace_selected_scenario')
-      const rawFlowSource = window.localStorage.getItem('tenace_flow_source') || ''
-      const resumeState = readCaptainResumeState()
-
-      if (rawScenario) {
-        const parsed = JSON.parse(rawScenario) as ScenarioRow
-        setPrefillScenarioRaw(parsed)
-      }
-
-      const params = new URLSearchParams(window.location.search)
-      const sourceFromUrl = params.get('source') || ''
-      if (sourceFromUrl || rawFlowSource) {
-        setPrefillFlowSource(sourceFromUrl || rawFlowSource)
-      }
-
-      const competitionLayerFromUrl = params.get('layer') || resumeState?.competitionLayer || ''
-      const teamFromUrl = params.get('team') || resumeState?.team || ''
-      const leagueFromUrl = params.get('league') || resumeState?.league || ''
-      const flightFromUrl = params.get('flight') || resumeState?.flight || ''
-
-      if (competitionLayerFromUrl) setCompetitionLayer(competitionLayerFromUrl)
-      if (teamFromUrl) setTeamFilter(teamFromUrl)
-      if (leagueFromUrl) setLeagueFilter(leagueFromUrl)
-      if (flightFromUrl) setFlightFilter(flightFromUrl)
-    } catch {
-      // ignore malformed local storage payloads
-    }
-  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -835,10 +839,21 @@ export default function CaptainMessagingPage() {
 
   useEffect(() => {
     if (filteredMatches.length && !filteredMatches.some((match) => match.id === eventMatchId)) {
-      setEventMatchId(filteredMatches[0].id)
+      const requestedMatch =
+        filteredMatches.find((match) => {
+          if (preferredEventDate && !datesLookEqual(match.match_date, preferredEventDate)) return false
+          if (preferredOpponent) {
+            const home = normalizeText(match.home_team)
+            const away = normalizeText(match.away_team)
+            if (home !== preferredOpponent && away !== preferredOpponent) return false
+          }
+          return Boolean(preferredEventDate || preferredOpponent)
+        }) ?? null
+
+      setEventMatchId((requestedMatch ?? filteredMatches[0]).id)
     }
     if (!filteredMatches.length) setEventMatchId('')
-  }, [filteredMatches, eventMatchId])
+  }, [filteredMatches, eventMatchId, preferredEventDate, preferredOpponent])
 
   const selectedMatch = filteredMatches.find((match) => match.id === eventMatchId) ?? null
   const inferredTeamName = teamFilter || normalizeText(selectedMatch?.home_team)
