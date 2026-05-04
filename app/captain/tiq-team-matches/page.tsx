@@ -206,6 +206,11 @@ function LineForm({
       return 'Line number and at least one player per side are required.'
     }
 
+    const lineNumber = Number(form.lineNumber)
+    if (!Number.isInteger(lineNumber) || lineNumber < 1 || lineNumber > 20) {
+      return 'Line number must be a whole number from 1 to 20.'
+    }
+
     if (form.matchType === 'doubles' && (!form.sideAPlayer2Id || !form.sideBPlayer2Id)) {
       return 'Doubles lines need two players on each side.'
     }
