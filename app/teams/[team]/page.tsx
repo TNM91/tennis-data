@@ -22,6 +22,7 @@ import {
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
@@ -1085,6 +1086,34 @@ export default function TeamPage() {
       note: 'Use TIQ leagues when you want to run teams, schedules, rosters, and results in TenAceIQ.',
     },
   ]
+  const leagueContextHref = teamMeta.league
+    ? `/explore/search?scope=leagues&q=${encodeURIComponent([teamMeta.league, teamMeta.flight].filter(Boolean).join(' '))}`
+    : '/explore/search?scope=leagues'
+  const teamDiscoveryActions = [
+    {
+      label: 'Read',
+      title: 'Check roster and form',
+      text: `${roster.length} roster players, ${matches.length} imported scorecards, and ${record.wins}-${record.losses} tracked record give the public team read.`,
+      href: '#team-roster',
+      cta: 'View roster',
+    },
+    {
+      label: 'Trace',
+      title: teamMeta.league ? 'Open league context' : 'Find league context',
+      text: teamMeta.league
+        ? `${teamMeta.league}${teamMeta.flight ? ` - ${teamMeta.flight}` : ''} connects this team to its wider competition layer.`
+        : 'Use league search when you need the season, flight, or area around this team.',
+      href: leagueContextHref,
+      cta: teamMeta.league ? 'Search league' : 'Find leagues',
+    },
+    {
+      label: 'Plan',
+      title: 'Move into captain tools',
+      text: 'Captain unlock turns the team page into availability, lineup building, and weekly decision support.',
+      href: captainLinks[1].href,
+      cta: 'Open lineup builder',
+    },
+  ]
 
   if (loading) {
     return (
@@ -1263,25 +1292,26 @@ export default function TeamPage() {
         ) : null}
 
         <section style={dynamicMetricGrid}>
-          <article
-            style={{
-              ...surfaceCardStrong,
-              gridColumn: '1 / -1',
-            }}
-          >
-            <div style={sectionHeadingRow}>
+          <article style={teamDiscoveryPanelStyle}>
+            <div style={teamDiscoveryHeaderStyle}>
               <div>
-                <p style={sectionKicker}>Team guide</p>
-                <h2 style={sectionTitle}>Use this page to see who can help you win.</h2>
+                <p style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} team path</p>
+                <h2 style={sectionTitle}>Use this team page in three moves.</h2>
               </div>
+              <p style={teamDiscoveryCopyStyle}>
+                {MEMBERSHIP_TIERS.free.shortPromise} Captain unlocks availability, lineup building, scenario testing, and weekly team decisions when this becomes your team workspace.
+              </p>
             </div>
-            <p style={bodyText}>
-              Start with roster depth and recent form, then move into availability, lineup builder,
-              or scenarios when you are ready to plan the next match.
-            </p>
-            <div style={dynamicHeroActions}>
-              <SecondaryLink href="/teams">Back to teams</SecondaryLink>
-              <GhostLink href="/advertising-disclosure">Advertising disclosure</GhostLink>
+
+            <div style={teamDiscoveryGridStyle(isMobile)}>
+              {teamDiscoveryActions.map((item) => (
+                <Link key={item.title} href={item.href} style={teamDiscoveryCardStyle}>
+                  <span style={teamDiscoveryLabelStyle}>{item.label}</span>
+                  <strong style={teamDiscoveryCardTitleStyle}>{item.title}</strong>
+                  <span style={teamDiscoveryCardTextStyle}>{item.text}</span>
+                  <span style={teamDiscoveryCtaStyle}>{item.cta} {'->'}</span>
+                </Link>
+              ))}
             </div>
           </article>
 
@@ -1504,7 +1534,7 @@ export default function TeamPage() {
           </article>
         </section>
 
-        <section style={surfaceCard}>
+        <section style={surfaceCard} id="team-roster">
           <div style={sectionHeadingRow}>
             <div>
               <p style={sectionKicker}>Recent Form</p>
@@ -2241,6 +2271,77 @@ const surfaceCard: CSSProperties = {
 const surfaceCardStrong: CSSProperties = {
   ...surfaceCard,
   background: 'var(--shell-panel-bg-strong)',
+}
+
+const teamDiscoveryPanelStyle: CSSProperties = {
+  ...surfaceCardStrong,
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gap: '16px',
+}
+
+const teamDiscoveryHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '14px',
+  alignItems: 'end',
+}
+
+const teamDiscoveryCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 600,
+}
+
+const teamDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '12px',
+})
+
+const teamDiscoveryCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '160px',
+  padding: '16px',
+  borderRadius: '18px',
+  textDecoration: 'none',
+  color: 'var(--foreground)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--card-border-soft)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const teamDiscoveryLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const teamDiscoveryCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '18px',
+  lineHeight: 1.14,
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
+const teamDiscoveryCardTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const teamDiscoveryCtaStyle: CSSProperties = {
+  alignSelf: 'end',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
 }
 
 const sectionHeadingRow: CSSProperties = {
