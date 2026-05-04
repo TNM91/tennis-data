@@ -12,6 +12,7 @@ import {
   inferCompetitionLayerFromValues,
   type CompetitionLayer,
 } from '@/lib/competition-layers'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
   buildScopedLeagueEntityId,
   buildScopedTeamEntityId,
@@ -1956,6 +1957,27 @@ function MyLabPageInner() {
       meta: item.summary?.resultCount ? `${item.summary.resultCount} results` : 'Ready for first result',
     })),
   ].slice(0, 3)
+  const teamPrepCards = linkedPlayerTeamSummaries.slice(0, 3).map((team) => {
+    const parsed = parseTeamEntityId(team.id)
+    const competitionLayer = parsed.competitionLayer || inferCompetitionLayerForContext({ leagueName: team.league })
+    const leagueName = parsed.leagueName || team.league || ''
+    const flight = parsed.flight || team.flight || ''
+    const scope = {
+      competitionLayer,
+      team: team.name,
+      league: leagueName,
+      flight,
+    }
+
+    return {
+      id: team.id,
+      title: team.name,
+      meta: [leagueName, flight, `${team.playerCount} players`].filter(Boolean).join(' - '),
+      briefHref: buildCaptainScopedHref('/captain/weekly-brief', scope),
+      availabilityHref: buildCaptainScopedHref('/captain/availability', scope),
+      lineupHref: buildCaptainScopedHref('/captain/lineup-builder', scope),
+    }
+  })
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -2417,6 +2439,41 @@ function MyLabPageInner() {
                         </Link>
                         <Link href={card.secondaryHref} style={smallInlineLinkStyle}>
                           {card.secondaryLabel}
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            {teamPrepCards.length ? (
+              <section style={teamPrepRailStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <p style={sectionKickerStyle}>Team prep</p>
+                    <h3 style={compactSectionTitleStyle}>Captain actions from your player context</h3>
+                  </div>
+                  <Link href="/captain" style={smallInlineLinkStyle}>
+                    Captain
+                  </Link>
+                </div>
+                <div style={teamPrepGridStyle(isTablet)}>
+                  {teamPrepCards.map((team) => (
+                    <article key={team.id} style={teamPrepCardStyle}>
+                      <div>
+                        <div style={teamPrepTitleStyle}>{team.title}</div>
+                        <div style={teamPrepMetaStyle}>{team.meta || 'Team context'}</div>
+                      </div>
+                      <div style={teamPrepActionRowStyle}>
+                        <Link href={team.briefHref} style={miniActionPillStyle}>
+                          Brief
+                        </Link>
+                        <Link href={team.availabilityHref} style={smallInlineLinkStyle}>
+                          Availability
+                        </Link>
+                        <Link href={team.lineupHref} style={smallInlineLinkStyle}>
+                          Lineup
                         </Link>
                       </div>
                     </article>
@@ -3728,6 +3785,55 @@ const smallInlineLinkStyle: CSSProperties = {
   fontWeight: 950,
   textDecoration: 'none',
   whiteSpace: 'nowrap',
+}
+
+const teamPrepRailStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  padding: 16,
+  display: 'grid',
+  gap: 12,
+}
+
+const teamPrepGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const teamPrepCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minHeight: 132,
+  alignContent: 'space-between',
+}
+
+const teamPrepTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamPrepMetaStyle: CSSProperties = {
+  marginTop: 5,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.45,
+}
+
+const teamPrepActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
 }
 
 const goalProgressPanelStyle: CSSProperties = {
