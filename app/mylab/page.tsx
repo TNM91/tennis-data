@@ -444,6 +444,24 @@ function buildLeagueHrefFromEntityId(entityId: string) {
   return `/leagues/${encodeURIComponent(leagueName)}${query ? `?${query}` : ''}`
 }
 
+function buildTiqLeagueDetailHref(leagueId: string) {
+  const safeLeagueId = encodeURIComponent(leagueId)
+  return `/explore/leagues/tiq/${safeLeagueId}?league_id=${safeLeagueId}`
+}
+
+function buildTiqParticipantValue(playerName: string, playerId: string) {
+  return playerId || `name:${playerName}`
+}
+
+function buildTiqSuggestionResultHref(suggestion: TiqIndividualSuggestionRecord) {
+  const params = new URLSearchParams({
+    league_id: suggestion.leagueId,
+    suggest_player_a: buildTiqParticipantValue(suggestion.playerAName, suggestion.playerAId),
+    suggest_player_b: buildTiqParticipantValue(suggestion.playerBName, suggestion.playerBId),
+  })
+  return `/explore/leagues/tiq/${encodeURIComponent(suggestion.leagueId)}?${params.toString()}`
+}
+
 function inferCompetitionLayerForContext({
   leagueName,
   section,
@@ -1901,6 +1919,43 @@ function MyLabPageInner() {
       icon: 'myLab' as TiqFeatureIconName,
     },
   ]
+  const tiqActionCards = [
+    ...followedTiqSuggestionItems
+      .filter((suggestion) => suggestion.status === 'open')
+      .slice(0, 2)
+      .map((suggestion) => {
+        const league = tiqLeagues.find((item) => item.id === suggestion.leagueId)
+        return {
+          id: `suggestion-${suggestion.id}`,
+          label: 'TIQ prompt',
+          title: suggestion.title,
+          text:
+            suggestion.body ||
+            getTiqIndividualCompetitionFormatNextAction(
+              suggestion.individualCompetitionFormat,
+              league?.leagueName || 'this TIQ league',
+            ),
+          primaryHref: buildTiqSuggestionResultHref(suggestion),
+          primaryLabel: 'Log result',
+          secondaryHref: buildTiqLeagueDetailHref(suggestion.leagueId),
+          secondaryLabel: 'Open league',
+          meta: league?.leagueName || 'TIQ Individual League',
+        }
+      }),
+    ...followedTiqIndividualLeagueInsights.slice(0, 2).map((item) => ({
+      id: `insight-${item.league.id}`,
+      label: item.formatLabel,
+      title: item.league.leagueName,
+      text: item.summary?.leaderName
+        ? `${item.nextAction} Current leader: ${item.summary.leaderName} (${item.summary.leaderRecord}).`
+        : item.nextAction,
+      primaryHref: buildTiqLeagueDetailHref(item.league.id),
+      primaryLabel: 'Open league',
+      secondaryHref: '/compete/results',
+      secondaryLabel: 'Results',
+      meta: item.summary?.resultCount ? `${item.summary.resultCount} results` : 'Ready for first result',
+    })),
+  ].slice(0, 3)
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -2335,6 +2390,40 @@ function MyLabPageInner() {
                 </Link>
               ))}
             </div>
+
+            {tiqActionCards.length ? (
+              <section style={tiqActionRailStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <p style={sectionKickerStyle}>TIQ action rail</p>
+                    <h3 style={compactSectionTitleStyle}>League prompts ready to act on</h3>
+                  </div>
+                  <Link href="/compete/leagues" style={smallInlineLinkStyle}>
+                    My leagues
+                  </Link>
+                </div>
+                <div style={tiqActionGridStyle(isTablet)}>
+                  {tiqActionCards.map((card) => (
+                    <article key={card.id} style={tiqActionCardStyle}>
+                      <div style={tiqActionTopRowStyle}>
+                        <span style={tiqActionLabelStyle}>{card.label}</span>
+                        <span style={tiqActionMetaStyle}>{card.meta}</span>
+                      </div>
+                      <div style={tiqActionTitleStyle}>{card.title}</div>
+                      <p style={tiqActionTextStyle}>{card.text}</p>
+                      <div style={tiqActionButtonRowStyle}>
+                        <Link href={card.primaryHref} style={miniActionPillStyle}>
+                          {card.primaryLabel}
+                        </Link>
+                        <Link href={card.secondaryHref} style={smallInlineLinkStyle}>
+                          {card.secondaryLabel}
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
 
             <section id="goal-progress" style={goalProgressPanelStyle}>
               <div style={sectionHeaderStyle}>
@@ -3561,6 +3650,84 @@ const personalCommandCardStyle: CSSProperties = {
   textDecoration: 'none',
   minHeight: 160,
   alignContent: 'start',
+}
+
+const tiqActionRailStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-panel-bg)',
+  padding: 16,
+  display: 'grid',
+  gap: 12,
+}
+
+const tiqActionGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const tiqActionCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 8,
+  minHeight: 172,
+  alignContent: 'start',
+}
+
+const tiqActionTopRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 8,
+}
+
+const tiqActionLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const tiqActionMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  whiteSpace: 'nowrap',
+}
+
+const tiqActionTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.25,
+  fontWeight: 950,
+}
+
+const tiqActionTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
+const tiqActionButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  marginTop: 4,
+}
+
+const smallInlineLinkStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 950,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
 }
 
 const goalProgressPanelStyle: CSSProperties = {
