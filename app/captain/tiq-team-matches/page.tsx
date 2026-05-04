@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
@@ -465,12 +465,14 @@ const emptyEvent = (): EventFormState => ({
 
 function NewEventForm({
   leagues,
+  defaultLeagueId,
   onCreated,
 }: {
   leagues: TiqLeagueRecord[]
+  defaultLeagueId: string
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
-  const [form, setForm] = useState<EventFormState>(emptyEvent)
+  const [form, setForm] = useState<EventFormState>(() => ({ ...emptyEvent(), leagueId: defaultLeagueId }))
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
   const [message, setMessage] = useState('')
@@ -495,7 +497,7 @@ function NewEventForm({
     if (w) setWarning(w)
     if (event) {
       setMessage('Match created. Expand below to add lines.')
-      setForm(emptyEvent())
+      setForm({ ...emptyEvent(), leagueId: defaultLeagueId })
       onCreated(event)
     }
   }
@@ -548,11 +550,13 @@ function NewEventForm({
 
 export default function CaptainTiqTeamMatchesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [events, setEvents] = useState<TiqTeamMatchEventRecord[]>([])
   const [players, setPlayers] = useState<PlayerOption[]>([])
-  const [filterLeagueId, setFilterLeagueId] = useState('')
+  const [filterLeagueId, setFilterLeagueId] = useState(initialLeagueId)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const latestEvent = useMemo(
@@ -594,11 +598,11 @@ export default function CaptainTiqTeamMatchesPage() {
     setLeagues(leaguesResult.records)
     setPlayers((playersResult.data || []) as PlayerOption[])
 
-    const { events: evts, warning } = await listTiqTeamMatchEvents()
+    const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: initialLeagueId || null })
     if (warning) setError(warning)
     setEvents(evts)
     setLoading(false)
-  }, [])
+  }, [initialLeagueId])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -670,7 +674,12 @@ export default function CaptainTiqTeamMatchesPage() {
             </div>
             <span style={pillGreen}>Add result</span>
           </summary>
-          <NewEventForm leagues={leagues} onCreated={(event) => setEvents((prev) => [event, ...prev])} />
+          <NewEventForm
+            key={filterLeagueId || 'all-leagues'}
+            leagues={leagues}
+            defaultLeagueId={filterLeagueId}
+            onCreated={(event) => setEvents((prev) => [event, ...prev])}
+          />
         </details>
 
         <div style={sectionTitle}>Recorded matches</div>
