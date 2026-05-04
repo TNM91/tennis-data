@@ -222,6 +222,14 @@ function LineForm({
       return 'Each player can only appear once on a line.'
     }
 
+    if (form.winnerSide && !form.score.trim()) {
+      return 'Completed lines need a score.'
+    }
+
+    if (form.score.trim() && !form.winnerSide) {
+      return 'Choose a winner before saving a scored line.'
+    }
+
     return ''
   }
 
