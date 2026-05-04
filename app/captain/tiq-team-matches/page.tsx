@@ -227,7 +227,7 @@ function LineForm({
   return (
     <div style={card}>
       <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14 }}>
-        {existingLine ? `Edit line ${existingLine.lineNumber}` : 'Add line'}
+        {existingLine ? `Edit line ${existingLine.lineNumber}` : `Add line${defaultLineNumber ? ` ${defaultLineNumber}` : ''}`}
       </div>
 
       <div style={row}>
@@ -342,7 +342,7 @@ function EventCard({
     setLines((prev) => prev.filter((l) => l.id !== lineId))
   }
 
-  function handleLineSaved(line: TiqTeamMatchLineRecord) {
+  function handleLineSaved(line: TiqTeamMatchLineRecord, keepAddingLine = false) {
     setLines((prev) => {
       const idx = prev.findIndex((l) => l.lineNumber === line.lineNumber)
       if (idx >= 0) {
@@ -352,7 +352,7 @@ function EventCard({
       }
       return [...prev, line].sort((a, b) => a.lineNumber - b.lineNumber)
     })
-    setAddingLine(false)
+    setAddingLine(keepAddingLine)
     setEditingLine(null)
   }
 
@@ -414,7 +414,7 @@ function EventCard({
                     event={event}
                     players={players}
                     existingLine={line}
-                    onSaved={handleLineSaved}
+                    onSaved={(savedLine) => handleLineSaved(savedLine)}
                     onCancel={() => setEditingLine(null)}
                   />
                 ) : (
@@ -454,10 +454,11 @@ function EventCard({
           {addingLine && (
             <div style={{ marginTop: 12 }}>
               <LineForm
+                key={`add-line-${defaultLineNumber || lines.length}`}
                 event={event}
                 players={players}
                 defaultLineNumber={defaultLineNumber}
-                onSaved={handleLineSaved}
+                onSaved={(savedLine) => handleLineSaved(savedLine, true)}
                 onCancel={() => setAddingLine(false)}
               />
             </div>
