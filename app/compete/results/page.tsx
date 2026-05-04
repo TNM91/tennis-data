@@ -53,6 +53,23 @@ function CompeteResultsContent() {
   const [leagueNames, setLeagueNames] = useState<Record<string, string>>({})
   const [storageWarning, setStorageWarning] = useState('')
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+  const resultStats = useMemo(() => {
+    const playerIds = new Set<string>()
+    let matchupReadyCount = 0
+
+    for (const result of results) {
+      if (result.playerAId) playerIds.add(result.playerAId)
+      if (result.playerBId) playerIds.add(result.playerBId)
+      if (result.playerAId && result.playerBId) matchupReadyCount += 1
+    }
+
+    return {
+      resultCount: results.length,
+      playerCount: playerIds.size,
+      matchupReadyCount,
+      latestDate: results[0]?.resultDate || '',
+    }
+  }, [results])
 
   useEffect(() => {
     async function load() {
@@ -120,48 +137,97 @@ function CompeteResultsContent() {
         {results.length === 0 ? (
           <div style={emptyStyle}>No TIQ individual results have been logged yet.</div>
         ) : (
-          <div style={listStyle}>
-            {results.map((result) => {
-              const loser =
-                result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+          <>
+            <div style={statGridStyle}>
+              <div style={statCardStyle}>
+                <div style={statValueStyle}>{resultStats.resultCount}</div>
+                <div style={statLabelStyle}>recent results</div>
+              </div>
+              <div style={statCardStyle}>
+                <div style={statValueStyle}>{resultStats.playerCount}</div>
+                <div style={statLabelStyle}>players touched</div>
+              </div>
+              <div style={statCardStyle}>
+                <div style={statValueStyle}>{resultStats.matchupReadyCount}</div>
+                <div style={statLabelStyle}>ready to compare</div>
+              </div>
+              <div style={statCardStyle}>
+                <div style={statValueStyle}>{formatDate(resultStats.latestDate, 'Soon')}</div>
+                <div style={statLabelStyle}>latest result</div>
+              </div>
+            </div>
 
-              return (
-                <div key={result.id} style={rowStyle}>
-                  <div>
-                    <div style={rowTitleStyle}>
-                      {result.winnerPlayerName} def. {loser}
-                    </div>
-                    <div style={rowMetaStyle}>
-                      {[
-                        leagueNames[result.leagueId] || 'TIQ Individual League',
-                        result.score,
-                        formatDate(result.resultDate, 'Recently'),
-                        result.notes,
-                      ]
-                        .filter(Boolean)
-                        .join(' | ')}
-                    </div>
-                  </div>
-                  <div style={rowActionStackStyle}>
-                    <RowLink href={`/explore/leagues/tiq/${encodeURIComponent(result.leagueId)}?league_id=${encodeURIComponent(result.leagueId)}`}>
-                      Open league
-                    </RowLink>
-                    {result.winnerPlayerId ? (
-                      <RowLink href={`/players/${encodeURIComponent(result.winnerPlayerId)}`}>
-                        Winner profile
-                      </RowLink>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+            <div style={listStyle}>
+              {results.map((result) => (
+                <ResultRow
+                  key={result.id}
+                  result={result}
+                  leagueName={leagueNames[result.leagueId] || 'TIQ Individual League'}
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
 
       {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
     </>
   )
+}
+
+function ResultRow({
+  result,
+  leagueName,
+}: {
+  result: TiqIndividualLeagueResultRecord
+  leagueName: string
+}) {
+  const loserName = result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+  const loserId = result.winnerPlayerId === result.playerAId ? result.playerBId : result.playerAId
+  const matchupHref = buildResultMatchupHref(result)
+
+  return (
+    <div style={rowStyle}>
+      <div>
+        <div style={rowTitleStyle}>
+          {result.winnerPlayerName} def. {loserName}
+        </div>
+        <div style={rowMetaStyle}>
+          {[leagueName, result.score, formatDate(result.resultDate, 'Recently'), result.notes]
+            .filter(Boolean)
+            .join(' | ')}
+        </div>
+        <div style={rowHintStyle}>
+          Review the profiles, then rerun the matchup before the next round.
+        </div>
+      </div>
+      <div style={rowActionStackStyle}>
+        <RowLink href={`/explore/leagues/tiq/${encodeURIComponent(result.leagueId)}?league_id=${encodeURIComponent(result.leagueId)}`}>
+          Open league
+        </RowLink>
+        <RowLink href={matchupHref}>
+          Compare rematch
+        </RowLink>
+        {result.winnerPlayerId ? (
+          <RowLink href={`/players/${encodeURIComponent(result.winnerPlayerId)}`}>
+            Winner profile
+          </RowLink>
+        ) : null}
+        {loserId ? (
+          <RowLink href={`/players/${encodeURIComponent(loserId)}`}>
+            Opponent profile
+          </RowLink>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function buildResultMatchupHref(result: TiqIndividualLeagueResultRecord) {
+  const params = new URLSearchParams({ type: 'singles' })
+  if (result.playerAId) params.set('playerA', result.playerAId)
+  if (result.playerBId) params.set('playerB', result.playerBId)
+  return `/matchup?${params.toString()}`
 }
 
 const panelStyle = {
@@ -212,8 +278,8 @@ const listStyle = {
 } as const
 
 const rowStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '12px',
   alignItems: 'center',
   padding: '14px',
@@ -235,9 +301,18 @@ const rowMetaStyle = {
   lineHeight: 1.6,
 } as const
 
+const rowHintStyle = {
+  marginTop: '8px',
+  color: 'rgba(155,225,29,0.78)',
+  fontSize: '12px',
+  fontWeight: 750,
+  lineHeight: 1.5,
+} as const
+
 const rowActionStackStyle = {
-  display: 'grid',
-  justifyItems: 'end',
+  display: 'flex',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
   gap: '8px',
 } as const
 
@@ -246,6 +321,36 @@ const rowLinkStyle = {
   fontSize: '13px',
   fontWeight: 800,
   textDecoration: 'none',
+  whiteSpace: 'nowrap',
+} as const
+
+const statGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gap: '10px',
+} as const
+
+const statCardStyle = {
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+} as const
+
+const statValueStyle = {
+  color: '#f4f9ff',
+  fontSize: '20px',
+  fontWeight: 900,
+  lineHeight: 1.15,
+} as const
+
+const statLabelStyle = {
+  marginTop: '4px',
+  color: 'rgba(214,228,246,0.68)',
+  fontSize: '12px',
+  fontWeight: 800,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
 } as const
 
 const warningStyle = {
