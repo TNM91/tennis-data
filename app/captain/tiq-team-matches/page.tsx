@@ -23,6 +23,7 @@ import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 
 type PlayerOption = { id: string; name: string }
+type MatchLineSummary = { total: number; completed: number; teamAWins: number; teamBWins: number }
 
 
 const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
@@ -368,11 +369,13 @@ function EventCard({
   event,
   players,
   startLineEntry = false,
+  lineSummary,
   onDeleted,
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
   startLineEntry?: boolean
+  lineSummary?: MatchLineSummary
   onDeleted: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(startLineEntry)
@@ -445,7 +448,11 @@ function EventCard({
   const teamAWins = lines.filter((l) => l.winnerSide === 'A').length
   const teamBWins = lines.filter((l) => l.winnerSide === 'B').length
   const completedLines = teamAWins + teamBWins
-  const pendingLines = Math.max(lines.length - completedLines, 0)
+  const displayTotalLines = linesLoaded ? lines.length : lineSummary?.total ?? 0
+  const displayCompletedLines = linesLoaded ? completedLines : lineSummary?.completed ?? 0
+  const displayPendingLines = Math.max(displayTotalLines - displayCompletedLines, 0)
+  const displayTeamAWins = linesLoaded ? teamAWins : lineSummary?.teamAWins ?? 0
+  const displayTeamBWins = linesLoaded ? teamBWins : lineSummary?.teamBWins ?? 0
   const defaultLineNumber = nextOpenLineNumber()
 
   return (
@@ -458,17 +465,17 @@ function EventCard({
           <div style={{ fontSize: 13, color: '#94a3b8' }}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
-          {linesLoaded && lines.length > 0 && (
+          {displayTotalLines > 0 && (
             <div style={{ marginTop: 6, fontSize: 13 }}>
-              <span style={pill}>{lines.length} line{lines.length === 1 ? '' : 's'}</span>
+              <span style={pill}>{displayTotalLines} line{displayTotalLines === 1 ? '' : 's'}</span>
               {' '}
-              <span style={completedLines === lines.length ? pillGreen : pill}>{completedLines} complete</span>
+              <span style={displayCompletedLines === displayTotalLines ? pillGreen : pill}>{displayCompletedLines} complete</span>
               {' '}
-              <span style={pendingLines > 0 ? pill : pillGreen}>{pendingLines} pending</span>
+              <span style={displayPendingLines > 0 ? pill : pillGreen}>{displayPendingLines} pending</span>
               {' '}
-              <span style={teamAWins > teamBWins ? pillGreen : pill}>{event.teamAName}: {teamAWins}</span>
+              <span style={displayTeamAWins > displayTeamBWins ? pillGreen : pill}>{event.teamAName}: {displayTeamAWins}</span>
               {' '}
-              <span style={teamBWins > teamAWins ? pillGreen : pill}>{event.teamBName}: {teamBWins}</span>
+              <span style={displayTeamBWins > displayTeamAWins ? pillGreen : pill}>{event.teamBName}: {displayTeamBWins}</span>
             </div>
           )}
         </div>
@@ -604,6 +611,39 @@ function defaultEventForLeague(leagues: TiqLeagueRecord[], leagueId: string): Ev
   }
 }
 
+async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
+  const eventIds = events.map((event) => event.id)
+  if (eventIds.length === 0) return new Map<string, MatchLineSummary>()
+
+  const { data } = await supabase
+    .from('tiq_team_league_match_lines')
+    .select('event_id, winner_side')
+    .in('event_id', eventIds)
+
+  const summaries = new Map<string, MatchLineSummary>()
+  for (const eventId of eventIds) {
+    summaries.set(eventId, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0 })
+  }
+
+  for (const row of data || []) {
+    const eventId = String(row.event_id || '')
+    const summary = summaries.get(eventId)
+    if (!summary) continue
+
+    summary.total += 1
+    if (row.winner_side === 'A') {
+      summary.completed += 1
+      summary.teamAWins += 1
+    }
+    if (row.winner_side === 'B') {
+      summary.completed += 1
+      summary.teamBWins += 1
+    }
+  }
+
+  return summaries
+}
+
 function NewEventForm({
   leagues,
   defaultLeagueId,
@@ -730,6 +770,7 @@ export default function CaptainTiqTeamMatchesPage() {
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [events, setEvents] = useState<TiqTeamMatchEventRecord[]>([])
+  const [lineSummaries, setLineSummaries] = useState<Map<string, MatchLineSummary>>(new Map())
   const [players, setPlayers] = useState<PlayerOption[]>([])
   const [filterLeagueId, setFilterLeagueId] = useState(initialLeagueId)
   const [loading, setLoading] = useState(true)
@@ -777,6 +818,7 @@ export default function CaptainTiqTeamMatchesPage() {
     const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: initialLeagueId || null })
     if (warning) setError(warning)
     setEvents(evts)
+    setLineSummaries(await loadLineSummaries(evts))
     setLoading(false)
   }, [initialLeagueId])
 
@@ -799,6 +841,7 @@ export default function CaptainTiqTeamMatchesPage() {
     const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: leagueId || null })
     if (warning) setError(warning)
     setEvents(evts)
+    setLineSummaries(await loadLineSummaries(evts))
     setLoading(false)
   }
 
@@ -861,6 +904,7 @@ export default function CaptainTiqTeamMatchesPage() {
             defaultLeagueId={filterLeagueId}
             onCreated={(event) => {
               setActiveEntryEventId(event.id)
+              setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0 }))
               setEvents((prev) => [event, ...prev])
             }}
           />
@@ -892,6 +936,7 @@ export default function CaptainTiqTeamMatchesPage() {
               event={event}
               players={players}
               startLineEntry={event.id === activeEntryEventId}
+              lineSummary={lineSummaries.get(event.id)}
               onDeleted={(id) => setEvents((prev) => prev.filter((e) => e.id !== id))}
             />
           ))
