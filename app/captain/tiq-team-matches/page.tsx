@@ -196,9 +196,32 @@ function LineForm({
     return players.find((p) => p.id === id)?.name ?? ''
   }
 
-  async function handleSave() {
+  function validateLine() {
     if (!form.lineNumber || !form.sideAPlayer1Id || !form.sideBPlayer1Id) {
-      setWarning('Line number and at least one player per side are required.')
+      return 'Line number and at least one player per side are required.'
+    }
+
+    if (form.matchType === 'doubles' && (!form.sideAPlayer2Id || !form.sideBPlayer2Id)) {
+      return 'Doubles lines need two players on each side.'
+    }
+
+    const selectedPlayerIds = [
+      form.sideAPlayer1Id,
+      form.sideAPlayer2Id,
+      form.sideBPlayer1Id,
+      form.sideBPlayer2Id,
+    ].filter(Boolean)
+    if (new Set(selectedPlayerIds).size !== selectedPlayerIds.length) {
+      return 'Each player can only appear once on a line.'
+    }
+
+    return ''
+  }
+
+  async function handleSave() {
+    const validationWarning = validateLine()
+    if (validationWarning) {
+      setWarning(validationWarning)
       return
     }
     setSaving(true)
