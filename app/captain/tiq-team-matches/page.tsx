@@ -463,6 +463,17 @@ const emptyEvent = (): EventFormState => ({
   notes: '',
 })
 
+function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
+  if (!league) return []
+
+  return Array.from(
+    new Set([
+      league.captainTeamName,
+      ...league.teams,
+    ].map((team) => team.trim()).filter(Boolean)),
+  )
+}
+
 function NewEventForm({
   leagues,
   defaultLeagueId,
@@ -476,6 +487,11 @@ function NewEventForm({
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
   const [message, setMessage] = useState('')
+  const selectedLeague = useMemo(
+    () => leagues.find((league) => league.id === form.leagueId),
+    [form.leagueId, leagues],
+  )
+  const teamOptions = useMemo(() => teamOptionsForLeague(selectedLeague), [selectedLeague])
 
   async function handleCreate() {
     if (!form.leagueId || !form.teamAName || !form.teamBName || !form.matchDate) {
@@ -508,7 +524,20 @@ function NewEventForm({
 
       <div style={row}>
         <Field label="LEAGUE">
-          <select style={selectStyle} value={form.leagueId} onChange={(e) => setForm((f) => ({ ...f, leagueId: e.target.value }))}>
+          <select
+            style={selectStyle}
+            value={form.leagueId}
+            onChange={(e) => {
+              const nextLeagueId = e.target.value
+              const nextLeague = leagues.find((league) => league.id === nextLeagueId)
+              const nextTeamOptions = teamOptionsForLeague(nextLeague)
+              setForm((current) => ({
+                ...current,
+                leagueId: nextLeagueId,
+                teamAName: current.teamAName || nextLeague?.captainTeamName || nextTeamOptions[0] || '',
+              }))
+            }}
+          >
             <option value="">Select league...</option>
             {leagues.map((l) => (
               <option key={l.id} value={l.id}>{l.leagueName}</option>
@@ -522,12 +551,27 @@ function NewEventForm({
 
       <div style={row}>
         <Field label="YOUR TEAM (SIDE A)">
-          <input style={inputStyle} placeholder="Your team name" value={form.teamAName} onChange={(e) => setForm((f) => ({ ...f, teamAName: e.target.value }))} />
+          <input
+            style={inputStyle}
+            list="tiq-match-team-options"
+            placeholder={teamOptions.length ? 'Choose or type team name' : 'Your team name'}
+            value={form.teamAName}
+            onChange={(e) => setForm((f) => ({ ...f, teamAName: e.target.value }))}
+          />
         </Field>
         <Field label="OPPONENT TEAM (SIDE B)">
-          <input style={inputStyle} placeholder="Opponent team name" value={form.teamBName} onChange={(e) => setForm((f) => ({ ...f, teamBName: e.target.value }))} />
+          <input
+            style={inputStyle}
+            list="tiq-match-team-options"
+            placeholder={teamOptions.length ? 'Choose or type opponent' : 'Opponent team name'}
+            value={form.teamBName}
+            onChange={(e) => setForm((f) => ({ ...f, teamBName: e.target.value }))}
+          />
         </Field>
       </div>
+      <datalist id="tiq-match-team-options">
+        {teamOptions.map((team) => <option key={team} value={team} />)}
+      </datalist>
 
       <div style={row}>
         <Field label="FACILITY (optional)">
