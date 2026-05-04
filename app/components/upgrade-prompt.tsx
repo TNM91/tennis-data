@@ -39,6 +39,7 @@ export default function UpgradePrompt({
   const resolvedResult = result || plan.outcome
   const resolvedCtaHref = ctaHref || getPlanSignupHref(planId)
   const resolvedSecondaryHref = secondaryHref || '/pricing'
+  const unlockSteps = getUnlockSteps(planId)
 
   return (
     <section
@@ -80,6 +81,21 @@ export default function UpgradePrompt({
           ))}
         </div>
 
+        <div style={{ ...unlockPathStyle, ...(isLight ? lightUnlockPathStyle : null) }}>
+          <div style={{ ...unlockPathLabelStyle, ...(isLight ? lightUnlockPathLabelStyle : null) }}>Best next unlock</div>
+          <div style={unlockStepGridStyle}>
+            {unlockSteps.map((step, index) => (
+              <div key={step.title} style={{ ...unlockStepStyle, ...(isLight ? lightUnlockStepStyle : null) }}>
+                <span style={unlockStepNumberStyle}>{index + 1}</span>
+                <span style={unlockStepTextStyle}>
+                  <strong style={unlockStepTitleStyle}>{step.title}</strong>
+                  <span style={{ ...unlockStepBodyStyle, ...(isLight ? lightUnlockStepBodyStyle : null) }}>{step.body}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {children}
 
         {footnote ? <div style={{ ...footnoteStyle, ...(isLight ? lightFootnoteStyle : null) }}>{footnote}</div> : null}
@@ -99,6 +115,38 @@ export default function UpgradePrompt({
       </div>
     </section>
   )
+}
+
+function getUnlockSteps(planId: PricingPlanId) {
+  if (planId === 'captain') {
+    return [
+      { title: 'Claim the team week', body: 'Bring availability, lineup work, and decisions into one captain flow.' },
+      { title: 'Build the lineup', body: 'Use roster context and scenarios before you commit.' },
+      { title: 'Send the plan', body: 'Move from decision to team communication faster.' },
+    ]
+  }
+
+  if (planId === 'league') {
+    return [
+      { title: 'Structure the season', body: 'Set the league, teams or players, and visibility in one place.' },
+      { title: 'Track participation', body: 'Keep rosters, schedules, standings, and results connected.' },
+      { title: 'Reduce cleanup', body: 'Operate the league without scattered spreadsheet work.' },
+    ]
+  }
+
+  if (planId === 'player_plus') {
+    return [
+      { title: 'Link your player', body: 'Make TenAceIQ understand which profile is yours.' },
+      { title: 'Follow what matters', body: 'Keep players, teams, leagues, and rankings close.' },
+      { title: 'Prep the matchup', body: 'Turn public discovery into personal match prep.' },
+    ]
+  }
+
+  return [
+    { title: 'Explore', body: 'Search public players, teams, leagues, and rankings.' },
+    { title: 'Learn', body: 'Use the profile paths to understand the tennis landscape.' },
+    { title: 'Upgrade when useful', body: 'Add personal, captain, or league tools only when they help.' },
+  ]
 }
 
 const wrapStyle: CSSProperties = {
@@ -300,6 +348,89 @@ const lightValuePillStyle: CSSProperties = {
   color: 'var(--foreground)',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+}
+
+const unlockPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155, 225, 29, 0.12)',
+  background: 'rgba(155, 225, 29, 0.05)',
+}
+
+const lightUnlockPathStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, var(--brand-green) 14%)',
+}
+
+const unlockPathLabelStyle: CSSProperties = {
+  color: '#9be11d',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const lightUnlockPathLabelStyle: CSSProperties = {
+  color: 'color-mix(in srgb, var(--brand-green) 68%, var(--foreground-strong) 32%)',
+}
+
+const unlockStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const unlockStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  padding: '10px 11px',
+  borderRadius: 14,
+  background: 'rgba(255, 255, 255, 0.04)',
+  border: '1px solid rgba(255, 255, 255, 0.07)',
+}
+
+const lightUnlockStepStyle: CSSProperties = {
+  background: 'var(--surface)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const unlockStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 24,
+  height: 24,
+  borderRadius: 999,
+  background: 'linear-gradient(135deg, #9be11d 0%, #c7f36b 100%)',
+  color: '#04121a',
+  fontSize: 11,
+  fontWeight: 900,
+}
+
+const unlockStepTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+}
+
+const unlockStepTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+}
+
+const unlockStepBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 600,
+}
+
+const lightUnlockStepBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
 }
 
 const footnoteStyle: CSSProperties = {
