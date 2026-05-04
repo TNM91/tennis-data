@@ -75,6 +75,59 @@ const searchScopes: Array<{ value: SearchScope; label: string }> = [
   { value: 'area', label: 'Area' },
 ]
 
+const scopeGuides: Record<
+  SearchScope,
+  {
+    eyebrow: string
+    placeholder: string
+    quickContext: string
+    emptyTitle: string
+    emptyBody: string
+    examples: string[]
+  }
+> = {
+  players: {
+    eyebrow: 'Player lookup',
+    placeholder: 'Search a player name...',
+    quickContext: 'Player search is best when you know a name and want the profile, rating context, or My Lab prep path.',
+    emptyTitle: 'Start with a player name.',
+    emptyBody: 'Use a full name or partial name. Once results appear, you can open the profile or build quick My Lab comparison actions.',
+    examples: ['Johnson', 'Smith', 'Garcia'],
+  },
+  teams: {
+    eyebrow: 'Team lookup',
+    placeholder: 'Search a team name, league, or flight...',
+    quickContext: 'Team search is best when you know the roster or league context and want the right team page faster.',
+    emptyTitle: 'Start with a team clue.',
+    emptyBody: 'Use a team name, captain name fragment, league name, or flight. Results stay focused on team context.',
+    examples: ['3.5', '40 & Over', 'Dallas'],
+  },
+  leagues: {
+    eyebrow: 'League lookup',
+    placeholder: 'Search a league, section, area, or flight...',
+    quickContext: 'League search is best when you want the season layer before choosing a team or player.',
+    emptyTitle: 'Start with a league detail.',
+    emptyBody: 'Use a league name, section, district, area, season, or rating level to find the right competition layer.',
+    examples: ['Adult 18 & Over', 'Texas', 'Tri-Level'],
+  },
+  flight: {
+    eyebrow: 'Flight lookup',
+    placeholder: 'Search a flight like 3.5 or 4.0...',
+    quickContext: 'Flight search narrows league results to the rating level you care about.',
+    emptyTitle: 'Start with a flight.',
+    emptyBody: 'Use a level like 3.0, 3.5, 4.0, or 4.5 to find league records tied to that flight.',
+    examples: ['3.0', '3.5', '4.0'],
+  },
+  area: {
+    eyebrow: 'Area lookup',
+    placeholder: 'Search an area, district, or section...',
+    quickContext: 'Area search is best when geography is the strongest clue you have.',
+    emptyTitle: 'Start with an area.',
+    emptyBody: 'Use a city, district, area, or section to find nearby league context before opening teams or players.',
+    examples: ['Dallas', 'Texas', 'Southern'],
+  },
+}
+
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'
 
@@ -278,6 +331,7 @@ export default function ExploreSearchPage() {
   }, [leagues, yearFilter, seasonFilter, genderFilter, leagueRatingFilter])
 
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
+  const selectedScopeGuide = scopeGuides[scope]
   const showPlayerResults = scope === 'players'
   const showTeamResults = scope === 'teams'
   const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
@@ -391,7 +445,7 @@ export default function ExploreSearchPage() {
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder={`Search ${selectedScopeLabel.toLowerCase()}...`}
+                  placeholder={selectedScopeGuide.placeholder}
                   aria-label={`Search ${selectedScopeLabel.toLowerCase()}`}
                   style={getSearchInputStyle()}
                 />
@@ -490,10 +544,10 @@ export default function ExploreSearchPage() {
             >
               <div style={sectionKicker}>Quick context</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 18, fontWeight: 900, lineHeight: 1.08 }}>
-                Choose the search lane that matches your question.
+                {selectedScopeGuide.eyebrow}
               </div>
               <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.68 }}>
-                Player searches open profiles and My Lab prep. Team and league searches stay focused on season context.
+                {selectedScopeGuide.quickContext}
               </div>
             </div>
           </div>
@@ -515,12 +569,23 @@ export default function ExploreSearchPage() {
 
           {!loading && query.trim().length === 0 ? (
             <section style={emptyStateStyle}>
-              <div style={sectionKicker}>Start with a name, team, flight, area, or league</div>
-              <div style={{ color: 'var(--foreground-strong)', fontSize: 24, fontWeight: 900, lineHeight: 1.05 }}>
-                One search can take you to the player, team, league, or matchup view you need.
-              </div>
-              <div style={{ color: 'var(--muted-strong)', fontSize: 14, lineHeight: 1.7, maxWidth: 760 }}>
-                Try a player name, a team, a league, a flight like 3.5, or an area or district.
+              <div style={sectionKicker}>{selectedScopeGuide.eyebrow}</div>
+              <div style={emptyTitleStyle}>{selectedScopeGuide.emptyTitle}</div>
+              <div style={emptyBodyStyle}>{selectedScopeGuide.emptyBody}</div>
+              <div style={exampleSearchGridStyle}>
+                {selectedScopeGuide.examples.map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => {
+                      setQuery(example)
+                      syncUrl(example, scope)
+                    }}
+                    style={exampleSearchButtonStyle}
+                  >
+                    {example}
+                  </button>
+                ))}
               </div>
             </section>
           ) : null}
@@ -972,6 +1037,34 @@ const emptyStateStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   background: 'color-mix(in srgb, var(--surface) 95%, var(--brand-blue-2) 5%)',
+}
+
+const emptyTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  fontWeight: 900,
+  lineHeight: 1.05,
+}
+
+const emptyBodyStyle: CSSProperties = {
+  color: 'var(--muted-strong)',
+  fontSize: 14,
+  lineHeight: 1.7,
+  maxWidth: 760,
+}
+
+const exampleSearchGridStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  marginTop: 2,
+}
+
+const exampleSearchButtonStyle: CSSProperties = {
+  ...buttonGhost,
+  minHeight: 38,
+  paddingInline: 14,
+  cursor: 'pointer',
 }
 
 function getResultCardStyle(theme: ThemeMode): CSSProperties {
