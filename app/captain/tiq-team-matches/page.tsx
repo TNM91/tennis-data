@@ -205,12 +205,14 @@ function LineForm({
       return 'Doubles lines need two players on each side.'
     }
 
-    const selectedPlayerIds = [
-      form.sideAPlayer1Id,
-      form.sideAPlayer2Id,
-      form.sideBPlayer1Id,
-      form.sideBPlayer2Id,
-    ].filter(Boolean)
+    const selectedPlayerIds = form.matchType === 'doubles'
+      ? [
+          form.sideAPlayer1Id,
+          form.sideAPlayer2Id,
+          form.sideBPlayer1Id,
+          form.sideBPlayer2Id,
+        ].filter(Boolean)
+      : [form.sideAPlayer1Id, form.sideBPlayer1Id].filter(Boolean)
     if (new Set(selectedPlayerIds).size !== selectedPlayerIds.length) {
       return 'Each player can only appear once on a line.'
     }
@@ -258,7 +260,19 @@ function LineForm({
           <input style={inputStyle} type="number" min={1} max={20} value={form.lineNumber} onChange={(e) => setForm((f) => ({ ...f, lineNumber: e.target.value }))} />
         </Field>
         <Field label="MATCH TYPE">
-          <select style={selectStyle} value={form.matchType} onChange={(e) => setForm((f) => ({ ...f, matchType: e.target.value as 'singles' | 'doubles' }))}>
+          <select
+            style={selectStyle}
+            value={form.matchType}
+            onChange={(e) => {
+              const matchType = e.target.value as 'singles' | 'doubles'
+              setForm((f) => ({
+                ...f,
+                matchType,
+                sideAPlayer2Id: matchType === 'singles' ? '' : f.sideAPlayer2Id,
+                sideBPlayer2Id: matchType === 'singles' ? '' : f.sideBPlayer2Id,
+              }))
+            }}
+          >
             <option value="singles">Singles</option>
             <option value="doubles">Doubles</option>
           </select>
