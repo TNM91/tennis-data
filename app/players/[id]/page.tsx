@@ -24,6 +24,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate } from '@/lib/captain-formatters'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { type UserRole } from '@/lib/roles'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -987,6 +988,33 @@ export default function PlayerProfilePage() {
       note: 'TIQ individual leagues show where this player is actively competing inside TenAceIQ.',
     },
   ]
+  const profileDiscoveryActions = [
+    {
+      label: 'Read',
+      title: 'Start with the rating read',
+      text: `Check USTA baseline, TIQ ${ratingViewLabel.toLowerCase()}, record, and trend before opening deeper tools.`,
+      href: '#profile-scorecard',
+      cta: 'View rating read',
+    },
+    {
+      label: 'Trace',
+      title: primaryUstaMembership ? 'Open team context' : 'Find team context',
+      text: primaryUstaMembership
+        ? `${primaryUstaMembership.teamName} gives this profile roster, league, and flight context.`
+        : 'Use team search when you need roster or league context around this player.',
+      href: primaryTeamHref ?? '/explore/search?scope=teams',
+      cta: primaryUstaMembership ? 'Open team' : 'Search teams',
+    },
+    {
+      label: 'Compare',
+      title: linkedPlayerId && !isOwnProfile ? 'Compare against you' : 'Start a matchup',
+      text: linkedPlayerId && !isOwnProfile
+        ? 'Your linked profile is ready, so compare this player directly against your game.'
+        : 'Use Matchup when you want to turn this profile into a player-to-player prep read.',
+      href: matchupHref,
+      cta: linkedPlayerId && !isOwnProfile ? 'Compare now' : 'Open Matchup',
+    },
+  ]
 
   if (loading) {
     return (
@@ -1219,7 +1247,7 @@ export default function PlayerProfilePage() {
       </section>
 
       <section style={contentWrap}>
-        <article style={scorecardPanelStyle}>
+        <article style={scorecardPanelStyle} id="profile-scorecard">
           <div style={scorecardMainStyle}>
             <div style={scorecardHeaderStyle}>
               <TiqFeatureIcon name={isOwnProfile ? 'myLab' : 'opponentScouting'} size="md" variant="surface" />
@@ -1265,6 +1293,29 @@ export default function PlayerProfilePage() {
               <MiniLink href={primaryActionHref}>{primaryActionLabel}</MiniLink>
               <MiniLink href="/rankings">Rankings</MiniLink>
             </div>
+          </div>
+        </article>
+
+        <article style={profileDiscoveryPanelStyle} id="profile-ratings">
+          <div style={profileDiscoveryHeaderStyle}>
+            <div>
+              <div style={sectionKicker}>{MEMBERSHIP_TIERS.free.name} profile path</div>
+              <h2 style={profileDiscoveryTitleStyle}>Use this profile in three moves.</h2>
+            </div>
+            <p style={profileDiscoveryCopyStyle}>
+              {MEMBERSHIP_TIERS.free.shortPromise} Player unlocks follows, My Lab, and deeper matchup prep when this profile becomes part of your regular tennis routine.
+            </p>
+          </div>
+
+          <div style={profileDiscoveryGridStyle(isMobile)}>
+            {profileDiscoveryActions.map((item) => (
+              <Link key={item.title} href={item.href} style={profileDiscoveryCardStyle}>
+                <span style={profileDiscoveryLabelStyle}>{item.label}</span>
+                <strong style={profileDiscoveryCardTitleStyle}>{item.title}</strong>
+                <span style={profileDiscoveryCardTextStyle}>{item.text}</span>
+                <span style={profileDiscoveryCtaStyle}>{item.cta} {'->'}</span>
+              </Link>
+            ))}
           </div>
         </article>
 
@@ -3284,6 +3335,90 @@ const profileReadSummaryStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 900,
   listStyle: 'none',
+}
+
+const profileDiscoveryPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  marginBottom: '18px',
+  padding: '18px',
+  borderRadius: '24px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-blue-2) 8%)',
+  boxShadow: '0 16px 36px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const profileDiscoveryHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gap: '14px',
+  alignItems: 'end',
+}
+
+const profileDiscoveryTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: '26px',
+  lineHeight: 1.08,
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
+const profileDiscoveryCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.65,
+  fontWeight: 600,
+}
+
+const profileDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: '12px',
+})
+
+const profileDiscoveryCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minHeight: '160px',
+  padding: '16px',
+  borderRadius: '18px',
+  textDecoration: 'none',
+  color: 'var(--foreground)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--card-border-soft)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+}
+
+const profileDiscoveryLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const profileDiscoveryCardTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '18px',
+  lineHeight: 1.14,
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
+const profileDiscoveryCardTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.6,
+  fontWeight: 600,
+}
+
+const profileDiscoveryCtaStyle: CSSProperties = {
+  alignSelf: 'end',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
 }
 
 const advancedStatsDetailsStyle: CSSProperties = {
