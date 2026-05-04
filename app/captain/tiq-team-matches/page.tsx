@@ -482,7 +482,7 @@ function EventCard({
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={btnSecondary} onClick={handleExpand}>
-            {expanded ? 'Collapse' : `Lines${linesLoaded ? ` (${lines.length})` : ''}`}
+            {expanded ? 'Collapse' : `Lines${displayTotalLines ? ` (${displayTotalLines})` : ''}`}
           </button>
           <button style={btnDanger} onClick={handleDeleteEvent} disabled={deleting}>
             {deleting ? '...' : 'Delete'}
