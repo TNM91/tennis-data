@@ -9,6 +9,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -332,6 +333,35 @@ function ProfilePageInner() {
     },
     { label: 'Captain', value: 'Context', href: '/captain', note: 'Roster and team tools', icon: 'captainDashboard' as TiqFeatureIconName },
   ]
+  const playerTier = MEMBERSHIP_TIERS.player_plus
+  const setupSteps = [
+    {
+      step: '1',
+      label: 'Player identity',
+      value: profileComplete ? 'Linked' : 'Next',
+      text: profileComplete
+        ? `${profileDisplayName} is connected to this account.`
+        : 'Choose the player record that should power your TenAceIQ tools.',
+      complete: profileComplete,
+    },
+    {
+      step: '2',
+      label: 'Play defaults',
+      value: 'Ready',
+      text: `${roleLabel}. Availability starts as ${availabilityLabel.toLowerCase()}.`,
+      complete: true,
+    },
+    {
+      step: '3',
+      label: 'Player tools',
+      value: access.canUseAdvancedPlayerInsights ? 'Active' : 'Unlock',
+      text: access.canUseAdvancedPlayerInsights
+        ? 'My Lab and Matchup can start from your profile context.'
+        : playerTier.upgradeCue,
+      complete: access.canUseAdvancedPlayerInsights,
+    },
+  ]
+  const setupProgress = setupSteps.filter((step) => step.complete).length
 
   return (
     <section style={pageStyle}>
@@ -380,6 +410,34 @@ function ProfilePageInner() {
                 <Metric label="Matchup" value={profileComplete || selectedPlayerId ? 'Ready' : 'Set'} />
               </div>
             </div>
+        </section>
+
+        <section style={setupPathStyle(isMobile)} aria-label="Profile setup path">
+          <div style={setupPathHeaderStyle(isMobile)}>
+            <div>
+              <p style={sectionKickerStyle}>Player setup</p>
+              <h2 style={setupPathTitleStyle}>Finish the path from account to My Lab.</h2>
+              <p style={setupPathTextStyle}>
+                Link the right player, keep your play defaults current, then use the profile as your launch point.
+              </p>
+            </div>
+            <div style={setupProgressStyle}>
+              <strong>{setupProgress}/3</strong>
+              <span>ready</span>
+            </div>
+          </div>
+          <div style={setupStepGridStyle(isMobile)}>
+            {setupSteps.map((step) => (
+              <div key={step.label} style={setupStepCardStyle(step.complete)}>
+                <div style={setupStepTopStyle}>
+                  <span style={setupStepNumberStyle(step.complete)}>{step.step}</span>
+                  <span style={step.complete ? pillGreenStyle : pillSlateStyle}>{step.value}</span>
+                </div>
+                <strong style={setupStepLabelStyle}>{step.label}</strong>
+                <p style={setupStepTextStyle}>{step.text}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {loading ? (
@@ -749,6 +807,108 @@ const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   gap: 18,
   marginTop: 18,
 })
+
+const setupPathStyle = (isMobile: boolean): CSSProperties => ({
+  marginTop: 18,
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 8%, transparent), transparent 56%), var(--shell-panel-bg)',
+  padding: isMobile ? '16px 14px' : '18px 20px',
+  display: 'grid',
+  gap: 16,
+})
+
+const setupPathHeaderStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'flex',
+  flexDirection: isMobile ? 'column' : 'row',
+  alignItems: isMobile ? 'stretch' : 'flex-start',
+  justifyContent: 'space-between',
+  gap: 14,
+})
+
+const setupPathTitleStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.35rem',
+  fontWeight: 950,
+  lineHeight: 1.15,
+}
+
+const setupPathTextStyle: CSSProperties = {
+  margin: '7px 0 0',
+  maxWidth: 720,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  fontWeight: 700,
+  lineHeight: 1.5,
+}
+
+const setupProgressStyle: CSSProperties = {
+  minWidth: 96,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  padding: '10px 12px',
+  display: 'grid',
+  justifyItems: 'center',
+  color: 'var(--foreground-strong)',
+}
+
+const setupStepGridStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const setupStepCardStyle = (complete: boolean): CSSProperties => ({
+  minHeight: 146,
+  borderRadius: 18,
+  border: complete
+    ? '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)'
+    : '1px solid var(--shell-panel-border)',
+  background: complete
+    ? 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)'
+    : 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+})
+
+const setupStepTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+}
+
+const setupStepNumberStyle = (complete: boolean): CSSProperties => ({
+  width: 30,
+  height: 30,
+  borderRadius: 12,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',
+  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)',
+  fontWeight: 950,
+})
+
+const setupStepLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  fontWeight: 950,
+  lineHeight: 1.2,
+}
+
+const setupStepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 700,
+  lineHeight: 1.45,
+}
 
 const surfaceStyle: CSSProperties = {
   borderRadius: 22,
