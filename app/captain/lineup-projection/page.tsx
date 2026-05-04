@@ -198,8 +198,34 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
+function readInitialLineupProjectionContext() {
+  if (typeof window === 'undefined') {
+    return {
+      competitionLayer: '',
+      selectedLeagueKey: '',
+      selectedTeam: '',
+      selectedDate: '',
+      opponentTeam: '',
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const resumeState = readCaptainResumeState()
+  const league = params.get('league') ?? resumeState?.league ?? ''
+  const flight = params.get('flight') ?? resumeState?.flight ?? ''
+
+  return {
+    competitionLayer: params.get('layer') ?? resumeState?.competitionLayer ?? '',
+    selectedLeagueKey: league || flight ? buildLeagueKey(league, flight) : '',
+    selectedTeam: params.get('team') ?? resumeState?.team ?? '',
+    selectedDate: params.get('date') ?? resumeState?.eventDate ?? '',
+    opponentTeam: params.get('opponent') ?? resumeState?.opponentTeam ?? '',
+  }
+}
+
 export default function LineupProjectionPage() {
   const router = useRouter()
+  const initialContext = readInitialLineupProjectionContext()
 
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -209,10 +235,11 @@ export default function LineupProjectionPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [competitionLayer, setCompetitionLayer] = useState('')
-  const [selectedLeagueKey, setSelectedLeagueKey] = useState('')
-  const [selectedTeam, setSelectedTeam] = useState('')
-  const [selectedDate, setSelectedDate] = useState('')
+  const [competitionLayer] = useState(initialContext.competitionLayer)
+  const [selectedLeagueKey, setSelectedLeagueKey] = useState(initialContext.selectedLeagueKey)
+  const [selectedTeam, setSelectedTeam] = useState(initialContext.selectedTeam)
+  const [selectedDate, setSelectedDate] = useState(initialContext.selectedDate)
+  const [opponentTeam] = useState(initialContext.opponentTeam)
 
   const [rosterLoading, setRosterLoading] = useState(false)
   const [roster, setRoster] = useState<RosterPlayer[]>([])
@@ -258,25 +285,6 @@ export default function LineupProjectionPage() {
   }, [router])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const params = new URLSearchParams(window.location.search)
-    const resumeState = readCaptainResumeState()
-    const initialCompetitionLayer = params.get('layer') ?? resumeState?.competitionLayer ?? ''
-    const initialLeague = params.get('league') ?? resumeState?.league ?? ''
-    const initialFlight = params.get('flight') ?? resumeState?.flight ?? ''
-    const initialTeam = params.get('team') ?? resumeState?.team ?? ''
-    const initialDate = params.get('date') ?? resumeState?.eventDate ?? ''
-
-    setCompetitionLayer(initialCompetitionLayer)
-    if (initialLeague || initialFlight) {
-      setSelectedLeagueKey(`${initialLeague}___${initialFlight}`)
-    }
-    setSelectedTeam(initialTeam)
-    setSelectedDate(initialDate)
-  }, [])
-
-  useEffect(() => {
     if (authLoading || role === 'public') return
     void loadLeaguesAndTeams()
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,10 +309,11 @@ export default function LineupProjectionPage() {
       league: leagueName || undefined,
       flight: flight || undefined,
       eventDate: selectedDate || undefined,
+      opponentTeam: opponentTeam || undefined,
       lastTool: 'lineup-projection',
       lastToolLabel: 'Lineup Projection',
     })
-  }, [competitionLayer, selectedLeagueKey, selectedTeam, selectedDate])
+  }, [competitionLayer, opponentTeam, selectedLeagueKey, selectedTeam, selectedDate])
 
   const loadLeaguesAndTeams = useCallback(async () => {
     setLoading(true)
@@ -793,11 +802,13 @@ export default function LineupProjectionPage() {
       if (leagueName) params.set('league', leagueName)
       if (flight) params.set('flight', flight)
     }
+    if (competitionLayer) params.set('layer', competitionLayer)
     if (selectedTeam) params.set('team', selectedTeam)
     if (selectedDate) params.set('date', selectedDate)
+    if (opponentTeam) params.set('opponent', opponentTeam)
     const query = params.toString()
     return query ? `/captain/lineup-builder?${query}` : '/captain/lineup-builder'
-  }, [selectedLeagueKey, selectedTeam, selectedDate])
+  }, [competitionLayer, opponentTeam, selectedLeagueKey, selectedTeam, selectedDate])
 
   if (authLoading) {
     return (
