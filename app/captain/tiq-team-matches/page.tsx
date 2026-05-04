@@ -463,6 +463,13 @@ const emptyEvent = (): EventFormState => ({
   notes: '',
 })
 
+function todayInputValue() {
+  if (typeof window === 'undefined') return ''
+  const now = new Date()
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  return localDate.toISOString().slice(0, 10)
+}
+
 function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   if (!league) return []
 
@@ -474,6 +481,18 @@ function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   )
 }
 
+function defaultEventForLeague(leagues: TiqLeagueRecord[], leagueId: string): EventFormState {
+  const league = leagues.find((item) => item.id === leagueId)
+  const teamOptions = teamOptionsForLeague(league)
+
+  return {
+    ...emptyEvent(),
+    leagueId,
+    teamAName: league?.captainTeamName || teamOptions[0] || '',
+    matchDate: todayInputValue(),
+  }
+}
+
 function NewEventForm({
   leagues,
   defaultLeagueId,
@@ -483,7 +502,7 @@ function NewEventForm({
   defaultLeagueId: string
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
-  const [form, setForm] = useState<EventFormState>(() => ({ ...emptyEvent(), leagueId: defaultLeagueId }))
+  const [form, setForm] = useState<EventFormState>(() => defaultEventForLeague(leagues, defaultLeagueId))
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
   const [message, setMessage] = useState('')
@@ -513,7 +532,7 @@ function NewEventForm({
     if (w) setWarning(w)
     if (event) {
       setMessage('Match created. Expand below to add lines.')
-      setForm({ ...emptyEvent(), leagueId: defaultLeagueId })
+      setForm(defaultEventForLeague(leagues, defaultLeagueId))
       onCreated(event)
     }
   }
@@ -535,6 +554,7 @@ function NewEventForm({
                 ...current,
                 leagueId: nextLeagueId,
                 teamAName: current.teamAName || nextLeague?.captainTeamName || nextTeamOptions[0] || '',
+                matchDate: current.matchDate || todayInputValue(),
               }))
             }}
           >
