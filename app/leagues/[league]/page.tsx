@@ -830,7 +830,7 @@ export default function LeagueDetailPage() {
                     <table style={{ width: '100%', borderCollapse: 'collapse' as const, minWidth: 520 }}>
                       <thead>
                         <tr>
-                          {['#', 'Team', 'W', 'L', 'Win %', 'Completed', 'Scheduled', 'Missing scorecards', 'Last match'].map((h) => (
+                          {['#', 'Team', 'W', 'L', 'Win %', 'Completed', 'Scheduled', 'Missing scorecards', 'Last match', 'Actions'].map((h) => (
                             <th key={h} style={{ padding: '12px 14px', textAlign: 'left' as const, color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.06em', borderBottom: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', whiteSpace: 'nowrap' as const }}>{h}</th>
                           ))}
                         </tr>
@@ -840,12 +840,19 @@ export default function LeagueDetailPage() {
                           const winPct = Math.round(team.winPct * 100)
                           const isLeader = team.name === leagueLeader?.name
                           const tdStyle = { padding: '13px 14px', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, borderTop: '1px solid var(--shell-panel-border)' }
+                          const teamHref = buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)
+                          const teamLineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
+                            competitionLayer,
+                            team: team.name,
+                            league: leagueInfo.leagueName,
+                            flight: leagueInfo.flight,
+                          })
                           return (
                             <tr key={team.name} style={{ background: index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.016)' }}>
                               <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontWeight: 700 }}>#{index + 1}</td>
                               <td style={tdStyle}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <Link href={buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)} style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>{team.name}</Link>
+                                  <Link href={teamHref} style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>{team.name}</Link>
                                   {isLeader && team.wins > 0 ? <span style={{ padding: '2px 7px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 10, fontWeight: 800 }}>Leader</span> : null}
                                 </div>
                               </td>
@@ -858,6 +865,11 @@ export default function LeagueDetailPage() {
                               <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.scheduledMatches}</td>
                               <td style={{ ...tdStyle, color: team.missingScorecards > 0 ? '#fca5a5' : 'var(--shell-copy-muted)' }}>{team.missingScorecards}</td>
                               <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontSize: 13 }}>{formatDate(team.latestMatchDate)}</td>
+                              <td style={tdStyle}>
+                                <Link href={teamLineupHref} style={tableActionLink}>
+                                  Lineup
+                                </Link>
+                              </td>
                             </tr>
                           )
                         })}
@@ -870,6 +882,13 @@ export default function LeagueDetailPage() {
                   {teamSummaries.map((team, index) => {
                     const winPct = Math.round(team.winPct * 100)
                     const isLeader = team.name === leagueLeader?.name
+                    const teamHref = buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)
+                    const teamLineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
+                      competitionLayer,
+                      team: team.name,
+                      league: leagueInfo.leagueName,
+                      flight: leagueInfo.flight,
+                    })
                     return (
                     <div key={team.name} style={teamCard}>
                       <div style={cardGlow} />
@@ -889,9 +908,14 @@ export default function LeagueDetailPage() {
                           </div>
                         </div>
 
-                        <PrimaryLink href={buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)}>
-                          Team Page
-                        </PrimaryLink>
+                        <div style={teamCardActionRow}>
+                          <PrimaryLink href={teamHref}>
+                            Team Page
+                          </PrimaryLink>
+                          <GhostLink href={teamLineupHref}>
+                            Lineup
+                          </GhostLink>
+                        </div>
                       </div>
 
                       {team.completedMatches > 0 ? (
@@ -1521,6 +1545,13 @@ const teamTop: CSSProperties = {
   marginBottom: '16px',
 }
 
+const teamCardActionRow: CSSProperties = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+}
+
 const teamRank: CSSProperties = {
   color: '#8ec5ff',
   fontSize: '12px',
@@ -1562,6 +1593,22 @@ const primaryButton: CSSProperties = {
   textDecoration: 'none',
   whiteSpace: 'nowrap',
   boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
+}
+
+const tableActionLink: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '30px',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: '#d9f84a',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap',
 }
 
 const miniGrid: CSSProperties = {
