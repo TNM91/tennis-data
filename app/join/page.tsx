@@ -68,6 +68,13 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
   },
 }
 
+const JOIN_UNLOCK_STEPS: Record<MembershipTierId, string[]> = {
+  free: ['Create account', 'Explore public tennis context', 'Upgrade only when a tool helps'],
+  player_plus: ['Create account', 'Connect your player identity', 'Open My Lab and Matchup'],
+  captain: ['Create account', 'Open Captain tools', 'Start lineup and readiness work'],
+  league: ['Create account', 'Open league setup', 'Structure teams, players, and results'],
+}
+
 function getJoinNextRoute(planId: MembershipTierId) {
   return getPlanUnlockHref(planId, getPlanDestinationHref(planId))
 }
@@ -268,9 +275,22 @@ export default function JoinPage() {
             <div style={selectedPlanLabelStyle}>Selected path</div>
             <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
             <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
-            <Link href="/pricing" style={selectedPlanLinkStyle}>
-              Compare tiers
-            </Link>
+            <div style={selectedPlanStepGridStyle}>
+              {JOIN_UNLOCK_STEPS[selectedPlanId].map((step, index) => (
+                <span key={step} style={selectedPlanStepStyle}>
+                  <strong>{index + 1}</strong>
+                  {step}
+                </span>
+              ))}
+            </div>
+            <div style={selectedPlanActionRowStyle}>
+              <Link href="/pricing" style={selectedPlanLinkStyle}>
+                Compare tiers
+              </Link>
+              <Link href={selectedNextRoute} style={selectedPlanLinkStyle}>
+                Preview next step
+              </Link>
+            </div>
           </div>
 
           {isMobile ? (
@@ -530,6 +550,34 @@ const selectedPlanTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.55,
   fontWeight: 750,
+}
+
+const selectedPlanStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  marginTop: '4px',
+}
+
+const selectedPlanStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gap: '8px',
+  alignItems: 'center',
+  minHeight: '34px',
+  padding: '5px 9px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: '12px',
+  fontWeight: 850,
+}
+
+const selectedPlanActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginTop: '2px',
 }
 
 const selectedPlanLinkStyle: CSSProperties = {
