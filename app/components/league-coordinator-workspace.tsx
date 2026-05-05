@@ -127,6 +127,8 @@ type TeamResultLineSummary = {
   completed: number
 }
 
+type PublicPageReadinessFilter = 'all' | 'ready' | 'needs_work'
+
 function buildTeamResultLineSummaryMap(
   events: TiqTeamMatchEventRecord[],
   lines: TiqTeamMatchLineRecord[],
@@ -171,6 +173,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [teamMatchLines, setTeamMatchLines] = useState<TiqTeamMatchLineRecord[]>([])
   const [teamStandingsByLeague, setTeamStandingsByLeague] = useState<Record<string, TiqTeamStandingRow[]>>({})
   const [teamResultWarning, setTeamResultWarning] = useState('')
+  const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
 
   const refreshRegistry = useCallback(async () => {
     const result = await listTiqLeagues()
@@ -480,6 +483,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   }, [individualResultBookRows, teamResultBookRows])
   const publicReadyLeagueCount = publicPageReadinessRows.filter((row) => row.publicReady).length
   const publicPageNeedsWorkCount = Math.max(publicPageReadinessRows.length - publicReadyLeagueCount, 0)
+  const visiblePublicPageReadinessRows = publicPageReadinessRows.filter((row) => {
+    if (publicPageFilter === 'ready') return row.publicReady
+    if (publicPageFilter === 'needs_work') return !row.publicReady
+    return true
+  })
   const resultQueueItemCount =
     teamResultBooksNeedAttention +
     resultBookNeedsAttention +
@@ -883,9 +891,26 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             </span>
           </div>
 
-          {publicPageReadinessRows.length > 0 ? (
+          <div style={publicReadinessFilterRowStyle} aria-label="Public page readiness filter">
+            {[
+              { value: 'all', label: 'All', count: publicPageReadinessRows.length },
+              { value: 'ready', label: 'Ready', count: publicReadyLeagueCount },
+              { value: 'needs_work', label: 'Needs work', count: publicPageNeedsWorkCount },
+            ].map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                style={publicPageFilter === item.value ? publicReadinessFilterActiveStyle : publicReadinessFilterButtonStyle}
+                onClick={() => setPublicPageFilter(item.value as PublicPageReadinessFilter)}
+              >
+                {item.label} {item.count}
+              </button>
+            ))}
+          </div>
+
+          {visiblePublicPageReadinessRows.length > 0 ? (
             <div style={publicReadinessGridStyle}>
-              {publicPageReadinessRows.slice(0, 4).map((row) => (
+              {visiblePublicPageReadinessRows.slice(0, 4).map((row) => (
                 <div key={row.league.id} style={row.publicReady ? publicReadinessCardReadyStyle : publicReadinessCardStyle}>
                   <div style={registryMetaRow}>
                     <span style={row.publicReady ? pillGreen : pillSlate}>{row.statusText}</span>
@@ -909,7 +934,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               ))}
             </div>
           ) : (
-            <div style={emptyCard}>No TIQ league pages are ready yet. Save a team or individual league to start.</div>
+            <div style={emptyCard}>
+              {publicPageReadinessRows.length === 0
+                ? 'No TIQ league pages are ready yet. Save a team or individual league to start.'
+                : 'No public league pages match this filter.'}
+            </div>
           )}
         </section>
 
@@ -1867,6 +1896,31 @@ const publicReadinessGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
   gap: '12px',
+}
+
+const publicReadinessFilterRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+}
+
+const publicReadinessFilterButtonStyle: CSSProperties = {
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: '12px',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const publicReadinessFilterActiveStyle: CSSProperties = {
+  ...publicReadinessFilterButtonStyle,
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'rgba(155,225,29,0.14)',
+  color: '#f8fbff',
 }
 
 const publicReadinessCardStyle: CSSProperties = {
