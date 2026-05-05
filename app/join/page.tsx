@@ -106,9 +106,9 @@ function getDefaultSignedInRoute(
   entitlements?: ProductEntitlementSnapshot | null,
 ) {
   const access = buildProductAccessState(role, entitlements)
+  if (access.currentPlanId === 'league') return '/league-coordinator'
+  if (access.currentPlanId === 'captain') return '/captain'
   if (access.canUseAdvancedPlayerInsights) return '/profile'
-  if (access.canUseLeagueTools) return '/league-coordinator'
-  if (access.canUseCaptainWorkflow) return '/captain'
   return '/mylab'
 }
 

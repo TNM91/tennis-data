@@ -2,7 +2,7 @@ import {
   getMembershipTier,
   PRODUCT_PROOF_POINTS,
   type MembershipTierId,
-} from '@/lib/product-story'
+} from './product-story'
 
 export type PricingPlanId = 'free' | 'player_plus' | 'captain' | 'league'
 

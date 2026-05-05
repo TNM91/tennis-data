@@ -1,8 +1,8 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
-import { isCaptain, isMember, type UserRole } from '@/lib/roles'
-import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import { supabase } from './supabase'
+import { isCaptain, isMember, type UserRole } from './roles'
+import { getPricingPlan, type PricingPlanId } from './pricing-plans'
 
 export const CAPTAIN_SUBSCRIPTION_PRICE_LABEL = getPricingPlan('captain').priceLabel
 export const PLAYER_PRICE_LABEL = getPricingPlan('player_plus').priceLabel
@@ -177,8 +177,8 @@ export function buildProductAccessState(
   const canUsePlayerProjections = hasPlanAccess(activePlanIds, 'player_plus')
   const canUseCaptainWorkflow = hasPlanAccess(activePlanIds, 'captain')
   const canUseLeagueTools = hasPlanAccess(activePlanIds, 'league')
-  const canCreateTiqTeamLeague = canUseLeagueTools
-  const canEnterTiqTeamLeague = canUseCaptainWorkflow && snapshot.tiqTeamLeagueEntryEnabled
+  const canCreateTiqTeamLeague = canUseLeagueTools && snapshot.tiqTeamLeagueEntryEnabled
+  const canEnterTiqTeamLeague = canUseLeagueTools && snapshot.tiqTeamLeagueEntryEnabled
   const canCreateTiqIndividualLeague = canUseLeagueTools && snapshot.tiqIndividualLeagueCreatorEnabled
   const canJoinTiqIndividualLeague = signedInMember
   const captainTierStatusLabel =

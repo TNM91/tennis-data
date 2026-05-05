@@ -54,6 +54,15 @@ export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
   { href: '/captain/weekly-brief', label: 'Brief' },
 ]
 
+export const COORDINATOR_NAV_ITEMS: NavItem[] = [
+  { href: '/league-coordinator', label: 'Overview' },
+  { href: '/league-coordinator#league-setup-form', label: 'Setup' },
+  { href: '/captain/tiq-team-matches', label: 'Results' },
+  { href: '/compete/leagues', label: 'My Leagues' },
+  { href: '/explore/leagues', label: 'Browse' },
+  { href: '/pricing#league', label: 'Plan' },
+]
+
 export const FOOTER_NAV_SECTIONS: NavSection[] = [
   {
     title: 'Start',
