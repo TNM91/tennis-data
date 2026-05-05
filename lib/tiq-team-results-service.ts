@@ -172,10 +172,10 @@ export async function saveTiqTeamMatchEvent(input: {
   }
 }
 
-export async function deleteTiqTeamMatchEvent(eventId: string): Promise<{ warning: string | null }> {
+export async function deleteTiqTeamMatchEvent(eventId: string): Promise<{ deleted: boolean; warning: string | null }> {
   try {
     const userId = await getUserId()
-    if (!userId) return { warning: 'Sign in to delete team match events.' }
+    if (!userId) return { deleted: false, warning: 'Sign in to delete team match events.' }
 
     // Lines are cascade-deleted by the DB; we still need to clean up the mirrored matches.
     const { data: lines } = await supabase
@@ -203,9 +203,9 @@ export async function deleteTiqTeamMatchEvent(eventId: string): Promise<{ warnin
           : 'Event deleted — rating sync failed.'
     }
 
-    return { warning: syncWarning }
+    return { deleted: true, warning: syncWarning }
   } catch (err) {
-    return { warning: err instanceof Error ? err.message : 'Failed to delete team match event.' }
+    return { deleted: false, warning: err instanceof Error ? err.message : 'Failed to delete team match event.' }
   }
 }
 

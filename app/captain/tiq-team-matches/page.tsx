@@ -410,10 +410,10 @@ function EventCard({
   async function handleDeleteEvent() {
     if (!confirm(`Delete "${event.teamAName} vs ${event.teamBName}" on ${formatDate(event.matchDate)}? This cannot be undone.`)) return
     setDeleting(true)
-    const { warning: w } = await deleteTiqTeamMatchEvent(event.id)
+    const { deleted, warning: w } = await deleteTiqTeamMatchEvent(event.id)
     setDeleting(false)
     if (w) setWarning(w)
-    else onDeleted(event.id)
+    if (deleted) onDeleted(event.id)
   }
 
   async function handleDeleteLine(lineId: string) {
