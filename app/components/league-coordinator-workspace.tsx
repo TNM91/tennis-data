@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -137,6 +138,8 @@ function buildTeamResultLineSummaryMap(
 }
 
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
+  const searchParams = useSearchParams()
+  const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
@@ -144,6 +147,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [teamListInput, setTeamListInput] = useState('')
   const [playerListInput, setPlayerListInput] = useState('')
   const [editingId, setEditingId] = useState('')
+  const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
   const [status, setStatus] = useState('')
   const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
   const [photoUploadStatus, setPhotoUploadStatus] = useState('')
@@ -590,7 +594,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     resetDraft({ clearHandoff: false })
   }
 
-  function startEditing(record: TiqLeagueRecord) {
+  const startEditing = useCallback((record: TiqLeagueRecord, options: { scrollToForm?: boolean } = {}) => {
     setEditingId(record.id)
     setDraft({
       leagueFormat: record.leagueFormat,
@@ -610,7 +614,37 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setPlayerListInput(record.players.join('\n'))
     setLastSavedRecord(null)
     setStatus(`Editing ${record.leagueName}.`)
-  }
+    if (options.scrollToForm) {
+      window.requestAnimationFrame(() => {
+        document.getElementById('league-setup-form')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (
+      !requestedEditLeagueId ||
+      records.length === 0 ||
+      editingId === requestedEditLeagueId ||
+      appliedEditHandoffId === requestedEditLeagueId
+    ) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      const requestedRecord = records.find((record) => record.id === requestedEditLeagueId)
+      if (!requestedRecord) {
+        setAppliedEditHandoffId(requestedEditLeagueId)
+        setStatus('That league setup is no longer available. Choose a saved league below.')
+        return
+      }
+
+      startEditing(requestedRecord, { scrollToForm: true })
+      setAppliedEditHandoffId(requestedEditLeagueId)
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [appliedEditHandoffId, editingId, records, requestedEditLeagueId, startEditing])
 
   async function removeRecord(id: string) {
     const result = await removeTiqLeague(id)
