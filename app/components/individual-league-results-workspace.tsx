@@ -124,6 +124,7 @@ const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6 }
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
 const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
+const pillAmber: CSSProperties = { ...pill, background: 'rgba(251,191,36,0.13)', color: '#fbbf24' }
 const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 18 }
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
@@ -227,6 +228,26 @@ function dateInputValue(value: string) {
   const parsed = value ? new Date(value) : null
   if (!parsed || Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10)
   return parsed.toISOString().slice(0, 10)
+}
+
+function isEditedResult(result: TiqIndividualLeagueResultRecord) {
+  const createdTime = result.createdAt ? new Date(result.createdAt).getTime() : 0
+  const updatedTime = result.updatedAt ? new Date(result.updatedAt).getTime() : 0
+  if (!createdTime || !updatedTime) return false
+
+  return updatedTime - createdTime > 1000
+}
+
+function formatResultTimestamp(value: string) {
+  const parsed = value ? new Date(value) : null
+  if (!parsed || Number.isNaN(parsed.getTime())) return ''
+
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 function hasResultBetween(results: TiqIndividualLeagueResultRecord[], leftName: string, rightName: string) {
@@ -404,6 +425,7 @@ export function IndividualLeagueResultsWorkspace({
     (option): option is ResultParticipantOption => Boolean(option),
   )
   const latestResult = results[0] || null
+  const editedResultsCount = results.filter(isEditedResult).length
   const selectedLeagueResults = useMemo(
     () => (selectedLeague ? results.filter((result) => result.leagueId === selectedLeague.id) : []),
     [results, selectedLeague],
@@ -677,6 +699,11 @@ export function IndividualLeagueResultsWorkspace({
               <div style={tileValue}>{selectedSummary?.leaderName || '-'}</div>
               <div style={tileText}>{selectedSummary ? `${selectedSummary.leaderRecord} ${selectedSummary.leaderRecentForm}` : `${activeParticipantCount} players tracked`}</div>
             </div>
+            <div style={scorekeeperTile}>
+              <div style={tileLabel}>Corrections</div>
+              <div style={tileValue}>{editedResultsCount}</div>
+              <div style={tileText}>{editedResultsCount === 1 ? 'Edited player result' : 'Edited player results'}</div>
+            </div>
           </div>
           <div style={flowStrip}>
             <div style={flowStep}>
@@ -928,6 +955,16 @@ export function IndividualLeagueResultsWorkspace({
           <div style={listWrap}>
             {results.map((result) => {
               const league = leagues.find((item) => item.id === result.leagueId)
+              const edited = isEditedResult(result)
+              const editedAt = edited ? formatResultTimestamp(result.updatedAt) : ''
+              const metaParts = [
+                league?.leagueName,
+                result.score,
+                formatDate(result.resultDate),
+                editedAt ? `Edited ${editedAt}` : null,
+                result.notes,
+              ].filter(Boolean)
+
               return (
                 <div key={result.id} style={resultCard}>
                   <div>
@@ -935,10 +972,11 @@ export function IndividualLeagueResultsWorkspace({
                       {result.winnerPlayerName} def. {resultOpponentName(result)}
                     </div>
                     <div style={resultMeta}>
-                      {[league?.leagueName, result.score, formatDate(result.resultDate), result.notes].filter(Boolean).join(' - ')}
+                      {metaParts.join(' - ')}
                     </div>
                   </div>
                   <div style={actionRow}>
+                    {edited ? <span style={pillAmber}>Edited</span> : null}
                     {result.winnerPlayerId ? (
                       <Link href={`/players/${encodeURIComponent(result.winnerPlayerId)}`} style={btnSecondary}>Winner</Link>
                     ) : null}
