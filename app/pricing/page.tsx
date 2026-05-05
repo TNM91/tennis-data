@@ -56,6 +56,12 @@ const VALUE_MOMENTS: {
     icon: 'lineupBuilder',
     href: '#captain',
   },
+  {
+    title: 'Running a league?',
+    cue: 'Use Coordinator when the season needs structure, standings, and results.',
+    icon: 'teamRankings',
+    href: '#league',
+  },
 ]
 
 const PERSONALIZATION_FLOW: {
@@ -75,7 +81,7 @@ const PERSONALIZATION_FLOW: {
   },
   {
     title: 'Open your tools',
-    cue: 'My Lab, Matchup, and captain flows start with your context.',
+    cue: 'Open the Player, Captain, or Coordinator workspace that matches your role.',
     icon: 'myLab',
   },
 ]
@@ -138,14 +144,14 @@ const PLAN_FIT_ROWS: Array<{
     free: '-',
     player_plus: 'Best fit',
     captain: 'Included',
-    league: 'Included',
+    league: '-',
   },
   {
     job: 'Make weekly team decisions',
     free: '-',
     player_plus: '-',
     captain: 'Best fit',
-    league: 'Included',
+    league: '-',
   },
   {
     job: 'Run organized league play',
@@ -193,8 +199,8 @@ export default function PricingPage() {
             <Link href={getPlanSignupHref('free')} style={featuredCtaStyle}>
               Start Free
             </Link>
-            <a href="#captain" style={ctaStyle}>
-              Jump to Captain
+            <a href="#league" style={ctaStyle}>
+              See Coordinator
             </a>
           </div>
 
@@ -478,8 +484,8 @@ function PlanFitMatrix() {
             Pick the tier by what you need to do next.
           </h2>
         </div>
-        <Link href="#captain" style={ctaStyle}>
-          Captain is the team path
+        <Link href="#league" style={ctaStyle}>
+          Coordinator is separate
         </Link>
       </div>
 
@@ -572,6 +578,9 @@ function PricingFinalCta() {
         </Link>
         <a href="#captain" style={ctaStyle}>
           Compare Captain
+        </a>
+        <a href="#league" style={ctaStyle}>
+          Compare Coordinator
         </a>
       </div>
     </section>

@@ -45,7 +45,6 @@ export const CAPTAIN_NAV_ITEMS: NavItem[] = [
   { href: '/captain/lineup-availability', label: 'Match Availability' },
   { href: '/captain/analytics', label: 'Captain IQ' },
   { href: '/captain/team-brief', label: 'Team Brief' },
-  { href: '/league-coordinator', label: 'League Coordinator' },
 ]
 
 export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
@@ -83,8 +82,16 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Run',
     items: [
       { href: '/captain', label: 'Captain Hub' },
-      { href: '/league-coordinator', label: 'League Coordinator' },
       ...CAPTAIN_QUICK_NAV_ITEMS,
+    ],
+  },
+  {
+    title: 'Coordinate',
+    items: [
+      { href: '/league-coordinator', label: 'League Coordinator' },
+      { href: '/compete/leagues', label: 'My Leagues' },
+      { href: '/compete/results', label: 'Results' },
+      { href: '/pricing#league', label: 'Coordinator Plan' },
     ],
   },
 ]

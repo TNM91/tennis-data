@@ -101,7 +101,7 @@ export default function SiteFooter() {
             aria-label="Footer"
             style={{
               display: 'grid',
-              gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+              gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))',
               gap: 22,
               paddingTop: 14,
               borderTop: '1px solid rgba(116, 190, 255, 0.08)',
