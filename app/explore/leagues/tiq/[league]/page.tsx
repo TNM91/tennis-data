@@ -250,17 +250,16 @@ function buildMatchupHref(playerAId: string, playerBId: string) {
 }
 
 function buildPrefilledResultHref(
-  routeSlug: string,
   leagueId: string,
   playerAValue: string,
   playerBValue: string,
 ) {
   const params = new URLSearchParams({
-    league_id: leagueId,
+    leagueId,
     suggest_player_a: playerAValue,
     suggest_player_b: playerBValue,
   })
-  return `/explore/leagues/tiq/${encodeURIComponent(routeSlug || leagueId)}?${params.toString()}`
+  return `/league-coordinator/individual-results?${params.toString()}`
 }
 
 export default function TiqLeagueDetailPage() {
@@ -754,7 +753,7 @@ export default function TiqLeagueDetailPage() {
             primaryLabel: targetAbove ? 'Open My Lab' : 'Player page',
             secondaryHref:
               targetAbove && targetValue
-                ? buildPrefilledResultHref(routeSlug || league.id, league.id, entryValue, targetValue)
+                ? buildPrefilledResultHref(league.id, entryValue, targetValue)
                 : null,
             secondaryLabel: targetAbove ? 'Log result' : '',
           }
@@ -804,7 +803,7 @@ export default function TiqLeagueDetailPage() {
             primaryLabel: nearestUnplayed ? 'Compare pairing' : 'Player page',
             secondaryHref:
               nearestUnplayed && nearestValue
-                ? buildPrefilledResultHref(routeSlug || league.id, league.id, entryValue, nearestValue)
+                ? buildPrefilledResultHref(league.id, entryValue, nearestValue)
                 : null,
             secondaryLabel: nearestUnplayed ? 'Log result' : '',
           }
@@ -845,7 +844,7 @@ export default function TiqLeagueDetailPage() {
             primaryLabel: nearestMomentumPeer ? 'Compare challenge' : 'Player page',
             secondaryHref:
               nearestMomentumPeer && peerValue
-                ? buildPrefilledResultHref(routeSlug || league.id, league.id, entryValue, peerValue)
+                ? buildPrefilledResultHref(league.id, entryValue, peerValue)
                 : null,
             secondaryLabel: nearestMomentumPeer ? 'Log result' : '',
           }
@@ -866,7 +865,7 @@ export default function TiqLeagueDetailPage() {
       secondaryHref: null,
       secondaryLabel: '',
     }))
-  }, [individualCompetitionFormat, individualResults, individualStandings, league, routeSlug])
+  }, [individualCompetitionFormat, individualResults, individualStandings, league])
 
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
@@ -2059,7 +2058,6 @@ export default function TiqLeagueDetailPage() {
                           {suggestion.status === 'open' ? (
                             <>
                               <GhostLink href={buildPrefilledResultHref(
-                                  routeSlug || league.id,
                                   league.id,
                                   suggestion.playerAId || `name:${suggestion.playerAName}`,
                                   suggestion.playerBId || `name:${suggestion.playerBName}`,
