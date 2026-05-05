@@ -21,7 +21,11 @@ import {
 } from '@/lib/tiq-team-results-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
-import { formatDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
+import {
+  formatDynamicPointsForSides,
+  getDynamicPointsRulesSummary,
+  getDynamicPointsValidationMessage,
+} from '@/lib/tiq-scoring'
 
 type PlayerOption = { id: string; name: string }
 type MatchLineSummary = {
@@ -179,6 +183,7 @@ const emptyLine = (lineNumber = ''): LineFormState => ({
 function LineForm({
   event,
   players,
+  scoringSystem,
   existingLine,
   defaultLineNumber = '',
   onSaved,
@@ -186,6 +191,7 @@ function LineForm({
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
+  scoringSystem: TiqLeagueScoringSystem
   existingLine?: TiqTeamMatchLineRecord
   defaultLineNumber?: string
   onSaved: (line: TiqTeamMatchLineRecord) => void
@@ -244,6 +250,11 @@ function LineForm({
 
     if (form.score.trim() && !form.winnerSide) {
       return 'Choose a winner before saving a scored line.'
+    }
+
+    if (scoringSystem === 'dynamic_points') {
+      const dynamicPointsWarning = getDynamicPointsValidationMessage(form.score, form.winnerSide || null)
+      if (dynamicPointsWarning) return dynamicPointsWarning
     }
 
     return ''
@@ -320,6 +331,12 @@ function LineForm({
           <input style={inputStyle} placeholder="e.g. 6-4, 7-5" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} />
         </Field>
       </div>
+
+      {scoringSystem === 'dynamic_points' ? (
+        <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 8 }}>
+          {getDynamicPointsRulesSummary()}
+        </div>
+      ) : null}
 
       <div style={row}>
         <Field label={`SIDE A - ${event.teamAName} - P1`}>
@@ -472,10 +489,13 @@ function EventCard({
   const displayPendingLines = Math.max(displayTotalLines - displayCompletedLines, 0)
   const displayTeamAWins = linesLoaded ? teamAWins : lineSummary?.teamAWins ?? 0
   const displayTeamBWins = linesLoaded ? teamBWins : lineSummary?.teamBWins ?? 0
+  const showDynamicPoints = scoringSystem === 'dynamic_points'
   const dynamicPoints = summarizeDynamicPoints(lines)
+  const dynamicScoreReviewCount = showDynamicPoints
+    ? lines.filter((line) => line.winnerSide && line.score && !formatDynamicPointsForSides(line.score, line.winnerSide)).length
+    : 0
   const displayTeamAPoints = linesLoaded ? dynamicPoints.teamAPoints : lineSummary?.teamAPoints ?? 0
   const displayTeamBPoints = linesLoaded ? dynamicPoints.teamBPoints : lineSummary?.teamBPoints ?? 0
-  const showDynamicPoints = scoringSystem === 'dynamic_points'
   const defaultLineNumber = nextOpenLineNumber()
 
   return (
@@ -505,6 +525,12 @@ function EventCard({
                   <span style={displayTeamAPoints > displayTeamBPoints ? pillGreen : pill}>{event.teamAName} pts: {displayTeamAPoints}</span>
                   {' '}
                   <span style={displayTeamBPoints > displayTeamAPoints ? pillGreen : pill}>{event.teamBName} pts: {displayTeamBPoints}</span>
+                  {dynamicScoreReviewCount > 0 ? (
+                    <>
+                      {' '}
+                      <span style={pill}>{dynamicScoreReviewCount} score review</span>
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
@@ -544,6 +570,7 @@ function EventCard({
                     key={line.id}
                     event={event}
                     players={players}
+                    scoringSystem={scoringSystem}
                     existingLine={line}
                     onSaved={(savedLine) => handleLineSaved(savedLine)}
                     onCancel={() => setEditingLine(null)}
@@ -603,6 +630,7 @@ function EventCard({
                 key={`add-line-${defaultLineNumber || lines.length}`}
                 event={event}
                 players={players}
+                scoringSystem={scoringSystem}
                 defaultLineNumber={defaultLineNumber}
                 onSaved={(savedLine) => handleLineSaved(savedLine, true)}
                 onCancel={() => setAddingLine(false)}
