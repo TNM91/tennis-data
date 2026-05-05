@@ -469,6 +469,8 @@ export default function TiqLeagueDetailPage() {
     league?.leagueFormat === 'team' ? 'North Dallas Aces' : deriveDefaultParticipantName(userEmail) || 'Player name'
   const entryMessage =
     league?.leagueFormat === 'team' ? access.teamLeagueMessage : access.individualLeagueMessage
+  const canLogIndividualResults = league?.leagueFormat === 'individual' && access.canCreateTiqIndividualLeague
+  const resultEntryDisabled = resultSaving || !canLogIndividualResults
   const participants = league?.leagueFormat === 'team' ? league.teams || [] : league?.players || []
   const tiqSignals = league
     ? [
@@ -494,7 +496,7 @@ export default function TiqLeagueDetailPage() {
           note:
             league.leagueFormat === 'team'
               ? 'Use this page to enter teams and move quickly into availability, lineups, scenarios, and messaging.'
-              : 'Use this page to join, compare entrants, log results, and act on the next TIQ opportunity.',
+              : 'Use this page to join, compare entrants, read results, and act on the next TIQ opportunity.',
         },
       ]
     : []
@@ -1326,6 +1328,11 @@ export default function TiqLeagueDetailPage() {
   async function handleResultSubmit() {
     if (!league || league.leagueFormat !== 'individual') return
 
+    if (!canLogIndividualResults) {
+      setResultStatus(access.individualLeagueMessage)
+      return
+    }
+
     if (!resultPlayerAOption || !resultPlayerBOption) {
       setResultStatus('Choose two players before logging a TIQ individual result.')
       return
@@ -2106,6 +2113,19 @@ export default function TiqLeagueDetailPage() {
                   <div style={formatCalloutTitle}>{individualFormatExperience.activityHintTitle}</div>
                   <div style={formatCalloutText}>{individualFormatExperience.activityHintText}</div>
                 </div>
+                {!canLogIndividualResults ? (
+                  <UpgradePrompt
+                    planId="league"
+                    compact
+                    headline="Coordinator access records player results"
+                    body={access.individualLeagueMessage}
+                    ctaLabel="Run Your League on TIQ"
+                    ctaHref="/pricing"
+                    secondaryLabel="Open Player Results"
+                    secondaryHref={`/league-coordinator/individual-results?leagueId=${encodeURIComponent(league.id)}`}
+                    footnote="Players can still read standings, results, and prompts from this page."
+                  />
+                ) : null}
 
                 <div style={dynamicResultFormGrid}>
                   <label style={fieldLabel}>
@@ -2114,7 +2134,7 @@ export default function TiqLeagueDetailPage() {
                       value={resultPlayerA}
                       onChange={(event) => setResultPlayerA(event.target.value)}
                       style={inputStyle}
-                      disabled={resultSaving}
+                      disabled={resultEntryDisabled}
                     >
                       <option value="">Choose player A</option>
                       {resultParticipantOptions.map((option) => (
@@ -2131,7 +2151,7 @@ export default function TiqLeagueDetailPage() {
                       value={resultPlayerB}
                       onChange={(event) => setResultPlayerB(event.target.value)}
                       style={inputStyle}
-                      disabled={resultSaving}
+                      disabled={resultEntryDisabled}
                     >
                       <option value="">Choose player B</option>
                       {resultParticipantOptions.map((option) => (
@@ -2148,7 +2168,7 @@ export default function TiqLeagueDetailPage() {
                       value={resultWinner}
                       onChange={(event) => setResultWinner(event.target.value)}
                       style={inputStyle}
-                      disabled={resultSaving}
+                      disabled={resultEntryDisabled}
                     >
                       <option value="">Choose winner</option>
                       {resultWinnerOptions.map((option) => (
@@ -2166,7 +2186,7 @@ export default function TiqLeagueDetailPage() {
                       onChange={(event) => setResultScore(event.target.value)}
                       placeholder={individualFormatExperience.scorePlaceholder}
                       style={inputStyle}
-                      disabled={resultSaving}
+                      disabled={resultEntryDisabled}
                     />
                   </label>
 
@@ -2177,7 +2197,7 @@ export default function TiqLeagueDetailPage() {
                       value={resultDate}
                       onChange={(event) => setResultDate(event.target.value)}
                       style={inputStyle}
-                      disabled={resultSaving}
+                      disabled={resultEntryDisabled}
                     />
                   </label>
 
@@ -2188,7 +2208,7 @@ export default function TiqLeagueDetailPage() {
                       onChange={(event) => setResultNotes(event.target.value)}
                       placeholder={individualFormatExperience.notesPlaceholder}
                       style={textareaStyle}
-                      disabled={resultSaving}
+                      disabled={resultEntryDisabled}
                     />
                   </label>
                 </div>
@@ -2199,16 +2219,24 @@ export default function TiqLeagueDetailPage() {
                   <button
                     type="button"
                     onClick={handleResultSubmit}
-                    disabled={resultSaving}
+                    disabled={resultEntryDisabled}
                     style={{
                       ...primaryButton,
-                      ...(resultSaving ? disabledButton : {}),
+                      ...(resultEntryDisabled ? disabledButton : {}),
                     }}
                   >
-                    {resultSaving ? 'Saving result...' : individualFormatExperience.actionLabel}
+                    {resultSaving
+                      ? 'Saving result...'
+                      : canLogIndividualResults
+                        ? individualFormatExperience.actionLabel
+                        : 'Coordinator Required'}
                   </button>
                   <span style={metaPill}>
-                    {resultStorageSource === 'supabase' ? 'Live results' : 'Saved preview results'}
+                    {canLogIndividualResults
+                      ? resultStorageSource === 'supabase'
+                        ? 'Live results'
+                        : 'Saved preview results'
+                      : 'Read-only results'}
                   </span>
                 </div>
 
