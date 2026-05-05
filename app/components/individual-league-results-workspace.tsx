@@ -24,7 +24,10 @@ import {
 } from '@/lib/tiq-individual-results-service'
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import { completeTiqIndividualSuggestionsForPair } from '@/lib/tiq-individual-suggestions-service'
-import { getTiqIndividualCompetitionFormatExperience } from '@/lib/tiq-individual-format'
+import {
+  getTiqIndividualCompetitionFormatExperience,
+  getTiqIndividualCompetitionFormatLabel,
+} from '@/lib/tiq-individual-format'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 
@@ -32,6 +35,19 @@ type ResultParticipantOption = {
   value: string
   playerId: string
   playerName: string
+}
+
+type PlayerResultStanding = {
+  rank: number
+  playerId: string
+  playerName: string
+  wins: number
+  losses: number
+  matches: number
+  recentForm: Array<'W' | 'L'>
+  uniqueOpponents: number
+  possibleOpponents: number
+  completionRate: number | null
 }
 
 const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
@@ -153,6 +169,37 @@ const resultCard: CSSProperties = {
 const resultTitle: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 850, marginBottom: 5 }
 const resultMeta: CSSProperties = { color: '#94a3b8', fontSize: 13, lineHeight: 1.5 }
 const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }
+const insightGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: 14,
+  marginTop: 18,
+}
+const standingsList: CSSProperties = { display: 'grid', gap: 8 }
+const standingRow: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px minmax(0, 1fr) auto',
+  gap: 10,
+  alignItems: 'center',
+  padding: '10px 12px',
+  borderRadius: 10,
+  background: 'rgba(255,255,255,0.035)',
+  border: '1px solid rgba(255,255,255,0.07)',
+}
+const standingRank: CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  display: 'grid',
+  placeItems: 'center',
+  color: '#071425',
+  background: '#9be11d',
+  fontSize: 12,
+  fontWeight: 900,
+}
+const standingName: CSSProperties = { color: '#f8fbff', fontWeight: 850, fontSize: 14, minWidth: 0 }
+const standingSubtext: CSSProperties = { color: '#94a3b8', fontSize: 12, marginTop: 3 }
+const metricStack: CSSProperties = { display: 'grid', gap: 5, justifyItems: 'end', color: '#dbeafe', fontSize: 12, fontWeight: 800 }
 const emptyCard: CSSProperties = {
   ...card,
   color: '#94a3b8',
@@ -170,6 +217,87 @@ function Field({ label, children, wide = false }: { label: string; children: Rea
 
 function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
   return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+}
+
+function hasResultBetween(results: TiqIndividualLeagueResultRecord[], leftName: string, rightName: string) {
+  const left = leftName.toLowerCase()
+  const right = rightName.toLowerCase()
+
+  return results.some((result) => {
+    const playerA = result.playerAName.toLowerCase()
+    const playerB = result.playerBName.toLowerCase()
+    return (playerA === left && playerB === right) || (playerA === right && playerB === left)
+  })
+}
+
+function buildPlayerResultStandings(
+  entries: TiqPlayerLeagueEntryRecord[],
+  leagueResults: TiqIndividualLeagueResultRecord[],
+): PlayerResultStanding[] {
+  const totalEntrants = entries.length
+
+  return entries
+    .map((entry) => {
+      const normalizedName = entry.playerName.toLowerCase()
+      const playerResults = leagueResults.filter((result) => {
+        return result.playerAName.toLowerCase() === normalizedName || result.playerBName.toLowerCase() === normalizedName
+      })
+      const wins = playerResults.filter((result) => result.winnerPlayerName.toLowerCase() === normalizedName).length
+      const losses = playerResults.length - wins
+      const uniqueOpponents = new Set(
+        playerResults.map((result) =>
+          result.playerAName.toLowerCase() === normalizedName ? result.playerBName : result.playerAName,
+        ),
+      ).size
+      const possibleOpponents = Math.max(totalEntrants - 1, 0)
+
+      return {
+        rank: 0,
+        playerId: entry.playerId,
+        playerName: entry.playerName,
+        wins,
+        losses,
+        matches: playerResults.length,
+        recentForm: playerResults.slice(0, 5).map((result) =>
+          result.winnerPlayerName.toLowerCase() === normalizedName ? 'W' : 'L',
+        ),
+        uniqueOpponents,
+        possibleOpponents,
+        completionRate: possibleOpponents > 0 ? uniqueOpponents / possibleOpponents : null,
+      }
+    })
+    .sort((left, right) => {
+      if (right.wins !== left.wins) return right.wins - left.wins
+      if (left.losses !== right.losses) return left.losses - right.losses
+      if (right.matches !== left.matches) return right.matches - left.matches
+      if (right.uniqueOpponents !== left.uniqueOpponents) return right.uniqueOpponents - left.uniqueOpponents
+      return left.playerName.localeCompare(right.playerName)
+    })
+    .map((entry, index) => ({ ...entry, rank: index + 1 }))
+}
+
+function findNextPairing(
+  standings: PlayerResultStanding[],
+  leagueResults: TiqIndividualLeagueResultRecord[],
+): [PlayerResultStanding, PlayerResultStanding] | null {
+  if (standings.length < 2) return null
+
+  const byNeed = [...standings].sort((left, right) => {
+    if (left.matches !== right.matches) return left.matches - right.matches
+    if (left.uniqueOpponents !== right.uniqueOpponents) return left.uniqueOpponents - right.uniqueOpponents
+    return left.rank - right.rank
+  })
+
+  for (const left of byNeed) {
+    const right = standings.find(
+      (candidate) =>
+        candidate.playerName !== left.playerName &&
+        !hasResultBetween(leagueResults, left.playerName, candidate.playerName),
+    )
+    if (right) return [left, right]
+  }
+
+  return [byNeed[0], byNeed[1]]
 }
 
 function fallbackEntriesForLeague(league: TiqLeagueRecord | null): TiqPlayerLeagueEntryRecord[] {
@@ -216,6 +344,7 @@ export function IndividualLeagueResultsWorkspace({
   const [canEditResults, setCanEditResults] = useState(false)
   const [accessResolved, setAccessResolved] = useState(false)
   const [accessMessage, setAccessMessage] = useState('')
+  const [resultFormOpen, setResultFormOpen] = useState(false)
 
   const selectedLeague = useMemo(
     () => leagues.find((league) => league.id === formLeagueId) || null,
@@ -242,6 +371,18 @@ export function IndividualLeagueResultsWorkspace({
     (option): option is ResultParticipantOption => Boolean(option),
   )
   const latestResult = results[0] || null
+  const selectedLeagueResults = useMemo(
+    () => (selectedLeague ? results.filter((result) => result.leagueId === selectedLeague.id) : []),
+    [results, selectedLeague],
+  )
+  const selectedLeagueStandings = useMemo(
+    () => buildPlayerResultStandings(visiblePlayerEntries, selectedLeagueResults),
+    [selectedLeagueResults, visiblePlayerEntries],
+  )
+  const nextPairing = useMemo(
+    () => findNextPairing(selectedLeagueStandings, selectedLeagueResults),
+    [selectedLeagueResults, selectedLeagueStandings],
+  )
   const summaryByLeague = useMemo(() => buildTiqIndividualLeagueSummaries(results), [results])
   const selectedSummary = formLeagueId ? summaryByLeague.get(formLeagueId) || null : null
   const activeParticipantCount = selectedLeague
@@ -341,7 +482,22 @@ export function IndividualLeagueResultsWorkspace({
     setResultPlayerB('')
     setResultWinner('')
     setStatus('')
+    if (leagueId && filterLeagueId !== leagueId) {
+      setFilterLeagueId(leagueId)
+      router.replace(`${resultsHref}?leagueId=${encodeURIComponent(leagueId)}`, { scroll: false })
+      await refreshResults(leagueId)
+    }
     await refreshPlayerEntries(leagueId)
+  }
+
+  function handleUsePairing(left: PlayerResultStanding, right: PlayerResultStanding) {
+    if (!selectedLeague) return
+
+    setResultPlayerA(left.playerId || `name:${left.playerName}`)
+    setResultPlayerB(right.playerId || `name:${right.playerName}`)
+    setResultWinner('')
+    setResultFormOpen(true)
+    setStatus(`Loaded ${left.playerName} vs ${right.playerName}. Choose the winner and score.`)
   }
 
   async function handleResultSubmit() {
@@ -478,7 +634,7 @@ export function IndividualLeagueResultsWorkspace({
 
         {error ? <p style={msgErr}>{error}</p> : null}
         {status ? (
-          <p style={status.startsWith('Saved') || status.toLowerCase().includes('deleted') ? msgOk : msgErr}>
+          <p style={status.startsWith('Saved') || status.startsWith('Loaded') || status.toLowerCase().includes('deleted') ? msgOk : msgErr}>
             {status}
           </p>
         ) : null}
@@ -495,7 +651,11 @@ export function IndividualLeagueResultsWorkspace({
           </div>
         ) : null}
 
-        <details style={detailsCard} open={canEditResults && results.length === 0}>
+        <details
+          style={detailsCard}
+          open={canEditResults && (results.length === 0 || resultFormOpen)}
+          onToggle={(event) => setResultFormOpen(event.currentTarget.open)}
+        >
           <summary style={detailsSummary}>
             <div>
               <div style={{ fontWeight: 800, fontSize: 16 }}>New player result</div>
@@ -615,6 +775,63 @@ export function IndividualLeagueResultsWorkspace({
             </>
           ) : null}
         </details>
+
+        <div style={insightGrid}>
+          <section style={card}>
+            <div style={sectionTitle}>
+              {selectedLeague
+                ? `${getTiqIndividualCompetitionFormatLabel(selectedLeague.individualCompetitionFormat)} standings`
+                : 'Player standings'}
+            </div>
+            {selectedLeagueStandings.length === 0 ? (
+              <div style={resultMeta}>Choose an individual league with players to see the working standings.</div>
+            ) : (
+              <div style={standingsList}>
+                {selectedLeagueStandings.slice(0, 8).map((entry) => (
+                  <div key={`${entry.playerName}-${entry.playerId || entry.rank}`} style={standingRow}>
+                    <div style={standingRank}>{entry.rank}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={standingName}>{entry.playerName}</div>
+                      <div style={standingSubtext}>
+                        {entry.uniqueOpponents}/{entry.possibleOpponents} opponents
+                        {entry.recentForm.length ? ` - ${entry.recentForm.join('')}` : ''}
+                      </div>
+                    </div>
+                    <div style={metricStack}>
+                      <span>{entry.wins}-{entry.losses}</span>
+                      <span>{entry.matches} results</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section style={card}>
+            <div style={sectionTitle}>Next useful result</div>
+            {nextPairing ? (
+              <>
+                <div style={resultTitle}>
+                  {nextPairing[0].playerName} vs {nextPairing[1].playerName}
+                </div>
+                <div style={resultMeta}>
+                  Prioritizes players with fewer logged results and missing head-to-head coverage.
+                </div>
+                <div style={actionRow}>
+                  <button
+                    type="button"
+                    onClick={() => handleUsePairing(nextPairing[0], nextPairing[1])}
+                    style={btnPrimary}
+                  >
+                    Use pairing
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={resultMeta}>Add at least two players to get a next-result prompt.</div>
+            )}
+          </section>
+        </div>
 
         <div style={sectionTitle}>Recorded player results</div>
         <div style={{ marginBottom: 14 }}>
