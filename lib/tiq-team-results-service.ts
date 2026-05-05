@@ -389,10 +389,10 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
   }
 }
 
-export async function deleteTiqTeamMatchLine(lineId: string): Promise<{ warning: string | null }> {
+export async function deleteTiqTeamMatchLine(lineId: string): Promise<{ deleted: boolean; warning: string | null }> {
   try {
     const userId = await getUserId()
-    if (!userId) return { warning: 'Sign in to delete match lines.' }
+    if (!userId) return { deleted: false, warning: 'Sign in to delete match lines.' }
 
     const { error } = await supabase
       .from('tiq_team_league_match_lines')
@@ -412,8 +412,8 @@ export async function deleteTiqTeamMatchLine(lineId: string): Promise<{ warning:
           : 'Line deleted — rating sync failed.'
     }
 
-    return { warning: syncWarning }
+    return { deleted: true, warning: syncWarning }
   } catch (err) {
-    return { warning: err instanceof Error ? err.message : 'Failed to delete match line.' }
+    return { deleted: false, warning: err instanceof Error ? err.message : 'Failed to delete match line.' }
   }
 }
