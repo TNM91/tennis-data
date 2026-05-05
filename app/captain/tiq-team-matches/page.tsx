@@ -419,7 +419,11 @@ function EventCard({
   async function handleDeleteLine(lineId: string) {
     if (!confirm('Delete this line? Ratings will be recalculated.')) return
     const { warning: w } = await deleteTiqTeamMatchLine(lineId)
-    if (w) setWarning(w)
+    if (w) {
+      setWarning(w)
+      return
+    }
+    setWarning('')
     setLines((prev) => prev.filter((l) => l.id !== lineId))
   }
 
