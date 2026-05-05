@@ -975,8 +975,11 @@ export default function TiqLeagueDetailPage() {
           const leaguePoints =
             league.scoringSystem === 'dynamic_points'
               ? playerResults.reduce((sum, result) => {
-                  const playerIsSideA = result.playerAName.toLowerCase() === normalizedEntryName
-                  const winnerSide = result.winnerPlayerName === result.playerAName ? 'A' : 'B'
+                  const playerAName = result.playerAName.toLowerCase()
+                  const playerBName = result.playerBName.toLowerCase()
+                  const winnerName = result.winnerPlayerName.toLowerCase()
+                  const playerIsSideA = playerAName === normalizedEntryName
+                  const winnerSide = winnerName === playerAName ? 'A' : winnerName === playerBName ? 'B' : null
                   const points = calculateDynamicPointsForSides(result.score, winnerSide)
                   return sum + (playerIsSideA ? points.sideAPoints : points.sideBPoints)
                 }, 0)
@@ -2154,7 +2157,17 @@ export default function TiqLeagueDetailPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
                       <tr>
-                        {['#', 'Team', 'Pts', 'W', 'L', 'T', 'Line W', 'Line L', 'Line %'].map((h) => (
+                        {[
+                          '#',
+                          'Team',
+                          ...(league.scoringSystem === 'dynamic_points' ? ['Pts'] : []),
+                          'W',
+                          'L',
+                          'T',
+                          'Line W',
+                          'Line L',
+                          'Line %',
+                        ].map((h) => (
                           <th key={h} style={{ textAlign: h === 'Team' ? 'left' : 'center', padding: '8px 10px', color: '#64748b', fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.07)', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -2168,14 +2181,16 @@ export default function TiqLeagueDetailPage() {
                           <tr key={row.teamName} style={{ background: isLeader ? 'rgba(155,225,29,0.04)' : undefined }}>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#64748b', fontWeight: 700 }}>{i + 1}</td>
                             <td style={{ padding: '10px', fontWeight: isLeader ? 700 : 500, color: isLeader ? '#9be11d' : '#e2e8f0' }}>{row.teamName}</td>
-                            <td style={{ padding: '10px', textAlign: 'center', fontWeight: 800, color: '#9be11d' }}>{row.points}</td>
+                            {league.scoringSystem === 'dynamic_points' ? (
+                              <td style={{ padding: '10px', textAlign: 'center', fontWeight: 800, color: '#9be11d' }}>{row.points}</td>
+                            ) : null}
                             <td style={{ padding: '10px', textAlign: 'center', fontWeight: 700, color: '#9be11d' }}>{row.wins}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#94a3b8' }}>{row.losses}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>{row.ties}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#93c5fd' }}>{row.lineWins}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#94a3b8' }}>{row.lineLosses}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: linePct !== null && linePct >= 50 ? '#9be11d' : '#94a3b8' }}>
-                              {linePct !== null ? `${linePct}%` : '—'}
+                              {linePct !== null ? `${linePct}%` : '-'}
                             </td>
                           </tr>
                         )

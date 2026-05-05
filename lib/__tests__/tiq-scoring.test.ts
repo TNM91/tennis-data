@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { calculateDynamicPointsForSides, parseTennisScoreSets } from '../tiq-scoring'
+import {
+  calculateDynamicPointsForSides,
+  compareTiqTeamStandings,
+  parseTennisScoreSets,
+} from '../tiq-scoring'
 
 describe('parseTennisScoreSets', () => {
   it('parses comma-separated tennis sets', () => {
@@ -45,5 +49,24 @@ describe('calculateDynamicPointsForSides', () => {
       sideBPoints: 0,
       valid: false,
     })
+  })
+})
+
+describe('compareTiqTeamStandings', () => {
+  const oneWinTeam = { teamName: 'One Win', wins: 1, lineWins: 2, points: 2 }
+  const noWinTeam = { teamName: 'No Win', wins: 0, lineWins: 4, points: 4 }
+
+  it('keeps match wins ahead of line points for standard leagues', () => {
+    expect([noWinTeam, oneWinTeam].sort((a, b) => compareTiqTeamStandings(a, b, 'standard'))).toEqual([
+      oneWinTeam,
+      noWinTeam,
+    ])
+  })
+
+  it('sorts by points first for dynamic-points leagues', () => {
+    expect([oneWinTeam, noWinTeam].sort((a, b) => compareTiqTeamStandings(a, b, 'dynamic_points'))).toEqual([
+      noWinTeam,
+      oneWinTeam,
+    ])
   })
 })

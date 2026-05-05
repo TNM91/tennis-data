@@ -10,6 +10,15 @@ export type TiqDynamicPointsResult = {
   valid: boolean
 }
 
+export type TiqLeagueScoringMode = 'standard' | 'dynamic_points'
+
+export type TiqTeamStandingSortShape = {
+  teamName: string
+  wins: number
+  lineWins: number
+  points: number
+}
+
 function cleanText(value: string | null | undefined) {
   return (value || '').trim()
 }
@@ -65,4 +74,26 @@ export function calculateDynamicPointsForSides(
 
 export function getDynamicPointsRulesSummary() {
   return 'Best 2 of 3 sets: straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won.'
+}
+
+export function compareTiqTeamStandings(
+  left: TiqTeamStandingSortShape,
+  right: TiqTeamStandingSortShape,
+  scoringMode: TiqLeagueScoringMode,
+) {
+  if (scoringMode === 'dynamic_points') {
+    return (
+      right.points - left.points ||
+      right.wins - left.wins ||
+      right.lineWins - left.lineWins ||
+      left.teamName.localeCompare(right.teamName)
+    )
+  }
+
+  return (
+    right.wins - left.wins ||
+    right.lineWins - left.lineWins ||
+    right.points - left.points ||
+    left.teamName.localeCompare(right.teamName)
+  )
 }

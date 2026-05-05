@@ -7,7 +7,7 @@ import {
   deleteTiqTeamMatchLineMatch,
   syncTiqTeamMatchLineToMatch,
 } from '@/lib/tiq-match-sync'
-import { calculateDynamicPointsForSides } from '@/lib/tiq-scoring'
+import { calculateDynamicPointsForSides, compareTiqTeamStandings } from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 
 export type TiqTeamMatchEventRecord = {
@@ -393,8 +393,8 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
       records[event.team_b_name].points += useDynamicPoints ? counts.bPoints : counts.b
     }
 
-    const standings = Object.values(records).sort(
-      (a, b) => b.points - a.points || b.wins - a.wins || b.lineWins - a.lineWins,
+    const standings = Object.values(records).sort((a, b) =>
+      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard'),
     )
 
     return { standings, warning: null }
