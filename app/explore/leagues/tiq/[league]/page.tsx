@@ -272,7 +272,17 @@ function buildPrefilledResultHref(
     suggest_player_a: playerAValue,
     suggest_player_b: playerBValue,
   })
-  return `/league-coordinator/individual-results?${params.toString()}`
+  return `/league-coordinator/individual-results?${params.toString()}#player-result-entry`
+}
+
+function buildIndividualResultEntryHref(leagueId: string, anchor = 'player-result-entry') {
+  const params = new URLSearchParams({ leagueId })
+  return `/league-coordinator/individual-results?${params.toString()}#${anchor}`
+}
+
+function buildTeamResultEntryHref(leagueId: string, anchor = 'team-match-entry') {
+  const params = new URLSearchParams({ leagueId })
+  return `/league-coordinator/results?${params.toString()}#${anchor}`
 }
 
 function buildTeamMatchPublicSummary(
@@ -960,6 +970,15 @@ export default function TiqLeagueDetailPage() {
       }),
     [competitionOpportunities, individualResultBookStats.total, league, visiblePlayerEntries.length],
   )
+  const individualCuePrimaryHref =
+    league?.leagueFormat === 'individual'
+      ? competitionOpportunities[0]?.secondaryHref ||
+        buildIndividualResultEntryHref(league.id, individualResultBookStats.total > 0 ? 'player-result-review' : 'player-result-entry')
+      : '/league-coordinator/individual-results#player-result-entry'
+  const teamCuePrimaryHref =
+    league?.leagueFormat === 'team'
+      ? buildTeamResultEntryHref(league.id, teamMatchEvents.length > 0 ? 'team-match-review' : 'team-match-entry')
+      : '/league-coordinator/results#team-match-entry'
 
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
@@ -1991,6 +2010,14 @@ export default function TiqLeagueDetailPage() {
                     <div style={resultCueKickerStyle}>Result entry readiness</div>
                     <div style={resultCueTitleStyle}>{individualResultCue.title}</div>
                     <div style={resultCueTextStyle}>{individualResultCue.detail}</div>
+                    <div style={resultCueActionRowStyle}>
+                      <GhostLink href={individualCuePrimaryHref}>
+                        {competitionOpportunities[0]?.secondaryHref ? 'Log next result' : 'Open Player Results'}
+                      </GhostLink>
+                      <GhostLink href={`/league-coordinator?leagueId=${encodeURIComponent(league.id)}#league-setup-form`}>
+                        Manage league
+                      </GhostLink>
+                    </div>
                   </div>
                   <div style={resultCueGridStyle}>
                     {individualResultCue.items.map((item) => (
@@ -2459,6 +2486,14 @@ export default function TiqLeagueDetailPage() {
                     <div style={resultCueKickerStyle}>Result entry readiness</div>
                     <div style={resultCueTitleStyle}>{teamResultCue.title}</div>
                     <div style={resultCueTextStyle}>{teamResultCue.detail}</div>
+                    <div style={resultCueActionRowStyle}>
+                      <GhostLink href={teamCuePrimaryHref}>
+                        {teamMatchEvents.length > 0 ? 'Review team results' : 'Create match'}
+                      </GhostLink>
+                      <GhostLink href={`/league-coordinator?leagueId=${encodeURIComponent(league.id)}#league-setup-form`}>
+                        Manage league
+                      </GhostLink>
+                    </div>
                   </div>
                   <div style={resultCueGridStyle}>
                     {teamResultCue.items.map((item) => (
@@ -2935,6 +2970,13 @@ const resultCueTextStyle: CSSProperties = {
   color: 'rgba(214,228,246,0.74)',
   fontSize: '13px',
   lineHeight: 1.5,
+}
+
+const resultCueActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginTop: '12px',
 }
 
 const resultCueGridStyle: CSSProperties = {

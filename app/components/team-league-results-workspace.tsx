@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
@@ -112,6 +113,7 @@ const flowNumber: CSSProperties = {
 }
 const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14 }
 const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2 }
+const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }
 const detailsCard: CSSProperties = { ...card, display: 'grid', gap: 12 }
 const detailsSummary: CSSProperties = {
   cursor: 'pointer',
@@ -989,6 +991,7 @@ export function TeamLeagueResultsWorkspace({
   const [resultSearch, setResultSearch] = useState('')
   const [completionFilter, setCompletionFilter] = useState<TeamResultCompletionFilter>('all')
   const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
+  const [newMatchFormOpen, setNewMatchFormOpen] = useState(false)
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
   const [canEditResults, setCanEditResults] = useState(false)
   const [accessResolved, setAccessResolved] = useState(false)
@@ -1251,6 +1254,20 @@ export function TeamLeagueResultsWorkspace({
     }
   }
 
+  function handleOpenTeamMatchEntry() {
+    setNewMatchFormOpen(true)
+    window.requestAnimationFrame(() => {
+      document.getElementById('team-match-entry')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
+
+  function handleReviewTeamMatches() {
+    setCompletionFilter('incomplete')
+    window.requestAnimationFrame(() => {
+      document.getElementById('team-match-review')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
+
   return (
     <SiteShell active={activeRoute}>
       <CoordinatorSubnav
@@ -1303,6 +1320,27 @@ export function TeamLeagueResultsWorkspace({
             <div style={readinessKicker}>Result entry readiness</div>
             <div style={readinessTitle}>{teamResultCue.title}</div>
             <div style={readinessText}>{teamResultCue.detail}</div>
+            <div style={actionRow}>
+              {canEditResults ? (
+                <button
+                  type="button"
+                  style={btnPrimary}
+                  onClick={events.length > 0 ? handleReviewTeamMatches : handleOpenTeamMatchEntry}
+                  disabled={leagues.length === 0}
+                >
+                  {events.length > 0 ? 'Review matches' : 'Create match'}
+                </button>
+              ) : null}
+              {selectedFilterLeague ? (
+                <Link href={`/explore/leagues/tiq/${encodeURIComponent(selectedFilterLeague.id)}?league_id=${encodeURIComponent(selectedFilterLeague.id)}`} style={btnSecondary}>
+                  View league
+                </Link>
+              ) : (
+                <Link href="/league-coordinator#league-setup-form" style={btnSecondary}>
+                  Set up league
+                </Link>
+              )}
+            </div>
           </div>
           <div style={readinessGrid}>
             {teamResultCue.items.map((item) => (
@@ -1329,7 +1367,12 @@ export function TeamLeagueResultsWorkspace({
           </div>
         ) : null}
 
-        <details style={detailsCard} open={canEditResults && events.length === 0}>
+        <details
+          id="team-match-entry"
+          style={detailsCard}
+          open={canEditResults && (events.length === 0 || newMatchFormOpen)}
+          onToggle={(event) => setNewMatchFormOpen(event.currentTarget.open)}
+        >
           <summary style={detailsSummary}>
             <div>
               <div style={{ fontWeight: 800, fontSize: 16 }}>New match</div>
@@ -1353,7 +1396,7 @@ export function TeamLeagueResultsWorkspace({
           ) : null}
         </details>
 
-        <div style={sectionTitle}>Recorded matches</div>
+        <div id="team-match-review" style={sectionTitle}>Recorded matches</div>
 
         <div style={{ ...row, marginBottom: 14 }}>
           <input

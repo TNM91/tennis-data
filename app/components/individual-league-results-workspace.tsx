@@ -757,6 +757,16 @@ export function IndividualLeagueResultsWorkspace({
     setResultNotes('')
     setResultFormOpen(true)
     setStatus(`Loaded ${left.playerName} vs ${right.playerName}. Choose the winner and score.`)
+    window.requestAnimationFrame(() => {
+      document.getElementById('player-result-entry')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
+
+  function handleOpenPlayerResultEntry() {
+    setResultFormOpen(true)
+    window.requestAnimationFrame(() => {
+      document.getElementById('player-result-entry')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
   }
 
   async function handleEditResult(result: TiqIndividualLeagueResultRecord) {
@@ -1013,6 +1023,29 @@ export function IndividualLeagueResultsWorkspace({
             <div style={readinessKicker}>Result entry readiness</div>
             <div style={readinessTitle}>{individualResultCue.title}</div>
             <div style={readinessText}>{individualResultCue.detail}</div>
+            <div style={actionRow}>
+              {canEditResults ? (
+                <button
+                  type="button"
+                  style={btnPrimary}
+                  onClick={() =>
+                    nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()
+                  }
+                  disabled={!selectedLeague}
+                >
+                  {nextPairing ? 'Use next pairing' : 'Log player result'}
+                </button>
+              ) : null}
+              {selectedLeague ? (
+                <Link href={`/explore/leagues/tiq/${encodeURIComponent(selectedLeague.id)}?league_id=${encodeURIComponent(selectedLeague.id)}`} style={btnSecondary}>
+                  View league
+                </Link>
+              ) : (
+                <Link href="/league-coordinator#league-setup-form" style={btnSecondary}>
+                  Set up league
+                </Link>
+              )}
+            </div>
           </div>
           <div style={readinessGrid}>
             {individualResultCue.items.map((item) => (
@@ -1053,6 +1086,7 @@ export function IndividualLeagueResultsWorkspace({
         ) : null}
 
         <details
+          id="player-result-entry"
           style={detailsCard}
           open={canEditResults && (results.length === 0 || resultFormOpen)}
           onToggle={(event) => setResultFormOpen(event.currentTarget.open)}
@@ -1189,7 +1223,7 @@ export function IndividualLeagueResultsWorkspace({
         </details>
 
         <div style={insightGrid}>
-          <section style={card}>
+          <section id="player-result-review" style={card}>
             <div style={sectionTitle}>
               {selectedLeague
                 ? `${getTiqIndividualCompetitionFormatLabel(selectedLeague.individualCompetitionFormat)} standings`
