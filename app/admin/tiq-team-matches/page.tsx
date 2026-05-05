@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
-import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import type { TiqLeagueRecord, TiqLeagueScoringSystem } from '@/lib/tiq-league-registry'
 import {
   listTiqTeamMatchEvents,
   listTiqTeamMatchLines,
@@ -20,9 +20,17 @@ import {
 } from '@/lib/tiq-team-results-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
+import { formatDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 
 type PlayerOption = { id: string; name: string }
-type MatchLineSummary = { total: number; completed: number; teamAWins: number; teamBWins: number }
+type MatchLineSummary = {
+  total: number
+  completed: number
+  teamAWins: number
+  teamBWins: number
+  teamAPoints: number
+  teamBPoints: number
+}
 
 
 const pageWrap: CSSProperties = { maxWidth: 1100, margin: '0 auto', padding: '32px 16px' }
@@ -299,11 +307,13 @@ function EventCard({
   event,
   players,
   lineSummary,
+  scoringSystem,
   onDeleted,
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
   lineSummary?: MatchLineSummary
+  scoringSystem: TiqLeagueScoringSystem
   onDeleted: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -372,6 +382,10 @@ function EventCard({
   const displayPendingLines = Math.max(displayTotalLines - displayCompletedLines, 0)
   const displayTeamAWins = linesLoaded ? teamAWins : lineSummary?.teamAWins ?? 0
   const displayTeamBWins = linesLoaded ? teamBWins : lineSummary?.teamBWins ?? 0
+  const dynamicPoints = summarizeDynamicPoints(lines)
+  const displayTeamAPoints = linesLoaded ? dynamicPoints.teamAPoints : lineSummary?.teamAPoints ?? 0
+  const displayTeamBPoints = linesLoaded ? dynamicPoints.teamBPoints : lineSummary?.teamBPoints ?? 0
+  const showDynamicPoints = scoringSystem === 'dynamic_points'
   const defaultLineNumber = nextOpenLineNumberForLines(lines)
 
   return (
@@ -395,6 +409,14 @@ function EventCard({
               <span style={displayTeamAWins > displayTeamBWins ? pillGreen : pill}>{event.teamAName}: {displayTeamAWins}</span>
               {' '}
               <span style={displayTeamBWins > displayTeamAWins ? pillGreen : pill}>{event.teamBName}: {displayTeamBWins}</span>
+              {showDynamicPoints && (
+                <>
+                  {' '}
+                  <span style={displayTeamAPoints > displayTeamBPoints ? pillGreen : pill}>{event.teamAName} pts: {displayTeamAPoints}</span>
+                  {' '}
+                  <span style={displayTeamBPoints > displayTeamAPoints ? pillGreen : pill}>{event.teamBName} pts: {displayTeamBPoints}</span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -413,6 +435,11 @@ function EventCard({
 
       {expanded && (
         <div style={divider}>
+          {showDynamicPoints && (
+            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 12 }}>
+              {getDynamicPointsRulesSummary()}
+            </div>
+          )}
           {!linesLoaded ? (
             <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading lines...</p>
           ) : lines.length === 0 ? (
@@ -450,6 +477,9 @@ function EventCard({
                     </div>
 
                     {line.score && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>{line.score}</div>}
+                    {showDynamicPoints && line.winnerSide && line.score && (
+                      <DynamicPointsLine line={line} />
+                    )}
 
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button style={btnSecondary} onClick={() => setEditingLine(line)}>Edit</button>
@@ -485,6 +515,38 @@ function EventCard({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function summarizeDynamicPoints(lines: TiqTeamMatchLineRecord[]) {
+  return lines.reduce(
+    (summary, line) => {
+      const points = formatDynamicPointsForSides(line.score, line.winnerSide)
+      if (!points) return summary
+
+      return {
+        teamAPoints: summary.teamAPoints + points.sideAPoints,
+        teamBPoints: summary.teamBPoints + points.sideBPoints,
+      }
+    },
+    { teamAPoints: 0, teamBPoints: 0 },
+  )
+}
+
+function DynamicPointsLine({ line }: { line: TiqTeamMatchLineRecord }) {
+  const points = formatDynamicPointsForSides(line.score, line.winnerSide)
+  if (!points) {
+    return (
+      <div style={{ fontSize: 12, color: '#fbbf24', marginBottom: 8 }}>
+        Dynamic points need a standard set score.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ fontSize: 12, color: '#9be11d', marginBottom: 8 }}>
+      Dynamic points: {points.label}
     </div>
   )
 }
@@ -532,12 +594,12 @@ async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
 
   const { data } = await supabase
     .from('tiq_team_league_match_lines')
-    .select('event_id, winner_side')
+    .select('event_id, winner_side, score')
     .in('event_id', eventIds)
 
   const summaries = new Map<string, MatchLineSummary>()
   for (const eventId of eventIds) {
-    summaries.set(eventId, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0 })
+    summaries.set(eventId, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 })
   }
 
   for (const row of data || []) {
@@ -553,6 +615,15 @@ async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
     if (row.winner_side === 'B') {
       summary.completed += 1
       summary.teamBWins += 1
+    }
+
+    const points = formatDynamicPointsForSides(
+      typeof row.score === 'string' ? row.score : null,
+      row.winner_side === 'A' || row.winner_side === 'B' ? row.winner_side : null,
+    )
+    if (points) {
+      summary.teamAPoints += points.sideAPoints
+      summary.teamBPoints += points.sideBPoints
     }
   }
 
@@ -726,7 +797,7 @@ export default function TiqTeamMatchesPage() {
   }
 
   function handleEventCreated(event: TiqTeamMatchEventRecord) {
-    setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0 }))
+    setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 }))
     setEvents((prev) => [event, ...prev])
   }
 
@@ -740,6 +811,7 @@ export default function TiqTeamMatchesPage() {
   }
 
   const leagueMap = Object.fromEntries(leagues.map((l) => [l.id, l.leagueName]))
+  const leagueScoringMap = Object.fromEntries(leagues.map((l) => [l.id, l.scoringSystem]))
 
   return (
     <SiteShell>
@@ -778,6 +850,7 @@ export default function TiqTeamMatchesPage() {
                 event={{ ...event, teamAName: event.teamAName || leagueMap[event.leagueId] || event.leagueId }}
                 players={players}
                 lineSummary={lineSummaries.get(event.id)}
+                scoringSystem={leagueScoringMap[event.leagueId] ?? 'standard'}
                 onDeleted={handleEventDeleted}
               />
             ))
