@@ -727,6 +727,21 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setStorageWarning(result.warning || '')
   }
 
+  async function copyPublicLeagueLink(record: TiqLeagueRecord) {
+    const publicHref = buildTiqLeaguePageHref(record)
+    const publicUrl =
+      typeof window !== 'undefined'
+        ? new URL(publicHref, window.location.origin).toString()
+        : publicHref
+
+    try {
+      await navigator.clipboard.writeText(publicUrl)
+      setStatus(`Copied public link for ${record.leagueName}.`)
+    } catch {
+      setStatus('Clipboard access was blocked by the browser.')
+    }
+  }
+
   return (
     <SiteShell active={activeRoute}>
       <section style={pageWrap}>
@@ -886,6 +901,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   </div>
                   <div style={buttonRow}>
                     <GhostLink href={buildTiqLeaguePageHref(row.league)}>View public</GhostLink>
+                    <GhostBtn onClick={() => void copyPublicLeagueLink(row.league)}>Copy share link</GhostBtn>
                     <GhostLink href={buildLeagueResultEntryHref(row.league)}>{getLeagueResultEntryLabel(row.league)}</GhostLink>
                     <GhostLink href={buildLeagueSetupHref(row.league)}>Manage</GhostLink>
                   </div>
