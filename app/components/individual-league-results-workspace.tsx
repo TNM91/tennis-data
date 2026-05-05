@@ -8,6 +8,7 @@ import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
+import { buildIndividualResultCue } from '@/lib/league-result-cues'
 import {
   getTiqLeagueById,
   listTiqLeagues,
@@ -591,31 +592,13 @@ export function IndividualLeagueResultsWorkspace({
   const activeParticipantCount = selectedLeague
     ? visiblePlayerEntries.length
     : leagues.reduce((sum, league) => sum + (league.players || []).length, 0)
-  const hasIndividualLeagueSetup = leagues.length > 0
-  const individualReadinessItems = [
-    {
-      label: 'Individual league',
-      complete: Boolean(selectedLeague),
-      detail: selectedLeague?.leagueName || (hasIndividualLeagueSetup ? 'Choose a league to log player results' : 'Create an individual league first'),
-    },
-    {
-      label: 'Players',
-      complete: activeParticipantCount > 1,
-      detail: activeParticipantCount > 0 ? `${activeParticipantCount} players in scope` : 'Add players in Coordinator setup',
-    },
-    {
-      label: 'Results',
-      complete: selectedLeagueResults.length > 0,
-      detail: selectedLeagueResults.length > 0
-        ? `${selectedLeagueResults.length} result${selectedLeagueResults.length === 1 ? '' : 's'} recorded`
-        : 'Log the first player result',
-    },
-    {
-      label: 'Next pairing',
-      complete: Boolean(nextPairing),
-      detail: nextPairing ? `${nextPairing[0].playerName} vs ${nextPairing[1].playerName}` : 'Needs at least two eligible players',
-    },
-  ]
+  const individualResultCue = buildIndividualResultCue({
+    leagueCount: leagues.length,
+    selectedLeagueName: selectedLeague?.leagueName,
+    playerCount: activeParticipantCount,
+    resultCount: selectedLeagueResults.length,
+    nextPairingLabel: nextPairing ? `${nextPairing[0].playerName} vs ${nextPairing[1].playerName}` : '',
+  })
 
   useEffect(() => {
     let mounted = true
@@ -1028,25 +1011,11 @@ export function IndividualLeagueResultsWorkspace({
         <section style={readinessPanel}>
           <div>
             <div style={readinessKicker}>Result entry readiness</div>
-            <div style={readinessTitle}>
-              {hasIndividualLeagueSetup
-                ? selectedLeague
-                  ? `${selectedLeague.leagueName} is selected.`
-                  : 'Choose an individual league to start.'
-                : 'Create an individual league before logging player results.'}
-            </div>
-            <div style={readinessText}>
-              {hasIndividualLeagueSetup
-                ? activeParticipantCount > 1
-                  ? nextPairing
-                    ? `Next useful result: ${nextPairing[0].playerName} vs ${nextPairing[1].playerName}.`
-                    : 'Player result entry is ready for the selected league.'
-                  : 'Add at least two players before result entry becomes useful.'
-                : 'Individual results are scoped to individual-format TIQ leagues only.'}
-            </div>
+            <div style={readinessTitle}>{individualResultCue.title}</div>
+            <div style={readinessText}>{individualResultCue.detail}</div>
           </div>
           <div style={readinessGrid}>
-            {individualReadinessItems.map((item) => (
+            {individualResultCue.items.map((item) => (
               <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
                 <span style={item.complete ? pillGreen : pill}>{item.label}</span>
                 <strong style={readinessItemText}>{item.detail}</strong>
