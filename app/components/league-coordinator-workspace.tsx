@@ -924,12 +924,12 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     <span style={row.participantsReady ? pillGreen : pillSlate}>Participants</span>
                     <span style={row.resultsReady ? pillGreen : pillSlate}>Results</span>
                   </div>
-                  <div style={buttonRow}>
-                    <GhostLink href={buildTiqLeaguePageHref(row.league)}>View public</GhostLink>
-                    <GhostBtn onClick={() => void copyPublicLeagueLink(row.league)}>Copy share link</GhostBtn>
-                    <GhostLink href={buildLeagueResultEntryHref(row.league)}>{getLeagueResultEntryLabel(row.league)}</GhostLink>
-                    <GhostLink href={buildLeagueSetupHref(row.league)}>Manage</GhostLink>
-                  </div>
+                  <LeagueActionRow
+                    league={row.league}
+                    resultLabel={getLeagueResultEntryLabel(row.league)}
+                    onCopyShare={copyPublicLeagueLink}
+                    includeManage
+                  />
                 </div>
               ))}
             </div>
@@ -1110,11 +1110,13 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       </small>
                     </div>
                   </div>
-                  <div style={buttonRow}>
-                    <GhostLink href={buildTeamResultEntryHref(row.league.id)}>Open Team Results</GhostLink>
-                    <GhostLink href={buildTiqLeaguePageHref(row.league)}>League page</GhostLink>
-                    <GhostBtn onClick={() => void copyPublicLeagueLink(row.league)}>Copy share link</GhostBtn>
-                  </div>
+                  <LeagueActionRow
+                    league={row.league}
+                    resultHref={buildTeamResultEntryHref(row.league.id)}
+                    resultLabel="Open Team Results"
+                    publicLabel="League page"
+                    onCopyShare={copyPublicLeagueLink}
+                  />
                 </div>
               ))}
             </div>
@@ -1173,11 +1175,13 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       <small>{row.possiblePairs > 0 ? 'Logged pairings' : 'Add players'}</small>
                     </div>
                   </div>
-                  <div style={buttonRow}>
-                    <GhostLink href={buildIndividualResultEntryHref(row.league.id)}>Open Player Results</GhostLink>
-                    <GhostLink href={buildTiqLeaguePageHref(row.league)}>League page</GhostLink>
-                    <GhostBtn onClick={() => void copyPublicLeagueLink(row.league)}>Copy share link</GhostBtn>
-                  </div>
+                  <LeagueActionRow
+                    league={row.league}
+                    resultHref={buildIndividualResultEntryHref(row.league.id)}
+                    resultLabel="Open Player Results"
+                    publicLabel="League page"
+                    onCopyShare={copyPublicLeagueLink}
+                  />
                 </div>
               ))}
             </div>
@@ -1617,6 +1621,31 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         </div>
       </section>
     </SiteShell>
+  )
+}
+
+function LeagueActionRow({
+  league,
+  resultHref = buildLeagueResultEntryHref(league),
+  resultLabel,
+  publicLabel = 'View public',
+  includeManage = false,
+  onCopyShare,
+}: {
+  league: TiqLeagueRecord
+  resultHref?: string
+  resultLabel: string
+  publicLabel?: string
+  includeManage?: boolean
+  onCopyShare: (record: TiqLeagueRecord) => void | Promise<void>
+}) {
+  return (
+    <div style={buttonRow}>
+      <GhostLink href={buildTiqLeaguePageHref(league)}>{publicLabel}</GhostLink>
+      <GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>
+      <GhostLink href={resultHref}>{resultLabel}</GhostLink>
+      {includeManage ? <GhostLink href={buildLeagueSetupHref(league)}>Manage</GhostLink> : null}
+    </div>
   )
 }
 
