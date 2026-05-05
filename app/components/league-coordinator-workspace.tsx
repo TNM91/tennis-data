@@ -45,6 +45,7 @@ import {
   type TiqLeagueStorageSource,
 } from '@/lib/tiq-league-service'
 import { cleanText as safeText } from '@/lib/captain-formatters'
+import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
@@ -275,6 +276,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     () =>
       teamLeagues.map((league) => {
         const events = teamMatchEvents.filter((event) => event.leagueId === league.id)
+        const eventIds = new Set(events.map((event) => event.id))
         const standings = teamStandingsByLeague[league.id] || []
         const latestEvent = events[0] || null
         const recentCount = events.filter((event) => isRecentResult(event.matchDate, 14)).length
@@ -298,6 +300,17 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           (sum, event) => sum + (teamLineSummaryByEvent.get(event.id)?.total ?? 0),
           0,
         )
+        const scoreReviewLines =
+          league.scoringSystem === 'dynamic_points'
+            ? teamMatchLines.filter(
+                (line) =>
+                  eventIds.has(line.eventId) &&
+                  line.winnerSide &&
+                  line.score &&
+                  !formatDynamicPointsForSides(line.score, line.winnerSide),
+              )
+            : []
+        const scoreReviewEvents = new Set(scoreReviewLines.map((line) => line.eventId)).size
         const leader = standings[0] || null
 
         return {
@@ -311,15 +324,17 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           emptyLineEvents,
           completedLines,
           totalLines,
+          scoreReviewEvents,
+          scoreReviewLines: scoreReviewLines.length,
           leader,
         }
       }),
-    [teamLeagues, teamLineSummaryByEvent, teamMatchEvents, teamStandingsByLeague],
+    [teamLeagues, teamLineSummaryByEvent, teamMatchEvents, teamMatchLines, teamStandingsByLeague],
   )
   const teamResultBooksNeedAttention = teamResultBookRows.filter(
     (row) =>
       row.league.teams.length > 1 &&
-      (row.events.length === 0 || row.recentCount === 0 || row.missingLineEvents > 0),
+      (row.events.length === 0 || row.recentCount === 0 || row.missingLineEvents > 0 || row.scoreReviewEvents > 0),
   ).length
   const individualLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'individual'),
@@ -385,6 +400,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const teamEmptyLineEventCount = teamResultBookRows.reduce((sum, row) => sum + row.emptyLineEvents, 0)
   const teamCompletedLineCount = teamResultBookRows.reduce((sum, row) => sum + row.completedLines, 0)
   const teamTotalLineCount = teamResultBookRows.reduce((sum, row) => sum + row.totalLines, 0)
+  const teamScoreReviewEventCount = teamResultBookRows.reduce((sum, row) => sum + row.scoreReviewEvents, 0)
+  const teamScoreReviewLineCount = teamResultBookRows.reduce((sum, row) => sum + row.scoreReviewLines, 0)
+  const teamResultReviewCueCount = teamMissingLineEventCount + teamScoreReviewEventCount
   const individualResultCount = individualResultBookRows.reduce((sum, row) => sum + row.resultCount, 0)
   const individualRecentResultCount = individualResultBookRows.reduce((sum, row) => sum + row.recentCount, 0)
   const individualCorrectionCount = individualResultBookRows.reduce((sum, row) => sum + row.correctionCount, 0)
@@ -667,7 +685,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 )}
               </div>
               <div style={reviewCueValueStyle}>
-                {teamMissingLineEventCount}
+                {teamResultReviewCueCount}
               </div>
               <div style={reviewCueTitleStyle}>team matches need line review</div>
               <div style={registryText}>
@@ -676,6 +694,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       `${teamCompletedEventCount}/${teamResultEventCount} complete matches`,
                       `${teamCompletedLineCount}/${teamTotalLineCount} lines complete`,
                       teamEmptyLineEventCount ? `${teamEmptyLineEventCount} matches with no lines` : null,
+                      teamScoreReviewLineCount ? `${teamScoreReviewLineCount} dynamic scores need review` : null,
                     ]
                       .filter(Boolean)
                       .join(' | ')
@@ -774,6 +793,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     ) : row.events.length > 0 ? (
                       <span style={pillGreen}>Lines complete</span>
                     ) : null}
+                    {row.scoreReviewEvents > 0 ? <span style={pillSlate}>{row.scoreReviewEvents} score review</span> : null}
                   </div>
                   <div style={registryTitle}>{row.league.leagueName}</div>
                   <div style={registryText}>
@@ -799,7 +819,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                         {row.totalLines > 0 ? `${row.completedLines}/${row.totalLines}` : '0'}
                       </strong>
                       <small>
-                        {row.missingLineEvents > 0
+                        {row.scoreReviewLines > 0
+                          ? `${row.scoreReviewLines} dynamic scores need review`
+                          : row.missingLineEvents > 0
                           ? `${row.missingLineEvents} matches need work`
                           : row.events.length > 0
                             ? 'Matches complete'
