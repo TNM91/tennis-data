@@ -79,7 +79,7 @@ function roleLabel(value: string | null | undefined) {
 function formatAccessPreset(value: AccessPreset) {
   if (value === 'player_plus') return 'Player'
   if (value === 'captain') return 'Captain'
-  return 'League'
+  return 'Coordinator'
 }
 
 export default function AdminAccessPage() {
@@ -203,12 +203,14 @@ export default function AdminAccessPage() {
 
     setEditedProfiles((current) => {
       const base = current[profileId] ?? normalizeEditable(profile)
+      const grantsPlayerAccess = preset === 'player_plus' || preset === 'captain'
+
       return {
         ...current,
         [profileId]: {
           ...base,
-          player_plus_subscription_active: true,
-          player_plus_subscription_status: 'active',
+          player_plus_subscription_active: grantsPlayerAccess ? true : base.player_plus_subscription_active,
+          player_plus_subscription_status: grantsPlayerAccess ? 'active' : base.player_plus_subscription_status,
           captain_subscription_active: preset === 'captain' ? true : base.captain_subscription_active,
           captain_subscription_status: preset === 'captain' ? 'active' : base.captain_subscription_status,
           tiq_team_league_entry_enabled: preset === 'league' ? true : base.tiq_team_league_entry_enabled,
@@ -307,11 +309,11 @@ export default function AdminAccessPage() {
           <section className="hero-panel">
             <div className="hero-inner">
               <div className="section-kicker">Admin Access</div>
-              <h1 className="page-title">Captain and TIQ league entitlements</h1>
+              <h1 className="page-title">Player, Captain, and Coordinator entitlements</h1>
               <p className="page-subtitle" style={{ maxWidth: 860 }}>
-                Control who has the {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain workflow, who can
-                enter TIQ team leagues at {TIQ_SEASON_FEE_PRICE_LABEL}, and who can create TIQ
-                individual leagues without forcing every player into a paid seat.
+                Control who has the {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain workflow and who
+                can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL} without
+                forcing Player or Captain access.
               </p>
               <div
                 style={{
@@ -322,8 +324,8 @@ export default function AdminAccessPage() {
                 }}
               >
                 <span className="badge badge-green">Captain subscription control</span>
-                <span className="badge badge-blue">TIQ team entry seam</span>
-                <span className="badge badge-slate">Individual creator access</span>
+                <span className="badge badge-blue">Team coordinator access</span>
+                <span className="badge badge-slate">Individual coordinator access</span>
               </div>
             </div>
           </section>
@@ -339,8 +341,8 @@ export default function AdminAccessPage() {
               <MetricCard label="Profiles Loaded" value={profiles.length} />
               <MetricCard label="Player Active" value={activePlayerCount} />
               <MetricCard label="Captain Active" value={activeCaptainCount} />
-              <MetricCard label="Team Entry Enabled" value={teamEntryCount} />
-              <MetricCard label="Individual Creator Enabled" value={individualCreatorCount} />
+              <MetricCard label="Team Coordinator" value={teamEntryCount} />
+              <MetricCard label="Individual Coordinator" value={individualCreatorCount} />
             </div>
 
             <div
@@ -408,9 +410,8 @@ export default function AdminAccessPage() {
             </div>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
-              This page is the monetization control seam for TenAceIQ. Captain workflow access and
-              TIQ league permissions now live in profile-level fields instead of being implied only
-              by role names.
+              This page is the monetization control point for TenAceIQ. Coordinator access can be
+              granted by itself, without enabling Player or Captain tools.
             </p>
 
             {handoffSearch ? (
@@ -446,7 +447,7 @@ export default function AdminAccessPage() {
                       className="button-secondary"
                       onClick={() => applyAccessPreset(handoffProfile.id, 'league')}
                     >
-                      Draft League
+                      Draft Coordinator
                     </button>
                   </div>
                 ) : (
@@ -521,8 +522,8 @@ export default function AdminAccessPage() {
                       <th>Player Status</th>
                       <th>Captain Active</th>
                       <th>Captain Status</th>
-                      <th>TIQ Team Entry</th>
-                      <th>Individual Creator</th>
+                      <th>Team Coordinator</th>
+                      <th>Individual Coordinator</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
