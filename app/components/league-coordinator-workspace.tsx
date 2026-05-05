@@ -60,6 +60,17 @@ function formatDateTime(value: string) {
   })
 }
 
+function buildTeamResultEntryHref(leagueId?: string) {
+  return leagueId ? `/league-coordinator/results?leagueId=${encodeURIComponent(leagueId)}` : '/league-coordinator/results'
+}
+
+function buildIndividualResultEntryHref(leagueId?: string) {
+  if (!leagueId) return '/explore/leagues'
+
+  const encodedLeagueId = encodeURIComponent(leagueId)
+  return `/explore/leagues/tiq/${encodedLeagueId}?league_id=${encodedLeagueId}`
+}
+
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -120,6 +131,10 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     () => records.filter((record) => record.leagueFormat === 'individual'),
     [records],
   )
+  const latestIndividualLeague = useMemo(
+    () => [...individualLeagues].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
+    [individualLeagues],
+  )
   const canSaveCurrentDraft =
     draft.leagueFormat === 'team'
       ? access.canCreateTiqTeamLeague
@@ -134,9 +149,22 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
-  const resultEntryHref = latestTeamLeague
-    ? `/league-coordinator/results?leagueId=${encodeURIComponent(latestTeamLeague.id)}`
-    : '/league-coordinator/results'
+  const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
+  const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
+  const hasResultReadyLeague = teamLeagues.length > 0 || individualLeagues.length > 0
+  const resultEntryHref = hasResultReadyLeague
+    ? latestTeamLeague
+      ? teamResultEntryHref
+      : individualResultEntryHref
+    : '#league-setup-form'
+  const resultReadinessDetail =
+    teamLeagues.length > 0 && individualLeagues.length > 0
+      ? 'Team and individual leagues are ready for result entry.'
+      : teamLeagues.length > 0
+        ? 'Team leagues are ready for team match result entry.'
+        : individualLeagues.length > 0
+          ? 'Individual leagues are ready for player result logging.'
+          : 'Save a team or individual league before logging results.'
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -168,10 +196,10 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     },
     {
       label: 'Results',
-      complete: teamLeagues.length > 0,
-      detail: teamLeagues.length > 0 ? 'Team leagues are ready for result entry.' : 'Save a team league before logging results.',
-      href: teamLeagues.length > 0 ? resultEntryHref : '#league-setup-form',
-      cta: teamLeagues.length > 0 ? 'Record results' : 'Finish setup',
+      complete: hasResultReadyLeague,
+      detail: resultReadinessDetail,
+      href: hasResultReadyLeague ? resultEntryHref : '#league-setup-form',
+      cta: hasResultReadyLeague ? 'Record results' : 'Finish setup',
     },
   ]
   const leagueOpsCompleteCount = leagueOpsChecks.filter((item) => item.complete).length
@@ -349,7 +377,14 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             </div>
           </div>
           <div style={heroActionRow}>
-            <GhostLink href={resultEntryHref}>Record results</GhostLink>
+            {hasResultReadyLeague ? (
+              <>
+                {latestTeamLeague ? <GhostLink href={teamResultEntryHref}>Team results</GhostLink> : null}
+                {latestIndividualLeague ? <GhostLink href={individualResultEntryHref}>Individual results</GhostLink> : null}
+              </>
+            ) : (
+              <GhostLink href={resultEntryHref}>Record results</GhostLink>
+            )}
             <GhostLink href="/compete/leagues">View leagues</GhostLink>
             <GhostLink href="/explore/rankings">View rankings</GhostLink>
           </div>
@@ -390,7 +425,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
           <div style={heroActionRow}>
             <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
-            <GhostLink href={resultEntryHref}>Record results</GhostLink>
+            {latestTeamLeague ? <GhostLink href={teamResultEntryHref}>Team results</GhostLink> : null}
+            {latestIndividualLeague ? <GhostLink href={individualResultEntryHref}>Individual results</GhostLink> : null}
+            {!hasResultReadyLeague ? <GhostLink href={resultEntryHref}>Record results</GhostLink> : null}
           </div>
         </section>
 

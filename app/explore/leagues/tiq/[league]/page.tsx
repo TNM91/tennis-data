@@ -2206,7 +2206,7 @@ export default function TiqLeagueDetailPage() {
                 <div style={sectionEyebrow}>Match Results</div>
                 <h2 style={sectionTitle}>Team match events and line-by-line results.</h2>
                 <p style={sectionText}>
-                  Results are entered by captains or admins and feed the TIQ rating engine automatically.
+                  Results are entered by coordinators or admins and feed the TIQ rating engine automatically.
                   Expand an event to see individual line scores.
                 </p>
 
@@ -2296,11 +2296,11 @@ export default function TiqLeagueDetailPage() {
             ) : null}
 
             <section style={panelCard}>
-              <div style={sectionEyebrow}>Captain context</div>
+              <div style={sectionEyebrow}>Coordinator context</div>
               <h2 style={sectionTitle}>Use TIQ league context without losing the command center.</h2>
               <p style={sectionText}>
-                Team-based TIQ leagues should still hand off cleanly into availability, lineups, scenarios,
-                and messaging. Individual leagues stay lighter-weight and participation-focused.
+                Team leagues hand off into result entry and weekly captain tools. Individual leagues keep the
+                organizer loop focused on entry, standings, prompts, and player results.
               </p>
 
               {captainLinks.length > 0 ? (
@@ -2313,7 +2313,8 @@ export default function TiqLeagueDetailPage() {
                 </div>
               ) : (
                 <div style={emptyCard}>
-                  Individual TIQ leagues stay out of the captain workflow unless you later add organizer-specific tools.
+                  Individual TIQ leagues stay in the Coordinator lane: participants, standings, prompts,
+                  and player results without weekly captain workflow.
                 </div>
               )}
             </section>
