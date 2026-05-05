@@ -671,6 +671,25 @@ function todayInputValue() {
   return localDate.toISOString().slice(0, 10)
 }
 
+function csvCell(value: string | number | null | undefined) {
+  const text = String(value ?? '')
+  return `"${text.replaceAll('"', '""')}"`
+}
+
+function slugText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function exportDateValue(value: string) {
+  const parsed = value ? new Date(value) : null
+  if (!parsed || Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString().slice(0, 10)
+}
+
 function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   if (!league) return []
 
@@ -875,6 +894,7 @@ export function TeamLeagueResultsWorkspace({
   const [filterLeagueId, setFilterLeagueId] = useState(initialLeagueId)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
   const [canEditResults, setCanEditResults] = useState(false)
   const [accessResolved, setAccessResolved] = useState(false)
@@ -956,6 +976,118 @@ export function TeamLeagueResultsWorkspace({
     setLoading(false)
   }
 
+  function teamResultExportRows() {
+    return events.map((event) => {
+      const league = leagues.find((item) => item.id === event.leagueId)
+      const summary = lineSummaries.get(event.id)
+      const scoringSystem = league?.scoringSystem ?? 'standard'
+
+      return {
+        league: league?.leagueName || '',
+        date: exportDateValue(event.matchDate),
+        teamA: event.teamAName,
+        teamB: event.teamBName,
+        facility: event.facility,
+        lines: summary?.total ?? 0,
+        completed: summary?.completed ?? 0,
+        teamAWins: summary?.teamAWins ?? 0,
+        teamBWins: summary?.teamBWins ?? 0,
+        teamAPoints: scoringSystem === 'dynamic_points' ? summary?.teamAPoints ?? 0 : '',
+        teamBPoints: scoringSystem === 'dynamic_points' ? summary?.teamBPoints ?? 0 : '',
+        winner: event.winnerTeamName,
+        notes: event.notes,
+      }
+    })
+  }
+
+  function handleExportResults() {
+    if (events.length === 0) {
+      setStatus('There are no team results to export.')
+      return
+    }
+
+    const header = [
+      'League',
+      'Date',
+      'Team A',
+      'Team B',
+      'Facility',
+      'Lines',
+      'Completed',
+      'Team A Line Wins',
+      'Team B Line Wins',
+      'Team A Points',
+      'Team B Points',
+      'Winner',
+      'Notes',
+    ]
+    const csv = [
+      header.map(csvCell).join(','),
+      ...teamResultExportRows().map((row) =>
+        [
+          row.league,
+          row.date,
+          row.teamA,
+          row.teamB,
+          row.facility,
+          row.lines,
+          row.completed,
+          row.teamAWins,
+          row.teamBWins,
+          row.teamAPoints,
+          row.teamBPoints,
+          row.winner,
+          row.notes,
+        ].map(csvCell).join(','),
+      ),
+    ].join('\r\n')
+
+    const selectedLeagueName = filterLeagueId
+      ? leagues.find((league) => league.id === filterLeagueId)?.leagueName || 'team-results'
+      : 'team-results'
+    const filename = `tenaceiq-${slugText(selectedLeagueName) || 'team-results'}-${new Date().toISOString().slice(0, 10)}.csv`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.append(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    setStatus(`Exported ${events.length} team match${events.length === 1 ? '' : 'es'}.`)
+  }
+
+  async function handleCopyResultSummary() {
+    if (events.length === 0) {
+      setStatus('There are no team results to copy.')
+      return
+    }
+
+    const selectedLeagueName = filterLeagueId
+      ? leagues.find((league) => league.id === filterLeagueId)?.leagueName || 'Filtered team results'
+      : 'Filtered team results'
+    const lines = [
+      `${selectedLeagueName}: ${events.length} team match${events.length === 1 ? '' : 'es'}`,
+      ...teamResultExportRows().map((row) => {
+        const score = `${row.teamA} ${row.teamAWins}, ${row.teamB} ${row.teamBWins}`
+        const details = [
+          row.date,
+          `${row.completed}/${row.lines} lines complete`,
+          row.teamAPoints !== '' || row.teamBPoints !== '' ? `points ${row.teamAPoints}-${row.teamBPoints}` : null,
+        ].filter(Boolean).join(' - ')
+        return `${score}${details ? ` (${details})` : ''}`
+      }),
+    ]
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setStatus(`Copied ${events.length} team match${events.length === 1 ? '' : 'es'} to clipboard.`)
+    } catch {
+      setStatus('Clipboard access was blocked by the browser.')
+    }
+  }
+
   return (
     <SiteShell active={activeRoute}>
       <CoordinatorSubnav
@@ -1002,6 +1134,7 @@ export function TeamLeagueResultsWorkspace({
         </div>
 
         {error ? <p style={msgErr}>{error}</p> : null}
+        {status ? <p style={status.startsWith('Exported') || status.startsWith('Copied') ? msgOk : msgErr}>{status}</p> : null}
         {accessResolved && !canEditResults ? (
           <div style={{ marginBottom: 14 }}>
             <UpgradePrompt
@@ -1041,7 +1174,7 @@ export function TeamLeagueResultsWorkspace({
 
         <div style={sectionTitle}>Recorded matches</div>
 
-        <div style={{ marginBottom: 14 }}>
+        <div style={{ ...row, marginBottom: 14 }}>
           <select
             style={{ ...selectStyle, maxWidth: 260 }}
             value={filterLeagueId}
@@ -1052,6 +1185,25 @@ export function TeamLeagueResultsWorkspace({
               <option key={l.id} value={l.id}>{l.leagueName}</option>
             ))}
           </select>
+          <button
+            type="button"
+            style={{ ...btnSecondary, ...(events.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+            onClick={handleExportResults}
+            disabled={events.length === 0}
+          >
+            Export CSV
+          </button>
+          <button
+            type="button"
+            style={{ ...btnSecondary, ...(events.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+            onClick={() => void handleCopyResultSummary()}
+            disabled={events.length === 0}
+          >
+            Copy Summary
+          </button>
+          <span style={{ color: '#94a3b8', fontSize: 13 }}>
+            Showing {events.length} team match{events.length === 1 ? '' : 'es'}.
+          </span>
         </div>
 
         {loading ? (
