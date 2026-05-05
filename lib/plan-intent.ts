@@ -2,7 +2,7 @@ import type { PricingPlanId } from '@/lib/pricing-plans'
 
 export function getPlanDestinationHref(planId: PricingPlanId) {
   if (planId === 'captain') return '/captain'
-  if (planId === 'league') return '/captain/season-dashboard'
+  if (planId === 'league') return '/league-coordinator'
   if (planId === 'player_plus') return '/profile'
   return '/mylab'
 }

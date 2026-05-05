@@ -20,6 +20,7 @@ const routes: RouteConfig[] = [
   { path: '/leagues', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/teams', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/mylab', changeFrequency: 'weekly', priority: 0.7 },
+  { path: '/league-coordinator', changeFrequency: 'weekly', priority: 0.7 },
   { path: '/rankings', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/how-it-works', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/methodology', changeFrequency: 'monthly', priority: 0.7 },

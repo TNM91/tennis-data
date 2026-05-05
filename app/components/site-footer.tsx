@@ -17,6 +17,7 @@ const FOOTER_JOURNEY: Record<string, { step: string; intent: string; note: strin
   '/mylab': { step: '2', intent: 'You', note: 'Your scorecard' },
   '/matchup': { step: '3', intent: 'Compare', note: 'Who to play next' },
   '/captain': { step: '4', intent: 'Run', note: 'Team decisions' },
+  '/league-coordinator': { step: '5', intent: 'League', note: 'Run the season' },
   '/pricing': { step: '$', intent: 'Plans', note: 'Choose a tier' },
 }
 
@@ -81,7 +82,7 @@ export default function SiteFooter() {
 
         <div style={footerJourneyGridStyle(isMobile)}>
           {PRIMARY_NAV_ITEMS.map((item) => {
-            const visual = FOOTER_JOURNEY[item.href]
+            const visual = FOOTER_JOURNEY[item.href] || { step: '•', intent: item.label, note: '' }
             return (
               <Link key={item.href} href={item.href} style={footerJourneyCardStyle(isMobile)}>
                 <span style={footerJourneyStepStyle(isMobile)}>{visual.step}</span>

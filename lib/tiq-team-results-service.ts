@@ -7,6 +7,8 @@ import {
   deleteTiqTeamMatchLineMatch,
   syncTiqTeamMatchLineToMatch,
 } from '@/lib/tiq-match-sync'
+import { calculateDynamicPointsForSides, compareTiqTeamStandings } from '@/lib/tiq-scoring'
+import { getTiqLeagueById } from '@/lib/tiq-league-service'
 
 export type TiqTeamMatchEventRecord = {
   id: string
@@ -316,6 +318,7 @@ export type TiqTeamStandingRow = {
   ties: number
   lineWins: number
   lineLosses: number
+  points: number
 }
 
 export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
@@ -335,27 +338,39 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
 
     const { data: lines, error: linesError } = await supabase
       .from('tiq_team_league_match_lines')
-      .select('event_id, winner_side')
+      .select('event_id, winner_side, score')
       .in('event_id', eventIds)
       .not('winner_side', 'is', null)
 
     if (linesError) throw linesError
 
-    const lineCountsByEvent: Record<string, { a: number; b: number }> = {}
-    for (const line of (lines || []) as Array<{ event_id: string; winner_side: string }>) {
-      if (!lineCountsByEvent[line.event_id]) lineCountsByEvent[line.event_id] = { a: 0, b: 0 }
+    const leagueResult = await getTiqLeagueById(leagueId)
+    const useDynamicPoints = leagueResult.record?.scoringSystem === 'dynamic_points'
+
+    const lineCountsByEvent: Record<string, { a: number; b: number; aPoints: number; bPoints: number }> = {}
+    for (const line of (lines || []) as Array<{ event_id: string; winner_side: string; score: string | null }>) {
+      if (!lineCountsByEvent[line.event_id]) lineCountsByEvent[line.event_id] = { a: 0, b: 0, aPoints: 0, bPoints: 0 }
       if (line.winner_side === 'A') lineCountsByEvent[line.event_id].a++
       else if (line.winner_side === 'B') lineCountsByEvent[line.event_id].b++
+
+      if (useDynamicPoints) {
+        const points = calculateDynamicPointsForSides(
+          line.score,
+          line.winner_side === 'A' || line.winner_side === 'B' ? line.winner_side : null,
+        )
+        lineCountsByEvent[line.event_id].aPoints += points.sideAPoints
+        lineCountsByEvent[line.event_id].bPoints += points.sideBPoints
+      }
     }
 
     const records: Record<string, TiqTeamStandingRow> = {}
 
     function ensureTeam(name: string) {
-      if (!records[name]) records[name] = { teamName: name, wins: 0, losses: 0, ties: 0, lineWins: 0, lineLosses: 0 }
+      if (!records[name]) records[name] = { teamName: name, wins: 0, losses: 0, ties: 0, lineWins: 0, lineLosses: 0, points: 0 }
     }
 
     for (const event of events as Array<{ id: string; team_a_name: string; team_b_name: string }>) {
-      const counts = lineCountsByEvent[event.id] || { a: 0, b: 0 }
+      const counts = lineCountsByEvent[event.id] || { a: 0, b: 0, aPoints: 0, bPoints: 0 }
       ensureTeam(event.team_a_name)
       ensureTeam(event.team_b_name)
 
@@ -372,12 +387,14 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
 
       records[event.team_a_name].lineWins += counts.a
       records[event.team_a_name].lineLosses += counts.b
+      records[event.team_a_name].points += useDynamicPoints ? counts.aPoints : counts.a
       records[event.team_b_name].lineWins += counts.b
       records[event.team_b_name].lineLosses += counts.a
+      records[event.team_b_name].points += useDynamicPoints ? counts.bPoints : counts.b
     }
 
-    const standings = Object.values(records).sort(
-      (a, b) => b.wins - a.wins || b.lineWins - a.lineWins,
+    const standings = Object.values(records).sort((a, b) =>
+      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard'),
     )
 
     return { standings, warning: null }

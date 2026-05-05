@@ -107,7 +107,7 @@ function getDefaultSignedInRoute(
 ) {
   const access = buildProductAccessState(role, entitlements)
   if (access.canUseAdvancedPlayerInsights) return '/profile'
-  if (access.canUseLeagueTools) return '/captain/season-dashboard'
+  if (access.canUseLeagueTools) return '/league-coordinator'
   if (access.canUseCaptainWorkflow) return '/captain'
   return '/mylab'
 }

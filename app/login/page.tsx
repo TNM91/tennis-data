@@ -75,7 +75,7 @@ async function getDefaultPostLoginRoute(
     const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
     if (!hasLinkedPlayer) return '/profile'
   }
-  if (access.canUseLeagueTools) return '/captain/season-dashboard'
+  if (access.canUseLeagueTools) return '/league-coordinator'
   if (access.canUseCaptainWorkflow) return '/captain'
   return DEFAULT_POST_LOGIN_ROUTE
 }
@@ -141,7 +141,7 @@ export default function LoginPage() {
     router.prefetch(DEFAULT_POST_LOGIN_ROUTE)
     router.prefetch('/profile')
     router.prefetch('/captain')
-    router.prefetch('/captain/season-dashboard')
+    router.prefetch('/league-coordinator')
   }, [router, getPostLoginRoute])
 
   useEffect(() => {

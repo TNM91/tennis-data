@@ -73,7 +73,7 @@ export default function CompeteLeaguesPage() {
     >
       <CompeteGrid>
         <CompeteCard
-          href="/captain/season-dashboard"
+          href="/league-coordinator"
           meta="Create TIQ leagues"
           title="TIQ League Coordinator"
           text={LEAGUE_COORDINATOR_STORY.body}
