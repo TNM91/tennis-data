@@ -22,6 +22,12 @@ import {
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import { uploadTiqLeaguePhoto } from '@/lib/tiq-league-photo-service'
 import {
+  computeTiqTeamLeagueStandings,
+  listTiqTeamMatchEvents,
+  type TiqTeamMatchEventRecord,
+  type TiqTeamStandingRow,
+} from '@/lib/tiq-team-results-service'
+import {
   buildLeagueCardsFromRegistry,
   getTiqLeagueScoringSystemDescription,
   getTiqLeagueScoringSystemLabel,
@@ -119,6 +125,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [individualResults, setIndividualResults] = useState<TiqIndividualLeagueResultRecord[]>([])
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [resultStorageWarning, setResultStorageWarning] = useState('')
+  const [teamMatchEvents, setTeamMatchEvents] = useState<TiqTeamMatchEventRecord[]>([])
+  const [teamStandingsByLeague, setTeamStandingsByLeague] = useState<Record<string, TiqTeamStandingRow[]>>({})
+  const [teamResultWarning, setTeamResultWarning] = useState('')
 
   const refreshRegistry = useCallback(async () => {
     const result = await listTiqLeagues()
@@ -177,10 +186,80 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     () => records.filter((record) => record.leagueFormat === 'team'),
     [records],
   )
+  useEffect(() => {
+    let active = true
+
+    async function loadTeamResultBooks() {
+      if (teamLeagues.length === 0) {
+        setTeamMatchEvents([])
+        setTeamStandingsByLeague({})
+        setTeamResultWarning('')
+        return
+      }
+
+      const [eventsResult, standingsResults] = await Promise.all([
+        listTiqTeamMatchEvents(),
+        Promise.all(
+          teamLeagues.map(async (league) => ({
+            leagueId: league.id,
+            result: await computeTiqTeamLeagueStandings(league.id),
+          })),
+        ),
+      ])
+
+      if (!active) return
+
+      setTeamMatchEvents(eventsResult.events)
+      setTeamStandingsByLeague(
+        standingsResults.reduce<Record<string, TiqTeamStandingRow[]>>((nextMap, item) => {
+          nextMap[item.leagueId] = item.result.standings
+          return nextMap
+        }, {}),
+      )
+      setTeamResultWarning(
+        [
+          eventsResult.warning,
+          ...standingsResults.map((item) => item.result.warning),
+        ]
+          .filter(Boolean)[0] || '',
+      )
+    }
+
+    void loadTeamResultBooks()
+
+    return () => {
+      active = false
+    }
+  }, [teamLeagues])
   const latestTeamLeague = useMemo(
     () => [...teamLeagues].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
     [teamLeagues],
   )
+  const teamResultBookRows = useMemo(
+    () =>
+      teamLeagues.map((league) => {
+        const events = teamMatchEvents.filter((event) => event.leagueId === league.id)
+        const standings = teamStandingsByLeague[league.id] || []
+        const latestEvent = events[0] || null
+        const recentCount = events.filter((event) => isRecentResult(event.matchDate, 14)).length
+        const completedEvents = events.filter((event) => event.winnerTeamName).length
+        const leader = standings[0] || null
+
+        return {
+          league,
+          events,
+          standings,
+          latestEvent,
+          recentCount,
+          completedEvents,
+          leader,
+        }
+      }),
+    [teamLeagues, teamMatchEvents, teamStandingsByLeague],
+  )
+  const teamResultBooksNeedAttention = teamResultBookRows.filter(
+    (row) => row.league.teams.length > 1 && (row.events.length === 0 || row.recentCount === 0),
+  ).length
   const individualLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'individual'),
     [records],
@@ -481,6 +560,72 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             <GhostLink href="/explore/rankings">View rankings</GhostLink>
           </div>
         </section>
+
+        {teamLeagues.length > 0 ? (
+          <section style={resultBookPanelStyle}>
+            <div style={leagueOpsHeaderStyle}>
+              <div>
+                <div style={sectionEyebrow}>Team result books</div>
+                <h2 style={leagueOpsTitleStyle}>
+                  {teamResultBooksNeedAttention > 0
+                    ? `${teamResultBooksNeedAttention} team league${teamResultBooksNeedAttention === 1 ? '' : 's'} need match activity.`
+                    : 'Team result books are active.'}
+                </h2>
+                <p style={leagueOpsTextStyle}>
+                  Track match events, standings leaders, recent activity, and completed team results before opening Team Results.
+                </p>
+              </div>
+              <span style={pillGreen}>Team results</span>
+            </div>
+            {teamResultWarning ? <div style={statusBanner}>{teamResultWarning}</div> : null}
+            <div style={resultBookGridStyle}>
+              {teamResultBookRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={resultBookCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={pillGreen}>Team league</span>
+                    {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent matches</span>}
+                    {row.completedEvents > 0 ? <span style={pillSlate}>{row.completedEvents} completed</span> : null}
+                  </div>
+                  <div style={registryTitle}>{row.league.leagueName}</div>
+                  <div style={registryText}>
+                    {[
+                      `${row.league.teams.length} teams`,
+                      `${row.events.length} match events`,
+                      row.latestEvent ? `Latest ${formatDateTime(row.latestEvent.matchDate)}` : 'No matches logged',
+                    ].join(' | ')}
+                  </div>
+                  <div style={resultBookMetricRowStyle}>
+                    <div style={resultBookMetricStyle}>
+                      <span>Leader</span>
+                      <strong>{row.leader?.teamName || '-'}</strong>
+                      <small>
+                        {row.leader
+                          ? `${row.leader.wins}-${row.leader.losses}-${row.leader.ties}`
+                          : 'No standings yet'}
+                      </small>
+                    </div>
+                    <div style={resultBookMetricStyle}>
+                      <span>Lines</span>
+                      <strong>
+                        {row.leader ? `${row.leader.lineWins}-${row.leader.lineLosses}` : '0-0'}
+                      </strong>
+                      <small>{row.leader ? `${row.leader.points} points` : 'Awaiting lines'}</small>
+                    </div>
+                  </div>
+                  <div style={buttonRow}>
+                    <GhostLink href={buildTeamResultEntryHref(row.league.id)}>Open Team Results</GhostLink>
+                    <GhostLink href={`/explore/leagues/tiq/${encodeURIComponent(row.league.id)}?league_id=${encodeURIComponent(row.league.id)}`}>
+                      League page
+                    </GhostLink>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={heroActionRow}>
+              <GhostLink href={teamResultEntryHref}>Review all team results</GhostLink>
+            </div>
+          </section>
+        ) : null}
 
         {individualLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
