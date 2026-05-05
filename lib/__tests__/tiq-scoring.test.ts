@@ -35,6 +35,14 @@ describe('calculateDynamicPointsForSides', () => {
     })
   })
 
+  it('caps straight-set loser points at 8', () => {
+    expect(calculateDynamicPointsForSides('7-6, 7-6', 'A')).toMatchObject({
+      sideAPoints: 14,
+      sideBPoints: 8,
+      valid: true,
+    })
+  })
+
   it('awards 12-8 for a split-set match', () => {
     expect(calculateDynamicPointsForSides('6-4, 4-6, 10-7', 'A')).toMatchObject({
       sideAPoints: 12,

@@ -62,7 +62,8 @@ export function calculateDynamicPointsForSides(
   }
 
   const winnerPoints = loserSetWins > 0 ? 12 : 14
-  const loserPoints = loserSetWins > 0 ? 8 : winnerSide === 'A' ? sideBGames : sideAGames
+  const straightSetLoserGames = winnerSide === 'A' ? sideBGames : sideAGames
+  const loserPoints = loserSetWins > 0 ? 8 : Math.min(8, straightSetLoserGames)
 
   return {
     sideAPoints: winnerSide === 'A' ? winnerPoints : loserPoints,
@@ -73,7 +74,7 @@ export function calculateDynamicPointsForSides(
 }
 
 export function getDynamicPointsRulesSummary() {
-  return 'Best 2 of 3 sets: straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won.'
+  return 'Best 2 of 3 sets: straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won up to 8.'
 }
 
 export function compareTiqTeamStandings(
