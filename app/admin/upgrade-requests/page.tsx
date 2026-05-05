@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import AdminGate from '@/app/components/admin-gate'
+import { getMembershipTier } from '@/lib/product-story'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import {
@@ -251,7 +252,7 @@ export default function AdminUpgradeRequestsPage() {
               <TriageCard
                 label="Ready to activate"
                 value={String(readyToActivateCount)}
-                text="Supabase requests with a linked account and active status."
+                text="Supabase requests with a linked account that are not closed."
               />
               <TriageCard
                 label="Needs account"
@@ -333,6 +334,7 @@ export default function AdminUpgradeRequestsPage() {
                     ) : (
                       <div style={metaLineMutedStyle}>No account linked yet. Ask them to sign in or create one before activation.</div>
                     )}
+                    <ActivationCue request={request} />
                     <p style={goalStyle}>{request.goal}</p>
                     <div style={cardActionRowStyle}>
                       <Link href={request.nextHref || '/pricing'} className="button-secondary">
@@ -408,6 +410,73 @@ function getActivateButtonLabel(request: UpgradeRequestRecord) {
   if (request.source !== 'supabase') return 'Needs Supabase'
   if (!request.userId) return 'Needs account'
   return `Activate ${request.planName}`
+}
+
+function getActivationCue(request: UpgradeRequestRecord) {
+  const tier = getMembershipTier(request.planId)
+
+  if (request.planId === 'league') {
+    return {
+      title: tier.name,
+      summary: tier.shortPromise,
+      grants: ['Team league entry', 'Individual league creator'],
+      excludes: ['Player Lab', 'Captain workflow'],
+      note: 'Coordinator activation stays independent from Player and Captain access.',
+    }
+  }
+
+  if (request.planId === 'captain') {
+    return {
+      title: tier.name,
+      summary: tier.shortPromise,
+      grants: ['Player tools', 'Captain workflow'],
+      excludes: ['Coordinator tools'],
+      note: 'Captain activation includes Player access for matchup and lab workflows.',
+    }
+  }
+
+  return {
+    title: tier.name,
+    summary: tier.shortPromise,
+    grants: ['My Lab', 'Follows', 'Matchup insight'],
+    excludes: ['Captain workflow', 'Coordinator tools'],
+    note: 'Player activation keeps team and league operations locked.',
+  }
+}
+
+function ActivationCue({ request }: { request: UpgradeRequestRecord }) {
+  const cue = getActivationCue(request)
+
+  return (
+    <div style={activationCueStyle}>
+      <div>
+        <span style={activationKickerStyle}>Activation effect</span>
+        <strong style={activationTitleStyle}>{cue.title}</strong>
+        <small style={activationSummaryStyle}>{cue.summary}</small>
+      </div>
+      <div style={activationGroupStyle}>
+        <span style={activationLabelStyle}>Grants</span>
+        <div style={badgeWrapStyle}>
+          {cue.grants.map((item) => (
+            <span key={item} className="badge badge-green">
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div style={activationGroupStyle}>
+        <span style={activationLabelStyle}>Does not grant</span>
+        <div style={badgeWrapStyle}>
+          {cue.excludes.map((item) => (
+            <span key={item} className="badge badge-slate">
+              {item}
+            </span>
+          ))}
+        </div>
+      </div>
+      <small style={activationNoteStyle}>{cue.note}</small>
+    </div>
+  )
 }
 
 function readStoredRequests() {
@@ -716,6 +785,60 @@ const goalStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 700,
+}
+
+const activationCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const activationKickerStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const activationTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const activationSummaryStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
+}
+
+const activationGroupStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+}
+
+const activationLabelStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 11,
+  fontWeight: 900,
+}
+
+const activationNoteStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
 }
 
 const cardActionRowStyle: CSSProperties = {
