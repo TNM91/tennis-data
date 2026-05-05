@@ -14,6 +14,12 @@ import {
   getTiqIndividualCompetitionFormatLabel,
   TIQ_INDIVIDUAL_COMPETITION_FORMATS,
 } from '@/lib/tiq-individual-format'
+import {
+  listTiqIndividualLeagueResults,
+  type TiqIndividualLeagueResultRecord,
+  type TiqLeagueStorageSource as TiqResultStorageSource,
+} from '@/lib/tiq-individual-results-service'
+import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import { uploadTiqLeaguePhoto } from '@/lib/tiq-league-photo-service'
 import {
   buildLeagueCardsFromRegistry,
@@ -81,6 +87,21 @@ function getLeagueResultEntryLabel(record: TiqLeagueRecord) {
   return record.leagueFormat === 'team' ? 'Record team results' : 'Log player results'
 }
 
+function isRecentResult(value: string, days: number) {
+  const parsed = value ? new Date(value).getTime() : 0
+  if (!parsed) return false
+
+  return parsed >= Date.now() - days * 24 * 60 * 60 * 1000
+}
+
+function isEditedResult(result: TiqIndividualLeagueResultRecord) {
+  const createdTime = result.createdAt ? new Date(result.createdAt).getTime() : 0
+  const updatedTime = result.updatedAt ? new Date(result.updatedAt).getTime() : 0
+  if (!createdTime || !updatedTime) return false
+
+  return updatedTime - createdTime > 1000
+}
+
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -95,6 +116,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [photoUploading, setPhotoUploading] = useState(false)
   const [storageSource, setStorageSource] = useState<TiqLeagueStorageSource>('local')
   const [storageWarning, setStorageWarning] = useState('')
+  const [individualResults, setIndividualResults] = useState<TiqIndividualLeagueResultRecord[]>([])
+  const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
+  const [resultStorageWarning, setResultStorageWarning] = useState('')
 
   const refreshRegistry = useCallback(async () => {
     const result = await listTiqLeagues()
@@ -122,6 +146,25 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     }
 
     void loadAuth()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadIndividualResults() {
+      const result = await listTiqIndividualLeagueResults()
+      if (!active) return
+
+      setIndividualResults(result.results)
+      setResultStorageSource(result.source)
+      setResultStorageWarning(result.warning || '')
+    }
+
+    void loadIndividualResults()
 
     return () => {
       active = false
@@ -162,6 +205,40 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   )[0]
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
+  const individualSummaryByLeague = useMemo(
+    () => buildTiqIndividualLeagueSummaries(individualResults),
+    [individualResults],
+  )
+  const individualResultBookRows = useMemo(
+    () =>
+      individualLeagues.map((league) => {
+        const leagueResults = individualResults.filter((result) => result.leagueId === league.id)
+        const summary = individualSummaryByLeague.get(league.id) || null
+        const possiblePairs = league.players.length > 1 ? (league.players.length * (league.players.length - 1)) / 2 : 0
+        const uniquePairs = new Set(
+          leagueResults.map((result) =>
+            [result.playerAName.toLowerCase(), result.playerBName.toLowerCase()].sort().join('::'),
+          ),
+        ).size
+        const recentCount = leagueResults.filter((result) => isRecentResult(result.resultDate, 14)).length
+        const correctionCount = leagueResults.filter(isEditedResult).length
+
+        return {
+          league,
+          summary,
+          resultCount: leagueResults.length,
+          recentCount,
+          correctionCount,
+          uniquePairs,
+          possiblePairs,
+          coverageRate: possiblePairs > 0 ? uniquePairs / possiblePairs : null,
+        }
+      }),
+    [individualLeagues, individualResults, individualSummaryByLeague],
+  )
+  const resultBookNeedsAttention = individualResultBookRows.filter(
+    (row) => row.league.players.length > 1 && (row.resultCount === 0 || row.recentCount === 0),
+  ).length
   const hasResultReadyLeague = teamLeagues.length > 0 || individualLeagues.length > 0
   const resultEntryHref = hasResultReadyLeague
     ? latestTeamLeague
@@ -404,6 +481,70 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             <GhostLink href="/explore/rankings">View rankings</GhostLink>
           </div>
         </section>
+
+        {individualLeagues.length > 0 ? (
+          <section style={resultBookPanelStyle}>
+            <div style={leagueOpsHeaderStyle}>
+              <div>
+                <div style={sectionEyebrow}>Player result books</div>
+                <h2 style={leagueOpsTitleStyle}>
+                  {resultBookNeedsAttention > 0
+                    ? `${resultBookNeedsAttention} individual league${resultBookNeedsAttention === 1 ? '' : 's'} need result attention.`
+                    : 'Individual result books are moving.'}
+                </h2>
+                <p style={leagueOpsTextStyle}>
+                  Review recent player results, pair coverage, leaders, and corrections before opening Player Results.
+                </p>
+              </div>
+              <span style={resultStorageSource === 'supabase' ? pillGreen : pillSlate}>
+                {resultStorageSource === 'supabase' ? 'Live results' : 'Saved preview results'}
+              </span>
+            </div>
+            {resultStorageWarning ? <div style={statusBanner}>{resultStorageWarning}</div> : null}
+            <div style={resultBookGridStyle}>
+              {individualResultBookRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={resultBookCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={pillBlue}>
+                      {getTiqIndividualCompetitionFormatLabel(row.league.individualCompetitionFormat)}
+                    </span>
+                    {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent results</span>}
+                    {row.correctionCount > 0 ? <span style={pillSlate}>{row.correctionCount} corrections</span> : null}
+                  </div>
+                  <div style={registryTitle}>{row.league.leagueName}</div>
+                  <div style={registryText}>
+                    {[
+                      `${row.league.players.length} players`,
+                      `${row.resultCount} results`,
+                      row.coverageRate !== null ? `${Math.round(row.coverageRate * 100)}% coverage` : 'Coverage pending',
+                    ].join(' | ')}
+                  </div>
+                  <div style={resultBookMetricRowStyle}>
+                    <div style={resultBookMetricStyle}>
+                      <span>Leader</span>
+                      <strong>{row.summary?.leaderName || '-'}</strong>
+                      <small>{row.summary?.leaderRecord || '0-0'}</small>
+                    </div>
+                    <div style={resultBookMetricStyle}>
+                      <span>Pairs</span>
+                      <strong>{row.uniquePairs}/{row.possiblePairs}</strong>
+                      <small>{row.possiblePairs > 0 ? 'Logged pairings' : 'Add players'}</small>
+                    </div>
+                  </div>
+                  <div style={buttonRow}>
+                    <GhostLink href={buildIndividualResultEntryHref(row.league.id)}>Open Player Results</GhostLink>
+                    <GhostLink href={`/explore/leagues/tiq/${encodeURIComponent(row.league.id)}?league_id=${encodeURIComponent(row.league.id)}`}>
+                      League page
+                    </GhostLink>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={heroActionRow}>
+              <GhostLink href={individualResultEntryHref}>Review all player results</GhostLink>
+            </div>
+          </section>
+        ) : null}
 
         <section style={leagueOpsPanelStyle}>
           <div style={leagueOpsHeaderStyle}>
@@ -1055,6 +1196,48 @@ const leagueOpsPanelStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'linear-gradient(135deg, rgba(23,47,37,0.72) 0%, rgba(10,24,45,0.94) 68%)',
   boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
+const resultBookPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(14,30,58,0.84) 0%, rgba(10,24,45,0.94) 64%, rgba(42,84,130,0.22) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
+const resultBookGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+  gap: '12px',
+}
+
+const resultBookCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+}
+
+const resultBookMetricRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '10px',
+}
+
+const resultBookMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  padding: '10px 12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(7,17,33,0.48)',
+  color: 'rgba(229,238,251,0.72)',
+  fontSize: '12px',
 }
 
 const leagueOpsHeaderStyle: CSSProperties = {
