@@ -1112,9 +1112,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   </div>
                   <div style={buttonRow}>
                     <GhostLink href={buildTeamResultEntryHref(row.league.id)}>Open Team Results</GhostLink>
-                    <GhostLink href={`/explore/leagues/tiq/${encodeURIComponent(row.league.id)}?league_id=${encodeURIComponent(row.league.id)}`}>
-                      League page
-                    </GhostLink>
+                    <GhostLink href={buildTiqLeaguePageHref(row.league)}>League page</GhostLink>
+                    <GhostBtn onClick={() => void copyPublicLeagueLink(row.league)}>Copy share link</GhostBtn>
                   </div>
                 </div>
               ))}
@@ -1176,9 +1175,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   </div>
                   <div style={buttonRow}>
                     <GhostLink href={buildIndividualResultEntryHref(row.league.id)}>Open Player Results</GhostLink>
-                    <GhostLink href={`/explore/leagues/tiq/${encodeURIComponent(row.league.id)}?league_id=${encodeURIComponent(row.league.id)}`}>
-                      League page
-                    </GhostLink>
+                    <GhostLink href={buildTiqLeaguePageHref(row.league)}>League page</GhostLink>
+                    <GhostBtn onClick={() => void copyPublicLeagueLink(row.league)}>Copy share link</GhostBtn>
                   </div>
                 </div>
               ))}
