@@ -1,8 +1,10 @@
-<svg viewBox="0 0 320 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TenAceIQ">
+<svg viewBox="0 0 320 72" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="TenAceIQ" shape-rendering="geometricPrecision">
   <!-- Icon -->
-  <circle cx="32" cy="36" r="22" stroke="#FFFFFF" stroke-width="3.5" fill="none"></circle>
+  <g stroke-linecap="round" stroke-linejoin="round" stroke-width="3.45">
+    <circle cx="32" cy="36" r="22" stroke="#FFFFFF" fill="none" vector-effect="non-scaling-stroke"></circle>
 
-  <path d="M14 34 C21 20, 40 50, 50 36" stroke="#7ED321" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+    <path d="M14 34 C21 20, 40 50, 50 36" stroke="#7ED321" fill="none" vector-effect="non-scaling-stroke"></path>
+  </g>
 
   <!-- Wordmark -->
   <text x="70" y="44" font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="800" letter-spacing="0" fill="#FFFFFF">

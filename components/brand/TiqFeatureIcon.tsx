@@ -230,12 +230,14 @@ const svgStyle: CSSProperties = {
   shapeRendering: 'geometricPrecision',
 }
 
+const ICON_STROKE_WIDTH = 3.45
+
 function iconGroup(children: ReactNode) {
   return (
     <g
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth="3.45"
+      strokeWidth={ICON_STROKE_WIDTH}
       style={{ vectorEffect: 'non-scaling-stroke' }}
     >
       {children}
@@ -257,7 +259,7 @@ function BallHead({
   seam?: 'low' | 'high'
 }) {
   const reactId = useId()
-  const strokeWidth = Math.max(1.65, r * 0.15)
+  const strokeWidth = ICON_STROKE_WIDTH
   const offset = seam === 'high' ? -r * 0.08 : 0
   const clipId = `tiq-ball-${reactId.replaceAll(':', '')}`
   const seamPath = [
