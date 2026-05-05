@@ -234,6 +234,22 @@ function participantValue(playerId: string, playerName: string) {
   return playerId || `name:${playerName}`
 }
 
+function findParticipantOption(options: ResultParticipantOption[], value: string) {
+  const normalizedValue = value.trim()
+  if (!normalizedValue) return null
+
+  const normalizedNameValue = normalizedValue.startsWith('name:')
+    ? normalizedValue.slice(5).toLowerCase()
+    : normalizedValue.toLowerCase()
+
+  return (
+    options.find((option) => option.value === normalizedValue) ||
+    options.find((option) => option.playerId && option.playerId === normalizedValue) ||
+    options.find((option) => option.playerName.toLowerCase() === normalizedNameValue) ||
+    null
+  )
+}
+
 function dateInputValue(value: string) {
   const parsed = value ? new Date(value) : null
   if (!parsed || Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10)
@@ -392,6 +408,10 @@ export function IndividualLeagueResultsWorkspace({
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
+  const suggestedResultPlayerA =
+    searchParams.get('suggest_player_a') || searchParams.get('playerA') || searchParams.get('player_a') || ''
+  const suggestedResultPlayerB =
+    searchParams.get('suggest_player_b') || searchParams.get('playerB') || searchParams.get('player_b') || ''
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [results, setResults] = useState<TiqIndividualLeagueResultRecord[]>([])
@@ -417,6 +437,7 @@ export function IndividualLeagueResultsWorkspace({
   const [accessResolved, setAccessResolved] = useState(false)
   const [accessMessage, setAccessMessage] = useState('')
   const [resultFormOpen, setResultFormOpen] = useState(false)
+  const [appliedSuggestedResultKey, setAppliedSuggestedResultKey] = useState('')
 
   const selectedLeague = useMemo(
     () => leagues.find((league) => league.id === formLeagueId) || null,
@@ -590,6 +611,38 @@ export function IndividualLeagueResultsWorkspace({
 
     return () => window.clearTimeout(timeoutId)
   }, [loadData])
+
+  useEffect(() => {
+    if (!canEditResults) return
+    if (!selectedLeague) return
+    if (!suggestedResultPlayerA || !suggestedResultPlayerB) return
+    if (suggestedResultPlayerA === suggestedResultPlayerB) return
+    if (resultParticipantOptions.length === 0) return
+
+    const nextSuggestedKey = `${selectedLeague.id}::${suggestedResultPlayerA}::${suggestedResultPlayerB}`
+    if (appliedSuggestedResultKey === nextSuggestedKey) return
+
+    const playerAOption = findParticipantOption(resultParticipantOptions, suggestedResultPlayerA)
+    const playerBOption = findParticipantOption(resultParticipantOptions, suggestedResultPlayerB)
+    if (!playerAOption || !playerBOption) return
+
+    setEditingResultId('')
+    setResultPlayerA(playerAOption.value)
+    setResultPlayerB(playerBOption.value)
+    setResultWinner('')
+    setResultScore('')
+    setResultNotes('')
+    setResultFormOpen(true)
+    setStatus(`Loaded ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`)
+    setAppliedSuggestedResultKey(nextSuggestedKey)
+  }, [
+    appliedSuggestedResultKey,
+    canEditResults,
+    resultParticipantOptions,
+    selectedLeague,
+    suggestedResultPlayerA,
+    suggestedResultPlayerB,
+  ])
 
   async function handleFilterChange(leagueId: string) {
     setFilterLeagueId(leagueId)
