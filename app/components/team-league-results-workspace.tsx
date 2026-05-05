@@ -121,6 +121,59 @@ const detailsSummary: CSSProperties = {
   alignItems: 'flex-start',
   flexWrap: 'wrap',
 }
+const readinessPanel: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(155,225,29,0.14)',
+  borderRadius: 16,
+  padding: 18,
+  marginBottom: 18,
+}
+const readinessKicker: CSSProperties = {
+  color: '#93b7ea',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+const readinessTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 20,
+  lineHeight: 1.16,
+  fontWeight: 950,
+  marginTop: 5,
+}
+const readinessText: CSSProperties = {
+  color: '#b8c7dc',
+  fontSize: 13,
+  lineHeight: 1.55,
+  marginTop: 6,
+}
+const readinessGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gap: 10,
+}
+const readinessItem: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 86,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+}
+const readinessItemComplete: CSSProperties = {
+  ...readinessItem,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.08)',
+}
+const readinessItemText: CSSProperties = {
+  color: '#e2e8f0',
+  fontSize: 13,
+  lineHeight: 1.35,
+}
 
 function Field({ label: lbl, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -939,6 +992,10 @@ export function TeamLeagueResultsWorkspace({
   const [canEditResults, setCanEditResults] = useState(false)
   const [accessResolved, setAccessResolved] = useState(false)
   const [accessMessage, setAccessMessage] = useState('')
+  const selectedFilterLeague = useMemo(
+    () => leagues.find((league) => league.id === filterLeagueId) || null,
+    [filterLeagueId, leagues],
+  )
   const latestEvent = useMemo(
     () =>
       [...events].sort(
@@ -980,6 +1037,40 @@ export function TeamLeagueResultsWorkspace({
     (normalizedResultSearch ? 1 : 0) +
     (completionFilter !== 'all' ? 1 : 0) +
     (dateFilter !== 'all' ? 1 : 0)
+  const completeEventCount = events.filter((event) => {
+    const summary = lineSummaries.get(event.id)
+    return Boolean(summary && summary.total > 0 && summary.completed === summary.total)
+  }).length
+  const incompleteEventCount = Math.max(events.length - completeEventCount, 0)
+  const totalLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.total, 0)
+  const completedLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.completed, 0)
+  const hasTeamLeagueSetup = leagues.length > 0
+  const teamReadinessItems = [
+    {
+      label: 'Team league',
+      complete: hasTeamLeagueSetup,
+      detail: selectedFilterLeague?.leagueName || (hasTeamLeagueSetup ? `${leagues.length} team league${leagues.length === 1 ? '' : 's'} available` : 'Create a team league first'),
+    },
+    {
+      label: 'Teams',
+      complete: Boolean(selectedFilterLeague ? selectedFilterLeague.teams.length > 1 : leagues.some((league) => league.teams.length > 1)),
+      detail: selectedFilterLeague
+        ? `${selectedFilterLeague.teams.length} teams in this league`
+        : hasTeamLeagueSetup
+          ? 'Choose a league to confirm team count'
+          : 'Add teams in Coordinator setup',
+    },
+    {
+      label: 'Matches',
+      complete: events.length > 0,
+      detail: events.length > 0 ? `${events.length} team match${events.length === 1 ? '' : 'es'} recorded` : 'Create the first team match',
+    },
+    {
+      label: 'Lines',
+      complete: events.length > 0 && incompleteEventCount === 0,
+      detail: events.length > 0 ? `${completedLineCount}/${totalLineCount} lines complete` : 'Add lines after creating a match',
+    },
+  ]
 
   useEffect(() => {
     let mounted = true
@@ -1013,14 +1104,19 @@ export function TeamLeagueResultsWorkspace({
       listTiqLeagues(),
       supabase.from('players').select('id, name').order('name', { ascending: true }),
     ])
+    const teamLeagues = leaguesResult.records.filter((league) => league.leagueFormat === 'team')
+    const requestedTeamLeagueId = teamLeagues.some((league) => league.id === initialLeagueId)
+      ? initialLeagueId
+      : ''
 
     if (leaguesResult.warning) setError(leaguesResult.warning)
     if (playersResult.error) setError(playersResult.error.message)
 
-    setLeagues(leaguesResult.records)
+    setLeagues(teamLeagues)
+    setFilterLeagueId(requestedTeamLeagueId)
     setPlayers((playersResult.data || []) as PlayerOption[])
 
-    const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: initialLeagueId || null })
+    const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: requestedTeamLeagueId || null })
     if (warning) setError(warning)
     setEvents(evts)
     setLineSummaries(await loadLineSummaries(evts))
@@ -1217,6 +1313,36 @@ export function TeamLeagueResultsWorkspace({
             </div>
           </div>
         </div>
+
+        <section style={readinessPanel}>
+          <div>
+            <div style={readinessKicker}>Result entry readiness</div>
+            <div style={readinessTitle}>
+              {hasTeamLeagueSetup
+                ? selectedFilterLeague
+                  ? `${selectedFilterLeague.leagueName} is selected.`
+                  : 'Choose a team league or review all matches.'
+                : 'Create a team league before recording team results.'}
+            </div>
+            <div style={readinessText}>
+              {hasTeamLeagueSetup
+                ? incompleteEventCount > 0
+                  ? `${incompleteEventCount} match${incompleteEventCount === 1 ? '' : 'es'} still need line completion.`
+                  : events.length > 0
+                    ? 'Recorded team matches have complete line coverage.'
+                    : 'Open New match to start the first team result.'
+                : 'Team results are scoped to team-format TIQ leagues only.'}
+            </div>
+          </div>
+          <div style={readinessGrid}>
+            {teamReadinessItems.map((item) => (
+              <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
+                <span style={item.complete ? pillGreen : pill}>{item.label}</span>
+                <strong style={readinessItemText}>{item.detail}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {error ? <p style={msgErr}>{error}</p> : null}
         {status ? <p style={status.startsWith('Exported') || status.startsWith('Copied') ? msgOk : msgErr}>{status}</p> : null}

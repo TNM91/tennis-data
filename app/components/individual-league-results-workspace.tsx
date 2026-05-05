@@ -161,6 +161,59 @@ const flowNumber: CSSProperties = {
 }
 const flowTitle: CSSProperties = { color: '#f8fbff', fontWeight: 900, fontSize: 14 }
 const flowText: CSSProperties = { color: '#b8c7dc', fontSize: 12, marginTop: 2 }
+const readinessPanel: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid rgba(155,225,29,0.14)',
+  borderRadius: 16,
+  padding: 18,
+  marginBottom: 18,
+}
+const readinessKicker: CSSProperties = {
+  color: '#93b7ea',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+const readinessTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: 20,
+  lineHeight: 1.16,
+  fontWeight: 950,
+  marginTop: 5,
+}
+const readinessText: CSSProperties = {
+  color: '#b8c7dc',
+  fontSize: 13,
+  lineHeight: 1.55,
+  marginTop: 6,
+}
+const readinessGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gap: 10,
+}
+const readinessItem: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 86,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+}
+const readinessItemComplete: CSSProperties = {
+  ...readinessItem,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.08)',
+}
+const readinessItemText: CSSProperties = {
+  color: '#e2e8f0',
+  fontSize: 13,
+  lineHeight: 1.35,
+}
 const listWrap: CSSProperties = { display: 'grid', gap: 10 }
 const resultCard: CSSProperties = {
   ...card,
@@ -538,6 +591,31 @@ export function IndividualLeagueResultsWorkspace({
   const activeParticipantCount = selectedLeague
     ? visiblePlayerEntries.length
     : leagues.reduce((sum, league) => sum + (league.players || []).length, 0)
+  const hasIndividualLeagueSetup = leagues.length > 0
+  const individualReadinessItems = [
+    {
+      label: 'Individual league',
+      complete: Boolean(selectedLeague),
+      detail: selectedLeague?.leagueName || (hasIndividualLeagueSetup ? 'Choose a league to log player results' : 'Create an individual league first'),
+    },
+    {
+      label: 'Players',
+      complete: activeParticipantCount > 1,
+      detail: activeParticipantCount > 0 ? `${activeParticipantCount} players in scope` : 'Add players in Coordinator setup',
+    },
+    {
+      label: 'Results',
+      complete: selectedLeagueResults.length > 0,
+      detail: selectedLeagueResults.length > 0
+        ? `${selectedLeagueResults.length} result${selectedLeagueResults.length === 1 ? '' : 's'} recorded`
+        : 'Log the first player result',
+    },
+    {
+      label: 'Next pairing',
+      complete: Boolean(nextPairing),
+      detail: nextPairing ? `${nextPairing[0].playerName} vs ${nextPairing[1].playerName}` : 'Needs at least two eligible players',
+    },
+  ]
 
   useEffect(() => {
     let mounted = true
@@ -592,13 +670,17 @@ export function IndividualLeagueResultsWorkspace({
 
     const leaguesResult = await listTiqLeagues()
     const individualLeagues = leaguesResult.records.filter((league) => league.leagueFormat === 'individual')
-    const nextFormLeagueId = initialLeagueId || individualLeagues[0]?.id || ''
+    const requestedIndividualLeagueId = individualLeagues.some((league) => league.id === initialLeagueId)
+      ? initialLeagueId
+      : ''
+    const nextFormLeagueId = requestedIndividualLeagueId || individualLeagues[0]?.id || ''
 
     setLeagues(individualLeagues)
+    setFilterLeagueId(requestedIndividualLeagueId)
     setFormLeagueId((current) => current || nextFormLeagueId)
     if (leaguesResult.warning) setError(leaguesResult.warning)
     await Promise.all([
-      refreshResults(initialLeagueId || ''),
+      refreshResults(requestedIndividualLeagueId),
       refreshPlayerEntries(nextFormLeagueId),
     ])
     setLoading(false)
@@ -942,6 +1024,36 @@ export function IndividualLeagueResultsWorkspace({
             </div>
           </div>
         </div>
+
+        <section style={readinessPanel}>
+          <div>
+            <div style={readinessKicker}>Result entry readiness</div>
+            <div style={readinessTitle}>
+              {hasIndividualLeagueSetup
+                ? selectedLeague
+                  ? `${selectedLeague.leagueName} is selected.`
+                  : 'Choose an individual league to start.'
+                : 'Create an individual league before logging player results.'}
+            </div>
+            <div style={readinessText}>
+              {hasIndividualLeagueSetup
+                ? activeParticipantCount > 1
+                  ? nextPairing
+                    ? `Next useful result: ${nextPairing[0].playerName} vs ${nextPairing[1].playerName}.`
+                    : 'Player result entry is ready for the selected league.'
+                  : 'Add at least two players before result entry becomes useful.'
+                : 'Individual results are scoped to individual-format TIQ leagues only.'}
+            </div>
+          </div>
+          <div style={readinessGrid}>
+            {individualReadinessItems.map((item) => (
+              <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
+                <span style={item.complete ? pillGreen : pill}>{item.label}</span>
+                <strong style={readinessItemText}>{item.detail}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {error ? <p style={msgErr}>{error}</p> : null}
         {status ? (
