@@ -17,7 +17,7 @@ const FOOTER_JOURNEY: Record<string, { step: string; intent: string; note: strin
   '/mylab': { step: '2', intent: 'You', note: 'Your scorecard' },
   '/matchup': { step: '3', intent: 'Compare', note: 'Who to play next' },
   '/captain': { step: '4', intent: 'Run', note: 'Team decisions' },
-  '/league-coordinator': { step: '5', intent: 'League', note: 'Run the season' },
+  '/league-coordinator': { step: '5', intent: 'Coordinate', note: 'Run the season' },
   '/pricing': { step: '$', intent: 'Plans', note: 'Choose a tier' },
 }
 

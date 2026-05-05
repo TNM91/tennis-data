@@ -79,7 +79,7 @@ const NAV_VISUALS: Record<string, { step: string; intent: string }> = {
   '/mylab': { step: '2', intent: 'You' },
   '/matchup': { step: '3', intent: 'Compare' },
   '/captain': { step: '4', intent: 'Run' },
-  '/league-coordinator': { step: '5', intent: 'League' },
+  '/league-coordinator': { step: '5', intent: 'League Ops' },
   '/pricing': { step: '$', intent: 'Plans' },
 }
 
