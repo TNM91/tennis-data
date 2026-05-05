@@ -93,6 +93,11 @@ function buildLeagueResultEntryHref(record: TiqLeagueRecord) {
     : buildIndividualResultEntryHref(record.id)
 }
 
+function buildTiqLeaguePageHref(record: TiqLeagueRecord) {
+  const encodedId = encodeURIComponent(record.id)
+  return `/explore/leagues/tiq/${encodedId}?league_id=${encodedId}`
+}
+
 function getLeagueResultEntryLabel(record: TiqLeagueRecord) {
   return record.leagueFormat === 'team' ? 'Record team results' : 'Log player results'
 }
@@ -1320,15 +1325,20 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <div style={nextActionCardStyle}>
                 <div>
                   <div style={nextActionTitleStyle}>
-                    Next: {lastSavedRecord.leagueFormat === 'team' ? 'enter the first team match' : 'log the first player result'}
+                    Next: review {lastSavedRecord.leagueName}
                   </div>
                   <div style={nextActionTextStyle}>
-                    {lastSavedRecord.leagueName} is ready for {lastSavedRecord.leagueFormat === 'team' ? 'team match results' : 'player results'}.
+                    Use the saved setup for {lastSavedRecord.leagueFormat === 'team' ? 'team match results' : 'player results'}, or check the public league page before sharing.
                   </div>
                 </div>
-                <GhostLink href={buildLeagueResultEntryHref(lastSavedRecord)}>
-                  {getLeagueResultEntryLabel(lastSavedRecord)}
-                </GhostLink>
+                <div style={nextActionButtonRowStyle}>
+                  <GhostLink href={buildLeagueResultEntryHref(lastSavedRecord)}>
+                    {getLeagueResultEntryLabel(lastSavedRecord)}
+                  </GhostLink>
+                  <GhostLink href={buildTiqLeaguePageHref(lastSavedRecord)}>
+                    View public league
+                  </GhostLink>
+                </div>
               </div>
             ) : null}
 
@@ -2093,6 +2103,13 @@ const nextActionTextStyle: CSSProperties = {
   color: 'rgba(229,238,251,0.78)',
   fontSize: '13px',
   lineHeight: 1.5,
+}
+
+const nextActionButtonRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  justifyContent: 'flex-end',
 }
 
 const buttonRow: CSSProperties = {
