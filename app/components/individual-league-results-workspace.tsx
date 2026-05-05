@@ -268,6 +268,25 @@ function resultDateIsWithinDays(value: string, days: number) {
   return parsed >= cutoff
 }
 
+function csvCell(value: string | number | null | undefined) {
+  const text = String(value ?? '')
+  return `"${text.replaceAll('"', '""')}"`
+}
+
+function slugText(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function exportDateValue(value: string) {
+  const parsed = value ? new Date(value) : null
+  if (!parsed || Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString().slice(0, 10)
+}
+
 function hasResultBetween(results: TiqIndividualLeagueResultRecord[], leftName: string, rightName: string) {
   const left = leftName.toLowerCase()
   const right = rightName.toLowerCase()
@@ -725,6 +744,90 @@ export function IndividualLeagueResultsWorkspace({
     }
   }
 
+  function resultExportRows() {
+    return visibleResults.map((result) => {
+      const league = leagues.find((item) => item.id === result.leagueId)
+      const edited = isEditedResult(result)
+      return {
+        league: league?.leagueName || '',
+        date: exportDateValue(result.resultDate),
+        winner: result.winnerPlayerName,
+        opponent: resultOpponentName(result),
+        score: result.score,
+        status: edited ? 'Edited' : 'Original',
+        editedAt: edited ? formatResultTimestamp(result.updatedAt) : '',
+        notes: result.notes,
+      }
+    })
+  }
+
+  function handleExportResults() {
+    if (visibleResults.length === 0) {
+      setStatus('There are no filtered player results to export.')
+      return
+    }
+
+    const rows = resultExportRows()
+    const header = ['League', 'Date', 'Winner', 'Opponent', 'Score', 'Status', 'Edited At', 'Notes']
+    const csv = [
+      header.map(csvCell).join(','),
+      ...rows.map((row) =>
+        [
+          row.league,
+          row.date,
+          row.winner,
+          row.opponent,
+          row.score,
+          row.status,
+          row.editedAt,
+          row.notes,
+        ].map(csvCell).join(','),
+      ),
+    ].join('\r\n')
+
+    const selectedLeagueName = filterLeagueId
+      ? leagues.find((league) => league.id === filterLeagueId)?.leagueName || 'player-results'
+      : 'player-results'
+    const filename = `tenaceiq-${slugText(selectedLeagueName) || 'player-results'}-${new Date().toISOString().slice(0, 10)}.csv`
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.append(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+    setStatus(`Exported ${visibleResults.length} player result${visibleResults.length === 1 ? '' : 's'}.`)
+  }
+
+  async function handleCopyResultSummary() {
+    if (visibleResults.length === 0) {
+      setStatus('There are no filtered player results to copy.')
+      return
+    }
+
+    const selectedLeagueName = filterLeagueId
+      ? leagues.find((league) => league.id === filterLeagueId)?.leagueName || 'Filtered player results'
+      : 'Filtered player results'
+    const lines = [
+      `${selectedLeagueName}: ${visibleResults.length} result${visibleResults.length === 1 ? '' : 's'}`,
+      ...resultExportRows().map((row) => {
+        const details = [row.score, row.date, row.status === 'Edited' ? `Edited ${row.editedAt}` : null]
+          .filter(Boolean)
+          .join(' - ')
+        return `${row.winner} def. ${row.opponent}${details ? ` (${details})` : ''}`
+      }),
+    ]
+
+    try {
+      await navigator.clipboard.writeText(lines.join('\n'))
+      setStatus(`Copied ${visibleResults.length} result${visibleResults.length === 1 ? '' : 's'} to clipboard.`)
+    } catch {
+      setStatus('Clipboard access was blocked by the browser.')
+    }
+  }
+
   return (
     <SiteShell active={activeRoute}>
       <CoordinatorSubnav
@@ -789,7 +892,16 @@ export function IndividualLeagueResultsWorkspace({
 
         {error ? <p style={msgErr}>{error}</p> : null}
         {status ? (
-          <p style={status.startsWith('Saved') || status.startsWith('Updated') || status.startsWith('Loaded') || status.toLowerCase().includes('deleted') ? msgOk : msgErr}>
+          <p style={
+            status.startsWith('Saved') ||
+            status.startsWith('Updated') ||
+            status.startsWith('Loaded') ||
+            status.startsWith('Exported') ||
+            status.startsWith('Copied') ||
+            status.toLowerCase().includes('deleted')
+              ? msgOk
+              : msgErr
+          }>
             {status}
           </p>
         ) : null}
@@ -1045,6 +1157,22 @@ export function IndividualLeagueResultsWorkspace({
           </Field>
           <button type="button" onClick={() => void handleClearResultFilters()} style={btnSecondary}>
             Clear
+          </button>
+          <button
+            type="button"
+            onClick={handleExportResults}
+            disabled={visibleResults.length === 0}
+            style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
+          >
+            Export CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleCopyResultSummary()}
+            disabled={visibleResults.length === 0}
+            style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
+          >
+            Copy Summary
           </button>
           <div style={{ color: '#94a3b8', fontSize: 13, gridColumn: '1 / -1' }}>
             Showing {visibleResults.length} of {results.length} result{results.length === 1 ? '' : 's'}.
