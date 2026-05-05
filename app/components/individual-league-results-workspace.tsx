@@ -219,6 +219,16 @@ function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
   return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
 }
 
+function participantValue(playerId: string, playerName: string) {
+  return playerId || `name:${playerName}`
+}
+
+function dateInputValue(value: string) {
+  const parsed = value ? new Date(value) : null
+  if (!parsed || Number.isNaN(parsed.getTime())) return new Date().toISOString().slice(0, 10)
+  return parsed.toISOString().slice(0, 10)
+}
+
 function hasResultBetween(results: TiqIndividualLeagueResultRecord[], leftName: string, rightName: string) {
   const left = leftName.toLowerCase()
   const right = rightName.toLowerCase()
@@ -336,6 +346,7 @@ export function IndividualLeagueResultsWorkspace({
   const [resultScore, setResultScore] = useState('')
   const [resultDate, setResultDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [resultNotes, setResultNotes] = useState('')
+  const [editingResultId, setEditingResultId] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -353,15 +364,37 @@ export function IndividualLeagueResultsWorkspace({
   const selectedLeagueExperience = getTiqIndividualCompetitionFormatExperience(
     selectedLeague?.individualCompetitionFormat,
   )
+  const editingResult = results.find((result) => result.id === editingResultId) || null
   const visiblePlayerEntries = playerEntries.length > 0 ? playerEntries : fallbackEntriesForLeague(selectedLeague)
   const resultParticipantOptions = useMemo<ResultParticipantOption[]>(
-    () =>
-      visiblePlayerEntries.map((entry) => ({
-        value: entry.playerId || `name:${entry.playerName}`,
+    () => {
+      const options = visiblePlayerEntries.map((entry) => ({
+        value: participantValue(entry.playerId, entry.playerName),
         playerId: entry.playerId,
         playerName: entry.playerName,
-      })),
-    [visiblePlayerEntries],
+      }))
+
+      if (editingResult && editingResult.leagueId === selectedLeague?.id) {
+        const editingPlayers = [
+          { playerId: editingResult.playerAId, playerName: editingResult.playerAName },
+          { playerId: editingResult.playerBId, playerName: editingResult.playerBName },
+        ]
+
+        editingPlayers.forEach((player) => {
+          const value = participantValue(player.playerId, player.playerName)
+          if (!options.some((option) => option.value === value)) {
+            options.push({
+              value,
+              playerId: player.playerId,
+              playerName: player.playerName,
+            })
+          }
+        })
+      }
+
+      return options
+    },
+    [editingResult, selectedLeague?.id, visiblePlayerEntries],
   )
   const resultPlayerAOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
@@ -468,6 +501,7 @@ export function IndividualLeagueResultsWorkspace({
     router.replace(nextHref, { scroll: false })
     setLoading(true)
     setError('')
+    resetResultForm()
     await refreshResults(leagueId)
     if (leagueId) {
       setFormLeagueId(leagueId)
@@ -476,11 +510,19 @@ export function IndividualLeagueResultsWorkspace({
     setLoading(false)
   }
 
-  async function handleFormLeagueChange(leagueId: string) {
-    setFormLeagueId(leagueId)
+  function resetResultForm() {
+    setEditingResultId('')
     setResultPlayerA('')
     setResultPlayerB('')
     setResultWinner('')
+    setResultScore('')
+    setResultDate(new Date().toISOString().slice(0, 10))
+    setResultNotes('')
+  }
+
+  async function handleFormLeagueChange(leagueId: string) {
+    setFormLeagueId(leagueId)
+    resetResultForm()
     setStatus('')
     if (leagueId && filterLeagueId !== leagueId) {
       setFilterLeagueId(leagueId)
@@ -493,11 +535,30 @@ export function IndividualLeagueResultsWorkspace({
   function handleUsePairing(left: PlayerResultStanding, right: PlayerResultStanding) {
     if (!selectedLeague) return
 
-    setResultPlayerA(left.playerId || `name:${left.playerName}`)
-    setResultPlayerB(right.playerId || `name:${right.playerName}`)
+    setEditingResultId('')
+    setResultPlayerA(participantValue(left.playerId, left.playerName))
+    setResultPlayerB(participantValue(right.playerId, right.playerName))
     setResultWinner('')
+    setResultScore('')
+    setResultNotes('')
     setResultFormOpen(true)
     setStatus(`Loaded ${left.playerName} vs ${right.playerName}. Choose the winner and score.`)
+  }
+
+  async function handleEditResult(result: TiqIndividualLeagueResultRecord) {
+    setEditingResultId(result.id)
+    setFormLeagueId(result.leagueId)
+    setFilterLeagueId(result.leagueId)
+    router.replace(`${resultsHref}?leagueId=${encodeURIComponent(result.leagueId)}`, { scroll: false })
+    await refreshPlayerEntries(result.leagueId)
+    setResultPlayerA(participantValue(result.playerAId, result.playerAName))
+    setResultPlayerB(participantValue(result.playerBId, result.playerBName))
+    setResultWinner(participantValue(result.winnerPlayerId, result.winnerPlayerName))
+    setResultScore(result.score)
+    setResultDate(dateInputValue(result.resultDate))
+    setResultNotes(result.notes)
+    setResultFormOpen(true)
+    setStatus(`Editing ${result.winnerPlayerName} over ${resultOpponentName(result)}.`)
   }
 
   async function handleResultSubmit() {
@@ -531,7 +592,9 @@ export function IndividualLeagueResultsWorkspace({
     setStatus('')
 
     try {
+      const editingExistingResult = Boolean(editingResultId)
       const saveResult = await saveTiqIndividualLeagueResult({
+        resultId: editingResultId || null,
         leagueId: selectedLeague.id,
         playerAName: resultPlayerAOption.playerName,
         playerAId: resultPlayerAOption.playerId,
@@ -553,13 +616,11 @@ export function IndividualLeagueResultsWorkspace({
       setResultStorageSource(saveResult.source)
       setError(saveResult.warning || completion.warning || '')
       setStatus(
-        `Saved TIQ result: ${winnerOption.playerName} over ${
+        `${editingExistingResult ? 'Updated' : 'Saved'} TIQ result: ${winnerOption.playerName} over ${
           winnerOption.value === resultPlayerAOption.value ? resultPlayerBOption.playerName : resultPlayerAOption.playerName
         }.`,
       )
-      setResultScore('')
-      setResultNotes('')
-      setResultWinner('')
+      resetResultForm()
     } catch (saveError) {
       setStatus(saveError instanceof Error ? saveError.message : 'Unable to save this TIQ result.')
     } finally {
@@ -573,6 +634,7 @@ export function IndividualLeagueResultsWorkspace({
 
     const deleteResult = await deleteTiqIndividualLeagueResult(result.id)
     await refreshResults(filterLeagueId)
+    if (editingResultId === result.id) resetResultForm()
     setResultStorageSource(deleteResult.source)
     setStatus(deleteResult.warning || 'Result deleted.')
   }
@@ -634,7 +696,7 @@ export function IndividualLeagueResultsWorkspace({
 
         {error ? <p style={msgErr}>{error}</p> : null}
         {status ? (
-          <p style={status.startsWith('Saved') || status.startsWith('Loaded') || status.toLowerCase().includes('deleted') ? msgOk : msgErr}>
+          <p style={status.startsWith('Saved') || status.startsWith('Updated') || status.startsWith('Loaded') || status.toLowerCase().includes('deleted') ? msgOk : msgErr}>
             {status}
           </p>
         ) : null}
@@ -658,12 +720,18 @@ export function IndividualLeagueResultsWorkspace({
         >
           <summary style={detailsSummary}>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>New player result</div>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>
+                {editingResultId ? 'Edit player result' : 'New player result'}
+              </div>
               <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
-                {canEditResults ? 'Use this for individual TIQ league matches only.' : 'Result entry unlocks with individual-league Coordinator access.'}
+                {canEditResults
+                  ? editingResultId
+                    ? 'Update the saved scoreline, winner, date, or notes.'
+                    : 'Use this for individual TIQ league matches only.'
+                  : 'Result entry unlocks with individual-league Coordinator access.'}
               </div>
             </div>
-            <span style={canEditResults ? pillGreen : pill}>Add result</span>
+            <span style={canEditResults ? pillGreen : pill}>{editingResultId ? 'Editing' : 'Add result'}</span>
           </summary>
 
           {canEditResults ? (
@@ -674,7 +742,7 @@ export function IndividualLeagueResultsWorkspace({
                     style={inputStyle}
                     value={formLeagueId}
                     onChange={(event) => void handleFormLeagueChange(event.target.value)}
-                    disabled={saving}
+                    disabled={saving || Boolean(editingResultId)}
                   >
                     <option value="">Choose league</option>
                     {leagues.map((league) => (
@@ -763,9 +831,14 @@ export function IndividualLeagueResultsWorkspace({
                   disabled={saving}
                   style={{ ...btnPrimary, ...(saving ? disabledButton : {}) }}
                 >
-                  {saving ? 'Saving result...' : selectedLeagueExperience.actionLabel}
+                  {saving ? 'Saving result...' : editingResultId ? 'Update Result' : selectedLeagueExperience.actionLabel}
                 </button>
                 <span style={pillGreen}>{resultStorageSource === 'supabase' ? 'Live results' : 'Saved preview results'}</span>
+                {editingResultId ? (
+                  <button type="button" onClick={resetResultForm} style={btnSecondary}>
+                    Cancel edit
+                  </button>
+                ) : null}
                 {selectedLeague ? (
                   <Link href={`/explore/leagues/tiq/${encodeURIComponent(selectedLeague.id)}?league_id=${encodeURIComponent(selectedLeague.id)}`} style={btnSecondary}>
                     View league
@@ -870,9 +943,14 @@ export function IndividualLeagueResultsWorkspace({
                       <Link href={`/players/${encodeURIComponent(result.winnerPlayerId)}`} style={btnSecondary}>Winner</Link>
                     ) : null}
                     {canEditResults ? (
-                      <button type="button" onClick={() => void handleDeleteResult(result)} style={btnDanger}>
-                        Delete
-                      </button>
+                      <>
+                        <button type="button" onClick={() => void handleEditResult(result)} style={btnSecondary}>
+                          Edit
+                        </button>
+                        <button type="button" onClick={() => void handleDeleteResult(result)} style={btnDanger}>
+                          Delete
+                        </button>
+                      </>
                     ) : null}
                   </div>
                 </div>

@@ -182,6 +182,7 @@ export async function listTiqIndividualLeagueResults(filters?: {
 }
 
 export async function saveTiqIndividualLeagueResult(input: {
+  resultId?: string | null
   leagueId: string
   playerAName: string
   playerAId?: string | null
@@ -198,8 +199,13 @@ export async function saveTiqIndividualLeagueResult(input: {
   warning: string | null
 }> {
   const now = new Date().toISOString()
+  const existingResultId = cleanText(input.resultId)
+  const operationLabel = existingResultId ? 'updated' : 'saved'
+  const existingLocalRecord = existingResultId
+    ? readLocalResults().find((record) => record.id === existingResultId) || null
+    : null
   const localRecord: TiqIndividualLeagueResultRecord = {
-    id: buildLocalId(),
+    id: existingResultId || buildLocalId(),
     leagueId: cleanText(input.leagueId),
     playerAName: cleanText(input.playerAName),
     playerAId: cleanText(input.playerAId),
@@ -210,7 +216,7 @@ export async function saveTiqIndividualLeagueResult(input: {
     score: cleanText(input.score),
     resultDate: cleanText(input.resultDate) || now,
     notes: cleanText(input.notes),
-    createdAt: now,
+    createdAt: existingLocalRecord?.createdAt || now,
     updatedAt: now,
   }
 
@@ -245,7 +251,9 @@ export async function saveTiqIndividualLeagueResult(input: {
       updated_by_user_id: userId,
     }
 
-    const { error } = await supabase.from(TIQ_INDIVIDUAL_RESULTS_TABLE).insert(payload)
+    const { error } = await supabase
+      .from(TIQ_INDIVIDUAL_RESULTS_TABLE)
+      .upsert(payload, { onConflict: 'id' })
     if (error) throw error
 
     // Sync into the matches table so both rating tracks pick this up on the next recalculation.
@@ -267,8 +275,8 @@ export async function saveTiqIndividualLeagueResult(input: {
     } catch (syncError) {
       syncWarning =
         syncError instanceof Error
-          ? `Result saved — rating sync failed and will apply on the next full recalculation: ${syncError.message}`
-          : 'Result saved — rating sync failed and will apply on the next full recalculation.'
+          ? `Result ${operationLabel} - rating sync failed and will apply on the next full recalculation: ${syncError.message}`
+          : `Result ${operationLabel} - rating sync failed and will apply on the next full recalculation.`
     }
 
     return {
@@ -282,8 +290,8 @@ export async function saveTiqIndividualLeagueResult(input: {
       source: 'local',
       warning:
         error instanceof Error
-          ? 'Result saved on this device. Cloud sync will retry later.'
-          : 'Result saved on this device. Cloud sync will retry later.',
+          ? `Result ${operationLabel} on this device. Cloud sync will retry later.`
+          : `Result ${operationLabel} on this device. Cloud sync will retry later.`,
     }
   }
 }
@@ -319,8 +327,8 @@ export async function deleteTiqIndividualLeagueResult(resultId: string): Promise
     } catch (syncError) {
       syncWarning =
         syncError instanceof Error
-          ? `Result deleted — rating sync failed and will apply on the next full recalculation: ${syncError.message}`
-          : 'Result deleted — rating sync failed and will apply on the next full recalculation.'
+          ? `Result deleted - rating sync failed and will apply on the next full recalculation: ${syncError.message}`
+          : 'Result deleted - rating sync failed and will apply on the next full recalculation.'
     }
 
     return { source: 'supabase', warning: syncWarning }
