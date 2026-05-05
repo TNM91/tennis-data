@@ -12,6 +12,7 @@ function stripHash(href: string) {
 function isActiveCoordinatorLink(pathname: string, href: string) {
   const routeHref = stripHash(href)
   if (href.includes('#')) return false
+  if (routeHref === '/league-coordinator') return pathname === routeHref
   if (pathname === routeHref) return true
   return routeHref !== '/' && pathname.startsWith(routeHref)
 }

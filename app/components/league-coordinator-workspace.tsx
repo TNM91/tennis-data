@@ -135,8 +135,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
   const resultEntryHref = latestTeamLeague
-    ? `/captain/tiq-team-matches?leagueId=${encodeURIComponent(latestTeamLeague.id)}`
-    : '/captain/tiq-team-matches'
+    ? `/league-coordinator/results?leagueId=${encodeURIComponent(latestTeamLeague.id)}`
+    : '/league-coordinator/results'
   const leagueOpsChecks = [
     {
       label: 'Access',
