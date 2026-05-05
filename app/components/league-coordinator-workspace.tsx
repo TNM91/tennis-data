@@ -98,6 +98,11 @@ function buildTiqLeaguePageHref(record: TiqLeagueRecord) {
   return `/explore/leagues/tiq/${encodedId}?league_id=${encodedId}`
 }
 
+function buildLeagueSetupHref(record: TiqLeagueRecord) {
+  const encodedId = encodeURIComponent(record.id)
+  return `/league-coordinator?leagueId=${encodedId}#league-setup-form`
+}
+
 function getLeagueResultEntryLabel(record: TiqLeagueRecord) {
   return record.leagueFormat === 'team' ? 'Record team results' : 'Log player results'
 }
@@ -418,6 +423,63 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const individualLoggedPairCount = individualResultBookRows.reduce((sum, row) => sum + row.uniquePairs, 0)
   const individualPossiblePairCount = individualResultBookRows.reduce((sum, row) => sum + row.possiblePairs, 0)
   const hasResultReadyLeague = teamLeagues.length > 0 || individualLeagues.length > 0
+  const publicPageReadinessRows = useMemo(() => {
+    const teamRows = teamResultBookRows.map((row) => {
+      const participantsReady = row.league.teams.length > 1
+      const resultsReady = row.events.length > 0 && row.missingLineEvents === 0 && row.scoreReviewEvents === 0
+
+      return {
+        league: row.league,
+        participantsReady,
+        resultsReady,
+        publicReady: participantsReady && resultsReady,
+        statusText: participantsReady
+          ? resultsReady
+            ? 'Ready to share'
+            : row.events.length > 0
+              ? 'Finish match lines'
+              : 'Needs match results'
+          : 'Needs teams',
+        detail: participantsReady
+          ? resultsReady
+            ? `${row.completedEvents}/${row.events.length} matches complete`
+            : row.events.length > 0
+              ? `${row.missingLineEvents} match${row.missingLineEvents === 1 ? '' : 'es'} need lines`
+              : 'Add the first team match'
+          : 'Add at least two teams',
+      }
+    })
+
+    const individualRows = individualResultBookRows.map((row) => {
+      const participantsReady = row.league.players.length > 1
+      const resultsReady = row.resultCount > 0
+
+      return {
+        league: row.league,
+        participantsReady,
+        resultsReady,
+        publicReady: participantsReady && resultsReady,
+        statusText: participantsReady
+          ? resultsReady
+            ? 'Ready to share'
+            : 'Needs player results'
+          : 'Needs players',
+        detail: participantsReady
+          ? resultsReady
+            ? `${row.resultCount} result${row.resultCount === 1 ? '' : 's'} logged`
+            : 'Log the first player result'
+          : 'Add at least two players',
+      }
+    })
+
+    return [...teamRows, ...individualRows].sort(
+      (left, right) =>
+        Number(left.publicReady) - Number(right.publicReady) ||
+        new Date(right.league.updatedAt).getTime() - new Date(left.league.updatedAt).getTime(),
+    )
+  }, [individualResultBookRows, teamResultBookRows])
+  const publicReadyLeagueCount = publicPageReadinessRows.filter((row) => row.publicReady).length
+  const publicPageNeedsWorkCount = Math.max(publicPageReadinessRows.length - publicReadyLeagueCount, 0)
   const resultQueueItemCount =
     teamResultBooksNeedAttention +
     resultBookNeedsAttention +
@@ -784,6 +846,55 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             <GhostLink href="/compete/leagues">View leagues</GhostLink>
             <GhostLink href="/explore/rankings">View rankings</GhostLink>
           </div>
+        </section>
+
+        <section style={publicReadinessPanelStyle}>
+          <div style={leagueOpsHeaderStyle}>
+            <div>
+              <div style={sectionEyebrow}>Public page readiness</div>
+              <h2 style={leagueOpsTitleStyle}>
+                {records.length === 0
+                  ? 'Create a league before sharing a public page.'
+                  : publicPageNeedsWorkCount > 0
+                    ? `${publicPageNeedsWorkCount} public page${publicPageNeedsWorkCount === 1 ? '' : 's'} need data before sharing.`
+                    : 'Public league pages are ready to share.'}
+              </h2>
+              <p style={leagueOpsTextStyle}>
+                Check whether each saved league has enough participants and results for the public TIQ page to feel useful.
+              </p>
+            </div>
+            <span style={publicPageNeedsWorkCount > 0 ? pillSlate : pillGreen}>
+              {records.length === 0 ? 'Setup first' : `${publicReadyLeagueCount}/${records.length} ready`}
+            </span>
+          </div>
+
+          {publicPageReadinessRows.length > 0 ? (
+            <div style={publicReadinessGridStyle}>
+              {publicPageReadinessRows.slice(0, 4).map((row) => (
+                <div key={row.league.id} style={row.publicReady ? publicReadinessCardReadyStyle : publicReadinessCardStyle}>
+                  <div style={registryMetaRow}>
+                    <span style={row.publicReady ? pillGreen : pillSlate}>{row.statusText}</span>
+                    <span style={row.league.leagueFormat === 'team' ? pillGreen : pillBlue}>
+                      {row.league.leagueFormat === 'team' ? 'Team' : 'Individual'}
+                    </span>
+                  </div>
+                  <strong style={publicReadinessTitleStyle}>{row.league.leagueName}</strong>
+                  <span style={registryText}>{row.detail}</span>
+                  <div style={publicReadinessCheckGridStyle}>
+                    <span style={row.participantsReady ? pillGreen : pillSlate}>Participants</span>
+                    <span style={row.resultsReady ? pillGreen : pillSlate}>Results</span>
+                  </div>
+                  <div style={buttonRow}>
+                    <GhostLink href={buildTiqLeaguePageHref(row.league)}>View public</GhostLink>
+                    <GhostLink href={buildLeagueResultEntryHref(row.league)}>{getLeagueResultEntryLabel(row.league)}</GhostLink>
+                    <GhostLink href={buildLeagueSetupHref(row.league)}>Manage</GhostLink>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={emptyCard}>No TIQ league pages are ready yet. Save a team or individual league to start.</div>
+          )}
         </section>
 
         <section style={reviewQueuePanelStyle}>
@@ -1720,10 +1831,55 @@ const reviewQueuePanelStyle: CSSProperties = {
   boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
 }
 
+const publicReadinessPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(135deg, rgba(13,31,58,0.86) 0%, rgba(10,24,45,0.96) 62%, rgba(155,225,29,0.10) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
 const reviewQueueGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
   gap: '12px',
+}
+
+const publicReadinessGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gap: '12px',
+}
+
+const publicReadinessCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  alignContent: 'start',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.045)',
+}
+
+const publicReadinessCardReadyStyle: CSSProperties = {
+  ...publicReadinessCardStyle,
+  border: '1px solid rgba(74,222,128,0.20)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const publicReadinessTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '16px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const publicReadinessCheckGridStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
 }
 
 const reviewCueCardStyle: CSSProperties = {
