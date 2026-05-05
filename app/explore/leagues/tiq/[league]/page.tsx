@@ -182,6 +182,18 @@ function isRecentResult(value: string | null | undefined, windowDays: number) {
   return parsed.getTime() >= windowStart
 }
 
+function isEditedIndividualResult(result: TiqIndividualLeagueResultRecord) {
+  const createdTime = result.createdAt ? new Date(result.createdAt).getTime() : 0
+  const updatedTime = result.updatedAt ? new Date(result.updatedAt).getTime() : 0
+  if (!createdTime || !updatedTime) return false
+
+  return updatedTime - createdTime > 1000
+}
+
+function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
+  return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+}
+
 function getStandingMetricConfig(
   entry: IndividualStanding,
   format: TiqIndividualCompetitionFormat,
@@ -592,6 +604,30 @@ export default function TiqLeagueDetailPage() {
   const resultWinnerOptions = [resultPlayerAOption, resultPlayerBOption].filter(
     (option): option is ResultParticipantOption => Boolean(option),
   )
+  const individualResultBookStats = useMemo(() => {
+    const pairKeys = new Set(
+      individualResults.map((result) =>
+        [result.playerAName.toLowerCase(), result.playerBName.toLowerCase()].sort().join('::'),
+      ),
+    )
+    const possiblePairs =
+      visiblePlayerEntries.length > 1
+        ? (visiblePlayerEntries.length * (visiblePlayerEntries.length - 1)) / 2
+        : 0
+    const latestResult = individualResults[0] || null
+    const recentCount = individualResults.filter((result) => isRecentResult(result.resultDate, 14)).length
+    const correctionCount = individualResults.filter(isEditedIndividualResult).length
+
+    return {
+      total: individualResults.length,
+      latestResult,
+      recentCount,
+      correctionCount,
+      uniquePairCount: pairKeys.size,
+      possiblePairs,
+      coverageRate: possiblePairs > 0 ? pairKeys.size / possiblePairs : null,
+    }
+  }, [individualResults, visiblePlayerEntries])
   const suggestedResultKey = `${suggestedResultPlayerA}::${suggestedResultPlayerB}`
   const savedSuggestionByOpportunityKey = useMemo(() => {
     const map = new Map<string, TiqIndividualSuggestionRecord>()
@@ -1843,6 +1879,69 @@ export default function TiqLeagueDetailPage() {
 
             {league.leagueFormat === 'individual' ? (
               <section style={dynamicPanelCard}>
+                <div style={sectionEyebrow}>Result book</div>
+                <h2 style={sectionTitle}>Current player-result status.</h2>
+                <p style={sectionText}>
+                  Check the logged result volume, recent activity, pair coverage, and corrections before sharing
+                  the table or opening Coordinator for updates.
+                </p>
+
+                <div style={resultBookGrid}>
+                  <div style={resultBookTile}>
+                    <div style={resultBookLabel}>Logged results</div>
+                    <div style={resultBookValue}>{individualResultBookStats.total}</div>
+                    <div style={resultBookText}>
+                      {individualResultBookStats.recentCount} in the last 14 days
+                    </div>
+                  </div>
+                  <div style={resultBookTile}>
+                    <div style={resultBookLabel}>Pair coverage</div>
+                    <div style={resultBookValue}>
+                      {individualResultBookStats.coverageRate !== null
+                        ? `${Math.round(individualResultBookStats.coverageRate * 100)}%`
+                        : '-'}
+                    </div>
+                    <div style={resultBookText}>
+                      {individualResultBookStats.uniquePairCount}/{individualResultBookStats.possiblePairs} pairings logged
+                    </div>
+                  </div>
+                  <div style={resultBookTile}>
+                    <div style={resultBookLabel}>Corrections</div>
+                    <div style={resultBookValue}>{individualResultBookStats.correctionCount}</div>
+                    <div style={resultBookText}>
+                      {individualResultBookStats.correctionCount === 1 ? 'Edited result' : 'Edited results'}
+                    </div>
+                  </div>
+                  <div style={resultBookTile}>
+                    <div style={resultBookLabel}>Latest result</div>
+                    <div style={{ ...resultBookValue, fontSize: '20px' }}>
+                      {individualResultBookStats.latestResult
+                        ? individualResultBookStats.latestResult.winnerPlayerName
+                        : '-'}
+                    </div>
+                    <div style={resultBookText}>
+                      {individualResultBookStats.latestResult
+                        ? `def. ${resultOpponentName(individualResultBookStats.latestResult)}`
+                        : 'No result logged yet'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={standingActionRow}>
+                  <GhostLink href={`/league-coordinator/individual-results?leagueId=${encodeURIComponent(league.id)}`}>
+                    Open Player Results
+                  </GhostLink>
+                  {individualResultBookStats.latestResult?.winnerPlayerId ? (
+                    <GhostLink href={`/players/${encodeURIComponent(individualResultBookStats.latestResult.winnerPlayerId)}`}>
+                      Latest Winner
+                    </GhostLink>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
+            {league.leagueFormat === 'individual' ? (
+              <section style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Next actions</div>
                 <h2 style={sectionTitle}>What should move next in this format?</h2>
                 <p style={sectionText}>
@@ -2129,6 +2228,9 @@ export default function TiqLeagueDetailPage() {
                           </div>
                         </div>
                         <div style={dynamicResultMetaStack}>
+                          {isEditedIndividualResult(result) ? (
+                            <span style={pillAmber}>Edited</span>
+                          ) : null}
                           <span style={metaPill}>
                             {result.score || individualFormatExperience.actionLabel}
                           </span>
@@ -2426,6 +2528,13 @@ const pillSlate: CSSProperties = {
   color: '#dfe8f8',
 }
 
+const pillAmber: CSSProperties = {
+  ...pillBase,
+  minHeight: '30px',
+  background: 'rgba(251,191,36,0.14)',
+  color: '#fde68a',
+}
+
 const hintPill: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -2609,6 +2718,42 @@ const metricValue: CSSProperties = {
   lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: '-0.04em',
+}
+
+const resultBookGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gap: '12px',
+}
+
+const resultBookTile: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.045)',
+}
+
+const resultBookLabel: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const resultBookValue: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '28px',
+  lineHeight: 1.05,
+  fontWeight: 900,
+}
+
+const resultBookText: CSSProperties = {
+  color: 'rgba(214,228,246,0.72)',
+  fontSize: '13px',
+  lineHeight: 1.5,
 }
 
 const contentGrid: CSSProperties = {
