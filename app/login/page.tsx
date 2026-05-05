@@ -70,13 +70,13 @@ async function getDefaultPostLoginRoute(
   userId?: string | null,
 ) {
   const access = buildProductAccessState(role, entitlements)
+  if (access.currentPlanId === 'league') return '/league-coordinator'
+  if (access.currentPlanId === 'captain') return '/captain'
   if (access.canUseAdvancedPlayerInsights) {
     const profileRes = await loadUserProfileLink(userId)
     const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
     if (!hasLinkedPlayer) return '/profile'
   }
-  if (access.canUseLeagueTools) return '/league-coordinator'
-  if (access.canUseCaptainWorkflow) return '/captain'
   return DEFAULT_POST_LOGIN_ROUTE
 }
 
