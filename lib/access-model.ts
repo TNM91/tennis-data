@@ -154,10 +154,10 @@ export function buildProductAccessState(
 
   const currentPlanId: PricingPlanId = captainSubscriptionActive
     ? 'captain'
-    : playerPlusActive
-      ? 'player_plus'
-      : leagueToolsActive
-        ? 'league'
+    : leagueToolsActive
+      ? 'league'
+      : playerPlusActive
+        ? 'player_plus'
         : 'free'
 
   const recommendedUpgradePlanId: PricingPlanId | null =
@@ -167,6 +167,8 @@ export function buildProductAccessState(
         ? leagueToolsActive
           ? null
           : 'league'
+        : leagueToolsActive
+          ? null
         : signedInMember
           ? 'player_plus'
           : 'free'
@@ -222,9 +224,9 @@ export function buildProductAccessState(
     leagueTierMessage: canUseLeagueTools
       ? 'TIQ League Coordinator tools are active for league setup, scheduling, standings, visibility, and organizer workflows.'
       : 'Ready to run your league without spreadsheets? TIQ League Coordinator gives organizers one place for structure, visibility, and communication.',
-    teamLeagueMessage: canEnterTiqTeamLeague
-      ? 'Team-league tools are active. Add your team, manage the season cleanly, and keep weekly competition inside TIQ.'
-      : 'Captain plus TIQ League Coordinator keeps organized team play in one place: teams, season flow, and competition tools.',
+    teamLeagueMessage: canCreateTiqTeamLeague
+      ? 'Team-league coordinator tools are active. Create team leagues, structure participants, and keep competition inside TIQ.'
+      : 'TIQ League Coordinator keeps organized team play in one place: teams, season flow, and competition tools.',
     individualLeagueMessage: canCreateTiqIndividualLeague
       ? 'Individual-league tools are active. Create the competition container, organize players, and keep standings out of spreadsheets.'
       : 'TIQ League Coordinator makes it easy to launch individual TIQ competition without forcing every player into a subscription.',
