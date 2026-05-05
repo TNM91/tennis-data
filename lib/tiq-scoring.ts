@@ -57,7 +57,7 @@ export function calculateDynamicPointsForSides(
   const sideAGames = parsedSets.reduce((sum, set) => sum + set.sideAGames, 0)
   const sideBGames = parsedSets.reduce((sum, set) => sum + set.sideBGames, 0)
 
-  if (winnerSetWins <= loserSetWins) {
+  if (winnerSetWins < 2 || winnerSetWins <= loserSetWins) {
     return { sideAPoints: 0, sideBPoints: 0, parsedSets, valid: false }
   }
 
@@ -75,6 +75,22 @@ export function calculateDynamicPointsForSides(
 
 export function getDynamicPointsRulesSummary() {
   return 'Best 2 of 3 sets: straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won up to 8.'
+}
+
+export function getDynamicPointsValidationMessage(
+  score: string | null | undefined,
+  winnerSide: 'A' | 'B' | null | undefined,
+) {
+  const trimmedScore = cleanText(score)
+  if (!winnerSide && trimmedScore) return 'Choose a winner before calculating dynamic points.'
+  if (winnerSide && !trimmedScore) return 'Dynamic points need a score.'
+  if (!winnerSide || !trimmedScore) return ''
+
+  const points = calculateDynamicPointsForSides(trimmedScore, winnerSide)
+  if (points.valid) return ''
+  if (points.parsedSets.length === 0) return 'Enter a standard set score for dynamic points, like 6-4, 7-5.'
+
+  return 'Dynamic points need a best-of-3 score where the selected winner wins two sets.'
 }
 
 export function formatDynamicPointsForSides(

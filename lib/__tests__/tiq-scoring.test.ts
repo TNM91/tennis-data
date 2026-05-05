@@ -4,6 +4,7 @@ import {
   calculateDynamicPointsForSides,
   compareTiqTeamStandings,
   formatDynamicPointsForSides,
+  getDynamicPointsValidationMessage,
   parseTennisScoreSets,
 } from '../tiq-scoring'
 
@@ -59,6 +60,14 @@ describe('calculateDynamicPointsForSides', () => {
       valid: false,
     })
   })
+
+  it('rejects one-set scores because dynamic points require best-of-3 completion', () => {
+    expect(calculateDynamicPointsForSides('6-4', 'A')).toMatchObject({
+      sideAPoints: 0,
+      sideBPoints: 0,
+      valid: false,
+    })
+  })
 })
 
 describe('formatDynamicPointsForSides', () => {
@@ -72,6 +81,18 @@ describe('formatDynamicPointsForSides', () => {
 
   it('returns null when points cannot be calculated', () => {
     expect(formatDynamicPointsForSides('4-6, 3-6', 'A')).toBeNull()
+  })
+})
+
+describe('getDynamicPointsValidationMessage', () => {
+  it('explains that dynamic points need a completed best-of-3 score', () => {
+    expect(getDynamicPointsValidationMessage('6-4', 'A')).toBe(
+      'Dynamic points need a best-of-3 score where the selected winner wins two sets.',
+    )
+  })
+
+  it('allows valid straight-set scores', () => {
+    expect(getDynamicPointsValidationMessage('7-6, 7-6', 'A')).toBe('')
   })
 })
 
