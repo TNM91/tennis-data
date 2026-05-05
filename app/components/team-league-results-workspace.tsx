@@ -32,6 +32,8 @@ type MatchLineSummary = {
   teamAPoints: number
   teamBPoints: number
 }
+type TeamResultCompletionFilter = 'all' | 'complete' | 'incomplete'
+type TeamResultDateFilter = 'all' | 'week' | 'month'
 
 
 const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
@@ -690,6 +692,13 @@ function exportDateValue(value: string) {
   return parsed.toISOString().slice(0, 10)
 }
 
+function resultDateIsWithinDays(value: string, days: number) {
+  const parsed = value ? new Date(value).getTime() : 0
+  if (!parsed) return false
+
+  return parsed >= Date.now() - days * 24 * 60 * 60 * 1000
+}
+
 function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   if (!league) return []
 
@@ -895,6 +904,9 @@ export function TeamLeagueResultsWorkspace({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
+  const [resultSearch, setResultSearch] = useState('')
+  const [completionFilter, setCompletionFilter] = useState<TeamResultCompletionFilter>('all')
+  const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
   const [canEditResults, setCanEditResults] = useState(false)
   const [accessResolved, setAccessResolved] = useState(false)
@@ -906,6 +918,40 @@ export function TeamLeagueResultsWorkspace({
       )[0],
     [events],
   )
+  const normalizedResultSearch = resultSearch.trim().toLowerCase()
+  const visibleEvents = useMemo(() => {
+    return events.filter((event) => {
+      const summary = lineSummaries.get(event.id)
+      const isComplete = Boolean(summary && summary.total > 0 && summary.completed === summary.total)
+      if (completionFilter === 'complete' && !isComplete) return false
+      if (completionFilter === 'incomplete' && isComplete) return false
+      if (dateFilter === 'week' && !resultDateIsWithinDays(event.matchDate, 7)) return false
+      if (dateFilter === 'month' && !resultDateIsWithinDays(event.matchDate, 30)) return false
+
+      if (!normalizedResultSearch) return true
+
+      const league = leagues.find((item) => item.id === event.leagueId)
+      const haystack = [
+        event.teamAName,
+        event.teamBName,
+        event.facility,
+        event.notes,
+        event.winnerTeamName,
+        league?.leagueName,
+        formatDate(event.matchDate),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      return haystack.includes(normalizedResultSearch)
+    })
+  }, [completionFilter, dateFilter, events, leagues, lineSummaries, normalizedResultSearch])
+  const activeReviewFilterCount =
+    (filterLeagueId ? 1 : 0) +
+    (normalizedResultSearch ? 1 : 0) +
+    (completionFilter !== 'all' ? 1 : 0) +
+    (dateFilter !== 'all' ? 1 : 0)
 
   useEffect(() => {
     let mounted = true
@@ -977,7 +1023,7 @@ export function TeamLeagueResultsWorkspace({
   }
 
   function teamResultExportRows() {
-    return events.map((event) => {
+    return visibleEvents.map((event) => {
       const league = leagues.find((item) => item.id === event.leagueId)
       const summary = lineSummaries.get(event.id)
       const scoringSystem = league?.scoringSystem ?? 'standard'
@@ -1001,7 +1047,7 @@ export function TeamLeagueResultsWorkspace({
   }
 
   function handleExportResults() {
-    if (events.length === 0) {
+    if (visibleEvents.length === 0) {
       setStatus('There are no team results to export.')
       return
     }
@@ -1055,11 +1101,11 @@ export function TeamLeagueResultsWorkspace({
     link.click()
     link.remove()
     window.URL.revokeObjectURL(url)
-    setStatus(`Exported ${events.length} team match${events.length === 1 ? '' : 'es'}.`)
+    setStatus(`Exported ${visibleEvents.length} team match${visibleEvents.length === 1 ? '' : 'es'}.`)
   }
 
   async function handleCopyResultSummary() {
-    if (events.length === 0) {
+    if (visibleEvents.length === 0) {
       setStatus('There are no team results to copy.')
       return
     }
@@ -1068,7 +1114,7 @@ export function TeamLeagueResultsWorkspace({
       ? leagues.find((league) => league.id === filterLeagueId)?.leagueName || 'Filtered team results'
       : 'Filtered team results'
     const lines = [
-      `${selectedLeagueName}: ${events.length} team match${events.length === 1 ? '' : 'es'}`,
+      `${selectedLeagueName}: ${visibleEvents.length} team match${visibleEvents.length === 1 ? '' : 'es'}`,
       ...teamResultExportRows().map((row) => {
         const score = `${row.teamA} ${row.teamAWins}, ${row.teamB} ${row.teamBWins}`
         const details = [
@@ -1082,9 +1128,18 @@ export function TeamLeagueResultsWorkspace({
 
     try {
       await navigator.clipboard.writeText(lines.join('\n'))
-      setStatus(`Copied ${events.length} team match${events.length === 1 ? '' : 'es'} to clipboard.`)
+      setStatus(`Copied ${visibleEvents.length} team match${visibleEvents.length === 1 ? '' : 'es'} to clipboard.`)
     } catch {
       setStatus('Clipboard access was blocked by the browser.')
+    }
+  }
+
+  async function handleClearReviewFilters() {
+    setResultSearch('')
+    setCompletionFilter('all')
+    setDateFilter('all')
+    if (filterLeagueId) {
+      await handleFilterChange('')
     }
   }
 
@@ -1108,8 +1163,10 @@ export function TeamLeagueResultsWorkspace({
             </div>
             <div style={scorekeeperTile}>
               <div style={tileLabel}>Matches</div>
-              <div style={tileValue}>{events.length}</div>
-              <div style={tileText}>{filterLeagueId ? 'Filtered view' : 'All recorded events'}</div>
+              <div style={tileValue}>{visibleEvents.length}</div>
+              <div style={tileText}>
+                {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
+              </div>
             </div>
             <div style={scorekeeperTile}>
               <div style={tileLabel}>Latest</div>
@@ -1175,6 +1232,12 @@ export function TeamLeagueResultsWorkspace({
         <div style={sectionTitle}>Recorded matches</div>
 
         <div style={{ ...row, marginBottom: 14 }}>
+          <input
+            style={{ ...inputStyle, maxWidth: 260 }}
+            value={resultSearch}
+            onChange={(event) => setResultSearch(event.target.value)}
+            placeholder="Team, facility, note..."
+          />
           <select
             style={{ ...selectStyle, maxWidth: 260 }}
             value={filterLeagueId}
@@ -1185,24 +1248,45 @@ export function TeamLeagueResultsWorkspace({
               <option key={l.id} value={l.id}>{l.leagueName}</option>
             ))}
           </select>
+          <select
+            style={{ ...selectStyle, maxWidth: 180 }}
+            value={completionFilter}
+            onChange={(event) => setCompletionFilter(event.target.value as TeamResultCompletionFilter)}
+          >
+            <option value="all">All statuses</option>
+            <option value="complete">Complete only</option>
+            <option value="incomplete">Needs lines</option>
+          </select>
+          <select
+            style={{ ...selectStyle, maxWidth: 180 }}
+            value={dateFilter}
+            onChange={(event) => setDateFilter(event.target.value as TeamResultDateFilter)}
+          >
+            <option value="all">Any date</option>
+            <option value="week">Last 7 days</option>
+            <option value="month">Last 30 days</option>
+          </select>
+          <button type="button" style={btnSecondary} onClick={() => void handleClearReviewFilters()}>
+            Clear
+          </button>
           <button
             type="button"
-            style={{ ...btnSecondary, ...(events.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+            style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
             onClick={handleExportResults}
-            disabled={events.length === 0}
+            disabled={visibleEvents.length === 0}
           >
             Export CSV
           </button>
           <button
             type="button"
-            style={{ ...btnSecondary, ...(events.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+            style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
             onClick={() => void handleCopyResultSummary()}
-            disabled={events.length === 0}
+            disabled={visibleEvents.length === 0}
           >
             Copy Summary
           </button>
           <span style={{ color: '#94a3b8', fontSize: 13 }}>
-            Showing {events.length} team match{events.length === 1 ? '' : 'es'}.
+            Showing {visibleEvents.length} of {events.length} team match{events.length === 1 ? '' : 'es'}.
           </span>
         </div>
 
@@ -1210,8 +1294,10 @@ export function TeamLeagueResultsWorkspace({
           <p style={{ color: '#94a3b8' }}>Loading...</p>
         ) : events.length === 0 ? (
           <p style={{ color: '#94a3b8' }}>No events yet. Create one above.</p>
+        ) : visibleEvents.length === 0 ? (
+          <p style={{ color: '#94a3b8' }}>No team matches match the current review filters.</p>
         ) : (
-          events.map((event) => (
+          visibleEvents.map((event) => (
             <EventCard
               key={event.id}
               event={event}
