@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 
 type PlayerOption = { id: string; name: string }
+type MatchLineSummary = { total: number; completed: number; teamAWins: number; teamBWins: number }
 
 
 const pageWrap: CSSProperties = { maxWidth: 1100, margin: '0 auto', padding: '32px 16px' }
@@ -70,16 +71,21 @@ function PlayerSelect({
   onChange,
   players,
   placeholder,
+  excludedPlayerIds = [],
 }: {
   value: string
   onChange: (v: string) => void
   players: PlayerOption[]
   placeholder?: string
+  excludedPlayerIds?: string[]
 }) {
+  const excludedIds = new Set(excludedPlayerIds.filter((id) => id && id !== value))
+  const availablePlayers = players.filter((player) => !excludedIds.has(player.id))
+
   return (
     <select style={selectStyle} value={value} onChange={(e) => onChange(e.target.value)}>
       <option value="">{placeholder || 'Select player...'}</option>
-      {players.map((p) => (
+      {availablePlayers.map((p) => (
         <option key={p.id} value={p.id}>{p.name}</option>
       ))}
     </select>
@@ -98,8 +104,8 @@ type LineFormState = {
   score: string
 }
 
-const emptyLine = (): LineFormState => ({
-  lineNumber: '',
+const emptyLine = (lineNumber = ''): LineFormState => ({
+  lineNumber,
   matchType: 'singles',
   sideAPlayer1Id: '',
   sideAPlayer2Id: '',
@@ -113,12 +119,14 @@ function LineForm({
   event,
   players,
   existingLine,
+  defaultLineNumber = '',
   onSaved,
   onCancel,
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
   existingLine?: TiqTeamMatchLineRecord
+  defaultLineNumber?: string
   onSaved: (line: TiqTeamMatchLineRecord) => void
   onCancel: () => void
 }) {
@@ -134,7 +142,7 @@ function LineForm({
           winnerSide: existingLine.winnerSide ?? '',
           score: existingLine.score,
         }
-      : emptyLine()
+      : emptyLine(defaultLineNumber)
   )
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
@@ -143,11 +151,50 @@ function LineForm({
     return players.find((p) => p.id === id)?.name ?? ''
   }
 
-  async function handleSave() {
+  function validateLine() {
     if (!form.lineNumber || !form.sideAPlayer1Id || !form.sideBPlayer1Id) {
-      setWarning('Line number and at least one player per side are required.')
+      return 'Line number and at least one player per side are required.'
+    }
+
+    const lineNumber = Number(form.lineNumber)
+    if (!Number.isInteger(lineNumber) || lineNumber < 1 || lineNumber > 20) {
+      return 'Line number must be a whole number from 1 to 20.'
+    }
+
+    if (form.matchType === 'doubles' && (!form.sideAPlayer2Id || !form.sideBPlayer2Id)) {
+      return 'Doubles lines need two players on each side.'
+    }
+
+    const selectedPlayerIds = form.matchType === 'doubles'
+      ? [
+          form.sideAPlayer1Id,
+          form.sideAPlayer2Id,
+          form.sideBPlayer1Id,
+          form.sideBPlayer2Id,
+        ].filter(Boolean)
+      : [form.sideAPlayer1Id, form.sideBPlayer1Id].filter(Boolean)
+    if (new Set(selectedPlayerIds).size !== selectedPlayerIds.length) {
+      return 'Each player can only appear once on a line.'
+    }
+
+    if (form.winnerSide && !form.score.trim()) {
+      return 'Completed lines need a score.'
+    }
+
+    if (form.score.trim() && !form.winnerSide) {
+      return 'Choose a winner before saving a scored line.'
+    }
+
+    return ''
+  }
+
+  async function handleSave() {
+    const validationWarning = validateLine()
+    if (validationWarning) {
+      setWarning(validationWarning)
       return
     }
+
     setSaving(true)
     setWarning('')
     const { line, warning: w } = await saveTiqTeamMatchLine(event, {
@@ -170,11 +217,14 @@ function LineForm({
   }
 
   const isDoubles = form.matchType === 'doubles'
+  const activePlayerIds = isDoubles
+    ? [form.sideAPlayer1Id, form.sideAPlayer2Id, form.sideBPlayer1Id, form.sideBPlayer2Id]
+    : [form.sideAPlayer1Id, form.sideBPlayer1Id]
 
   return (
     <div style={card}>
       <div style={{ fontWeight: 700, marginBottom: 14, fontSize: 14 }}>
-        {existingLine ? `Edit line ${existingLine.lineNumber}` : 'Add line'}
+        {existingLine ? `Edit line ${existingLine.lineNumber}` : `Add line${defaultLineNumber ? ` ${defaultLineNumber}` : ''}`}
       </div>
 
       <div style={row}>
@@ -182,7 +232,19 @@ function LineForm({
           <input style={inputStyle} type="number" min={1} max={20} value={form.lineNumber} onChange={(e) => setForm((f) => ({ ...f, lineNumber: e.target.value }))} />
         </Field>
         <Field label="MATCH TYPE">
-          <select style={selectStyle} value={form.matchType} onChange={(e) => setForm((f) => ({ ...f, matchType: e.target.value as 'singles' | 'doubles' }))}>
+          <select
+            style={selectStyle}
+            value={form.matchType}
+            onChange={(e) => {
+              const matchType = e.target.value as 'singles' | 'doubles'
+              setForm((f) => ({
+                ...f,
+                matchType,
+                sideAPlayer2Id: matchType === 'singles' ? '' : f.sideAPlayer2Id,
+                sideBPlayer2Id: matchType === 'singles' ? '' : f.sideBPlayer2Id,
+              }))
+            }}
+          >
             <option value="singles">Singles</option>
             <option value="doubles">Doubles</option>
           </select>
@@ -201,22 +263,22 @@ function LineForm({
 
       <div style={row}>
         <Field label={`SIDE A - ${event.teamAName} - PLAYER 1`}>
-          <PlayerSelect value={form.sideAPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer1Id: v }))} players={players} />
+          <PlayerSelect value={form.sideAPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer1Id: v }))} players={players} excludedPlayerIds={activePlayerIds} />
         </Field>
         {isDoubles && (
           <Field label="SIDE A - PLAYER 2">
-            <PlayerSelect value={form.sideAPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer2Id: v }))} players={players} />
+            <PlayerSelect value={form.sideAPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideAPlayer2Id: v }))} players={players} excludedPlayerIds={activePlayerIds} />
           </Field>
         )}
       </div>
 
       <div style={row}>
         <Field label={`SIDE B - ${event.teamBName} - PLAYER 1`}>
-          <PlayerSelect value={form.sideBPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer1Id: v }))} players={players} />
+          <PlayerSelect value={form.sideBPlayer1Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer1Id: v }))} players={players} excludedPlayerIds={activePlayerIds} />
         </Field>
         {isDoubles && (
           <Field label="SIDE B - PLAYER 2">
-            <PlayerSelect value={form.sideBPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer2Id: v }))} players={players} />
+            <PlayerSelect value={form.sideBPlayer2Id} onChange={(v) => setForm((f) => ({ ...f, sideBPlayer2Id: v }))} players={players} excludedPlayerIds={activePlayerIds} />
           </Field>
         )}
       </div>
@@ -236,10 +298,12 @@ function LineForm({
 function EventCard({
   event,
   players,
+  lineSummary,
   onDeleted,
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
+  lineSummary?: MatchLineSummary
   onDeleted: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -250,11 +314,11 @@ function EventCard({
   const [deleting, setDeleting] = useState(false)
   const [warning, setWarning] = useState('')
 
-  async function loadLines() {
+  const loadLines = useCallback(async () => {
     const { lines: l } = await listTiqTeamMatchLines(event.id)
     setLines(l)
     setLinesLoaded(true)
-  }
+  }, [event.id])
 
   async function handleExpand() {
     setExpanded((v) => !v)
@@ -282,22 +346,33 @@ function EventCard({
   }
 
   function handleLineSaved(line: TiqTeamMatchLineRecord) {
-    setLines((prev) => {
-      const idx = prev.findIndex((l) => l.lineNumber === line.lineNumber)
-      if (idx >= 0) {
-        const next = [...prev]
-        next[idx] = line
-        return next
-      }
-      return [...prev, line].sort((a, b) => a.lineNumber - b.lineNumber)
-    })
-    setAddingLine(false)
+    const idx = lines.findIndex((l) => l.lineNumber === line.lineNumber)
+    const nextLines = idx >= 0
+      ? lines.map((item, itemIndex) => (itemIndex === idx ? line : item))
+      : [...lines, line].sort((a, b) => a.lineNumber - b.lineNumber)
+
+    setLines(nextLines)
+    setAddingLine(Boolean(nextOpenLineNumberForLines(nextLines)))
     setEditingLine(null)
+  }
+
+  function nextOpenLineNumberForLines(matchLines: TiqTeamMatchLineRecord[]) {
+    const usedLines = new Set(matchLines.map((line) => line.lineNumber))
+    for (let lineNumber = 1; lineNumber <= 20; lineNumber += 1) {
+      if (!usedLines.has(lineNumber)) return String(lineNumber)
+    }
+    return ''
   }
 
   const completedLines = lines.filter((l) => l.winnerSide)
   const teamAWins = lines.filter((l) => l.winnerSide === 'A').length
   const teamBWins = lines.filter((l) => l.winnerSide === 'B').length
+  const displayTotalLines = linesLoaded ? lines.length : lineSummary?.total ?? 0
+  const displayCompletedLines = linesLoaded ? completedLines.length : lineSummary?.completed ?? 0
+  const displayPendingLines = Math.max(displayTotalLines - displayCompletedLines, 0)
+  const displayTeamAWins = linesLoaded ? teamAWins : lineSummary?.teamAWins ?? 0
+  const displayTeamBWins = linesLoaded ? teamBWins : lineSummary?.teamBWins ?? 0
+  const defaultLineNumber = nextOpenLineNumberForLines(lines)
 
   return (
     <div style={card}>
@@ -309,18 +384,24 @@ function EventCard({
           <div style={{ fontSize: 13, color: '#94a3b8' }}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
-          {linesLoaded && completedLines.length > 0 && (
+          {displayTotalLines > 0 && (
             <div style={{ marginTop: 6, fontSize: 13 }}>
-              <span style={teamAWins > teamBWins ? pillGreen : pill}>{event.teamAName}: {teamAWins}</span>
+              <span style={pill}>{displayTotalLines} line{displayTotalLines === 1 ? '' : 's'}</span>
               {' '}
-              <span style={teamBWins > teamAWins ? pillGreen : pill}>{event.teamBName}: {teamBWins}</span>
+              <span style={displayCompletedLines === displayTotalLines ? pillGreen : pill}>{displayCompletedLines} complete</span>
+              {' '}
+              <span style={displayPendingLines > 0 ? pill : pillGreen}>{displayPendingLines} pending</span>
+              {' '}
+              <span style={displayTeamAWins > displayTeamBWins ? pillGreen : pill}>{event.teamAName}: {displayTeamAWins}</span>
+              {' '}
+              <span style={displayTeamBWins > displayTeamAWins ? pillGreen : pill}>{event.teamBName}: {displayTeamBWins}</span>
             </div>
           )}
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={btnSecondary} onClick={handleExpand}>
-            {expanded ? 'Collapse' : `Lines${linesLoaded ? ` (${lines.length})` : ''}`}
+            {expanded ? 'Collapse' : `Lines${displayTotalLines ? ` (${displayTotalLines})` : ''}`}
           </button>
           <button style={btnDanger} onClick={handleDeleteEvent} disabled={deleting}>
             {deleting ? 'Deleting...' : 'Delete'}
@@ -380,17 +461,23 @@ function EventCard({
             </div>
           )}
 
-          {!addingLine && !editingLine && (
+          {!addingLine && !editingLine && defaultLineNumber && (
             <button style={{ ...btnSecondary, marginTop: 14 }} onClick={() => setAddingLine(true)}>
-              + Add line
+              + Add line {defaultLineNumber}
             </button>
+          )}
+
+          {!addingLine && !editingLine && !defaultLineNumber && (
+            <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 14 }}>All 20 line slots are filled.</p>
           )}
 
           {addingLine && (
             <div style={{ marginTop: 14 }}>
               <LineForm
+                key={`add-line-${defaultLineNumber || lines.length}`}
                 event={event}
                 players={players}
+                defaultLineNumber={defaultLineNumber}
                 onSaved={handleLineSaved}
                 onCancel={() => setAddingLine(false)}
               />
@@ -421,6 +508,57 @@ const emptyEvent = (): EventFormState => ({
   notes: '',
 })
 
+function todayInputValue() {
+  if (typeof window === 'undefined') return ''
+  const now = new Date()
+  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+  return localDate.toISOString().slice(0, 10)
+}
+
+function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
+  if (!league) return []
+
+  return Array.from(
+    new Set([
+      league.captainTeamName,
+      ...league.teams,
+    ].map((team) => team.trim()).filter(Boolean)),
+  )
+}
+
+async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
+  const eventIds = events.map((event) => event.id)
+  if (eventIds.length === 0) return new Map<string, MatchLineSummary>()
+
+  const { data } = await supabase
+    .from('tiq_team_league_match_lines')
+    .select('event_id, winner_side')
+    .in('event_id', eventIds)
+
+  const summaries = new Map<string, MatchLineSummary>()
+  for (const eventId of eventIds) {
+    summaries.set(eventId, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0 })
+  }
+
+  for (const row of data || []) {
+    const eventId = String(row.event_id || '')
+    const summary = summaries.get(eventId)
+    if (!summary) continue
+
+    summary.total += 1
+    if (row.winner_side === 'A') {
+      summary.completed += 1
+      summary.teamAWins += 1
+    }
+    if (row.winner_side === 'B') {
+      summary.completed += 1
+      summary.teamBWins += 1
+    }
+  }
+
+  return summaries
+}
+
 function NewEventForm({
   leagues,
   onCreated,
@@ -428,10 +566,15 @@ function NewEventForm({
   leagues: TiqLeagueRecord[]
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
-  const [form, setForm] = useState<EventFormState>(emptyEvent)
+  const [form, setForm] = useState<EventFormState>(() => ({ ...emptyEvent(), matchDate: todayInputValue() }))
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
   const [message, setMessage] = useState('')
+  const selectedLeague = useMemo(
+    () => leagues.find((league) => league.id === form.leagueId),
+    [form.leagueId, leagues],
+  )
+  const teamOptions = useMemo(() => teamOptionsForLeague(selectedLeague), [selectedLeague])
 
   async function handleCreate() {
     if (!form.leagueId || !form.teamAName || !form.teamBName || !form.matchDate) {
@@ -453,7 +596,7 @@ function NewEventForm({
     if (w) setWarning(w)
     if (event) {
       setMessage('Event created.')
-      setForm(emptyEvent())
+      setForm({ ...emptyEvent(), matchDate: todayInputValue() })
       onCreated(event)
     }
   }
@@ -464,7 +607,21 @@ function NewEventForm({
 
       <div style={row}>
         <Field label="LEAGUE">
-          <select style={selectStyle} value={form.leagueId} onChange={(e) => setForm((f) => ({ ...f, leagueId: e.target.value }))}>
+          <select
+            style={selectStyle}
+            value={form.leagueId}
+            onChange={(e) => {
+              const nextLeagueId = e.target.value
+              const nextLeague = leagues.find((league) => league.id === nextLeagueId)
+              const nextTeamOptions = teamOptionsForLeague(nextLeague)
+              setForm((current) => ({
+                ...current,
+                leagueId: nextLeagueId,
+                teamAName: current.teamAName || nextLeague?.captainTeamName || nextTeamOptions[0] || '',
+                matchDate: current.matchDate || todayInputValue(),
+              }))
+            }}
+          >
             <option value="">Select league...</option>
             {leagues.map((l) => (
               <option key={l.id} value={l.id}>{l.leagueName}</option>
@@ -478,12 +635,27 @@ function NewEventForm({
 
       <div style={row}>
         <Field label="TEAM A NAME">
-          <input style={inputStyle} placeholder="Home team" value={form.teamAName} onChange={(e) => setForm((f) => ({ ...f, teamAName: e.target.value }))} />
+          <input
+            style={inputStyle}
+            list="admin-tiq-match-team-options"
+            placeholder={teamOptions.length ? 'Choose or type team name' : 'Home team'}
+            value={form.teamAName}
+            onChange={(e) => setForm((f) => ({ ...f, teamAName: e.target.value }))}
+          />
         </Field>
         <Field label="TEAM B NAME">
-          <input style={inputStyle} placeholder="Away team" value={form.teamBName} onChange={(e) => setForm((f) => ({ ...f, teamBName: e.target.value }))} />
+          <input
+            style={inputStyle}
+            list="admin-tiq-match-team-options"
+            placeholder={teamOptions.length ? 'Choose or type opponent' : 'Away team'}
+            value={form.teamBName}
+            onChange={(e) => setForm((f) => ({ ...f, teamBName: e.target.value }))}
+          />
         </Field>
       </div>
+      <datalist id="admin-tiq-match-team-options">
+        {teamOptions.map((team) => <option key={team} value={team} />)}
+      </datalist>
 
       <div style={row}>
         <Field label="FACILITY (optional)">
@@ -507,6 +679,7 @@ function NewEventForm({
 export default function TiqTeamMatchesPage() {
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [events, setEvents] = useState<TiqTeamMatchEventRecord[]>([])
+  const [lineSummaries, setLineSummaries] = useState<Map<string, MatchLineSummary>>(new Map())
   const [players, setPlayers] = useState<PlayerOption[]>([])
   const [filterLeagueId, setFilterLeagueId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -530,6 +703,7 @@ export default function TiqTeamMatchesPage() {
     const { events: evts, warning } = await listTiqTeamMatchEvents()
     if (warning) setError(warning)
     setEvents(evts)
+    setLineSummaries(await loadLineSummaries(evts))
     setLoading(false)
   }, [])
 
@@ -547,14 +721,21 @@ export default function TiqTeamMatchesPage() {
     const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: leagueId || null })
     if (warning) setError(warning)
     setEvents(evts)
+    setLineSummaries(await loadLineSummaries(evts))
     setLoading(false)
   }
 
   function handleEventCreated(event: TiqTeamMatchEventRecord) {
+    setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0 }))
     setEvents((prev) => [event, ...prev])
   }
 
   function handleEventDeleted(id: string) {
+    setLineSummaries((prev) => {
+      const next = new Map(prev)
+      next.delete(id)
+      return next
+    })
     setEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
@@ -596,6 +777,7 @@ export default function TiqTeamMatchesPage() {
                 key={event.id}
                 event={{ ...event, teamAName: event.teamAName || leagueMap[event.leagueId] || event.leagueId }}
                 players={players}
+                lineSummary={lineSummaries.get(event.id)}
                 onDeleted={handleEventDeleted}
               />
             ))
