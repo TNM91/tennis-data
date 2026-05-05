@@ -59,6 +59,7 @@ import {
   computeTiqTeamLeagueStandings,
   listTiqTeamMatchEvents,
   listTiqTeamMatchLines,
+  listTiqTeamMatchLinesForEvents,
   type TiqTeamMatchEventRecord,
   type TiqTeamMatchLineRecord,
   type TiqTeamStandingRow,
@@ -155,6 +156,17 @@ type CompetitionOpportunity = {
 }
 
 type LeagueRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
+
+type TeamMatchPublicSummary = {
+  total: number
+  completed: number
+  pending: number
+  teamAWins: number
+  teamBWins: number
+  teamAPoints: number
+  teamBPoints: number
+  scoreReviewCount: number
+}
 
 function getLeagueRatingStatus(gap: number | null): LeagueRatingStatus | null {
   if (gap === null) return null
@@ -260,6 +272,44 @@ function buildPrefilledResultHref(
     suggest_player_b: playerBValue,
   })
   return `/league-coordinator/individual-results?${params.toString()}`
+}
+
+function buildTeamMatchPublicSummary(
+  lines: TiqTeamMatchLineRecord[],
+  scoringSystem: TiqLeagueRecord['scoringSystem'],
+): TeamMatchPublicSummary {
+  return lines.reduce<TeamMatchPublicSummary>(
+    (summary, line) => {
+      const completed = Boolean(line.winnerSide)
+      const points =
+        completed && scoringSystem === 'dynamic_points'
+          ? calculateDynamicPointsForSides(line.score, line.winnerSide)
+          : null
+
+      return {
+        total: summary.total + 1,
+        completed: summary.completed + (completed ? 1 : 0),
+        pending: summary.pending + (completed ? 0 : 1),
+        teamAWins: summary.teamAWins + (line.winnerSide === 'A' ? 1 : 0),
+        teamBWins: summary.teamBWins + (line.winnerSide === 'B' ? 1 : 0),
+        teamAPoints: summary.teamAPoints + (points?.sideAPoints ?? 0),
+        teamBPoints: summary.teamBPoints + (points?.sideBPoints ?? 0),
+        scoreReviewCount:
+          summary.scoreReviewCount +
+          (scoringSystem === 'dynamic_points' && completed && line.score && !points?.valid ? 1 : 0),
+      }
+    },
+    {
+      total: 0,
+      completed: 0,
+      pending: 0,
+      teamAWins: 0,
+      teamBWins: 0,
+      teamAPoints: 0,
+      teamBPoints: 0,
+      scoreReviewCount: 0,
+    },
+  )
 }
 
 export default function TiqLeagueDetailPage() {
@@ -417,7 +467,11 @@ export default function TiqLeagueDetailPage() {
 
     async function loadTeamMatchEvents() {
       if (!league || league.leagueFormat !== 'team') {
-        if (active) { setTeamMatchEvents([]); setTeamStandings([]) }
+        if (active) {
+          setTeamMatchEvents([])
+          setTeamStandings([])
+          setMatchEventLines({})
+        }
         return
       }
       if (active) setTeamMatchEventsLoading(true)
@@ -425,9 +479,18 @@ export default function TiqLeagueDetailPage() {
         listTiqTeamMatchEvents({ leagueId: league.id }),
         computeTiqTeamLeagueStandings(league.id),
       ])
+      const { lines } = await listTiqTeamMatchLinesForEvents(events.map((event) => event.id))
+      const nextMatchEventLines = events.reduce<Record<string, TiqTeamMatchLineRecord[]>>((lineMap, event) => {
+        lineMap[event.id] = []
+        return lineMap
+      }, {})
+      lines.forEach((line) => {
+        nextMatchEventLines[line.eventId] = [...(nextMatchEventLines[line.eventId] || []), line]
+      })
       if (!active) return
       setTeamMatchEvents(events)
       setTeamStandings(standings)
+      setMatchEventLines(nextMatchEventLines)
       setTeamMatchEventsLoading(false)
     }
 
@@ -2351,7 +2414,7 @@ export default function TiqLeagueDetailPage() {
                       const linesLoading = matchEventLinesLoading[event.id] || false
                       const teamAWins = lines.filter((l) => l.winnerSide === 'A').length
                       const teamBWins = lines.filter((l) => l.winnerSide === 'B').length
-                      const completedLines = lines.filter((l) => l.winnerSide)
+                      const publicSummary = buildTeamMatchPublicSummary(lines, league.scoringSystem)
 
                       return (
                         <div key={event.id} style={dynamicListCard}>
@@ -2364,10 +2427,23 @@ export default function TiqLeagueDetailPage() {
                                 <div style={listMeta}>
                                   {[formatDateTime(event.matchDate), event.facility].filter(Boolean).join(' · ')}
                                 </div>
-                                {linesLoaded && completedLines.length > 0 && (
+                                {linesLoaded && publicSummary.total > 0 && (
                                   <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                    <span style={teamAWins > teamBWins ? pillGreen : metaPill}>{event.teamAName}: {teamAWins}</span>
-                                    <span style={teamBWins > teamAWins ? pillGreen : metaPill}>{event.teamBName}: {teamBWins}</span>
+                                    <span style={metaPill}>{publicSummary.completed}/{publicSummary.total} lines complete</span>
+                                    <span style={teamAWins > teamBWins ? pillGreen : metaPill}>{event.teamAName}: {publicSummary.teamAWins}</span>
+                                    <span style={teamBWins > teamAWins ? pillGreen : metaPill}>{event.teamBName}: {publicSummary.teamBWins}</span>
+                                    {publicSummary.pending > 0 ? <span style={metaPill}>{publicSummary.pending} pending</span> : null}
+                                    {league.scoringSystem === 'dynamic_points' ? (
+                                      <>
+                                        <span style={publicSummary.teamAPoints > publicSummary.teamBPoints ? pillGreen : metaPill}>
+                                          {event.teamAName} pts: {publicSummary.teamAPoints}
+                                        </span>
+                                        <span style={publicSummary.teamBPoints > publicSummary.teamAPoints ? pillGreen : metaPill}>
+                                          {event.teamBName} pts: {publicSummary.teamBPoints}
+                                        </span>
+                                        {publicSummary.scoreReviewCount > 0 ? <span style={pillAmber}>{publicSummary.scoreReviewCount} score review</span> : null}
+                                      </>
+                                    ) : null}
                                   </div>
                                 )}
                               </div>
