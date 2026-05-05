@@ -71,6 +71,16 @@ function buildIndividualResultEntryHref(leagueId?: string) {
   return `/league-coordinator/individual-results?leagueId=${encodedLeagueId}`
 }
 
+function buildLeagueResultEntryHref(record: TiqLeagueRecord) {
+  return record.leagueFormat === 'team'
+    ? buildTeamResultEntryHref(record.id)
+    : buildIndividualResultEntryHref(record.id)
+}
+
+function getLeagueResultEntryLabel(record: TiqLeagueRecord) {
+  return record.leagueFormat === 'team' ? 'Record team results' : 'Log player results'
+}
+
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -80,6 +90,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [playerListInput, setPlayerListInput] = useState('')
   const [editingId, setEditingId] = useState('')
   const [status, setStatus] = useState('')
+  const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
   const [photoUploadStatus, setPhotoUploadStatus] = useState('')
   const [photoUploading, setPhotoUploading] = useState(false)
   const [storageSource, setStorageSource] = useState<TiqLeagueStorageSource>('local')
@@ -206,12 +217,13 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const leagueOpsReadinessScore = Math.round((leagueOpsCompleteCount / leagueOpsChecks.length) * 100)
   const nextLeagueOpsStep = leagueOpsChecks.find((item) => !item.complete) || leagueOpsChecks[leagueOpsChecks.length - 1]
 
-  function resetDraft() {
+  function resetDraft({ clearHandoff = true }: { clearHandoff?: boolean } = {}) {
     setDraft(EMPTY_DRAFT)
     setTeamListInput('')
     setPlayerListInput('')
     setEditingId('')
     setPhotoUploadStatus('')
+    if (clearHandoff) setLastSavedRecord(null)
   }
 
   async function handlePhotoUpload(file: File | null) {
@@ -268,6 +280,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
     const saved = await saveTiqLeague(nextDraft, editingId || undefined)
     await refreshRegistry()
+    setLastSavedRecord(saved.record)
     setStatus(
       editingId
         ? `${saved.record.leagueName} was updated in the TIQ season registry.`
@@ -275,7 +288,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     )
     setStorageSource(saved.source)
     setStorageWarning(saved.warning || '')
-    resetDraft()
+    resetDraft({ clearHandoff: false })
   }
 
   function startEditing(record: TiqLeagueRecord) {
@@ -296,6 +309,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     })
     setTeamListInput(record.teams.join('\n'))
     setPlayerListInput(record.players.join('\n'))
+    setLastSavedRecord(null)
     setStatus(`Editing ${record.leagueName}.`)
   }
 
@@ -303,6 +317,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     const result = await removeTiqLeague(id)
     await refreshRegistry()
     if (editingId === id) resetDraft()
+    if (lastSavedRecord?.id === id) setLastSavedRecord(null)
     setStatus(
       result.source === 'supabase'
         ? 'The TIQ league was removed from the TIQ season registry.'
@@ -678,6 +693,21 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             </label>
 
             {status ? <div style={statusBanner}>{status}</div> : null}
+            {lastSavedRecord ? (
+              <div style={nextActionCardStyle}>
+                <div>
+                  <div style={nextActionTitleStyle}>
+                    Next: {lastSavedRecord.leagueFormat === 'team' ? 'enter the first team match' : 'log the first player result'}
+                  </div>
+                  <div style={nextActionTextStyle}>
+                    {lastSavedRecord.leagueName} is ready for {lastSavedRecord.leagueFormat === 'team' ? 'team match results' : 'player results'}.
+                  </div>
+                </div>
+                <GhostLink href={buildLeagueResultEntryHref(lastSavedRecord)}>
+                  {getLeagueResultEntryLabel(lastSavedRecord)}
+                </GhostLink>
+              </div>
+            ) : null}
 
             <div style={buttonRow}>
               <PrimaryBtn onClick={persistDraft} disabled={!canSaveCurrentDraft}>
@@ -762,6 +792,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       <div style={registryFooter}>
                         <span style={registryTimestamp}>Updated {formatDateTime(record.updatedAt)}</span>
                         <div style={buttonRow}>
+                          <GhostLink href={buildLeagueResultEntryHref(record)}>
+                            {getLeagueResultEntryLabel(record)}
+                          </GhostLink>
                           <GhostBtn onClick={() => startEditing(record)}>Edit</GhostBtn>
                           <DangerBtn onClick={() => removeRecord(record.id)}>Remove</DangerBtn>
                         </div>
@@ -1237,6 +1270,31 @@ const noteBanner: CSSProperties = {
   border: '1px solid rgba(74,222,128,0.16)',
   background: 'rgba(17, 39, 27, 0.58)',
   color: '#dcfce7',
+}
+
+const nextActionCardStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(69,227,161,0.08))',
+}
+
+const nextActionTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '15px',
+  fontWeight: 900,
+}
+
+const nextActionTextStyle: CSSProperties = {
+  marginTop: '4px',
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: '13px',
+  lineHeight: 1.5,
 }
 
 const buttonRow: CSSProperties = {
