@@ -238,6 +238,34 @@ export async function listTiqTeamMatchLines(eventId: string): Promise<{
   }
 }
 
+export async function listTiqTeamMatchLinesForEvents(eventIds: string[]): Promise<{
+  lines: TiqTeamMatchLineRecord[]
+  warning: string | null
+}> {
+  const cleanEventIds = eventIds.map(cleanText).filter(Boolean)
+  if (cleanEventIds.length === 0) return { lines: [], warning: null }
+
+  try {
+    const { data, error } = await supabase
+      .from('tiq_team_league_match_lines')
+      .select('id, event_id, line_number, match_type, side_a_player_1_name, side_a_player_1_id, side_a_player_2_name, side_a_player_2_id, side_b_player_1_name, side_b_player_1_id, side_b_player_2_name, side_b_player_2_id, winner_side, score, created_at, updated_at')
+      .in('event_id', cleanEventIds)
+      .order('line_number', { ascending: true })
+
+    if (error) throw error
+
+    return {
+      lines: ((data || []) as LineRow[]).map(normalizeLine).filter(Boolean) as TiqTeamMatchLineRecord[],
+      warning: null,
+    }
+  } catch (err) {
+    return {
+      lines: [],
+      warning: err instanceof Error ? err.message : 'Failed to load team match lines.',
+    }
+  }
+}
+
 export async function saveTiqTeamMatchLine(
   event: TiqTeamMatchEventRecord,
   input: {

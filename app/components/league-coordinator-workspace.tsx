@@ -24,7 +24,9 @@ import { uploadTiqLeaguePhoto } from '@/lib/tiq-league-photo-service'
 import {
   computeTiqTeamLeagueStandings,
   listTiqTeamMatchEvents,
+  listTiqTeamMatchLinesForEvents,
   type TiqTeamMatchEventRecord,
+  type TiqTeamMatchLineRecord,
   type TiqTeamStandingRow,
 } from '@/lib/tiq-team-results-service'
 import {
@@ -108,6 +110,31 @@ function isEditedResult(result: TiqIndividualLeagueResultRecord) {
   return updatedTime - createdTime > 1000
 }
 
+type TeamResultLineSummary = {
+  total: number
+  completed: number
+}
+
+function buildTeamResultLineSummaryMap(
+  events: TiqTeamMatchEventRecord[],
+  lines: TiqTeamMatchLineRecord[],
+) {
+  const summaries = new Map<string, TeamResultLineSummary>()
+  for (const event of events) {
+    summaries.set(event.id, { total: 0, completed: 0 })
+  }
+
+  for (const line of lines) {
+    const summary = summaries.get(line.eventId)
+    if (!summary) continue
+
+    summary.total += 1
+    if (line.winnerSide) summary.completed += 1
+  }
+
+  return summaries
+}
+
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -126,6 +153,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [resultStorageWarning, setResultStorageWarning] = useState('')
   const [teamMatchEvents, setTeamMatchEvents] = useState<TiqTeamMatchEventRecord[]>([])
+  const [teamMatchLines, setTeamMatchLines] = useState<TiqTeamMatchLineRecord[]>([])
   const [teamStandingsByLeague, setTeamStandingsByLeague] = useState<Record<string, TiqTeamStandingRow[]>>({})
   const [teamResultWarning, setTeamResultWarning] = useState('')
 
@@ -192,13 +220,15 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     async function loadTeamResultBooks() {
       if (teamLeagues.length === 0) {
         setTeamMatchEvents([])
+        setTeamMatchLines([])
         setTeamStandingsByLeague({})
         setTeamResultWarning('')
         return
       }
 
-      const [eventsResult, standingsResults] = await Promise.all([
-        listTiqTeamMatchEvents(),
+      const eventsResult = await listTiqTeamMatchEvents()
+      const [linesResult, standingsResults] = await Promise.all([
+        listTiqTeamMatchLinesForEvents(eventsResult.events.map((event) => event.id)),
         Promise.all(
           teamLeagues.map(async (league) => ({
             leagueId: league.id,
@@ -210,6 +240,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       if (!active) return
 
       setTeamMatchEvents(eventsResult.events)
+      setTeamMatchLines(linesResult.lines)
       setTeamStandingsByLeague(
         standingsResults.reduce<Record<string, TiqTeamStandingRow[]>>((nextMap, item) => {
           nextMap[item.leagueId] = item.result.standings
@@ -219,6 +250,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       setTeamResultWarning(
         [
           eventsResult.warning,
+          linesResult.warning,
           ...standingsResults.map((item) => item.result.warning),
         ]
           .filter(Boolean)[0] || '',
@@ -235,6 +267,10 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     () => [...teamLeagues].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0],
     [teamLeagues],
   )
+  const teamLineSummaryByEvent = useMemo(
+    () => buildTeamResultLineSummaryMap(teamMatchEvents, teamMatchLines),
+    [teamMatchEvents, teamMatchLines],
+  )
   const teamResultBookRows = useMemo(
     () =>
       teamLeagues.map((league) => {
@@ -242,7 +278,26 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         const standings = teamStandingsByLeague[league.id] || []
         const latestEvent = events[0] || null
         const recentCount = events.filter((event) => isRecentResult(event.matchDate, 14)).length
-        const completedEvents = events.filter((event) => event.winnerTeamName).length
+        const completedEvents = events.filter((event) => {
+          const summary = teamLineSummaryByEvent.get(event.id)
+          return Boolean(summary && summary.total > 0 && summary.completed === summary.total)
+        }).length
+        const missingLineEvents = events.filter((event) => {
+          const summary = teamLineSummaryByEvent.get(event.id)
+          return !summary || summary.total === 0 || summary.completed < summary.total
+        }).length
+        const emptyLineEvents = events.filter((event) => {
+          const summary = teamLineSummaryByEvent.get(event.id)
+          return !summary || summary.total === 0
+        }).length
+        const completedLines = events.reduce(
+          (sum, event) => sum + (teamLineSummaryByEvent.get(event.id)?.completed ?? 0),
+          0,
+        )
+        const totalLines = events.reduce(
+          (sum, event) => sum + (teamLineSummaryByEvent.get(event.id)?.total ?? 0),
+          0,
+        )
         const leader = standings[0] || null
 
         return {
@@ -252,13 +307,19 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           latestEvent,
           recentCount,
           completedEvents,
+          missingLineEvents,
+          emptyLineEvents,
+          completedLines,
+          totalLines,
           leader,
         }
       }),
-    [teamLeagues, teamMatchEvents, teamStandingsByLeague],
+    [teamLeagues, teamLineSummaryByEvent, teamMatchEvents, teamStandingsByLeague],
   )
   const teamResultBooksNeedAttention = teamResultBookRows.filter(
-    (row) => row.league.teams.length > 1 && (row.events.length === 0 || row.recentCount === 0),
+    (row) =>
+      row.league.teams.length > 1 &&
+      (row.events.length === 0 || row.recentCount === 0 || row.missingLineEvents > 0),
   ).length
   const individualLeagues = useMemo(
     () => records.filter((record) => record.leagueFormat === 'individual'),
@@ -318,7 +379,28 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const resultBookNeedsAttention = individualResultBookRows.filter(
     (row) => row.league.players.length > 1 && (row.resultCount === 0 || row.recentCount === 0),
   ).length
+  const teamResultEventCount = teamResultBookRows.reduce((sum, row) => sum + row.events.length, 0)
+  const teamCompletedEventCount = teamResultBookRows.reduce((sum, row) => sum + row.completedEvents, 0)
+  const teamMissingLineEventCount = teamResultBookRows.reduce((sum, row) => sum + row.missingLineEvents, 0)
+  const teamEmptyLineEventCount = teamResultBookRows.reduce((sum, row) => sum + row.emptyLineEvents, 0)
+  const teamCompletedLineCount = teamResultBookRows.reduce((sum, row) => sum + row.completedLines, 0)
+  const teamTotalLineCount = teamResultBookRows.reduce((sum, row) => sum + row.totalLines, 0)
+  const individualResultCount = individualResultBookRows.reduce((sum, row) => sum + row.resultCount, 0)
+  const individualRecentResultCount = individualResultBookRows.reduce((sum, row) => sum + row.recentCount, 0)
+  const individualCorrectionCount = individualResultBookRows.reduce((sum, row) => sum + row.correctionCount, 0)
+  const individualLoggedPairCount = individualResultBookRows.reduce((sum, row) => sum + row.uniquePairs, 0)
+  const individualPossiblePairCount = individualResultBookRows.reduce((sum, row) => sum + row.possiblePairs, 0)
   const hasResultReadyLeague = teamLeagues.length > 0 || individualLeagues.length > 0
+  const resultQueueItemCount =
+    teamResultBooksNeedAttention +
+    resultBookNeedsAttention +
+    (individualCorrectionCount > 0 ? 1 : 0)
+  const resultQueueHeadline =
+    resultQueueItemCount > 0
+      ? `${resultQueueItemCount} result review cue${resultQueueItemCount === 1 ? '' : 's'} need attention.`
+      : hasResultReadyLeague
+        ? 'Result books are ready to review.'
+        : 'Create a league to start result review.'
   const resultEntryHref = hasResultReadyLeague
     ? latestTeamLeague
       ? teamResultEntryHref
@@ -561,6 +643,109 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
         </section>
 
+        <section style={reviewQueuePanelStyle}>
+          <div style={leagueOpsHeaderStyle}>
+            <div>
+              <div style={sectionEyebrow}>Result review queue</div>
+              <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
+              <p style={leagueOpsTextStyle}>
+                See the result books that need line scores, fresh results, corrections, or first activity before opening a workspace.
+              </p>
+            </div>
+            <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
+              {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
+            </span>
+          </div>
+          <div style={reviewQueueGridStyle}>
+            <div style={reviewCueCardStyle}>
+              <div style={registryMetaRow}>
+                <span style={pillGreen}>Team Results</span>
+                {teamResultBooksNeedAttention > 0 ? (
+                  <span style={pillSlate}>{teamResultBooksNeedAttention} books need review</span>
+                ) : (
+                  <span style={pillGreen}>Ready</span>
+                )}
+              </div>
+              <div style={reviewCueValueStyle}>
+                {teamMissingLineEventCount}
+              </div>
+              <div style={reviewCueTitleStyle}>team matches need line review</div>
+              <div style={registryText}>
+                {teamLeagues.length > 0
+                  ? [
+                      `${teamCompletedEventCount}/${teamResultEventCount} complete matches`,
+                      `${teamCompletedLineCount}/${teamTotalLineCount} lines complete`,
+                      teamEmptyLineEventCount ? `${teamEmptyLineEventCount} matches with no lines` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' | ')
+                  : 'Create a team league to start match review'}
+              </div>
+              <div style={buttonRow}>
+                <GhostLink href={teamLeagues.length > 0 ? teamResultEntryHref : '#league-setup-form'}>
+                  {teamLeagues.length > 0 ? 'Review team results' : 'Add team league'}
+                </GhostLink>
+              </div>
+            </div>
+
+            <div style={reviewCueCardStyle}>
+              <div style={registryMetaRow}>
+                <span style={pillBlue}>Player Results</span>
+                {resultBookNeedsAttention > 0 ? (
+                  <span style={pillSlate}>{resultBookNeedsAttention} books need review</span>
+                ) : (
+                  <span style={pillGreen}>Ready</span>
+                )}
+              </div>
+              <div style={reviewCueValueStyle}>
+                {resultBookNeedsAttention}
+              </div>
+              <div style={reviewCueTitleStyle}>individual books need activity</div>
+              <div style={registryText}>
+                {individualLeagues.length > 0
+                  ? [
+                      `${individualResultCount} player results`,
+                      `${individualRecentResultCount} recent`,
+                      individualPossiblePairCount > 0
+                        ? `${individualLoggedPairCount}/${individualPossiblePairCount} pairings logged`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' | ')
+                  : 'Create an individual league to start player review'}
+              </div>
+              <div style={buttonRow}>
+                <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : '#league-setup-form'}>
+                  {individualLeagues.length > 0 ? 'Review player results' : 'Add individual league'}
+                </GhostLink>
+              </div>
+            </div>
+
+            <div style={reviewCueCardStyle}>
+              <div style={registryMetaRow}>
+                <span style={pillSlate}>Corrections</span>
+                {individualCorrectionCount > 0 ? (
+                  <span style={pillSlate}>{individualCorrectionCount} edited</span>
+                ) : (
+                  <span style={pillGreen}>No edits pending</span>
+                )}
+              </div>
+              <div style={reviewCueValueStyle}>
+                {individualCorrectionCount}
+              </div>
+              <div style={reviewCueTitleStyle}>player result corrections</div>
+              <div style={registryText}>
+                Corrections stay visible here so a coordinator can double-check standings after edited scores.
+              </div>
+              <div style={buttonRow}>
+                <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : resultEntryHref}>
+                  Open review
+                </GhostLink>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {teamLeagues.length > 0 ? (
           <section style={resultBookPanelStyle}>
             <div style={leagueOpsHeaderStyle}>
@@ -584,7 +769,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   <div style={registryMetaRow}>
                     <span style={pillGreen}>Team league</span>
                     {row.recentCount > 0 ? <span style={pillGreen}>{row.recentCount} recent</span> : <span style={pillSlate}>No recent matches</span>}
-                    {row.completedEvents > 0 ? <span style={pillSlate}>{row.completedEvents} completed</span> : null}
+                    {row.missingLineEvents > 0 ? (
+                      <span style={pillSlate}>{row.missingLineEvents} need lines</span>
+                    ) : row.events.length > 0 ? (
+                      <span style={pillGreen}>Lines complete</span>
+                    ) : null}
                   </div>
                   <div style={registryTitle}>{row.league.leagueName}</div>
                   <div style={registryText}>
@@ -605,11 +794,17 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       </small>
                     </div>
                     <div style={resultBookMetricStyle}>
-                      <span>Lines</span>
+                      <span>Line review</span>
                       <strong>
-                        {row.leader ? `${row.leader.lineWins}-${row.leader.lineLosses}` : '0-0'}
+                        {row.totalLines > 0 ? `${row.completedLines}/${row.totalLines}` : '0'}
                       </strong>
-                      <small>{row.leader ? `${row.leader.points} points` : 'Awaiting lines'}</small>
+                      <small>
+                        {row.missingLineEvents > 0
+                          ? `${row.missingLineEvents} matches need work`
+                          : row.events.length > 0
+                            ? 'Matches complete'
+                            : 'Awaiting lines'}
+                      </small>
                     </div>
                   </div>
                   <div style={buttonRow}>
@@ -1351,6 +1546,46 @@ const resultBookPanelStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(135deg, rgba(14,30,58,0.84) 0%, rgba(10,24,45,0.94) 64%, rgba(42,84,130,0.22) 100%)',
   boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
+const reviewQueuePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(20,43,37,0.82) 0%, rgba(10,24,45,0.94) 60%, rgba(42,84,130,0.20) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
+const reviewQueueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gap: '12px',
+}
+
+const reviewCueCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '11px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.12)',
+  background: 'rgba(255,255,255,0.045)',
+  minWidth: 0,
+}
+
+const reviewCueValueStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '34px',
+  fontWeight: 950,
+  lineHeight: 1,
+}
+
+const reviewCueTitleStyle: CSSProperties = {
+  color: '#e5eefb',
+  fontSize: '15px',
+  fontWeight: 900,
+  lineHeight: 1.25,
 }
 
 const resultBookGridStyle: CSSProperties = {
