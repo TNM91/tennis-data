@@ -79,6 +79,7 @@ const NAV_VISUALS: Record<string, { step: string; intent: string }> = {
   '/mylab': { step: '2', intent: 'You' },
   '/matchup': { step: '3', intent: 'Compare' },
   '/captain': { step: '4', intent: 'Run' },
+  '/league-coordinator': { step: '5', intent: 'League' },
   '/pricing': { step: '$', intent: 'Plans' },
 }
 
@@ -201,6 +202,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
 
   // Close mobile menu whenever the route changes (back/forward navigation)
   useEffect(() => {
@@ -217,12 +219,14 @@ export default function SiteHeader({ active }: { active?: string }) {
     async function loadHeaderProfile() {
       if (!authResolved || !userId) {
         setLinkedPlayerName('')
+        setProfilePhotoUrl('')
         return
       }
 
       const result = await loadUserProfileLink(userId)
       if (!active) return
       setLinkedPlayerName(result.data?.linked_player_name || '')
+      setProfilePhotoUrl(result.data?.profile_photo_url || '')
     }
 
     void loadHeaderProfile()
@@ -357,7 +361,15 @@ export default function SiteHeader({ active }: { active?: string }) {
 
             {useCompactHeader ? null : authenticated ? (
               <>
-                {accountLabel ? <span style={accountPillStyle}>{accountLabel}</span> : null}
+                {accountLabel ? (
+                  <span style={accountPillStyle}>
+                    {profilePhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profilePhotoUrl} alt="" style={accountPhotoStyle} />
+                    ) : null}
+                    {accountLabel}
+                  </span>
+                ) : null}
                 <UtilityLink href={ACCOUNT_NAV_ITEMS[0].href}>{ACCOUNT_NAV_ITEMS[0].label}</UtilityLink>
                 {role === 'admin' ? (
                   <UtilityLink href="/admin">Admin dashboard</UtilityLink>
@@ -414,7 +426,15 @@ export default function SiteHeader({ active }: { active?: string }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingBottom: '2px' }}>
                 <div style={mobileSectionLabelStyle}>{roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  {accountLabel ? <span style={accountPillStyle}>{accountLabel}</span> : null}
+                  {accountLabel ? (
+                    <span style={accountPillStyle}>
+                      {profilePhotoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={profilePhotoUrl} alt="" style={accountPhotoStyle} />
+                      ) : null}
+                      {accountLabel}
+                    </span>
+                  ) : null}
                   <ThemeToggle compact onClick={toggleTheme} theme={theme} />
                 </div>
               </div>
@@ -600,6 +620,7 @@ const accountPillStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  gap: '6px',
   minHeight: '30px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -612,6 +633,14 @@ const accountPillStyle = {
   textTransform: 'uppercase' as const,
   whiteSpace: 'nowrap' as const,
 } as const
+
+const accountPhotoStyle = {
+  width: '20px',
+  height: '20px',
+  borderRadius: '999px',
+  objectFit: 'cover' as const,
+  display: 'block',
+}
 
 const activeDotStyle = {
   position: 'absolute',

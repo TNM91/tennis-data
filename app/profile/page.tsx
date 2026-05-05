@@ -9,6 +9,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
+import { uploadProfilePhoto } from '@/lib/profile-photo-service'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink, saveUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
@@ -112,6 +113,8 @@ function ProfilePageInner() {
   const [prefs, setPrefs] = useState<ProfilePrefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoMessage, setPhotoMessage] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -259,6 +262,7 @@ function ProfilePageInner() {
         linked_team_name: payload.linked_team_name,
         linked_league_name: payload.linked_league_name,
         linked_flight: payload.linked_flight,
+        profile_photo_url: profile?.profile_photo_url || null,
       })
       setMessage(
         saveRes.source === 'local'
@@ -270,6 +274,31 @@ function ProfilePageInner() {
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleProfilePhotoUpload(file: File | null) {
+    if (!file) return
+
+    setPhotoUploading(true)
+    setPhotoMessage('Uploading profile photo...')
+    setError('')
+
+    const result = await uploadProfilePhoto(file)
+    if (result.warning) {
+      setPhotoMessage(result.warning)
+    } else {
+      setProfile((current) => ({
+        linked_player_id: current?.linked_player_id || null,
+        linked_player_name: current?.linked_player_name || null,
+        linked_team_name: current?.linked_team_name || null,
+        linked_league_name: current?.linked_league_name || null,
+        linked_flight: current?.linked_flight || null,
+        profile_photo_url: result.publicUrl,
+      }))
+      setPhotoMessage('Profile photo uploaded.')
+    }
+
+    setPhotoUploading(false)
   }
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
@@ -398,11 +427,32 @@ function ProfilePageInner() {
               <span style={pillSlateStyle}>{availabilityLabel}</span>
             </div>
             <div style={playerCardTopStyle}>
-              <div style={avatarStyle}>{profileInitials}</div>
+              <div style={avatarStyle}>
+                {profile?.profile_photo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.profile_photo_url} alt="" style={avatarImageStyle} />
+                ) : (
+                  profileInitials
+                )}
+              </div>
               <div>
                 <div style={statusTitleStyle}>{profileDisplayName}</div>
                 <div style={statusTextStyle}>{roleLabel}</div>
               </div>
+            </div>
+            <div style={photoControlStyle}>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                disabled={photoUploading || !userId}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null
+                  void handleProfilePhotoUpload(file)
+                  event.target.value = ''
+                }}
+                style={photoInputStyle}
+              />
+              {photoMessage ? <div style={photoMessageStyle}>{photoMessage}</div> : null}
             </div>
             <div style={miniGridStyle}>
                 <Metric label="Teams" value={selectedPlayerTeams.length ? String(selectedPlayerTeams.length) : 'Detecting'} />
@@ -754,6 +804,7 @@ const avatarStyle: CSSProperties = {
   width: 58,
   height: 58,
   borderRadius: 18,
+  overflow: 'hidden',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -762,6 +813,29 @@ const avatarStyle: CSSProperties = {
   fontSize: 18,
   fontWeight: 950,
   boxShadow: 'var(--shadow-soft)',
+}
+
+const avatarImageStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  display: 'block',
+  objectFit: 'cover',
+}
+
+const photoControlStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+}
+
+const photoInputStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+}
+
+const photoMessageStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
 }
 
 const statusTitleStyle: CSSProperties = {

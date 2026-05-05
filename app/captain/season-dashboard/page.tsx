@@ -16,8 +16,11 @@ import {
   getTiqIndividualCompetitionFormatLabel,
   TIQ_INDIVIDUAL_COMPETITION_FORMATS,
 } from '@/lib/tiq-individual-format'
+import { uploadTiqLeaguePhoto } from '@/lib/tiq-league-photo-service'
 import {
   buildLeagueCardsFromRegistry,
+  getTiqLeagueScoringSystemDescription,
+  getTiqLeagueScoringSystemLabel,
   parseRegistryListInput,
   type TiqLeagueDraft,
   type TiqLeagueRecord,
@@ -34,10 +37,12 @@ import { cleanText as safeText } from '@/lib/captain-formatters'
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
   individualCompetitionFormat: 'standard',
+  scoringSystem: 'standard',
   leagueName: '',
   seasonLabel: '',
   flight: '',
   locationLabel: '',
+  photoUrl: '',
   captainTeamName: '',
   notes: '',
   teams: [],
@@ -58,6 +63,10 @@ function formatDateTime(value: string) {
 }
 
 export default function CaptainSeasonDashboardPage() {
+  return <LeagueCoordinatorWorkspace activeRoute="/league-coordinator" />
+}
+
+export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [records, setRecords] = useState<TiqLeagueRecord[]>([])
@@ -66,6 +75,8 @@ export default function CaptainSeasonDashboardPage() {
   const [playerListInput, setPlayerListInput] = useState('')
   const [editingId, setEditingId] = useState('')
   const [status, setStatus] = useState('')
+  const [photoUploadStatus, setPhotoUploadStatus] = useState('')
+  const [photoUploading, setPhotoUploading] = useState(false)
   const [storageSource, setStorageSource] = useState<TiqLeagueStorageSource>('local')
   const [storageWarning, setStorageWarning] = useState('')
 
@@ -178,6 +189,29 @@ export default function CaptainSeasonDashboardPage() {
     setTeamListInput('')
     setPlayerListInput('')
     setEditingId('')
+    setPhotoUploadStatus('')
+  }
+
+  async function handlePhotoUpload(file: File | null) {
+    if (!file) return
+
+    setPhotoUploading(true)
+    setPhotoUploadStatus('Uploading league photo...')
+
+    const result = await uploadTiqLeaguePhoto({
+      file,
+      leagueName: draft.leagueName,
+      existingLeagueId: editingId,
+    })
+
+    if (result.warning) {
+      setPhotoUploadStatus(result.warning)
+    } else {
+      setDraft((current) => ({ ...current, photoUrl: result.publicUrl }))
+      setPhotoUploadStatus('League photo uploaded.')
+    }
+
+    setPhotoUploading(false)
   }
 
   async function persistDraft() {
@@ -227,10 +261,12 @@ export default function CaptainSeasonDashboardPage() {
     setDraft({
       leagueFormat: record.leagueFormat,
       individualCompetitionFormat: record.individualCompetitionFormat,
+      scoringSystem: record.scoringSystem,
       leagueName: record.leagueName,
       seasonLabel: record.seasonLabel,
       flight: record.flight,
       locationLabel: record.locationLabel,
+      photoUrl: record.photoUrl,
       captainTeamName: record.captainTeamName,
       notes: record.notes,
       teams: record.teams,
@@ -255,7 +291,7 @@ export default function CaptainSeasonDashboardPage() {
   }
 
   return (
-    <SiteShell active="/captain">
+    <SiteShell active={activeRoute}>
       <section style={pageWrap}>
         <div style={heroCard}>
           <div style={heroEyebrow}>{LEAGUE_COORDINATOR_STORY.eyebrow}</div>
@@ -479,6 +515,43 @@ export default function CaptainSeasonDashboardPage() {
               </label>
 
               <label style={fieldLabel}>
+                <span>League photo or logo</span>
+                <div style={photoUploadBox}>
+                  {draft.photoUrl ? (
+                    <div style={photoPreviewWrap}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={draft.photoUrl} alt="League photo preview" style={photoPreviewImage} />
+                    </div>
+                  ) : (
+                    <div style={photoPlaceholder}>No photo uploaded</div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={photoUploading}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0] || null
+                      void handlePhotoUpload(file)
+                      event.target.value = ''
+                    }}
+                    style={fileInputStyle}
+                  />
+                  <input
+                    value={draft.photoUrl}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, photoUrl: event.target.value }))
+                    }
+                    placeholder="Optional image URL fallback"
+                    style={inputStyle}
+                  />
+                </div>
+                <span style={fieldHelpText}>
+                  Upload a JPG, PNG, WebP, or GIF up to 5 MB. The URL fallback is there for hosted club logos.
+                </span>
+                {photoUploadStatus ? <span style={fieldHelpText}>{photoUploadStatus}</span> : null}
+              </label>
+
+              <label style={fieldLabel}>
                 <span>Organizer / owner</span>
                 <input
                   value={draft.captainTeamName}
@@ -521,6 +594,26 @@ export default function CaptainSeasonDashboardPage() {
                   </span>
                 </label>
               ) : null}
+
+              <label style={fieldLabel}>
+                <span>Scoring system</span>
+                <select
+                  value={draft.scoringSystem}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      scoringSystem: event.target.value === 'dynamic_points' ? 'dynamic_points' : 'standard',
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="standard">Standard wins</option>
+                  <option value="dynamic_points">Dynamic points</option>
+                </select>
+                <span style={fieldHelpText}>
+                  {getTiqLeagueScoringSystemDescription(draft.scoringSystem)}
+                </span>
+              </label>
             </div>
 
             <label style={fieldLabel}>
@@ -606,11 +699,18 @@ export default function CaptainSeasonDashboardPage() {
 
                   return (
                     <div key={record.id} style={registryCard}>
+                      {record.photoUrl ? (
+                        <div style={registryPhotoWrap}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={record.photoUrl} alt={`${record.leagueName} league`} style={registryPhoto} />
+                        </div>
+                      ) : null}
                       <div style={registryMetaRow}>
                         <span style={record.leagueFormat === 'team' ? pillGreen : pillBlue}>
                           {getLeagueFormatLabel(record.leagueFormat)}
                         </span>
                         <span style={pillSlate}>{record.seasonLabel || 'Season label missing'}</span>
+                        <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
                       </div>
 
                       <div style={registryTitle}>{record.leagueName}</div>
@@ -1042,6 +1142,45 @@ const inputStyle: CSSProperties = {
   outline: 'none',
 }
 
+const photoUploadBox: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const photoPreviewWrap: CSSProperties = {
+  width: '100%',
+  aspectRatio: '16 / 7',
+  overflow: 'hidden',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.05)',
+}
+
+const photoPreviewImage: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+}
+
+const photoPlaceholder: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  minHeight: '112px',
+  borderRadius: '16px',
+  border: '1px dashed rgba(116,190,255,0.24)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'rgba(229,238,251,0.62)',
+  fontSize: '13px',
+  fontWeight: 800,
+}
+
+const fileInputStyle: CSSProperties = {
+  width: '100%',
+  color: 'rgba(229,238,251,0.82)',
+  fontSize: '13px',
+}
+
 const textareaStyle: CSSProperties = {
   width: '100%',
   minHeight: '126px',
@@ -1142,6 +1281,22 @@ const registryCard: CSSProperties = {
   borderRadius: '22px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.04)',
+}
+
+const registryPhotoWrap: CSSProperties = {
+  width: '100%',
+  aspectRatio: '16 / 7',
+  overflow: 'hidden',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.05)',
+}
+
+const registryPhoto: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
 }
 
 const registryMetaRow: CSSProperties = {

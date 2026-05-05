@@ -1019,7 +1019,7 @@ export default function CaptainHubPage() {
     date: captainResume?.eventDate,
     opponent: captainResume?.opponentTeam,
   })
-  const seasonDashboardHref = '/captain/season-dashboard'
+  const seasonDashboardHref = '/league-coordinator'
   const tiqTeamMatchesHref = '/captain/tiq-team-matches'
   const captainNotesScope = useMemo(
     () => ({

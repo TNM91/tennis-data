@@ -44,7 +44,7 @@ import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/pl
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import { getTiqLeagueScoringSystemLabel, type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import {
   addTiqPlayerLeagueEntry,
   addTiqTeamLeagueEntry,
@@ -63,6 +63,7 @@ import {
   type TiqTeamMatchLineRecord,
   type TiqTeamStandingRow,
 } from '@/lib/tiq-team-results-service'
+import { calculateDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 function formatDateTime(value: string | null | undefined) {
@@ -121,6 +122,7 @@ type IndividualStanding = {
   trackedMatches: number
   leagueWins: number
   leagueLosses: number
+  leaguePoints: number
   leagueMatches: number
   recentForm: Array<'W' | 'L'>
   uniqueOpponentsPlayed: number
@@ -442,6 +444,10 @@ export default function TiqLeagueDetailPage() {
   const individualCompetitionFormat = normalizeTiqIndividualCompetitionFormat(
     league?.individualCompetitionFormat,
   )
+  const scoringRulesText =
+    league?.scoringSystem === 'dynamic_points'
+      ? getDynamicPointsRulesSummary()
+      : 'Standings use match wins, losses, ties, and line wins.'
   const individualFormatExperience = getTiqIndividualCompetitionFormatExperience(
     league?.individualCompetitionFormat,
   )
@@ -966,6 +972,15 @@ export default function TiqLeagueDetailPage() {
             (result) => result.winnerPlayerName.toLowerCase() === normalizedEntryName,
           ).length
           const leagueLosses = playerResults.length - leagueWins
+          const leaguePoints =
+            league.scoringSystem === 'dynamic_points'
+              ? playerResults.reduce((sum, result) => {
+                  const playerIsSideA = result.playerAName.toLowerCase() === normalizedEntryName
+                  const winnerSide = result.winnerPlayerName === result.playerAName ? 'A' : 'B'
+                  const points = calculateDynamicPointsForSides(result.score, winnerSide)
+                  return sum + (playerIsSideA ? points.sideAPoints : points.sideBPoints)
+                }, 0)
+              : leagueWins
           const recentForm = playerResults
             .slice(0, 5)
             .map((result) =>
@@ -994,6 +1009,7 @@ export default function TiqLeagueDetailPage() {
             trackedMatches,
             leagueWins,
             leagueLosses,
+            leaguePoints,
             leagueMatches: playerResults.length,
             recentForm,
             uniqueOpponentsPlayed,
@@ -1008,6 +1024,10 @@ export default function TiqLeagueDetailPage() {
           }
         })
         .sort((left, right) => {
+          if (league.scoringSystem === 'dynamic_points' && right.leaguePoints !== left.leaguePoints) {
+            return right.leaguePoints - left.leaguePoints
+          }
+
           if (right.leagueWins !== left.leagueWins) return right.leagueWins - left.leagueWins
 
           if (competitionFormat === 'challenge') {
@@ -1440,7 +1460,7 @@ export default function TiqLeagueDetailPage() {
             <div style={stateText}>{error || 'This TIQ league could not be loaded right now.'}</div>
             <div style={actionRow}>
               <GhostLink href="/explore/leagues">Back to Explore Leagues</GhostLink>
-              <GhostLink href="/captain/season-dashboard">Open League Coordinator</GhostLink>
+              <GhostLink href="/league-coordinator">Open League Coordinator</GhostLink>
             </div>
           </div>
         ) : (
@@ -1458,6 +1478,7 @@ export default function TiqLeagueDetailPage() {
                         {getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)}
                       </span>
                     ) : null}
+                    <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(league.scoringSystem)}</span>
                     <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
                       {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
                     </span>
@@ -1487,6 +1508,12 @@ export default function TiqLeagueDetailPage() {
                 </div>
 
                 <div style={sideCard}>
+                  {league.photoUrl ? (
+                    <div style={leaguePhotoWrap}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={league.photoUrl} alt={`${league.leagueName} league`} style={leaguePhoto} />
+                    </div>
+                  ) : null}
                   <div style={sideLabel}>Participation</div>
                   <div style={sideValue}>
                     {league.leagueFormat === 'team'
@@ -1511,6 +1538,7 @@ export default function TiqLeagueDetailPage() {
               <MetricCard label="Season" value={league.seasonLabel || 'TIQ Season'} />
               <MetricCard label="Flight / Tier" value={league.flight || 'Open'} />
               <MetricCard label="Market" value={league.locationLabel || 'Unassigned'} />
+              <MetricCard label="Scoring" value={getTiqLeagueScoringSystemLabel(league.scoringSystem)} />
               <MetricCard
                 label="Individual format"
                 value={
@@ -1530,6 +1558,13 @@ export default function TiqLeagueDetailPage() {
                   <div style={signalNoteStyle}>{signal.note}</div>
                 </article>
               ))}
+            </section>
+
+            <section style={formatCallout}>
+              <div style={formatCalloutTitle}>
+                Scoring: {getTiqLeagueScoringSystemLabel(league.scoringSystem)}
+              </div>
+              <div style={formatCalloutText}>{scoringRulesText}</div>
             </section>
 
             <div style={dynamicContentGrid}>
@@ -1629,7 +1664,7 @@ export default function TiqLeagueDetailPage() {
                     {saving ? 'Saving...' : entryLabel}
                   </button>
                   {league.leagueFormat === 'team' ? (
-                    <GhostLink href="/captain/season-dashboard">Manage TIQ Seasons</GhostLink>
+                    <GhostLink href="/league-coordinator">Manage TIQ Seasons</GhostLink>
                   ) : null}
                 </div>
               </section>
@@ -1736,6 +1771,7 @@ export default function TiqLeagueDetailPage() {
                                   {[
                                     entry.location,
                                     `${entry.leagueWins}-${entry.leagueLosses} in TIQ play`,
+                                    league.scoringSystem === 'dynamic_points' ? `${entry.leaguePoints} points` : null,
                                     metricConfig.subtitle,
                                     `${entry.trackedMatches} tracked matches`,
                                   ]
@@ -1750,6 +1786,12 @@ export default function TiqLeagueDetailPage() {
                                     {entry.leagueWins}-{entry.leagueLosses}
                                   </span>
                                 </div>
+                                {league.scoringSystem === 'dynamic_points' ? (
+                                  <div style={standingMetric}>
+                                    <span style={standingMetricLabel}>Points</span>
+                                    <span style={standingMetricValueAccent}>{entry.leaguePoints}</span>
+                                  </div>
+                                ) : null}
                                 <div style={standingMetric}>
                                   <span style={standingMetricLabel}>{metricConfig.primaryLabel}</span>
                                   <span style={standingMetricValue}>{metricConfig.primaryValue}</span>
@@ -2103,14 +2145,16 @@ export default function TiqLeagueDetailPage() {
                 <div style={sectionEyebrow}>Standings</div>
                 <h2 style={sectionTitle}>Team records for this league.</h2>
                 <p style={sectionText}>
-                  Event wins are determined by line majority. Line wins are the tiebreaker.
+                  {league.scoringSystem === 'dynamic_points'
+                    ? 'Teams are ranked by dynamic points earned from each completed line.'
+                    : 'Event wins are determined by line majority. Line wins are the tiebreaker.'}
                 </p>
 
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
                       <tr>
-                        {['#', 'Team', 'W', 'L', 'T', 'Line W', 'Line L', 'Line %'].map((h) => (
+                        {['#', 'Team', 'Pts', 'W', 'L', 'T', 'Line W', 'Line L', 'Line %'].map((h) => (
                           <th key={h} style={{ textAlign: h === 'Team' ? 'left' : 'center', padding: '8px 10px', color: '#64748b', fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.07)', whiteSpace: 'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -2124,6 +2168,7 @@ export default function TiqLeagueDetailPage() {
                           <tr key={row.teamName} style={{ background: isLeader ? 'rgba(155,225,29,0.04)' : undefined }}>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#64748b', fontWeight: 700 }}>{i + 1}</td>
                             <td style={{ padding: '10px', fontWeight: isLeader ? 700 : 500, color: isLeader ? '#9be11d' : '#e2e8f0' }}>{row.teamName}</td>
+                            <td style={{ padding: '10px', textAlign: 'center', fontWeight: 800, color: '#9be11d' }}>{row.points}</td>
                             <td style={{ padding: '10px', textAlign: 'center', fontWeight: 700, color: '#9be11d' }}>{row.wins}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#94a3b8' }}>{row.losses}</td>
                             <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>{row.ties}</td>
@@ -2391,6 +2436,22 @@ const sideCard: CSSProperties = {
   borderRadius: '24px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+}
+
+const leaguePhotoWrap: CSSProperties = {
+  width: '100%',
+  aspectRatio: '16 / 9',
+  overflow: 'hidden',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.05)',
+}
+
+const leaguePhoto: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  display: 'block',
+  objectFit: 'cover',
 }
 
 const sideLabel: CSSProperties = {

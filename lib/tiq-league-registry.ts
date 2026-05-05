@@ -6,18 +6,23 @@ import {
   normalizeTiqIndividualCompetitionFormat,
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
+import { getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
+
+export type TiqLeagueScoringSystem = 'standard' | 'dynamic_points'
 
 export type TiqLeagueRecord = {
   id: string
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
+  scoringSystem: TiqLeagueScoringSystem
   leagueName: string
   seasonLabel: string
   flight: string
   locationLabel: string
+  photoUrl: string
   captainTeamName: string
   notes: string
   teams: string[]
@@ -29,10 +34,12 @@ export type TiqLeagueRecord = {
 export type TiqLeagueDraft = {
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
+  scoringSystem: TiqLeagueScoringSystem
   leagueName: string
   seasonLabel: string
   flight: string
   locationLabel: string
+  photoUrl: string
   captainTeamName: string
   notes: string
   teams: string[]
@@ -51,6 +58,25 @@ function normalizeList(values: string[]) {
         .filter(Boolean),
     ),
   )
+}
+
+export function normalizeTiqLeagueScoringSystem(
+  value: string | null | undefined,
+): TiqLeagueScoringSystem {
+  return value === 'dynamic_points' ? 'dynamic_points' : 'standard'
+}
+
+export function getTiqLeagueScoringSystemLabel(system: TiqLeagueScoringSystem) {
+  if (system === 'dynamic_points') return 'Dynamic points'
+  return 'Standard wins'
+}
+
+export function getTiqLeagueScoringSystemDescription(system: TiqLeagueScoringSystem) {
+  if (system === 'dynamic_points') {
+    return getDynamicPointsRulesSummary()
+  }
+
+  return 'Standings use match wins, losses, ties, and line wins.'
 }
 
 function safeJsonParse<T>(raw: string | null): T | null {
@@ -81,10 +107,12 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
   return {
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
+    scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
     leagueName: cleanText(input.leagueName),
     seasonLabel: cleanText(input.seasonLabel),
     flight: cleanText(input.flight),
     locationLabel: cleanText(input.locationLabel),
+    photoUrl: cleanText(input.photoUrl),
     captainTeamName: cleanText(input.captainTeamName),
     notes: cleanText(input.notes),
     teams: normalizeList(input.teams),
@@ -108,10 +136,12 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       competitionLayer: 'tiq',
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
+      scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
       leagueName: cleanText(record.leagueName),
       seasonLabel: cleanText(record.seasonLabel),
       flight: cleanText(record.flight),
       locationLabel: cleanText(record.locationLabel),
+      photoUrl: cleanText(record.photoUrl),
       captainTeamName: cleanText(record.captainTeamName),
       notes: cleanText(record.notes),
       teams: normalizeList(Array.isArray(record.teams) ? record.teams : []),
@@ -149,10 +179,12 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     competitionLayer: 'tiq',
     leagueFormat: normalized.leagueFormat,
     individualCompetitionFormat: normalized.individualCompetitionFormat,
+    scoringSystem: normalized.scoringSystem,
     leagueName: normalized.leagueName,
     seasonLabel: normalized.seasonLabel,
     flight: normalized.flight,
     locationLabel: normalized.locationLabel,
+    photoUrl: normalized.photoUrl,
     captainTeamName: normalized.captainTeamName,
     notes: normalized.notes,
     teams: normalized.teams,

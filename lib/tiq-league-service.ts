@@ -7,6 +7,7 @@ import {
   readTiqLeagueRegistry,
   type TiqLeagueDraft,
   type TiqLeagueRecord,
+  normalizeTiqLeagueScoringSystem,
   upsertTiqLeagueRecord,
   writeTiqLeagueRegistry,
 } from '@/lib/tiq-league-registry'
@@ -69,10 +70,12 @@ type TiqLeagueRow = {
   competition_layer?: string | null
   league_format?: string | null
   individual_competition_format?: string | null
+  scoring_system?: string | null
   league_name?: string | null
   season_label?: string | null
   flight?: string | null
   location_label?: string | null
+  photo_url?: string | null
   captain_team_name?: string | null
   notes?: string | null
   teams?: string[] | null
@@ -105,10 +108,12 @@ type TiqLeagueRemotePayload = {
   competition_layer: 'tiq'
   league_format: 'team' | 'individual'
   individual_competition_format: 'standard' | 'ladder' | 'round_robin' | 'challenge'
+  scoring_system: 'standard' | 'dynamic_points'
   league_name: string
   season_label: string
   flight: string
   location_label: string
+  photo_url: string
   captain_team_name: string
   notes: string
   teams: string[]
@@ -166,10 +171,12 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     competitionLayer: 'tiq',
     leagueFormat: row.league_format === 'individual' ? 'individual' : 'team',
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
+    scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
     leagueName: cleanText(row.league_name),
     seasonLabel: cleanText(row.season_label),
     flight: cleanText(row.flight),
     locationLabel: cleanText(row.location_label),
+    photoUrl: cleanText(row.photo_url),
     captainTeamName: cleanText(row.captain_team_name),
     notes: cleanText(row.notes),
     teams: normalizeList(row.teams ?? row.teams_json),
@@ -250,10 +257,12 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     competition_layer: 'tiq',
     league_format: record.leagueFormat,
     individual_competition_format: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
+    scoring_system: normalizeTiqLeagueScoringSystem(record.scoringSystem),
     league_name: record.leagueName,
     season_label: record.seasonLabel,
     flight: record.flight,
     location_label: record.locationLabel,
+    photo_url: record.photoUrl,
     captain_team_name: record.captainTeamName,
     notes: record.notes,
     teams: record.teams,
