@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { PricingPlanId } from '@/lib/pricing-plans'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { buildProfileActivationPayload } from '@/lib/upgrade-activation'
 
 export const runtime = 'nodejs'
 
@@ -121,25 +122,6 @@ async function getAdminUserId(token: string): Promise<
   }
 
   return { ok: true, userId: userData.user.id }
-}
-
-function buildProfileActivationPayload(planId: PricingPlanId) {
-  const payload: Record<string, boolean | string> = {
-    player_plus_subscription_active: true,
-    player_plus_subscription_status: 'active',
-  }
-
-  if (planId === 'captain') {
-    payload.captain_subscription_active = true
-    payload.captain_subscription_status = 'active'
-  }
-
-  if (planId === 'league') {
-    payload.tiq_team_league_entry_enabled = true
-    payload.tiq_individual_league_creator_enabled = true
-  }
-
-  return payload
 }
 
 function getBearerToken(request: Request) {
