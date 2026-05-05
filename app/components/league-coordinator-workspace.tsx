@@ -472,6 +472,49 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const leagueOpsCompleteCount = leagueOpsChecks.filter((item) => item.complete).length
   const leagueOpsReadinessScore = Math.round((leagueOpsCompleteCount / leagueOpsChecks.length) * 100)
   const nextLeagueOpsStep = leagueOpsChecks.find((item) => !item.complete) || leagueOpsChecks[leagueOpsChecks.length - 1]
+  const coordinatorStartCards = [
+    {
+      label: 'Setup',
+      title: records.length > 0 ? 'Manage league setup' : 'Create the first league',
+      detail:
+        records.length > 0
+          ? `${records.length} league setup${records.length === 1 ? '' : 's'} saved. Keep format, season, and participants current.`
+          : 'Choose team or individual format, name the season, and add the first teams or players.',
+      href: '#league-setup-form',
+      cta: records.length > 0 ? 'Edit setup' : 'Create league',
+      complete: records.length > 0,
+    },
+    {
+      label: 'Participants',
+      title: activeParticipantCount > 0 ? 'Participant list is started' : 'Add teams or players',
+      detail:
+        activeParticipantCount > 0
+          ? `${activeParticipantCount} participants are tracked across the Coordinator workspace.`
+          : 'A league becomes usable once the competing teams or players are in the record.',
+      href: '#league-setup-form',
+      cta: activeParticipantCount > 0 ? 'Review participants' : 'Add participants',
+      complete: activeParticipantCount > 0,
+    },
+    {
+      label: 'Results',
+      title: hasResultReadyLeague ? 'Open result entry' : 'Results unlock after setup',
+      detail: resultReadinessDetail,
+      href: resultEntryHref,
+      cta: hasResultReadyLeague ? 'Record results' : 'Finish setup',
+      complete: hasResultReadyLeague,
+    },
+    {
+      label: 'Visibility',
+      title: storageSource === 'supabase' ? 'Live league record' : 'Saved preview record',
+      detail:
+        storageSource === 'supabase'
+          ? 'League setup is synced for public pages, standings, and coordinator review.'
+          : 'This workspace is still using saved preview data until live sync is available.',
+      href: records.length > 0 ? '/compete/leagues' : '#league-setup-form',
+      cta: records.length > 0 ? 'View leagues' : 'Create first',
+      complete: storageSource === 'supabase',
+    },
+  ]
 
   function resetDraft({ clearHandoff = true }: { clearHandoff?: boolean } = {}) {
     setDraft(EMPTY_DRAFT)
@@ -621,6 +664,49 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           tierLabel={access.leagueTierLabel}
           tierActive={access.canUseLeagueTools}
         />
+
+        <section style={startPanelStyle}>
+          <div style={leagueOpsHeaderStyle}>
+            <div>
+              <div style={sectionEyebrow}>Start here</div>
+              <h2 style={leagueOpsTitleStyle}>
+                {access.canUseLeagueTools
+                  ? records.length > 0
+                    ? 'Your next Coordinator move is ready.'
+                    : 'Set up the first league workspace.'
+                  : 'Unlock Coordinator access to save league workspaces.'}
+              </h2>
+              <p style={leagueOpsTextStyle}>
+                {nextLeagueOpsStep.detail}
+              </p>
+            </div>
+            <div style={startScoreStyle}>
+              <span>{leagueOpsReadinessScore}% ready</span>
+              <span style={leagueOpsTrackStyle}>
+                <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
+              </span>
+            </div>
+          </div>
+
+          <div style={startActionRowStyle}>
+            <div>
+              <span style={startActionLabelStyle}>Next action</span>
+              <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
+            </div>
+            <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
+          </div>
+
+          <div style={startCardGridStyle}>
+            {coordinatorStartCards.map((item) => (
+              <Link key={item.label} href={item.href} style={item.complete ? startCardCompleteStyle : startCardStyle}>
+                <span style={item.complete ? pillGreen : pillSlate}>{item.label}</span>
+                <strong style={startCardTitleStyle}>{item.title}</strong>
+                <span style={startCardTextStyle}>{item.detail}</span>
+                <span style={startCardCtaStyle}>{item.cta}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
 
         <section style={commandCard}>
           <div>
@@ -1570,6 +1656,16 @@ const resultBookPanelStyle: CSSProperties = {
   boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
 }
 
+const startPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(18,42,36,0.82) 0%, rgba(9,22,42,0.96) 62%, rgba(53,92,42,0.22) 100%)',
+  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+}
+
 const reviewQueuePanelStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
@@ -1674,6 +1770,11 @@ const leagueOpsScoreStyle: CSSProperties = {
   fontWeight: 900,
 }
 
+const startScoreStyle: CSSProperties = {
+  ...leagueOpsScoreStyle,
+  minWidth: 160,
+}
+
 const leagueOpsTrackStyle: CSSProperties = {
   height: '14px',
   borderRadius: '999px',
@@ -1690,6 +1791,84 @@ const leagueOpsFillStyle = (value: number): CSSProperties => ({
   borderRadius: '999px',
   background: 'linear-gradient(90deg, #4ade80, #9be11d)',
 })
+
+const startActionRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+  padding: '14px 16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(255,255,255,0.05)',
+}
+
+const startActionLabelStyle: CSSProperties = {
+  display: 'block',
+  color: '#93c5fd',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const startActionTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: '4px',
+  color: '#f8fbff',
+  fontSize: '18px',
+  lineHeight: 1.15,
+  fontWeight: 950,
+}
+
+const startCardGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gap: '10px',
+}
+
+const startCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '9px',
+  alignContent: 'start',
+  minHeight: '166px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.045)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+}
+
+const startCardCompleteStyle: CSSProperties = {
+  ...startCardStyle,
+  border: '1px solid rgba(74,222,128,0.20)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const startCardTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '16px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const startCardTextStyle: CSSProperties = {
+  color: 'rgba(229,238,251,0.74)',
+  fontSize: '13px',
+  lineHeight: 1.55,
+  fontWeight: 700,
+}
+
+const startCardCtaStyle: CSSProperties = {
+  alignSelf: 'end',
+  color: '#d9f99d',
+  fontSize: '12px',
+  fontWeight: 950,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
 
 const leagueOpsCheckGridStyle: CSSProperties = {
   display: 'grid',
