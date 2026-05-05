@@ -45,6 +45,7 @@ import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import { getTiqLeagueScoringSystemLabel, type TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import { buildIndividualResultCue, buildTeamResultCue } from '@/lib/league-result-cues'
 import {
   addTiqPlayerLeagueEntry,
   addTiqTeamLeagueEntry,
@@ -929,6 +930,36 @@ export default function TiqLeagueDetailPage() {
       secondaryLabel: '',
     }))
   }, [individualCompetitionFormat, individualResults, individualStandings, league])
+
+  const teamResultCue = useMemo(() => {
+    const summaries = teamMatchEvents.map((event) =>
+      buildTeamMatchPublicSummary(matchEventLines[event.id] || [], league?.scoringSystem || 'standard'),
+    )
+    const completeMatchCount = summaries.filter((summary) => summary.total > 0 && summary.completed === summary.total).length
+
+    return buildTeamResultCue({
+      leagueCount: league?.leagueFormat === 'team' ? 1 : 0,
+      selectedLeagueName: league?.leagueFormat === 'team' ? league.leagueName : '',
+      teamCount: visibleTeamEntries.length,
+      matchCount: teamMatchEvents.length,
+      completeMatchCount,
+      completedLineCount: summaries.reduce((total, summary) => total + summary.completed, 0),
+      totalLineCount: summaries.reduce((total, summary) => total + summary.total, 0),
+      scoreReviewCount: summaries.reduce((total, summary) => total + summary.scoreReviewCount, 0),
+    })
+  }, [league, matchEventLines, teamMatchEvents, visibleTeamEntries.length])
+
+  const individualResultCue = useMemo(
+    () =>
+      buildIndividualResultCue({
+        leagueCount: league?.leagueFormat === 'individual' ? 1 : 0,
+        selectedLeagueName: league?.leagueFormat === 'individual' ? league.leagueName : '',
+        playerCount: visiblePlayerEntries.length,
+        resultCount: individualResultBookStats.total,
+        nextPairingLabel: competitionOpportunities[0]?.title || '',
+      }),
+    [competitionOpportunities, individualResultBookStats.total, league, visiblePlayerEntries.length],
+  )
 
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
@@ -1955,6 +1986,28 @@ export default function TiqLeagueDetailPage() {
                   the table or opening Coordinator for updates.
                 </p>
 
+                <div style={resultCuePanelStyle}>
+                  <div>
+                    <div style={resultCueKickerStyle}>Result entry readiness</div>
+                    <div style={resultCueTitleStyle}>{individualResultCue.title}</div>
+                    <div style={resultCueTextStyle}>{individualResultCue.detail}</div>
+                  </div>
+                  <div style={resultCueGridStyle}>
+                    {individualResultCue.items.map((item) => (
+                      <div
+                        key={item.label}
+                        style={item.complete ? resultCueItemCompleteStyle : resultCueItemStyle}
+                      >
+                        <span style={item.complete ? pillGreen : metaPill}>{item.complete ? 'Ready' : 'Next'}</span>
+                        <div>
+                          <div style={resultCueItemLabelStyle}>{item.label}</div>
+                          <div style={resultCueItemTextStyle}>{item.detail}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div style={resultBookGrid}>
                   <div style={resultBookTile}>
                     <div style={resultBookLabel}>Logged results</div>
@@ -2401,6 +2454,28 @@ export default function TiqLeagueDetailPage() {
                   Expand an event to see individual line scores.
                 </p>
 
+                <div style={resultCuePanelStyle}>
+                  <div>
+                    <div style={resultCueKickerStyle}>Result entry readiness</div>
+                    <div style={resultCueTitleStyle}>{teamResultCue.title}</div>
+                    <div style={resultCueTextStyle}>{teamResultCue.detail}</div>
+                  </div>
+                  <div style={resultCueGridStyle}>
+                    {teamResultCue.items.map((item) => (
+                      <div
+                        key={item.label}
+                        style={item.complete ? resultCueItemCompleteStyle : resultCueItemStyle}
+                      >
+                        <span style={item.complete ? pillGreen : metaPill}>{item.complete ? 'Ready' : 'Next'}</span>
+                        <div>
+                          <div style={resultCueItemLabelStyle}>{item.label}</div>
+                          <div style={resultCueItemTextStyle}>{item.detail}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {teamMatchEventsLoading ? (
                   <div style={emptyCard}>Loading match events…</div>
                 ) : teamMatchEvents.length === 0 ? (
@@ -2826,6 +2901,77 @@ const resultBookGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
   gap: '12px',
+}
+
+const resultCuePanelStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gap: '14px',
+  alignItems: 'start',
+  padding: '16px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'rgba(8,18,35,0.50)',
+}
+
+const resultCueKickerStyle: CSSProperties = {
+  color: '#9be11d',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const resultCueTitleStyle: CSSProperties = {
+  marginTop: '6px',
+  color: '#f8fbff',
+  fontSize: '18px',
+  lineHeight: 1.25,
+  fontWeight: 850,
+}
+
+const resultCueTextStyle: CSSProperties = {
+  marginTop: '6px',
+  color: 'rgba(214,228,246,0.74)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+}
+
+const resultCueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: '8px',
+}
+
+const resultCueItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: '10px',
+  alignItems: 'start',
+  padding: '10px',
+  borderRadius: '12px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const resultCueItemCompleteStyle: CSSProperties = {
+  ...resultCueItemStyle,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const resultCueItemLabelStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '13px',
+  lineHeight: 1.25,
+  fontWeight: 850,
+}
+
+const resultCueItemTextStyle: CSSProperties = {
+  marginTop: '3px',
+  color: 'rgba(214,228,246,0.68)',
+  fontSize: '12px',
+  lineHeight: 1.35,
 }
 
 const resultBookTile: CSSProperties = {

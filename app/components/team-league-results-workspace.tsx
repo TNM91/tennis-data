@@ -7,6 +7,7 @@ import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
+import { buildTeamResultCue } from '@/lib/league-result-cues'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import type { TiqLeagueRecord, TiqLeagueScoringSystem } from '@/lib/tiq-league-registry'
 import {
@@ -1041,36 +1042,19 @@ export function TeamLeagueResultsWorkspace({
     const summary = lineSummaries.get(event.id)
     return Boolean(summary && summary.total > 0 && summary.completed === summary.total)
   }).length
-  const incompleteEventCount = Math.max(events.length - completeEventCount, 0)
   const totalLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.total, 0)
   const completedLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.completed, 0)
-  const hasTeamLeagueSetup = leagues.length > 0
-  const teamReadinessItems = [
-    {
-      label: 'Team league',
-      complete: hasTeamLeagueSetup,
-      detail: selectedFilterLeague?.leagueName || (hasTeamLeagueSetup ? `${leagues.length} team league${leagues.length === 1 ? '' : 's'} available` : 'Create a team league first'),
-    },
-    {
-      label: 'Teams',
-      complete: Boolean(selectedFilterLeague ? selectedFilterLeague.teams.length > 1 : leagues.some((league) => league.teams.length > 1)),
-      detail: selectedFilterLeague
-        ? `${selectedFilterLeague.teams.length} teams in this league`
-        : hasTeamLeagueSetup
-          ? 'Choose a league to confirm team count'
-          : 'Add teams in Coordinator setup',
-    },
-    {
-      label: 'Matches',
-      complete: events.length > 0,
-      detail: events.length > 0 ? `${events.length} team match${events.length === 1 ? '' : 'es'} recorded` : 'Create the first team match',
-    },
-    {
-      label: 'Lines',
-      complete: events.length > 0 && incompleteEventCount === 0,
-      detail: events.length > 0 ? `${completedLineCount}/${totalLineCount} lines complete` : 'Add lines after creating a match',
-    },
-  ]
+  const teamResultCue = buildTeamResultCue({
+    leagueCount: leagues.length,
+    selectedLeagueName: selectedFilterLeague?.leagueName,
+    teamCount: selectedFilterLeague
+      ? selectedFilterLeague.teams.length
+      : Math.max(...leagues.map((league) => league.teams.length), 0),
+    matchCount: events.length,
+    completeMatchCount: completeEventCount,
+    completedLineCount,
+    totalLineCount,
+  })
 
   useEffect(() => {
     let mounted = true
@@ -1317,25 +1301,11 @@ export function TeamLeagueResultsWorkspace({
         <section style={readinessPanel}>
           <div>
             <div style={readinessKicker}>Result entry readiness</div>
-            <div style={readinessTitle}>
-              {hasTeamLeagueSetup
-                ? selectedFilterLeague
-                  ? `${selectedFilterLeague.leagueName} is selected.`
-                  : 'Choose a team league or review all matches.'
-                : 'Create a team league before recording team results.'}
-            </div>
-            <div style={readinessText}>
-              {hasTeamLeagueSetup
-                ? incompleteEventCount > 0
-                  ? `${incompleteEventCount} match${incompleteEventCount === 1 ? '' : 'es'} still need line completion.`
-                  : events.length > 0
-                    ? 'Recorded team matches have complete line coverage.'
-                    : 'Open New match to start the first team result.'
-                : 'Team results are scoped to team-format TIQ leagues only.'}
-            </div>
+            <div style={readinessTitle}>{teamResultCue.title}</div>
+            <div style={readinessText}>{teamResultCue.detail}</div>
           </div>
           <div style={readinessGrid}>
-            {teamReadinessItems.map((item) => (
+            {teamResultCue.items.map((item) => (
               <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
                 <span style={item.complete ? pillGreen : pill}>{item.label}</span>
                 <strong style={readinessItemText}>{item.detail}</strong>
