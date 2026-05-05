@@ -77,6 +77,20 @@ export function getDynamicPointsRulesSummary() {
   return 'Best 2 of 3 sets: straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won up to 8.'
 }
 
+export function formatDynamicPointsForSides(
+  score: string | null | undefined,
+  winnerSide: 'A' | 'B' | null | undefined,
+) {
+  const points = calculateDynamicPointsForSides(score, winnerSide)
+  if (!points.valid) return null
+
+  return {
+    sideAPoints: points.sideAPoints,
+    sideBPoints: points.sideBPoints,
+    label: `A ${points.sideAPoints} - B ${points.sideBPoints}`,
+  }
+}
+
 export function compareTiqTeamStandings(
   left: TiqTeamStandingSortShape,
   right: TiqTeamStandingSortShape,

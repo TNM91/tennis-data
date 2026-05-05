@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   calculateDynamicPointsForSides,
   compareTiqTeamStandings,
+  formatDynamicPointsForSides,
   parseTennisScoreSets,
 } from '../tiq-scoring'
 
@@ -57,6 +58,20 @@ describe('calculateDynamicPointsForSides', () => {
       sideBPoints: 0,
       valid: false,
     })
+  })
+})
+
+describe('formatDynamicPointsForSides', () => {
+  it('formats valid side points for UI display', () => {
+    expect(formatDynamicPointsForSides('7-6, 7-6', 'A')).toEqual({
+      sideAPoints: 14,
+      sideBPoints: 8,
+      label: 'A 14 - B 8',
+    })
+  })
+
+  it('returns null when points cannot be calculated', () => {
+    expect(formatDynamicPointsForSides('4-6, 3-6', 'A')).toBeNull()
   })
 })
 
