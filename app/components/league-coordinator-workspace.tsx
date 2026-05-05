@@ -65,10 +65,10 @@ function buildTeamResultEntryHref(leagueId?: string) {
 }
 
 function buildIndividualResultEntryHref(leagueId?: string) {
-  if (!leagueId) return '/explore/leagues'
+  if (!leagueId) return '/league-coordinator/individual-results'
 
   const encodedLeagueId = encodeURIComponent(leagueId)
-  return `/explore/leagues/tiq/${encodedLeagueId}?league_id=${encodedLeagueId}`
+  return `/league-coordinator/individual-results?leagueId=${encodedLeagueId}`
 }
 
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {

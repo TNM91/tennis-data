@@ -57,7 +57,8 @@ export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
 export const COORDINATOR_NAV_ITEMS: NavItem[] = [
   { href: '/league-coordinator', label: 'Overview' },
   { href: '/league-coordinator#league-setup-form', label: 'Setup' },
-  { href: '/league-coordinator/results', label: 'Results' },
+  { href: '/league-coordinator/results', label: 'Team Results' },
+  { href: '/league-coordinator/individual-results', label: 'Player Results' },
   { href: '/compete/leagues', label: 'My Leagues' },
   { href: '/explore/leagues', label: 'Browse' },
   { href: '/pricing#league', label: 'Plan' },
