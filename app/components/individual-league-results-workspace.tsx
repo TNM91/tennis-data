@@ -50,6 +50,9 @@ type PlayerResultStanding = {
   completionRate: number | null
 }
 
+type ResultReviewFilter = 'all' | 'edited' | 'clean'
+type ResultDateFilter = 'all' | 'week' | 'month'
+
 const pageWrap: CSSProperties = { maxWidth: 1000, margin: '0 auto', padding: '32px 16px' }
 const heading: CSSProperties = { fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0 }
 const subheading: CSSProperties = { color: '#b8c7dc', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700 }
@@ -206,6 +209,13 @@ const emptyCard: CSSProperties = {
   color: '#94a3b8',
   lineHeight: 1.5,
 }
+const reviewToolbar: CSSProperties = {
+  ...card,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: 10,
+  alignItems: 'end',
+}
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -248,6 +258,14 @@ function formatResultTimestamp(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+function resultDateIsWithinDays(value: string, days: number) {
+  const parsed = value ? new Date(value).getTime() : 0
+  if (!parsed) return false
+
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+  return parsed >= cutoff
 }
 
 function hasResultBetween(results: TiqIndividualLeagueResultRecord[], leftName: string, rightName: string) {
@@ -368,6 +386,9 @@ export function IndividualLeagueResultsWorkspace({
   const [resultDate, setResultDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [resultNotes, setResultNotes] = useState('')
   const [editingResultId, setEditingResultId] = useState('')
+  const [resultSearch, setResultSearch] = useState('')
+  const [resultReviewFilter, setResultReviewFilter] = useState<ResultReviewFilter>('all')
+  const [resultDateFilter, setResultDateFilter] = useState<ResultDateFilter>('all')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -426,6 +447,40 @@ export function IndividualLeagueResultsWorkspace({
   )
   const latestResult = results[0] || null
   const editedResultsCount = results.filter(isEditedResult).length
+  const normalizedResultSearch = resultSearch.trim().toLowerCase()
+  const visibleResults = useMemo(() => {
+    return results.filter((result) => {
+      const edited = isEditedResult(result)
+      if (resultReviewFilter === 'edited' && !edited) return false
+      if (resultReviewFilter === 'clean' && edited) return false
+      if (resultDateFilter === 'week' && !resultDateIsWithinDays(result.resultDate, 7)) return false
+      if (resultDateFilter === 'month' && !resultDateIsWithinDays(result.resultDate, 30)) return false
+
+      if (!normalizedResultSearch) return true
+
+      const league = leagues.find((item) => item.id === result.leagueId)
+      const haystack = [
+        result.winnerPlayerName,
+        resultOpponentName(result),
+        result.playerAName,
+        result.playerBName,
+        result.score,
+        result.notes,
+        league?.leagueName,
+        formatDate(result.resultDate),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      return haystack.includes(normalizedResultSearch)
+    })
+  }, [leagues, normalizedResultSearch, resultDateFilter, resultReviewFilter, results])
+  const activeResultFilterCount =
+    (filterLeagueId ? 1 : 0) +
+    (normalizedResultSearch ? 1 : 0) +
+    (resultReviewFilter !== 'all' ? 1 : 0) +
+    (resultDateFilter !== 'all' ? 1 : 0)
   const selectedLeagueResults = useMemo(
     () => (selectedLeague ? results.filter((result) => result.leagueId === selectedLeague.id) : []),
     [results, selectedLeague],
@@ -661,6 +716,15 @@ export function IndividualLeagueResultsWorkspace({
     setStatus(deleteResult.warning || 'Result deleted.')
   }
 
+  async function handleClearResultFilters() {
+    setResultSearch('')
+    setResultReviewFilter('all')
+    setResultDateFilter('all')
+    if (filterLeagueId) {
+      await handleFilterChange('')
+    }
+  }
+
   return (
     <SiteShell active={activeRoute}>
       <CoordinatorSubnav
@@ -684,8 +748,10 @@ export function IndividualLeagueResultsWorkspace({
             </div>
             <div style={scorekeeperTile}>
               <div style={tileLabel}>Results</div>
-              <div style={tileValue}>{results.length}</div>
-              <div style={tileText}>{filterLeagueId ? 'Filtered view' : 'All recorded player results'}</div>
+              <div style={tileValue}>{visibleResults.length}</div>
+              <div style={tileText}>
+                {activeResultFilterCount ? `${results.length} total in scope` : 'All recorded player results'}
+              </div>
             </div>
             <div style={scorekeeperTile}>
               <div style={tileLabel}>Latest</div>
@@ -934,26 +1000,66 @@ export function IndividualLeagueResultsWorkspace({
         </div>
 
         <div style={sectionTitle}>Recorded player results</div>
-        <div style={{ marginBottom: 14 }}>
-          <select
-            style={{ ...inputStyle, maxWidth: 280 }}
-            value={filterLeagueId}
-            onChange={(event) => void handleFilterChange(event.target.value)}
-          >
-            <option value="">All individual leagues</option>
-            {leagues.map((league) => (
-              <option key={league.id} value={league.id}>{league.leagueName}</option>
-            ))}
-          </select>
+        <div style={reviewToolbar}>
+          <Field label="Find result">
+            <input
+              value={resultSearch}
+              onChange={(event) => setResultSearch(event.target.value)}
+              placeholder="Player, score, note..."
+              style={inputStyle}
+            />
+          </Field>
+          <Field label="League">
+            <select
+              style={inputStyle}
+              value={filterLeagueId}
+              onChange={(event) => void handleFilterChange(event.target.value)}
+            >
+              <option value="">All leagues</option>
+              {leagues.map((league) => (
+                <option key={league.id} value={league.id}>{league.leagueName}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Review">
+            <select
+              style={inputStyle}
+              value={resultReviewFilter}
+              onChange={(event) => setResultReviewFilter(event.target.value as ResultReviewFilter)}
+            >
+              <option value="all">All results</option>
+              <option value="edited">Corrections only</option>
+              <option value="clean">Original entries</option>
+            </select>
+          </Field>
+          <Field label="Date">
+            <select
+              style={inputStyle}
+              value={resultDateFilter}
+              onChange={(event) => setResultDateFilter(event.target.value as ResultDateFilter)}
+            >
+              <option value="all">Any date</option>
+              <option value="week">Last 7 days</option>
+              <option value="month">Last 30 days</option>
+            </select>
+          </Field>
+          <button type="button" onClick={() => void handleClearResultFilters()} style={btnSecondary}>
+            Clear
+          </button>
+          <div style={{ color: '#94a3b8', fontSize: 13, gridColumn: '1 / -1' }}>
+            Showing {visibleResults.length} of {results.length} result{results.length === 1 ? '' : 's'}.
+          </div>
         </div>
 
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>
         ) : results.length === 0 ? (
           <div style={emptyCard}>No individual results yet. Open the form above to log the first player result.</div>
+        ) : visibleResults.length === 0 ? (
+          <div style={emptyCard}>No player results match the current review filters.</div>
         ) : (
           <div style={listWrap}>
-            {results.map((result) => {
+            {visibleResults.map((result) => {
               const league = leagues.find((item) => item.id === result.leagueId)
               const edited = isEditedResult(result)
               const editedAt = edited ? formatResultTimestamp(result.updatedAt) : ''
