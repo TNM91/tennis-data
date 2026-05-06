@@ -3,7 +3,9 @@ import { supabaseUrl } from '@/lib/supabase'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 import {
   buildStripeBillingProfilePayload,
+  buildStripeSubscriptionProfileUpdate,
   isStripeBillingProfileColumnError,
+  isStripeSubscriptionLifecycleEvent,
   removeStripeBillingProfileFields,
 } from '@/lib/stripe-billing'
 import {
@@ -24,7 +26,8 @@ type UpgradeRequestActivationRow = {
 type SupabaseProfileUpdater = {
   from(table: 'profiles'): {
     update(payload: Record<string, unknown>): {
-      eq(column: 'id', value: string): PromiseLike<{ error: { code?: string; message?: string } | null }>
+      eq(column: 'id' | 'stripe_subscription_id' | 'stripe_customer_id', value: string):
+        PromiseLike<{ error: { code?: string; message?: string } | null }>
     }
   }
 }
@@ -49,6 +52,34 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Invalid Stripe webhook signature.' }, { status: 400 })
   }
 
+  if (isStripeSubscriptionLifecycleEvent(event)) {
+    const lifecycleUpdate = buildStripeSubscriptionProfileUpdate(event)
+    if (!lifecycleUpdate) {
+      return Response.json({ ok: true, ignored: true, message: 'Missing subscription metadata.' })
+    }
+
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) {
+      return Response.json({ ok: false, message: 'Supabase service access is not configured.' }, { status: 500 })
+    }
+
+    const supabase = createServiceSupabaseClient(serviceKey)
+    const profileError = await updateProfileForStripeSubscription(
+      supabase,
+      lifecycleUpdate,
+    )
+
+    if (profileError) {
+      return Response.json({ ok: false, message: profileError.message }, { status: 500 })
+    }
+
+    return Response.json({
+      ok: true,
+      updated: lifecycleUpdate.planId,
+      status: lifecycleUpdate.payload[`${lifecycleUpdate.planId === 'captain' ? 'captain' : 'player_plus'}_subscription_status`],
+    })
+  }
+
   if (!isStripeCheckoutActivationEvent(event)) {
     return Response.json({ ok: true, ignored: true })
   }
@@ -63,13 +94,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Supabase service access is not configured.' }, { status: 500 })
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  })
+  const supabase = createServiceSupabaseClient(serviceKey)
   const { data: requestRow, error: requestLoadError } = await supabase
     .from('upgrade_requests')
     .select('id, plan_id, requester_user_id, status')
@@ -119,6 +144,16 @@ export async function POST(request: Request) {
   return Response.json({ ok: true, activated: activationTarget.planId })
 }
 
+function createServiceSupabaseClient(serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+}
+
 function toActivationRequestSource(row: UpgradeRequestActivationRow | null) {
   if (!row) return null
 
@@ -150,4 +185,48 @@ async function updateProfileWithBillingFallback(
     .eq('id', userId)
 
   return retryError
+}
+
+async function updateProfileForStripeSubscription(
+  supabase: SupabaseProfileUpdater,
+  lifecycleUpdate: {
+    userId: string
+    subscriptionId: string
+    customerId: string
+    payload: Record<string, boolean | string>
+  },
+) {
+  if (lifecycleUpdate.userId) {
+    return updateProfileWithBillingFallback(supabase, lifecycleUpdate.userId, lifecycleUpdate.payload)
+  }
+
+  if (lifecycleUpdate.subscriptionId) {
+    return updateProfileByStripeField(
+      supabase,
+      'stripe_subscription_id',
+      lifecycleUpdate.subscriptionId,
+      lifecycleUpdate.payload,
+    )
+  }
+
+  return updateProfileByStripeField(
+    supabase,
+    'stripe_customer_id',
+    lifecycleUpdate.customerId,
+    lifecycleUpdate.payload,
+  )
+}
+
+async function updateProfileByStripeField(
+  supabase: SupabaseProfileUpdater,
+  column: 'stripe_subscription_id' | 'stripe_customer_id',
+  value: string,
+  payload: Record<string, boolean | string>,
+) {
+  const { error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq(column, value)
+
+  return error
 }
