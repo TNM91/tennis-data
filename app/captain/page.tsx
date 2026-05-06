@@ -1491,6 +1491,41 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     ...nextAction,
     stage: 'brief' as CaptainResumeStage,
   }
+  const captainCloseoutCards = [
+    {
+      label: 'Blocker',
+      title: captainReadinessNext.label,
+      detail: captainReadinessScore === 100
+        ? 'No blocking step is left. Review the brief or send the team note.'
+        : captainPrimaryAction.detail,
+      href: captainPrimaryAction.href,
+      stage: captainPrimaryAction.stage,
+      cta: captainPrimaryAction.cta,
+      tone: captainPrimaryAction.tone,
+    },
+    {
+      label: 'Team note',
+      title: workspaceState.messagingReady ? 'Ready to send' : 'Needs lineup or event context',
+      detail: workspaceState.messagingReady
+        ? 'Messaging has enough saved context for a clean player update.'
+        : 'Open messaging after the lineup and event details are in place.',
+      href: messagingHref,
+      stage: 'messaging' as CaptainResumeStage,
+      cta: 'Open messaging',
+      tone: workspaceState.messagingReady ? 'good' as const : 'warn' as const,
+    },
+    {
+      label: 'Brief',
+      title: workspaceState.briefReady ? 'Brief is ready' : 'Brief is building',
+      detail: workspaceState.briefReady
+        ? 'Open the weekly brief for the final captain read before match day.'
+        : 'Add lineup, event, or response context to make the weekly brief more useful.',
+      href: weeklyBriefHref,
+      stage: 'brief' as CaptainResumeStage,
+      cta: 'Open brief',
+      tone: workspaceState.briefReady ? 'good' as const : 'info' as const,
+    },
+  ]
 
   function handleCaptainAction(href: string, stage: CaptainResumeStage) {
     if (href.startsWith('#')) {
@@ -1967,6 +2002,41 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 Open messaging
               </SecondarySmallBtn>
             </div>
+          </div>
+        </section>
+
+        <section style={captainCloseoutPanelStyle}>
+          <div style={sectionHead}>
+            <div>
+              <div style={sectionKicker}>Weekly closeout</div>
+              <h2 style={sectionTitle}>Get from planning to sent.</h2>
+              <div style={sectionSub}>
+                A tighter Captain workspace should show the blocker, the team note, and the final brief without making you hunt.
+              </div>
+            </div>
+            <span style={captainReadinessScore === 100 ? badgeGreen : warnBadge}>
+              {captainReadinessScore === 100 ? 'Ready' : `${captainReadinessScore}% ready`}
+            </span>
+          </div>
+          <div style={captainCloseoutGridStyle(isTablet)}>
+            {captainCloseoutCards.map((card) => (
+              <article key={card.label} style={captainCloseoutCardStyle}>
+                <div style={nextActionHeader}>
+                  <span style={nextActionLabel}>{card.label}</span>
+                  <span style={card.tone === 'good' ? badgeGreen : card.tone === 'warn' ? warnBadge : badgeBlue}>
+                    {card.tone === 'good' ? 'Ready' : card.tone === 'warn' ? 'Needs work' : 'Open'}
+                  </span>
+                </div>
+                <div style={captainCloseoutTitleStyle}>{card.title}</div>
+                <div style={nextActionText}>{card.detail}</div>
+                <PrimarySmallBtn
+                  disabled={!premiumEnabled || (!hasTeamScope && !card.href.startsWith('#'))}
+                  onClick={() => handleCaptainAction(card.href, card.stage)}
+                >
+                  {card.cta}
+                </PrimarySmallBtn>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -3259,6 +3329,40 @@ const nextActionButtonRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+}
+
+const captainCloseoutPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-blue) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue) 6%, var(--shell-panel-bg) 94%)',
+  boxShadow: '0 18px 42px rgba(2,10,24,0.12)',
+}
+
+const captainCloseoutGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const captainCloseoutCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  alignContent: 'space-between',
+  minHeight: 210,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const captainCloseoutTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  fontWeight: 900,
+  lineHeight: 1.12,
 }
 
 const warnBadge: CSSProperties = {

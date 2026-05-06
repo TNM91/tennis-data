@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import {
@@ -156,6 +156,7 @@ export default function AdminAccessPage() {
   const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
+  const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null)
   const [editedProfiles, setEditedProfiles] = useState<Record<string, EditableProfileAccess>>({})
   const [convertedRequestsByUser, setConvertedRequestsByUser] = useState<Record<string, ConvertedUpgradeRequest>>({})
   const [convertedRequestsAvailable, setConvertedRequestsAvailable] = useState(true)
@@ -421,6 +422,22 @@ export default function AdminAccessPage() {
       )
     } finally {
       setSavingId(null)
+    }
+  }
+
+  async function copySupportValue(label: string, value: string | null | undefined) {
+    const trimmed = value?.trim() ?? ''
+    if (!trimmed) {
+      setError(`${label} is not available for this profile.`)
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(trimmed)
+      setMessage(`${label} copied.`)
+      setError('')
+    } catch {
+      setError(`${label} could not be copied from this browser.`)
     }
   }
 
@@ -755,8 +772,12 @@ export default function AdminAccessPage() {
                         convertedRequestsByUser[profile.id] ?? null,
                       )
 
+                      const latestStripeEvent = stripeEventsByUser[profile.id] ?? null
+                      const expanded = expandedProfileId === profile.id
+
                       return (
-                        <tr key={profile.id}>
+                        <Fragment key={profile.id}>
+                        <tr>
                           <td>
                             <div style={{ color: '#f8fbff', fontWeight: 800 }}>
                               {compactUserId(profile.id)}
@@ -769,7 +790,7 @@ export default function AdminAccessPage() {
                           <td>
                             <StripeBillingCell
                               profile={profile}
-                              latestEvent={stripeEventsByUser[profile.id] ?? null}
+                              latestEvent={latestStripeEvent}
                             />
                           </td>
                           <td>
@@ -912,23 +933,70 @@ export default function AdminAccessPage() {
                             </label>
                           </td>
                           <td>
-                            <button
-                              type="button"
-                              onClick={() => void saveProfile(profile)}
-                              className="button-secondary"
-                              style={{
-                                minHeight: 40,
-                                padding: '0 14px',
-                                opacity: savingId === profile.id || !dirty ? 0.7 : 1,
-                                cursor:
-                                  savingId === profile.id || !dirty ? 'not-allowed' : 'pointer',
-                              }}
-                              disabled={savingId === profile.id || !dirty}
-                            >
-                              {savingId === profile.id ? 'Saving...' : 'Save access'}
-                            </button>
+                            <div style={supportActionStackStyle}>
+                              <button
+                                type="button"
+                                onClick={() => void saveProfile(profile)}
+                                className="button-secondary"
+                                style={{
+                                  minHeight: 40,
+                                  padding: '0 14px',
+                                  opacity: savingId === profile.id || !dirty ? 0.7 : 1,
+                                  cursor:
+                                    savingId === profile.id || !dirty ? 'not-allowed' : 'pointer',
+                                }}
+                                disabled={savingId === profile.id || !dirty}
+                              >
+                                {savingId === profile.id ? 'Saving...' : 'Save access'}
+                              </button>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => setExpandedProfileId(expanded ? null : profile.id)}
+                              >
+                                {expanded ? 'Hide billing' : 'Billing details'}
+                              </button>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => void copySupportValue('User ID', profile.id)}
+                              >
+                                Copy user
+                              </button>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => void copySupportValue('Stripe customer ID', profile.stripe_customer_id)}
+                              >
+                                Copy customer
+                              </button>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => void copySupportValue('Stripe subscription ID', profile.stripe_subscription_id)}
+                              >
+                                Copy sub
+                              </button>
+                            </div>
                           </td>
                         </tr>
+                        {expanded ? (
+                          <tr>
+                            <td colSpan={12} style={supportDetailCellStyle}>
+                              <SupportBillingDetails
+                                profile={profile}
+                                latestEvent={latestStripeEvent}
+                                convertedRequest={convertedRequestsByUser[profile.id] ?? null}
+                                audit={audit}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                        </Fragment>
                       )
                     })}
                   </tbody>
@@ -1109,6 +1177,71 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   )
 }
 
+function SupportBillingDetails({
+  profile,
+  latestEvent,
+  convertedRequest,
+  audit,
+}: {
+  profile: ProfileAccessRow
+  latestEvent: StripeBillingEvent | null
+  convertedRequest: ConvertedUpgradeRequest | null
+  audit: AccessAudit
+}) {
+  const billingStatus =
+    latestEvent?.resultingStatus ||
+    profile.captain_subscription_status ||
+    profile.player_plus_subscription_status ||
+    'inactive'
+
+  return (
+    <div style={supportDetailPanelStyle}>
+      <div>
+        <div className="section-kicker">Billing support detail</div>
+        <h3 style={supportDetailTitleStyle}>{compactUserId(profile.id)}</h3>
+        <p style={supportDetailTextStyle}>
+          Current result: {audit.currentPlan}. Billing status: {billingStatus}.
+        </p>
+      </div>
+      <div style={supportDetailGridStyle}>
+        <SupportDetailItem label="User ID" value={profile.id} />
+        <SupportDetailItem label="Stripe customer" value={profile.stripe_customer_id || 'Not linked'} />
+        <SupportDetailItem label="Stripe subscription" value={profile.stripe_subscription_id || 'Not linked'} />
+        <SupportDetailItem label="Player status" value={`${profile.player_plus_subscription_active ? 'active' : 'inactive'} / ${profile.player_plus_subscription_status || 'inactive'}`} />
+        <SupportDetailItem label="Captain status" value={`${profile.captain_subscription_active ? 'active' : 'inactive'} / ${profile.captain_subscription_status || 'inactive'}`} />
+        <SupportDetailItem label="Converted checkout" value={convertedRequest ? `${formatPlanLabel(convertedRequest.planId)} / ${formatEventTime(convertedRequest.changedAt)}` : 'None found'} />
+      </div>
+      <div style={supportEventPanelStyle}>
+        <div style={supportDetailLabelStyle}>Latest Stripe event</div>
+        {latestEvent ? (
+          <div style={supportEventGridStyle}>
+            <SupportDetailItem label="Outcome" value={latestEvent.outcome} />
+            <SupportDetailItem label="Type" value={latestEvent.eventType || 'Unknown'} />
+            <SupportDetailItem label="Event ID" value={latestEvent.eventId || 'Missing'} />
+            <SupportDetailItem label="Plan" value={latestEvent.planId ? formatPlanLabel(latestEvent.planId) : 'None'} />
+            <SupportDetailItem label="Result" value={latestEvent.resultingStatus || 'None'} />
+            <SupportDetailItem label="Time" value={formatEventTime(latestEvent.createdAt) || 'Unknown'} />
+            <div style={supportEventMessageStyle}>
+              {latestEvent.message || 'No event message recorded.'}
+            </div>
+          </div>
+        ) : (
+          <p style={supportDetailTextStyle}>No Stripe webhook audit event has been recorded for this profile yet.</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SupportDetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={supportDetailItemStyle}>
+      <span style={supportDetailLabelStyle}>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
 function StripeBillingCell({
   profile,
   latestEvent,
@@ -1205,6 +1338,98 @@ const handoffActionStyle = {
   alignItems: 'center',
   gap: 8,
   flexWrap: 'wrap',
+} as const
+
+const supportActionStackStyle = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 150,
+} as const
+
+const supportActionButtonStyle = {
+  minHeight: 34,
+  padding: '0 10px',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  border: '1px solid var(--shell-panel-border)',
+} as const
+
+const supportDetailCellStyle = {
+  padding: '12px 16px 18px',
+  background: 'color-mix(in srgb, var(--surface) 82%, var(--shell-panel-bg) 18%)',
+} as const
+
+const supportDetailPanelStyle = {
+  display: 'grid',
+  gap: 14,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue) 24%, var(--shell-panel-border) 76%)',
+  background: 'var(--shell-panel-bg)',
+} as const
+
+const supportDetailTitleStyle = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+} as const
+
+const supportDetailTextStyle = {
+  margin: '6px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
+} as const
+
+const supportDetailGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gap: 10,
+} as const
+
+const supportDetailItemStyle = {
+  display: 'grid',
+  gap: 5,
+  padding: 10,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+} as const
+
+const supportDetailLabelStyle = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+} as const
+
+const supportEventPanelStyle = {
+  display: 'grid',
+  gap: 9,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
+} as const
+
+const supportEventGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gap: 10,
+} as const
+
+const supportEventMessageStyle = {
+  ...supportDetailItemStyle,
+  gridColumn: '1 / -1',
+  color: 'var(--shell-copy-muted)',
+  lineHeight: 1.5,
 } as const
 
 const accessResultWrapStyle = {
