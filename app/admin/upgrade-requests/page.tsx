@@ -34,7 +34,7 @@ export default function AdminUpgradeRequestsPage() {
 
     const { data, error } = await supabase
       .from('upgrade_requests')
-      .select('id, plan_id, plan_name, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at')
+      .select('id, plan_id, plan_name, price_label, billing_amount_cents, billing_currency, billing_interval, checkout_mode, quantity_mode, entitlement_grant, discount_rules, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -329,6 +329,7 @@ export default function AdminUpgradeRequestsPage() {
                     {request.organization ? (
                       <div style={metaLineStyle}>Team or league: {request.organization}</div>
                     ) : null}
+                    <PricingSnapshot request={request} />
                     {request.userId ? (
                       <div style={metaLineStyle}>Account: {request.userId}</div>
                     ) : (
@@ -475,6 +476,24 @@ function ActivationCue({ request }: { request: UpgradeRequestRecord }) {
         </div>
       </div>
       <small style={activationNoteStyle}>{cue.note}</small>
+    </div>
+  )
+}
+
+function PricingSnapshot({ request }: { request: UpgradeRequestRecord }) {
+  const billingLabel =
+    request.checkoutMode === 'subscription'
+      ? 'Subscription'
+      : request.checkoutMode === 'one_time'
+        ? 'One-time'
+        : 'Manual'
+
+  return (
+    <div style={pricingSnapshotStyle}>
+      <span className="badge badge-green">{request.priceLabel || 'Pricing pending'}</span>
+      <span className="badge badge-blue">{billingLabel}</span>
+      {request.billingInterval ? <span className="badge badge-slate">{request.billingInterval}</span> : null}
+      {request.quantityMode ? <span className="badge badge-slate">per {request.quantityMode}</span> : null}
     </div>
   )
 }
@@ -785,6 +804,12 @@ const goalStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 700,
+}
+
+const pricingSnapshotStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
 }
 
 const activationCueStyle: CSSProperties = {

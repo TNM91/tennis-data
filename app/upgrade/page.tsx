@@ -13,6 +13,7 @@ import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
+  buildUpgradePricingSnapshot,
   UPGRADE_REQUESTS_KEY,
   type UpgradeRequestRecord,
 } from '@/lib/upgrade-requests'
@@ -88,6 +89,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     ? (requestedPlan as PricingPlanId)
     : 'captain'
   const plan = getPricingPlan(planId)
+  const pricingSnapshot = buildUpgradePricingSnapshot(planId)
   const tier = getMembershipTier(planId)
   const copy = UNLOCK_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
@@ -170,7 +172,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const mailtoHref = buildAccessRequestMailto(submittedRequest ?? {
     id: '',
     planId,
-    planName: plan.name,
+    ...pricingSnapshot,
     name: requestName,
     email: requestEmail,
     organization: requestOrganization,
@@ -204,7 +206,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     const record: UpgradeRequestRecord = {
       id: `${planId}-${Math.round(event.timeStamp)}`,
       planId,
-      planName: plan.name,
+      ...pricingSnapshot,
       name,
       email,
       organization,
@@ -452,6 +454,8 @@ function buildAccessRequestMailto(request: UpgradeRequestRecord) {
   const body = encodeURIComponent(
     [
       `Plan: ${request.planName}`,
+      `Price: ${request.priceLabel || 'Not captured'}`,
+      `Billing: ${request.checkoutMode || 'manual'} ${request.billingInterval || ''}`.trim(),
       `Name: ${request.name || 'Not provided'}`,
       `Email: ${request.email || 'Not provided'}`,
       `Team or league: ${request.organization || 'Not provided'}`,
