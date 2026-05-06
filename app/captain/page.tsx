@@ -1775,6 +1775,23 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           />
         </section>
 
+        <section style={captainValueProofStyle} aria-label="Captain workspace value">
+          <div style={captainValueIntroStyle}>
+            <div style={sectionKicker}>Captain value</div>
+            <h2 style={captainValueTitleStyle}>{CAPTAIN_STORY.activeTitle}</h2>
+            <div style={sectionSub}>{CAPTAIN_STORY.activeBody}</div>
+          </div>
+          <div style={captainValueGridStyle(isTablet)}>
+            {CAPTAIN_STORY.workspaceProof.map((item) => (
+              <div key={item.label} style={captainValueCardStyle}>
+                <span style={badgeBlue}>{item.label}</span>
+                <strong>{item.title}</strong>
+                <span style={captainValueBodyStyle}>{item.body}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section style={captainReadinessPanelStyle}>
           <div style={captainReadinessHeaderStyle}>
             <div>
@@ -3078,6 +3095,53 @@ const commandCenterCardInfo: CSSProperties = {
 
 const commandCenterCardLocked: CSSProperties = {
   opacity: 0.82,
+}
+
+const captainValueProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 22,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+}
+
+const captainValueIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+}
+
+const captainValueTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.3vw, 2rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const captainValueGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const captainValueCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  alignContent: 'start',
+  minHeight: 150,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
+}
+
+const captainValueBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
 }
 
 const commandCenterTopRow: CSSProperties = {

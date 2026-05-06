@@ -2088,6 +2088,27 @@ function MyLabPageInner() {
         />
       ) : null}
 
+      {access.canUseAdvancedPlayerInsights ? (
+        <section style={paidWorkspaceProofStyle} aria-label="Player workspace value">
+          <div style={paidWorkspaceIntroStyle}>
+            <p style={sectionKickerStyle}>{MY_LAB_STORY.railKicker}</p>
+            <h2 style={paidWorkspaceTitleStyle}>{MY_LAB_STORY.railTitle}</h2>
+            <p style={sectionTextStyle}>
+              My Lab should turn a paid account into a clear tennis routine: connect the record, read the signal, choose the next move.
+            </p>
+          </div>
+          <div style={paidWorkspaceProofGridStyle(isTablet)}>
+            {MY_LAB_STORY.workspaceProof.map((item) => (
+              <div key={item.label} style={paidWorkspaceProofCardStyle}>
+                <span style={miniActionPillStyle}>{item.label}</span>
+                <strong>{item.title}</strong>
+                <span style={paidWorkspaceProofBodyStyle}>{item.body}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <section id="player-workshop" style={profileLinkSectionStyle}>
         <div style={profileLinkCardStyle}>
           <div style={sectionHeaderStyle}>
@@ -3081,6 +3102,54 @@ const secondaryButtonStyle: CSSProperties = {
 
 const profileLinkSectionStyle: CSSProperties = {
   margin: '0 0 18px',
+}
+
+const paidWorkspaceProofStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  margin: '0 0 18px',
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+}
+
+const paidWorkspaceIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+}
+
+const paidWorkspaceTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.4vw, 2rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const paidWorkspaceProofGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const paidWorkspaceProofCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'start',
+  minHeight: 150,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
+}
+
+const paidWorkspaceProofBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
 }
 
 const warningNoteStyle: CSSProperties = {

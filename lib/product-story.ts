@@ -192,6 +192,23 @@ export const MY_LAB_STORY = {
   upgradeCta: 'Unlock My Lab with Player',
   upgradeSecondary: 'See Player plan',
   upgradeFootnote: 'Best for players who want smarter match prep and one home for their tennis.',
+  workspaceProof: [
+    {
+      label: 'Identity',
+      title: 'Your player record stays connected.',
+      body: 'Ratings, recent decisions, teams, and useful context start from one linked profile.',
+    },
+    {
+      label: 'Prep',
+      title: 'Matchup reads stay one tap away.',
+      body: 'Use the scorecard to decide who to compare, what changed, and what to watch next.',
+    },
+    {
+      label: 'Action',
+      title: 'The lab ends with a tennis move.',
+      body: 'Pick one focus, follow the right context, then get back to playing with a clearer plan.',
+    },
+  ],
 } as const
 
 export const MATCHUP_STORY = {
@@ -228,6 +245,23 @@ export const CAPTAIN_STORY = {
   upgradeCta: 'Unlock Captain Tools',
   lockedMessage:
     'Unlock Captain to save time, reduce stress, and build clearer weekly team plans.',
+  workspaceProof: [
+    {
+      label: 'Readiness',
+      title: 'Know what is blocking the week.',
+      body: 'Availability, match context, lineup, messaging, and brief status stay visible before match day.',
+    },
+    {
+      label: 'Decision',
+      title: 'Move from choices to a lineup.',
+      body: 'Projection, builder, and scenario tools help captains compare the team shape before sending it.',
+    },
+    {
+      label: 'Send',
+      title: 'Close the loop with the team.',
+      body: 'Weekly notes, player replies, and captain briefs keep the plan in one place.',
+    },
+  ],
   workflow: [
     ['1', 'Know who can play', 'Confirm availability and response risk before lineup pressure starts.'],
     ['2', 'Build your lineup', 'Turn the player pool into the strongest weekly shape.'],
