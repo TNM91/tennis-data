@@ -85,5 +85,8 @@ function buildUpgradeReturnUrl(
   url.searchParams.set('next', nextHref)
   url.searchParams.set('checkout', checkout)
   url.searchParams.set('request', requestId)
+  if (checkout === 'success') {
+    url.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}')
+  }
   return url.toString()
 }

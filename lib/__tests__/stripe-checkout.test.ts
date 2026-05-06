@@ -36,7 +36,7 @@ describe('stripe checkout helpers', () => {
     expect(params.get('metadata[upgrade_request_id]')).toBe('request-1')
     expect(params.get('subscription_data[metadata][plan_id]')).toBe('captain')
     expect(params.get('success_url')).toBe(
-      'https://tenaceiq.test/upgrade?plan=captain&next=%2Fcaptain&checkout=success&request=request-1',
+      'https://tenaceiq.test/upgrade?plan=captain&next=%2Fcaptain&checkout=success&request=request-1&session_id=%7BCHECKOUT_SESSION_ID%7D',
     )
   })
 
