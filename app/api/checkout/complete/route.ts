@@ -2,6 +2,11 @@ import { createClient } from '@supabase/supabase-js'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
+  buildStripeBillingProfilePayload,
+  isStripeBillingProfileColumnError,
+  removeStripeBillingProfileFields,
+} from '@/lib/stripe-billing'
+import {
   findPaidStripeCheckoutSessionForRequest,
   isPaidStripeCheckoutSessionForRequest,
   type StripeCheckoutCompletionSession,
@@ -19,6 +24,14 @@ type UpgradeRequestActivationRow = {
   plan_id: string | null
   requester_user_id: string | null
   status: string | null
+}
+
+type SupabaseProfileUpdater = {
+  from(table: 'profiles'): {
+    update(payload: Record<string, unknown>): {
+      eq(column: 'id', value: string): PromiseLike<{ error: { code?: string; message?: string } | null }>
+    }
+  }
 }
 
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
@@ -101,11 +114,15 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Paid checkout session was not found yet.' }, { status: 409 })
   }
 
-  const profilePayload = buildProfileActivationPayload(activationTarget.planId)
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update(profilePayload)
-    .eq('id', activationTarget.userId)
+  const profilePayload = {
+    ...buildProfileActivationPayload(activationTarget.planId),
+    ...buildStripeBillingProfilePayload(stripeSession),
+  }
+  const profileError = await updateProfileWithBillingFallback(
+    supabase,
+    activationTarget.userId,
+    profilePayload,
+  )
 
   if (profileError) {
     return Response.json({ ok: false, message: profileError.message }, { status: 500 })
@@ -165,6 +182,28 @@ function stripeHeaders(stripeSecretKey: string) {
     Authorization: `Bearer ${stripeSecretKey}`,
     'Stripe-Version': STRIPE_API_VERSION,
   }
+}
+
+async function updateProfileWithBillingFallback(
+  supabase: SupabaseProfileUpdater,
+  userId: string,
+  payload: Record<string, boolean | string>,
+) {
+  const { error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', userId)
+
+  if (!error || !isStripeBillingProfileColumnError(error)) {
+    return error
+  }
+
+  const { error: retryError } = await supabase
+    .from('profiles')
+    .update(removeStripeBillingProfileFields(payload))
+    .eq('id', userId)
+
+  return retryError
 }
 
 async function getRequesterUser(token: string) {

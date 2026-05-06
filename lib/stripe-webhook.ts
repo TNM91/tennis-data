@@ -6,6 +6,11 @@ export type StripeWebhookEvent = {
   data?: {
     object?: {
       id?: string
+      status?: string | null
+      payment_status?: string | null
+      customer?: string | { id?: string | null } | null
+      customer_email?: string | null
+      subscription?: string | { id?: string | null } | null
       metadata?: Record<string, string | undefined> | null
     }
   }

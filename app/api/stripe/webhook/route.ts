@@ -2,6 +2,11 @@ import { createClient } from '@supabase/supabase-js'
 import { supabaseUrl } from '@/lib/supabase'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 import {
+  buildStripeBillingProfilePayload,
+  isStripeBillingProfileColumnError,
+  removeStripeBillingProfileFields,
+} from '@/lib/stripe-billing'
+import {
   getUpgradeRequestIdFromStripeEvent,
   isStripeCheckoutActivationEvent,
   parseStripeWebhookEvent,
@@ -14,6 +19,14 @@ type UpgradeRequestActivationRow = {
   plan_id: string | null
   requester_user_id: string | null
   status: string | null
+}
+
+type SupabaseProfileUpdater = {
+  from(table: 'profiles'): {
+    update(payload: Record<string, unknown>): {
+      eq(column: 'id', value: string): PromiseLike<{ error: { code?: string; message?: string } | null }>
+    }
+  }
 }
 
 export async function POST(request: Request) {
@@ -80,11 +93,15 @@ export async function POST(request: Request) {
     )
   }
 
-  const profilePayload = buildProfileActivationPayload(activationTarget.planId)
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update(profilePayload)
-    .eq('id', activationTarget.userId)
+  const profilePayload = {
+    ...buildProfileActivationPayload(activationTarget.planId),
+    ...buildStripeBillingProfilePayload(event.data?.object),
+  }
+  const profileError = await updateProfileWithBillingFallback(
+    supabase,
+    activationTarget.userId,
+    profilePayload,
+  )
 
   if (profileError) {
     return Response.json({ ok: false, message: profileError.message }, { status: 500 })
@@ -111,4 +128,26 @@ function toActivationRequestSource(row: UpgradeRequestActivationRow | null) {
     userId: typeof row.requester_user_id === 'string' ? row.requester_user_id : null,
     status: typeof row.status === 'string' ? row.status : null,
   }
+}
+
+async function updateProfileWithBillingFallback(
+  supabase: SupabaseProfileUpdater,
+  userId: string,
+  payload: Record<string, boolean | string>,
+) {
+  const { error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', userId)
+
+  if (!error || !isStripeBillingProfileColumnError(error)) {
+    return error
+  }
+
+  const { error: retryError } = await supabase
+    .from('profiles')
+    .update(removeStripeBillingProfileFields(payload))
+    .eq('id', userId)
+
+  return retryError
 }
