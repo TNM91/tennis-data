@@ -530,7 +530,7 @@ export default function MyLabPage() {
 }
 
 function MyLabPageInner() {
-  const { userId, authResolved, role } = useAuth()
+  const { userId, authResolved, role, entitlements } = useAuth()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -558,7 +558,7 @@ function MyLabPageInner() {
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
   const { isTablet } = useViewportBreakpoints()
-  const access = useMemo(() => buildProductAccessState(role, null), [role])
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
