@@ -115,11 +115,16 @@ function ProfilePageInner() {
   const [saving, setSaving] = useState(false)
   const [photoUploading, setPhotoUploading] = useState(false)
   const [photoMessage, setPhotoMessage] = useState('')
+  const [billingPortalOpening, setBillingPortalOpening] = useState(false)
+  const [billingMessage, setBillingMessage] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
     setPrefs(readProfilePrefs())
+    if (new URLSearchParams(window.location.search).get('billing') === 'returned') {
+      setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
+    }
   }, [])
 
   const loadProfile = useCallback(async () => {
@@ -301,6 +306,43 @@ function ProfilePageInner() {
     setPhotoUploading(false)
   }
 
+  async function openBillingPortal() {
+    if (!userId || billingPortalOpening) return
+
+    setBillingPortalOpening(true)
+    setBillingMessage('')
+    setError('')
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Sign in to manage billing.')
+      }
+
+      const response = await fetch('/api/checkout/portal', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+      const body = await response.json().catch(() => null) as
+        | { ok?: boolean; message?: string; url?: string }
+        | null
+
+      if (!response.ok || !body?.ok || !body.url) {
+        throw new Error(body?.message ?? 'Billing portal could not be opened.')
+      }
+
+      window.location.assign(body.url)
+    } catch (err) {
+      setBillingMessage(err instanceof Error ? err.message : 'Billing portal could not be opened.')
+      setBillingPortalOpening(false)
+    }
+  }
+
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
   const primaryRating = linkedPlayer || selectedPlayer
   const detectedLeagueCount = new Set(
@@ -318,6 +360,10 @@ function ProfilePageInner() {
   const profileMatchupHref = profile?.linked_player_id || selectedPlayerId
     ? `/matchup?type=singles&playerA=${encodeURIComponent(profile?.linked_player_id || selectedPlayerId)}`
     : '/matchup'
+  const canManageBilling = Boolean(
+    userId &&
+    (access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow),
+  )
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || 'Choose player'
   const profileInitials = profileDisplayName
     .split(' ')
@@ -416,7 +462,22 @@ function ProfilePageInner() {
             <div style={heroButtonRowStyle}>
               <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
               <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+              {canManageBilling ? (
+                <button
+                  type="button"
+                  onClick={() => void openBillingPortal()}
+                  disabled={billingPortalOpening}
+                  style={{
+                    ...secondaryButtonStyle,
+                    opacity: billingPortalOpening ? 0.72 : 1,
+                    cursor: billingPortalOpening ? 'wait' : 'pointer',
+                  }}
+                >
+                  {billingPortalOpening ? 'Opening billing...' : 'Manage billing'}
+                </button>
+              ) : null}
             </div>
+            {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
           </div>
 
           <div style={statusPanelStyle}>
@@ -744,6 +805,14 @@ const heroButtonRowStyle: CSSProperties = {
   gap: 12,
   flexWrap: 'wrap',
   marginTop: 22,
+}
+
+const billingMessageStyle: CSSProperties = {
+  marginTop: 12,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 750,
 }
 
 const primaryButtonStyle: CSSProperties = {
