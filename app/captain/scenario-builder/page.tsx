@@ -14,6 +14,7 @@ import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -648,6 +649,20 @@ export default function ScenarioComparisonPage() {
   }
 
   if (role === 'public') return null
+
+  if (!premiumEnabled) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Need to compare lineup versions before match day?"
+        body="Unlock Captain to compare saved builds, spot swing courts, and keep the lineup version you trust."
+        ctaLabel="Unlock Captain Tools"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
+  }
 
   return (
     <SiteShell active="/captain">

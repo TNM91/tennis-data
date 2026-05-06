@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -824,6 +825,20 @@ export default function LineupProjectionPage() {
   }
 
   if (role === 'public') return null
+
+  if (!access.canUseCaptainWorkflow) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Need schedule context to become lineup prep?"
+        body="Unlock Captain to turn match context, team scope, and player availability into a lineup projection you can take straight into the builder."
+        ctaLabel="Unlock Captain Tools"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
+  }
 
   return (
     <main style={pageStyle}>

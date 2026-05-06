@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
@@ -954,6 +955,30 @@ export function IndividualLeagueResultsWorkspace({
     } catch {
       setStatus('Clipboard access was blocked by the browser.')
     }
+  }
+
+  if (!accessResolved) {
+    return (
+      <SiteShell active={activeRoute}>
+        <div style={pageWrap}>
+          <div style={card}>Checking Coordinator access...</div>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  if (accessResolved && !canEditResults) {
+    return (
+      <LockedPlanPage
+        active={activeRoute}
+        planId="league"
+        headline="Need to record individual league results?"
+        body="Unlock TIQ League Coordinator to enter player results, keep standings current, and manage the season without spreadsheet cleanup."
+        ctaLabel="Unlock Coordinator"
+        secondaryLabel="Back to Coordinator"
+        secondaryHref="/league-coordinator"
+      />
+    )
   }
 
   return (

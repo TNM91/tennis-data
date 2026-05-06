@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useTheme } from '@/app/components/theme-provider'
 import { getClientAuthState } from '@/lib/auth'
 import {
@@ -567,6 +568,20 @@ export default function CaptainAvailabilityPage() {
   }
 
   if (role === 'public') return null
+
+  if (!access.canUseCaptainWorkflow) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Still chasing availability one player at a time?"
+        body="Unlock Captain to keep roster status, reminders, lineup prep, and match-week communication in one workflow instead of rebuilding the process every week."
+        ctaLabel="Unlock Captain Tools"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
+  }
 
   return (
     <SiteShell active="/captain">

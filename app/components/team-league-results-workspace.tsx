@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import CoordinatorSubnav from '@/app/components/coordinator-subnav'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
@@ -1266,6 +1267,30 @@ export function TeamLeagueResultsWorkspace({
     window.requestAnimationFrame(() => {
       document.getElementById('team-match-review')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     })
+  }
+
+  if (!accessResolved) {
+    return (
+      <SiteShell active={activeRoute}>
+        <div style={pageWrap}>
+          <div style={card}>Checking Coordinator access...</div>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  if (accessResolved && !canEditResults) {
+    return (
+      <LockedPlanPage
+        active={activeRoute}
+        planId="league"
+        headline="Need to record TIQ team results?"
+        body="Unlock TIQ League Coordinator to enter team match results, manage season structure, and keep standings out of spreadsheets."
+        ctaLabel="Unlock Coordinator"
+        secondaryLabel="Back to Coordinator"
+        secondaryHref="/league-coordinator"
+      />
+    )
   }
 
   return (
