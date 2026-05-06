@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildStripeBillingEventAuditPayload,
   buildStripeBillingProfilePayload,
   buildStripeSubscriptionProfileUpdate,
   findStripeCustomerIdForUser,
+  getStripeSubscriptionResultingStatus,
   getStripeObjectId,
   isStripeBillingProfileColumnError,
   isStripeSubscriptionLifecycleEvent,
@@ -75,7 +77,7 @@ describe('Stripe billing helpers', () => {
   })
 
   it('activates captain entitlements from subscription lifecycle metadata', () => {
-    expect(buildStripeSubscriptionProfileUpdate({
+    const update = buildStripeSubscriptionProfileUpdate({
       type: 'customer.subscription.updated',
       data: {
         object: {
@@ -88,7 +90,9 @@ describe('Stripe billing helpers', () => {
           },
         },
       },
-    })).toEqual({
+    })
+
+    expect(update).toEqual({
       userId: 'user-1',
       subscriptionId: 'sub_captain',
       customerId: 'cus_123',
@@ -102,6 +106,7 @@ describe('Stripe billing helpers', () => {
         stripe_subscription_id: 'sub_captain',
       },
     })
+    expect(update ? getStripeSubscriptionResultingStatus(update) : '').toBe('active')
   })
 
   it('downgrades player subscriptions when Stripe reports cancellation', () => {
@@ -168,6 +173,53 @@ describe('Stripe billing helpers', () => {
           },
         },
       },
+    })).toBeNull()
+  })
+
+  it('builds Stripe billing event audit payloads', () => {
+    expect(buildStripeBillingEventAuditPayload({
+      event: {
+        id: 'evt_123',
+        type: 'customer.subscription.updated',
+        data: {
+          object: {
+            id: 'sub_123',
+            customer: 'cus_123',
+            metadata: {
+              plan_id: 'player_plus',
+            },
+          },
+        },
+      },
+      outcome: 'handled',
+      profileId: 'user-1',
+      resultingStatus: 'active',
+    })).toEqual({
+      stripe_event_id: 'evt_123',
+      event_type: 'customer.subscription.updated',
+      outcome: 'handled',
+      message: '',
+      profile_id: 'user-1',
+      stripe_customer_id: 'cus_123',
+      stripe_subscription_id: null,
+      plan_id: 'player_plus',
+      resulting_status: 'active',
+      event_object: {
+        id: 'sub_123',
+        customer: 'cus_123',
+        metadata: {
+          plan_id: 'player_plus',
+        },
+      },
+    })
+  })
+
+  it('skips audit payloads without Stripe event identity', () => {
+    expect(buildStripeBillingEventAuditPayload({
+      event: {
+        type: 'customer.subscription.updated',
+      },
+      outcome: 'ignored',
     })).toBeNull()
   })
 })
