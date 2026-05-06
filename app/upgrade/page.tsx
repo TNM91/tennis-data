@@ -110,6 +110,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
   const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
+  const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
+  const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
 
   useEffect(() => {
     let active = true
@@ -294,6 +296,65 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     isPaidPlan,
     isPublic,
     startSignedInCheckout,
+  ])
+
+  useEffect(() => {
+    if (authLoading || checkoutReturnState !== 'success' || !checkoutReturnRequestId || isPublic) return
+
+    let active = true
+
+    void (async () => {
+      setCheckoutSubmitting(true)
+      setCheckoutError('')
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!session?.access_token) {
+          throw new Error('Sign in before confirming checkout.')
+        }
+
+        const response = await fetch('/api/checkout/complete', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            requestId: checkoutReturnRequestId,
+            sessionId: checkoutReturnSessionId,
+          }),
+        })
+        const body = await response.json().catch(() => null) as
+          | { ok?: boolean; message?: string }
+          | null
+
+        if (!response.ok || !body?.ok) {
+          throw new Error(body?.message ?? 'Checkout could not be confirmed.')
+        }
+
+        if (active) {
+          window.location.replace(nextHref)
+        }
+      } catch (error) {
+        if (!active) return
+        setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be confirmed.')
+        setCheckoutSubmitting(false)
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [
+    authLoading,
+    checkoutReturnRequestId,
+    checkoutReturnSessionId,
+    checkoutReturnState,
+    isPublic,
+    nextHref,
   ])
 
   const mailtoHref = buildAccessRequestMailto(submittedRequest ?? {
