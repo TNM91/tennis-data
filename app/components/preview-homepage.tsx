@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
@@ -24,6 +25,8 @@ import {
   surfaceCard,
   surfaceCardStrong,
 } from '@/lib/design-system'
+import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
+import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import {
   getMembershipTier,
@@ -166,12 +169,65 @@ function getPlanIcon(planId: PricingPlanId): TiqFeatureIconName {
   return 'playerRatings'
 }
 
-export default function PreviewHomepage() {
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+function canUseTier(access: ProductAccessState, planId: PricingPlanId) {
+  if (planId === 'free') return true
+  if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (planId === 'captain') return access.canUseCaptainWorkflow
+  if (planId === 'league') return access.canUseLeagueTools
+  return false
+}
 
+function getTierOpenLabel(planId: PricingPlanId) {
+  if (planId === 'player_plus') return 'Open My Lab'
+  if (planId === 'captain') return 'Open Captain'
+  if (planId === 'league') return 'Open Coordinator'
+  return 'Explore Free'
+}
+
+function getTierAccessPresentation(planId: PricingPlanId, access: ProductAccessState, authenticated: boolean) {
+  const active = canUseTier(access, planId)
+  const destinationHref = getPlanDestinationHref(planId)
+  const story = TIER_HOMEPAGE_STORY[planId]
+
+  if (active) {
+    return {
+      active,
+      statusLabel: planId === 'free' ? 'Open' : 'Active',
+      priceLabel: planId === 'free' ? getPricingPlan(planId).priceLabel : 'Active',
+      primaryCta: {
+        label: getTierOpenLabel(planId),
+        href: destinationHref,
+      },
+    }
+  }
+
+  return {
+    active,
+    statusLabel: 'Locked',
+    priceLabel: getPricingPlan(planId).priceLabel,
+    primaryCta: {
+      label: story.primaryCta.label,
+      href: authenticated ? getPlanUnlockHref(planId, destinationHref) : getPlanSignupHref(planId, destinationHref),
+    },
+  }
+}
+
+export default function PreviewHomepage() {
   return (
     <SiteShell active="">
-      <div
+      <PreviewHomepageContent />
+    </SiteShell>
+  )
+}
+
+function PreviewHomepageContent() {
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, entitlements } = useAuth()
+  const authenticated = role !== 'public'
+  const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
+
+  return (
+    <div
         style={{
           ...pageShell,
           display: 'grid',
@@ -310,7 +366,7 @@ export default function PreviewHomepage() {
           </div>
         </section>
 
-        <TierChoiceGrid />
+        <TierChoiceGrid access={access} authenticated={authenticated} />
 
         <section style={{ ...sectionStack, gap: isMobile ? 14 : 16 }}>
           <div
@@ -358,6 +414,8 @@ export default function PreviewHomepage() {
               <TierSection
                 key={section.planId}
                 {...section}
+                access={access}
+                authenticated={authenticated}
                 reverse={!isTablet && index % 2 === 1}
               />
             ))}
@@ -366,7 +424,6 @@ export default function PreviewHomepage() {
 
         <FinalConversionRow />
       </div>
-    </SiteShell>
   )
 }
 
@@ -722,7 +779,7 @@ function HeroSearchPreview({ compact = false }: { compact?: boolean }) {
   )
 }
 
-function TierChoiceGrid() {
+function TierChoiceGrid({ access, authenticated }: { access: ProductAccessState; authenticated: boolean }) {
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
 
   return (
@@ -765,9 +822,9 @@ function TierChoiceGrid() {
       >
         {conversionTierIds.map((planId) => {
           const tier = getMembershipTier(planId)
-          const plan = getPricingPlan(planId)
           const story = TIER_HOMEPAGE_STORY[planId]
           const theme = getTierTheme(planId)
+          const accessPresentation = getTierAccessPresentation(planId, access, authenticated)
           const featured = planId === 'captain'
 
           return (
@@ -810,7 +867,7 @@ function TierChoiceGrid() {
                   </h3>
                 </div>
                 <div style={{ color: theme.priceColor, fontSize: 13, fontWeight: 950, whiteSpace: 'nowrap' }}>
-                  {plan.priceLabel}
+                  {accessPresentation.priceLabel}
                 </div>
               </div>
 
@@ -858,9 +915,12 @@ function TierChoiceGrid() {
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 'auto' }}>
-                <Link href={story.primaryCta.href} style={featured ? theme.primaryButton : getTierSecondaryButton(theme)}>
-                  {story.primaryCta.label}
+                <Link href={accessPresentation.primaryCta.href} style={featured ? theme.primaryButton : getTierSecondaryButton(theme)}>
+                  {accessPresentation.primaryCta.label}
                 </Link>
+                <span style={accessPresentation.active ? activeTierBadgeStyle : lockedTierBadgeStyle}>
+                  {accessPresentation.statusLabel}
+                </span>
               </div>
             </article>
           )
@@ -1058,16 +1118,18 @@ function TierSection({
   headline,
   copy,
   bullets,
-  primaryCta,
   secondaryCta,
   snapshot,
   featured = false,
   featuredNote,
+  access,
+  authenticated,
   reverse = false,
-}: TierSectionConfig & { reverse?: boolean }) {
+}: TierSectionConfig & { access: ProductAccessState; authenticated: boolean; reverse?: boolean }) {
   const { isTablet, isSmallMobile } = useViewportBreakpoints()
   const plan = getPricingPlan(planId)
   const theme = getTierTheme(planId)
+  const accessPresentation = getTierAccessPresentation(planId, access, authenticated)
 
   return (
     <section
@@ -1123,9 +1185,9 @@ function TierSection({
           <div style={tierHeaderWrapStyle}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
               <span style={theme.tierBadge}>{label}</span>
-              {plan.badge ? <span style={mostPopularBadgeStyle}>{plan.badge}</span> : null}
+              {accessPresentation.active ? <span style={activeTierBadgeStyle}>Active</span> : plan.badge ? <span style={mostPopularBadgeStyle}>{plan.badge}</span> : null}
             </div>
-            <span style={{ ...tierPriceStyle, color: theme.priceColor }}>{plan.priceLabel}</span>
+            <span style={{ ...tierPriceStyle, color: theme.priceColor }}>{accessPresentation.priceLabel}</span>
           </div>
 
           <div style={{ display: 'grid', gap: 8 }}>
@@ -1182,12 +1244,12 @@ function TierSection({
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             <Link
-              href={primaryCta.href}
+              href={accessPresentation.primaryCta.href}
               style={featured ? { ...theme.primaryButton, boxShadow: '0 16px 28px rgba(155, 225, 29, 0.18)' } : theme.primaryButton}
             >
-              {primaryCta.label}
+              {accessPresentation.primaryCta.label}
             </Link>
-              {secondaryCta ? (
+              {secondaryCta && !accessPresentation.active ? (
                 <Link href={secondaryCta.href} style={getTierSecondaryButton(theme)}>
                   {secondaryCta.label}
                 </Link>
@@ -1734,6 +1796,7 @@ const tierPriceStyle: CSSProperties = {
 const mostPopularBadgeStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: 26,
   padding: '0 9px',
   borderRadius: 999,
@@ -1743,6 +1806,22 @@ const mostPopularBadgeStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+}
+
+const activeTierBadgeStyle: CSSProperties = {
+  ...mostPopularBadgeStyle,
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--surface-soft) 82%)',
+  color: 'var(--foreground-strong)',
+  width: 'fit-content',
+}
+
+const lockedTierBadgeStyle: CSSProperties = {
+  ...mostPopularBadgeStyle,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'color-mix(in srgb, var(--surface-soft) 84%, var(--foreground) 16%)',
+  color: 'var(--muted-strong)',
+  width: 'fit-content',
 }
 
 const bulletRowStyle: CSSProperties = {

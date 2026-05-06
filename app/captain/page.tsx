@@ -1586,6 +1586,24 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
   if (role === 'public') return null
 
+  if (!premiumEnabled) {
+    return (
+      <SiteShell active="/captain">
+        <div style={pageWrap}>
+          <UpgradePrompt
+            planId="captain"
+            headline={CAPTAIN_STORY.upgradeHeadline}
+            body={CAPTAIN_STORY.upgradeBody}
+            result={CAPTAIN_STORY.upgradeResult}
+            ctaLabel={CAPTAIN_STORY.upgradeCta}
+            secondaryLabel="Back to My Lab"
+            secondaryHref="/mylab"
+          />
+        </div>
+      </SiteShell>
+    )
+  }
+
   return (
     <SiteShell active="/captain">
       <div style={pageWrap}>

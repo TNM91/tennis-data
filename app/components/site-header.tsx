@@ -6,7 +6,9 @@ import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
-import { buildProductAccessState } from '@/lib/access-model'
+import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
+import { getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import type { PricingPlanId } from '@/lib/pricing-plans'
 import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -56,6 +58,25 @@ function MoonIcon() {
   )
 }
 
+function LockIcon({ size = 12 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 16 16" width={size} height={size} fill="none" aria-hidden="true">
+      <path
+        d="M4.75 7V5.6a3.25 3.25 0 0 1 6.5 0V7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M3.9 7h8.2c.55 0 1 .45 1 1v4.2c0 .55-.45 1-1 1H3.9c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 function normalizeRouteKey(value: string | undefined) {
   if (!value) return ''
   if (value === '/') return value
@@ -82,6 +103,36 @@ const NAV_VISUALS: Record<string, { step: string; intent: string }> = {
   '/captain': { step: '4', intent: 'Run' },
   '/league-coordinator': { step: '5', intent: 'League Ops' },
   '/pricing': { step: '$', intent: 'Plans' },
+}
+
+function getRequiredPlanForNav(href: string): PricingPlanId | null {
+  if (href === '/mylab' || href === '/matchup') return 'player_plus'
+  if (href === '/captain') return 'captain'
+  if (href === '/league-coordinator') return 'league'
+  return null
+}
+
+function canUsePrimaryNavItem(access: ProductAccessState, href: string) {
+  const requiredPlan = getRequiredPlanForNav(href)
+  if (!requiredPlan) return true
+  if (requiredPlan === 'player_plus') return access.canUseAdvancedPlayerInsights
+  if (requiredPlan === 'captain') return access.canUseCaptainWorkflow
+  if (requiredPlan === 'league') return access.canUseLeagueTools
+  return true
+}
+
+function getPrimaryNavTarget(href: string, access: ProductAccessState, authenticated: boolean) {
+  const requiredPlan = getRequiredPlanForNav(href)
+  const locked = Boolean(requiredPlan && !canUsePrimaryNavItem(access, href))
+
+  if (!locked || !requiredPlan) {
+    return { href, locked }
+  }
+
+  return {
+    href: authenticated ? getPlanUnlockHref(requiredPlan, href) : getPlanSignupHref(requiredPlan, href),
+    locked,
+  }
 }
 
 function ThemeToggle({
@@ -126,20 +177,26 @@ function ThemeToggle({
 
 function HeaderNavLink({
   href,
+  visualHref,
   label,
   activeNow,
+  locked = false,
 }: {
   href: string
+  visualHref: string
   label: string
   activeNow: boolean
+  locked?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
-  const visual = NAV_VISUALS[href]
+  const visual = NAV_VISUALS[visualHref]
 
   return (
     <Link
       href={href}
       aria-current={activeNow ? 'page' : undefined}
+      aria-label={locked ? `${label} locked. Unlock to open.` : label}
+      title={locked ? `${label} locked` : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -149,18 +206,22 @@ function HeaderNavLink({
           : hovered
             ? '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)'
             : '1px solid transparent',
-        color: activeNow || hovered ? 'var(--foreground-strong)' : 'var(--header-link)',
+        color: activeNow || hovered || locked ? 'var(--foreground-strong)' : 'var(--header-link)',
         background: activeNow
           ? 'color-mix(in srgb, var(--brand-green) 12%, transparent 88%)'
           : hovered
             ? 'color-mix(in srgb, var(--brand-blue-2) 10%, transparent 90%)'
-            : 'transparent',
+            : locked
+              ? 'color-mix(in srgb, var(--surface-soft) 48%, transparent 52%)'
+              : 'transparent',
         boxShadow: hovered
           ? '0 8px 20px rgba(37, 91, 227, 0.12), inset 0 1px 0 rgba(255,255,255,0.04)'
           : 'none',
       }}
     >
-      <span style={navStepStyle}>{visual?.step || '•'}</span>
+      <span style={locked ? navLockStyle : navStepStyle}>
+        {locked ? <LockIcon /> : visual?.step || '*'}
+      </span>
       <span style={navTextWrapStyle}>
         <strong style={navLabelStyle}>{label}</strong>
         {visual ? <small style={navIntentStyle}>{visual.intent}</small> : null}
@@ -350,12 +411,15 @@ export default function SiteHeader({ active }: { active?: string }) {
             >
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
+                const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
                 return (
                   <HeaderNavLink
                     key={item.href}
-                    href={item.href}
+                    href={navTarget.href}
+                    visualHref={item.href}
                     label={item.label}
                     activeNow={activeNow}
+                    locked={navTarget.locked}
                   />
                 )
               })}
@@ -455,11 +519,13 @@ export default function SiteHeader({ active }: { active?: string }) {
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
                 const visual = NAV_VISUALS[item.href]
+                const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={navTarget.href}
                     aria-current={activeNow ? 'page' : undefined}
+                    aria-label={navTarget.locked ? `${item.label} locked. Unlock to open.` : item.label}
                     onClick={() => setMenuOpen(false)}
                     style={{
                       ...mobileItemStyle,
@@ -470,7 +536,9 @@ export default function SiteHeader({ active }: { active?: string }) {
                     }}
                   >
                     <span style={mobileItemMainStyle}>
-                      <span style={mobileStepStyle}>{visual?.step || '•'}</span>
+                      <span style={navTarget.locked ? mobileLockStyle : mobileStepStyle}>
+                        {navTarget.locked ? <LockIcon size={14} /> : visual?.step || '*'}
+                      </span>
                       <span style={mobileItemTextStyle}>
                         <strong style={mobileItemLabelStyle}>{item.label}</strong>
                         {visual ? <small style={mobileItemIntentStyle}>{visual.intent}</small> : null}
@@ -607,6 +675,13 @@ const navStepStyle = {
   fontSize: '10.5px',
   fontWeight: 950,
   lineHeight: 1,
+} as const
+
+const navLockStyle = {
+  ...navStepStyle,
+  background: 'color-mix(in srgb, var(--surface-soft) 76%, var(--foreground) 24%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--brand-green)',
 } as const
 
 const navTextWrapStyle = {
@@ -767,6 +842,13 @@ const mobileStepStyle = {
   color: 'var(--text-dark)',
   fontSize: '12px',
   fontWeight: 950,
+} as const
+
+const mobileLockStyle = {
+  ...mobileStepStyle,
+  background: 'color-mix(in srgb, var(--surface-soft) 76%, var(--foreground) 24%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--brand-green)',
 } as const
 
 const mobileSectionLabelStyle = {
