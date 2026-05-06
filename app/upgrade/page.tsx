@@ -104,6 +104,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const [requestError, setRequestError] = useState('')
   const [submittedRequest, setSubmittedRequest] = useState<UpgradeRequestRecord | null>(null)
   const [requestSubmitting, setRequestSubmitting] = useState(false)
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
+  const [checkoutError, setCheckoutError] = useState('')
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
 
@@ -157,6 +159,47 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
       window.localStorage.removeItem(LAST_REMOTE_UPGRADE_REQUEST_KEY)
     } catch {
       // Keep the page quiet. Admin can still follow up by email.
+    }
+  }
+
+  async function startCheckout() {
+    if (!submittedRequest?.id || checkoutSubmitting) return
+
+    setCheckoutSubmitting(true)
+    setCheckoutError('')
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('Sign in before checkout.')
+      }
+
+      const response = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          requestId: submittedRequest.id,
+          nextHref,
+        }),
+      })
+      const body = await response.json().catch(() => null) as
+        | { ok?: boolean; message?: string; url?: string }
+        | null
+
+      if (!response.ok || !body?.ok || !body.url) {
+        throw new Error(body?.message ?? 'Checkout could not be started.')
+      }
+
+      window.location.assign(body.url)
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
+      setCheckoutSubmitting(false)
     }
   }
 
@@ -366,7 +409,21 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                     : 'We saved this request in the browser. Send an email copy if you want this routed outside the device.'}
                 </p>
                 {requestLinkStatus ? <p style={successMetaStyle}>{requestLinkStatus}</p> : null}
-                {isPublic && requestStorageMode === 'supabase' ? (
+                {requestStorageMode === 'supabase' && submittedRequest.userId ? (
+                  <div style={formActionRowStyle}>
+                    <button
+                      type="button"
+                      onClick={() => void startCheckout()}
+                      disabled={checkoutSubmitting}
+                      style={submitButtonStyle}
+                    >
+                      {checkoutSubmitting ? 'Opening checkout...' : 'Continue to secure checkout'}
+                    </button>
+                    <a href={mailtoHref} style={secondaryButtonStyle}>
+                      Email instead
+                    </a>
+                  </div>
+                ) : isPublic && requestStorageMode === 'supabase' ? (
                   <div style={formActionRowStyle}>
                     <Link
                       href={`/join?plan=${planId}&next=${encodeURIComponent(`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`)}`}
@@ -382,9 +439,12 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                     </Link>
                   </div>
                 ) : null}
-                <a href={mailtoHref} style={primaryButtonStyle}>
-                  Send email copy
-                </a>
+                {checkoutError ? <p style={errorTextStyle}>{checkoutError}</p> : null}
+                {requestStorageMode !== 'supabase' || !submittedRequest.userId ? (
+                  <a href={mailtoHref} style={primaryButtonStyle}>
+                    Send email copy
+                  </a>
+                ) : null}
               </div>
             ) : (
               <form style={requestFormStyle} onSubmit={handleRequestSubmit}>
