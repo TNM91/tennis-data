@@ -41,6 +41,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 ## Monitoring
 
 - Check `/admin/access` after deployments. Review `Webhook Errors`, `Past Due`, `Canceled`, and `Stripe Managed` metrics.
+- Check `/admin/product-events` after a checkout attempt. Confirm `upgrade_checkout_started` appears before the Stripe redirect, then compare it with later paid workspace events.
 - Use Billing filter `Webhook errors` for events that need code or data follow-up.
 - Use Billing filter `Ignored webhooks` to spot Stripe events that were received but did not map to a supported access action.
 - In Supabase, inspect recent event outcomes:

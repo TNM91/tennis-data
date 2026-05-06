@@ -56,4 +56,25 @@ describe('product usage events', () => {
       },
     })
   })
+
+  it('accepts upgrade checkout starts', () => {
+    expect(buildProductUsageEventInsert('user-2', {
+      eventName: 'upgrade_checkout_started',
+      surface: 'upgrade',
+      planId: 'captain',
+      metadata: {
+        requestId: 'captain-123',
+        nextHref: '/captain',
+      },
+    })).toEqual({
+      user_id: 'user-2',
+      event_name: 'upgrade_checkout_started',
+      surface: 'upgrade',
+      plan_id: 'captain',
+      metadata: {
+        requestId: 'captain-123',
+        nextHref: '/captain',
+      },
+    })
+  })
 })
