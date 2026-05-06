@@ -12,6 +12,14 @@ import {
   writeTiqLeagueRegistry,
 } from '@/lib/tiq-league-registry'
 import { normalizeTiqIndividualCompetitionFormat } from '@/lib/tiq-individual-format'
+import {
+  DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
+  DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  normalizeTiqLeagueMaxMatchEvents,
+  normalizeTiqLeagueMaxWeeks,
+  normalizeTiqLeagueSeasonStatus,
+  type TiqLeagueSeasonStatus,
+} from '@/lib/tiq-league-limits'
 
 const TIQ_LEAGUES_TABLE = 'tiq_leagues'
 const TIQ_TEAM_ENTRIES_TABLE = 'tiq_team_league_entries'
@@ -73,6 +81,11 @@ type TiqLeagueRow = {
   scoring_system?: string | null
   league_name?: string | null
   season_label?: string | null
+  season_status?: string | null
+  starts_on?: string | null
+  ends_on?: string | null
+  max_weeks?: number | null
+  max_match_events?: number | null
   flight?: string | null
   location_label?: string | null
   photo_url?: string | null
@@ -111,6 +124,11 @@ type TiqLeagueRemotePayload = {
   scoring_system: 'standard' | 'dynamic_points'
   league_name: string
   season_label: string
+  season_status: TiqLeagueSeasonStatus
+  starts_on: string | null
+  ends_on: string | null
+  max_weeks: number
+  max_match_events: number
   flight: string
   location_label: string
   photo_url: string
@@ -174,6 +192,11 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
     leagueName: cleanText(row.league_name),
     seasonLabel: cleanText(row.season_label),
+    seasonStatus: normalizeTiqLeagueSeasonStatus(row.season_status),
+    startsOn: cleanText(row.starts_on),
+    endsOn: cleanText(row.ends_on),
+    maxWeeks: normalizeTiqLeagueMaxWeeks(row.max_weeks ?? DEFAULT_TIQ_LEAGUE_MAX_WEEKS),
+    maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(row.max_match_events ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS),
     flight: cleanText(row.flight),
     locationLabel: cleanText(row.location_label),
     photoUrl: cleanText(row.photo_url),
@@ -260,6 +283,11 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     scoring_system: normalizeTiqLeagueScoringSystem(record.scoringSystem),
     league_name: record.leagueName,
     season_label: record.seasonLabel,
+    season_status: record.seasonStatus,
+    starts_on: record.startsOn || null,
+    ends_on: record.endsOn || null,
+    max_weeks: record.maxWeeks,
+    max_match_events: record.maxMatchEvents,
     flight: record.flight,
     location_label: record.locationLabel,
     photo_url: record.photoUrl,

@@ -4,6 +4,8 @@ import { getClientAuthState } from '@/lib/auth'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { supabase } from '@/lib/supabase'
 import { deleteTiqIndividualResultMatch, syncTiqIndividualResultToMatch } from '@/lib/tiq-match-sync'
+import { getTiqLeagueById } from '@/lib/tiq-league-service'
+import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
 
 const TIQ_INDIVIDUAL_RESULTS_TABLE = 'tiq_individual_league_results'
 const LOCAL_RESULTS_KEY = 'tenaceiq-tiq-individual-results-v1'
@@ -201,6 +203,22 @@ export async function saveTiqIndividualLeagueResult(input: {
   const now = new Date().toISOString()
   const existingResultId = cleanText(input.resultId)
   const operationLabel = existingResultId ? 'updated' : 'saved'
+  const leagueResult = await getTiqLeagueById(input.leagueId)
+  const league = leagueResult.record
+  if (!league) {
+    throw new Error('Choose a saved league before adding player results.')
+  }
+
+  const existingResults = await listTiqIndividualLeagueResults({ leagueId: league.id })
+  const activityWarning = validateTiqLeagueCanAcceptActivity(
+    league,
+    existingResults.results.filter((result) => result.id !== existingResultId).length,
+    cleanText(input.resultDate) || now.slice(0, 10),
+  )
+  if (activityWarning) {
+    throw new Error(activityWarning)
+  }
+
   const existingLocalRecord = existingResultId
     ? readLocalResults().find((record) => record.id === existingResultId) || null
     : null

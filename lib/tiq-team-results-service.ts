@@ -9,6 +9,7 @@ import {
 } from '@/lib/tiq-match-sync'
 import { calculateDynamicPointsForSides, compareTiqTeamStandings } from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
+import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
 
 export type TiqTeamMatchEventRecord = {
   id: string
@@ -145,10 +146,23 @@ export async function saveTiqTeamMatchEvent(input: {
     const userId = await getUserId()
     if (!userId) return { event: null, warning: 'Sign in to save team match events.' }
 
+    const leagueId = cleanText(input.leagueId)
+    const leagueResult = await getTiqLeagueById(leagueId)
+    const league = leagueResult.record
+    if (!league) return { event: null, warning: 'Choose a saved league before adding team match events.' }
+
+    const existingEvents = await listTiqTeamMatchEvents({ leagueId })
+    const activityWarning = validateTiqLeagueCanAcceptActivity(
+      league,
+      existingEvents.events.length,
+      cleanText(input.matchDate),
+    )
+    if (activityWarning) return { event: null, warning: activityWarning }
+
     const { data, error } = await supabase
       .from('tiq_team_league_match_events')
       .insert({
-        league_id: cleanText(input.leagueId),
+        league_id: leagueId,
         team_a_name: cleanText(input.teamAName),
         team_a_id: cleanText(input.teamAId) || null,
         team_b_name: cleanText(input.teamBName),

@@ -38,6 +38,19 @@ import {
   type TiqLeagueDraft,
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
+import {
+  DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
+  DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  getTiqLeagueSeasonSummary,
+  MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS,
+  MAX_TIQ_LEAGUE_MATCH_EVENTS,
+  MAX_TIQ_LEAGUE_WEEKS,
+  MAX_TIQ_TEAM_LEAGUE_TEAMS,
+  normalizeTiqLeagueMaxMatchEvents,
+  normalizeTiqLeagueMaxWeeks,
+  validateTiqLeagueParticipantLimit,
+  validateTiqLeagueSeasonWindow,
+} from '@/lib/tiq-league-limits'
 import { type UserRole } from '@/lib/roles'
 import {
   listTiqLeagues,
@@ -54,6 +67,11 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   scoringSystem: 'standard',
   leagueName: '',
   seasonLabel: '',
+  seasonStatus: 'draft',
+  startsOn: '',
+  endsOn: '',
+  maxWeeks: DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  maxMatchEvents: DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   flight: '',
   locationLabel: '',
   photoUrl: '',
@@ -639,6 +657,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       ...draft,
       teams: draft.leagueFormat === 'team' ? parsedTeams : [],
       players: draft.leagueFormat === 'individual' ? parsedPlayers : [],
+      maxWeeks: normalizeTiqLeagueMaxWeeks(draft.maxWeeks),
+      maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(draft.maxMatchEvents),
     }
 
     if (!safeText(nextDraft.leagueName) || !safeText(nextDraft.seasonLabel)) {
@@ -653,6 +673,18 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
     if (nextDraft.leagueFormat === 'individual' && nextDraft.players.length === 0) {
       setStatus('Individual leagues need at least one player in the participant list.')
+      return
+    }
+
+    const participantLimitMessage = validateTiqLeagueParticipantLimit(nextDraft)
+    if (participantLimitMessage) {
+      setStatus(participantLimitMessage)
+      return
+    }
+
+    const seasonWindowMessage = validateTiqLeagueSeasonWindow(nextDraft)
+    if (seasonWindowMessage) {
+      setStatus(seasonWindowMessage)
       return
     }
 
@@ -677,6 +709,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       scoringSystem: record.scoringSystem,
       leagueName: record.leagueName,
       seasonLabel: record.seasonLabel,
+      seasonStatus: record.seasonStatus,
+      startsOn: record.startsOn,
+      endsOn: record.endsOn,
+      maxWeeks: record.maxWeeks,
+      maxMatchEvents: record.maxMatchEvents,
       flight: record.flight,
       locationLabel: record.locationLabel,
       photoUrl: record.photoUrl,
@@ -1323,6 +1360,93 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </label>
 
               <label style={fieldLabel}>
+                <span>Season status</span>
+                <select
+                  value={draft.seasonStatus}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      seasonStatus:
+                        event.target.value === 'active'
+                          ? 'active'
+                          : event.target.value === 'completed'
+                            ? 'completed'
+                            : event.target.value === 'archived'
+                              ? 'archived'
+                              : 'draft',
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Starts</span>
+                <input
+                  type="date"
+                  value={draft.startsOn}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, startsOn: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Ends</span>
+                <input
+                  type="date"
+                  value={draft.endsOn}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, endsOn: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Max weeks</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={MAX_TIQ_LEAGUE_WEEKS}
+                  value={draft.maxWeeks}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      maxWeeks: normalizeTiqLeagueMaxWeeks(event.target.value),
+                    }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Max match events</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={MAX_TIQ_LEAGUE_MATCH_EVENTS}
+                  value={draft.maxMatchEvents}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(event.target.value),
+                    }))
+                  }
+                  style={inputStyle}
+                />
+                <span style={fieldHelpText}>
+                  Standard season: {DEFAULT_TIQ_LEAGUE_MAX_WEEKS} weeks and {DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS} match events. Team cap {MAX_TIQ_TEAM_LEAGUE_TEAMS}; player cap {MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS}.
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
                 <span>Flight or tier</span>
                 <input
                   value={draft.flight}
@@ -1561,7 +1685,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                         <span style={record.leagueFormat === 'team' ? pillGreen : pillBlue}>
                           {getLeagueFormatLabel(record.leagueFormat)}
                         </span>
+                        <span style={record.seasonStatus === 'active' ? pillGreen : pillSlate}>
+                          {record.seasonStatus}
+                        </span>
                         <span style={pillSlate}>{record.seasonLabel || 'Season label missing'}</span>
+                        <span style={pillSlate}>{getTiqLeagueSeasonSummary(record)}</span>
                         <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
                       </div>
 
@@ -1573,6 +1701,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                             : null,
                           record.flight,
                           record.locationLabel,
+                          record.startsOn && record.endsOn ? `${record.startsOn} to ${record.endsOn}` : null,
                           participantLabel,
                         ]
                           .filter(Boolean)

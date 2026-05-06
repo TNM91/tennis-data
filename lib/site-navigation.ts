@@ -70,6 +70,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/', label: 'Home' },
       { href: '/pricing', label: 'Pricing' },
+      { href: '/legal/billing', label: 'Billing' },
       { href: '/join', label: 'Start Free' },
       { href: '/login', label: 'Sign in' },
     ],
