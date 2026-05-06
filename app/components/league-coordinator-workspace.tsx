@@ -1582,13 +1582,14 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
                       <div style={registryFooter}>
                         <span style={registryTimestamp}>Updated {formatDateTime(record.updatedAt)}</span>
-                        <div style={buttonRow}>
-                          <GhostLink href={buildLeagueResultEntryHref(record)}>
-                            {getLeagueResultEntryLabel(record)}
-                          </GhostLink>
+                        <LeagueActionRow
+                          league={record}
+                          resultLabel={getLeagueResultEntryLabel(record)}
+                          onCopyShare={copyPublicLeagueLink}
+                        >
                           <GhostBtn onClick={() => startEditing(record)}>Edit</GhostBtn>
                           <DangerBtn onClick={() => removeRecord(record.id)}>Remove</DangerBtn>
-                        </div>
+                        </LeagueActionRow>
                       </div>
                     </div>
                   )
@@ -1631,6 +1632,7 @@ function LeagueActionRow({
   publicLabel = 'View public',
   includeManage = false,
   onCopyShare,
+  children,
 }: {
   league: TiqLeagueRecord
   resultHref?: string
@@ -1638,6 +1640,7 @@ function LeagueActionRow({
   publicLabel?: string
   includeManage?: boolean
   onCopyShare: (record: TiqLeagueRecord) => void | Promise<void>
+  children?: ReactNode
 }) {
   return (
     <div style={buttonRow}>
@@ -1645,6 +1648,7 @@ function LeagueActionRow({
       <GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>
       <GhostLink href={resultHref}>{resultLabel}</GhostLink>
       {includeManage ? <GhostLink href={buildLeagueSetupHref(league)}>Manage</GhostLink> : null}
+      {children}
     </div>
   )
 }
