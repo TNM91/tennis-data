@@ -40,6 +40,8 @@ type EditableProfileAccess = {
 }
 
 type AccessPreset = 'player_plus' | 'captain' | 'league'
+type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
+type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
 
 type ConvertedUpgradeRequestRow = {
   id: string
@@ -152,9 +154,8 @@ export default function AdminAccessPage() {
   const [search, setSearch] = useState('')
   const [handoffSearch, setHandoffSearch] = useState('')
   const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'captain' | 'member' | 'public'>(
-    'all',
-  )
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
   const [editedProfiles, setEditedProfiles] = useState<Record<string, EditableProfileAccess>>({})
   const [convertedRequestsByUser, setConvertedRequestsByUser] = useState<Record<string, ConvertedUpgradeRequest>>({})
   const [convertedRequestsAvailable, setConvertedRequestsAvailable] = useState(true)
@@ -429,6 +430,7 @@ export default function AdminAccessPage() {
     return profiles.filter((profile) => {
       const normalizedRole = (profile.role || 'public').trim().toLowerCase()
       if (roleFilter !== 'all' && normalizedRole !== roleFilter) return false
+      if (!matchesBillingFilter(profile, stripeEventsByUser[profile.id] ?? null, billingFilter)) return false
 
       if (!normalizedSearch) return true
 
@@ -443,7 +445,7 @@ export default function AdminAccessPage() {
         .toLowerCase()
         .includes(normalizedSearch)
     })
-  }, [deferredSearch, profiles, roleFilter])
+  }, [billingFilter, deferredSearch, profiles, roleFilter, stripeEventsByUser])
 
   const activeCaptainCount = profiles.filter((profile) =>
     Boolean(profile.captain_subscription_active),
@@ -459,6 +461,17 @@ export default function AdminAccessPage() {
   ).length
   const stripeManagedCount = profiles.filter((profile) =>
     Boolean(profile.stripe_customer_id || profile.stripe_subscription_id),
+  ).length
+  const pastDueCount = profiles.filter((profile) =>
+    hasSubscriptionStatus(profile, 'past_due') ||
+    stripeEventsByUser[profile.id]?.resultingStatus === 'past_due',
+  ).length
+  const canceledCount = profiles.filter((profile) =>
+    hasSubscriptionStatus(profile, 'canceled') ||
+    stripeEventsByUser[profile.id]?.resultingStatus === 'canceled',
+  ).length
+  const webhookErrorCount = Object.values(stripeEventsByUser).filter((event) =>
+    event.outcome === 'error',
   ).length
   const auditWarningCount = profiles.filter((profile) =>
     buildAccessAudit(
@@ -518,6 +531,9 @@ export default function AdminAccessPage() {
               <MetricCard label="Team Coordinator" value={teamEntryCount} />
               <MetricCard label="Individual Coordinator" value={individualCreatorCount} />
               <MetricCard label="Stripe Managed" value={stripeManagedCount} />
+              <MetricCard label="Past Due" value={pastDueCount} />
+              <MetricCard label="Canceled" value={canceledCount} />
+              <MetricCard label="Webhook Errors" value={webhookErrorCount} />
               <MetricCard label="Audit Flags" value={auditWarningCount} />
             </div>
 
@@ -546,9 +562,7 @@ export default function AdminAccessPage() {
                   id="admin-access-role-filter"
                   value={roleFilter}
                   onChange={(event) =>
-                    setRoleFilter(
-                      event.target.value as 'all' | 'admin' | 'captain' | 'member' | 'public',
-                    )
+                    setRoleFilter(event.target.value as RoleFilter)
                   }
                   className="select"
                   disabled={loading || refreshing}
@@ -558,6 +572,24 @@ export default function AdminAccessPage() {
                   <option value="captain">Captain</option>
                   <option value="member">Member</option>
                   <option value="public">Public</option>
+                </select>
+              </Field>
+
+              <Field label="Billing filter" htmlFor="admin-access-billing-filter">
+                <select
+                  id="admin-access-billing-filter"
+                  value={billingFilter}
+                  onChange={(event) => setBillingFilter(event.target.value as BillingFilter)}
+                  className="select"
+                  disabled={loading || refreshing}
+                >
+                  <option value="all">All billing</option>
+                  <option value="stripe">Stripe managed</option>
+                  <option value="past_due">Past due</option>
+                  <option value="canceled">Canceled</option>
+                  <option value="webhook_error">Webhook errors</option>
+                  <option value="webhook_ignored">Ignored webhooks</option>
+                  <option value="manual">Manual or role-based</option>
                 </select>
               </Field>
             </div>
@@ -587,7 +619,8 @@ export default function AdminAccessPage() {
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
               This page is the monetization control point for TenAceIQ. Coordinator access can be
-              granted by itself, without enabling Player or Captain tools.
+              granted by itself, without enabling Player or Captain tools. Use Billing filter for
+              failed payments, canceled subscriptions, and webhook outcomes that need follow-up.
               {convertedRequestsAvailable
                 ? ' Converted checkout requests are shown beside each profile when available.'
                 : ' Converted checkout requests are not available yet, so this view is showing profile fields only.'}
@@ -926,6 +959,30 @@ function normalizeSubscriptionStatus(value: string | null | undefined): CaptainS
 function normalizeStripeBillingEventOutcome(value: string | null | undefined) {
   if (value === 'handled' || value === 'ignored' || value === 'error') return value
   return 'ignored'
+}
+
+function hasSubscriptionStatus(profile: ProfileAccessRow, status: CaptainSubscriptionStatus) {
+  return profile.player_plus_subscription_status === status || profile.captain_subscription_status === status
+}
+
+function matchesBillingFilter(
+  profile: ProfileAccessRow,
+  latestEvent: StripeBillingEvent | null,
+  billingFilter: BillingFilter,
+) {
+  if (billingFilter === 'all') return true
+  if (billingFilter === 'stripe') return Boolean(profile.stripe_customer_id || profile.stripe_subscription_id)
+  if (billingFilter === 'manual') return !profile.stripe_customer_id && !profile.stripe_subscription_id
+  if (billingFilter === 'past_due') {
+    return hasSubscriptionStatus(profile, 'past_due') || latestEvent?.resultingStatus === 'past_due'
+  }
+  if (billingFilter === 'canceled') {
+    return hasSubscriptionStatus(profile, 'canceled') || latestEvent?.resultingStatus === 'canceled'
+  }
+  if (billingFilter === 'webhook_error') return latestEvent?.outcome === 'error'
+  if (billingFilter === 'webhook_ignored') return latestEvent?.outcome === 'ignored'
+
+  return true
 }
 
 function formatEventTime(value: string) {
