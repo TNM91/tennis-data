@@ -1867,6 +1867,31 @@ function MyLabPageInner() {
       notes: 'Pick one skill, one measure, and the next time I will test it.',
     },
   ]
+  const matchPlanCards = [
+    {
+      label: 'Before play',
+      title: topMatchupCandidate ? `Prep for ${topMatchupCandidate.player.name}` : 'Choose a useful test',
+      body: topMatchupCandidate
+        ? `Open Matchup, check the ${topMatchupCandidate.read.toLowerCase()}, and pick one pattern to watch.`
+        : 'Use the player pool or a recent opponent to build the next matchup read.',
+      href: matchupHref,
+      cta: topMatchupCandidate ? 'Open read' : 'Find matchup',
+    },
+    {
+      label: 'During play',
+      title: activeGoal.goal.trim() || 'Play with one focus',
+      body: activeGoal.improveNext || improvementDefault,
+      href: '#player-notebook',
+      cta: 'See focus',
+    },
+    {
+      label: 'After play',
+      title: activeGoal.progressUpdate.trim() ? 'Update the result' : 'Log what happened',
+      body: activeGoal.progressUpdate || 'Add the score, the pattern that mattered, and what to test next.',
+      href: '#player-notebook',
+      cta: 'Log update',
+    },
+  ]
   const goalSummaryCards = [
     {
       label: 'Active goals',
@@ -2311,6 +2336,38 @@ function MyLabPageInner() {
                       : 'Manage your profile to unlock matchup suggestions.'}
                   </div>
                 )}
+              </section>
+
+              <section style={matchPlanPanelStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div style={sectionTitleClusterStyle}>
+                    <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+                    <div>
+                      <p style={sectionKickerStyle}>Match plan</p>
+                      <h3 style={compactSectionTitleStyle}>Turn the read into a tennis routine</h3>
+                      <p style={sectionTextStyle}>
+                        Player value should show up before, during, and after the next match.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => applyGoalTemplate(focusTemplates[0])}
+                    style={smallGhostButtonStyle}
+                  >
+                    Use suggested focus
+                  </button>
+                </div>
+                <div style={matchPlanGridStyle(isTablet)}>
+                  {matchPlanCards.map((card) => (
+                    <Link key={card.label} href={card.href} style={matchPlanCardStyle}>
+                      <span style={miniActionPillStyle}>{card.label}</span>
+                      <strong>{card.title}</strong>
+                      <span style={matchPlanTextStyle}>{card.body}</span>
+                      <span style={miniActionLinkStyle}>{card.cta}</span>
+                    </Link>
+                  ))}
+                </div>
               </section>
 
               <section style={performancePanelStyle}>
@@ -3688,6 +3745,42 @@ const performancePanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   boxShadow: 'var(--shadow-soft)',
+}
+
+const matchPlanPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+}
+
+const matchPlanGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const matchPlanCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  alignContent: 'start',
+  minHeight: 170,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
+const matchPlanTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 750,
 }
 
 const performanceGridStyle = (isTablet: boolean): CSSProperties => ({
