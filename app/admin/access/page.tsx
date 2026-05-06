@@ -57,6 +57,29 @@ type ConvertedUpgradeRequest = {
   changedAt: string
 }
 
+type StripeBillingEventRow = {
+  id: string
+  stripe_event_id: string | null
+  event_type: string | null
+  outcome: string | null
+  message: string | null
+  profile_id: string | null
+  plan_id: string | null
+  resulting_status: CaptainSubscriptionStatus | null
+  created_at: string | null
+}
+
+type StripeBillingEvent = {
+  id: string
+  eventId: string
+  eventType: string
+  outcome: 'handled' | 'ignored' | 'error'
+  message: string
+  planId: PricingPlanId | null
+  resultingStatus: CaptainSubscriptionStatus | null
+  createdAt: string
+}
+
 type AccessAudit = {
   currentPlan: string
   activePlans: string
@@ -135,6 +158,8 @@ export default function AdminAccessPage() {
   const [editedProfiles, setEditedProfiles] = useState<Record<string, EditableProfileAccess>>({})
   const [convertedRequestsByUser, setConvertedRequestsByUser] = useState<Record<string, ConvertedUpgradeRequest>>({})
   const [convertedRequestsAvailable, setConvertedRequestsAvailable] = useState(true)
+  const [stripeEventsByUser, setStripeEventsByUser] = useState<Record<string, StripeBillingEvent>>({})
+  const [stripeEventsAvailable, setStripeEventsAvailable] = useState(true)
 
   const deferredSearch = useDeferredValue(search)
 
@@ -164,6 +189,44 @@ export default function AdminAccessPage() {
           planId,
           email: row.requester_email ?? '',
           changedAt: row.updated_at ?? row.created_at ?? '',
+        }
+        return acc
+      },
+      {},
+    )
+  }, [])
+
+  const loadLatestStripeEvents = useCallback(async (userIds: string[]) => {
+    const userIdSet = new Set(userIds)
+    if (userIdSet.size === 0) return {}
+
+    const { data, error } = await supabase
+      .from('stripe_billing_events')
+      .select('id, stripe_event_id, event_type, outcome, message, profile_id, plan_id, resulting_status, created_at')
+      .not('profile_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1000)
+
+    if (error) {
+      setStripeEventsAvailable(false)
+      return {}
+    }
+
+    setStripeEventsAvailable(true)
+    return ((data ?? []) as StripeBillingEventRow[]).reduce<Record<string, StripeBillingEvent>>(
+      (acc, row) => {
+        const userId = row.profile_id ?? ''
+        if (!userId || !userIdSet.has(userId) || acc[userId]) return acc
+
+        acc[userId] = {
+          id: row.id,
+          eventId: row.stripe_event_id ?? '',
+          eventType: row.event_type ?? '',
+          outcome: normalizeStripeBillingEventOutcome(row.outcome),
+          message: row.message ?? '',
+          planId: normalizePricingPlanId(row.plan_id),
+          resultingStatus: normalizeSubscriptionStatus(row.resulting_status),
+          createdAt: row.created_at ?? '',
         }
         return acc
       },
@@ -232,9 +295,11 @@ export default function AdminAccessPage() {
         compactUserId(a.id).localeCompare(compactUserId(b.id)),
       )
       const convertedRequests = await loadConvertedRequests()
+      const latestStripeEvents = await loadLatestStripeEvents(rows.map((row) => row.id))
 
       setProfiles(rows)
       setConvertedRequestsByUser(convertedRequests)
+      setStripeEventsByUser(latestStripeEvents)
       setEditedProfiles(
         rows.reduce<Record<string, EditableProfileAccess>>((acc, row) => {
           acc[row.id] = normalizeEditable(row)
@@ -251,7 +316,7 @@ export default function AdminAccessPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [loadConvertedRequests])
+  }, [loadConvertedRequests, loadLatestStripeEvents])
 
   useEffect(() => {
     const initialSearch = new URLSearchParams(window.location.search).get('search')
@@ -526,6 +591,9 @@ export default function AdminAccessPage() {
               {convertedRequestsAvailable
                 ? ' Converted checkout requests are shown beside each profile when available.'
                 : ' Converted checkout requests are not available yet, so this view is showing profile fields only.'}
+              {stripeEventsAvailable
+                ? ' Stripe webhook history is shown when available.'
+                : ' Stripe webhook history is not available yet.'}
             </p>
 
             {handoffSearch ? (
@@ -666,7 +734,10 @@ export default function AdminAccessPage() {
                           </td>
                           <td>{roleLabel(profile.role)}</td>
                           <td>
-                            <StripeBillingCell profile={profile} />
+                            <StripeBillingCell
+                              profile={profile}
+                              latestEvent={stripeEventsByUser[profile.id] ?? null}
+                            />
                           </td>
                           <td>
                             <div style={accessResultWrapStyle}>
@@ -846,6 +917,32 @@ function normalizePricingPlanId(value: string | null | undefined): PricingPlanId
   return null
 }
 
+function normalizeSubscriptionStatus(value: string | null | undefined): CaptainSubscriptionStatus | null {
+  return STATUS_OPTIONS.includes(value as CaptainSubscriptionStatus)
+    ? (value as CaptainSubscriptionStatus)
+    : null
+}
+
+function normalizeStripeBillingEventOutcome(value: string | null | undefined) {
+  if (value === 'handled' || value === 'ignored' || value === 'error') return value
+  return 'ignored'
+}
+
+function formatEventTime(value: string) {
+  if (!value) return ''
+
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(value))
+  } catch {
+    return value
+  }
+}
+
 function toEntitlementSnapshot(draft: EditableProfileAccess): ProductEntitlementSnapshot {
   return {
     playerPlusSubscriptionActive: draft.player_plus_subscription_active,
@@ -955,12 +1052,23 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   )
 }
 
-function StripeBillingCell({ profile }: { profile: ProfileAccessRow }) {
+function StripeBillingCell({
+  profile,
+  latestEvent,
+}: {
+  profile: ProfileAccessRow
+  latestEvent: StripeBillingEvent | null
+}) {
   const customerId = compactStripeId(profile.stripe_customer_id)
   const subscriptionId = compactStripeId(profile.stripe_subscription_id)
 
   if (!customerId && !subscriptionId) {
-    return <span className="subtle-text">Manual or role-based</span>
+    return (
+      <div style={stripeBillingCellStyle}>
+        <span className="subtle-text">Manual or role-based</span>
+        <StripeBillingEventCue latestEvent={latestEvent} />
+      </div>
+    )
   }
 
   return (
@@ -975,7 +1083,34 @@ function StripeBillingCell({ profile }: { profile: ProfileAccessRow }) {
           Subscription {subscriptionId}
         </span>
       ) : null}
+      <StripeBillingEventCue latestEvent={latestEvent} />
     </div>
+  )
+}
+
+function StripeBillingEventCue({ latestEvent }: { latestEvent: StripeBillingEvent | null }) {
+  if (!latestEvent) return null
+
+  const pieces = [
+    latestEvent.eventType,
+    latestEvent.resultingStatus,
+    latestEvent.planId ? formatPlanLabel(latestEvent.planId) : '',
+    formatEventTime(latestEvent.createdAt),
+  ].filter(Boolean)
+
+  return (
+    <span
+      style={
+        latestEvent.outcome === 'error'
+          ? stripeBillingErrorEventStyle
+          : latestEvent.outcome === 'handled'
+            ? stripeBillingHandledEventStyle
+            : stripeBillingIgnoredEventStyle
+      }
+      title={[latestEvent.eventId, latestEvent.message].filter(Boolean).join(' - ') || undefined}
+    >
+      Last Stripe event: {pieces.join(' / ')}
+    </span>
   )
 }
 
@@ -1051,6 +1186,28 @@ const stripeBillingIdStyle = {
   lineHeight: 1.35,
   fontWeight: 800,
   fontFamily: 'var(--font-geist-mono)',
+} as const
+
+const stripeBillingEventStyle = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 750,
+} as const
+
+const stripeBillingHandledEventStyle = {
+  ...stripeBillingEventStyle,
+  color: '#bbf7d0',
+} as const
+
+const stripeBillingIgnoredEventStyle = {
+  ...stripeBillingEventStyle,
+  color: 'var(--shell-copy-muted)',
+} as const
+
+const stripeBillingErrorEventStyle = {
+  ...stripeBillingEventStyle,
+  color: '#fca5a5',
 } as const
 
 const toggleWrap = {

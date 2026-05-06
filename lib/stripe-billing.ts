@@ -17,6 +17,21 @@ export type StripeBillingCustomerTarget = {
   email?: string
 }
 
+export type StripeBillingEventAuditOutcome = 'handled' | 'ignored' | 'error'
+
+export type StripeBillingEventAuditPayload = {
+  stripe_event_id: string
+  event_type: string
+  outcome: StripeBillingEventAuditOutcome
+  message: string
+  profile_id?: string | null
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
+  plan_id?: string | null
+  resulting_status?: string | null
+  event_object?: unknown
+}
+
 export type StripeSubscriptionLifecycleObject = {
   id?: string | null
   status?: string | null
@@ -34,6 +49,7 @@ export type StripeSubscriptionLifecycleObject = {
 }
 
 export type StripeSubscriptionLifecycleEvent = {
+  id?: string
   type?: string
   data?: {
     object?: StripeSubscriptionLifecycleObject
@@ -124,6 +140,53 @@ export function buildStripeSubscriptionProfileUpdate(
   }
 }
 
+export function buildStripeBillingEventAuditPayload({
+  event,
+  outcome,
+  message = '',
+  profileId,
+  customerId,
+  subscriptionId,
+  planId,
+  resultingStatus,
+}: {
+  event: StripeSubscriptionLifecycleEvent
+  outcome: StripeBillingEventAuditOutcome
+  message?: string
+  profileId?: string | null
+  customerId?: string | null
+  subscriptionId?: string | null
+  planId?: string | null
+  resultingStatus?: string | null
+}): StripeBillingEventAuditPayload | null {
+  const eventId = cleanAuditValue(event.id)
+  const eventType = cleanAuditValue(event.type)
+  if (!eventId || !eventType) return null
+
+  const object = event.data?.object
+  return {
+    stripe_event_id: eventId,
+    event_type: eventType,
+    outcome,
+    message,
+    profile_id: cleanAuditValue(profileId),
+    stripe_customer_id: cleanAuditValue(customerId ?? getStripeObjectId(object?.customer)),
+    stripe_subscription_id: cleanAuditValue(subscriptionId ?? getStripeObjectId(object?.subscription)),
+    plan_id: cleanAuditValue(planId ?? object?.metadata?.plan_id),
+    resulting_status: cleanAuditValue(resultingStatus),
+    event_object: object ?? null,
+  }
+}
+
+export function getStripeSubscriptionResultingStatus(update: StripeSubscriptionProfileUpdate) {
+  const key =
+    update.planId === 'captain'
+      ? 'captain_subscription_status'
+      : 'player_plus_subscription_status'
+  const value = update.payload[key]
+  return typeof value === 'string' ? value : ''
+}
+
 export function removeStripeBillingProfileFields<T extends Record<string, unknown>>(payload: T) {
   const rest = { ...payload }
   delete rest.stripe_customer_id
@@ -175,6 +238,11 @@ function getStripeSubscriptionMetadata(object: StripeSubscriptionLifecycleObject
 
 function normalizeSubscriptionPricingPlanId(value: string | undefined) {
   return value === 'player_plus' || value === 'captain' ? value : null
+}
+
+function cleanAuditValue(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? ''
+  return trimmed || null
 }
 
 function resolveSubscriptionStatus(event: StripeSubscriptionLifecycleEvent): SubscriptionEntitlementStatus {
