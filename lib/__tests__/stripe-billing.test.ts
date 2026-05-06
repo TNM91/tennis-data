@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildStripeBillingProfilePayload,
+  buildStripeSubscriptionProfileUpdate,
   findStripeCustomerIdForUser,
   getStripeObjectId,
   isStripeBillingProfileColumnError,
+  isStripeSubscriptionLifecycleEvent,
   removeStripeBillingProfileFields,
 } from '../stripe-billing'
 
@@ -70,5 +72,102 @@ describe('Stripe billing helpers', () => {
         customer_email: 'player@example.com',
       },
     ], { userId: 'user-1', email: 'player@example.com' })).toBe('')
+  })
+
+  it('activates captain entitlements from subscription lifecycle metadata', () => {
+    expect(buildStripeSubscriptionProfileUpdate({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_captain',
+          status: 'active',
+          customer: 'cus_123',
+          metadata: {
+            user_id: 'user-1',
+            plan_id: 'captain',
+          },
+        },
+      },
+    })).toEqual({
+      userId: 'user-1',
+      subscriptionId: 'sub_captain',
+      customerId: 'cus_123',
+      planId: 'captain',
+      payload: {
+        player_plus_subscription_active: true,
+        player_plus_subscription_status: 'active',
+        captain_subscription_active: true,
+        captain_subscription_status: 'active',
+        stripe_customer_id: 'cus_123',
+        stripe_subscription_id: 'sub_captain',
+      },
+    })
+  })
+
+  it('downgrades player subscriptions when Stripe reports cancellation', () => {
+    expect(buildStripeSubscriptionProfileUpdate({
+      type: 'customer.subscription.deleted',
+      data: {
+        object: {
+          id: 'sub_player',
+          status: 'canceled',
+          customer: 'cus_123',
+          metadata: {
+            user_id: 'user-1',
+            plan_id: 'player_plus',
+          },
+        },
+      },
+    })?.payload).toEqual({
+      player_plus_subscription_active: false,
+      player_plus_subscription_status: 'canceled',
+      stripe_customer_id: 'cus_123',
+      stripe_subscription_id: 'sub_player',
+    })
+  })
+
+  it('revokes paid access on failed invoice payments using subscription metadata', () => {
+    expect(buildStripeSubscriptionProfileUpdate({
+      type: 'invoice.payment_failed',
+      data: {
+        object: {
+          id: 'in_123',
+          customer: 'cus_123',
+          subscription: 'sub_captain',
+          parent: {
+            subscription_details: {
+              metadata: {
+                user_id: 'user-1',
+                plan_id: 'captain',
+              },
+            },
+          },
+        },
+      },
+    })?.payload).toEqual({
+      player_plus_subscription_active: false,
+      player_plus_subscription_status: 'past_due',
+      captain_subscription_active: false,
+      captain_subscription_status: 'past_due',
+      stripe_customer_id: 'cus_123',
+      stripe_subscription_id: 'sub_captain',
+    })
+  })
+
+  it('ignores non-subscription billing events and one-time league plans', () => {
+    expect(isStripeSubscriptionLifecycleEvent({ type: 'checkout.session.completed' })).toBe(false)
+    expect(buildStripeSubscriptionProfileUpdate({
+      type: 'customer.subscription.updated',
+      data: {
+        object: {
+          id: 'sub_123',
+          status: 'active',
+          metadata: {
+            user_id: 'user-1',
+            plan_id: 'league',
+          },
+        },
+      },
+    })).toBeNull()
   })
 })
