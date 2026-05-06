@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
 import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -197,7 +198,7 @@ function UtilityLink({
 export default function SiteHeader({ active }: { active?: string }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { role, userId, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const { screenWidth, isTablet, isMobile } = useViewportBreakpoints()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -245,10 +246,22 @@ export default function SiteHeader({ active }: { active?: string }) {
   const authenticated = role !== 'public'
   const useCompactHeader = screenWidth < 1180
   const useCompactBrand = useCompactHeader
-  const roleLabel = role === 'admin' ? 'Admin' : role === 'captain' ? 'Captain' : authenticated ? 'Player' : ''
+  const access = buildProductAccessState(role, entitlements)
+  const roleLabel =
+    role === 'admin'
+      ? 'Admin'
+      : authenticated
+        ? access.currentPlanId === 'league'
+          ? 'Coordinator'
+          : access.currentPlanId === 'captain'
+            ? 'Captain'
+            : access.currentPlanId === 'player_plus'
+              ? 'Player'
+              : 'Free'
+        : ''
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
-  const canUseCaptainTools = role === 'captain' || role === 'admin'
+  const canUseCaptainTools = access.canUseCaptainWorkflow
 
   return (
     <header
