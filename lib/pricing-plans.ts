@@ -5,12 +5,43 @@ import {
 } from './product-story'
 
 export type PricingPlanId = 'free' | 'player_plus' | 'captain' | 'league'
+export type PricingBillingInterval = 'none' | 'month' | 'season'
+export type PricingCheckoutMode = 'none' | 'subscription' | 'one_time'
+export type PricingQuantityMode = 'account' | 'league'
+export type PricingCurrency = 'usd'
+
+export type PricingBillingModel = {
+  amountCents: number
+  currency: PricingCurrency
+  interval: PricingBillingInterval
+  checkoutMode: PricingCheckoutMode
+  quantityMode: PricingQuantityMode
+}
+
+export type PricingEntitlementGrant = {
+  playerPlus: boolean
+  captain: boolean
+  leagueCoordinator: boolean
+  tiqTeamLeagueEntry: boolean
+  tiqIndividualLeagueCreator: boolean
+}
+
+export type PricingDiscountRule = {
+  id: 'captain_first_league_half_off'
+  label: string
+  percentOff: number
+  appliesToPlanId: PricingPlanId
+  eligibility: 'active_captain_first_league'
+}
 
 export type PricingPlan = {
   id: PricingPlanId
   name: string
   subtitle: string
   audience: string
+  billing: PricingBillingModel
+  entitlementGrant: PricingEntitlementGrant
+  discountRules?: PricingDiscountRule[]
   priceLabel: string
   alternatePriceNote?: string
   badge?: string
@@ -22,13 +53,100 @@ export type PricingPlan = {
   valueProps: string[]
 }
 
+const USD = 'usd' satisfies PricingCurrency
+
+const NO_ENTITLEMENTS: PricingEntitlementGrant = {
+  playerPlus: false,
+  captain: false,
+  leagueCoordinator: false,
+  tiqTeamLeagueEntry: false,
+  tiqIndividualLeagueCreator: false,
+}
+
+const PLAYER_ENTITLEMENTS: PricingEntitlementGrant = {
+  ...NO_ENTITLEMENTS,
+  playerPlus: true,
+}
+
+const CAPTAIN_ENTITLEMENTS: PricingEntitlementGrant = {
+  ...PLAYER_ENTITLEMENTS,
+  captain: true,
+}
+
+const LEAGUE_COORDINATOR_ENTITLEMENTS: PricingEntitlementGrant = {
+  ...NO_ENTITLEMENTS,
+  leagueCoordinator: true,
+  tiqTeamLeagueEntry: true,
+  tiqIndividualLeagueCreator: true,
+}
+
+const CAPTAIN_FIRST_LEAGUE_DISCOUNT: PricingDiscountRule = {
+  id: 'captain_first_league_half_off',
+  label: 'Captains get 1/2 off their first league',
+  percentOff: 50,
+  appliesToPlanId: 'league',
+  eligibility: 'active_captain_first_league',
+}
+
+const PRICING_BILLING: Record<PricingPlanId, PricingBillingModel> = {
+  free: {
+    amountCents: 0,
+    currency: USD,
+    interval: 'none',
+    checkoutMode: 'none',
+    quantityMode: 'account',
+  },
+  player_plus: {
+    amountCents: 499,
+    currency: USD,
+    interval: 'month',
+    checkoutMode: 'subscription',
+    quantityMode: 'account',
+  },
+  captain: {
+    amountCents: 999,
+    currency: USD,
+    interval: 'month',
+    checkoutMode: 'subscription',
+    quantityMode: 'account',
+  },
+  league: {
+    amountCents: 2500,
+    currency: USD,
+    interval: 'season',
+    checkoutMode: 'one_time',
+    quantityMode: 'league',
+  },
+}
+
+function formatUsd(amountCents: number) {
+  if (amountCents === 0) return '$0'
+  const dollars = amountCents / 100
+  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`
+}
+
+export function formatPricingBillingLabel(billing: PricingBillingModel) {
+  if (billing.amountCents === 0 || billing.interval === 'none') return '$0'
+  if (billing.interval === 'month') return `${formatUsd(billing.amountCents)}/month`
+  return `${formatUsd(billing.amountCents)}/season per ${billing.quantityMode}`
+}
+
+export function getPricingBillingCue(planId: PricingPlanId) {
+  const plan = getPricingPlan(planId)
+  if (plan.billing.checkoutMode === 'none') return 'Free account'
+  if (plan.billing.checkoutMode === 'subscription') return 'Monthly subscription'
+  return 'Season fee'
+}
+
 export const PRICING_PLANS: PricingPlan[] = [
   {
     id: 'free',
     name: getMembershipTier('free').name,
     subtitle: getMembershipTier('free').shortPromise,
     audience: getMembershipTier('free').audience,
-    priceLabel: '$0',
+    billing: PRICING_BILLING.free,
+    entitlementGrant: NO_ENTITLEMENTS,
+    priceLabel: formatPricingBillingLabel(PRICING_BILLING.free),
     ctaLabel: 'Get Started Free',
     problem: 'Want to understand the tennis landscape faster?',
     friction: 'Player, team, league, and ranking information is scattered across too many places.',
@@ -41,7 +159,9 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: getMembershipTier('player_plus').name,
     subtitle: getMembershipTier('player_plus').shortPromise,
     audience: getMembershipTier('player_plus').audience,
-    priceLabel: '$4.99/month',
+    billing: PRICING_BILLING.player_plus,
+    entitlementGrant: PLAYER_ENTITLEMENTS,
+    priceLabel: formatPricingBillingLabel(PRICING_BILLING.player_plus),
     ctaLabel: 'Unlock Player',
     problem: 'Want TenAceIQ to revolve around your game?',
     friction: 'Raw match history does not tell you who to follow, how you match up, or what to prepare for next.',
@@ -54,7 +174,9 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: getMembershipTier('captain').name,
     subtitle: getMembershipTier('captain').shortPromise,
     audience: getMembershipTier('captain').audience,
-    priceLabel: '$9.99/month',
+    billing: PRICING_BILLING.captain,
+    entitlementGrant: CAPTAIN_ENTITLEMENTS,
+    priceLabel: formatPricingBillingLabel(PRICING_BILLING.captain),
     badge: 'Most Popular',
     ctaLabel: 'Unlock Captain Tools',
     problem: 'Running a team every week?',
@@ -68,8 +190,11 @@ export const PRICING_PLANS: PricingPlan[] = [
     name: getMembershipTier('league').name,
     subtitle: getMembershipTier('league').shortPromise,
     audience: getMembershipTier('league').audience,
-    priceLabel: '$25/season per league',
-    alternatePriceNote: 'Captains get 1/2 off their first league',
+    billing: PRICING_BILLING.league,
+    entitlementGrant: LEAGUE_COORDINATOR_ENTITLEMENTS,
+    discountRules: [CAPTAIN_FIRST_LEAGUE_DISCOUNT],
+    priceLabel: formatPricingBillingLabel(PRICING_BILLING.league),
+    alternatePriceNote: CAPTAIN_FIRST_LEAGUE_DISCOUNT.label,
     ctaLabel: 'Run Your League on TIQ',
     problem: 'Organizing a league or season?',
     friction: 'Rosters, schedules, results, and communication get messy fast in manual tools.',

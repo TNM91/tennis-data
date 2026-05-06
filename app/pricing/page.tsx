@@ -8,6 +8,7 @@ import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/
 import { type UserRole } from '@/lib/roles'
 import {
   getPricingPlan,
+  getPricingBillingCue,
   PRICING_HOW_IT_WORKS,
   PRICING_PLANS,
   PRICING_PROOF_POINTS,
@@ -349,6 +350,7 @@ export default function PricingPage() {
                     {active ? <span style={activeBadgeStyle}>Access active</span> : null}
                   </div>
                   <div style={cardPriceStyle}>{active ? 'Unlocked' : plan.priceLabel}</div>
+                  {!active ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
                   {!active && plan.alternatePriceNote ? <div style={altPriceStyle}>{plan.alternatePriceNote}</div> : null}
                   <div style={cardSubtitleStyle}>{plan.subtitle}</div>
                   <div style={decisionHintStyle}>{PLAN_DECISION_HINTS[plan.id]}</div>
@@ -1193,6 +1195,12 @@ const cardPriceStyle: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+}
+
+const billingCueStyle: CSSProperties = {
+  color: 'rgba(226,232,240,0.78)',
+  fontSize: 12,
+  fontWeight: 800,
 }
 
 const altPriceStyle: CSSProperties = {
