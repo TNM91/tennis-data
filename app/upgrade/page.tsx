@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { use, useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -89,7 +89,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     ? (requestedPlan as PricingPlanId)
     : 'captain'
   const plan = getPricingPlan(planId)
-  const pricingSnapshot = buildUpgradePricingSnapshot(planId)
+  const pricingSnapshot = useMemo(() => buildUpgradePricingSnapshot(planId), [planId])
   const tier = getMembershipTier(planId)
   const copy = UNLOCK_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
@@ -108,6 +108,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const [checkoutError, setCheckoutError] = useState('')
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
+  const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
+  const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
 
   useEffect(() => {
     let active = true
@@ -162,7 +164,30 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     }
   }
 
-  async function startCheckout() {
+  const startCheckoutForRequest = useCallback(async (requestId: string, accessToken: string) => {
+    const response = await fetch('/api/checkout/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        requestId,
+        nextHref,
+      }),
+    })
+    const body = await response.json().catch(() => null) as
+      | { ok?: boolean; message?: string; url?: string }
+      | null
+
+    if (!response.ok || !body?.ok || !body.url) {
+      throw new Error(body?.message ?? 'Checkout could not be started.')
+    }
+
+    window.location.assign(body.url)
+  }, [nextHref])
+
+  const startCheckout = useCallback(async () => {
     if (!submittedRequest?.id || checkoutSubmitting) return
 
     setCheckoutSubmitting(true)
@@ -177,31 +202,74 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
         throw new Error('Sign in before checkout.')
       }
 
-      const response = await fetch('/api/checkout/session', {
+      await startCheckoutForRequest(submittedRequest.id, session.access_token)
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
+      setCheckoutSubmitting(false)
+    }
+  }, [checkoutSubmitting, startCheckoutForRequest, submittedRequest?.id])
+
+  const startSignedInCheckout = useCallback(async () => {
+    if (checkoutSubmitting || planId === 'free') return
+
+    setCheckoutSubmitting(true)
+    setCheckoutError('')
+    setRequestError('')
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token || !session.user.email) {
+        throw new Error('Sign in before checkout.')
+      }
+
+      const userMetadata = session.user.user_metadata || {}
+      const displayName =
+        typeof userMetadata.name === 'string'
+          ? userMetadata.name
+          : typeof userMetadata.full_name === 'string'
+            ? userMetadata.full_name
+            : ''
+      const record: UpgradeRequestRecord = {
+        id: createClientRequestId(planId),
+        planId,
+        ...pricingSnapshot,
+        name: displayName,
+        email: session.user.email,
+        organization: '',
+        goal: `Start ${plan.name} checkout from upgrade.`,
+        nextHref,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+        source: 'supabase',
+      }
+
+      const requestResponse = await fetch('/api/upgrade-requests', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          requestId: submittedRequest.id,
-          nextHref,
-        }),
+        body: JSON.stringify(record),
       })
-      const body = await response.json().catch(() => null) as
-        | { ok?: boolean; message?: string; url?: string }
+      const requestBody = await requestResponse.json().catch(() => null) as
+        | { ok?: boolean; message?: string; request?: UpgradeRequestRecord }
         | null
 
-      if (!response.ok || !body?.ok || !body.url) {
-        throw new Error(body?.message ?? 'Checkout could not be started.')
+      if (!requestResponse.ok || !requestBody?.ok || !requestBody.request?.id) {
+        throw new Error(requestBody?.message ?? 'Upgrade request could not be started.')
       }
 
-      window.location.assign(body.url)
+      setSubmittedRequest(requestBody.request)
+      setRequestStorageMode('supabase')
+      await startCheckoutForRequest(requestBody.request.id, session.access_token)
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
       setCheckoutSubmitting(false)
     }
-  }
+  }, [checkoutSubmitting, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const hasAccess =
@@ -212,6 +280,22 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const isPublic = role === 'public'
   const isPaidPlan = planId === 'player_plus' || planId === 'captain' || planId === 'league'
   const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
+
+  useEffect(() => {
+    if (autoCheckoutStarted || authLoading || !isPaidPlan || hasAccess || isPublic || checkoutReturnState) return
+
+    setAutoCheckoutStarted(true)
+    void startSignedInCheckout()
+  }, [
+    autoCheckoutStarted,
+    authLoading,
+    checkoutReturnState,
+    hasAccess,
+    isPaidPlan,
+    isPublic,
+    startSignedInCheckout,
+  ])
+
   const mailtoHref = buildAccessRequestMailto(submittedRequest ?? {
     id: '',
     planId,
@@ -390,7 +474,9 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
               <p style={noteTextStyle}>
                 {isPublic
                   ? 'Send the plan request first. You can create an account after we know the tennis job you need solved.'
-                  : 'Send the plan request now. We will use it to activate the right workspace or route you to checkout when billing is connected.'}
+                  : checkoutError
+                    ? 'Checkout did not start. Try again below or use the plan page while we keep your account signed in.'
+                    : 'We are opening secure Stripe Checkout. No extra request form needed.'}
               </p>
               <Link
                 href={isPublic ? `/login?plan=${planId}&next=${encodeURIComponent(`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`)}` : nextHref}
@@ -399,7 +485,34 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                 {isPublic ? 'Sign in instead' : copy.setupAction}
               </Link>
             </div>
-            {submittedRequest ? (
+            {!isPublic ? (
+              <div style={successCardStyle}>
+                <div style={labelStyle}>Secure checkout</div>
+                <h3 style={successTitleStyle}>
+                  {checkoutSubmitting ? 'Opening Stripe Checkout...' : checkoutError ? 'Checkout needs another try.' : `Starting ${plan.name} checkout.`}
+                </h3>
+                <p style={noteTextStyle}>
+                  {checkoutSubmitting
+                    ? 'We are creating your checkout session now.'
+                    : checkoutError
+                      ? checkoutError
+                      : 'Continue to Stripe to finish the upgrade.'}
+                </p>
+                <div style={formActionRowStyle}>
+                  <button
+                    type="button"
+                    onClick={() => void startSignedInCheckout()}
+                    disabled={checkoutSubmitting}
+                    style={submitButtonStyle}
+                  >
+                    {checkoutSubmitting ? 'Opening checkout...' : 'Continue to secure checkout'}
+                  </button>
+                  <Link href="/pricing" style={secondaryButtonStyle}>
+                    Compare plans
+                  </Link>
+                </div>
+              </div>
+            ) : submittedRequest ? (
               <div style={successCardStyle}>
                 <div style={labelStyle}>Request saved</div>
                 <h3 style={successTitleStyle}>We have your {plan.name} request.</h3>
@@ -529,6 +642,14 @@ function buildAccessRequestMailto(request: UpgradeRequestRecord) {
 
 function getSearchParamValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function createClientRequestId(planId: PricingPlanId) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${planId}-${crypto.randomUUID()}`
+  }
+
+  return `${planId}-${Date.now()}-${Math.round(Math.random() * 10000)}`
 }
 
 function readLastRemoteRequest(): { id?: string; email?: string } | null {
