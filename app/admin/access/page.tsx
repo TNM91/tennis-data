@@ -20,6 +20,8 @@ import type { PricingPlanId } from '@/lib/pricing-plans'
 type ProfileAccessRow = {
   id: string
   role: string | null
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
   player_plus_subscription_active: boolean | null
   player_plus_subscription_status: CaptainSubscriptionStatus | null
   captain_subscription_active: boolean | null
@@ -94,6 +96,13 @@ function compactUserId(value: string) {
   const trimmed = value.trim()
   if (trimmed.length <= 18) return trimmed
   return `${trimmed.slice(0, 8)}...${trimmed.slice(-6)}`
+}
+
+function compactStripeId(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return ''
+  if (trimmed.length <= 24) return trimmed
+  return `${trimmed.slice(0, 12)}...${trimmed.slice(-8)}`
 }
 
 function roleLabel(value: string | null | undefined) {
@@ -175,27 +184,46 @@ export default function AdminAccessPage() {
       const result = await supabase
         .from('profiles')
         .select(
-          'id, role, player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+          'id, role, stripe_customer_id, stripe_subscription_id, player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
         )
         .limit(500)
 
-      let data = result.data
+      let data = (result.data ?? null) as ProfileAccessRow[] | null
       if (result.error) {
-        setPlayerEntitlementsAvailable(false)
-        const legacyResult = await supabase
+        const preBillingResult = await supabase
           .from('profiles')
           .select(
-            'id, role, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+            'id, role, player_plus_subscription_active, player_plus_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
           )
           .limit(500)
 
-        if (legacyResult.error) throw new Error(legacyResult.error.message)
-        data = (legacyResult.data ?? []).map((row) => ({
-          ...row,
-          player_plus_subscription_active: false,
-          player_plus_subscription_status: 'inactive' as CaptainSubscriptionStatus,
-        }))
-        setMessage('Player entitlement columns are not migrated yet. Showing legacy access fields.')
+        if (preBillingResult.error) {
+          setPlayerEntitlementsAvailable(false)
+          const legacyResult = await supabase
+            .from('profiles')
+            .select(
+              'id, role, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+            )
+            .limit(500)
+
+          if (legacyResult.error) throw new Error(legacyResult.error.message)
+          data = (legacyResult.data ?? []).map((row) => ({
+            ...row,
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+            player_plus_subscription_active: false,
+            player_plus_subscription_status: 'inactive' as CaptainSubscriptionStatus,
+          })) as ProfileAccessRow[]
+          setMessage('Player entitlement columns are not migrated yet. Showing legacy access fields.')
+        } else {
+          data = (preBillingResult.data ?? []).map((row) => ({
+            ...row,
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+          })) as ProfileAccessRow[]
+          setPlayerEntitlementsAvailable(true)
+          setMessage('Stripe billing columns are not migrated yet. Showing access fields only.')
+        }
       } else {
         setPlayerEntitlementsAvailable(true)
       }
@@ -339,7 +367,13 @@ export default function AdminAccessPage() {
 
       if (!normalizedSearch) return true
 
-      return [profile.id, normalizedRole, compactUserId(profile.id)]
+      return [
+        profile.id,
+        normalizedRole,
+        compactUserId(profile.id),
+        profile.stripe_customer_id ?? '',
+        profile.stripe_subscription_id ?? '',
+      ]
         .join(' ')
         .toLowerCase()
         .includes(normalizedSearch)
@@ -357,6 +391,9 @@ export default function AdminAccessPage() {
   ).length
   const individualCreatorCount = profiles.filter((profile) =>
     Boolean(profile.tiq_individual_league_creator_enabled),
+  ).length
+  const stripeManagedCount = profiles.filter((profile) =>
+    Boolean(profile.stripe_customer_id || profile.stripe_subscription_id),
   ).length
   const auditWarningCount = profiles.filter((profile) =>
     buildAccessAudit(
@@ -415,6 +452,7 @@ export default function AdminAccessPage() {
               <MetricCard label="Captain Active" value={activeCaptainCount} />
               <MetricCard label="Team Coordinator" value={teamEntryCount} />
               <MetricCard label="Individual Coordinator" value={individualCreatorCount} />
+              <MetricCard label="Stripe Managed" value={stripeManagedCount} />
               <MetricCard label="Audit Flags" value={auditWarningCount} />
             </div>
 
@@ -589,11 +627,12 @@ export default function AdminAccessPage() {
               </div>
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
-                <table className="data-table" style={{ minWidth: 1760 }}>
+                <table className="data-table" style={{ minWidth: 1920 }}>
                   <thead>
                     <tr>
                       <th>User</th>
                       <th>Role</th>
+                      <th>Stripe</th>
                       <th>Access Result</th>
                       <th>Why</th>
                       <th>Player Active</th>
@@ -626,6 +665,9 @@ export default function AdminAccessPage() {
                             </div>
                           </td>
                           <td>{roleLabel(profile.role)}</td>
+                          <td>
+                            <StripeBillingCell profile={profile} />
+                          </td>
                           <td>
                             <div style={accessResultWrapStyle}>
                               <span className="badge badge-green">{audit.currentPlan}</span>
@@ -913,6 +955,30 @@ function MetricCard({ label, value }: { label: string; value: number }) {
   )
 }
 
+function StripeBillingCell({ profile }: { profile: ProfileAccessRow }) {
+  const customerId = compactStripeId(profile.stripe_customer_id)
+  const subscriptionId = compactStripeId(profile.stripe_subscription_id)
+
+  if (!customerId && !subscriptionId) {
+    return <span className="subtle-text">Manual or role-based</span>
+  }
+
+  return (
+    <div style={stripeBillingCellStyle}>
+      {customerId ? (
+        <span style={stripeBillingIdStyle} title={profile.stripe_customer_id ?? undefined}>
+          Customer {customerId}
+        </span>
+      ) : null}
+      {subscriptionId ? (
+        <span style={stripeBillingIdStyle} title={profile.stripe_subscription_id ?? undefined}>
+          Subscription {subscriptionId}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 const handoffPanelStyle = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -971,6 +1037,20 @@ const auditReasonStyle = {
 const auditWarningStyle = {
   ...auditReasonStyle,
   color: '#fde68a',
+} as const
+
+const stripeBillingCellStyle = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 220,
+} as const
+
+const stripeBillingIdStyle = {
+  color: 'var(--foreground)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 800,
+  fontFamily: 'var(--font-geist-mono)',
 } as const
 
 const toggleWrap = {
