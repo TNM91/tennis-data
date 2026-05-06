@@ -253,7 +253,7 @@ const footerJourneyStepStyle = (isMobile: boolean) => ({
 
 const footerJourneyLockStyle = (isMobile: boolean) => ({
   ...footerJourneyStepStyle(isMobile),
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
   color: 'var(--text-dark)',
 }) as const

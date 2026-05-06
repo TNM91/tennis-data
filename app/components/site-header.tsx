@@ -621,7 +621,7 @@ const navStepStyle = {
 
 const navLockStyle = {
   ...navStepStyle,
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
   color: 'var(--text-dark)',
 } as const
@@ -780,7 +780,7 @@ const mobileStepStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
   color: 'var(--text-dark)',
   fontSize: '12px',
   fontWeight: 950,
@@ -788,7 +788,7 @@ const mobileStepStyle = {
 
 const mobileLockStyle = {
   ...mobileStepStyle,
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
   color: 'var(--text-dark)',
 } as const

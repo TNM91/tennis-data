@@ -9,6 +9,8 @@
     "lint": "eslint --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "vitest --pool=threads --no-file-parallelism",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "check:extension": "node --check tenaceiq-capture-extension/content_script.js",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
     "db:migrations": "supabase migration list",
@@ -26,6 +28,7 @@
     "three": "^0.183.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
