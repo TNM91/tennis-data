@@ -30,6 +30,7 @@ const routes: RouteConfig[] = [
   { path: '/advertising-disclosure', changeFrequency: 'monthly', priority: 0.3 },
   { path: '/legal/privacy', changeFrequency: 'monthly', priority: 0.3 },
   { path: '/legal/terms', changeFrequency: 'monthly', priority: 0.3 },
+  { path: '/legal/billing', changeFrequency: 'monthly', priority: 0.3 },
   { path: '/legal/cookies', changeFrequency: 'monthly', priority: 0.3 },
   { path: '/legal/disclaimer', changeFrequency: 'monthly', priority: 0.3 },
   { path: '/legal/data-policy', changeFrequency: 'monthly', priority: 0.3 },

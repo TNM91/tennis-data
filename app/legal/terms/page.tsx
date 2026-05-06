@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
+import { BILLING_SUPPORT_EMAIL } from '@/lib/billing-policy'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -82,7 +84,35 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>8. Suspension and termination</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>8. Paid plans, billing, and refunds</h2>
+          <p>
+            Paid Player and Captain plans are monthly subscriptions that renew until canceled.
+            TIQ League Coordinator season fees cover one bounded league season.
+          </p>
+          <p>
+            Billing, cancellation, refund, and league season rules are described in the{' '}
+            <Link href="/legal/billing">Billing and Refund Policy</Link>, which is part of
+            these Terms.
+          </p>
+          <p>
+            For billing help, contact <a href={`mailto:${BILLING_SUPPORT_EMAIL}`}>{BILLING_SUPPORT_EMAIL}</a>.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>9. League seasons and limits</h2>
+          <p>
+            TIQ league tools are designed around finite seasons. A season may have limits
+            on weeks, participants, match events, results, publication status, and activity.
+          </p>
+          <p>
+            We may require a new season, additional approval, or a support review when a
+            league exceeds standard season boundaries or is used outside its intended scope.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>10. Suspension and termination</h2>
           <p>
             We may suspend or terminate access to the platform at any time if we believe
             these Terms have been violated, if misuse is detected, or if continued access
@@ -91,7 +121,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>9. Disclaimers</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>11. Disclaimers</h2>
           <p>
             The platform is provided on an &quot;as is&quot; and &quot;as available&quot; basis without warranties
             of any kind, to the fullest extent permitted by law.
@@ -99,7 +129,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>10. Limitation of liability</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>12. Limitation of liability</h2>
           <p>
             To the fullest extent permitted by law, TenAceIQ will not be liable for indirect,
             incidental, consequential, special, exemplary, or punitive damages, or for lost
@@ -108,7 +138,7 @@ export default function TermsPage() {
         </div>
 
         <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>11. Changes</h2>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>13. Changes</h2>
           <p>
             We may update these Terms from time to time. Continued use of TenAceIQ after
             updated Terms are posted constitutes acceptance of the revised Terms.

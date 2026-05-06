@@ -3,6 +3,14 @@
 import type { CompetitionLayer, LeagueFormat } from '@/lib/competition-layers'
 import type { LeagueCard } from '@/lib/league-summary'
 import {
+  DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
+  DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  normalizeTiqLeagueMaxMatchEvents,
+  normalizeTiqLeagueMaxWeeks,
+  normalizeTiqLeagueSeasonStatus,
+  type TiqLeagueSeasonStatus,
+} from '@/lib/tiq-league-limits'
+import {
   normalizeTiqIndividualCompetitionFormat,
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
@@ -20,6 +28,11 @@ export type TiqLeagueRecord = {
   scoringSystem: TiqLeagueScoringSystem
   leagueName: string
   seasonLabel: string
+  seasonStatus: TiqLeagueSeasonStatus
+  startsOn: string
+  endsOn: string
+  maxWeeks: number
+  maxMatchEvents: number
   flight: string
   locationLabel: string
   photoUrl: string
@@ -37,6 +50,11 @@ export type TiqLeagueDraft = {
   scoringSystem: TiqLeagueScoringSystem
   leagueName: string
   seasonLabel: string
+  seasonStatus: TiqLeagueSeasonStatus
+  startsOn: string
+  endsOn: string
+  maxWeeks: number
+  maxMatchEvents: number
   flight: string
   locationLabel: string
   photoUrl: string
@@ -110,6 +128,11 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
     leagueName: cleanText(input.leagueName),
     seasonLabel: cleanText(input.seasonLabel),
+    seasonStatus: normalizeTiqLeagueSeasonStatus(input.seasonStatus),
+    startsOn: cleanText(input.startsOn),
+    endsOn: cleanText(input.endsOn),
+    maxWeeks: normalizeTiqLeagueMaxWeeks(input.maxWeeks),
+    maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(input.maxMatchEvents),
     flight: cleanText(input.flight),
     locationLabel: cleanText(input.locationLabel),
     photoUrl: cleanText(input.photoUrl),
@@ -139,6 +162,13 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
       leagueName: cleanText(record.leagueName),
       seasonLabel: cleanText(record.seasonLabel),
+      seasonStatus: normalizeTiqLeagueSeasonStatus(record.seasonStatus),
+      startsOn: cleanText(record.startsOn),
+      endsOn: cleanText(record.endsOn),
+      maxWeeks: normalizeTiqLeagueMaxWeeks(record.maxWeeks ?? DEFAULT_TIQ_LEAGUE_MAX_WEEKS),
+      maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(
+        record.maxMatchEvents ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
+      ),
       flight: cleanText(record.flight),
       locationLabel: cleanText(record.locationLabel),
       photoUrl: cleanText(record.photoUrl),
@@ -182,6 +212,11 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     scoringSystem: normalized.scoringSystem,
     leagueName: normalized.leagueName,
     seasonLabel: normalized.seasonLabel,
+    seasonStatus: normalized.seasonStatus,
+    startsOn: normalized.startsOn,
+    endsOn: normalized.endsOn,
+    maxWeeks: normalized.maxWeeks,
+    maxMatchEvents: normalized.maxMatchEvents,
     flight: normalized.flight,
     locationLabel: normalized.locationLabel,
     photoUrl: normalized.photoUrl,

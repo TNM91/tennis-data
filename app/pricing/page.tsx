@@ -398,6 +398,20 @@ export default function PricingPage() {
           })}
         </section>
 
+        <section style={billingPolicyBandStyle} aria-label="Billing policy">
+          <div>
+            <div style={sectionEyebrowStyle}>Billing clarity</div>
+            <h2 style={billingPolicyTitleStyle}>Monthly plans renew until canceled. League covers one season.</h2>
+            <p style={billingPolicyTextStyle}>
+              Player and Captain are monthly subscriptions. TIQ League Coordinator is a season fee with standard season limits.
+              Refunds are reviewed under the posted billing policy.
+            </p>
+          </div>
+          <Link href="/legal/billing" style={ctaStyle}>
+            Billing and refunds
+          </Link>
+        </section>
+
         <section style={supportGridStyle}>
           <article style={supportCardStyle}>
             <div style={sectionEyebrowStyle}>Pick by need</div>
@@ -1338,6 +1352,35 @@ const recommendedHintStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.6,
   fontWeight: 700,
+}
+
+const billingPolicyBandStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 16,
+  padding: 22,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+}
+
+const billingPolicyTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.12,
+  letterSpacing: 0,
+}
+
+const billingPolicyTextStyle: CSSProperties = {
+  margin: '8px 0 0',
+  maxWidth: 800,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.65,
+  fontWeight: 750,
 }
 
 const supportGridStyle: CSSProperties = {
