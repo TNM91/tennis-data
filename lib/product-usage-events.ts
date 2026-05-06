@@ -2,6 +2,7 @@ import type { PricingPlanId } from './pricing-plans'
 
 export const PRODUCT_USAGE_EVENT_NAMES = [
   'billing_portal_opened',
+  'upgrade_checkout_started',
   'profile_player_linked',
   'mylab_match_plan_action',
   'mylab_goal_template_applied',

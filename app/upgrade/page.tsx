@@ -8,6 +8,7 @@ import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/
 import { getClientAuthState } from '@/lib/auth'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { getMembershipTier } from '@/lib/product-story'
 import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
@@ -230,8 +231,20 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
       throw new Error(body?.message ?? 'Checkout could not be started.')
     }
 
+    if (planId !== 'free') {
+      await trackProductUsageEvent({
+        eventName: 'upgrade_checkout_started',
+        surface: 'upgrade',
+        planId,
+        metadata: {
+          requestId,
+          nextHref,
+        },
+      })
+    }
+
     window.location.assign(body.url)
-  }, [nextHref])
+  }, [nextHref, planId])
 
   const startCheckout = useCallback(async () => {
     if (!submittedRequest?.id || checkoutSubmitting) return
