@@ -106,6 +106,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const [requestSubmitting, setRequestSubmitting] = useState(false)
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [checkoutSuccessMessage, setCheckoutSuccessMessage] = useState('')
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
   const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
@@ -194,6 +195,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
 
     setCheckoutSubmitting(true)
     setCheckoutError('')
+    setCheckoutSuccessMessage('')
 
     try {
       const {
@@ -216,6 +218,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
 
     setCheckoutSubmitting(true)
     setCheckoutError('')
+    setCheckoutSuccessMessage('')
     setRequestError('')
 
     try {
@@ -302,10 +305,12 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     if (authLoading || checkoutReturnState !== 'success' || !checkoutReturnRequestId || isPublic) return
 
     let active = true
+    let redirectTimeout: number | undefined
 
     void (async () => {
       setCheckoutSubmitting(true)
       setCheckoutError('')
+      setCheckoutSuccessMessage('')
 
       try {
         const {
@@ -335,8 +340,16 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
           throw new Error(body?.message ?? 'Checkout could not be confirmed.')
         }
 
+        const refreshedAuthState = await getClientAuthState()
         if (active) {
-          window.location.replace(nextHref)
+          setRole(refreshedAuthState.role)
+          setEntitlements(refreshedAuthState.entitlements)
+          setRequestEmail(refreshedAuthState.user?.email ?? '')
+          setCheckoutSubmitting(false)
+          setCheckoutSuccessMessage(`${plan.name} is active. Opening ${getPlanDestinationLabel(planId)}...`)
+          redirectTimeout = window.setTimeout(() => {
+            window.location.replace(nextHref)
+          }, 1200)
         }
       } catch (error) {
         if (!active) return
@@ -347,6 +360,9 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
 
     return () => {
       active = false
+      if (redirectTimeout) {
+        window.clearTimeout(redirectTimeout)
+      }
     }
   }, [
     authLoading,
@@ -355,6 +371,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     checkoutReturnState,
     isPublic,
     nextHref,
+    plan.name,
+    planId,
   ])
 
   const mailtoHref = buildAccessRequestMailto(submittedRequest ?? {
@@ -466,7 +484,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
             <h1 style={titleStyle}>{hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
-                ? `Your account already has the access needed for ${plan.name}. Open the workspace when you are ready.`
+                ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open the workspace when you are ready.`
                 : copy.body}
             </p>
 
@@ -535,9 +553,11 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
               <p style={noteTextStyle}>
                 {isPublic
                   ? 'Send the plan request first. You can create an account after we know the tennis job you need solved.'
-                  : checkoutError
-                    ? 'Checkout did not start. Try again below or use the plan page while we keep your account signed in.'
-                    : 'We are opening secure Stripe Checkout. No extra request form needed.'}
+                  : checkoutSuccessMessage
+                    ? checkoutSuccessMessage
+                    : checkoutError
+                      ? 'Checkout did not start. Try again below or use the plan page while we keep your account signed in.'
+                      : 'We are opening secure Stripe Checkout. No extra request form needed.'}
               </p>
               <Link
                 href={isPublic ? `/login?plan=${planId}&next=${encodeURIComponent(`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`)}` : nextHref}
@@ -550,14 +570,26 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
               <div style={successCardStyle}>
                 <div style={labelStyle}>Secure checkout</div>
                 <h3 style={successTitleStyle}>
-                  {checkoutSubmitting ? 'Opening Stripe Checkout...' : checkoutError ? 'Checkout needs another try.' : `Starting ${plan.name} checkout.`}
+                  {checkoutSuccessMessage
+                    ? `${plan.name} is active.`
+                    : checkoutSubmitting
+                      ? checkoutReturnState === 'success'
+                        ? 'Confirming checkout...'
+                        : 'Opening Stripe Checkout...'
+                      : checkoutError
+                        ? 'Checkout needs another try.'
+                        : `Starting ${plan.name} checkout.`}
                 </h3>
                 <p style={noteTextStyle}>
-                  {checkoutSubmitting
-                    ? 'We are creating your checkout session now.'
-                    : checkoutError
-                      ? checkoutError
-                      : 'Continue to Stripe to finish the upgrade.'}
+                  {checkoutSuccessMessage
+                    ? checkoutSuccessMessage
+                    : checkoutSubmitting
+                      ? checkoutReturnState === 'success'
+                        ? 'We are refreshing your account access now.'
+                        : 'We are creating your checkout session now.'
+                      : checkoutError
+                        ? checkoutError
+                        : 'Continue to Stripe to finish the upgrade.'}
                 </p>
                 <div style={formActionRowStyle}>
                   <button
@@ -703,6 +735,13 @@ function buildAccessRequestMailto(request: UpgradeRequestRecord) {
 
 function getSearchParamValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
+}
+
+function getPlanDestinationLabel(planId: PricingPlanId) {
+  if (planId === 'player_plus') return 'My Lab'
+  if (planId === 'captain') return 'Captain'
+  if (planId === 'league') return 'Coordinator'
+  return 'Explore'
 }
 
 function createClientRequestId(planId: PricingPlanId) {
