@@ -11,6 +11,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useTheme } from '@/app/components/theme-provider'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -1087,6 +1088,9 @@ export default function CaptainHubPage() {
 
   const productAccess = buildProductAccessState(role, entitlements)
   const premiumEnabled = productAccess.canUseCaptainWorkflow
+  const leagueToolsEnabled = productAccess.canUseLeagueTools
+  const captainUnlockHref = getPlanUnlockHref('captain', '/captain')
+  const captainWorkflowHref = (href: string) => premiumEnabled ? href : captainUnlockHref
   const hasTeamScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
   const captainScopeRestricted = isMember(role) && role !== 'admin'
   const scopeStatusText = loadingOptions
@@ -1494,6 +1498,11 @@ const captainHeroVisualMaskStyle: CSSProperties = {
       return
     }
 
+    if (!premiumEnabled) {
+      router.push(captainUnlockHref)
+      return
+    }
+
     handleCaptainNav(href, stage)
   }
 
@@ -1550,6 +1559,12 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     href: string,
     stage: CaptainResumeStage,
   ) {
+    const leagueCoordinatorStage = stage === 'season-dashboard' || stage === 'tiq-team-matches'
+    if (!premiumEnabled && !leagueCoordinatorStage) {
+      router.push(captainUnlockHref)
+      return
+    }
+
     rememberCaptainResume(stage)
     router.push(href)
   }
@@ -1620,15 +1635,15 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 type="button"
                 style={{
                   ...primaryButtonButton,
-                  ...(!hasTeamScope ? disabledButton : {}),
+                  ...(!premiumEnabled || !hasTeamScope ? disabledButton : {}),
                 }}
                 onClick={() => {
-                  if (!hasTeamScope) return
+                  if (!premiumEnabled || !hasTeamScope) return
                   handleCaptainNav(lineupBuilderHref, 'lineup')
                 }}
-                disabled={!hasTeamScope}
+                disabled={!premiumEnabled || !hasTeamScope}
               >
-                {hasTeamScope ? 'Build lineup' : 'Choose team'}
+                {!premiumEnabled ? 'Unlock Captain' : hasTeamScope ? 'Build lineup' : 'Choose team'}
               </button>
             </div>
 
@@ -1768,10 +1783,14 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <button
                 key={item.label}
                 type="button"
+                disabled={!premiumEnabled && !item.href.startsWith('#')}
                 onClick={() => {
                   handleCaptainAction(item.href, item.stage)
                 }}
-                style={item.complete ? captainReadinessPillCompleteStyle : captainReadinessPillStyle}
+                style={{
+                  ...(item.complete ? captainReadinessPillCompleteStyle : captainReadinessPillStyle),
+                  ...(!premiumEnabled && !item.href.startsWith('#') ? disabledButtonSecondary : {}),
+                }}
               >
                 {item.label}
               </button>
@@ -1779,7 +1798,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           </div>
           <div style={captainReadinessActionRowStyle}>
             <PrimarySmallBtn
-              disabled={captainReadinessScore === 100 || (!hasTeamScope && !captainReadinessNext.href.startsWith('#'))}
+              disabled={!premiumEnabled || captainReadinessScore === 100 || (!hasTeamScope && !captainReadinessNext.href.startsWith('#'))}
               onClick={() => {
                 if (!captainReadinessNext) return
                 handleCaptainAction(captainReadinessNext.href, captainReadinessNext.stage)
@@ -1788,7 +1807,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               {captainReadinessScore === 100 ? 'Week ready' : captainReadinessNext.cta}
             </PrimarySmallBtn>
             <SecondarySmallBtn
-              disabled={!hasTeamScope}
+              disabled={!premiumEnabled || !hasTeamScope}
               onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}
             >
               Open brief
@@ -1885,7 +1904,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
             <div style={dynamicNextActionButtonRow}>
               <PrimaryBtn
-                disabled={!hasTeamScope && !captainPrimaryAction.href.startsWith('#')}
+                disabled={!premiumEnabled || (!hasTeamScope && !captainPrimaryAction.href.startsWith('#'))}
                 onClick={() => handleCaptainAction(
                   captainPrimaryAction.href,
                   captainPrimaryAction.href === lineupBuilderHref
@@ -1904,9 +1923,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 {captainPrimaryAction.cta}
               </PrimaryBtn>
               <SecondarySmallBtn
-                disabled={!hasTeamScope}
+                disabled={!premiumEnabled || !hasTeamScope}
                 onClick={() => {
-                  if (!hasTeamScope) return
+                  if (!premiumEnabled || !hasTeamScope) return
                   handleCaptainNav(messagingHref, 'messaging')
                 }}
               >
@@ -2024,10 +2043,10 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             </div>
 
             <div style={dynamicNextActionButtonRow}>
-              <PrimaryLink href={weeklyBriefHref}>Open weekly brief</PrimaryLink>
-              <SecondarySmallLink href={teamBriefHref}>Open team brief</SecondarySmallLink>
+              <PrimaryLink href={captainWorkflowHref(weeklyBriefHref)}>Open weekly brief</PrimaryLink>
+              <SecondarySmallLink href={captainWorkflowHref(teamBriefHref)}>Open team brief</SecondarySmallLink>
               <SecondarySmallLink
-                href={workspaceState.pendingResponseCount > 0 ? availabilityHref : messagingHref}
+                href={captainWorkflowHref(workspaceState.pendingResponseCount > 0 ? availabilityHref : messagingHref)}
               >
                 {workspaceState.pendingResponseCount > 0 ? 'Follow up responses' : 'Open messaging'}
               </SecondarySmallLink>
@@ -2081,10 +2100,10 @@ const captainHeroVisualMaskStyle: CSSProperties = {
           </div>
 
           <div style={dynamicGlanceActionRow}>
-            <PrimaryLink href={weeklyBriefHref}>Open weekly brief</PrimaryLink>
-            <SecondarySmallLink href={teamBriefHref}>Open team brief</SecondarySmallLink>
-            <SecondarySmallLink href={lineupBuilderHref}>Edit lineup</SecondarySmallLink>
-            <SecondarySmallLink href={messagingHref}>Send update</SecondarySmallLink>
+            <PrimaryLink href={captainWorkflowHref(weeklyBriefHref)}>Open weekly brief</PrimaryLink>
+            <SecondarySmallLink href={captainWorkflowHref(teamBriefHref)}>Open team brief</SecondarySmallLink>
+            <SecondarySmallLink href={captainWorkflowHref(lineupBuilderHref)}>Edit lineup</SecondarySmallLink>
+            <SecondarySmallLink href={captainWorkflowHref(messagingHref)}>Send update</SecondarySmallLink>
           </div>
 
           <div style={weekStatusShell}>
@@ -2139,13 +2158,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 Start with availability, then open the brief when the week needs one clean read.
               </div>
               <div style={captainLaneActions}>
-                <PrimarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
+                <PrimarySmallBtn disabled={!premiumEnabled || !hasTeamScope} onClick={() => handleCaptainNav(availabilityHref, 'availability')}>
                   Availability
                 </PrimarySmallBtn>
-                <SecondarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}>
+                <SecondarySmallBtn disabled={!premiumEnabled || !hasTeamScope} onClick={() => handleCaptainNav(weeklyBriefHref, 'brief')}>
                   Weekly Brief
                 </SecondarySmallBtn>
-                <SecondarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(teamBriefHref, 'brief')}>
+                <SecondarySmallBtn disabled={!premiumEnabled || !hasTeamScope} onClick={() => handleCaptainNav(teamBriefHref, 'brief')}>
                   Team Brief
                 </SecondarySmallBtn>
               </div>
@@ -2180,7 +2199,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 <PrimarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
                   Messaging
                 </PrimarySmallBtn>
-                <SecondarySmallBtn disabled={!hasTeamScope} onClick={() => handleCaptainNav(currentTeamHref, 'team')}>
+                <SecondarySmallBtn disabled={!premiumEnabled || !hasTeamScope} onClick={() => handleCaptainNav(currentTeamHref, 'team')}>
                   Team Page
                 </SecondarySmallBtn>
               </div>
@@ -2193,10 +2212,10 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 Create league structure, manage TIQ seasons, and record team match results.
               </div>
               <div style={captainLaneActions}>
-                <PrimarySmallBtn onClick={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}>
+                <PrimarySmallBtn disabled={!leagueToolsEnabled} onClick={() => handleCaptainNav(seasonDashboardHref, 'season-dashboard')}>
                   League Coordinator
                 </PrimarySmallBtn>
-                <SecondarySmallBtn onClick={() => handleCaptainNav(tiqTeamMatchesHref, 'tiq-team-matches')}>
+                <SecondarySmallBtn disabled={!leagueToolsEnabled} onClick={() => handleCaptainNav(tiqTeamMatchesHref, 'tiq-team-matches')}>
                   Match Results
                 </SecondarySmallBtn>
               </div>
