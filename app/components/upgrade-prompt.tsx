@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import type { CSSProperties, ReactNode } from 'react'
+import { useState, type CSSProperties, type ReactNode } from 'react'
+import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
-import { getPlanSignupHref } from '@/lib/plan-intent'
+import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
 
 type UpgradePromptProps = {
   planId: PricingPlanId
@@ -34,12 +36,89 @@ export default function UpgradePrompt({
   children,
 }: UpgradePromptProps) {
   const { theme } = useTheme()
+  const { session, authResolved } = useAuth()
+  const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
+  const [checkoutError, setCheckoutError] = useState('')
   const isLight = theme === 'light'
   const plan = getPricingPlan(planId)
   const resolvedResult = result || plan.outcome
-  const resolvedCtaHref = ctaHref || getPlanSignupHref(planId)
+  const isSignedIn = Boolean(session?.user?.id)
+  const canStartDirectCheckout = !ctaHref && authResolved && isSignedIn && planId !== 'free'
+  const resolvedCtaHref = ctaHref || (isSignedIn ? getPlanUnlockHref(planId) : getPlanSignupHref(planId))
   const resolvedSecondaryHref = secondaryHref || '/pricing'
   const unlockSteps = getUnlockSteps(planId)
+
+  async function startCheckout() {
+    if (checkoutSubmitting || !session?.access_token || planId === 'free') return
+
+    setCheckoutSubmitting(true)
+    setCheckoutError('')
+
+    try {
+      const nextHref = getPlanDestinationHref(planId)
+      const pricingSnapshot = buildUpgradePricingSnapshot(planId)
+      const userMetadata = session.user.user_metadata || {}
+      const displayName =
+        typeof userMetadata.name === 'string'
+          ? userMetadata.name
+          : typeof userMetadata.full_name === 'string'
+            ? userMetadata.full_name
+            : ''
+      const record: UpgradeRequestRecord = {
+        id: createClientRequestId(planId),
+        planId,
+        ...pricingSnapshot,
+        name: displayName,
+        email: session.user.email ?? '',
+        organization: '',
+        goal: `Start ${plan.name} checkout from ${getCurrentPathname()}.`,
+        nextHref,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+        source: 'supabase',
+      }
+
+      const requestResponse = await fetch('/api/upgrade-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(record),
+      })
+      const requestBody = await requestResponse.json().catch(() => null) as
+        | { ok?: boolean; message?: string; request?: UpgradeRequestRecord }
+        | null
+
+      if (!requestResponse.ok || !requestBody?.ok || !requestBody.request?.id) {
+        throw new Error(requestBody?.message ?? 'Upgrade request could not be started.')
+      }
+
+      const checkoutResponse = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          requestId: requestBody.request.id,
+          nextHref,
+        }),
+      })
+      const checkoutBody = await checkoutResponse.json().catch(() => null) as
+        | { ok?: boolean; message?: string; url?: string }
+        | null
+
+      if (!checkoutResponse.ok || !checkoutBody?.ok || !checkoutBody.url) {
+        throw new Error(checkoutBody?.message ?? 'Checkout could not be started.')
+      }
+
+      window.location.assign(checkoutBody.url)
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
+      setCheckoutSubmitting(false)
+    }
+  }
 
   return (
     <section
@@ -102,9 +181,24 @@ export default function UpgradePrompt({
       </div>
 
       <div style={actionRowStyle}>
-        <Link href={resolvedCtaHref} style={primaryActionStyle}>
-          {ctaLabel || plan.ctaLabel}
-        </Link>
+        {canStartDirectCheckout ? (
+          <button
+            type="button"
+            onClick={() => void startCheckout()}
+            disabled={checkoutSubmitting}
+            style={{
+              ...primaryActionStyle,
+              ...buttonActionStyle,
+              ...(checkoutSubmitting ? disabledActionStyle : null),
+            }}
+          >
+            {checkoutSubmitting ? 'Opening checkout...' : ctaLabel || plan.ctaLabel}
+          </button>
+        ) : (
+          <Link href={resolvedCtaHref} style={primaryActionStyle}>
+            {ctaLabel || plan.ctaLabel}
+          </Link>
+        )}
         {resolvedSecondaryHref ? (
           <Link href={resolvedSecondaryHref} style={{ ...secondaryActionStyle, ...(isLight ? lightSecondaryActionStyle : null) }}>
             {secondaryLabel}
@@ -113,8 +207,22 @@ export default function UpgradePrompt({
           <span style={{ ...secondaryStaticStyle, ...(isLight ? lightSecondaryStaticStyle : null) }}>{secondaryLabel}</span>
         )}
       </div>
+      {checkoutError ? <p role="alert" style={errorTextStyle}>{checkoutError}</p> : null}
     </section>
   )
+}
+
+function createClientRequestId(planId: PricingPlanId) {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${planId}-${crypto.randomUUID()}`
+  }
+
+  return `${planId}-${Date.now()}-${Math.round(Math.random() * 10000)}`
+}
+
+function getCurrentPathname() {
+  if (typeof window === 'undefined') return 'TenAceIQ'
+  return window.location.pathname || 'TenAceIQ'
 }
 
 function getUnlockSteps(planId: PricingPlanId) {
@@ -464,6 +572,18 @@ const primaryActionStyle: CSSProperties = {
   boxShadow: '0 14px 28px rgba(155, 225, 29, 0.16)',
 }
 
+const buttonActionStyle: CSSProperties = {
+  border: 0,
+  fontFamily: 'inherit',
+  fontSize: 14,
+  cursor: 'pointer',
+}
+
+const disabledActionStyle: CSSProperties = {
+  opacity: 0.72,
+  cursor: 'progress',
+}
+
 const secondaryActionStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -492,4 +612,12 @@ const secondaryStaticStyle: CSSProperties = {
 
 const lightSecondaryStaticStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
+}
+
+const errorTextStyle: CSSProperties = {
+  margin: 0,
+  color: '#fecaca',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 700,
 }
