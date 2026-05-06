@@ -1957,27 +1957,29 @@ function MyLabPageInner() {
       meta: item.summary?.resultCount ? `${item.summary.resultCount} results` : 'Ready for first result',
     })),
   ].slice(0, 3)
-  const teamPrepCards = linkedPlayerTeamSummaries.slice(0, 3).map((team) => {
-    const parsed = parseTeamEntityId(team.id)
-    const competitionLayer = parsed.competitionLayer || inferCompetitionLayerForContext({ leagueName: team.league })
-    const leagueName = parsed.leagueName || team.league || ''
-    const flight = parsed.flight || team.flight || ''
-    const scope = {
-      competitionLayer,
-      team: team.name,
-      league: leagueName,
-      flight,
-    }
+  const teamPrepCards = access.canUseCaptainWorkflow
+    ? linkedPlayerTeamSummaries.slice(0, 3).map((team) => {
+        const parsed = parseTeamEntityId(team.id)
+        const competitionLayer = parsed.competitionLayer || inferCompetitionLayerForContext({ leagueName: team.league })
+        const leagueName = parsed.leagueName || team.league || ''
+        const flight = parsed.flight || team.flight || ''
+        const scope = {
+          competitionLayer,
+          team: team.name,
+          league: leagueName,
+          flight,
+        }
 
-    return {
-      id: team.id,
-      title: team.name,
-      meta: [leagueName, flight, `${team.playerCount} players`].filter(Boolean).join(' - '),
-      briefHref: buildCaptainScopedHref('/captain/weekly-brief', scope),
-      availabilityHref: buildCaptainScopedHref('/captain/availability', scope),
-      lineupHref: buildCaptainScopedHref('/captain/lineup-builder', scope),
-    }
-  })
+        return {
+          id: team.id,
+          title: team.name,
+          meta: [leagueName, flight, `${team.playerCount} players`].filter(Boolean).join(' - '),
+          briefHref: buildCaptainScopedHref('/captain/weekly-brief', scope),
+          availabilityHref: buildCaptainScopedHref('/captain/availability', scope),
+          lineupHref: buildCaptainScopedHref('/captain/lineup-builder', scope),
+        }
+      })
+    : []
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
