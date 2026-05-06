@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
@@ -380,6 +381,20 @@ export default function CaptainTeamBriefPage() {
           </section>
         </SiteShell>
       </main>
+    )
+  }
+
+  if (!access.canUseCaptainWorkflow) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Need one place to prep your team for the week?"
+        body="Unlock Captain to connect team brief context, availability, lineup planning, and match-day communication instead of managing each step separately."
+        ctaLabel="Unlock Captain Tools"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
     )
   }
 

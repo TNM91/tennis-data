@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { getClientAuthState } from '@/lib/auth'
@@ -937,6 +938,20 @@ export default function LineupAvailabilityPage() {
   }
 
   if (role === 'public') return null
+
+  if (!access.canUseCaptainWorkflow) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Want availability to carry into lineup decisions?"
+        body="Unlock Captain to save match-date availability, carry it into the builder, and stop guessing who is actually usable before you set the lineup."
+        ctaLabel="Unlock Captain Tools"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
+  }
 
   return (
     <main style={pageStyle}>

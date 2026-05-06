@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -2143,6 +2144,20 @@ function sendCurrentScenarioToMessaging() {
   if (role === 'public') {
     router.replace('/login')
     return null
+  }
+
+  if (!isCaptainAccess) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Still building lineups manually?"
+        body="Captain unlocks saved scenarios, smarter lineup iterations, and prediction tracking so you can move from availability chaos to a clearer match-day plan."
+        ctaLabel="Build Smarter Lineups"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
   }
 
   return (

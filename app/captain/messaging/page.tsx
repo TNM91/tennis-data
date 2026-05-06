@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { useTheme } from '@/app/components/theme-provider'
 import { getClientAuthState } from '@/lib/auth'
@@ -2097,6 +2098,20 @@ function importScenarioToLineup() {
   }
 
   if (role === 'public') return null
+
+  if (!captainAccess) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Need one place to send the team plan?"
+        body="Unlock Captain to keep availability, lineup context, reminders, and match-day messaging in one place instead of piecing it together manually."
+        ctaLabel="Unlock Captain Tools"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
+  }
 
   return (
     <SiteShell active="/captain">

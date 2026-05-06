@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { supabase } from '@/lib/supabase'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import { getClientAuthState } from '@/lib/auth'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
@@ -948,6 +949,34 @@ export default function LineupBuilderPage() {
         : projectionPercent >= 58
           ? 'Save this version'
           : 'Adjust weakest line'
+
+  if (authLoading) {
+    return (
+      <SiteShell active="/captain">
+        <div style={pageWrap}>
+          <section style={surfaceCardStrong}>
+            <p style={mutedTextStyle}>Loading captain access...</p>
+          </section>
+        </div>
+      </SiteShell>
+    )
+  }
+
+  if (role === 'public') return null
+
+  if (!isCaptainAccess) {
+    return (
+      <LockedPlanPage
+        active="/captain"
+        planId="captain"
+        headline="Still guessing which lineup gives you the best chance?"
+        body="Unlock Captain to compare scenarios faster, spot stronger combinations, and save the versions you actually want to use on match day."
+        ctaLabel="Build Smarter Lineups"
+        secondaryLabel="Back to Captain"
+        secondaryHref="/captain"
+      />
+    )
+  }
 
   return (
     <SiteShell active="/captain">
