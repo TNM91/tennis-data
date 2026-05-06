@@ -16,6 +16,8 @@ type ClaimRequestBody = {
 }
 
 const PAID_PLAN_IDS: PricingPlanId[] = ['player_plus', 'captain', 'league']
+const UPGRADE_REQUEST_SELECT =
+  'id, plan_id, plan_name, price_label, billing_amount_cents, billing_currency, billing_interval, checkout_mode, quantity_mode, entitlement_grant, discount_rules, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at'
 
 export async function POST(request: Request) {
   let body: UpgradeRequestBody
@@ -70,7 +72,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabase
     .from('upgrade_requests')
     .insert(mapUpgradeRequestRecordToInsert(record))
-    .select('id, plan_id, plan_name, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at')
+    .select(UPGRADE_REQUEST_SELECT)
     .single()
 
   if (error) {
@@ -145,7 +147,7 @@ export async function PATCH(request: Request) {
     .from('upgrade_requests')
     .update({ requester_user_id: userResult.userId })
     .eq('id', requestId)
-    .select('id, plan_id, plan_name, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at')
+    .select(UPGRADE_REQUEST_SELECT)
     .single()
 
   if (error) {

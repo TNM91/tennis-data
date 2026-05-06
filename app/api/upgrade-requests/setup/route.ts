@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 
   const requestTable = await supabase
     .from('upgrade_requests')
-    .select('id', { count: 'exact', head: true })
+    .select('id, price_label, billing_amount_cents, billing_currency, billing_interval, checkout_mode, quantity_mode, entitlement_grant, discount_rules', { count: 'exact', head: true })
 
   const profileEntitlements = await supabase
     .from('profiles')
