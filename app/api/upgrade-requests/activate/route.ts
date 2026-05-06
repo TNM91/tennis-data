@@ -1,17 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
-import type { PricingPlanId } from '@/lib/pricing-plans'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
-import { buildProfileActivationPayload } from '@/lib/upgrade-activation'
+import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 
 export const runtime = 'nodejs'
 
 type ActivateRequestBody = {
   requestId?: unknown
-  planId?: unknown
-  userId?: unknown
 }
-
-const ACTIVATABLE_PLAN_IDS: PricingPlanId[] = ['player_plus', 'captain', 'league']
 
 export async function POST(request: Request) {
   const token = getBearerToken(request)
@@ -32,19 +27,9 @@ export async function POST(request: Request) {
   }
 
   const requestId = cleanString(body.requestId)
-  const userId = cleanString(body.userId)
-  const planId = cleanString(body.planId) as PricingPlanId
 
   if (!requestId) {
     return Response.json({ ok: false, message: 'Missing upgrade request id.' }, { status: 400 })
-  }
-
-  if (!userId) {
-    return Response.json({ ok: false, message: 'This request is not linked to an account yet.' }, { status: 400 })
-  }
-
-  if (!ACTIVATABLE_PLAN_IDS.includes(planId)) {
-    return Response.json({ ok: false, message: 'This plan cannot be activated from the request queue.' }, { status: 400 })
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -63,11 +48,37 @@ export async function POST(request: Request) {
     },
   })
 
-  const profilePayload = buildProfileActivationPayload(planId)
+  const { data: requestRow, error: requestLoadError } = await supabase
+    .from('upgrade_requests')
+    .select('id, plan_id, requester_user_id, status')
+    .eq('id', requestId)
+    .maybeSingle()
+
+  if (requestLoadError) {
+    return Response.json({ ok: false, message: requestLoadError.message }, { status: 500 })
+  }
+
+  const activationTarget = resolveUpgradeActivationTarget(requestRow
+    ? {
+        id: String(requestRow.id),
+        planId: typeof requestRow.plan_id === 'string' ? requestRow.plan_id : null,
+        userId: typeof requestRow.requester_user_id === 'string' ? requestRow.requester_user_id : null,
+        status: typeof requestRow.status === 'string' ? requestRow.status : null,
+      }
+    : null)
+
+  if (!activationTarget.ok) {
+    return Response.json(
+      { ok: false, message: activationTarget.message },
+      { status: activationTarget.status },
+    )
+  }
+
+  const profilePayload = buildProfileActivationPayload(activationTarget.planId)
   const { error: profileError } = await supabase
     .from('profiles')
     .update(profilePayload)
-    .eq('id', userId)
+    .eq('id', activationTarget.userId)
 
   if (profileError) {
     return Response.json({ ok: false, message: profileError.message }, { status: 500 })
@@ -76,13 +87,13 @@ export async function POST(request: Request) {
   const { error: requestError } = await supabase
     .from('upgrade_requests')
     .update({ status: 'converted' })
-    .eq('id', requestId)
+    .eq('id', activationTarget.requestId)
 
   if (requestError) {
     return Response.json({ ok: false, message: requestError.message }, { status: 500 })
   }
 
-  return Response.json({ ok: true, message: `Activated ${planId} access.` })
+  return Response.json({ ok: true, message: `Activated ${activationTarget.planId} access.` })
 }
 
 async function getAdminUserId(token: string): Promise<

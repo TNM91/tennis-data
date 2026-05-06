@@ -168,8 +168,6 @@ export default function AdminUpgradeRequestsPage() {
         },
         body: JSON.stringify({
           requestId: request.id,
-          planId: request.planId,
-          userId: request.userId,
         }),
       })
       const body = await response.json().catch(() => null) as { ok?: boolean; message?: string } | null
