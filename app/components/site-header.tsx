@@ -4,11 +4,11 @@ import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
-import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
-import { getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
-import type { PricingPlanId } from '@/lib/pricing-plans'
+import { buildProductAccessState } from '@/lib/access-model'
+import { getPrimaryNavTarget, PRIMARY_NAV_VISUALS } from '@/lib/primary-nav-access'
 import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -58,25 +58,6 @@ function MoonIcon() {
   )
 }
 
-function LockIcon({ size = 12 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 16 16" width={size} height={size} fill="none" aria-hidden="true">
-      <path
-        d="M4.75 7V5.6a3.25 3.25 0 0 1 6.5 0V7"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M3.9 7h8.2c.55 0 1 .45 1 1v4.2c0 .55-.45 1-1 1H3.9c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
 function normalizeRouteKey(value: string | undefined) {
   if (!value) return ''
   if (value === '/') return value
@@ -94,45 +75,6 @@ function isActiveLink(active: string | undefined, pathname: string, href: string
   if (pathname === href) return true
   if (href !== '/' && pathname.startsWith(href)) return true
   return false
-}
-
-const NAV_VISUALS: Record<string, { step: string; intent: string }> = {
-  '/explore': { step: '1', intent: 'Find' },
-  '/mylab': { step: '2', intent: 'You' },
-  '/matchup': { step: '3', intent: 'Compare' },
-  '/captain': { step: '4', intent: 'Run' },
-  '/league-coordinator': { step: '5', intent: 'League Ops' },
-  '/pricing': { step: '$', intent: 'Plans' },
-}
-
-function getRequiredPlanForNav(href: string): PricingPlanId | null {
-  if (href === '/mylab' || href === '/matchup') return 'player_plus'
-  if (href === '/captain') return 'captain'
-  if (href === '/league-coordinator') return 'league'
-  return null
-}
-
-function canUsePrimaryNavItem(access: ProductAccessState, href: string) {
-  const requiredPlan = getRequiredPlanForNav(href)
-  if (!requiredPlan) return true
-  if (requiredPlan === 'player_plus') return access.canUseAdvancedPlayerInsights
-  if (requiredPlan === 'captain') return access.canUseCaptainWorkflow
-  if (requiredPlan === 'league') return access.canUseLeagueTools
-  return true
-}
-
-function getPrimaryNavTarget(href: string, access: ProductAccessState, authenticated: boolean) {
-  const requiredPlan = getRequiredPlanForNav(href)
-  const locked = Boolean(requiredPlan && !canUsePrimaryNavItem(access, href))
-
-  if (!locked || !requiredPlan) {
-    return { href, locked }
-  }
-
-  return {
-    href: authenticated ? getPlanUnlockHref(requiredPlan, href) : getPlanSignupHref(requiredPlan, href),
-    locked,
-  }
 }
 
 function ThemeToggle({
@@ -189,7 +131,7 @@ function HeaderNavLink({
   locked?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
-  const visual = NAV_VISUALS[visualHref]
+  const visual = PRIMARY_NAV_VISUALS[visualHref]
 
   return (
     <Link
@@ -220,7 +162,7 @@ function HeaderNavLink({
       }}
     >
       <span style={locked ? navLockStyle : navStepStyle}>
-        {locked ? <LockIcon /> : visual?.step || '*'}
+        {locked ? <NavLockIcon /> : visual?.step || '*'}
       </span>
       <span style={navTextWrapStyle}>
         <strong style={navLabelStyle}>{label}</strong>
@@ -518,7 +460,7 @@ export default function SiteHeader({ active }: { active?: string }) {
 
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
-                const visual = NAV_VISUALS[item.href]
+                const visual = PRIMARY_NAV_VISUALS[item.href]
                 const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
                 return (
                   <Link
@@ -537,7 +479,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   >
                     <span style={mobileItemMainStyle}>
                       <span style={navTarget.locked ? mobileLockStyle : mobileStepStyle}>
-                        {navTarget.locked ? <LockIcon size={14} /> : visual?.step || '*'}
+                        {navTarget.locked ? <NavLockIcon size={14} /> : visual?.step || '*'}
                       </span>
                       <span style={mobileItemTextStyle}>
                         <strong style={mobileItemLabelStyle}>{item.label}</strong>
@@ -679,9 +621,9 @@ const navStepStyle = {
 
 const navLockStyle = {
   ...navStepStyle,
-  background: 'color-mix(in srgb, var(--surface-soft) 76%, var(--foreground) 24%)',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
-  color: 'var(--brand-green)',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  color: 'var(--text-dark)',
 } as const
 
 const navTextWrapStyle = {
@@ -846,9 +788,9 @@ const mobileStepStyle = {
 
 const mobileLockStyle = {
   ...mobileStepStyle,
-  background: 'color-mix(in srgb, var(--surface-soft) 76%, var(--foreground) 24%)',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
-  color: 'var(--brand-green)',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  color: 'var(--text-dark)',
 } as const
 
 const mobileSectionLabelStyle = {
