@@ -18,6 +18,7 @@ import {
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
 import { CAPTAIN_STORY } from '@/lib/product-story'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import {
   buildCaptainWeekNotesScopeKey,
   readCaptainWeekNotes,
@@ -1660,6 +1661,16 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                     setSelectedTeam(option.team)
                     setSelectedLeague(option.league)
                     setSelectedFlight(option.flight)
+                    void trackProductUsageEvent({
+                      eventName: 'captain_team_scope_selected',
+                      surface: 'captain',
+                      planId: 'captain',
+                      metadata: {
+                        team: option.team,
+                        league: option.league,
+                        flight: option.flight,
+                      },
+                    })
                   }
                 }}
                 style={dynamicSelectStyle}
@@ -2031,7 +2042,20 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 <div style={nextActionText}>{card.detail}</div>
                 <PrimarySmallBtn
                   disabled={!premiumEnabled || (!hasTeamScope && !card.href.startsWith('#'))}
-                  onClick={() => handleCaptainAction(card.href, card.stage)}
+                  onClick={() => {
+                    void trackProductUsageEvent({
+                      eventName: 'captain_closeout_action',
+                      surface: 'captain',
+                      planId: 'captain',
+                      metadata: {
+                        label: card.label,
+                        stage: card.stage,
+                        href: card.href,
+                        readinessScore: captainReadinessScore,
+                      },
+                    })
+                    handleCaptainAction(card.href, card.stage)
+                  }}
                 >
                   {card.cta}
                 </PrimarySmallBtn>

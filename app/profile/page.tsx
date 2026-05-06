@@ -9,6 +9,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { uploadProfilePhoto } from '@/lib/profile-photo-service'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
@@ -274,6 +275,18 @@ function ProfilePageInner() {
           ? 'Profile saved on this device. Apply the profile-link migration for cloud sync.'
           : 'Profile saved. My Lab, Matchup, and Captain tools can use this context.',
       )
+      if (selectedPlayer?.id) {
+        void trackProductUsageEvent({
+          eventName: 'profile_player_linked',
+          surface: 'profile',
+          planId: access.canUseCaptainWorkflow ? 'captain' : access.canUseAdvancedPlayerInsights ? 'player_plus' : null,
+          metadata: {
+            playerId: selectedPlayer.id,
+            playerName: selectedPlayer.name,
+            teamCount: selectedPlayerTeams.length,
+          },
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save your profile.')
     } finally {
@@ -336,6 +349,14 @@ function ProfilePageInner() {
         throw new Error(body?.message ?? 'Billing portal could not be opened.')
       }
 
+      void trackProductUsageEvent({
+        eventName: 'billing_portal_opened',
+        surface: 'billing',
+        planId: access.canUseCaptainWorkflow ? 'captain' : 'player_plus',
+        metadata: {
+          source: 'profile',
+        },
+      })
       window.location.assign(body.url)
     } catch (err) {
       setBillingMessage(err instanceof Error ? err.message : 'Billing portal could not be opened.')

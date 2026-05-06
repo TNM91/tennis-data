@@ -109,6 +109,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Upgrade ops',
   },
   {
+    title: 'Product Events',
+    href: '/admin/product-events',
+    description:
+      'Review paid usage signals like billing portal opens, profile linking, My Lab match-plan actions, and Captain closeout actions.',
+    badge: 'Analytics',
+    accent: 'blue',
+    highlights: ['Billing opens', 'Player activation', 'My Lab actions', 'Captain closeout'],
+    statLabel: 'Best for',
+    statValue: 'Retention',
+  },
+  {
     title: 'Manage Players',
     href: '/admin/manage-players',
     description:
@@ -159,7 +170,7 @@ const importTools = adminTools.filter((tool) =>
 )
 
 const managementTools = adminTools.filter((tool) =>
-  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/upgrade-requests', '/admin/tiq-team-matches', '/admin/deduplicate', '/admin/anomalies'].includes(tool.href)
+  ['/admin/add-match', '/admin/manage-matches', '/admin/manage-players', '/admin/access', '/admin/upgrade-requests', '/admin/product-events', '/admin/tiq-team-matches', '/admin/deduplicate', '/admin/anomalies'].includes(tool.href)
 )
 
 function accentStyles(accent: Accent) {
