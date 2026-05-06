@@ -77,6 +77,48 @@ const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
   league: ['Request Coordinator access', 'Structure the season', 'Track participants and results'],
 }
 
+const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
+  title: string
+  body: string
+  primaryAction: string
+  secondaryAction: string
+  secondaryHref: string
+  steps: string[]
+}> = {
+  free: {
+    title: 'Free is ready.',
+    body: 'Search public tennis context, then upgrade when a paid tool helps.',
+    primaryAction: 'Explore TenAceIQ',
+    secondaryAction: 'Compare plans',
+    secondaryHref: '/pricing',
+    steps: ['Search players and teams', 'Review public rankings', 'Upgrade when you need more'],
+  },
+  player_plus: {
+    title: 'Player is active. Start in My Lab.',
+    body: 'Link your player identity, follow the players you care about, and prep your next matchup.',
+    primaryAction: 'Open My Lab',
+    secondaryAction: 'Set profile',
+    secondaryHref: '/profile',
+    steps: ['Confirm your player identity', 'Open My Lab', 'Compare your next matchup'],
+  },
+  captain: {
+    title: 'Captain is active. Build the week.',
+    body: 'Start with your team context, then turn scouting and lineup decisions into a cleaner match plan.',
+    primaryAction: 'Open Captain',
+    secondaryAction: 'Set profile',
+    secondaryHref: '/profile',
+    steps: ['Confirm team context', 'Review player readiness', 'Build a lineup plan'],
+  },
+  league: {
+    title: 'Coordinator is active. Set up the season.',
+    body: 'Create the league structure, bring players or teams into scope, and keep standings visible.',
+    primaryAction: 'Open Coordinator',
+    secondaryAction: 'View leagues',
+    secondaryHref: '/compete/leagues',
+    steps: ['Create the league shell', 'Add participants', 'Track results and rankings'],
+  },
+}
+
 type UpgradePageProps = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
@@ -92,6 +134,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   const pricingSnapshot = useMemo(() => buildUpgradePricingSnapshot(planId), [planId])
   const tier = getMembershipTier(planId)
   const copy = UNLOCK_COPY[planId]
+  const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
 
   const [role, setRole] = useState<UserRole>('public')
@@ -346,10 +389,10 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
           setEntitlements(refreshedAuthState.entitlements)
           setRequestEmail(refreshedAuthState.user?.email ?? '')
           setCheckoutSubmitting(false)
-          setCheckoutSuccessMessage(`${plan.name} is active. Opening ${getPlanDestinationLabel(planId)}...`)
+          setCheckoutSuccessMessage(`${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
           redirectTimeout = window.setTimeout(() => {
             window.location.replace(nextHref)
-          }, 1200)
+          }, 2800)
         }
       } catch (error) {
         if (!active) return
@@ -371,8 +414,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     checkoutReturnState,
     isPublic,
     nextHref,
-    plan.name,
     planId,
+    successHandoff.body,
   ])
 
   const mailtoHref = buildAccessRequestMailto(submittedRequest ?? {
@@ -481,7 +524,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
         >
           <div style={heroCopyStyle}>
             <div style={eyebrowStyle}>{copy.eyebrow}</div>
-            <h1 style={titleStyle}>{hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
+            <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
                 ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open the workspace when you are ready.`
@@ -571,7 +614,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                 <div style={labelStyle}>Secure checkout</div>
                 <h3 style={successTitleStyle}>
                   {checkoutSuccessMessage
-                    ? `${plan.name} is active.`
+                    ? successHandoff.title
                     : checkoutSubmitting
                       ? checkoutReturnState === 'success'
                         ? 'Confirming checkout...'
@@ -591,18 +634,41 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                         ? checkoutError
                         : 'Continue to Stripe to finish the upgrade.'}
                 </p>
+                {checkoutSuccessMessage ? (
+                  <div style={handoffStepGridStyle}>
+                    {successHandoff.steps.map((step, index) => (
+                      <span key={step} style={handoffStepStyle}>
+                        <strong>{index + 1}</strong>
+                        {step}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
                 <div style={formActionRowStyle}>
-                  <button
-                    type="button"
-                    onClick={() => void startSignedInCheckout()}
-                    disabled={checkoutSubmitting}
-                    style={submitButtonStyle}
-                  >
-                    {checkoutSubmitting ? 'Opening checkout...' : 'Continue to secure checkout'}
-                  </button>
-                  <Link href="/pricing" style={secondaryButtonStyle}>
-                    Compare plans
-                  </Link>
+                  {checkoutSuccessMessage ? (
+                    <>
+                      <Link href={nextHref} style={primaryButtonStyle}>
+                        {successHandoff.primaryAction}
+                      </Link>
+                      <Link href={successHandoff.secondaryHref} style={secondaryButtonStyle}>
+                        {successHandoff.secondaryAction}
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void startSignedInCheckout()}
+                        disabled={checkoutSubmitting}
+                        style={submitButtonStyle}
+                      >
+                        {checkoutSubmitting ? 'Opening checkout...' : 'Continue to secure checkout'}
+                      </button>
+                      <Link href="/pricing" style={secondaryButtonStyle}>
+                        Compare plans
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             ) : submittedRequest ? (
@@ -1098,5 +1164,25 @@ const successMetaStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   lineHeight: 1.45,
+  fontWeight: 850,
+}
+
+const handoffStepGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const handoffStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '24px minmax(0, 1fr)',
+  gap: 8,
+  alignItems: 'center',
+  minHeight: 34,
+  padding: '5px 9px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  fontSize: 12,
   fontWeight: 850,
 }
