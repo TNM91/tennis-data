@@ -2,6 +2,10 @@
 
 import Link from 'next/link'
 import BrandWordmark from '@/app/components/brand-wordmark'
+import NavLockIcon from '@/app/components/nav-lock-icon'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
+import { getPrimaryNavTarget, PRIMARY_NAV_VISUALS } from '@/lib/primary-nav-access'
 import { FOOTER_NAV_SECTIONS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -12,17 +16,13 @@ const META_LINKS = [
   { href: '/legal/terms', label: 'Terms' },
 ]
 
-const FOOTER_JOURNEY: Record<string, { step: string; intent: string; note: string }> = {
-  '/explore': { step: '1', intent: 'Find', note: 'Players, teams, leagues' },
-  '/mylab': { step: '2', intent: 'You', note: 'Your scorecard' },
-  '/matchup': { step: '3', intent: 'Compare', note: 'Who to play next' },
-  '/captain': { step: '4', intent: 'Run', note: 'Team decisions' },
-  '/league-coordinator': { step: '5', intent: 'Coordinate', note: 'Run the season' },
-  '/pricing': { step: '$', intent: 'Plans', note: 'Choose a tier' },
-}
+const FOOTER_JOURNEY = PRIMARY_NAV_VISUALS
 
 export default function SiteFooter() {
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const { role, entitlements } = useAuth()
+  const authenticated = role !== 'public'
+  const access = buildProductAccessState(role, entitlements)
 
   return (
     <footer
@@ -83,9 +83,18 @@ export default function SiteFooter() {
         <div style={footerJourneyGridStyle(isMobile)}>
           {PRIMARY_NAV_ITEMS.map((item) => {
             const visual = FOOTER_JOURNEY[item.href] || { step: '•', intent: item.label, note: '' }
+            const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
             return (
-              <Link key={item.href} href={item.href} style={footerJourneyCardStyle(isMobile)}>
-                <span style={footerJourneyStepStyle(isMobile)}>{visual.step}</span>
+              <Link
+                key={item.href}
+                href={navTarget.href}
+                aria-label={navTarget.locked ? `${item.label} locked. Unlock to open.` : item.label}
+                title={navTarget.locked ? `${item.label} locked` : undefined}
+                style={footerJourneyCardStyle(isMobile)}
+              >
+                <span style={navTarget.locked ? footerJourneyLockStyle(isMobile) : footerJourneyStepStyle(isMobile)}>
+                  {navTarget.locked ? <NavLockIcon size={isMobile ? 13 : 14} /> : visual.step}
+                </span>
                 <span style={footerJourneyTextStyle}>
                   <strong style={footerJourneyLabelStyle(isMobile)}>{item.label}</strong>
                   {isMobile ? null : <small style={footerJourneyIntentStyle}>{visual.intent}</small>}
@@ -240,6 +249,13 @@ const footerJourneyStepStyle = (isMobile: boolean) => ({
   fontWeight: 950,
   lineHeight: 1,
   boxShadow: '0 10px 22px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.38)',
+}) as const
+
+const footerJourneyLockStyle = (isMobile: boolean) => ({
+  ...footerJourneyStepStyle(isMobile),
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  color: 'var(--text-dark)',
 }) as const
 
 const footerJourneyTextStyle = {
