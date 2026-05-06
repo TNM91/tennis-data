@@ -36,6 +36,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
 import { MY_LAB_STORY } from '@/lib/product-story'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
@@ -1571,6 +1572,15 @@ function MyLabPageInner() {
         : goal
     ))
     persistGoalList(nextGoals, activeGoalId, 'Focus added')
+    void trackProductUsageEvent({
+      eventName: 'mylab_goal_template_applied',
+      surface: 'mylab',
+      planId: 'player_plus',
+      metadata: {
+        goal: template.goal,
+        linkedPlayerId: linkedPlayer?.id ?? null,
+      },
+    })
   }
 
   function reflectOnMatch(match: PersonalMatchRow) {
@@ -2360,7 +2370,24 @@ function MyLabPageInner() {
                 </div>
                 <div style={matchPlanGridStyle(isTablet)}>
                   {matchPlanCards.map((card) => (
-                    <Link key={card.label} href={card.href} style={matchPlanCardStyle}>
+                    <Link
+                      key={card.label}
+                      href={card.href}
+                      style={matchPlanCardStyle}
+                      onClick={() => {
+                        void trackProductUsageEvent({
+                          eventName: 'mylab_match_plan_action',
+                          surface: 'mylab',
+                          planId: 'player_plus',
+                          metadata: {
+                            action: card.label,
+                            href: card.href,
+                            linkedPlayerId: linkedPlayer?.id ?? null,
+                            matchupPlayerId: topMatchupCandidate?.player.id ?? null,
+                          },
+                        })
+                      }}
+                    >
                       <span style={miniActionPillStyle}>{card.label}</span>
                       <strong>{card.title}</strong>
                       <span style={matchPlanTextStyle}>{card.body}</span>
