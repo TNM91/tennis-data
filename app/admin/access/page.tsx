@@ -3,15 +3,19 @@
 export const dynamic = 'force-dynamic'
 
 
-import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import {
+  buildProductAccessState,
   CAPTAIN_SUBSCRIPTION_PRICE_LABEL,
   TIQ_SEASON_FEE_PRICE_LABEL,
   type CaptainSubscriptionStatus,
+  type ProductEntitlementSnapshot,
 } from '@/lib/access-model'
+import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
+import type { PricingPlanId } from '@/lib/pricing-plans'
 
 type ProfileAccessRow = {
   id: string
@@ -34,6 +38,30 @@ type EditableProfileAccess = {
 }
 
 type AccessPreset = 'player_plus' | 'captain' | 'league'
+
+type ConvertedUpgradeRequestRow = {
+  id: string
+  plan_id: string | null
+  requester_email: string | null
+  requester_user_id: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+type ConvertedUpgradeRequest = {
+  id: string
+  planId: PricingPlanId
+  email: string
+  changedAt: string
+}
+
+type AccessAudit = {
+  currentPlan: string
+  activePlans: string
+  sources: string[]
+  warnings: string[]
+  lastConvertedRequest: ConvertedUpgradeRequest | null
+}
 
 const STATUS_OPTIONS: CaptainSubscriptionStatus[] = [
   'inactive',
@@ -96,19 +124,45 @@ export default function AdminAccessPage() {
     'all',
   )
   const [editedProfiles, setEditedProfiles] = useState<Record<string, EditableProfileAccess>>({})
+  const [convertedRequestsByUser, setConvertedRequestsByUser] = useState<Record<string, ConvertedUpgradeRequest>>({})
+  const [convertedRequestsAvailable, setConvertedRequestsAvailable] = useState(true)
 
   const deferredSearch = useDeferredValue(search)
 
-  useEffect(() => {
-    const initialSearch = new URLSearchParams(window.location.search).get('search')
-    if (initialSearch) {
-      setSearch(initialSearch)
-      setHandoffSearch(initialSearch)
+  const loadConvertedRequests = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('upgrade_requests')
+      .select('id, plan_id, requester_email, requester_user_id, created_at, updated_at')
+      .eq('status', 'converted')
+      .not('requester_user_id', 'is', null)
+      .order('updated_at', { ascending: false })
+      .limit(500)
+
+    if (error) {
+      setConvertedRequestsAvailable(false)
+      return {}
     }
-    void loadProfiles()
+
+    setConvertedRequestsAvailable(true)
+    return ((data ?? []) as ConvertedUpgradeRequestRow[]).reduce<Record<string, ConvertedUpgradeRequest>>(
+      (acc, row) => {
+        const userId = row.requester_user_id ?? ''
+        const planId = normalizePricingPlanId(row.plan_id)
+        if (!userId || !planId || acc[userId]) return acc
+
+        acc[userId] = {
+          id: row.id,
+          planId,
+          email: row.requester_email ?? '',
+          changedAt: row.updated_at ?? row.created_at ?? '',
+        }
+        return acc
+      },
+      {},
+    )
   }, [])
 
-  async function loadProfiles(showRefreshing = false) {
+  const loadProfiles = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) {
       setRefreshing(true)
     } else {
@@ -149,8 +203,10 @@ export default function AdminAccessPage() {
       const rows = ((data || []) as ProfileAccessRow[]).sort((a, b) =>
         compactUserId(a.id).localeCompare(compactUserId(b.id)),
       )
+      const convertedRequests = await loadConvertedRequests()
 
       setProfiles(rows)
+      setConvertedRequestsByUser(convertedRequests)
       setEditedProfiles(
         rows.reduce<Record<string, EditableProfileAccess>>((acc, row) => {
           acc[row.id] = normalizeEditable(row)
@@ -167,7 +223,16 @@ export default function AdminAccessPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [loadConvertedRequests])
+
+  useEffect(() => {
+    const initialSearch = new URLSearchParams(window.location.search).get('search')
+    if (initialSearch) {
+      setSearch(initialSearch)
+      setHandoffSearch(initialSearch)
+    }
+    void loadProfiles()
+  }, [loadProfiles])
 
   function updateProfileField<K extends keyof EditableProfileAccess>(
     profileId: string,
@@ -293,6 +358,13 @@ export default function AdminAccessPage() {
   const individualCreatorCount = profiles.filter((profile) =>
     Boolean(profile.tiq_individual_league_creator_enabled),
   ).length
+  const auditWarningCount = profiles.filter((profile) =>
+    buildAccessAudit(
+      normalizeUserRole(profile.role),
+      normalizeEditable(profile),
+      convertedRequestsByUser[profile.id] ?? null,
+    ).warnings.length > 0,
+  ).length
   const handoffProfile = handoffSearch && filteredProfiles.length === 1 ? filteredProfiles[0] : null
 
   return (
@@ -343,6 +415,7 @@ export default function AdminAccessPage() {
               <MetricCard label="Captain Active" value={activeCaptainCount} />
               <MetricCard label="Team Coordinator" value={teamEntryCount} />
               <MetricCard label="Individual Coordinator" value={individualCreatorCount} />
+              <MetricCard label="Audit Flags" value={auditWarningCount} />
             </div>
 
             <div
@@ -412,6 +485,9 @@ export default function AdminAccessPage() {
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
               This page is the monetization control point for TenAceIQ. Coordinator access can be
               granted by itself, without enabling Player or Captain tools.
+              {convertedRequestsAvailable
+                ? ' Converted checkout requests are shown beside each profile when available.'
+                : ' Converted checkout requests are not available yet, so this view is showing profile fields only.'}
             </p>
 
             {handoffSearch ? (
@@ -513,11 +589,13 @@ export default function AdminAccessPage() {
               </div>
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
-                <table className="data-table" style={{ minWidth: 1460 }}>
+                <table className="data-table" style={{ minWidth: 1760 }}>
                   <thead>
                     <tr>
                       <th>User</th>
                       <th>Role</th>
+                      <th>Access Result</th>
+                      <th>Why</th>
                       <th>Player Active</th>
                       <th>Player Status</th>
                       <th>Captain Active</th>
@@ -531,6 +609,11 @@ export default function AdminAccessPage() {
                     {filteredProfiles.map((profile) => {
                       const draft = editedProfiles[profile.id] || normalizeEditable(profile)
                       const dirty = isDirty(profile)
+                      const audit = buildAccessAudit(
+                        normalizeUserRole(profile.role),
+                        draft,
+                        convertedRequestsByUser[profile.id] ?? null,
+                      )
 
                       return (
                         <tr key={profile.id}>
@@ -543,6 +626,31 @@ export default function AdminAccessPage() {
                             </div>
                           </td>
                           <td>{roleLabel(profile.role)}</td>
+                          <td>
+                            <div style={accessResultWrapStyle}>
+                              <span className="badge badge-green">{audit.currentPlan}</span>
+                              <span className="subtle-text">{audit.activePlans}</span>
+                              {audit.lastConvertedRequest ? (
+                                <span className="badge badge-blue">
+                                  Checkout: {formatPlanLabel(audit.lastConvertedRequest.planId)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={auditReasonWrapStyle}>
+                              {audit.sources.map((source) => (
+                                <span key={source} style={auditReasonStyle}>
+                                  {source}
+                                </span>
+                              ))}
+                              {audit.warnings.map((warning) => (
+                                <span key={warning} style={auditWarningStyle}>
+                                  {warning}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
                           <td>
                             <label style={toggleWrap}>
                               <input
@@ -688,6 +796,95 @@ export default function AdminAccessPage() {
   )
 }
 
+function normalizePricingPlanId(value: string | null | undefined): PricingPlanId | null {
+  if (value === 'free' || value === 'player_plus' || value === 'captain' || value === 'league') {
+    return value
+  }
+
+  return null
+}
+
+function toEntitlementSnapshot(draft: EditableProfileAccess): ProductEntitlementSnapshot {
+  return {
+    playerPlusSubscriptionActive: draft.player_plus_subscription_active,
+    playerPlusSubscriptionStatus: draft.player_plus_subscription_status,
+    captainSubscriptionActive: draft.captain_subscription_active,
+    captainSubscriptionStatus: draft.captain_subscription_status,
+    tiqTeamLeagueEntryEnabled: draft.tiq_team_league_entry_enabled,
+    tiqIndividualLeagueCreatorEnabled: draft.tiq_individual_league_creator_enabled,
+  }
+}
+
+function buildAccessAudit(
+  role: UserRole,
+  draft: EditableProfileAccess,
+  lastConvertedRequest: ConvertedUpgradeRequest | null,
+): AccessAudit {
+  const access = buildProductAccessState(role, toEntitlementSnapshot(draft))
+  const activePaidPlans = access.activePlanIds.filter((planId) => planId !== 'free')
+  const sources: string[] = []
+  const warnings: string[] = []
+
+  if (role === 'admin') {
+    sources.push('Admin role grants every workspace.')
+  } else if (role === 'captain') {
+    sources.push('Captain role grants Player and Captain.')
+  }
+
+  if (draft.player_plus_subscription_active) {
+    sources.push(`Player flag is ${draft.player_plus_subscription_status}.`)
+  }
+
+  if (draft.captain_subscription_active) {
+    sources.push(`Captain flag is ${draft.captain_subscription_status}.`)
+  }
+
+  if (draft.tiq_team_league_entry_enabled && draft.tiq_individual_league_creator_enabled) {
+    sources.push('Coordinator flags are enabled.')
+  } else if (draft.tiq_team_league_entry_enabled) {
+    sources.push('Team coordinator flag is enabled.')
+  } else if (draft.tiq_individual_league_creator_enabled) {
+    sources.push('Individual coordinator flag is enabled.')
+  }
+
+  if (lastConvertedRequest) {
+    sources.push(`Last converted checkout was ${formatPlanLabel(lastConvertedRequest.planId)}.`)
+  }
+
+  if (lastConvertedRequest?.planId === 'player_plus' && access.canUseCaptainWorkflow) {
+    warnings.push('Review: Player checkout currently has Captain access.')
+  }
+
+  if (lastConvertedRequest?.planId === 'player_plus' && access.canUseLeagueTools) {
+    warnings.push('Review: Player checkout currently has Coordinator access.')
+  }
+
+  if (lastConvertedRequest?.planId === 'captain' && access.canUseLeagueTools) {
+    warnings.push('Review: Captain checkout currently has Coordinator access.')
+  }
+
+  if (lastConvertedRequest?.planId === 'league' && access.canUseAdvancedPlayerInsights && role !== 'admin') {
+    warnings.push('Review: Coordinator checkout currently has Player access.')
+  }
+
+  return {
+    currentPlan: formatPlanLabel(access.currentPlanId),
+    activePlans: activePaidPlans.length
+      ? activePaidPlans.map(formatPlanLabel).join(', ')
+      : 'Free only',
+    sources: sources.length ? sources : ['No paid entitlement flags are active.'],
+    warnings,
+    lastConvertedRequest,
+  }
+}
+
+function formatPlanLabel(planId: PricingPlanId) {
+  if (planId === 'player_plus') return 'Player'
+  if (planId === 'captain') return 'Captain'
+  if (planId === 'league') return 'Coordinator'
+  return 'Free'
+}
+
 function Field({
   label,
   htmlFor,
@@ -750,6 +947,30 @@ const handoffActionStyle = {
   alignItems: 'center',
   gap: 8,
   flexWrap: 'wrap',
+} as const
+
+const accessResultWrapStyle = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 180,
+} as const
+
+const auditReasonWrapStyle = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 260,
+} as const
+
+const auditReasonStyle = {
+  color: 'var(--foreground)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 750,
+} as const
+
+const auditWarningStyle = {
+  ...auditReasonStyle,
+  color: '#fde68a',
 } as const
 
 const toggleWrap = {
