@@ -4,7 +4,7 @@ export type TiqLeagueSeasonStatus = 'draft' | 'active' | 'completed' | 'archived
 
 export const DEFAULT_TIQ_LEAGUE_MAX_WEEKS = 12
 export const DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS = 120
-export const MAX_TIQ_LEAGUE_WEEKS = 52
+export const MAX_TIQ_LEAGUE_WEEKS = 12
 export const MAX_TIQ_LEAGUE_MATCH_EVENTS = 500
 export const MAX_TIQ_TEAM_LEAGUE_TEAMS = 16
 export const MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS = 64

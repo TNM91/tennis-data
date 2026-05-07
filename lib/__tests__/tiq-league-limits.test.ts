@@ -16,7 +16,7 @@ describe('tiq league limits', () => {
     expect(normalizeTiqLeagueSeasonStatus('active')).toBe('active')
     expect(normalizeTiqLeagueSeasonStatus('unknown')).toBe('draft')
     expect(normalizeTiqLeagueMaxWeeks(null)).toBe(DEFAULT_TIQ_LEAGUE_MAX_WEEKS)
-    expect(normalizeTiqLeagueMaxWeeks(100)).toBe(52)
+    expect(normalizeTiqLeagueMaxWeeks(100)).toBe(12)
     expect(normalizeTiqLeagueMaxMatchEvents(null)).toBe(DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS)
     expect(normalizeTiqLeagueMaxMatchEvents(999)).toBe(500)
   })
@@ -38,7 +38,7 @@ describe('tiq league limits', () => {
   it('derives the end date from the start date and capped season length', () => {
     expect(calculateTiqLeagueEndsOn('2026-01-01', 1)).toBe('2026-01-07')
     expect(calculateTiqLeagueEndsOn('2026-01-01', 12)).toBe('2026-03-25')
-    expect(calculateTiqLeagueEndsOn('2026-01-01', 100)).toBe('2026-12-30')
+    expect(calculateTiqLeagueEndsOn('2026-01-01', 100)).toBe('2026-03-25')
     expect(calculateTiqLeagueEndsOn('', 12)).toBe('')
   })
 
