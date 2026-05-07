@@ -15,6 +15,7 @@ import { getCompetitionLayerLabel, getLeagueFormatLabel } from '@/lib/competitio
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { buildScopedLeagueEntityId } from '@/lib/entity-ids'
 import { appendMyLabEvents } from '@/lib/my-lab-events'
+import { buildDirectMessageHref, buildSupportMessageHref } from '@/lib/message-links'
 import {
   listTiqIndividualLeagueResults,
   saveTiqIndividualLeagueResult,
@@ -2002,6 +2003,32 @@ export default function TiqLeagueDetailPage() {
               resultDate: item.scheduledDate,
             },
           )
+    const messageHref = buildDirectMessageHref({
+      recipientName: item.participantBName,
+      subject: `${item.participantAName} vs ${item.participantBName}`,
+      body: [
+        `Hi ${item.participantBName},`,
+        '',
+        `Checking in about our ${league.leagueName} match${item.scheduledDate ? ` on ${item.scheduledDate}` : ''}.`,
+      ].join('\n'),
+      entityType: 'tiq_schedule_item',
+      entityId: item.id,
+    })
+    const scheduleSupportHref = buildSupportMessageHref({
+      category: 'league',
+      subject: `Question about ${league.leagueName}: ${item.participantAName} vs ${item.participantBName}`,
+      body: [
+        `League: ${league.leagueName}`,
+        `Match: ${item.participantAName} vs ${item.participantBName}`,
+        item.scheduledDate ? `Date: ${item.scheduledDate}` : '',
+        item.scheduledTime ? `Time: ${item.scheduledTime}` : '',
+        item.facility ? `Site: ${item.facility}` : '',
+        '',
+        'What I need help with:',
+      ].filter(Boolean).join('\n'),
+      entityType: 'tiq_schedule_item',
+      entityId: item.id,
+    })
     const statusLabel =
       item.status === 'coordinator_set'
         ? 'Published'
@@ -2039,6 +2066,10 @@ export default function TiqLeagueDetailPage() {
           {item.status !== 'completed' ? (
             <GhostLink href={resultHref}>Log result</GhostLink>
           ) : null}
+          {item.participantBName ? (
+            <GhostLink href={messageHref}>Message opponent</GhostLink>
+          ) : null}
+          <GhostLink href={scheduleSupportHref}>Ask support</GhostLink>
           {item.status === 'proposed' ? (
             <button
               type="button"
@@ -2163,6 +2194,22 @@ export default function TiqLeagueDetailPage() {
                     <GhostLink href="#league-standings">Standings</GhostLink>
                     <GhostLink href={league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results'}>
                       Results
+                    </GhostLink>
+                    <GhostLink
+                      href={buildSupportMessageHref({
+                        category: 'league',
+                        subject: `Question about ${league.leagueName}`,
+                        body: [
+                          `League: ${league.leagueName}`,
+                          league.flight ? `Flight: ${league.flight}` : '',
+                          '',
+                          'What I need help with:',
+                        ].filter(Boolean).join('\n'),
+                        entityType: 'tiq_league',
+                        entityId: league.id,
+                      })}
+                    >
+                      Ask support
                     </GhostLink>
                   </div>
                 </div>
@@ -3218,12 +3265,14 @@ export default function TiqLeagueDetailPage() {
                   <div style={emptyCard}>{individualFormatExperience.emptyResults}</div>
                 ) : (
                   <div style={listWrap}>
-                    {individualResults.map((result) => (
+                    {individualResults.map((result) => {
+                      const opponentName = resultOpponentName(result)
+                      return (
                       <div key={result.id} style={dynamicListCard}>
                         <div>
                           <div style={listTitle}>
                             {result.winnerPlayerName} def.{' '}
-                            {result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName}
+                            {opponentName}
                           </div>
                           <div style={listMeta}>
                             {[result.score, formatDateTime(result.resultDate), result.notes].filter(Boolean).join(' · ')}
@@ -3236,12 +3285,46 @@ export default function TiqLeagueDetailPage() {
                           <span style={metaPill}>
                             {result.score || individualFormatExperience.actionLabel}
                           </span>
+                          <GhostLink
+                            href={buildDirectMessageHref({
+                              recipientName: opponentName,
+                              subject: `${result.winnerPlayerName} vs ${opponentName}`,
+                              body: [
+                                `Hi ${opponentName},`,
+                                '',
+                                `Following up on our ${league.leagueName} result${result.resultDate ? ` from ${formatDateTime(result.resultDate)}` : ''}.`,
+                              ].join('\n'),
+                              entityType: 'tiq_individual_result',
+                              entityId: result.id,
+                            })}
+                          >
+                            Message opponent
+                          </GhostLink>
+                          <GhostLink
+                            href={buildSupportMessageHref({
+                              category: 'result',
+                              subject: `Question about ${league.leagueName} result`,
+                              body: [
+                                `League: ${league.leagueName}`,
+                                `Result: ${result.winnerPlayerName} def. ${opponentName}`,
+                                result.score ? `Score: ${result.score}` : '',
+                                result.resultDate ? `Date: ${result.resultDate}` : '',
+                                '',
+                                'What I need help with:',
+                              ].filter(Boolean).join('\n'),
+                              entityType: 'tiq_individual_result',
+                              entityId: result.id,
+                            })}
+                          >
+                            Ask support
+                          </GhostLink>
                           {result.winnerPlayerId ? (
                             <GhostLink href={`/players/${encodeURIComponent(result.winnerPlayerId)}`}>Winner</GhostLink>
                           ) : null}
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </section>

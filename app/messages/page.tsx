@@ -12,6 +12,7 @@ import {
   getInternalIdentity,
   listInternalConversations,
   listInternalMessages,
+  markInternalConversationRead,
   saveInternalDisplayName,
   sendInternalMessage,
   searchInternalRecipients,
@@ -23,6 +24,17 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
+type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
+
+type MessagePrefill = {
+  mode: ComposeMode
+  recipient: string
+  subject: string
+  body: string
+  category: SupportFilter
+  entityType: string
+  entityId: string
+}
 
 function formatMessageTime(value: string) {
   if (!value) return ''
@@ -45,6 +57,20 @@ function conversationTypeLabel(type: InternalConversation['conversationType']) {
   return 'Direct'
 }
 
+function supportCategoryLabel(value: string) {
+  if (value === 'billing') return 'Billing'
+  if (value === 'league') return 'League'
+  if (value === 'result') return 'Result'
+  if (value === 'data') return 'Data issue'
+  if (value === 'account') return 'Account'
+  return 'General'
+}
+
+function normalizeSupportFilter(value: string | null): SupportFilter {
+  if (value === 'billing' || value === 'league' || value === 'result' || value === 'data' || value === 'account') return value
+  return 'general'
+}
+
 function statusLabel(status: InternalConversation['status']) {
   if (status === 'waiting_on_admin') return 'Waiting on admin'
   if (status === 'waiting_on_user') return 'Waiting on user'
@@ -62,9 +88,19 @@ export default function MessagesPage() {
 
 function MessagesPageContent() {
   const searchParams = useSearchParams()
+  const prefill = useMemo<MessagePrefill>(() => ({
+    mode: searchParams.get('compose') === 'support' ? 'support' : 'direct',
+    recipient: searchParams.get('recipient') || '',
+    subject: searchParams.get('subject') || '',
+    body: searchParams.get('body') || '',
+    category: normalizeSupportFilter(searchParams.get('category')),
+    entityType: searchParams.get('entityType') || '',
+    entityId: searchParams.get('entityId') || '',
+  }), [searchParams])
+
   return (
     <SiteShell active="/messages">
-      <MessagesWorkspace initialMode={searchParams.get('compose') === 'support' ? 'support' : 'direct'} />
+      <MessagesWorkspace prefill={prefill} />
     </SiteShell>
   )
 }
@@ -82,21 +118,23 @@ function MessagesLoadingShell() {
   )
 }
 
-function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
+function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const { userId, authResolved } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const [identity, setIdentity] = useState<InternalIdentity | null>(null)
   const [conversations, setConversations] = useState<InternalConversation[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [messages, setMessages] = useState<InternalMessage[]>([])
-  const [composeMode, setComposeMode] = useState<ComposeMode>(initialMode)
+  const [composeMode, setComposeMode] = useState<ComposeMode>(prefill.mode)
+  const [supportCategory, setSupportCategory] = useState<SupportFilter>(prefill.category)
+  const [supportFilter, setSupportFilter] = useState<SupportFilter>('all')
   const [recipientInput, setRecipientInput] = useState('')
   const [recipient, setRecipient] = useState<InternalRecipient | null>(null)
   const [recipientSearchResults, setRecipientSearchResults] = useState<InternalRecipient[]>([])
   const [recipientSearching, setRecipientSearching] = useState(false)
   const [displayNameDraft, setDisplayNameDraft] = useState('')
   const [identitySaving, setIdentitySaving] = useState(false)
-  const [subject, setSubject] = useState(initialMode === 'support' ? 'Support request' : '')
+  const [subject, setSubject] = useState(prefill.subject || (prefill.mode === 'support' ? 'Support request' : ''))
   const [body, setBody] = useState('')
   const [replyBody, setReplyBody] = useState('')
   const [loading, setLoading] = useState(true)
@@ -109,11 +147,28 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId],
   )
+  const filteredConversations = useMemo(() => {
+    if (!identity || identity.role !== 'admin' || supportFilter === 'all') return conversations
+    return conversations.filter((conversation) =>
+      conversation.conversationType === 'support' && conversation.relatedEntityType === supportFilter,
+    )
+  }, [conversations, identity, supportFilter])
+  const unreadCount = useMemo(() => conversations.filter((conversation) =>
+    identity?.role === 'admin' &&
+    conversation.conversationType === 'support' &&
+    conversation.status !== 'closed' &&
+    conversation.status !== 'waiting_on_user',
+  ).length, [conversations, identity])
 
   useEffect(() => {
-    setComposeMode(initialMode)
-    setSubject(initialMode === 'support' ? 'Support request' : '')
-  }, [initialMode])
+    setComposeMode(prefill.mode)
+    setSupportCategory(prefill.category)
+    setRecipientInput(prefill.recipient)
+    setSubject(prefill.subject || (prefill.mode === 'support' ? 'Support request' : ''))
+    setBody(prefill.body)
+    setRecipient(null)
+    setRecipientSearchResults([])
+  }, [prefill])
 
   const loadInbox = useCallback(async () => {
     setLoading(true)
@@ -154,6 +209,7 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
     listInternalMessages(selectedId)
       .then((nextMessages) => {
         if (active) setMessages(nextMessages)
+        if (identity?.userId) void markInternalConversationRead(selectedId, identity.userId)
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : 'Thread could not load.')
@@ -165,7 +221,7 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
     return () => {
       active = false
     }
-  }, [selectedId])
+  }, [identity?.userId, selectedId])
 
   async function resolveRecipient() {
     setRecipient(null)
@@ -233,7 +289,11 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
     try {
       let conversationId = ''
       if (composeMode === 'support') {
-        conversationId = await createSupportConversation(identity, subject, body)
+        conversationId = await createSupportConversation(identity, subject, body, {
+          category: supportCategory,
+          entityType: prefill.entityType,
+          entityId: prefill.entityId,
+        })
       } else {
         const nextRecipient = recipient ?? (await resolveRecipient())
         if (!nextRecipient) return
@@ -356,10 +416,24 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
               Refresh
             </button>
           </div>
+          {identity.role === 'admin' ? (
+            <div style={filterBarStyle}>
+              {(['all', 'billing', 'league', 'result', 'data', 'account', 'general'] as SupportFilter[]).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => setSupportFilter(filter)}
+                  style={filterButtonStyle(supportFilter === filter)}
+                >
+                  {filter === 'all' ? `All ${unreadCount ? `(${unreadCount})` : ''}` : supportCategoryLabel(filter)}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-          {conversations.length ? (
+          {filteredConversations.length ? (
             <div style={threadListStyle}>
-              {conversations.map((conversation) => (
+              {filteredConversations.map((conversation) => (
                 <button
                   key={conversation.id}
                   type="button"
@@ -368,7 +442,11 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
                 >
                   <span style={threadTopStyle}>
                     <strong>{conversation.subject}</strong>
-                    <small>{conversationTypeLabel(conversation.conversationType)}</small>
+                    <small>
+                      {conversation.conversationType === 'support'
+                        ? supportCategoryLabel(conversation.relatedEntityType)
+                        : conversationTypeLabel(conversation.conversationType)}
+                    </small>
                   </span>
                   <span style={threadPreviewStyle}>
                     {conversation.lastMessageBody || statusLabel(conversation.status)}
@@ -485,7 +563,24 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
               ) : null}
             </label>
           ) : (
-            <p style={copyStyle}>Support threads are visible to TenAceIQ admins, so billing and account issues can be handled inside the app.</p>
+            <>
+              <label style={fieldStyle}>
+                <span style={labelStyle}>Category</span>
+                <select
+                  value={supportCategory}
+                  onChange={(event) => setSupportCategory(event.target.value as SupportFilter)}
+                  style={inputStyle}
+                >
+                  <option value="billing">Billing</option>
+                  <option value="league">League</option>
+                  <option value="result">Result</option>
+                  <option value="data">Data issue</option>
+                  <option value="account">Account</option>
+                  <option value="general">General</option>
+                </select>
+              </label>
+              <p style={copyStyle}>Support threads are visible to TenAceIQ admins, so billing and account issues can be handled inside the app.</p>
+            </>
           )}
 
           <label style={fieldStyle}>
@@ -704,6 +799,28 @@ const segmentedStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
 }
+
+const filterBarStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+}
+
+const filterButtonStyle = (active: boolean): CSSProperties => ({
+  minHeight: 32,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: active
+    ? '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)'
+    : '1px solid var(--shell-panel-border)',
+  background: active
+    ? 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)'
+    : 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+})
 
 const segmentStyle = (active: boolean): CSSProperties => ({
   minHeight: 40,

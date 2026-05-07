@@ -11,6 +11,7 @@ import CompetePageFrame, {
 } from '@/app/compete/_components/compete-page-frame'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { cleanText, formatWeekdayDate } from '@/lib/captain-formatters'
+import { buildDirectMessageHref, buildSupportMessageHref } from '@/lib/message-links'
 import { supabase } from '@/lib/supabase'
 
 type ScheduleMatch = {
@@ -169,6 +170,21 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
   const league = cleanText(match.league_name)
   const flight = cleanText(match.flight)
   const teams = [homeTeam, awayTeam].filter(Boolean)
+  const supportHref = buildSupportMessageHref({
+    category: 'league',
+    subject: `Question about ${homeTeam || 'home team'} vs ${awayTeam || 'away team'}`,
+    body: [
+      `Match: ${homeTeam || 'Home team TBD'} vs ${awayTeam || 'Away team TBD'}`,
+      league ? `League: ${league}` : '',
+      flight ? `Flight: ${flight}` : '',
+      match.match_date ? `Date: ${match.match_date}` : '',
+      cleanText(match.facility) ? `Facility: ${cleanText(match.facility)}` : '',
+      '',
+      'What I need help with:',
+    ].filter(Boolean).join('\n'),
+    entityType: 'schedule_match',
+    entityId: match.id,
+  })
 
   return (
     <div style={rowStyle}>
@@ -182,6 +198,9 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
         </div>
         <div style={rowMetaStyle}>
           {[league, flight, cleanText(match.facility)].filter(Boolean).join(' | ') || 'League context pending'}
+        </div>
+        <div style={supportActionRowStyle}>
+          <PrepLink href={supportHref}>Ask support</PrepLink>
         </div>
       </div>
 
@@ -205,6 +224,23 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
                   <PrepLink href={buildCaptainScopedHref('/captain/weekly-brief', scope)}>Brief</PrepLink>
                   <PrepLink href={buildCaptainScopedHref('/captain/availability', scope)}>Availability</PrepLink>
                   <PrepLink href={buildCaptainScopedHref('/captain/lineup-builder', scope)}>Lineup</PrepLink>
+                  {opponent ? (
+                    <PrepLink
+                      href={buildDirectMessageHref({
+                        recipientName: opponent,
+                        subject: `${team} vs ${opponent}`,
+                        body: [
+                          `Hi ${opponent},`,
+                          '',
+                          `Checking in about ${team} vs ${opponent}${match.match_date ? ` on ${match.match_date}` : ''}.`,
+                        ].join('\n'),
+                        entityType: 'schedule_match',
+                        entityId: match.id,
+                      })}
+                    >
+                      Message opponent
+                    </PrepLink>
+                  ) : null}
                 </div>
               </div>
             )
@@ -310,6 +346,13 @@ const rowMetaStyle = {
   color: 'rgba(214,228,246,0.72)',
   fontSize: '13px',
   lineHeight: 1.55,
+} as const
+
+const supportActionRowStyle = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '10px',
 } as const
 
 const teamPrepStackStyle = {
