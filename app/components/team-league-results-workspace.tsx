@@ -893,6 +893,7 @@ function NewEventForm({
     setMessage('')
     const { event, warning: w } = await saveTiqTeamMatchEvent({
       leagueId: form.leagueId,
+      scheduleItemId: form.scheduleItemId || null,
       teamAName: form.teamAName,
       teamBName: form.teamBName,
       matchDate: form.matchDate,

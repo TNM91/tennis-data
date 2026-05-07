@@ -1107,6 +1107,21 @@ export default function TiqLeagueDetailPage() {
   const confirmedScheduleItemCount = visibleScheduleItems.filter((item) =>
     item.status === 'confirmed' || item.status === 'coordinator_set',
   ).length
+  const completedScheduleItemCount = visibleScheduleItems.filter((item) => item.status === 'completed').length
+  const individualResultByScheduleItemId = useMemo(() => {
+    const resultMap = new Map<string, TiqIndividualLeagueResultRecord>()
+    individualResults.forEach((result) => {
+      if (result.scheduleItemId) resultMap.set(result.scheduleItemId, result)
+    })
+    return resultMap
+  }, [individualResults])
+  const teamEventByScheduleItemId = useMemo(() => {
+    const eventMap = new Map<string, TiqTeamMatchEventRecord>()
+    teamMatchEvents.forEach((event) => {
+      if (event.scheduleItemId) eventMap.set(event.scheduleItemId, event)
+    })
+    return eventMap
+  }, [teamMatchEvents])
   const hubNavItems = useMemo<HubNavItem[]>(() => {
     if (!league) return []
 
@@ -2259,7 +2274,7 @@ export default function TiqLeagueDetailPage() {
                         : 'Propose Match Time'}
                   </button>
                   <span style={metaPill}>
-                    {confirmedScheduleItemCount} confirmed | {pendingScheduleItemCount} proposed
+                    {confirmedScheduleItemCount} confirmed | {pendingScheduleItemCount} proposed | {completedScheduleItemCount} done
                   </span>
                 </div>
               </div>
@@ -2267,6 +2282,17 @@ export default function TiqLeagueDetailPage() {
               {visibleScheduleItems.length > 0 ? (
                 <div style={scheduleListStyle}>
                   {visibleScheduleItems.map((item) => {
+                    const individualScheduleResult = individualResultByScheduleItemId.get(item.id) || null
+                    const teamScheduleEvent = teamEventByScheduleItemId.get(item.id) || null
+                    const scheduleOutcomeText = individualScheduleResult
+                      ? `${individualScheduleResult.winnerPlayerName} def. ${resultOpponentName(individualScheduleResult)}${
+                          individualScheduleResult.score ? `, ${individualScheduleResult.score}` : ''
+                        }`
+                      : teamScheduleEvent
+                        ? `${teamScheduleEvent.teamAName} vs ${teamScheduleEvent.teamBName}${
+                            teamScheduleEvent.winnerTeamName ? `, winner ${teamScheduleEvent.winnerTeamName}` : ''
+                          }`
+                        : ''
                     const resultHref =
                       league.leagueFormat === 'team'
                         ? buildScheduledTeamResultEntryHref(league.id, item)
@@ -2300,6 +2326,11 @@ export default function TiqLeagueDetailPage() {
                               .filter(Boolean)
                               .join(' | ')}
                           </div>
+                          {scheduleOutcomeText ? (
+                            <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
+                              Result: {scheduleOutcomeText}
+                            </div>
+                          ) : null}
                         </div>
                         <div style={scheduleRowActionsStyle}>
                           <span style={item.status === 'proposed' ? pillAmber : pillGreen}>

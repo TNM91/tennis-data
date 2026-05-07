@@ -831,6 +831,7 @@ export function IndividualLeagueResultsWorkspace({
       const saveResult = await saveTiqIndividualLeagueResult({
         resultId: editingResultId || null,
         leagueId: selectedLeague.id,
+        scheduleItemId: scheduledResultItemId || null,
         playerAName: resultPlayerAOption.playerName,
         playerAId: resultPlayerAOption.playerId,
         playerBName: resultPlayerBOption.playerName,
