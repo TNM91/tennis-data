@@ -12,7 +12,9 @@ import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
 import {
   saveTiqLeagueScheduleItem,
+  updateTiqLeagueScheduleItem,
   type TiqLeagueScheduleFormat,
+  updateTiqLeagueScheduleStatus,
 } from '@/lib/tiq-league-schedule-service'
 
 export type InternalScheduleEventType = 'tiq_league_match' | 'captain_practice'
@@ -77,6 +79,12 @@ type RosterRow = {
   team_name?: string | null
   league_name?: string | null
   flight?: string | null
+}
+
+type DirectoryRosterRow = {
+  id?: string | null
+  linked_player_id?: string | null
+  display_name?: string | null
 }
 
 function cleanText(value: string | null | undefined) {
@@ -166,6 +174,25 @@ async function resolveProfileIds(input: {
   }
 
   return Array.from(profileIds)
+}
+
+async function loadCaptainPracticeRoster(input: {
+  teamName: string
+  leagueName?: string | null
+  flight?: string | null
+}) {
+  const rosterResult = await supabase
+    .from('team_roster_members')
+    .select('player_id, player_name, team_name, league_name, flight')
+    .eq('normalized_team_name', normalizeTeamName(input.teamName))
+    .limit(200)
+
+  const rosterRows = rosterResult.error ? [] : ((rosterResult.data || []) as RosterRow[])
+  return rosterRows.filter((row) => {
+    if (input.leagueName && safeText(row.league_name, '') && safeText(row.league_name) !== input.leagueName) return false
+    if (input.flight && safeText(row.flight, '') && safeText(row.flight) !== input.flight) return false
+    return true
+  })
 }
 
 async function createInternalScheduleEvent(input: {
@@ -337,18 +364,7 @@ export async function createCaptainPracticeThread(input: {
   const identity = await getInternalIdentity()
   if (!identity) throw new Error('Sign in to schedule practice through Messages.')
 
-  const rosterResult = await supabase
-    .from('team_roster_members')
-    .select('player_id, player_name, team_name, league_name, flight')
-    .eq('normalized_team_name', normalizeTeamName(input.teamName))
-    .limit(200)
-
-  const rosterRows = rosterResult.error ? [] : ((rosterResult.data || []) as RosterRow[])
-  const filteredRows = rosterRows.filter((row) => {
-    if (input.leagueName && safeText(row.league_name, '') && safeText(row.league_name) !== input.leagueName) return false
-    if (input.flight && safeText(row.flight, '') && safeText(row.flight) !== input.flight) return false
-    return true
-  })
+  const filteredRows = await loadCaptainPracticeRoster(input)
   const playerIds = filteredRows.map((row) => cleanText(row.player_id)).filter(Boolean)
   const names = filteredRows.map((row) => cleanText(row.player_name)).filter(Boolean)
   const participantProfileIds = await resolveProfileIds({ playerIds, names })
@@ -414,6 +430,53 @@ export async function createCaptainPracticeThread(input: {
   }
 }
 
+export async function previewCaptainPracticeRecipients(input: {
+  teamName: string
+  leagueName?: string | null
+  flight?: string | null
+}) {
+  if (!input.teamName.trim()) {
+    return {
+      rosterCount: 0,
+      linkedParticipantCount: 0,
+      linkedRecipientNames: [] as string[],
+      unlinkedRosterNames: [] as string[],
+    }
+  }
+
+  const filteredRows = await loadCaptainPracticeRoster(input)
+  const playerIds = Array.from(new Set(filteredRows.map((row) => cleanText(row.player_id)).filter(Boolean)))
+  const linkedByPlayerId = new Map<string, DirectoryRosterRow>()
+
+  if (playerIds.length) {
+    const { data } = await supabase
+      .from('internal_message_directory')
+      .select('id, linked_player_id, display_name')
+      .in('linked_player_id', playerIds)
+
+    for (const row of (data || []) as DirectoryRosterRow[]) {
+      const playerId = cleanText(row.linked_player_id)
+      if (playerId && !linkedByPlayerId.has(playerId)) linkedByPlayerId.set(playerId, row)
+    }
+  }
+
+  const linkedRecipientNames = Array.from(
+    new Set(Array.from(linkedByPlayerId.values()).map((row) => cleanText(row.display_name)).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
+  const unlinkedRosterNames = filteredRows
+    .filter((row) => !linkedByPlayerId.has(cleanText(row.player_id)))
+    .map((row) => cleanText(row.player_name))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+
+  return {
+    rosterCount: filteredRows.length,
+    linkedParticipantCount: linkedRecipientNames.length,
+    linkedRecipientNames,
+    unlinkedRosterNames,
+  }
+}
+
 export async function listInternalScheduleEventsForConversation(conversationId: string) {
   const { data, error } = await supabase
     .from('internal_schedule_events')
@@ -475,4 +538,142 @@ export async function saveInternalScheduleResponse(input: {
       },
     )
   }
+}
+
+export async function updateInternalScheduleEvent(input: {
+  eventId: string
+  actorUserId: string
+  scheduledDate: string
+  scheduledTime?: string | null
+  facility?: string | null
+  notes?: string | null
+}) {
+  const eventId = cleanText(input.eventId)
+  const scheduledDate = cleanText(input.scheduledDate)
+  if (!eventId) throw new Error('Choose a schedule event first.')
+  if (!scheduledDate) throw new Error('Choose a schedule date first.')
+
+  const existingEvents = await listInternalScheduleEventsByIds([eventId])
+  const existingEvent = existingEvents[0]
+  if (!existingEvent) throw new Error('Schedule event was not found.')
+
+  const metadata = {
+    ...existingEvent.metadata,
+    scheduleDate: scheduledDate,
+    scheduleTime: cleanText(input.scheduledTime),
+    facility: cleanText(input.facility),
+  }
+
+  if (existingEvent.sourceEntityType === 'tiq_schedule_item' && existingEvent.sourceEntityId) {
+    await updateTiqLeagueScheduleItem({
+      scheduleItemId: existingEvent.sourceEntityId,
+      scheduledDate,
+      scheduledTime: input.scheduledTime,
+      facility: input.facility,
+      notes: input.notes,
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('internal_schedule_events')
+    .update({
+      scheduled_date: scheduledDate,
+      scheduled_time: cleanText(input.scheduledTime),
+      facility: cleanText(input.facility),
+      metadata,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', eventId)
+    .select('id, conversation_id, event_type, title, scheduled_date, scheduled_time, facility, recurrence_rule, status, source_entity_type, source_entity_id, metadata, created_by_user_id, created_at, updated_at')
+    .single()
+
+  if (error) throw new Error(error.message)
+  const updatedEvent = toScheduleEvent(data as ScheduleEventRow)
+  if (!updatedEvent) throw new Error('Schedule event could not be updated.')
+
+  await sendInternalMessage(
+    updatedEvent.conversationId,
+    input.actorUserId,
+    [
+      `Schedule updated: ${updatedEvent.title}`,
+      `Date: ${updatedEvent.scheduledDate}`,
+      updatedEvent.scheduledTime ? `Time: ${updatedEvent.scheduledTime}` : '',
+      updatedEvent.facility ? `Site: ${updatedEvent.facility}` : '',
+      cleanText(input.notes) ? `Notes: ${cleanText(input.notes)}` : '',
+    ].filter(Boolean).join('\n'),
+    {
+      notificationType: 'schedule',
+      notificationTitle: 'Schedule updated',
+      notificationBody: 'Open Messages to review the updated time or site.',
+      scheduleEventId: updatedEvent.id,
+    },
+  )
+
+  return updatedEvent
+}
+
+export async function cancelInternalScheduleEvent(input: {
+  eventId: string
+  actorUserId: string
+  reason?: string | null
+}) {
+  const eventId = cleanText(input.eventId)
+  if (!eventId) throw new Error('Choose a schedule event first.')
+
+  const existingEvents = await listInternalScheduleEventsByIds([eventId])
+  const existingEvent = existingEvents[0]
+  if (!existingEvent) throw new Error('Schedule event was not found.')
+
+  if (existingEvent.sourceEntityType === 'tiq_schedule_item' && existingEvent.sourceEntityId) {
+    await updateTiqLeagueScheduleStatus({
+      scheduleItemId: existingEvent.sourceEntityId,
+      status: 'cancelled',
+    })
+  }
+
+  const { data, error } = await supabase
+    .from('internal_schedule_events')
+    .update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', eventId)
+    .select('id, conversation_id, event_type, title, scheduled_date, scheduled_time, facility, recurrence_rule, status, source_entity_type, source_entity_id, metadata, created_by_user_id, created_at, updated_at')
+    .single()
+
+  if (error) throw new Error(error.message)
+  const cancelledEvent = toScheduleEvent(data as ScheduleEventRow)
+  if (!cancelledEvent) throw new Error('Schedule event could not be cancelled.')
+
+  await sendInternalMessage(
+    cancelledEvent.conversationId,
+    input.actorUserId,
+    [
+      `Schedule cancelled: ${cancelledEvent.title}`,
+      cleanText(input.reason) ? `Reason: ${cleanText(input.reason)}` : '',
+    ].filter(Boolean).join('\n'),
+    {
+      notificationType: 'schedule',
+      notificationTitle: 'Schedule cancelled',
+      notificationBody: 'Open Messages to review the cancelled event.',
+      scheduleEventId: cancelledEvent.id,
+    },
+  )
+
+  return cancelledEvent
+}
+
+async function listInternalScheduleEventsByIds(eventIds: string[]) {
+  const ids = Array.from(new Set(eventIds.map(cleanText).filter(Boolean)))
+  if (!ids.length) return []
+
+  const { data, error } = await supabase
+    .from('internal_schedule_events')
+    .select('id, conversation_id, event_type, title, scheduled_date, scheduled_time, facility, recurrence_rule, status, source_entity_type, source_entity_id, metadata, created_by_user_id, created_at, updated_at')
+    .in('id', ids)
+
+  if (error) throw new Error(error.message)
+  return ((data || []) as ScheduleEventRow[])
+    .map(toScheduleEvent)
+    .filter((event): event is InternalScheduleEvent => Boolean(event))
 }

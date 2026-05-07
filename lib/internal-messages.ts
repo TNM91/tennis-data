@@ -719,3 +719,47 @@ export async function countUnreadInternalConversations(identity: InternalIdentit
   const conversations = await listInternalConversations(identity)
   return conversations.filter((conversation) => conversation.isUnread).length
 }
+
+export async function updateInternalConversationOps(input: {
+  conversationId: string
+  identity: InternalIdentity
+  status?: InternalConversationStatus
+  assignToMe?: boolean
+}) {
+  const conversationId = input.conversationId.trim()
+  if (!conversationId) throw new Error('Choose a conversation first.')
+  if (input.identity.role !== 'admin') throw new Error('Only admins can manage support operations.')
+
+  const payload: Record<string, string | null> = {
+    updated_at: new Date().toISOString(),
+  }
+  if (input.status) payload.status = input.status
+  if (input.assignToMe) payload.assigned_admin_user_id = input.identity.userId
+
+  const { data, error } = await supabase
+    .from('internal_conversations')
+    .update(payload)
+    .eq('id', conversationId)
+    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')
+    .single()
+
+  if (error) throw new Error(error.message)
+  const conversation = data as ConversationRow
+  const status = normalizeConversationStatus(conversation.status)
+  const opsMessage = [
+    input.assignToMe ? `${input.identity.displayName} picked up this support thread.` : '',
+    input.status ? `Support status changed to ${status.replaceAll('_', ' ')}.` : '',
+  ].filter(Boolean).join('\n')
+
+  if (opsMessage) {
+    await sendInternalMessage(conversationId, input.identity.userId, opsMessage, {
+      notificationType: 'support',
+      notificationTitle: 'Support thread updated',
+      notificationBody: status === 'closed'
+        ? 'Your TenAceIQ support thread was closed.'
+        : 'Open Messages to review the latest support update.',
+    })
+  }
+
+  return conversation.id
+}

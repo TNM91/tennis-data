@@ -1,6 +1,10 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import {
+  getInternalNotificationPreferencesForProfiles,
+  notificationTypeEnabled,
+} from '@/lib/internal-notification-preferences'
 
 export type InternalNotificationType = 'message' | 'schedule' | 'support' | 'system'
 
@@ -29,6 +33,9 @@ type NotificationRow = {
   conversation_id?: string | null
   schedule_event_id?: string | null
   read_at?: string | null
+  email_fallback_requested_at?: string | null
+  email_fallback_sent_at?: string | null
+  email_fallback_error?: string | null
   created_at?: string | null
 }
 
@@ -128,8 +135,16 @@ export async function createInternalNotifications(input: {
   )
   if (!recipientProfileIds.length) return
 
-  const { error } = await supabase.from('internal_notifications').insert(
-    recipientProfileIds.map((recipientProfileId) => ({
+  const preferences = await getInternalNotificationPreferencesForProfiles(recipientProfileIds)
+  const enabledRecipientProfileIds = recipientProfileIds.filter((recipientProfileId) => {
+    const recipientPreferences = preferences.get(recipientProfileId)
+    return !recipientPreferences || notificationTypeEnabled(recipientPreferences, input.notificationType)
+  })
+
+  if (!enabledRecipientProfileIds.length) return
+
+  const { data, error } = await supabase.from('internal_notifications').insert(
+    enabledRecipientProfileIds.map((recipientProfileId) => ({
       recipient_profile_id: recipientProfileId,
       actor_user_id: input.actorUserId,
       notification_type: input.notificationType,
@@ -139,9 +154,38 @@ export async function createInternalNotifications(input: {
       conversation_id: input.conversationId || null,
       schedule_event_id: input.scheduleEventId || null,
     })),
-  )
+  ).select('id')
 
   if (error) throw new Error(error.message)
+
+  const notificationIds = ((data || []) as Array<{ id?: string | null }>)
+    .map((row) => cleanText(row.id))
+    .filter(Boolean)
+  const emailRecipientProfileIds = enabledRecipientProfileIds.filter((recipientProfileId) => {
+    const recipientPreferences = preferences.get(recipientProfileId)
+    return recipientPreferences?.emailFallbackEnabled
+  })
+
+  if (notificationIds.length && emailRecipientProfileIds.length) {
+    await requestEmailFallbackForNotifications(notificationIds).catch(() => undefined)
+  }
+}
+
+async function requestEmailFallbackForNotifications(notificationIds: string[]) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const token = session?.access_token
+  if (!token) return
+
+  await fetch('/api/internal-notifications/email-fallback', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ notificationIds }),
+  })
 }
 
 export async function notifyConversationParticipants(input: {

@@ -5,6 +5,7 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import {
   createCaptainPracticeThread,
   createTiqLeagueScheduleThread,
+  previewCaptainPracticeRecipients,
 } from '@/lib/internal-scheduling'
 import type { TiqLeagueScheduleFormat } from '@/lib/tiq-league-schedule-service'
 
@@ -55,6 +56,13 @@ export default function ScheduleMessageComposer({
   const [conversationId, setConversationId] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
+  const [recipientPreview, setRecipientPreview] = useState<{
+    rosterCount: number
+    linkedParticipantCount: number
+    linkedRecipientNames: string[]
+    unlinkedRosterNames: string[]
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -66,8 +74,30 @@ export default function ScheduleMessageComposer({
       setConversationId('')
       setStatus('')
       setError('')
+      setRecipientPreview(null)
+      setPreviewLoading(false)
     }
   }, [defaultDate, defaultFacility, defaultTime, open])
+
+  useEffect(() => {
+    if (!open || mode !== 'captain-practice' || !teamName) return
+    let active = true
+    setPreviewLoading(true)
+    previewCaptainPracticeRecipients({ teamName, leagueName, flight })
+      .then((preview) => {
+        if (active) setRecipientPreview(preview)
+      })
+      .catch(() => {
+        if (active) setRecipientPreview(null)
+      })
+      .finally(() => {
+        if (active) setPreviewLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [flight, leagueName, mode, open, teamName])
 
   async function submitSchedule() {
     if (saving) return
@@ -153,6 +183,32 @@ export default function ScheduleMessageComposer({
                   : teamName || 'Team practice'}
               </strong>
             </div>
+
+            {mode === 'captain-practice' ? (
+              <div style={recipientPreviewStyle}>
+                <span style={labelStyle}>Invites</span>
+                {previewLoading ? (
+                  <p>Checking linked player accounts...</p>
+                ) : recipientPreview ? (
+                  <>
+                    <strong>
+                      {recipientPreview.linkedParticipantCount} linked account{recipientPreview.linkedParticipantCount === 1 ? '' : 's'}
+                      {' '}from {recipientPreview.rosterCount} roster player{recipientPreview.rosterCount === 1 ? '' : 's'}
+                    </strong>
+                    {recipientPreview.unlinkedRosterNames.length ? (
+                      <p>
+                        Needs account links: {recipientPreview.unlinkedRosterNames.slice(0, 4).join(', ')}
+                        {recipientPreview.unlinkedRosterNames.length > 4 ? `, +${recipientPreview.unlinkedRosterNames.length - 4} more` : ''}
+                      </p>
+                    ) : (
+                      <p>Every roster player found for this scope has a linked TenAceIQ account.</p>
+                    )}
+                  </>
+                ) : (
+                  <p>Roster identity preview is not available yet.</p>
+                )}
+              </div>
+            ) : null}
 
             <div style={fieldGridStyle}>
               <label style={fieldStyle}>
@@ -293,6 +349,18 @@ const targetStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.06)',
   color: '#e7ffd1',
   fontSize: 13,
+}
+
+const recipientPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.07)',
+  color: '#dbeafe',
+  fontSize: 13,
+  lineHeight: 1.45,
 }
 
 const fieldGridStyle: CSSProperties = {

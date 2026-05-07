@@ -328,3 +328,80 @@ export async function updateTiqLeagueScheduleStatus(input: {
     }
   }
 }
+
+export async function updateTiqLeagueScheduleItem(input: {
+  scheduleItemId: string
+  scheduledDate: string
+  scheduledTime?: string | null
+  facility?: string | null
+  notes?: string | null
+  status?: Extract<TiqLeagueScheduleStatus, 'proposed' | 'confirmed' | 'coordinator_set' | 'cancelled'>
+}): Promise<{ item: TiqLeagueScheduleItem | null; source: TiqLeagueScheduleSource; warning: string | null }> {
+  const userId = await getAuthenticatedUserId()
+  const scheduleItemId = cleanText(input.scheduleItemId)
+  if (!userId) {
+    return {
+      item: null,
+      source: 'local',
+      warning: 'Sign in to update this schedule item.',
+    }
+  }
+
+  if (!scheduleItemId || !cleanText(input.scheduledDate)) {
+    return {
+      item: null,
+      source: 'local',
+      warning: 'Choose a match date before updating the schedule item.',
+    }
+  }
+
+  const payload = {
+    scheduled_date: cleanText(input.scheduledDate),
+    scheduled_time: cleanText(input.scheduledTime) || null,
+    facility: cleanText(input.facility),
+    notes: cleanText(input.notes),
+    ...(input.status ? { status: input.status } : {}),
+    updated_by_user_id: userId,
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(TIQ_LEAGUE_SCHEDULE_TABLE)
+      .update(payload)
+      .eq('id', scheduleItemId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      item: normalizeRow(data as TiqLeagueScheduleRow),
+      source: 'supabase',
+      warning: null,
+    }
+  } catch (error) {
+    const localItems = readLocalScheduleItems()
+    const nextItems = localItems.map((item) =>
+      item.id === scheduleItemId
+        ? {
+            ...item,
+            scheduledDate: cleanText(input.scheduledDate),
+            scheduledTime: cleanText(input.scheduledTime),
+            facility: cleanText(input.facility),
+            notes: cleanText(input.notes),
+            status: input.status || item.status,
+            updatedAt: new Date().toISOString(),
+          }
+        : item,
+    )
+    writeLocalScheduleItems(sortScheduleItems(nextItems))
+    return {
+      item: nextItems.find((item) => item.id === scheduleItemId) || null,
+      source: 'local',
+      warning:
+        error instanceof Error
+          ? 'Schedule updated on this device. Cloud sync will retry later.'
+          : 'Schedule updated on this device. Cloud sync will retry later.',
+    }
+  }
+}

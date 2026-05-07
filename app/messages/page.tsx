@@ -6,9 +6,11 @@ import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import {
+  cancelInternalScheduleEvent,
   listInternalScheduleEventsForConversation,
   listInternalScheduleResponses,
   saveInternalScheduleResponse,
+  updateInternalScheduleEvent,
   type InternalScheduleEvent,
   type InternalScheduleResponse,
   type InternalScheduleResponseStatus,
@@ -30,11 +32,19 @@ import {
   saveInternalDisplayName,
   sendInternalMessage,
   searchInternalRecipients,
+  updateInternalConversationOps,
   type InternalConversation,
+  type InternalConversationStatus,
   type InternalIdentity,
   type InternalMessage,
   type InternalRecipient,
 } from '@/lib/internal-messages'
+import {
+  getInternalNotificationPreferences,
+  saveInternalNotificationPreferences,
+  type InternalNotificationPreferences,
+  type InternalNotificationPreferencePatch,
+} from '@/lib/internal-notification-preferences'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
@@ -163,6 +173,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [scheduleEvents, setScheduleEvents] = useState<InternalScheduleEvent[]>([])
   const [scheduleResponses, setScheduleResponses] = useState<InternalScheduleResponse[]>([])
   const [notifications, setNotifications] = useState<InternalNotification[]>([])
+  const [notificationPreferences, setNotificationPreferences] = useState<InternalNotificationPreferences | null>(null)
   const [composeMode, setComposeMode] = useState<ComposeMode>(prefill.mode)
   const [supportCategory, setSupportCategory] = useState<SupportFilter>(prefill.category)
   const [supportFilter, setSupportFilter] = useState<SupportFilter>('all')
@@ -181,12 +192,27 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [notificationsLoading, setNotificationsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [responseSaving, setResponseSaving] = useState('')
+  const [preferenceSaving, setPreferenceSaving] = useState('')
+  const [conversationActionSaving, setConversationActionSaving] = useState('')
+  const [scheduleActionSaving, setScheduleActionSaving] = useState('')
+  const [scheduleEditOpen, setScheduleEditOpen] = useState(false)
+  const [scheduleDraftDate, setScheduleDraftDate] = useState('')
+  const [scheduleDraftTime, setScheduleDraftTime] = useState('')
+  const [scheduleDraftFacility, setScheduleDraftFacility] = useState('')
+  const [scheduleDraftNotes, setScheduleDraftNotes] = useState('')
+  const [scheduleCancelReason, setScheduleCancelReason] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
   const selectedConversation = useMemo(
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId],
+  )
+  const selectedScheduleEvent = scheduleEvents[0] ?? null
+  const canManageSchedule = Boolean(
+    identity &&
+      selectedScheduleEvent &&
+      (identity.role === 'admin' || selectedScheduleEvent.createdByUserId === identity.userId),
   )
   const selectedContextHref = useMemo(() => buildConversationContextHref(selectedConversation), [selectedConversation])
   const unreadNotificationCount = useMemo(
@@ -256,11 +282,15 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       if (!nextIdentity) {
         setConversations([])
         setSelectedId('')
+        setNotificationPreferences(null)
         return
       }
 
       const nextConversations = await listInternalConversations(nextIdentity)
       setConversations(nextConversations)
+      getInternalNotificationPreferences(nextIdentity.userId)
+        .then(setNotificationPreferences)
+        .catch(() => setNotificationPreferences(null))
       setNotificationsLoading(true)
       listInternalNotifications(nextIdentity.userId, { limit: 12 })
         .then(setNotifications)
@@ -288,6 +318,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setMessages([])
       setScheduleEvents([])
       setScheduleResponses([])
+      setScheduleEditOpen(false)
       return
     }
 
@@ -337,6 +368,24 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       active = false
     }
   }, [identity?.userId, selectedId])
+
+  useEffect(() => {
+    if (!selectedScheduleEvent) {
+      setScheduleEditOpen(false)
+      setScheduleDraftDate('')
+      setScheduleDraftTime('')
+      setScheduleDraftFacility('')
+      setScheduleDraftNotes('')
+      setScheduleCancelReason('')
+      return
+    }
+
+    setScheduleDraftDate(selectedScheduleEvent.scheduledDate)
+    setScheduleDraftTime(selectedScheduleEvent.scheduledTime)
+    setScheduleDraftFacility(selectedScheduleEvent.facility)
+    setScheduleDraftNotes('')
+    setScheduleCancelReason('')
+  }, [selectedScheduleEvent])
 
   async function resolveRecipient() {
     setRecipient(null)
@@ -509,6 +558,100 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  async function updateNotificationPreference(
+    key: keyof InternalNotificationPreferencePatch,
+    value: boolean,
+  ) {
+    if (!identity || preferenceSaving) return
+
+    setPreferenceSaving(key)
+    setError('')
+    setMessage('')
+    try {
+      const nextPreferences = await saveInternalNotificationPreferences(identity.userId, { [key]: value })
+      setNotificationPreferences(nextPreferences)
+      setMessage('Notification preference saved.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Notification preference could not be saved.')
+    } finally {
+      setPreferenceSaving('')
+    }
+  }
+
+  async function runSupportAction(action: string, status?: InternalConversationStatus, assignToMe = false) {
+    if (!identity || !selectedConversation || conversationActionSaving) return
+
+    setConversationActionSaving(action)
+    setError('')
+    setMessage('')
+    try {
+      await updateInternalConversationOps({
+        conversationId: selectedConversation.id,
+        identity,
+        status,
+        assignToMe,
+      })
+      setMessages(await listInternalMessages(selectedConversation.id))
+      setConversations(await listInternalConversations(identity))
+      setMessage('Support thread updated.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Support thread could not be updated.')
+    } finally {
+      setConversationActionSaving('')
+    }
+  }
+
+  async function submitScheduleUpdate() {
+    if (!identity || !selectedScheduleEvent || scheduleActionSaving) return
+
+    setScheduleActionSaving('update')
+    setError('')
+    setMessage('')
+    try {
+      await updateInternalScheduleEvent({
+        eventId: selectedScheduleEvent.id,
+        actorUserId: identity.userId,
+        scheduledDate: scheduleDraftDate,
+        scheduledTime: scheduleDraftTime,
+        facility: scheduleDraftFacility,
+        notes: scheduleDraftNotes,
+      })
+      setScheduleEvents(await listInternalScheduleEventsForConversation(selectedScheduleEvent.conversationId))
+      setMessages(await listInternalMessages(selectedScheduleEvent.conversationId))
+      setConversations(await listInternalConversations(identity))
+      setScheduleEditOpen(false)
+      setMessage('Schedule updated.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Schedule could not be updated.')
+    } finally {
+      setScheduleActionSaving('')
+    }
+  }
+
+  async function cancelSchedule() {
+    if (!identity || !selectedScheduleEvent || scheduleActionSaving) return
+
+    setScheduleActionSaving('cancel')
+    setError('')
+    setMessage('')
+    try {
+      await cancelInternalScheduleEvent({
+        eventId: selectedScheduleEvent.id,
+        actorUserId: identity.userId,
+        reason: scheduleCancelReason,
+      })
+      setScheduleEvents(await listInternalScheduleEventsForConversation(selectedScheduleEvent.conversationId))
+      setMessages(await listInternalMessages(selectedScheduleEvent.conversationId))
+      setConversations(await listInternalConversations(identity))
+      setScheduleEditOpen(false)
+      setMessage('Schedule cancelled.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Schedule could not be cancelled.')
+    } finally {
+      setScheduleActionSaving('')
+    }
+  }
+
   if (!authResolved || loading) {
     return (
       <section style={pageStyle}>
@@ -575,6 +718,34 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <strong>{identity.tiqAdminId}</strong>
             </div>
           ) : null}
+          <div style={preferencePanelStyle}>
+            <div style={labelStyle}>Notifications</div>
+            {notificationPreferences ? (
+              <div style={preferenceGridStyle}>
+                {([
+                  ['messageAlertsEnabled', 'Messages'],
+                  ['scheduleAlertsEnabled', 'Schedule'],
+                  ['supportAlertsEnabled', 'Support'],
+                  ['emailFallbackEnabled', 'Email fallback'],
+                ] as Array<[keyof InternalNotificationPreferencePatch, string]>).map(([key, label]) => (
+                  <label key={key} style={preferenceToggleStyle}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(notificationPreferences[key])}
+                      disabled={preferenceSaving === key}
+                      onChange={(event) => void updateNotificationPreference(key, event.target.checked)}
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p style={hintStyle}>Notification preferences will appear after the latest migration is applied.</p>
+            )}
+            {notificationPreferences?.emailFallbackEnabled ? (
+              <p style={hintStyle}>Email fallback only says you have a new TenAceIQ alert. Message content stays inside the app.</p>
+            ) : null}
+          </div>
           {!identity.identityColumnsAvailable ? (
             <p style={warningStyle}>Messaging identity columns are pending migration. IDs are previewed from your account.</p>
           ) : null}
@@ -664,6 +835,55 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </div>
           ) : null}
 
+          {identity.role === 'admin' && selectedConversation?.conversationType === 'support' ? (
+            <div style={opsPanelStyle}>
+              <div>
+                <div style={labelStyle}>Support ops</div>
+                <p style={copyStyle}>
+                  {selectedConversation.assignedAdminUserId === identity.userId
+                    ? 'Assigned to you.'
+                    : selectedConversation.assignedAdminUserId
+                      ? 'Assigned to another admin.'
+                      : 'Unassigned support thread.'}
+                </p>
+              </div>
+              <div style={rsvpActionRowStyle}>
+                <button
+                  type="button"
+                  onClick={() => void runSupportAction('assign', undefined, true)}
+                  disabled={Boolean(conversationActionSaving)}
+                  style={ghostButtonStyle}
+                >
+                  {conversationActionSaving === 'assign' ? 'Saving' : 'Assign to me'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runSupportAction('waiting_on_user', 'waiting_on_user')}
+                  disabled={Boolean(conversationActionSaving)}
+                  style={ghostButtonStyle}
+                >
+                  Waiting on user
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runSupportAction('waiting_on_admin', 'waiting_on_admin')}
+                  disabled={Boolean(conversationActionSaving)}
+                  style={ghostButtonStyle}
+                >
+                  Waiting on admin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runSupportAction(selectedConversation.status === 'closed' ? 'open' : 'closed', selectedConversation.status === 'closed' ? 'open' : 'closed')}
+                  disabled={Boolean(conversationActionSaving)}
+                  style={ghostButtonStyle}
+                >
+                  {selectedConversation.status === 'closed' ? 'Reopen' : 'Close'}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           {scheduleLoading ? (
             <div style={schedulePanelStyle}>
               <p style={copyStyle}>Checking schedule details...</p>
@@ -673,17 +893,22 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <div style={schedulePanelHeaderStyle}>
                 <div>
                   <div style={labelStyle}>Schedule</div>
-                  <h3 style={scheduleTitleStyle}>{scheduleEvents[0].title}</h3>
+                  <h3 style={scheduleTitleStyle}>{selectedScheduleEvent?.title}</h3>
                   <p style={copyStyle}>
                     {[
-                      scheduleEvents[0].scheduledDate,
-                      scheduleEvents[0].scheduledTime,
-                      scheduleEvents[0].facility,
-                      scheduleEvents[0].recurrenceRule ? `Repeats ${scheduleEvents[0].recurrenceRule}` : '',
+                      selectedScheduleEvent?.scheduledDate,
+                      selectedScheduleEvent?.scheduledTime,
+                      selectedScheduleEvent?.facility,
+                      selectedScheduleEvent?.recurrenceRule ? `Repeats ${selectedScheduleEvent.recurrenceRule}` : '',
                     ].filter(Boolean).join(' | ')}
                   </p>
                 </div>
-                <span style={pillStyle}>{scheduleEvents[0].eventType === 'tiq_league_match' ? 'League match' : 'Practice'}</span>
+                <div style={schedulePillStackStyle}>
+                  <span style={pillStyle}>{selectedScheduleEvent?.eventType === 'tiq_league_match' ? 'League match' : 'Practice'}</span>
+                  <span style={selectedScheduleEvent?.status === 'cancelled' ? pillDangerStyle : pillStyle}>
+                    {selectedScheduleEvent?.status === 'cancelled' ? 'Cancelled' : selectedScheduleEvent?.status || 'Proposed'}
+                  </span>
+                </div>
               </div>
 
               <div style={rsvpSummaryStyle}>
@@ -698,21 +923,81 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <div style={rsvpActionRowStyle}>
                 {(['in', 'out', 'maybe'] as InternalScheduleResponseStatus[]).map((status) => {
                   const active = scheduleResponses.some(
-                    (response) => response.profileId === identity.userId && response.eventId === scheduleEvents[0].id && response.responseStatus === status,
+                    (response) => response.profileId === identity.userId && response.eventId === selectedScheduleEvent?.id && response.responseStatus === status,
                   )
                   return (
                     <button
                       key={status}
                       type="button"
-                      onClick={() => void submitScheduleResponse(scheduleEvents[0].id, status)}
-                      disabled={Boolean(responseSaving)}
+                      onClick={() => selectedScheduleEvent ? void submitScheduleResponse(selectedScheduleEvent.id, status) : undefined}
+                      disabled={Boolean(responseSaving) || selectedScheduleEvent?.status === 'cancelled'}
                       style={rsvpButtonStyle(active, status)}
                     >
-                      {responseSaving === scheduleEvents[0].id ? 'Saving' : status === 'in' ? 'I am in' : status === 'out' ? 'I am out' : 'Maybe'}
+                      {responseSaving === selectedScheduleEvent?.id ? 'Saving' : status === 'in' ? 'I am in' : status === 'out' ? 'I am out' : 'Maybe'}
                     </button>
                   )
                 })}
               </div>
+
+              {selectedScheduleEvent?.status === 'cancelled' ? (
+                <p style={warningStyle}>This event is cancelled, so RSVP buttons are paused.</p>
+              ) : null}
+
+              {canManageSchedule && selectedScheduleEvent ? (
+                <div style={scheduleManagePanelStyle}>
+                  <div style={rsvpActionRowStyle}>
+                    <button type="button" onClick={() => setScheduleEditOpen((current) => !current)} style={ghostButtonStyle}>
+                      {scheduleEditOpen ? 'Hide edit' : 'Edit time/site'}
+                    </button>
+                  </div>
+                  {scheduleEditOpen ? (
+                    <div style={scheduleEditGridStyle}>
+                      <label style={fieldStyle}>
+                        <span style={labelStyle}>Date</span>
+                        <input type="date" value={scheduleDraftDate} onChange={(event) => setScheduleDraftDate(event.target.value)} style={inputStyle} />
+                      </label>
+                      <label style={fieldStyle}>
+                        <span style={labelStyle}>Time</span>
+                        <input type="time" value={scheduleDraftTime} onChange={(event) => setScheduleDraftTime(event.target.value)} style={inputStyle} />
+                      </label>
+                      <label style={fieldStyle}>
+                        <span style={labelStyle}>Site</span>
+                        <input value={scheduleDraftFacility} onChange={(event) => setScheduleDraftFacility(event.target.value)} style={inputStyle} />
+                      </label>
+                      <label style={fieldStyle}>
+                        <span style={labelStyle}>Update note</span>
+                        <input value={scheduleDraftNotes} onChange={(event) => setScheduleDraftNotes(event.target.value)} placeholder="Optional note for players" style={inputStyle} />
+                      </label>
+                      <div style={rsvpActionRowStyle}>
+                        <button
+                          type="button"
+                          onClick={() => void submitScheduleUpdate()}
+                          disabled={scheduleActionSaving === 'update' || !scheduleDraftDate}
+                          style={primaryButtonStyle}
+                        >
+                          {scheduleActionSaving === 'update' ? 'Saving...' : 'Save schedule'}
+                        </button>
+                      </div>
+                      {selectedScheduleEvent.status !== 'cancelled' ? (
+                        <div style={cancelBoxStyle}>
+                          <label style={fieldStyle}>
+                            <span style={labelStyle}>Cancel reason</span>
+                            <input value={scheduleCancelReason} onChange={(event) => setScheduleCancelReason(event.target.value)} placeholder="Optional" style={inputStyle} />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => void cancelSchedule()}
+                            disabled={scheduleActionSaving === 'cancel'}
+                            style={dangerButtonStyle}
+                          >
+                            {scheduleActionSaving === 'cancel' ? 'Cancelling...' : 'Cancel event'}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -969,6 +1254,30 @@ const identityRowStyle: CSSProperties = {
   fontWeight: 850,
 }
 
+const preferencePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const preferenceGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+}
+
+const preferenceToggleStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
 const sectionHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1106,6 +1415,15 @@ const contextPanelStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
 }
 
+const opsPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-chip-bg) 94%)',
+}
+
 const schedulePanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
@@ -1121,6 +1439,20 @@ const schedulePanelHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   flexWrap: 'wrap',
+}
+
+const schedulePillStackStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 8,
+}
+
+const pillDangerStyle: CSSProperties = {
+  ...pillStyle,
+  border: '1px solid rgba(248,113,113,0.28)',
+  background: 'rgba(248,113,113,0.13)',
+  color: '#fecaca',
 }
 
 const scheduleTitleStyle: CSSProperties = {
@@ -1154,6 +1486,28 @@ const rsvpActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 8,
+}
+
+const scheduleManagePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  paddingTop: 2,
+}
+
+const scheduleEditGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 10,
+}
+
+const cancelBoxStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(248,113,113,0.22)',
+  background: 'rgba(248,113,113,0.08)',
 }
 
 const rsvpButtonStyle = (active: boolean, status: InternalScheduleResponseStatus): CSSProperties => ({
@@ -1330,6 +1684,14 @@ const ghostButtonStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
+}
+
+const dangerButtonStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  width: 'fit-content',
+  border: '1px solid rgba(248,113,113,0.28)',
+  background: 'rgba(248,113,113,0.14)',
+  color: '#fecaca',
 }
 
 const hintStyle: CSSProperties = {
