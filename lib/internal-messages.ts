@@ -1,6 +1,7 @@
 'use client'
 
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
+import { notifyConversationParticipants, notifyInternalAdmins } from '@/lib/internal-notifications'
 import { supabase } from '@/lib/supabase'
 
 export type InternalConversationType = 'direct' | 'support' | 'league' | 'system'
@@ -542,6 +543,13 @@ export async function createSupportConversation(
   })
 
   await sendInternalMessage(conversation.id, identity.userId, cleanBody)
+  await notifyInternalAdmins({
+    actorUserId: identity.userId,
+    title: 'New support request',
+    body: `${cleanSubject} opened in TenAceIQ support.`,
+    href: `/messages?thread=${encodeURIComponent(conversation.id)}`,
+    conversationId: conversation.id,
+  })
   return conversation.id
 }
 
@@ -657,7 +665,17 @@ export async function createLeagueConversation(
   return conversation.id
 }
 
-export async function sendInternalMessage(conversationId: string, senderUserId: string, body: string) {
+export async function sendInternalMessage(
+  conversationId: string,
+  senderUserId: string,
+  body: string,
+  options?: {
+    notificationType?: 'message' | 'schedule' | 'support' | 'system'
+    notificationTitle?: string
+    notificationBody?: string
+    scheduleEventId?: string | null
+  },
+) {
   const cleanBody = body.trim()
   if (!cleanBody) throw new Error('Add a message first.')
 
@@ -674,6 +692,15 @@ export async function sendInternalMessage(conversationId: string, senderUserId: 
     .from('internal_conversations')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', conversationId)
+
+  await notifyConversationParticipants({
+    conversationId,
+    actorUserId: senderUserId,
+    notificationType: options?.notificationType || 'message',
+    title: options?.notificationTitle || 'New TenAceIQ message',
+    body: options?.notificationBody || 'Open Messages to reply.',
+    scheduleEventId: options?.scheduleEventId,
+  })
 }
 
 export async function markInternalConversationRead(conversationId: string, userId: string) {

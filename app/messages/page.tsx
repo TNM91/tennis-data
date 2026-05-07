@@ -14,6 +14,12 @@ import {
   type InternalScheduleResponseStatus,
 } from '@/lib/internal-scheduling'
 import {
+  listInternalNotifications,
+  markAllInternalNotificationsRead,
+  markInternalNotificationRead,
+  type InternalNotification,
+} from '@/lib/internal-notifications'
+import {
   createDirectConversation,
   createSupportConversation,
   getInternalIdentity,
@@ -156,6 +162,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [messages, setMessages] = useState<InternalMessage[]>([])
   const [scheduleEvents, setScheduleEvents] = useState<InternalScheduleEvent[]>([])
   const [scheduleResponses, setScheduleResponses] = useState<InternalScheduleResponse[]>([])
+  const [notifications, setNotifications] = useState<InternalNotification[]>([])
   const [composeMode, setComposeMode] = useState<ComposeMode>(prefill.mode)
   const [supportCategory, setSupportCategory] = useState<SupportFilter>(prefill.category)
   const [supportFilter, setSupportFilter] = useState<SupportFilter>('all')
@@ -171,6 +178,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [loading, setLoading] = useState(true)
   const [threadLoading, setThreadLoading] = useState(false)
   const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [responseSaving, setResponseSaving] = useState('')
   const [message, setMessage] = useState('')
@@ -181,6 +189,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     [conversations, selectedId],
   )
   const selectedContextHref = useMemo(() => buildConversationContextHref(selectedConversation), [selectedConversation])
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.readAt).length,
+    [notifications],
+  )
   const filteredConversations = useMemo(() => {
     if (!identity || identity.role !== 'admin' || supportFilter === 'all') return conversations
     return conversations.filter((conversation) =>
@@ -249,6 +261,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
       const nextConversations = await listInternalConversations(nextIdentity)
       setConversations(nextConversations)
+      setNotificationsLoading(true)
+      listInternalNotifications(nextIdentity.userId, { limit: 12 })
+        .then(setNotifications)
+        .catch(() => setNotifications([]))
+        .finally(() => setNotificationsLoading(false))
       setSelectedId((current) =>
         prefill.threadId && nextConversations.some((conversation) => conversation.id === prefill.threadId)
           ? prefill.threadId
@@ -456,6 +473,39 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setError(err instanceof Error ? err.message : 'RSVP could not be saved.')
     } finally {
       setResponseSaving('')
+    }
+  }
+
+  async function openNotification(notification: InternalNotification) {
+    if (!identity) return
+    setError('')
+    try {
+      if (!notification.readAt) {
+        await markInternalNotificationRead(notification.id, identity.userId)
+        setNotifications((current) =>
+          current.map((item) =>
+            item.id === notification.id ? { ...item, readAt: new Date().toISOString() } : item,
+          ),
+        )
+      }
+      if (notification.conversationId) {
+        setSelectedId(notification.conversationId)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Alert could not be opened.')
+    }
+  }
+
+  async function markAlertsRead() {
+    if (!identity) return
+    setError('')
+    try {
+      await markAllInternalNotificationsRead(identity.userId)
+      const readAt = new Date().toISOString()
+      setNotifications((current) => current.map((item) => ({ ...item, readAt: item.readAt || readAt })))
+      setMessage('Alerts marked read.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Alerts could not be updated.')
     }
   }
 
@@ -701,7 +751,45 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           ) : null}
         </section>
 
-        <aside style={panelStyle}>
+        <aside style={panelStyle} id="alerts">
+          <div style={sectionHeaderStyle}>
+            <div>
+              <div className="section-kicker">Alerts</div>
+              <h2 style={sectionTitleStyle}>Notifications</h2>
+            </div>
+            {unreadNotificationCount ? (
+              <button type="button" onClick={() => void markAlertsRead()} style={ghostButtonStyle}>
+                Mark read
+              </button>
+            ) : null}
+          </div>
+
+          {notificationsLoading ? (
+            <p style={copyStyle}>Loading alerts...</p>
+          ) : notifications.length ? (
+            <div style={notificationListStyle}>
+              {notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={() => void openNotification(notification)}
+                  style={notificationButtonStyle(!notification.readAt)}
+                >
+                  <span style={notificationTopStyle}>
+                    <strong>{notification.title || 'TenAceIQ alert'}</strong>
+                    {!notification.readAt ? <small style={unreadPillStyle}>New</small> : null}
+                  </span>
+                  <span style={threadPreviewStyle}>{notification.body || 'Open Messages to review.'}</span>
+                  <span style={threadMetaStyle}>{formatMessageTime(notification.createdAt)}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p style={copyStyle}>No alerts yet. New messages, scheduling threads, and RSVP changes will land here.</p>
+          )}
+
+          <div style={dividerStyle} />
+
           <div className="section-kicker">New message</div>
           <h2 style={sectionTitleStyle}>Start a thread</h2>
           <div style={segmentedStyle}>
@@ -931,6 +1019,42 @@ const unreadPillStyle: CSSProperties = {
   color: 'var(--text-dark)',
   padding: '3px 7px',
   fontWeight: 950,
+}
+
+const notificationListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const notificationButtonStyle = (unread: boolean): CSSProperties => ({
+  appearance: 'none',
+  display: 'grid',
+  gap: 7,
+  width: '100%',
+  borderRadius: 16,
+  border: unread
+    ? '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
+    : '1px solid var(--shell-panel-border)',
+  background: unread
+    ? 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)'
+    : 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: 12,
+  textAlign: 'left',
+  cursor: 'pointer',
+})
+
+const notificationTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 8,
+}
+
+const dividerStyle: CSSProperties = {
+  height: 1,
+  background: 'var(--shell-panel-border)',
+  margin: '2px 0',
 }
 
 const threadTopStyle: CSSProperties = {

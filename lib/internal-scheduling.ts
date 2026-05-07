@@ -463,6 +463,16 @@ export async function saveInternalScheduleResponse(input: {
 
   if (input.conversationId) {
     const label = input.responseStatus === 'in' ? 'In' : input.responseStatus === 'out' ? 'Out' : input.responseStatus === 'maybe' ? 'Maybe' : 'Unanswered'
-    await sendInternalMessage(input.conversationId, input.profileId, `RSVP: ${label}${input.note ? ` - ${input.note}` : ''}`)
+    await sendInternalMessage(
+      input.conversationId,
+      input.profileId,
+      `RSVP: ${label}${input.note ? ` - ${input.note}` : ''}`,
+      {
+        notificationType: 'schedule',
+        notificationTitle: 'Schedule RSVP updated',
+        notificationBody: `${label} for the scheduled event.`,
+        scheduleEventId: input.eventId,
+      },
+    )
   }
 }
