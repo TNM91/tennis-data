@@ -12,7 +12,9 @@ import {
   getInternalIdentity,
   listInternalConversations,
   listInternalMessages,
+  saveInternalDisplayName,
   sendInternalMessage,
+  searchInternalRecipients,
   type InternalConversation,
   type InternalIdentity,
   type InternalMessage,
@@ -90,6 +92,10 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
   const [composeMode, setComposeMode] = useState<ComposeMode>(initialMode)
   const [recipientInput, setRecipientInput] = useState('')
   const [recipient, setRecipient] = useState<InternalRecipient | null>(null)
+  const [recipientSearchResults, setRecipientSearchResults] = useState<InternalRecipient[]>([])
+  const [recipientSearching, setRecipientSearching] = useState(false)
+  const [displayNameDraft, setDisplayNameDraft] = useState('')
+  const [identitySaving, setIdentitySaving] = useState(false)
   const [subject, setSubject] = useState(initialMode === 'support' ? 'Support request' : '')
   const [body, setBody] = useState('')
   const [replyBody, setReplyBody] = useState('')
@@ -115,6 +121,7 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
     try {
       const nextIdentity = await getInternalIdentity()
       setIdentity(nextIdentity)
+      setDisplayNameDraft(nextIdentity?.displayName ?? '')
       if (!nextIdentity) {
         setConversations([])
         setSelectedId('')
@@ -165,13 +172,56 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
     setError('')
     const found = await findInternalRecipient(recipientInput)
     if (!found) {
-      setError('No TenAceIQ user was found for that ID.')
+      setError('No TenAceIQ user was found for that name or ID.')
       return null
     }
 
     setRecipient(found)
     setMessage(`Ready to message ${found.displayName}.`)
     return found
+  }
+
+  async function searchRecipients() {
+    if (!identity) return
+    const query = recipientInput.trim()
+    setRecipient(null)
+    setRecipientSearchResults([])
+    setError('')
+    setMessage('')
+    if (query.length < 2) {
+      setError('Type at least two characters to search.')
+      return
+    }
+
+    setRecipientSearching(true)
+    try {
+      const results = await searchInternalRecipients(query, identity.userId)
+      setRecipientSearchResults(results)
+      if (!results.length) {
+        setError('No TenAceIQ users matched that name or ID.')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Recipient search could not run.')
+    } finally {
+      setRecipientSearching(false)
+    }
+  }
+
+  async function saveDisplayName() {
+    if (!identity || identitySaving) return
+
+    setIdentitySaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const nextName = await saveInternalDisplayName(identity.userId, displayNameDraft)
+      setIdentity({ ...identity, displayName: nextName })
+      setMessage('Messaging name saved.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Messaging name could not be saved.')
+    } finally {
+      setIdentitySaving(false)
+    }
   }
 
   async function submitNewConversation() {
@@ -256,13 +306,31 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
           <div className="section-kicker">TenAceIQ Messages</div>
           <h1 style={titleStyle}>One place for support and player communication.</h1>
           <p style={copyStyle}>
-            Share your TIQ ID, message another user, or open a support thread without leaving the platform.
+            Search by player or account name, message another user, or open a support thread without leaving the platform.
           </p>
         </div>
         <div style={identityPanelStyle}>
-          <span style={pillStyle}>{identity.role === 'admin' ? 'Admin identity' : 'Player identity'}</span>
+          <span style={pillStyle}>{identity.role === 'admin' ? 'Admin identity' : 'Messaging identity'}</span>
+          <label style={fieldStyle}>
+            <span style={labelStyle}>Shown as</span>
+            <div style={lookupRowStyle}>
+              <input
+                value={displayNameDraft}
+                onChange={(event) => setDisplayNameDraft(event.target.value)}
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={() => void saveDisplayName()}
+                disabled={identitySaving || displayNameDraft.trim() === identity.displayName}
+                style={ghostButtonStyle}
+              >
+                {identitySaving ? 'Saving' : 'Save'}
+              </button>
+            </div>
+          </label>
           <div style={identityRowStyle}>
-            <span>Your TIQ ID</span>
+            <span>Support reference ID</span>
             <strong>{identity.tiqPublicId}</strong>
           </div>
           {identity.tiqAdminId ? (
@@ -312,7 +380,7 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
               ))}
             </div>
           ) : (
-            <p style={copyStyle}>No messages yet. Start with support or send a player a note by TIQ ID.</p>
+            <p style={copyStyle}>No messages yet. Start with support or search for another player by name.</p>
           )}
         </aside>
 
@@ -374,22 +442,47 @@ function MessagesWorkspace({ initialMode }: { initialMode: ComposeMode }) {
 
           {composeMode === 'direct' ? (
             <label style={fieldStyle}>
-              <span style={labelStyle}>Recipient TIQ ID</span>
+              <span style={labelStyle}>Recipient</span>
               <div style={lookupRowStyle}>
                 <input
                   value={recipientInput}
                   onChange={(event) => {
                     setRecipientInput(event.target.value)
                     setRecipient(null)
+                    setRecipientSearchResults([])
                   }}
-                  placeholder="TIQ-..."
+                  placeholder="Search name or TIQ ID"
                   style={inputStyle}
                 />
-                <button type="button" onClick={() => void resolveRecipient()} style={ghostButtonStyle}>
-                  Find
+                <button type="button" onClick={() => void searchRecipients()} style={ghostButtonStyle}>
+                  {recipientSearching ? 'Finding' : 'Find'}
                 </button>
               </div>
-              {recipient ? <span style={hintStyle}>Found {recipient.displayName}</span> : null}
+              {recipient ? <span style={hintStyle}>Selected {recipient.displayName}</span> : null}
+              {recipientSearchResults.length ? (
+                <div style={recipientResultsStyle}>
+                  {recipientSearchResults.map((result) => (
+                    <button
+                      key={result.id}
+                      type="button"
+                      onClick={() => {
+                        setRecipient(result)
+                        setRecipientInput(result.displayName)
+                        setRecipientSearchResults([])
+                        setMessage(`Ready to message ${result.displayName}.`)
+                        setError('')
+                      }}
+                      style={recipientResultButtonStyle}
+                    >
+                      <span>
+                        <strong>{result.displayName}</strong>
+                        <small>{result.role === 'admin' ? 'Admin' : 'TenAceIQ user'}</small>
+                      </span>
+                      <em>{result.tiqAdminId || result.tiqPublicId}</em>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </label>
           ) : (
             <p style={copyStyle}>Support threads are visible to TenAceIQ admins, so billing and account issues can be handled inside the app.</p>
@@ -658,6 +751,28 @@ const lookupRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   gap: 8,
+}
+
+const recipientResultsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const recipientResultButtonStyle: CSSProperties = {
+  appearance: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  width: '100%',
+  minHeight: 54,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '9px 11px',
+  textAlign: 'left',
+  cursor: 'pointer',
 }
 
 const primaryButtonStyle: CSSProperties = {

@@ -53,6 +53,7 @@ type ProfileIdentityRow = {
   id?: string | null
   role?: string | null
   linked_player_name?: string | null
+  message_display_name?: string | null
   display_name?: string | null
   tiq_public_id?: string | null
   tiq_admin_id?: string | null
@@ -155,7 +156,7 @@ export async function getInternalIdentity(): Promise<InternalIdentity | null> {
 
   const richProfile = await supabase
     .from('profiles')
-    .select('id, role, linked_player_name, tiq_public_id, tiq_admin_id')
+    .select('id, role, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -174,10 +175,12 @@ export async function getInternalIdentity(): Promise<InternalIdentity | null> {
   const role = normalizeUserRole(profile?.role ?? 'member')
   const tiqPublicId = profile?.tiq_public_id?.trim() || fallbackPublicId
   const tiqAdminId = role === 'admin' ? profile?.tiq_admin_id?.trim() || fallbackAdminId : ''
+  const displayName = profile?.message_display_name?.trim() || profile?.linked_player_name?.trim() || user.email || tiqPublicId
 
-  if (identityColumnsAvailable && (!profile?.tiq_public_id || (role === 'admin' && !profile?.tiq_admin_id))) {
+  if (identityColumnsAvailable && (!profile?.tiq_public_id || !profile?.message_display_name || (role === 'admin' && !profile?.tiq_admin_id))) {
     const payload: Record<string, string> = { tiq_public_id: tiqPublicId }
     if (role === 'admin') payload.tiq_admin_id = tiqAdminId
+    if (!profile?.message_display_name) payload.message_display_name = displayName
     await supabase.from('profiles').update(payload).eq('id', user.id)
   }
 
@@ -185,18 +188,29 @@ export async function getInternalIdentity(): Promise<InternalIdentity | null> {
     userId: user.id,
     email: user.email ?? '',
     role,
-    displayName: profile?.linked_player_name?.trim() || user.email || tiqPublicId,
+    displayName,
     tiqPublicId,
     tiqAdminId,
     identityColumnsAvailable,
   }
 }
 
-export async function findInternalRecipient(value: string): Promise<InternalRecipient | null> {
-  const normalized = value.trim()
-  if (!normalized) return null
+function toInternalRecipient(row: ProfileIdentityRow): InternalRecipient | null {
+  const userId = row.id || ''
+  if (!userId) return null
 
-  const select = 'id, role, linked_player_name, tiq_public_id, tiq_admin_id'
+  return {
+    id: userId,
+    displayName: row.display_name?.trim() || row.message_display_name?.trim() || row.linked_player_name?.trim() || row.tiq_admin_id || row.tiq_public_id || userId,
+    role: normalizeUserRole(row.role ?? 'member'),
+    tiqPublicId: row.tiq_public_id || buildTiqPublicId(userId),
+    tiqAdminId: row.tiq_admin_id || '',
+  }
+}
+
+async function findRecipientByExactId(value: string): Promise<InternalRecipient | null> {
+  const normalized = value.trim()
+  const profileSelect = 'id, role, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id'
   const directorySelect = 'id, role, display_name, tiq_public_id, tiq_admin_id'
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)
   let byId = isUuid
@@ -217,13 +231,13 @@ export async function findInternalRecipient(value: string): Promise<InternalReci
     byId = isUuid
       ? await supabase
           .from('profiles')
-          .select(select)
+          .select(profileSelect)
           .eq('id', normalized)
           .limit(1)
           .maybeSingle()
       : await supabase
           .from('profiles')
-          .select(select)
+          .select(profileSelect)
           .or(`tiq_public_id.eq.${normalized.toUpperCase()},tiq_admin_id.eq.${normalized.toUpperCase()}`)
           .limit(1)
           .maybeSingle()
@@ -231,17 +245,61 @@ export async function findInternalRecipient(value: string): Promise<InternalReci
 
   if (byId.error || !byId.data) return null
 
-  const row = byId.data as ProfileIdentityRow
-  const userId = row.id || ''
-  if (!userId) return null
+  return toInternalRecipient(byId.data as ProfileIdentityRow)
+}
 
-  return {
-    id: userId,
-    displayName: row.display_name?.trim() || row.linked_player_name?.trim() || row.tiq_admin_id || row.tiq_public_id || userId,
-    role: normalizeUserRole(row.role ?? 'member'),
-    tiqPublicId: row.tiq_public_id || buildTiqPublicId(userId),
-    tiqAdminId: row.tiq_admin_id || '',
+export async function findInternalRecipient(value: string): Promise<InternalRecipient | null> {
+  const normalized = value.trim()
+  if (!normalized) return null
+
+  const exact = await findRecipientByExactId(normalized)
+  if (exact) return exact
+
+  const matches = await searchInternalRecipients(normalized)
+  return matches[0] ?? null
+}
+
+export async function searchInternalRecipients(value: string, currentUserId?: string): Promise<InternalRecipient[]> {
+  const normalized = value.trim()
+  if (normalized.length < 2) return []
+
+  const exact = await findRecipientByExactId(normalized)
+  const byName = await supabase
+    .from('internal_message_directory')
+    .select('id, role, display_name, tiq_public_id, tiq_admin_id')
+    .ilike('display_name', `%${normalized}%`)
+    .order('display_name', { ascending: true })
+    .limit(8)
+
+  const rows = byName.error ? [] : ((byName.data ?? []) as ProfileIdentityRow[])
+  const map = new Map<string, InternalRecipient>()
+
+  if (exact && exact.id !== currentUserId) {
+    map.set(exact.id, exact)
   }
+
+  for (const row of rows) {
+    const recipient = toInternalRecipient(row)
+    if (recipient && recipient.id !== currentUserId) {
+      map.set(recipient.id, recipient)
+    }
+  }
+
+  return Array.from(map.values()).slice(0, 8)
+}
+
+export async function saveInternalDisplayName(userId: string, displayName: string) {
+  const cleanName = displayName.trim()
+  if (cleanName.length < 2) throw new Error('Use at least two characters for your messaging name.')
+  if (cleanName.length > 80) throw new Error('Keep your messaging name under 80 characters.')
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ message_display_name: cleanName })
+    .eq('id', userId)
+
+  if (error) throw new Error(error.message)
+  return cleanName
 }
 
 export async function listInternalConversations(identity: InternalIdentity): Promise<InternalConversation[]> {
@@ -364,7 +422,7 @@ export async function createDirectConversation(
 ) {
   const cleanBody = body.trim()
   if (!cleanBody) throw new Error('Add a message before starting the conversation.')
-  if (recipient.id === identity.userId) throw new Error('Choose another TenAceIQ ID to message.')
+  if (recipient.id === identity.userId) throw new Error('Choose another TenAceIQ user to message.')
 
   const { data, error } = await supabase
     .from('internal_conversations')

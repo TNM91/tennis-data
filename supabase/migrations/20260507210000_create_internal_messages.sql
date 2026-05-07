@@ -1,6 +1,8 @@
 alter table public.profiles
   add column if not exists tiq_public_id text,
-  add column if not exists tiq_admin_id text;
+  add column if not exists tiq_admin_id text,
+  add column if not exists message_display_name text not null default '',
+  add column if not exists message_search_enabled boolean not null default true;
 
 update public.profiles
 set tiq_public_id = 'TIQ-' || upper(substr(replace(id::text, '-', ''), 1, 10))
@@ -10,6 +12,10 @@ update public.profiles
 set tiq_admin_id = 'TIQ-ADMIN-' || upper(substr(replace(id::text, '-', ''), 1, 8))
 where role = 'admin'
   and (tiq_admin_id is null or btrim(tiq_admin_id) = '');
+
+update public.profiles
+set message_display_name = coalesce(nullif(btrim(linked_player_name), ''), tiq_public_id, 'TenAceIQ user')
+where btrim(message_display_name) = '';
 
 create unique index if not exists profiles_tiq_public_id_key
   on public.profiles (tiq_public_id)
@@ -23,11 +29,17 @@ create or replace view public.internal_message_directory as
 select
   id,
   coalesce(role, 'member') as role,
-  coalesce(linked_player_name, '') as display_name,
+  coalesce(
+    nullif(btrim(message_display_name), ''),
+    nullif(btrim(linked_player_name), ''),
+    tiq_public_id,
+    'TenAceIQ user'
+  ) as display_name,
   tiq_public_id,
   tiq_admin_id
 from public.profiles
-where tiq_public_id is not null;
+where tiq_public_id is not null
+  and message_search_enabled = true;
 
 grant select on public.internal_message_directory to authenticated;
 
