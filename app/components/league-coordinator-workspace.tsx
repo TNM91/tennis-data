@@ -36,6 +36,8 @@ import {
   getTiqLeagueScoringSystemLabel,
   getTiqLeagueSchedulingModeDescription,
   getTiqLeagueSchedulingModeLabel,
+  getTiqLeagueVisibilityDescription,
+  getTiqLeagueVisibilityLabel,
   parseRegistryListInput,
   type TiqLeagueDraft,
   type TiqLeagueRecord,
@@ -57,8 +59,13 @@ import {
 import { type UserRole } from '@/lib/roles'
 import {
   listTiqLeagues,
+  listTiqPlayerLeagueEntries,
+  listTiqTeamLeagueEntries,
   removeTiqLeague,
   saveTiqLeague,
+  updateTiqLeagueEntryStatus,
+  type TiqPlayerLeagueEntryRecord,
+  type TiqTeamLeagueEntryRecord,
   type TiqLeagueStorageSource,
 } from '@/lib/tiq-league-service'
 import { cleanText as safeText } from '@/lib/captain-formatters'
@@ -76,6 +83,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   endsOn: '',
   maxWeeks: DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   maxMatchEvents: DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
+  isPublic: true,
   schedulingMode: 'coordinator_fixed',
   defaultMatchDay: '',
   defaultMatchTime: '',
@@ -212,6 +220,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [teamMatchLines, setTeamMatchLines] = useState<TiqTeamMatchLineRecord[]>([])
   const [teamStandingsByLeague, setTeamStandingsByLeague] = useState<Record<string, TiqTeamStandingRow[]>>({})
   const [teamResultWarning, setTeamResultWarning] = useState('')
+  const [teamEntryRequests, setTeamEntryRequests] = useState<TiqTeamLeagueEntryRecord[]>([])
+  const [playerEntryRequests, setPlayerEntryRequests] = useState<TiqPlayerLeagueEntryRecord[]>([])
+  const [entryRequestStatus, setEntryRequestStatus] = useState('')
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
 
   const refreshRegistry = useCallback(async () => {
@@ -228,6 +239,30 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
     return () => window.clearTimeout(timeoutId)
   }, [refreshRegistry])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadEntryRequests() {
+      const teamLeagues = records.filter((record) => record.leagueFormat === 'team')
+      const playerLeagues = records.filter((record) => record.leagueFormat === 'individual')
+
+      const [teamResults, playerResults] = await Promise.all([
+        Promise.all(teamLeagues.map((record) => listTiqTeamLeagueEntries(record.id, { includeAllStatuses: true }))),
+        Promise.all(playerLeagues.map((record) => listTiqPlayerLeagueEntries(record.id, { includeAllStatuses: true }))),
+      ])
+
+      if (!active) return
+      setTeamEntryRequests(teamResults.flatMap((result) => result.entries))
+      setPlayerEntryRequests(playerResults.flatMap((result) => result.entries))
+    }
+
+    void loadEntryRequests()
+
+    return () => {
+      active = false
+    }
+  }, [records])
 
   useEffect(() => {
     let active = true
@@ -736,6 +771,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       endsOn: record.endsOn || calculateTiqLeagueEndsOn(record.startsOn, record.maxWeeks),
       maxWeeks: record.maxWeeks,
       maxMatchEvents: record.maxMatchEvents,
+      isPublic: record.isPublic,
       schedulingMode: record.schedulingMode,
       defaultMatchDay: record.defaultMatchDay,
       defaultMatchTime: record.defaultMatchTime,
@@ -799,6 +835,31 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setStorageWarning(result.warning || '')
   }
 
+  async function handleEntryRequestAction(
+    league: TiqLeagueRecord,
+    entryName: string,
+    entryStatus: 'active' | 'rejected',
+  ) {
+    setEntryRequestStatus(entryStatus === 'active' ? `Approving ${entryName}...` : `Declining ${entryName}...`)
+    const result = await updateTiqLeagueEntryStatus({
+      leagueId: league.id,
+      leagueFormat: league.leagueFormat,
+      entryName,
+      entryStatus,
+    })
+    await refreshRegistry()
+    if (result.record) {
+      setLastSavedRecord(result.record)
+    }
+    setStorageSource(result.source)
+    setStorageWarning(result.warning || '')
+    setEntryRequestStatus(
+      entryStatus === 'active'
+        ? `${entryName} was approved for ${league.leagueName}.`
+        : `${entryName} was declined for ${league.leagueName}.`,
+    )
+  }
+
   async function copyPublicLeagueLink(record: TiqLeagueRecord) {
     const publicHref = buildTiqLeaguePageHref(record)
     const publicUrl =
@@ -831,6 +892,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       ? `${draft.startsOn} to ${calculatedEndsOn}`
       : 'Choose a valid start date.'
     : 'Choose a start date and TenAceIQ will calculate the end date.'
+  const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
+  const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
+  const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
 
   return (
     <SiteShell active={activeRoute}>
@@ -1431,6 +1495,26 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </label>
 
               <label style={fieldLabel}>
+                <span>League visibility</span>
+                <select
+                  value={draft.isPublic ? 'public' : 'private'}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      isPublic: event.target.value !== 'private',
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="public">Public page</option>
+                  <option value="private">Private league</option>
+                </select>
+                <span style={fieldHelpText}>
+                  {getTiqLeagueVisibilityDescription(draft.isPublic)}
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
                 <span>Season length</span>
                 <input
                   type="number"
@@ -1817,6 +1901,56 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               {LEAGUE_COORDINATOR_STORY.registryBody}
             </p>
 
+            <div style={entryRequestPanelStyle}>
+              <div style={registryMetaRow}>
+                <span style={pendingEntryRequestCount > 0 ? pillGreen : pillSlate}>
+                  {pendingEntryRequestCount} pending
+                </span>
+                <span style={pillSlate}>Coordinator approval required</span>
+              </div>
+              <div style={registryTitle}>Join requests</div>
+              <div style={registryText}>
+                Public and private leagues both require approval before a team or player becomes an active participant.
+              </div>
+              {entryRequestStatus ? <div style={statusBanner}>{entryRequestStatus}</div> : null}
+              {pendingEntryRequestCount === 0 ? (
+                <div style={emptyCard}>No join requests are waiting right now.</div>
+              ) : (
+                <div style={stackList}>
+                  {[...pendingTeamEntryRequests, ...pendingPlayerEntryRequests].map((entry) => {
+                    const league = records.find((record) => record.id === entry.leagueId)
+                    if (!league) return null
+                    const entryName =
+                      'teamName' in entry
+                        ? entry.teamName
+                        : entry.playerName
+                    const detail =
+                      'teamName' in entry
+                        ? [entry.sourceLeagueName, entry.sourceFlight, 'Team request'].filter(Boolean).join(' | ')
+                        : [entry.playerLocation, 'Player request'].filter(Boolean).join(' | ')
+
+                    return (
+                      <div key={`${entry.leagueId}-${entryName}`} style={requestCardStyle}>
+                        <div>
+                          <div style={registryTitle}>{entryName}</div>
+                          <div style={registryText}>{league.leagueName}</div>
+                          {detail ? <div style={registryNotes}>{detail}</div> : null}
+                        </div>
+                        <div style={buttonRow}>
+                          <PrimaryBtn onClick={() => void handleEntryRequestAction(league, entryName, 'active')}>
+                            Approve
+                          </PrimaryBtn>
+                          <DangerBtn onClick={() => void handleEntryRequestAction(league, entryName, 'rejected')}>
+                            Decline
+                          </DangerBtn>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {records.length === 0 ? (
               <div style={emptyCard}>
                 No TIQ leagues have been created yet. Start with a team league or an individual league to
@@ -1844,6 +1978,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                         </span>
                         <span style={record.seasonStatus === 'active' ? pillGreen : pillSlate}>
                           {record.seasonStatus}
+                        </span>
+                        <span style={record.isPublic ? pillGreen : pillSlate}>
+                          {getTiqLeagueVisibilityLabel(record.isPublic)}
                         </span>
                         <span style={pillSlate}>{record.seasonLabel || 'Season label missing'}</span>
                         <span style={pillSlate}>{getTiqLeagueSeasonSummary(record)}</span>
@@ -2870,6 +3007,26 @@ const registryFooter: CSSProperties = {
   gap: '10px',
   flexWrap: 'wrap',
   paddingTop: '8px',
+}
+
+const entryRequestPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '12px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const requestCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: '12px',
+  alignItems: 'center',
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(8,18,35,0.72)',
 }
 
 const registryTimestamp: CSSProperties = {

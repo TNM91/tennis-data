@@ -452,7 +452,7 @@ export default function TiqLeagueDetailPage() {
       }
 
       if (league.leagueFormat === 'team') {
-        const result = await listTiqTeamLeagueEntries(league.id)
+        const result = await listTiqTeamLeagueEntries(league.id, { includeAllStatuses: true })
         if (!active) return
         setTeamEntries(result.entries)
         setPlayerEntries([])
@@ -462,7 +462,7 @@ export default function TiqLeagueDetailPage() {
         return
       }
 
-      const result = await listTiqPlayerLeagueEntries(league.id)
+      const result = await listTiqPlayerLeagueEntries(league.id, { includeAllStatuses: true })
       if (!active) return
       setPlayerEntries(result.entries)
       setTeamEntries([])
@@ -551,7 +551,7 @@ export default function TiqLeagueDetailPage() {
     league?.individualCompetitionFormat,
   )
   const entryEnabled = league?.leagueFormat === 'team' ? access.canEnterTiqTeamLeague : access.canJoinTiqIndividualLeague
-  const entryLabel = league?.leagueFormat === 'team' ? 'Enter Team' : 'Join League'
+  const entryLabel = league?.leagueFormat === 'team' ? 'Request Team Entry' : 'Request to Join'
   const entryPlaceholder =
     league?.leagueFormat === 'team' ? 'North Dallas Aces' : deriveDefaultParticipantName(userEmail) || 'Player name'
   const entryMessage =
@@ -1573,6 +1573,20 @@ export default function TiqLeagueDetailPage() {
       return
     }
 
+    const currentRequests = league.leagueFormat === 'team' ? teamEntries : playerEntries
+    const existingRequest = currentRequests.find((entry) => {
+      const name = 'teamName' in entry ? entry.teamName : entry.playerName
+      return name.toLowerCase() === normalizedEntry.toLowerCase()
+    })
+    if (existingRequest?.entryStatus === 'pending') {
+      setStatus(`${normalizedEntry} already has a pending request. The coordinator needs to approve it before it appears in the league.`)
+      return
+    }
+    if (existingRequest?.entryStatus === 'rejected') {
+      setStatus(`${normalizedEntry} was previously declined. Contact the coordinator before requesting again.`)
+      return
+    }
+
     setSaving(true)
     setStatus('')
 
@@ -1607,16 +1621,16 @@ export default function TiqLeagueDetailPage() {
       setStorageWarning(result.warning || '')
       setStatus(
         league.leagueFormat === 'team'
-          ? `${normalizedEntry} was added to this TIQ team league.`
-          : `${normalizedEntry} joined this TIQ individual league.`,
+          ? `${normalizedEntry} requested entry. The coordinator must approve it before the team appears in this league.`
+          : `${normalizedEntry} requested entry. The coordinator must approve it before the player appears in this league.`,
       )
       if (league.leagueFormat === 'individual') {
         setEntryValue(normalizedEntry)
-        const latestEntries = await listTiqPlayerLeagueEntries(league.id)
+        const latestEntries = await listTiqPlayerLeagueEntries(league.id, { includeAllStatuses: true })
         setPlayerEntries(latestEntries.entries)
       }
       if (league.leagueFormat === 'team') {
-        const latestEntries = await listTiqTeamLeagueEntries(league.id)
+        const latestEntries = await listTiqTeamLeagueEntries(league.id, { includeAllStatuses: true })
         setTeamEntries(latestEntries.entries)
       }
     } catch (err) {
@@ -1702,7 +1716,7 @@ export default function TiqLeagueDetailPage() {
                   <div style={{ ...statusBanner, ...(entryEnabled ? infoBanner : warningBanner) }}>
                     {entryEnabled
                       ? league.leagueFormat === 'team'
-                        ? 'Team entry is enabled for this signed-in captain context.'
+                        ? 'Team entry requests are open. The coordinator approves each team before it appears.'
                         : individualFormatExperience.enabledMessage
                       : entryMessage}
                   </div>
@@ -1758,13 +1772,13 @@ export default function TiqLeagueDetailPage() {
                 <div style={sectionEyebrow}>Entry workflow</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
-                    ? 'Add your team to this TIQ league'
-                    : individualFormatExperience.entryTitle}
+                    ? 'Request team entry'
+                    : 'Request to join'}
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'This is the monetization seam for the low-friction seasonal team entry layer. Captains can bring a team into TIQ competition without blending that action into USTA browse pages.'
-                    : `${individualFormatExperience.entryDescription} ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
+                    ? 'Submit your team for coordinator approval. Approved teams appear in participants, schedules, results, and standings.'
+                    : `Submit your player entry for coordinator approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
                 <label style={fieldLabel}>

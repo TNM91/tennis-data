@@ -20,6 +20,7 @@ export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
 export type TiqLeagueScoringSystem = 'standard' | 'dynamic_points'
 export type TiqLeagueSchedulingMode = 'coordinator_fixed' | 'player_arranged'
+export type TiqLeagueVisibility = 'public' | 'private'
 
 export type TiqLeagueRecord = {
   id: string
@@ -34,6 +35,7 @@ export type TiqLeagueRecord = {
   endsOn: string
   maxWeeks: number
   maxMatchEvents: number
+  isPublic: boolean
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
@@ -61,6 +63,7 @@ export type TiqLeagueDraft = {
   endsOn: string
   maxWeeks: number
   maxMatchEvents: number
+  isPublic: boolean
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
@@ -99,6 +102,25 @@ export function normalizeTiqLeagueSchedulingMode(
   value: string | null | undefined,
 ): TiqLeagueSchedulingMode {
   return value === 'player_arranged' ? 'player_arranged' : 'coordinator_fixed'
+}
+
+export function normalizeTiqLeagueVisibility(
+  value: string | boolean | null | undefined,
+): TiqLeagueVisibility {
+  if (value === false || value === 'private') return 'private'
+  return 'public'
+}
+
+export function getTiqLeagueVisibilityLabel(isPublic: boolean) {
+  return isPublic ? 'Public page' : 'Private league'
+}
+
+export function getTiqLeagueVisibilityDescription(isPublic: boolean) {
+  if (isPublic) {
+    return 'Public leagues are discoverable and shareable, but join requests still require coordinator approval.'
+  }
+
+  return 'Private leagues are hidden from public browse pages. Coordinators manage requests and active participants from this workspace.'
 }
 
 export function getTiqLeagueSchedulingModeLabel(mode: TiqLeagueSchedulingMode) {
@@ -163,6 +185,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     endsOn: cleanText(input.endsOn),
     maxWeeks: normalizeTiqLeagueMaxWeeks(input.maxWeeks),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(input.maxMatchEvents),
+    isPublic: normalizeTiqLeagueVisibility(input.isPublic) === 'public',
     schedulingMode: normalizeTiqLeagueSchedulingMode(input.schedulingMode),
     defaultMatchDay: cleanText(input.defaultMatchDay),
     defaultMatchTime: cleanText(input.defaultMatchTime),
@@ -204,6 +227,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(
         record.maxMatchEvents ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
       ),
+      isPublic: normalizeTiqLeagueVisibility(record.isPublic) === 'public',
       schedulingMode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
       defaultMatchDay: cleanText(record.defaultMatchDay),
       defaultMatchTime: cleanText(record.defaultMatchTime),
@@ -257,6 +281,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     endsOn: normalized.endsOn,
     maxWeeks: normalized.maxWeeks,
     maxMatchEvents: normalized.maxMatchEvents,
+    isPublic: normalized.isPublic,
     schedulingMode: normalized.schedulingMode,
     defaultMatchDay: normalized.defaultMatchDay,
     defaultMatchTime: normalized.defaultMatchTime,
