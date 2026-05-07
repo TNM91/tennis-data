@@ -18,7 +18,6 @@ export default function BrandWordmark({
   const width = compact ? 176 : top ? 276 : footer ? 288 : 236
   const height = compact ? 30 : top ? 46 : footer ? 48 : 40
   const logoSrc = theme === 'dark' ? '/logo-header-dark.svg' : '/logo-header-light.svg'
-
   return (
     <span
       style={{
@@ -34,7 +33,8 @@ export default function BrandWordmark({
         src={logoSrc}
         alt="TenAceIQ"
         fill
-        priority={top}
+        loading="eager"
+        fetchPriority={footer ? undefined : 'high'}
         sizes={`${width}px`}
         style={{
           objectFit: 'contain',

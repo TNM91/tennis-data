@@ -24,12 +24,14 @@ import {
   type TiqIndividualLeagueResultRecord,
   type TiqLeagueStorageSource as TiqResultStorageSource,
 } from '@/lib/tiq-individual-results-service'
+import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import { completeTiqIndividualSuggestionsForPair } from '@/lib/tiq-individual-suggestions-service'
 import {
   getTiqIndividualCompetitionFormatExperience,
   getTiqIndividualCompetitionFormatLabel,
 } from '@/lib/tiq-individual-format'
+import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 
@@ -95,6 +97,7 @@ const inputStyle: CSSProperties = {
   color: '#f1f5f9',
   fontSize: 14,
 }
+const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
 const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 82, resize: 'vertical' }
 const btnPrimary: CSSProperties = {
   padding: '9px 18px',
@@ -285,6 +288,12 @@ function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
   return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
 }
 
+function buildCurrentLoginNextHref(fallbackHref: string) {
+  if (typeof window === 'undefined') return fallbackHref
+  const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  return currentHref || fallbackHref
+}
+
 function participantValue(playerId: string, playerName: string) {
   return playerId || `name:${playerName}`
 }
@@ -467,6 +476,8 @@ export function IndividualLeagueResultsWorkspace({
     searchParams.get('suggest_player_a') || searchParams.get('playerA') || searchParams.get('player_a') || ''
   const suggestedResultPlayerB =
     searchParams.get('suggest_player_b') || searchParams.get('playerB') || searchParams.get('player_b') || ''
+  const scheduledResultItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
+  const scheduledResultDate = searchParams.get('resultDate') || searchParams.get('result_date') || ''
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [results, setResults] = useState<TiqIndividualLeagueResultRecord[]>([])
@@ -607,7 +618,7 @@ export function IndividualLeagueResultsWorkspace({
     async function checkAuth() {
       const authState = await getClientAuthState()
       if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(loginNextHref)}`)
+        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
         return
       }
 
@@ -685,7 +696,7 @@ export function IndividualLeagueResultsWorkspace({
     if (suggestedResultPlayerA === suggestedResultPlayerB) return
     if (resultParticipantOptions.length === 0) return
 
-    const nextSuggestedKey = `${selectedLeague.id}::${suggestedResultPlayerA}::${suggestedResultPlayerB}`
+    const nextSuggestedKey = `${selectedLeague.id}::${suggestedResultPlayerA}::${suggestedResultPlayerB}::${scheduledResultItemId}::${scheduledResultDate}`
     if (appliedSuggestedResultKey === nextSuggestedKey) return
 
     const playerAOption = findParticipantOption(resultParticipantOptions, suggestedResultPlayerA)
@@ -697,15 +708,22 @@ export function IndividualLeagueResultsWorkspace({
     setResultPlayerB(playerBOption.value)
     setResultWinner('')
     setResultScore('')
+    if (scheduledResultDate) setResultDate(scheduledResultDate)
     setResultNotes('')
     setResultFormOpen(true)
-    setStatus(`Loaded ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`)
+    setStatus(
+      scheduledResultItemId
+        ? `Loaded scheduled match: ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`
+        : `Loaded ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`,
+    )
     setAppliedSuggestedResultKey(nextSuggestedKey)
   }, [
     appliedSuggestedResultKey,
     canEditResults,
     resultParticipantOptions,
     selectedLeague,
+    scheduledResultDate,
+    scheduledResultItemId,
     suggestedResultPlayerA,
     suggestedResultPlayerB,
   ])
@@ -813,6 +831,13 @@ export function IndividualLeagueResultsWorkspace({
       return
     }
 
+    const winnerSide = winnerOption.value === resultPlayerAOption.value ? 'A' : 'B'
+    const scoreValidation = validateTiqTennisMatchScore(resultScore, winnerSide)
+    if (!scoreValidation.valid) {
+      setStatus(scoreValidation.message)
+      return
+    }
+
     setSaving(true)
     setStatus('')
 
@@ -821,6 +846,7 @@ export function IndividualLeagueResultsWorkspace({
       const saveResult = await saveTiqIndividualLeagueResult({
         resultId: editingResultId || null,
         leagueId: selectedLeague.id,
+        scheduleItemId: scheduledResultItemId || null,
         playerAName: resultPlayerAOption.playerName,
         playerAId: resultPlayerAOption.playerId,
         playerBName: resultPlayerBOption.playerName,
@@ -836,14 +862,21 @@ export function IndividualLeagueResultsWorkspace({
         playerAName: resultPlayerAOption.playerName,
         playerBName: resultPlayerBOption.playerName,
       })
+      const scheduleCompletion =
+        scheduledResultItemId && !editingExistingResult
+          ? await updateTiqLeagueScheduleStatus({
+              scheduleItemId: scheduledResultItemId,
+              status: 'completed',
+            })
+          : null
 
       await refreshResults(filterLeagueId)
       setResultStorageSource(saveResult.source)
-      setError(saveResult.warning || completion.warning || '')
+      setError(saveResult.warning || completion.warning || scheduleCompletion?.warning || '')
       setStatus(
         `${editingExistingResult ? 'Updated' : 'Saved'} TIQ result: ${winnerOption.playerName} over ${
           winnerOption.value === resultPlayerAOption.value ? resultPlayerBOption.playerName : resultPlayerAOption.playerName
-        }.`,
+        }.${scheduleCompletion ? ' Scheduled match marked complete.' : ''}`,
       )
       resetResultForm()
     } catch (saveError) {
@@ -1198,6 +1231,9 @@ export function IndividualLeagueResultsWorkspace({
                     style={inputStyle}
                     disabled={saving}
                   />
+                  <small style={scoreHelpStyle}>
+                    Completed sets only: 6-4, 7-6, or a deciding 10-point tiebreak like 10-8.
+                  </small>
                 </Field>
                 <Field label="Result date">
                   <input

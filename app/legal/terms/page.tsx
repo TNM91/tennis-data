@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
-import { BILLING_SUPPORT_EMAIL } from '@/lib/billing-policy'
+import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -95,7 +95,7 @@ export default function TermsPage() {
             these Terms.
           </p>
           <p>
-            For billing help, contact <a href={`mailto:${BILLING_SUPPORT_EMAIL}`}>{BILLING_SUPPORT_EMAIL}</a>.
+            For billing help, open a <Link href={BILLING_SUPPORT_PATH}>TenAceIQ support thread</Link>.
           </p>
         </div>
 

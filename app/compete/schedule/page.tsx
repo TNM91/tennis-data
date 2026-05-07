@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
@@ -169,6 +170,16 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
   const league = cleanText(match.league_name)
   const flight = cleanText(match.flight)
   const teams = [homeTeam, awayTeam].filter(Boolean)
+  const supportSubject = `Question about ${homeTeam || 'home team'} vs ${awayTeam || 'away team'}`
+  const supportBody = [
+    `Match: ${homeTeam || 'Home team TBD'} vs ${awayTeam || 'Away team TBD'}`,
+    league ? `League: ${league}` : '',
+    flight ? `Flight: ${flight}` : '',
+    match.match_date ? `Date: ${match.match_date}` : '',
+    cleanText(match.facility) ? `Facility: ${cleanText(match.facility)}` : '',
+    '',
+    'What I need help with:',
+  ].filter(Boolean).join('\n')
 
   return (
     <div style={rowStyle}>
@@ -182,6 +193,17 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
         </div>
         <div style={rowMetaStyle}>
           {[league, flight, cleanText(match.facility)].filter(Boolean).join(' | ') || 'League context pending'}
+        </div>
+        <div style={supportActionRowStyle}>
+          <QuickMessageComposer
+            mode="support"
+            triggerLabel="Ask support"
+            category="league"
+            subject={supportSubject}
+            body={supportBody}
+            entityType="schedule_match"
+            entityId={match.id}
+          />
         </div>
       </div>
 
@@ -205,6 +227,21 @@ function ScheduleMatchRow({ match }: { match: ScheduleMatch }) {
                   <PrepLink href={buildCaptainScopedHref('/captain/weekly-brief', scope)}>Brief</PrepLink>
                   <PrepLink href={buildCaptainScopedHref('/captain/availability', scope)}>Availability</PrepLink>
                   <PrepLink href={buildCaptainScopedHref('/captain/lineup-builder', scope)}>Lineup</PrepLink>
+                  {opponent ? (
+                    <QuickMessageComposer
+                      mode="direct"
+                      triggerLabel="Message opponent"
+                      recipientName={opponent}
+                      subject={`${team} vs ${opponent}`}
+                      body={[
+                        `Hi ${opponent},`,
+                        '',
+                        `Checking in about ${team} vs ${opponent}${match.match_date ? ` on ${match.match_date}` : ''}.`,
+                      ].join('\n')}
+                      entityType="schedule_match"
+                      entityId={match.id}
+                    />
+                  ) : null}
                 </div>
               </div>
             )
@@ -310,6 +347,13 @@ const rowMetaStyle = {
   color: 'rgba(214,228,246,0.72)',
   fontSize: '13px',
   lineHeight: 1.55,
+} as const
+
+const supportActionRowStyle = {
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+  marginTop: '10px',
 } as const
 
 const teamPrepStackStyle = {

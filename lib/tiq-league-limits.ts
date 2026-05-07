@@ -4,7 +4,7 @@ export type TiqLeagueSeasonStatus = 'draft' | 'active' | 'completed' | 'archived
 
 export const DEFAULT_TIQ_LEAGUE_MAX_WEEKS = 12
 export const DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS = 120
-export const MAX_TIQ_LEAGUE_WEEKS = 52
+export const MAX_TIQ_LEAGUE_WEEKS = 12
 export const MAX_TIQ_LEAGUE_MATCH_EVENTS = 500
 export const MAX_TIQ_TEAM_LEAGUE_TEAMS = 16
 export const MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS = 64
@@ -32,6 +32,26 @@ export function getTiqLeagueSeasonSummary(record: Pick<TiqLeagueRecord, 'maxWeek
   return `${record.maxWeeks} weeks / ${record.maxMatchEvents} match events`
 }
 
+function parseUtcDate(value: string | null | undefined) {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00Z`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function formatUtcDate(date: Date) {
+  return date.toISOString().slice(0, 10)
+}
+
+export function calculateTiqLeagueEndsOn(startsOn: string | null | undefined, maxWeeks: number | string | null | undefined) {
+  const starts = parseUtcDate(startsOn)
+  if (!starts) return ''
+
+  const weeks = normalizeTiqLeagueMaxWeeks(maxWeeks)
+  const ends = new Date(starts)
+  ends.setUTCDate(ends.getUTCDate() + weeks * 7 - 1)
+  return formatUtcDate(ends)
+}
+
 export function validateTiqLeagueSeasonWindow(input: {
   startsOn?: string | null
   endsOn?: string | null
@@ -39,9 +59,9 @@ export function validateTiqLeagueSeasonWindow(input: {
 }) {
   if (!input.startsOn || !input.endsOn) return null
 
-  const starts = new Date(`${input.startsOn}T00:00:00Z`)
-  const ends = new Date(`${input.endsOn}T00:00:00Z`)
-  if (Number.isNaN(starts.getTime()) || Number.isNaN(ends.getTime())) return null
+  const starts = parseUtcDate(input.startsOn)
+  const ends = parseUtcDate(input.endsOn)
+  if (!starts || !ends) return null
   if (ends < starts) return 'Season end must be on or after the start date.'
 
   const days = Math.floor((ends.getTime() - starts.getTime()) / (24 * 60 * 60 * 1000)) + 1

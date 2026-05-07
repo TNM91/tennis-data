@@ -22,12 +22,14 @@ import {
   type TiqTeamMatchEventRecord,
   type TiqTeamMatchLineRecord,
 } from '@/lib/tiq-team-results-service'
+import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 import {
   formatDynamicPointsForSides,
   getDynamicPointsRulesSummary,
   getDynamicPointsValidationMessage,
+  validateTiqTennisMatchScore,
 } from '@/lib/tiq-scoring'
 
 type PlayerOption = { id: string; name: string }
@@ -66,6 +68,7 @@ const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap
 const labelStyle: CSSProperties = { fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }
 const inputStyle: CSSProperties = { width: '100%', padding: '8px 11px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14 }
 const selectStyle: CSSProperties = { ...inputStyle }
+const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
 const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }
 const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer' }
 const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, fontSize: 13, border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer' }
@@ -309,6 +312,11 @@ function LineForm({
       return 'Choose a winner before saving a scored line.'
     }
 
+    if (form.winnerSide || form.score.trim()) {
+      const scoreValidation = validateTiqTennisMatchScore(form.score, form.winnerSide || null)
+      if (!scoreValidation.valid) return scoreValidation.message
+    }
+
     if (scoringSystem === 'dynamic_points') {
       const dynamicPointsWarning = getDynamicPointsValidationMessage(form.score, form.winnerSide || null)
       if (dynamicPointsWarning) return dynamicPointsWarning
@@ -386,6 +394,9 @@ function LineForm({
         </Field>
         <Field label="SCORE">
           <input style={inputStyle} placeholder="e.g. 6-4, 7-5" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} />
+          <small style={scoreHelpStyle}>
+            Completed sets only: 6-4, 7-6, or a deciding 10-point tiebreak like 10-8.
+          </small>
         </Field>
       </div>
 
@@ -734,6 +745,7 @@ function DynamicPointsLine({ line }: { line: TiqTeamMatchLineRecord }) {
 
 
 type EventFormState = {
+  scheduleItemId: string
   leagueId: string
   teamAName: string
   teamBName: string
@@ -743,6 +755,7 @@ type EventFormState = {
 }
 
 const emptyEvent = (): EventFormState => ({
+  scheduleItemId: '',
   leagueId: '',
   teamAName: '',
   teamBName: '',
@@ -784,6 +797,12 @@ function resultDateIsWithinDays(value: string, days: number) {
   return parsed >= Date.now() - days * 24 * 60 * 60 * 1000
 }
 
+function buildCurrentLoginNextHref(fallbackHref: string) {
+  if (typeof window === 'undefined') return fallbackHref
+  const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  return currentHref || fallbackHref
+}
+
 function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   if (!league) return []
 
@@ -795,15 +814,23 @@ function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   )
 }
 
-function defaultEventForLeague(leagues: TiqLeagueRecord[], leagueId: string): EventFormState {
+function defaultEventForLeague(
+  leagues: TiqLeagueRecord[],
+  leagueId: string,
+  defaults?: Partial<EventFormState>,
+): EventFormState {
   const league = leagues.find((item) => item.id === leagueId)
   const teamOptions = teamOptionsForLeague(league)
 
   return {
     ...emptyEvent(),
     leagueId,
-    teamAName: league?.captainTeamName || teamOptions[0] || '',
-    matchDate: todayInputValue(),
+    scheduleItemId: defaults?.scheduleItemId || '',
+    teamAName: defaults?.teamAName || league?.captainTeamName || teamOptions[0] || '',
+    teamBName: defaults?.teamBName || '',
+    matchDate: defaults?.matchDate || todayInputValue(),
+    facility: defaults?.facility || '',
+    notes: defaults?.notes || '',
   }
 }
 
@@ -852,13 +879,17 @@ async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
 function NewEventForm({
   leagues,
   defaultLeagueId,
+  scheduledDefaults,
   onCreated,
 }: {
   leagues: TiqLeagueRecord[]
   defaultLeagueId: string
+  scheduledDefaults?: Partial<EventFormState>
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
-  const [form, setForm] = useState<EventFormState>(() => defaultEventForLeague(leagues, defaultLeagueId))
+  const [form, setForm] = useState<EventFormState>(() =>
+    defaultEventForLeague(leagues, scheduledDefaults?.leagueId || defaultLeagueId, scheduledDefaults),
+  )
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
   const [message, setMessage] = useState('')
@@ -878,16 +909,28 @@ function NewEventForm({
     setMessage('')
     const { event, warning: w } = await saveTiqTeamMatchEvent({
       leagueId: form.leagueId,
+      scheduleItemId: form.scheduleItemId || null,
       teamAName: form.teamAName,
       teamBName: form.teamBName,
       matchDate: form.matchDate,
       facility: form.facility || null,
       notes: form.notes || null,
     })
+    const scheduleCompletion =
+      event && form.scheduleItemId
+        ? await updateTiqLeagueScheduleStatus({
+            scheduleItemId: form.scheduleItemId,
+            status: 'completed',
+          })
+        : null
     setSaving(false)
-    if (w) setWarning(w)
+    if (w || scheduleCompletion?.warning) setWarning(w || scheduleCompletion?.warning || '')
     if (event) {
-      setMessage('Match created. Expand below to add lines.')
+      setMessage(
+        scheduleCompletion
+          ? 'Match created and schedule marked complete. Expand below to add lines.'
+          : 'Match created. Expand below to add lines.',
+      )
       setForm(defaultEventForLeague(leagues, defaultLeagueId))
       onCreated(event)
     }
@@ -980,6 +1023,12 @@ export function TeamLeagueResultsWorkspace({
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
+  const scheduledEventItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
+  const scheduledTeamA = searchParams.get('teamA') || searchParams.get('team_a') || ''
+  const scheduledTeamB = searchParams.get('teamB') || searchParams.get('team_b') || ''
+  const scheduledMatchDate = searchParams.get('matchDate') || searchParams.get('match_date') || ''
+  const scheduledFacility = searchParams.get('facility') || ''
+  const scheduledNotes = searchParams.get('notes') || ''
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [events, setEvents] = useState<TiqTeamMatchEventRecord[]>([])
@@ -1059,6 +1108,26 @@ export function TeamLeagueResultsWorkspace({
     completedLineCount,
     totalLineCount,
   })
+  const scheduledEventDefaults = useMemo<Partial<EventFormState>>(
+    () => ({
+      scheduleItemId: scheduledEventItemId,
+      leagueId: initialLeagueId,
+      teamAName: scheduledTeamA,
+      teamBName: scheduledTeamB,
+      matchDate: scheduledMatchDate,
+      facility: scheduledFacility,
+      notes: scheduledNotes,
+    }),
+    [
+      initialLeagueId,
+      scheduledEventItemId,
+      scheduledFacility,
+      scheduledMatchDate,
+      scheduledNotes,
+      scheduledTeamA,
+      scheduledTeamB,
+    ],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -1066,7 +1135,7 @@ export function TeamLeagueResultsWorkspace({
     async function checkAuth() {
       const authState = await getClientAuthState()
       if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(loginNextHref)}`)
+        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
         return
       }
 
@@ -1395,7 +1464,7 @@ export function TeamLeagueResultsWorkspace({
         <details
           id="team-match-entry"
           style={detailsCard}
-          open={canEditResults && (events.length === 0 || newMatchFormOpen)}
+          open={canEditResults && (events.length === 0 || newMatchFormOpen || Boolean(scheduledEventItemId))}
           onToggle={(event) => setNewMatchFormOpen(event.currentTarget.open)}
         >
           <summary style={detailsSummary}>
@@ -1409,9 +1478,10 @@ export function TeamLeagueResultsWorkspace({
           </summary>
           {canEditResults ? (
             <NewEventForm
-              key={filterLeagueId || 'all-leagues'}
+              key={`${filterLeagueId || 'all-leagues'}::${scheduledEventItemId || 'manual'}`}
               leagues={leagues}
               defaultLeagueId={filterLeagueId}
+              scheduledDefaults={scheduledEventDefaults}
               onCreated={(event) => {
                 setActiveEntryEventId(event.id)
                 setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 }))

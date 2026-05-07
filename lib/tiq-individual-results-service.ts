@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { deleteTiqIndividualResultMatch, syncTiqIndividualResultToMatch } from '@/lib/tiq-match-sync'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
+import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 
 const TIQ_INDIVIDUAL_RESULTS_TABLE = 'tiq_individual_league_results'
 const LOCAL_RESULTS_KEY = 'tenaceiq-tiq-individual-results-v1'
@@ -15,6 +16,7 @@ export type TiqLeagueStorageSource = 'supabase' | 'local'
 export type TiqIndividualLeagueResultRecord = {
   id: string
   leagueId: string
+  scheduleItemId: string
   playerAName: string
   playerAId: string
   playerBName: string
@@ -31,6 +33,7 @@ export type TiqIndividualLeagueResultRecord = {
 type TiqIndividualLeagueResultRow = {
   id?: string | null
   league_id?: string | null
+  schedule_item_id?: string | null
   player_a_name?: string | null
   player_a_id?: string | null
   player_b_name?: string | null
@@ -47,6 +50,7 @@ type TiqIndividualLeagueResultRow = {
 type TiqIndividualLeagueResultPayload = {
   id: string
   league_id: string
+  schedule_item_id: string | null
   player_a_name: string
   player_a_id: string
   player_b_name: string
@@ -84,6 +88,7 @@ function normalizeRow(row: TiqIndividualLeagueResultRow): TiqIndividualLeagueRes
   return {
     id,
     leagueId,
+    scheduleItemId: cleanText(row.schedule_item_id),
     playerAName,
     playerAId: cleanText(row.player_a_id),
     playerBName,
@@ -141,7 +146,7 @@ export async function listTiqIndividualLeagueResults(filters?: {
     let query = supabase
       .from(TIQ_INDIVIDUAL_RESULTS_TABLE)
       .select(
-        'id, league_id, player_a_name, player_a_id, player_b_name, player_b_id, winner_player_name, winner_player_id, score, result_date, notes, created_at, updated_at',
+        'id, league_id, schedule_item_id, player_a_name, player_a_id, player_b_name, player_b_id, winner_player_name, winner_player_id, score, result_date, notes, created_at, updated_at',
       )
       .order('result_date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -186,6 +191,7 @@ export async function listTiqIndividualLeagueResults(filters?: {
 export async function saveTiqIndividualLeagueResult(input: {
   resultId?: string | null
   leagueId: string
+  scheduleItemId?: string | null
   playerAName: string
   playerAId?: string | null
   playerBName: string
@@ -219,12 +225,28 @@ export async function saveTiqIndividualLeagueResult(input: {
     throw new Error(activityWarning)
   }
 
+  const winnerSide =
+    cleanText(input.winnerPlayerId) && cleanText(input.winnerPlayerId) === cleanText(input.playerAId)
+      ? 'A'
+      : cleanText(input.winnerPlayerId) && cleanText(input.winnerPlayerId) === cleanText(input.playerBId)
+        ? 'B'
+        : cleanText(input.winnerPlayerName).toLowerCase() === cleanText(input.playerAName).toLowerCase()
+          ? 'A'
+          : cleanText(input.winnerPlayerName).toLowerCase() === cleanText(input.playerBName).toLowerCase()
+            ? 'B'
+            : null
+  const scoreValidation = validateTiqTennisMatchScore(input.score, winnerSide)
+  if (!scoreValidation.valid) {
+    throw new Error(scoreValidation.message)
+  }
+
   const existingLocalRecord = existingResultId
     ? readLocalResults().find((record) => record.id === existingResultId) || null
     : null
   const localRecord: TiqIndividualLeagueResultRecord = {
     id: existingResultId || buildLocalId(),
     leagueId: cleanText(input.leagueId),
+    scheduleItemId: cleanText(input.scheduleItemId),
     playerAName: cleanText(input.playerAName),
     playerAId: cleanText(input.playerAId),
     playerBName: cleanText(input.playerBName),
@@ -254,6 +276,7 @@ export async function saveTiqIndividualLeagueResult(input: {
     const payload: TiqIndividualLeagueResultPayload = {
       id: localRecord.id,
       league_id: localRecord.leagueId,
+      schedule_item_id: localRecord.scheduleItemId || null,
       player_a_name: localRecord.playerAName,
       player_a_id: localRecord.playerAId,
       player_b_name: localRecord.playerBName,

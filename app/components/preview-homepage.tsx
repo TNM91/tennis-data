@@ -1032,6 +1032,7 @@ function RoleChooserPreview() {
         minHeight: 100,
         position: 'relative',
         overflow: 'hidden',
+        maxWidth: '100%',
         border: '1px solid var(--shell-panel-border)',
         background: 'var(--shell-panel-bg)',
         alignSelf: 'start',
@@ -1059,17 +1060,34 @@ function RoleChooserPreview() {
           zIndex: 1,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
-          <div style={{ display: 'grid', gap: 8, maxWidth: 440 }}>
+        <div
+          style={{
+            display: isMobile ? 'grid' : 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            alignItems: 'start',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'grid', gap: 8, maxWidth: 440, minWidth: 0 }}>
             <div style={{ ...badgeGreen, width: 'fit-content', minHeight: 34 }}>Choose your path</div>
-            <div style={{ color: colors.textStrong, fontSize: isSmallMobile ? 25 : 28, fontWeight: 900, lineHeight: 1.02, letterSpacing: '-0.04em' }}>
+            <div
+              style={{
+                color: colors.textStrong,
+                fontSize: isSmallMobile ? 25 : 28,
+                fontWeight: 900,
+                lineHeight: 1.02,
+                letterSpacing: '-0.04em',
+                overflowWrap: 'anywhere',
+              }}
+            >
               What are you here to do?
             </div>
-            <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.55, maxWidth: 420 }}>
+            <div style={{ color: colors.mutedStrong, fontSize: 13, lineHeight: 1.55, maxWidth: 420, overflowWrap: 'anywhere' }}>
               Pick the tennis job first. The tier decision follows naturally.
             </div>
           </div>
-          <Link href="/pricing" style={{ ...buttonPrimary, minHeight: 40, paddingInline: 15 }}>
+          <Link href="/pricing" style={{ ...buttonPrimary, minHeight: 40, paddingInline: 15, width: isMobile ? '100%' : undefined }}>
             Compare tiers
           </Link>
         </div>

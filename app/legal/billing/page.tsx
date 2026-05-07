@@ -5,7 +5,7 @@ import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 import {
   BILLING_POLICY_NOTES,
-  BILLING_SUPPORT_EMAIL,
+  BILLING_SUPPORT_PATH,
   LEAGUE_SEASON_POLICY,
   MONTHLY_SUBSCRIPTION_POLICY,
 } from '@/lib/billing-policy'
@@ -36,9 +36,9 @@ export default function BillingPolicyPage() {
 
         <PolicySection title="How to request billing support">
           <p>
-            Email <a href={`mailto:${BILLING_SUPPORT_EMAIL}`}>{BILLING_SUPPORT_EMAIL}</a> with
-            the account email, plan, charge date, and a short description of the issue. We review
-            refund and credit requests case by case.
+            Open a <Link href={BILLING_SUPPORT_PATH}>TenAceIQ support thread</Link> with the
+            account email, plan, charge date, and a short description of the issue. We review refund
+            and credit requests case by case.
           </p>
         </PolicySection>
 

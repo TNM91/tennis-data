@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 
@@ -19,8 +20,8 @@ export default function ContactPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>General support</h2>
           <p>
-            Email <a href="mailto:support@tenaceiq.com">support@tenaceiq.com</a> for login issues,
-            membership questions, account recovery, or general help using the platform.
+            Open a <Link href="/messages?compose=support">TenAceIQ support thread</Link> for
+            membership questions, billing questions, account issues, or general help using the platform.
           </p>
         </div>
 

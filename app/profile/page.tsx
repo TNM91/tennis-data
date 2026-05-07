@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -496,6 +497,22 @@ function ProfilePageInner() {
                 >
                   {billingPortalOpening ? 'Opening billing...' : 'Manage billing'}
                 </button>
+              ) : null}
+              {canManageBilling ? (
+                <QuickMessageComposer
+                  mode="support"
+                  triggerLabel="Ask billing support"
+                  category="billing"
+                  subject="Question about my TenAceIQ billing"
+                  body={[
+                    'I have a question about my TenAceIQ billing.',
+                    '',
+                    'Plan or charge:',
+                    'What I need help with:',
+                  ].join('\n')}
+                  entityType="billing"
+                  entityId={userId || ''}
+                />
               ) : null}
             </div>
             {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}

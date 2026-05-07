@@ -1,9 +1,9 @@
-export const BILLING_SUPPORT_EMAIL = 'support@tenaceiq.com'
+export const BILLING_SUPPORT_PATH = '/messages?compose=support'
 
 export const MONTHLY_SUBSCRIPTION_POLICY = {
   title: 'Player and Captain monthly subscriptions',
   summary:
-    'Player and Captain plans renew monthly until canceled. Cancel anytime from Profile billing management or by contacting support.',
+    'Player and Captain plans renew monthly until canceled. Cancel anytime from Profile billing management or by opening a support thread.',
   bullets: [
     'Cancellation stops future monthly renewals. Access normally continues through the period already paid for.',
     'Monthly subscription charges are generally non-refundable after the billing period begins.',
@@ -20,7 +20,7 @@ export const LEAGUE_SEASON_POLICY = {
     'A standard TIQ league season is capped at 12 weeks unless TenAceIQ approves an extension.',
     'A standard season supports up to 120 match events or result entries before a new season should be created.',
     'Season fees are generally refundable only before the league is published, scheduled, or used for result activity.',
-    'If a league was created in error, contact support quickly so we can review whether a refund, credit, or correction is appropriate.',
+    'If a league was created in error, open a support thread quickly so we can review whether a refund, credit, or correction is appropriate.',
   ],
 } as const
 

@@ -7,13 +7,18 @@ import {
   deleteTiqTeamMatchLineMatch,
   syncTiqTeamMatchLineToMatch,
 } from '@/lib/tiq-match-sync'
-import { calculateDynamicPointsForSides, compareTiqTeamStandings } from '@/lib/tiq-scoring'
+import {
+  calculateDynamicPointsForSides,
+  compareTiqTeamStandings,
+  validateTiqTennisMatchScore,
+} from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
 
 export type TiqTeamMatchEventRecord = {
   id: string
   leagueId: string
+  scheduleItemId: string
   teamAName: string
   teamAId: string
   teamBName: string
@@ -60,6 +65,7 @@ function normalizeEvent(row: EventRow): TiqTeamMatchEventRecord | null {
   return {
     id,
     leagueId,
+    scheduleItemId: cleanText(row.schedule_item_id as string),
     teamAName: cleanText(row.team_a_name as string),
     teamAId: cleanText(row.team_a_id as string),
     teamBName: cleanText(row.team_b_name as string),
@@ -112,7 +118,7 @@ export async function listTiqTeamMatchEvents(filters?: {
   try {
     let query = supabase
       .from('tiq_team_league_match_events')
-      .select('id, league_id, team_a_name, team_a_id, team_b_name, team_b_id, match_date, facility, notes, winner_team_name, winner_team_id, created_at, updated_at')
+      .select('id, league_id, schedule_item_id, team_a_name, team_a_id, team_b_name, team_b_id, match_date, facility, notes, winner_team_name, winner_team_id, created_at, updated_at')
       .order('match_date', { ascending: false })
 
     if (filters?.leagueId) query = query.eq('league_id', filters.leagueId)
@@ -134,6 +140,7 @@ export async function listTiqTeamMatchEvents(filters?: {
 
 export async function saveTiqTeamMatchEvent(input: {
   leagueId: string
+  scheduleItemId?: string | null
   teamAName: string
   teamAId?: string | null
   teamBName: string
@@ -163,6 +170,7 @@ export async function saveTiqTeamMatchEvent(input: {
       .from('tiq_team_league_match_events')
       .insert({
         league_id: leagueId,
+        schedule_item_id: cleanText(input.scheduleItemId) || null,
         team_a_name: cleanText(input.teamAName),
         team_a_id: cleanText(input.teamAId) || null,
         team_b_name: cleanText(input.teamBName),
@@ -300,6 +308,11 @@ export async function saveTiqTeamMatchLine(
   try {
     const userId = await getUserId()
     if (!userId) return { line: null, warning: 'Sign in to save match lines.' }
+
+    if (input.winnerSide || cleanText(input.score)) {
+      const scoreValidation = validateTiqTennisMatchScore(input.score, input.winnerSide)
+      if (!scoreValidation.valid) return { line: null, warning: scoreValidation.message }
+    }
 
     const { data, error } = await supabase
       .from('tiq_team_league_match_lines')

@@ -8,6 +8,8 @@ import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { countUnreadInternalNotifications } from '@/lib/internal-notifications'
+import { countUnreadInternalConversations, getInternalIdentity } from '@/lib/internal-messages'
 import { getPrimaryNavTarget, PRIMARY_NAV_VISUALS } from '@/lib/primary-nav-access'
 import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { supabase } from '@/lib/supabase'
@@ -207,6 +209,8 @@ export default function SiteHeader({ active }: { active?: string }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
+  const [unreadMessages, setUnreadMessages] = useState(0)
+  const [unreadAlerts, setUnreadAlerts] = useState(0)
 
   // Close mobile menu whenever the route changes (back/forward navigation)
   useEffect(() => {
@@ -237,6 +241,42 @@ export default function SiteHeader({ active }: { active?: string }) {
 
     return () => {
       active = false
+    }
+  }, [authResolved, userId])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadUnreadMessages() {
+      if (!authResolved || !userId) {
+        setUnreadMessages(0)
+        setUnreadAlerts(0)
+        return
+      }
+
+      try {
+        const identity = await getInternalIdentity()
+        if (!active || !identity) return
+        const [messages, alerts] = await Promise.all([
+          countUnreadInternalConversations(identity),
+          countUnreadInternalNotifications(identity.userId),
+        ])
+        setUnreadMessages(messages)
+        setUnreadAlerts(alerts)
+      } catch {
+        if (active) setUnreadMessages(0)
+        if (active) setUnreadAlerts(0)
+      }
+    }
+
+    void loadUnreadMessages()
+    const intervalId = window.setInterval(() => {
+      void loadUnreadMessages()
+    }, 60000)
+
+    return () => {
+      active = false
+      window.clearInterval(intervalId)
     }
   }, [authResolved, userId])
 
@@ -390,6 +430,18 @@ export default function SiteHeader({ active }: { active?: string }) {
                   </span>
                 ) : null}
                 <UtilityLink href={ACCOUNT_NAV_ITEMS[0].href}>{ACCOUNT_NAV_ITEMS[0].label}</UtilityLink>
+                <UtilityLink href="/messages">
+                  <span style={messageLinkWrapStyle}>
+                    Messages
+                    {unreadMessages ? <span style={messageBadgeStyle}>{unreadMessages > 9 ? '9+' : unreadMessages}</span> : null}
+                  </span>
+                </UtilityLink>
+                <UtilityLink href="/messages#alerts">
+                  <span style={messageLinkWrapStyle}>
+                    Alerts
+                    {unreadAlerts ? <span style={messageBadgeStyle}>{unreadAlerts > 9 ? '9+' : unreadAlerts}</span> : null}
+                  </span>
+                </UtilityLink>
                 {role === 'admin' ? (
                   <UtilityLink href="/admin">Admin dashboard</UtilityLink>
                 ) : null}
@@ -522,6 +574,20 @@ export default function SiteHeader({ active }: { active?: string }) {
                 <>
                   <Link href={ACCOUNT_NAV_ITEMS[0].href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <span>{ACCOUNT_NAV_ITEMS[0].label}</span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </Link>
+                  <Link href="/messages" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <span style={messageLinkWrapStyle}>
+                      Messages
+                      {unreadMessages ? <span style={messageBadgeStyle}>{unreadMessages > 9 ? '9+' : unreadMessages}</span> : null}
+                    </span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </Link>
+                  <Link href="/messages#alerts" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <span style={messageLinkWrapStyle}>
+                      Alerts
+                      {unreadAlerts ? <span style={messageBadgeStyle}>{unreadAlerts > 9 ? '9+' : unreadAlerts}</span> : null}
+                    </span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   {role === 'admin' ? (
@@ -662,6 +728,27 @@ const accountPillStyle = {
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
   whiteSpace: 'nowrap' as const,
+} as const
+
+const messageLinkWrapStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+} as const
+
+const messageBadgeStyle = {
+  minWidth: '18px',
+  height: '18px',
+  padding: '0 5px',
+  borderRadius: '999px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'var(--brand-green)',
+  color: 'var(--text-dark)',
+  fontSize: '10px',
+  fontWeight: 950,
+  lineHeight: 1,
 } as const
 
 const accountPhotoStyle = {

@@ -109,7 +109,7 @@ export default function ExplorePage() {
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isSmallMobile ? '24px 18px 22px' : isMobile ? '28px 20px 24px' : '38px 30px 30px',
+    padding: isSmallMobile ? '24px 18px 22px' : isMobile ? '28px 20px 24px' : '30px',
     borderRadius: isMobile ? '28px' : '30px',
     background: 'var(--shell-panel-bg-strong)',
     border: '1px solid var(--shell-panel-border)',
@@ -118,13 +118,13 @@ export default function ExplorePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(0, 0.94fr)',
-    gap: isMobile ? '20px' : '26px',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.94fr) minmax(420px, 1fr)',
+    gap: isMobile ? '20px' : '30px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '38px' : isMobile ? '50px' : '62px',
+    fontSize: isSmallMobile ? '38px' : isMobile ? '50px' : '58px',
     lineHeight: isMobile ? 1.02 : 0.98,
     maxWidth: '760px',
   }
@@ -138,7 +138,7 @@ export default function ExplorePage() {
   const dynamicArtPanelStyle: CSSProperties = {
     ...featurePanel,
     position: 'relative',
-    minHeight: isSmallMobile ? '320px' : isMobile ? '360px' : isTablet ? '420px' : '440px',
+    minHeight: isSmallMobile ? '320px' : isMobile ? '360px' : isTablet ? '420px' : '342px',
     padding: 0,
     overflow: 'hidden',
     background: 'var(--shell-panel-bg)',
@@ -158,10 +158,10 @@ export default function ExplorePage() {
 
   const dynamicArtOverlayStyle: CSSProperties = {
     position: 'absolute',
-    top: isMobile ? '16px' : '20px',
+    top: isMobile ? '16px' : '16px',
     left: isMobile ? '16px' : '20px',
     right: isMobile ? '16px' : '20px',
-    bottom: isMobile ? '16px' : '20px',
+    bottom: isMobile ? '16px' : '16px',
     display: 'grid',
     gap: '12px',
     alignContent: 'start',
@@ -401,8 +401,8 @@ const heroMesh: CSSProperties = {
 
 const heroContent: CSSProperties = {
   display: 'grid',
-  alignItems: 'stretch',
-  marginBottom: '20px',
+  alignItems: 'start',
+  marginBottom: '18px',
   position: 'relative',
   zIndex: 1,
 }
@@ -410,8 +410,8 @@ const heroContent: CSSProperties = {
 const heroLeft: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  justifyContent: 'center',
-  gap: '18px',
+  justifyContent: 'flex-start',
+  gap: '16px',
 }
 
 const eyebrow: CSSProperties = {
@@ -490,7 +490,7 @@ const featurePanelHeader: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '12px',
-  marginBottom: '14px',
+  marginBottom: '8px',
 }
 
 const featurePanelLabel: CSSProperties = {
@@ -508,7 +508,7 @@ const featurePanelHint: CSSProperties = {
 
 const startStepStack: CSSProperties = {
   display: 'grid',
-  gap: '12px',
+  gap: '8px',
 }
 
 const startStepCard: CSSProperties = {
@@ -516,16 +516,16 @@ const startStepCard: CSSProperties = {
   gridTemplateColumns: 'auto minmax(0, 1fr)',
   gap: '12px',
   alignItems: 'start',
-  padding: '16px',
-  borderRadius: '20px',
+  padding: '12px 16px',
+  borderRadius: '16px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
 }
 
 const startStepNumber: CSSProperties = {
-  width: 34,
-  height: 34,
+  width: 32,
+  height: 32,
   borderRadius: 999,
   display: 'inline-flex',
   alignItems: 'center',
@@ -545,18 +545,18 @@ const startStepLabel: CSSProperties = {
 }
 
 const startStepTitle: CSSProperties = {
-  marginTop: '5px',
+  marginTop: '4px',
   color: 'var(--foreground-strong)',
-  fontSize: '18px',
+  fontSize: '16px',
   fontWeight: 900,
   letterSpacing: '-0.03em',
 }
 
 const startStepText: CSSProperties = {
-  marginTop: '7px',
+  marginTop: '5px',
   color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.6,
+  fontSize: '12px',
+  lineHeight: 1.35,
 }
 
 const discoveryBoardGlow: CSSProperties = {

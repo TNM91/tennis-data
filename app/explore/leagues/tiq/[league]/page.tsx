@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import FollowButton from '@/app/components/follow-button'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
+import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -44,7 +46,13 @@ import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/pl
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { getTiqLeagueScoringSystemLabel, type TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import {
+  getTiqLeagueScoringSystemLabel,
+  getTiqLeagueSchedulingModeDescription,
+  getTiqLeagueSchedulingModeLabel,
+  type TiqLeagueRecord,
+} from '@/lib/tiq-league-registry'
+import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
 import { buildIndividualResultCue, buildTeamResultCue } from '@/lib/league-result-cues'
 import {
   addTiqPlayerLeagueEntry,
@@ -65,7 +73,18 @@ import {
   type TiqTeamMatchLineRecord,
   type TiqTeamStandingRow,
 } from '@/lib/tiq-team-results-service'
-import { calculateDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
+import {
+  listTiqLeagueScheduleItems,
+  saveTiqLeagueScheduleItem,
+  updateTiqLeagueScheduleStatus,
+  type TiqLeagueScheduleItem,
+  type TiqLeagueScheduleSource,
+} from '@/lib/tiq-league-schedule-service'
+import {
+  calculateDynamicPointsForSides,
+  getDynamicPointsRulesSummary,
+  validateTiqTennisMatchScore,
+} from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 function formatDateTime(value: string | null | undefined) {
@@ -169,6 +188,22 @@ type TeamMatchPublicSummary = {
   scoreReviewCount: number
 }
 
+type HubNavItem = {
+  href: string
+  label: string
+  detail: string
+}
+
+type ScheduleDisplayMode = 'calendar' | 'list'
+
+type LeagueLeaderRow = {
+  rank: number
+  name: string
+  record: string
+  detail: string
+  href: string | null
+}
+
 function getLeagueRatingStatus(gap: number | null): LeagueRatingStatus | null {
   if (gap === null) return null
   if (gap >= 0.15) return 'Bump Up Pace'
@@ -266,12 +301,18 @@ function buildPrefilledResultHref(
   leagueId: string,
   playerAValue: string,
   playerBValue: string,
+  options?: {
+    scheduleItemId?: string
+    resultDate?: string
+  },
 ) {
   const params = new URLSearchParams({
     leagueId,
     suggest_player_a: playerAValue,
     suggest_player_b: playerBValue,
   })
+  if (options?.scheduleItemId) params.set('scheduleItemId', options.scheduleItemId)
+  if (options?.resultDate) params.set('resultDate', options.resultDate)
   return `/league-coordinator/individual-results?${params.toString()}#player-result-entry`
 }
 
@@ -283,6 +324,19 @@ function buildIndividualResultEntryHref(leagueId: string, anchor = 'player-resul
 function buildTeamResultEntryHref(leagueId: string, anchor = 'team-match-entry') {
   const params = new URLSearchParams({ leagueId })
   return `/league-coordinator/results?${params.toString()}#${anchor}`
+}
+
+function buildScheduledTeamResultEntryHref(leagueId: string, item: TiqLeagueScheduleItem) {
+  const params = new URLSearchParams({
+    leagueId,
+    scheduleItemId: item.id,
+    teamA: item.participantAName,
+    teamB: item.participantBName,
+  })
+  if (item.scheduledDate) params.set('matchDate', item.scheduledDate)
+  if (item.facility) params.set('facility', item.facility)
+  if (item.notes) params.set('notes', item.notes)
+  return `/league-coordinator/results?${params.toString()}#team-match-entry`
 }
 
 function buildTeamMatchPublicSummary(
@@ -374,6 +428,17 @@ export default function TiqLeagueDetailPage() {
   const [matchEventLines, setMatchEventLines] = useState<Record<string, TiqTeamMatchLineRecord[]>>({})
   const [matchEventLinesLoading, setMatchEventLinesLoading] = useState<Record<string, boolean>>({})
   const [teamStandings, setTeamStandings] = useState<TiqTeamStandingRow[]>([])
+  const [scheduleItems, setScheduleItems] = useState<TiqLeagueScheduleItem[]>([])
+  const [scheduleSource, setScheduleSource] = useState<TiqLeagueScheduleSource>('local')
+  const [scheduleStatus, setScheduleStatus] = useState('')
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleParticipantA, setScheduleParticipantA] = useState('')
+  const [scheduleParticipantB, setScheduleParticipantB] = useState('')
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [scheduleFacility, setScheduleFacility] = useState('')
+  const [scheduleNotes, setScheduleNotes] = useState('')
+  const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
 
   useEffect(() => {
     let active = true
@@ -447,7 +512,7 @@ export default function TiqLeagueDetailPage() {
       }
 
       if (league.leagueFormat === 'team') {
-        const result = await listTiqTeamLeagueEntries(league.id)
+        const result = await listTiqTeamLeagueEntries(league.id, { includeAllStatuses: true })
         if (!active) return
         setTeamEntries(result.entries)
         setPlayerEntries([])
@@ -457,7 +522,7 @@ export default function TiqLeagueDetailPage() {
         return
       }
 
-      const result = await listTiqPlayerLeagueEntries(league.id)
+      const result = await listTiqPlayerLeagueEntries(league.id, { includeAllStatuses: true })
       if (!active) return
       setPlayerEntries(result.entries)
       setTeamEntries([])
@@ -512,6 +577,37 @@ export default function TiqLeagueDetailPage() {
     }
   }, [league])
 
+  useEffect(() => {
+    let active = true
+
+    async function loadScheduleItems() {
+      if (!league) {
+        if (active) setScheduleItems([])
+        return
+      }
+
+      const result = await listTiqLeagueScheduleItems(league.id)
+      if (!active) return
+      setScheduleItems(result.items)
+      setScheduleSource(result.source)
+      if (result.warning) {
+        setStorageWarning((current) => current || result.warning || '')
+      }
+    }
+
+    void loadScheduleItems()
+
+    return () => {
+      active = false
+    }
+  }, [league])
+
+  useEffect(() => {
+    if (!league) return
+    setScheduleTime(league.defaultMatchTime || '')
+    setScheduleFacility(league.defaultFacility || '')
+  }, [league])
+
   async function handleExpandMatchEvent(eventId: string) {
     if (expandedMatchEventId === eventId) {
       setExpandedMatchEventId(null)
@@ -532,47 +628,31 @@ export default function TiqLeagueDetailPage() {
   const scoringRulesText =
     league?.scoringSystem === 'dynamic_points'
       ? getDynamicPointsRulesSummary()
-      : 'Standings use match wins, losses, ties, and line wins.'
+      : 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
+  const scheduleRulesText = league
+    ? [
+        getTiqLeagueSchedulingModeDescription(league.schedulingMode),
+        league.defaultMatchDay || league.defaultMatchTime || league.defaultFacility
+          ? `Default: ${[league.defaultMatchDay, league.defaultMatchTime, league.defaultFacility].filter(Boolean).join(', ')}.`
+          : '',
+        league.schedulingNotes,
+      ].filter(Boolean).join(' ')
+    : ''
   const individualFormatExperience = getTiqIndividualCompetitionFormatExperience(
     league?.individualCompetitionFormat,
   )
   const entryEnabled = league?.leagueFormat === 'team' ? access.canEnterTiqTeamLeague : access.canJoinTiqIndividualLeague
-  const entryLabel = league?.leagueFormat === 'team' ? 'Enter Team' : 'Join League'
+  const entryLabel = league?.leagueFormat === 'team' ? 'Request Team Entry' : 'Request to Join'
   const entryPlaceholder =
     league?.leagueFormat === 'team' ? 'North Dallas Aces' : deriveDefaultParticipantName(userEmail) || 'Player name'
   const entryMessage =
     league?.leagueFormat === 'team' ? access.teamLeagueMessage : access.individualLeagueMessage
   const canLogIndividualResults = league?.leagueFormat === 'individual' && access.canCreateTiqIndividualLeague
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
-  const participants = league?.leagueFormat === 'team' ? league.teams || [] : league?.players || []
-  const tiqSignals = league
-    ? [
-        {
-          label: 'Competition layer',
-          value: getCompetitionLayerLabel('tiq'),
-          note: 'TIQ leagues should feel interactive and strategic, not like official browse-only contexts.',
-        },
-        {
-          label: 'League format',
-          value:
-            league.leagueFormat === 'individual'
-              ? getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)
-              : getLeagueFormatLabel(league.leagueFormat),
-          note:
-            league.leagueFormat === 'team'
-              ? 'Team leagues connect participation directly into captain workflow and seasonal operations.'
-              : 'Individual leagues connect entry, standings, prompts, and results into one internal competition loop.',
-        },
-        {
-          label: 'Season activity',
-          value: `${participants.length} participants`,
-          note:
-            league.leagueFormat === 'team'
-              ? 'Use this page to enter teams and move quickly into availability, lineups, scenarios, and messaging.'
-              : 'Use this page to join, compare entrants, read results, and act on the next TIQ opportunity.',
-        },
-      ]
-    : []
+  const seasonWindowText =
+    league?.startsOn || league?.endsOn
+      ? [league.startsOn || 'Start TBD', league.endsOn || 'End TBD'].join(' to ')
+      : 'Season window not set'
   const visibleTeamEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
@@ -624,6 +704,39 @@ export default function TiqLeagueDetailPage() {
       return true
     })
   }, [league, playerOptions, visiblePlayerEntries])
+  const scheduleParticipantOptions = useMemo<ResultParticipantOption[]>(() => {
+    if (!league) return []
+
+    if (league.leagueFormat === 'team') {
+      return visibleTeamEntries.map((entry) => ({
+        value: entry.teamEntityId || `name:${entry.teamName}`,
+        playerId: entry.teamEntityId,
+        playerName: entry.teamName,
+      }))
+    }
+
+    return visiblePlayerEntries.map((entry) => ({
+      value: entry.playerId || `name:${entry.playerName}`,
+      playerId: entry.playerId,
+      playerName: entry.playerName,
+    }))
+  }, [league, visiblePlayerEntries, visibleTeamEntries])
+  const activeEntryCount =
+    league?.leagueFormat === 'team'
+      ? visibleTeamEntries.length
+      : league?.leagueFormat === 'individual'
+        ? visiblePlayerEntries.length
+        : 0
+  const pendingEntries =
+    league?.leagueFormat === 'team'
+      ? teamEntries.filter((entry) => entry.entryStatus === 'pending')
+      : playerEntries.filter((entry) => entry.entryStatus === 'pending')
+  const rejectedEntries =
+    league?.leagueFormat === 'team'
+      ? teamEntries.filter((entry) => entry.entryStatus === 'rejected')
+      : playerEntries.filter((entry) => entry.entryStatus === 'rejected')
+  const pendingEntryCount = pendingEntries.length
+  const rejectedEntryCount = rejectedEntries.length
   const resultParticipantOptions = useMemo<ResultParticipantOption[]>(
     () =>
       visiblePlayerEntries.map((entry) => ({
@@ -676,6 +789,10 @@ export default function TiqLeagueDetailPage() {
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
   const resultPlayerBOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerB) || null
+  const scheduleParticipantAOption =
+    scheduleParticipantOptions.find((option) => option.value === scheduleParticipantA) || null
+  const scheduleParticipantBOption =
+    scheduleParticipantOptions.find((option) => option.value === scheduleParticipantB) || null
   const resultWinnerOptions = [resultPlayerAOption, resultPlayerBOption].filter(
     (option): option is ResultParticipantOption => Boolean(option),
   )
@@ -727,22 +844,6 @@ export default function TiqLeagueDetailPage() {
     ...heroTitle,
     fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '56px',
     lineHeight: isMobile ? 1.02 : 0.98,
-  }
-  const dynamicMetricGrid: CSSProperties = {
-    ...metricGrid,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isMobile
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(auto-fit, minmax(180px, 1fr))',
-  }
-  const dynamicSignalGrid: CSSProperties = {
-    ...signalGridStyle,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isMobile
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(auto-fit, minmax(220px, 1fr))',
   }
   const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
@@ -941,6 +1042,129 @@ export default function TiqLeagueDetailPage() {
     }))
   }, [individualCompetitionFormat, individualResults, individualStandings, league])
 
+  const scheduledTeamEvents = useMemo(
+    () =>
+      [...teamMatchEvents].sort((left, right) => {
+        const leftTime = left.matchDate ? new Date(left.matchDate).getTime() : Number.MAX_SAFE_INTEGER
+        const rightTime = right.matchDate ? new Date(right.matchDate).getTime() : Number.MAX_SAFE_INTEGER
+        return leftTime - rightTime
+      }),
+    [teamMatchEvents],
+  )
+  const nextTeamEvent = useMemo(() => {
+    const now = Date.now()
+    return (
+      scheduledTeamEvents.find((event) => {
+        const eventTime = event.matchDate ? new Date(event.matchDate).getTime() : 0
+        return eventTime >= now
+      }) ||
+      scheduledTeamEvents[0] ||
+      null
+    )
+  }, [scheduledTeamEvents])
+  const visibleScheduleItems = useMemo(
+    () =>
+      scheduleItems.filter((item) => item.status !== 'cancelled').sort((left, right) => {
+        const leftKey = `${left.scheduledDate || '9999-12-31'} ${left.scheduledTime || '99:99'}`
+        const rightKey = `${right.scheduledDate || '9999-12-31'} ${right.scheduledTime || '99:99'}`
+        return leftKey.localeCompare(rightKey)
+      }),
+    [scheduleItems],
+  )
+  const pendingScheduleItemCount = visibleScheduleItems.filter((item) => item.status === 'proposed').length
+  const confirmedScheduleItemCount = visibleScheduleItems.filter((item) =>
+    item.status === 'confirmed' || item.status === 'coordinator_set',
+  ).length
+  const completedScheduleItemCount = visibleScheduleItems.filter((item) => item.status === 'completed').length
+  const scheduleCalendarDays = useMemo(
+    () => buildScheduleCalendarDays(visibleScheduleItems),
+    [visibleScheduleItems],
+  )
+  const upcomingScheduleItems = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const datedItems = visibleScheduleItems.filter(
+      (item) => item.status !== 'completed' && item.scheduledDate && item.scheduledDate >= today,
+    )
+    const fallbackItems = visibleScheduleItems.filter((item) => item.status !== 'completed')
+    return (datedItems.length > 0 ? datedItems : fallbackItems).slice(0, 4)
+  }, [visibleScheduleItems])
+  const individualResultByScheduleItemId = useMemo(() => {
+    const resultMap = new Map<string, TiqIndividualLeagueResultRecord>()
+    individualResults.forEach((result) => {
+      if (result.scheduleItemId) resultMap.set(result.scheduleItemId, result)
+    })
+    return resultMap
+  }, [individualResults])
+  const teamEventByScheduleItemId = useMemo(() => {
+    const eventMap = new Map<string, TiqTeamMatchEventRecord>()
+    teamMatchEvents.forEach((event) => {
+      if (event.scheduleItemId) eventMap.set(event.scheduleItemId, event)
+    })
+    return eventMap
+  }, [teamMatchEvents])
+  const hubNavItems = useMemo<HubNavItem[]>(() => {
+    if (!league) return []
+
+    return [
+      {
+        href: '#league-overview',
+        label: 'Overview',
+        detail: `${activeEntryCount} active`,
+      },
+      {
+        href: '#league-schedule',
+        label: 'Schedule',
+        detail:
+          visibleScheduleItems.length > 0
+            ? `${visibleScheduleItems.length} items`
+            : league.leagueFormat === 'team'
+              ? `${teamMatchEvents.length} matches`
+              : `${competitionOpportunities.length} prompts`,
+      },
+      {
+        href: '#league-requests',
+        label: 'Requests',
+        detail: `${pendingEntryCount} pending`,
+      },
+      {
+        href: '#league-participants',
+        label: 'Participants',
+        detail: `${activeEntryCount} active`,
+      },
+      {
+        href: league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results',
+        label: 'Results',
+        detail:
+          league.leagueFormat === 'team'
+            ? `${teamMatchEvents.length} events`
+            : `${individualResultBookStats.total} logged`,
+      },
+      {
+        href: '#league-standings',
+        label: 'Standings',
+        detail:
+          league.leagueFormat === 'team'
+            ? `${teamStandings.length} rows`
+            : `${individualStandings.length} rows`,
+      },
+      {
+        href: '#league-settings',
+        label: 'Settings',
+        detail: getTiqLeagueSchedulingModeLabel(league.schedulingMode),
+      },
+    ]
+  }, [
+    activeEntryCount,
+    competitionOpportunities.length,
+    individualResultBookStats.total,
+    individualStandings.length,
+    league,
+    pendingEntryCount,
+    teamMatchEvents.length,
+    teamStandings.length,
+    visibleScheduleItems.length,
+  ])
+
   const teamResultCue = useMemo(() => {
     const summaries = teamMatchEvents.map((event) =>
       buildTeamMatchPublicSummary(matchEventLines[event.id] || [], league?.scoringSystem || 'standard'),
@@ -979,7 +1203,36 @@ export default function TiqLeagueDetailPage() {
     league?.leagueFormat === 'team'
       ? buildTeamResultEntryHref(league.id, teamMatchEvents.length > 0 ? 'team-match-review' : 'team-match-entry')
       : '/league-coordinator/results#team-match-entry'
+  const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
+  const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
+  const leaderName = individualLeader?.playerName || teamLeader?.teamName || ''
+  const leaderRows = useMemo<LeagueLeaderRow[]>(() => {
+    if (!league) return []
 
+    if (league.leagueFormat === 'individual') {
+      return individualStandings.slice(0, 5).map((entry) => ({
+        rank: entry.rank,
+        name: entry.playerName,
+        record: `${entry.leagueWins}-${entry.leagueLosses}`,
+        detail:
+          league.scoringSystem === 'dynamic_points'
+            ? `${entry.leaguePoints} pts`
+            : `${entry.leagueMatches} result${entry.leagueMatches === 1 ? '' : 's'}`,
+        href: entry.playerId ? `/players/${encodeURIComponent(entry.playerId)}` : null,
+      }))
+    }
+
+    return teamStandings.slice(0, 5).map((entry, index) => ({
+      rank: index + 1,
+      name: entry.teamName,
+      record: `${entry.wins}-${entry.losses}${entry.ties ? `-${entry.ties}` : ''}`,
+      detail:
+        league.scoringSystem === 'dynamic_points'
+          ? `${entry.points} pts`
+          : `${entry.lineWins} line win${entry.lineWins === 1 ? '' : 's'}`,
+      href: `/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(league.leagueName)}`,
+    }))
+  }, [individualStandings, league, teamStandings])
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
     if (!suggestedResultPlayerA || !suggestedResultPlayerB) return
@@ -1309,6 +1562,103 @@ export default function TiqLeagueDetailPage() {
     setEntryValue(option.name)
   }
 
+  async function refreshScheduleItems(leagueId: string) {
+    const latest = await listTiqLeagueScheduleItems(leagueId)
+    setScheduleItems(latest.items)
+    setScheduleSource(latest.source)
+    setStorageWarning((current) => current || latest.warning || '')
+  }
+
+  async function handleScheduleSubmit() {
+    if (!league) return
+
+    if (!scheduleParticipantAOption || !scheduleParticipantBOption) {
+      setScheduleStatus('Choose both participants before scheduling this match.')
+      return
+    }
+
+    if (scheduleParticipantAOption.value === scheduleParticipantBOption.value) {
+      setScheduleStatus('Choose two different participants before scheduling this match.')
+      return
+    }
+
+    if (!scheduleDate) {
+      setScheduleStatus('Choose a match date before saving this schedule item.')
+      return
+    }
+
+    if (!userId) {
+      setScheduleStatus('Sign in before scheduling this league match.')
+      return
+    }
+
+    setScheduleSaving(true)
+    setScheduleStatus('')
+
+    try {
+      const result = await saveTiqLeagueScheduleItem({
+        leagueId: league.id,
+        leagueFormat: league.leagueFormat,
+        participantAName: scheduleParticipantAOption.playerName,
+        participantAId: scheduleParticipantAOption.playerId,
+        participantBName: scheduleParticipantBOption.playerName,
+        participantBId: scheduleParticipantBOption.playerId,
+        scheduledDate: scheduleDate,
+        scheduledTime: scheduleTime,
+        facility: scheduleFacility || league.defaultFacility,
+        status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools ? 'coordinator_set' : 'proposed',
+        notes: scheduleNotes,
+      })
+
+      await refreshScheduleItems(league.id)
+      setScheduleSource(result.source)
+      setStorageWarning((current) => current || result.warning || '')
+      setScheduleStatus(
+        league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+          ? 'Published this match slot to the league schedule.'
+          : 'Proposed this match time. A coordinator or participant can confirm it.',
+      )
+      setScheduleParticipantA('')
+      setScheduleParticipantB('')
+      setScheduleDate('')
+      setScheduleTime(league.defaultMatchTime || '')
+      setScheduleFacility(league.defaultFacility || '')
+      setScheduleNotes('')
+    } catch (error) {
+      setScheduleStatus(error instanceof Error ? error.message : 'Unable to save this schedule item.')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
+
+  async function handleScheduleStatusChange(
+    scheduleItemId: string,
+    status: 'confirmed' | 'completed' | 'cancelled',
+  ) {
+    if (!league) return
+
+    setScheduleSaving(true)
+    setScheduleStatus('')
+
+    try {
+      const result = await updateTiqLeagueScheduleStatus({ scheduleItemId, status })
+      await refreshScheduleItems(league.id)
+      setScheduleSource(result.source)
+      setStorageWarning((current) => current || result.warning || '')
+      setScheduleStatus(
+        status === 'confirmed'
+          ? 'Confirmed this match time.'
+          : status === 'completed'
+            ? 'Marked this scheduled match complete.'
+            : 'Cancelled this schedule item.',
+      )
+    } catch (error) {
+      setScheduleStatus(error instanceof Error ? error.message : 'Unable to update this schedule item.')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
+
   async function refreshSuggestionState(leagueId: string) {
     const latest = await listTiqIndividualSuggestions({ leagueId, status: 'all' })
     setSavedSuggestions(latest.suggestions)
@@ -1461,6 +1811,13 @@ export default function TiqLeagueDetailPage() {
       return
     }
 
+    const winnerSide = winnerOption.value === resultPlayerAOption.value ? 'A' : 'B'
+    const scoreValidation = validateTiqTennisMatchScore(resultScore, winnerSide)
+    if (!scoreValidation.valid) {
+      setResultStatus(scoreValidation.message)
+      return
+    }
+
     setResultSaving(true)
     setResultStatus('')
 
@@ -1554,6 +1911,20 @@ export default function TiqLeagueDetailPage() {
       return
     }
 
+    const currentRequests = league.leagueFormat === 'team' ? teamEntries : playerEntries
+    const existingRequest = currentRequests.find((entry) => {
+      const name = 'teamName' in entry ? entry.teamName : entry.playerName
+      return name.toLowerCase() === normalizedEntry.toLowerCase()
+    })
+    if (existingRequest?.entryStatus === 'pending') {
+      setStatus(`${normalizedEntry} already has a pending request. The coordinator needs to approve it before it appears in the league.`)
+      return
+    }
+    if (existingRequest?.entryStatus === 'rejected') {
+      setStatus(`${normalizedEntry} was previously declined. Contact the coordinator before requesting again.`)
+      return
+    }
+
     setSaving(true)
     setStatus('')
 
@@ -1588,16 +1959,16 @@ export default function TiqLeagueDetailPage() {
       setStorageWarning(result.warning || '')
       setStatus(
         league.leagueFormat === 'team'
-          ? `${normalizedEntry} was added to this TIQ team league.`
-          : `${normalizedEntry} joined this TIQ individual league.`,
+          ? `${normalizedEntry} requested entry. The coordinator must approve it before the team appears in this league.`
+          : `${normalizedEntry} requested entry. The coordinator must approve it before the player appears in this league.`,
       )
       if (league.leagueFormat === 'individual') {
         setEntryValue(normalizedEntry)
-        const latestEntries = await listTiqPlayerLeagueEntries(league.id)
+        const latestEntries = await listTiqPlayerLeagueEntries(league.id, { includeAllStatuses: true })
         setPlayerEntries(latestEntries.entries)
       }
       if (league.leagueFormat === 'team') {
-        const latestEntries = await listTiqTeamLeagueEntries(league.id)
+        const latestEntries = await listTiqTeamLeagueEntries(league.id, { includeAllStatuses: true })
         setTeamEntries(latestEntries.entries)
       }
     } catch (err) {
@@ -1605,6 +1976,137 @@ export default function TiqLeagueDetailPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  function renderScheduleItemRow(item: TiqLeagueScheduleItem, mode: 'calendar' | 'list' = 'list') {
+    if (!league) return null
+
+    const individualScheduleResult = individualResultByScheduleItemId.get(item.id) || null
+    const teamScheduleEvent = teamEventByScheduleItemId.get(item.id) || null
+    const scheduleOutcomeText = individualScheduleResult
+      ? `${individualScheduleResult.winnerPlayerName} def. ${resultOpponentName(individualScheduleResult)}${
+          individualScheduleResult.score ? `, ${individualScheduleResult.score}` : ''
+        }`
+      : teamScheduleEvent
+        ? `${teamScheduleEvent.teamAName} vs ${teamScheduleEvent.teamBName}${
+            teamScheduleEvent.winnerTeamName ? `, winner ${teamScheduleEvent.winnerTeamName}` : ''
+          }`
+        : ''
+    const resultHref =
+      league.leagueFormat === 'team'
+        ? buildScheduledTeamResultEntryHref(league.id, item)
+        : buildPrefilledResultHref(
+            league.id,
+            item.participantAId || `name:${item.participantAName}`,
+            item.participantBId || `name:${item.participantBName}`,
+            {
+              scheduleItemId: item.id,
+              resultDate: item.scheduledDate,
+            },
+          )
+    const messageSubject = `${item.participantAName} vs ${item.participantBName}`
+    const messageBody = [
+      `Hi ${item.participantBName},`,
+      '',
+      `Checking in about our ${league.leagueName} match${item.scheduledDate ? ` on ${item.scheduledDate}` : ''}.`,
+    ].join('\n')
+    const supportSubject = `Question about ${league.leagueName}: ${item.participantAName} vs ${item.participantBName}`
+    const supportBody = [
+      `League: ${league.leagueName}`,
+      `Match: ${item.participantAName} vs ${item.participantBName}`,
+      item.scheduledDate ? `Date: ${item.scheduledDate}` : '',
+      item.scheduledTime ? `Time: ${item.scheduledTime}` : '',
+      item.facility ? `Site: ${item.facility}` : '',
+      '',
+      'What I need help with:',
+    ].filter(Boolean).join('\n')
+    const statusLabel =
+      item.status === 'coordinator_set'
+        ? 'Published'
+        : item.status === 'completed'
+          ? 'Completed'
+          : item.status
+    const isCompact = mode === 'calendar'
+
+    return (
+      <div key={item.id} style={isCompact ? scheduleCalendarItemStyle : scheduleRowStyle}>
+        <div>
+          <div style={isCompact ? scheduleCalendarItemTitleStyle : listTitle}>
+            {item.participantAName} vs {item.participantBName}
+          </div>
+          <div style={listMeta}>
+            {[
+              isCompact ? null : item.scheduledDate,
+              item.scheduledTime,
+              item.facility,
+              item.notes,
+            ]
+              .filter(Boolean)
+              .join(' | ')}
+          </div>
+          {scheduleOutcomeText ? (
+            <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
+              Result: {scheduleOutcomeText}
+            </div>
+          ) : null}
+        </div>
+        <div style={isCompact ? scheduleCalendarActionsStyle : scheduleRowActionsStyle}>
+          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+            {statusLabel}
+          </span>
+          {item.status !== 'completed' ? (
+            <GhostLink href={resultHref}>Log result</GhostLink>
+          ) : null}
+          {item.participantBName ? (
+            <QuickMessageComposer
+              mode="direct"
+              triggerLabel="Message opponent"
+              recipientName={item.participantBName}
+              recipientPlayerId={item.participantBId}
+              subject={messageSubject}
+              body={messageBody}
+              entityType="tiq_schedule_item"
+              entityId={item.id}
+            />
+          ) : null}
+          <QuickMessageComposer
+            mode="support"
+            triggerLabel="Ask support"
+            category="league"
+            subject={supportSubject}
+            body={supportBody}
+            entityType="tiq_schedule_item"
+            entityId={item.id}
+          />
+          {item.status === 'proposed' ? (
+            <button
+              type="button"
+              onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
+              disabled={scheduleSaving || !userId}
+              style={{
+                ...ghostActionButton,
+                ...(scheduleSaving || !userId ? disabledButton : {}),
+              }}
+            >
+              Confirm
+            </button>
+          ) : null}
+          {item.status !== 'completed' ? (
+            <button
+              type="button"
+              onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
+              disabled={scheduleSaving || !userId}
+              style={{
+                ...ghostActionButton,
+                ...(scheduleSaving || !userId ? disabledButton : {}),
+              }}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1636,6 +2138,7 @@ export default function TiqLeagueDetailPage() {
                         {getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)}
                       </span>
                     ) : null}
+                    <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(league.schedulingMode)}</span>
                     <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(league.scoringSystem)}</span>
                     <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
                       {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
@@ -1648,8 +2151,9 @@ export default function TiqLeagueDetailPage() {
 
                   <div style={heroHintRow}>
                     <span style={hintPill}>
-                      {participants.length} {league.leagueFormat === 'team' ? 'participants teams' : 'participants players'}
+                      {activeEntryCount} {league.leagueFormat === 'team' ? 'active teams' : 'active players'}
                     </span>
+                    {pendingEntryCount > 0 ? <span style={hintPill}>{pendingEntryCount} requests pending</span> : null}
                     <span style={hintPill}>Updated {formatDateTime(league.updatedAt)}</span>
                   </div>
 
@@ -1672,19 +2176,72 @@ export default function TiqLeagueDetailPage() {
                       <img src={league.photoUrl} alt={`${league.leagueName} league`} style={leaguePhoto} />
                     </div>
                   ) : null}
-                  <div style={sideLabel}>Participation</div>
-                  <div style={sideValue}>
-                    {league.leagueFormat === 'team'
-                      ? 'Enter a team'
-                      : individualFormatExperience.participationCta}
-                  </div>
-                  <div style={sideText}>{entryMessage}</div>
-                  <div style={{ ...statusBanner, ...(entryEnabled ? infoBanner : warningBanner) }}>
-                    {entryEnabled
-                      ? league.leagueFormat === 'team'
-                        ? 'Team entry is enabled for this signed-in captain context.'
-                        : individualFormatExperience.enabledMessage
-                      : entryMessage}
+                  <div style={sideLabel}>League race</div>
+                  <div style={sideValue}>{leaderRows.length > 0 ? 'Leaders' : 'Standings pending'}</div>
+                  {leaderRows.length > 0 ? (
+                    <div style={leaderTableStyle} aria-label="League leaders">
+                      {leaderRows.slice(0, 5).map((row) => (
+                        <div key={`${row.rank}-${row.name}`} style={leaderRowStyle}>
+                          <span style={row.rank === 1 ? leaderRankAccentStyle : leaderRankMiniStyle}>
+                            {row.rank}
+                          </span>
+                          <div style={leaderNameCellStyle}>
+                            <strong>{row.name}</strong>
+                            <span>{row.detail}</span>
+                          </div>
+                          <span style={leaderRecordStyle}>{row.record}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={sideText}>
+                      The table wakes up as soon as approved participants and results are in.
+                    </div>
+                  )}
+                  <div style={actionRow}>
+                    <GhostLink href="#league-standings">Standings</GhostLink>
+                    <GhostLink href={league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results'}>
+                      Results
+                    </GhostLink>
+                    <QuickMessageComposer
+                      mode="league"
+                      triggerLabel="League room"
+                      subject={`${league.leagueName} league room`}
+                      body={[
+                        `League: ${league.leagueName}`,
+                        league.flight ? `Flight: ${league.flight}` : '',
+                        '',
+                        'Update:',
+                      ].filter(Boolean).join('\n')}
+                      leagueId={league.id}
+                      leagueName={league.leagueName}
+                      entityType="tiq_league"
+                      entityId={league.id}
+                      participantPlayerIds={
+                        league.leagueFormat === 'individual'
+                          ? visiblePlayerEntries.map((entry) => entry.playerId).filter(Boolean)
+                          : []
+                      }
+                      participantNames={
+                        league.leagueFormat === 'individual'
+                          ? visiblePlayerEntries.map((entry) => entry.playerName)
+                          : visibleTeamEntries.map((entry) => entry.teamName)
+                      }
+                    />
+                    <QuickMessageComposer
+                      mode="support"
+                      triggerLabel="Ask support"
+                      category="league"
+                      subject={`Question about ${league.leagueName}`}
+                      body={[
+                        `League: ${league.leagueName}`,
+                        league.flight ? `Flight: ${league.flight}` : '',
+                        '',
+                        'What I need help with:',
+                      ].filter(Boolean).join('\n')}
+                      entityType="tiq_league"
+                      entityId={league.id}
+                    />
                   </div>
                 </div>
               </div>
@@ -1692,30 +2249,111 @@ export default function TiqLeagueDetailPage() {
               {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
             </section>
 
-            <div style={dynamicMetricGrid}>
-              <MetricCard label="Season" value={league.seasonLabel || 'TIQ Season'} />
-              <MetricCard label="Flight / Tier" value={league.flight || 'Open'} />
-              <MetricCard label="Market" value={league.locationLabel || 'Unassigned'} />
-              <MetricCard label="Scoring" value={getTiqLeagueScoringSystemLabel(league.scoringSystem)} />
-              <MetricCard
-                label="Individual format"
-                value={
-                  league.leagueFormat === 'individual'
-                    ? getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)
-                    : 'Team'
-                }
-              />
-              <MetricCard label="Participants" value={String(participants.length)} accent />
-            </div>
+            <section id="league-overview" style={leagueHubPanelStyle}>
+              <div style={leagueHubHeaderStyle}>
+                <div>
+                  <div style={sectionEyebrow}>Season pulse</div>
+                  <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
+                  <p style={sectionText}>
+                    This page should feel like the league scoreboard first. Admin tools stay nearby, but results,
+                    standings, schedule, and the next useful tennis move lead the experience.
+                  </p>
+                </div>
+                <div style={leagueHubScoreStyle}>
+                  <strong>{leaderName || activeEntryCount}</strong>
+                  <span>{leaderName ? 'currently first' : `active ${league.leagueFormat === 'team' ? 'teams' : 'players'}`}</span>
+                </div>
+              </div>
 
-            <section style={dynamicSignalGrid}>
-              {tiqSignals.map((signal) => (
-                <article key={signal.label} style={signalCardStyle}>
-                  <div style={signalLabelStyle}>{signal.label}</div>
-                  <div style={signalValueStyle}>{signal.value}</div>
-                  <div style={signalNoteStyle}>{signal.note}</div>
-                </article>
-              ))}
+              <nav style={hubNavStyle} aria-label="TIQ league hub sections">
+                {hubNavItems.map((item) => (
+                  <a key={item.href} href={item.href} style={hubNavItemStyle}>
+                    <span>{item.label}</span>
+                    <small>{item.detail}</small>
+                  </a>
+                ))}
+              </nav>
+
+              <div style={seasonPulseGridStyle}>
+                <div style={seasonPulseWideCardStyle}>
+                  <div style={seasonPulseCardHeaderStyle}>
+                    <span style={pillGreen}>Leaders</span>
+                    <GhostLink href="#league-standings">Full table</GhostLink>
+                  </div>
+                  {leaderRows.length > 0 ? (
+                    <div style={leaderTableStyle}>
+                      {leaderRows.map((row) => (
+                        <div key={`pulse-${row.rank}-${row.name}`} style={leaderRowStyle}>
+                          <span style={row.rank === 1 ? leaderRankAccentStyle : leaderRankMiniStyle}>
+                            {row.rank}
+                          </span>
+                          <div style={leaderNameCellStyle}>
+                            <strong>{row.name}</strong>
+                            <span>{row.detail}</span>
+                          </div>
+                          <span style={leaderRecordStyle}>{row.record}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>Log the first result to start the standings race.</p>
+                  )}
+                </div>
+                <div style={seasonPulseCardStyle}>
+                  <span style={pillBlue}>Latest</span>
+                  <strong>
+                    {league.leagueFormat === 'individual'
+                      ? individualResultBookStats.latestResult?.winnerPlayerName || 'No result yet'
+                      : teamMatchEvents[0]?.winnerTeamName || teamMatchEvents[0]?.teamAName || 'No team event yet'}
+                  </strong>
+                  <p>
+                    {league.leagueFormat === 'individual' && individualResultBookStats.latestResult
+                      ? `def. ${resultOpponentName(individualResultBookStats.latestResult)}`
+                      : league.leagueFormat === 'team' && teamMatchEvents[0]
+                        ? `${teamMatchEvents.length} team events logged.`
+                        : 'Results will become the heartbeat of the league.'}
+                  </p>
+                </div>
+                <div style={seasonPulseWideCardStyle}>
+                  <div style={seasonPulseCardHeaderStyle}>
+                    <span style={pillSlate}>Upcoming matches</span>
+                    <GhostLink href="#league-schedule">Schedule</GhostLink>
+                  </div>
+                  {upcomingScheduleItems.length > 0 ? (
+                    <div style={upcomingMatchListStyle}>
+                      {upcomingScheduleItems.map((item) => (
+                        <div key={`upcoming-${item.id}`} style={upcomingMatchRowStyle}>
+                          <div>
+                            <strong>{item.participantAName} vs {item.participantBName}</strong>
+                            <span>
+                              {[item.scheduledDate, item.scheduledTime, item.facility || league.defaultFacility]
+                                .filter(Boolean)
+                                .join(' | ') || 'Time and site TBD'}
+                            </span>
+                          </div>
+                          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+                            {item.status === 'coordinator_set' ? 'Published' : item.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>
+                      {league.schedulingMode === 'coordinator_fixed'
+                        ? 'The coordinator has not published match times yet.'
+                        : 'Players can propose times here; confirmed matches will appear at the top.'}
+                    </p>
+                  )}
+                </div>
+                {!access.canUseAdvancedPlayerInsights ? (
+                  <div style={seasonPulseUpgradeStyle}>
+                    <span style={pillAmber}>Player unlock</span>
+                    <strong>Want to climb from here?</strong>
+                    <p>Player adds My Lab, follows, and matchup insight so this table turns into better match prep.</p>
+                    <GhostLink href="/pricing#player_plus">Unlock Player</GhostLink>
+                  </div>
+                ) : null}
+              </div>
             </section>
 
             <section style={formatCallout}>
@@ -1725,18 +2363,279 @@ export default function TiqLeagueDetailPage() {
               <div style={formatCalloutText}>{scoringRulesText}</div>
             </section>
 
+            <section id="league-schedule" style={schedulePanelStyle}>
+              <div style={leagueHubHeaderStyle}>
+                <div>
+                  <div style={sectionEyebrow}>Schedule</div>
+                  <h2 style={sectionTitle}>
+                    {league.schedulingMode === 'coordinator_fixed'
+                      ? 'Coordinator-set schedule'
+                      : 'Player-arranged schedule'}
+                  </h2>
+                  <p style={sectionText}>{scheduleRulesText}</p>
+                </div>
+                <span style={pillSlate}>{seasonWindowText}</span>
+              </div>
+
+              <div style={scheduleMetaGridStyle}>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Default day</span>
+                  <strong>{league.defaultMatchDay || 'TBD'}</strong>
+                </div>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Default time</span>
+                  <strong>{league.defaultMatchTime || 'TBD'}</strong>
+                </div>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Default site</span>
+                  <strong>{league.defaultFacility || 'TBD'}</strong>
+                </div>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Time zone</span>
+                  <strong>{league.scheduleTimeZone || 'America/Chicago'}</strong>
+                </div>
+              </div>
+
+              <div style={scheduleActionPanelStyle}>
+                <div style={leagueHubHeaderStyle}>
+                  <div>
+                    <div style={formatCalloutTitle}>
+                      {league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+                        ? 'Publish a match slot'
+                        : 'Propose a match time'}
+                    </div>
+                    <div style={formatCalloutText}>
+                      {league.schedulingMode === 'coordinator_fixed'
+                        ? 'Coordinator-set leagues can publish dates, times, and sites so the season schedule is visible before match week.'
+                        : 'Player-arranged leagues let members propose the date, time, and site through TenAceIQ before the result is recorded.'}
+                    </div>
+                  </div>
+                  <span style={scheduleSource === 'supabase' ? pillGreen : pillSlate}>
+                    {scheduleSource === 'supabase' ? 'Live schedule' : 'Local schedule'}
+                  </span>
+                </div>
+
+                <div style={dynamicResultFormGrid}>
+                  <label style={fieldLabel}>
+                    <span>{league.leagueFormat === 'team' ? 'Team A' : 'Player A'}</span>
+                    <select
+                      value={scheduleParticipantA}
+                      onChange={(event) => setScheduleParticipantA(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    >
+                      <option value="">Choose participant A</option>
+                      {scheduleParticipantOptions.map((option) => (
+                        <option key={`schedule-a-${option.value}`} value={option.value}>
+                          {option.playerName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>{league.leagueFormat === 'team' ? 'Team B' : 'Player B'}</span>
+                    <select
+                      value={scheduleParticipantB}
+                      onChange={(event) => setScheduleParticipantB(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    >
+                      <option value="">Choose participant B</option>
+                      {scheduleParticipantOptions.map((option) => (
+                        <option key={`schedule-b-${option.value}`} value={option.value}>
+                          {option.playerName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Date</span>
+                    <input
+                      type="date"
+                      value={scheduleDate}
+                      onChange={(event) => setScheduleDate(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Time</span>
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(event) => setScheduleTime(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+
+                  <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
+                    <span>Site</span>
+                    <input
+                      value={scheduleFacility}
+                      onChange={(event) => setScheduleFacility(event.target.value)}
+                      placeholder={league.defaultFacility || 'Club, park, or court block'}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+
+                  <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
+                    <span>Notes</span>
+                    <textarea
+                      value={scheduleNotes}
+                      onChange={(event) => setScheduleNotes(event.target.value)}
+                      placeholder="Court instructions, rain plan, contact notes, or make-up match context."
+                      style={textareaStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+                </div>
+
+                {scheduleStatus ? <div style={statusBanner}>{scheduleStatus}</div> : null}
+
+                <div style={actionRow}>
+                  <button
+                    type="button"
+                    onClick={handleScheduleSubmit}
+                    disabled={scheduleSaving || !userId || scheduleParticipantOptions.length < 2}
+                    style={{
+                      ...primaryButton,
+                      ...(scheduleSaving || !userId || scheduleParticipantOptions.length < 2 ? disabledButton : {}),
+                    }}
+                  >
+                    {scheduleSaving
+                      ? 'Saving schedule...'
+                      : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+                        ? 'Publish Match Slot'
+                        : 'Propose Match Time'}
+                  </button>
+                  {scheduleParticipantAOption && scheduleParticipantBOption ? (
+                    <ScheduleMessageComposer
+                      mode="tiq-league-match"
+                      triggerLabel="Schedule in Messages"
+                      leagueId={league.id}
+                      leagueName={league.leagueName}
+                      leagueFormat={league.leagueFormat}
+                      participantAName={scheduleParticipantAOption.playerName}
+                      participantAId={scheduleParticipantAOption.playerId}
+                      participantBName={scheduleParticipantBOption.playerName}
+                      participantBId={scheduleParticipantBOption.playerId}
+                      defaultDate={scheduleDate}
+                      defaultTime={scheduleTime || league.defaultMatchTime}
+                      defaultFacility={scheduleFacility || league.defaultFacility}
+                      participantNames={[scheduleParticipantAOption.playerName, scheduleParticipantBOption.playerName]}
+                      participantPlayerIds={[scheduleParticipantAOption.playerId, scheduleParticipantBOption.playerId].filter(Boolean)}
+                    />
+                  ) : null}
+                  <span style={metaPill}>
+                    {confirmedScheduleItemCount} confirmed | {pendingScheduleItemCount} proposed | {completedScheduleItemCount} done
+                  </span>
+                </div>
+              </div>
+
+              {visibleScheduleItems.length > 0 ? (
+                <div style={schedulePublishedPanelStyle}>
+                  <div style={scheduleViewHeaderStyle}>
+                    <div>
+                      <div style={formatCalloutTitle}>Published season schedule</div>
+                      <div style={formatCalloutText}>
+                        Calendar view groups matches by date. List view is faster for status review and result entry.
+                      </div>
+                    </div>
+                    <div style={scheduleViewToggleStyle} aria-label="Schedule view">
+                      {(['calendar', 'list'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setScheduleDisplayMode(mode)}
+                          style={scheduleDisplayMode === mode ? scheduleViewToggleActiveStyle : scheduleViewToggleButtonStyle}
+                        >
+                          {mode === 'calendar' ? 'Calendar' : 'List'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {scheduleDisplayMode === 'calendar' ? (
+                    <div style={scheduleCalendarGridStyle}>
+                      {scheduleCalendarDays.map((day) => (
+                        <div key={day.date} style={scheduleCalendarDayStyle}>
+                          <div style={scheduleCalendarDateStyle}>
+                            <span>{day.dayLabel}</span>
+                            <strong>{day.label}</strong>
+                          </div>
+                          <div style={scheduleCalendarItemGridStyle}>
+                            {day.items.map((item) => renderScheduleItemRow(item, 'calendar'))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={scheduleListStyle}>
+                      {visibleScheduleItems.map((item) => renderScheduleItemRow(item))}
+                    </div>
+                  )}
+                </div>
+              ) : league.leagueFormat === 'team' ? (
+                scheduledTeamEvents.length === 0 ? (
+                  <div style={emptyCard}>
+                    No match dates are published yet. Once the coordinator adds team match events, members can see
+                    who plays, when, where, and which scores are still missing.
+                  </div>
+                ) : (
+                  <div style={scheduleListStyle}>
+                    {scheduledTeamEvents.slice(0, 5).map((event) => (
+                      <div key={event.id} style={scheduleRowStyle}>
+                        <div>
+                          <div style={listTitle}>{event.teamAName} vs {event.teamBName}</div>
+                          <div style={listMeta}>
+                            {[formatDateTime(event.matchDate), event.facility || league.defaultFacility]
+                              .filter(Boolean)
+                              .join(' | ')}
+                          </div>
+                        </div>
+                        <span style={nextTeamEvent?.id === event.id ? pillGreen : metaPill}>
+                          {nextTeamEvent?.id === event.id ? 'Next up' : 'Scheduled'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : competitionOpportunities.length === 0 ? (
+                <div style={emptyCard}>
+                  Add approved players and results to unlock player-arranged match prompts for this individual season.
+                </div>
+              ) : (
+                <div style={scheduleListStyle}>
+                  {competitionOpportunities.slice(0, 5).map((item) => (
+                    <div key={item.key} style={scheduleRowStyle}>
+                      <div>
+                        <div style={listTitle}>{item.title}</div>
+                        <div style={listMeta}>{item.body}</div>
+                      </div>
+                      {item.secondaryHref ? <GhostLink href={item.secondaryHref}>Log result</GhostLink> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <div style={dynamicContentGrid}>
-              <section style={dynamicPanelCard}>
+              <section id="league-requests" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Entry workflow</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
-                    ? 'Add your team to this TIQ league'
-                    : individualFormatExperience.entryTitle}
+                    ? 'Request team entry'
+                    : 'Request to join'}
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'This is the monetization seam for the low-friction seasonal team entry layer. Captains can bring a team into TIQ competition without blending that action into USTA browse pages.'
-                    : `${individualFormatExperience.entryDescription} ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
+                    ? 'Submit your team for coordinator approval. Approved teams appear in participants, schedules, results, and standings.'
+                    : `Submit your player entry for coordinator approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
                 <label style={fieldLabel}>
@@ -1827,7 +2726,7 @@ export default function TiqLeagueDetailPage() {
                 </div>
               </section>
 
-              <section style={dynamicPanelCard}>
+              <section id="league-participants" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Participants</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
@@ -1839,6 +2738,11 @@ export default function TiqLeagueDetailPage() {
                     ? 'Teams are the participant unit here, separate from the league container itself.'
                     : individualFormatExperience.participantsDescription}
                 </p>
+                <div style={participantStatusGridStyle}>
+                  <span style={pillGreen}>{activeEntryCount} active</span>
+                  <span style={pendingEntryCount > 0 ? pillAmber : pillSlate}>{pendingEntryCount} pending</span>
+                  <span style={rejectedEntryCount > 0 ? pillSlate : pillGreen}>{rejectedEntryCount} declined</span>
+                </div>
                 {league.leagueFormat === 'individual' ? (
                   <div style={formatCallout}>
                     <div style={formatCalloutTitle}>{individualFormatExperience.participantsHintTitle}</div>
@@ -1887,11 +2791,33 @@ export default function TiqLeagueDetailPage() {
                     ))}
                   </div>
                 )}
+
+                {pendingEntries.length > 0 ? (
+                  <div style={requestPreviewStyle}>
+                    <div style={formatCalloutTitle}>Waiting for coordinator approval</div>
+                    <div style={requestPreviewGridStyle}>
+                      {pendingEntries.slice(0, 4).map((entry) => {
+                        const entryName = 'teamName' in entry ? entry.teamName : entry.playerName
+                        const detail =
+                          'teamName' in entry
+                            ? [entry.sourceLeagueName, entry.sourceFlight].filter(Boolean).join(' | ')
+                            : entry.playerLocation
+
+                        return (
+                          <div key={`${entry.leagueId}-${entryName}`} style={requestPreviewCardStyle}>
+                            <strong>{entryName}</strong>
+                            <span>{detail || 'Request submitted'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </section>
             </div>
 
             {league.leagueFormat === 'individual' ? (
-              <section style={dynamicPanelCard}>
+              <section id="league-standings" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>{individualFormatExperience.standingsEyebrow}</div>
                 <h2 style={sectionTitle}>{individualFormatExperience.standingsTitle}</h2>
                 <p style={sectionText}>{individualFormatExperience.standingsDescription}</p>
@@ -1997,7 +2923,7 @@ export default function TiqLeagueDetailPage() {
             ) : null}
 
             {league.leagueFormat === 'individual' ? (
-              <section style={dynamicPanelCard}>
+              <section id="league-individual-results" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Result book</div>
                 <h2 style={sectionTitle}>Current player-result status.</h2>
                 <p style={sectionText}>
@@ -2329,6 +3255,9 @@ export default function TiqLeagueDetailPage() {
                       style={inputStyle}
                       disabled={resultEntryDisabled}
                     />
+                    <small style={scoreHelpStyle}>
+                      Use completed sets only: 6-4, 7-6, or a deciding 10-point tiebreak like 10-8.
+                    </small>
                   </label>
 
                   <label style={fieldLabel}>
@@ -2385,12 +3314,29 @@ export default function TiqLeagueDetailPage() {
                   <div style={emptyCard}>{individualFormatExperience.emptyResults}</div>
                 ) : (
                   <div style={listWrap}>
-                    {individualResults.map((result) => (
+                    {individualResults.map((result) => {
+                      const opponentName = resultOpponentName(result)
+                      const opponentId = result.winnerPlayerId === result.playerAId ? result.playerBId : result.playerAId
+                      const resultMessageSubject = `${result.winnerPlayerName} vs ${opponentName}`
+                      const resultMessageBody = [
+                        `Hi ${opponentName},`,
+                        '',
+                        `Following up on our ${league.leagueName} result${result.resultDate ? ` from ${formatDateTime(result.resultDate)}` : ''}.`,
+                      ].join('\n')
+                      const resultSupportBody = [
+                        `League: ${league.leagueName}`,
+                        `Result: ${result.winnerPlayerName} def. ${opponentName}`,
+                        result.score ? `Score: ${result.score}` : '',
+                        result.resultDate ? `Date: ${result.resultDate}` : '',
+                        '',
+                        'What I need help with:',
+                      ].filter(Boolean).join('\n')
+                      return (
                       <div key={result.id} style={dynamicListCard}>
                         <div>
                           <div style={listTitle}>
                             {result.winnerPlayerName} def.{' '}
-                            {result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName}
+                            {opponentName}
                           </div>
                           <div style={listMeta}>
                             {[result.score, formatDateTime(result.resultDate), result.notes].filter(Boolean).join(' · ')}
@@ -2403,19 +3349,39 @@ export default function TiqLeagueDetailPage() {
                           <span style={metaPill}>
                             {result.score || individualFormatExperience.actionLabel}
                           </span>
+                          <QuickMessageComposer
+                            mode="direct"
+                            triggerLabel="Message opponent"
+                            recipientName={opponentName}
+                            recipientPlayerId={opponentId}
+                            subject={resultMessageSubject}
+                            body={resultMessageBody}
+                            entityType="tiq_individual_result"
+                            entityId={result.id}
+                          />
+                          <QuickMessageComposer
+                            mode="support"
+                            triggerLabel="Ask support"
+                            category="result"
+                            subject={`Question about ${league.leagueName} result`}
+                            body={resultSupportBody}
+                            entityType="tiq_individual_result"
+                            entityId={result.id}
+                          />
                           {result.winnerPlayerId ? (
                             <GhostLink href={`/players/${encodeURIComponent(result.winnerPlayerId)}`}>Winner</GhostLink>
                           ) : null}
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </section>
             ) : null}
 
-            {league.leagueFormat === 'team' && teamStandings.length > 0 ? (
-              <section style={panelCard}>
+            {league.leagueFormat === 'team' ? (
+              <section id="league-standings" style={panelCard}>
                 <div style={sectionEyebrow}>Standings</div>
                 <h2 style={sectionTitle}>Team records for this league.</h2>
                 <p style={sectionText}>
@@ -2424,6 +3390,11 @@ export default function TiqLeagueDetailPage() {
                     : 'Event wins are determined by line majority. Line wins are the tiebreaker.'}
                 </p>
 
+                {teamStandings.length === 0 ? (
+                  <div style={emptyCard}>
+                    Standings will appear after the first team match result is entered and reviewed.
+                  </div>
+                ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
@@ -2469,11 +3440,12 @@ export default function TiqLeagueDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                )}
               </section>
             ) : null}
 
             {league.leagueFormat === 'team' ? (
-              <section style={panelCard}>
+              <section id="league-team-results" style={panelCard}>
                 <div style={sectionEyebrow}>Match Results</div>
                 <h2 style={sectionTitle}>Team match events and line-by-line results.</h2>
                 <p style={sectionText}>
@@ -2609,7 +3581,7 @@ export default function TiqLeagueDetailPage() {
               </section>
             ) : null}
 
-            <section style={panelCard}>
+            <section id="league-settings" style={panelCard}>
               <div style={sectionEyebrow}>Coordinator context</div>
               <h2 style={sectionTitle}>Use TIQ league context without losing the command center.</h2>
               <p style={sectionText}>
@@ -2636,23 +3608,6 @@ export default function TiqLeagueDetailPage() {
         )}
       </section>
     </SiteShell>
-  )
-}
-
-function MetricCard({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string
-  value: string
-  accent?: boolean
-}) {
-  return (
-    <div style={{ ...metricCard, ...(accent ? metricCardAccent : {}) }}>
-      <div style={metricLabel}>{label}</div>
-      <div style={metricValue}>{value}</div>
-    </div>
   )
 }
 
@@ -2813,6 +3768,54 @@ const sideText: CSSProperties = {
   lineHeight: 1.7,
 }
 
+const leaderTableStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const leaderRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr) auto',
+  gap: '10px',
+  alignItems: 'center',
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(7,17,33,0.48)',
+  color: '#f8fbff',
+}
+
+const leaderRankMiniStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 34,
+  height: 34,
+  borderRadius: '999px',
+  background: 'rgba(142,161,189,0.18)',
+  color: '#e7eefb',
+  fontWeight: 900,
+  fontSize: '13px',
+}
+
+const leaderRankAccentStyle: CSSProperties = {
+  ...leaderRankMiniStyle,
+  background: '#9be11d',
+  color: '#06121a',
+}
+
+const leaderNameCellStyle: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+}
+
+const leaderRecordStyle: CSSProperties = {
+  color: '#dffad5',
+  fontWeight: 950,
+  fontSize: '14px',
+}
+
 const actionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -2848,88 +3851,293 @@ const statusBanner: CSSProperties = {
   fontWeight: 700,
 }
 
-const infoBanner: CSSProperties = {
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'rgba(17, 39, 27, 0.58)',
-  color: '#dcfce7',
-}
-
-const warningBanner: CSSProperties = {
-  border: '1px solid rgba(245, 158, 11, 0.2)',
-  background: 'rgba(120, 53, 15, 0.34)',
-  color: '#fde68a',
-}
-
-const metricGrid: CSSProperties = {
+const leagueHubPanelStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '16px',
+  gap: '18px',
+  padding: '24px',
+  borderRadius: '26px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(15,34,62,0.94), rgba(17,42,39,0.86))',
+  boxShadow: '0 22px 48px rgba(2,10,24,0.24)',
 }
 
-const signalGridStyle: CSSProperties = {
+const leagueHubHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '16px',
+  flexWrap: 'wrap',
+}
+
+const leagueHubScoreStyle: CSSProperties = {
+  minWidth: '156px',
+  display: 'grid',
+  gap: '2px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'rgba(155,225,29,0.08)',
+  color: '#e7ffd1',
+  textAlign: 'right',
+}
+
+const hubNavStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+  gap: '10px',
+}
+
+const hubNavItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minHeight: '68px',
+  padding: '12px 14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 900,
+}
+
+const seasonPulseGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+}
+
+const seasonPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,34,0.52)',
+  color: '#dbeafe',
+}
+
+const seasonPulseWideCardStyle: CSSProperties = {
+  ...seasonPulseCardStyle,
+  gridColumn: '1 / -1',
+}
+
+const seasonPulseCardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
+const seasonPulseUpgradeStyle: CSSProperties = {
+  ...seasonPulseCardStyle,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.10), rgba(7,17,34,0.56))',
+}
+
+const upcomingMatchListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const upcomingMatchRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: '10px',
+  alignItems: 'center',
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const schedulePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  padding: '24px',
+  borderRadius: '26px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(14,31,57,0.90), rgba(8,18,35,0.94))',
+}
+
+const scheduleMetaGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: '10px',
+}
+
+const scheduleMetaCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+}
+
+const scheduleActionPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
+const scheduleListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const schedulePublishedPanelStyle: CSSProperties = {
+  display: 'grid',
   gap: '14px',
 }
 
-const signalCardStyle: CSSProperties = {
-  padding: '18px',
-  borderRadius: '24px',
+const scheduleViewHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const scheduleViewToggleStyle: CSSProperties = {
+  display: 'inline-flex',
+  gap: '6px',
+  padding: '5px',
+  borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.16)',
+  background: 'rgba(7,17,33,0.56)',
 }
 
-const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
+const scheduleViewToggleButtonStyle: CSSProperties = {
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: 'none',
+  background: 'transparent',
+  color: 'rgba(229,238,251,0.74)',
+  cursor: 'pointer',
   fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '10px',
-  color: '#f8fbff',
-  fontSize: '1.28rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
 }
 
-const signalNoteStyle: CSSProperties = {
-  marginTop: '8px',
-  color: 'rgba(224,234,247,0.74)',
-  lineHeight: 1.6,
-  fontSize: '.94rem',
-}
-
-const metricCard: CSSProperties = {
-  padding: '18px',
-  borderRadius: '24px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
-}
-
-const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-}
-
-const metricLabel: CSSProperties = {
-  color: 'rgba(198,216,248,0.78)',
-  fontSize: '13px',
-  fontWeight: 750,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-}
-
-const metricValue: CSSProperties = {
-  marginTop: '8px',
+const scheduleViewToggleActiveStyle: CSSProperties = {
+  ...scheduleViewToggleButtonStyle,
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.22), rgba(74,163,255,0.14))',
   color: '#f8fbff',
-  fontSize: '28px',
-  lineHeight: 1.1,
+}
+
+const scheduleCalendarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gap: '12px',
+}
+
+const scheduleCalendarDayStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  alignContent: 'start',
+  minHeight: '190px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const scheduleCalendarDateStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'rgba(229,238,251,0.70)',
+  fontSize: '12px',
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+const scheduleCalendarItemGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const scheduleCalendarItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '9px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.12)',
+  background: 'rgba(7,17,33,0.48)',
+}
+
+const scheduleCalendarItemTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '14px',
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const scheduleCalendarActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  flexWrap: 'wrap',
+}
+
+const scheduleRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const scheduleRowActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  flexWrap: 'wrap',
+}
+
+const participantStatusGridStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginBottom: '12px',
+}
+
+const requestPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  marginTop: '14px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(251,191,36,0.14)',
+  background: 'rgba(251,191,36,0.06)',
+}
+
+const requestPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '10px',
+}
+
+const requestPreviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(8,18,35,0.6)',
+  color: '#e7eefb',
 }
 
 const resultBookGrid: CSSProperties = {
@@ -3123,6 +4331,13 @@ const inputStyle: CSSProperties = {
   color: '#f8fbff',
   padding: '0 14px',
   outline: 'none',
+}
+
+const scoreHelpStyle: CSSProperties = {
+  color: 'rgba(214,228,246,0.66)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 650,
 }
 
 const textareaStyle: CSSProperties = {

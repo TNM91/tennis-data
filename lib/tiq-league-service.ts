@@ -4,6 +4,9 @@ import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
   deleteTiqLeagueRecord,
+  normalizeTiqLeagueSchedulingMode,
+  normalizeTiqLeagueScheduleTimeZone,
+  normalizeTiqLeagueVisibility,
   readTiqLeagueRegistry,
   type TiqLeagueDraft,
   type TiqLeagueRecord,
@@ -20,12 +23,14 @@ import {
   normalizeTiqLeagueSeasonStatus,
   type TiqLeagueSeasonStatus,
 } from '@/lib/tiq-league-limits'
+import { normalizeSeasonLabel } from '@/lib/season-labels'
 
 const TIQ_LEAGUES_TABLE = 'tiq_leagues'
 const TIQ_TEAM_ENTRIES_TABLE = 'tiq_team_league_entries'
 const TIQ_PLAYER_ENTRIES_TABLE = 'tiq_player_league_entries'
 
 export type TiqLeagueStorageSource = 'supabase' | 'local'
+export type TiqLeagueEntryStatus = 'pending' | 'active' | 'rejected' | 'removed'
 
 export type TiqLeagueListResult = {
   records: TiqLeagueRecord[]
@@ -39,7 +44,7 @@ export type TiqTeamLeagueEntryRecord = {
   teamEntityId: string
   sourceLeagueName: string
   sourceFlight: string
-  entryStatus: 'active' | 'removed'
+  entryStatus: TiqLeagueEntryStatus
 }
 
 export type TiqTeamParticipationRecord = {
@@ -70,7 +75,7 @@ export type TiqPlayerLeagueEntryRecord = {
   playerName: string
   playerId: string
   playerLocation: string
-  entryStatus: 'active' | 'removed'
+  entryStatus: TiqLeagueEntryStatus
 }
 
 type TiqLeagueRow = {
@@ -86,6 +91,13 @@ type TiqLeagueRow = {
   ends_on?: string | null
   max_weeks?: number | null
   max_match_events?: number | null
+  is_public?: boolean | null
+  scheduling_mode?: string | null
+  default_match_day?: string | null
+  default_match_time?: string | null
+  schedule_time_zone?: string | null
+  default_facility?: string | null
+  scheduling_notes?: string | null
   flight?: string | null
   location_label?: string | null
   photo_url?: string | null
@@ -129,6 +141,13 @@ type TiqLeagueRemotePayload = {
   ends_on: string | null
   max_weeks: number
   max_match_events: number
+  is_public: boolean
+  scheduling_mode: 'coordinator_fixed' | 'player_arranged'
+  default_match_day: string
+  default_match_time: string
+  schedule_time_zone: string
+  default_facility: string
+  scheduling_notes: string
   flight: string
   location_label: string
   photo_url: string
@@ -148,7 +167,7 @@ type TiqTeamEntryPayload = {
   team_entity_id: string
   source_league_name: string
   source_flight: string
-  entry_status: 'active'
+  entry_status: TiqLeagueEntryStatus
   created_by_user_id: string
   updated_by_user_id: string
 }
@@ -158,7 +177,7 @@ type TiqPlayerEntryPayload = {
   player_name: string
   player_id: string
   player_location: string
-  entry_status: 'active'
+  entry_status: TiqLeagueEntryStatus
   created_by_user_id: string
   updated_by_user_id: string
 }
@@ -179,8 +198,10 @@ function normalizeList(values: string[] | null | undefined) {
   )
 }
 
-function normalizeEntryStatus(value: string | null | undefined): 'active' | 'removed' {
-  return cleanText(value).toLowerCase() === 'removed' ? 'removed' : 'active'
+function normalizeEntryStatus(value: string | null | undefined): TiqLeagueEntryStatus {
+  const normalized = cleanText(value).toLowerCase()
+  if (normalized === 'active' || normalized === 'rejected' || normalized === 'removed') return normalized
+  return 'pending'
 }
 
 function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
@@ -191,12 +212,19 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
     scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
     leagueName: cleanText(row.league_name),
-    seasonLabel: cleanText(row.season_label),
+    seasonLabel: normalizeSeasonLabel(row.season_label),
     seasonStatus: normalizeTiqLeagueSeasonStatus(row.season_status),
     startsOn: cleanText(row.starts_on),
     endsOn: cleanText(row.ends_on),
     maxWeeks: normalizeTiqLeagueMaxWeeks(row.max_weeks ?? DEFAULT_TIQ_LEAGUE_MAX_WEEKS),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(row.max_match_events ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS),
+    isPublic: normalizeTiqLeagueVisibility(row.is_public ?? true) === 'public',
+    schedulingMode: normalizeTiqLeagueSchedulingMode(row.scheduling_mode),
+    defaultMatchDay: cleanText(row.default_match_day),
+    defaultMatchTime: cleanText(row.default_match_time),
+    scheduleTimeZone: normalizeTiqLeagueScheduleTimeZone(row.schedule_time_zone),
+    defaultFacility: cleanText(row.default_facility),
+    schedulingNotes: cleanText(row.scheduling_notes),
     flight: cleanText(row.flight),
     locationLabel: cleanText(row.location_label),
     photoUrl: cleanText(row.photo_url),
@@ -233,7 +261,7 @@ function mergeParticipantEntries(
   const playerEntriesByLeague = new Map<string, string[]>()
 
   for (const row of teamEntryRows) {
-    if (normalizeEntryStatus(row.entry_status) === 'removed') continue
+    if (normalizeEntryStatus(row.entry_status) !== 'active') continue
     const leagueId = cleanText(row.league_id)
     const teamName = cleanText(row.team_name)
     if (!leagueId || !teamName) continue
@@ -241,7 +269,7 @@ function mergeParticipantEntries(
   }
 
   for (const row of playerEntryRows) {
-    if (normalizeEntryStatus(row.entry_status) === 'removed') continue
+    if (normalizeEntryStatus(row.entry_status) !== 'active') continue
     const leagueId = cleanText(row.league_id)
     const playerName = cleanText(row.player_name)
     if (!leagueId || !playerName) continue
@@ -288,6 +316,13 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     ends_on: record.endsOn || null,
     max_weeks: record.maxWeeks,
     max_match_events: record.maxMatchEvents,
+    is_public: record.isPublic,
+    scheduling_mode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
+    default_match_day: record.defaultMatchDay,
+    default_match_time: record.defaultMatchTime,
+    schedule_time_zone: normalizeTiqLeagueScheduleTimeZone(record.scheduleTimeZone),
+    default_facility: record.defaultFacility,
+    scheduling_notes: record.schedulingNotes,
     flight: record.flight,
     location_label: record.locationLabel,
     photo_url: record.photoUrl,
@@ -427,6 +462,7 @@ export async function getTiqLeagueById(
 
 export async function listTiqTeamLeagueEntries(
   leagueId: string,
+  options: { includeAllStatuses?: boolean } = {},
 ): Promise<{
   entries: TiqTeamLeagueEntryRecord[]
   source: TiqLeagueStorageSource
@@ -445,7 +481,7 @@ export async function listTiqTeamLeagueEntries(
     const entries = ((data || []) as TiqTeamEntryRow[])
       .map(normalizeTeamEntryRow)
       .filter((entry): entry is TiqTeamLeagueEntryRecord => Boolean(entry))
-      .filter((entry) => entry.entryStatus === 'active')
+      .filter((entry) => options.includeAllStatuses ? entry.entryStatus !== 'removed' : entry.entryStatus === 'active')
 
     return {
       entries,
@@ -574,6 +610,7 @@ export async function listTiqTeamParticipations(
 
 export async function listTiqPlayerLeagueEntries(
   leagueId: string,
+  options: { includeAllStatuses?: boolean } = {},
 ): Promise<{
   entries: TiqPlayerLeagueEntryRecord[]
   source: TiqLeagueStorageSource
@@ -592,7 +629,7 @@ export async function listTiqPlayerLeagueEntries(
     const entries = ((data || []) as TiqPlayerEntryRow[])
       .map(normalizePlayerEntryRow)
       .filter((entry): entry is TiqPlayerLeagueEntryRecord => Boolean(entry))
-      .filter((entry) => entry.entryStatus === 'active')
+      .filter((entry) => options.includeAllStatuses ? entry.entryStatus !== 'removed' : entry.entryStatus === 'active')
 
     return {
       entries,
@@ -749,16 +786,14 @@ export async function addTiqTeamLeagueEntry(
 ): Promise<{ record: TiqLeagueRecord | null; source: TiqLeagueStorageSource; warning: string | null }> {
   const normalizedLeagueId = cleanText(input.leagueId)
   const normalizedTeamName = cleanText(input.teamName)
-  const localRecord = appendParticipantToLocalRecord(normalizedLeagueId, normalizedTeamName, 'team')
 
   try {
     const userId = await getAuthenticatedUserId()
     if (!userId) {
       return {
-        record: localRecord,
+        record: null,
         source: 'local',
-        warning:
-          'Sign in as a captain to sync this TIQ team entry across devices. It is saved on this device for now.',
+        warning: 'Sign in to request entry. Coordinators approve every TIQ league request.',
       }
     }
 
@@ -768,7 +803,7 @@ export async function addTiqTeamLeagueEntry(
       team_entity_id: cleanText(input.teamEntityId),
       source_league_name: cleanText(input.sourceLeagueName),
       source_flight: cleanText(input.sourceFlight),
-      entry_status: 'active',
+      entry_status: 'pending',
       created_by_user_id: userId,
       updated_by_user_id: userId,
     }
@@ -780,18 +815,18 @@ export async function addTiqTeamLeagueEntry(
 
     const latest = await getTiqLeagueById(normalizedLeagueId)
     return {
-      record: latest.record || localRecord,
+      record: latest.record,
       source: 'supabase',
       warning: latest.warning,
     }
   } catch (error) {
     return {
-      record: localRecord,
+      record: null,
       source: 'local',
       warning:
         error instanceof Error
-          ? 'TIQ team entry saved on this device. Cloud sync will retry later.'
-          : 'TIQ team entry saved on this device. Cloud sync will retry later.',
+          ? 'Team entry request could not sync. Try again in a moment.'
+          : 'Team entry request could not sync. Try again in a moment.',
     }
   }
 }
@@ -806,16 +841,14 @@ export async function addTiqPlayerLeagueEntry(
 ): Promise<{ record: TiqLeagueRecord | null; source: TiqLeagueStorageSource; warning: string | null }> {
   const normalizedLeagueId = cleanText(input.leagueId)
   const normalizedPlayerName = cleanText(input.playerName)
-  const localRecord = appendParticipantToLocalRecord(normalizedLeagueId, normalizedPlayerName, 'individual')
 
   try {
     const userId = await getAuthenticatedUserId()
     if (!userId) {
       return {
-        record: localRecord,
+        record: null,
         source: 'local',
-        warning:
-          'Sign in to sync this TIQ player entry across devices. It is saved on this device for now.',
+        warning: 'Sign in to request entry. Coordinators approve every TIQ league request.',
       }
     }
 
@@ -824,7 +857,7 @@ export async function addTiqPlayerLeagueEntry(
       player_name: normalizedPlayerName,
       player_id: cleanText(input.playerId),
       player_location: cleanText(input.playerLocation),
-      entry_status: 'active',
+      entry_status: 'pending',
       created_by_user_id: userId,
       updated_by_user_id: userId,
     }
@@ -832,6 +865,60 @@ export async function addTiqPlayerLeagueEntry(
     const { error } = await supabase
       .from(TIQ_PLAYER_ENTRIES_TABLE)
       .upsert(payload, { onConflict: 'league_id,player_name' })
+    if (error) throw error
+
+    const latest = await getTiqLeagueById(normalizedLeagueId)
+    return {
+      record: latest.record,
+      source: 'supabase',
+      warning: latest.warning,
+    }
+  } catch (error) {
+    return {
+      record: null,
+      source: 'local',
+      warning:
+        error instanceof Error
+          ? 'Player entry request could not sync. Try again in a moment.'
+          : 'Player entry request could not sync. Try again in a moment.',
+    }
+  }
+}
+
+export async function updateTiqLeagueEntryStatus(input: {
+  leagueId: string
+  leagueFormat: 'team' | 'individual'
+  entryName: string
+  entryStatus: Extract<TiqLeagueEntryStatus, 'active' | 'rejected' | 'removed'>
+}): Promise<{ record: TiqLeagueRecord | null; source: TiqLeagueStorageSource; warning: string | null }> {
+  const normalizedLeagueId = cleanText(input.leagueId)
+  const normalizedEntryName = cleanText(input.entryName)
+  const table = input.leagueFormat === 'team' ? TIQ_TEAM_ENTRIES_TABLE : TIQ_PLAYER_ENTRIES_TABLE
+  const nameColumn = input.leagueFormat === 'team' ? 'team_name' : 'player_name'
+  const localRecord =
+    input.entryStatus === 'active'
+      ? appendParticipantToLocalRecord(normalizedLeagueId, normalizedEntryName, input.leagueFormat)
+      : null
+
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) {
+      return {
+        record: localRecord,
+        source: 'local',
+        warning: 'Sign in as the coordinator to update league requests.',
+      }
+    }
+
+    const { error } = await supabase
+      .from(table)
+      .update({
+        entry_status: input.entryStatus,
+        updated_by_user_id: userId,
+      })
+      .eq('league_id', normalizedLeagueId)
+      .eq(nameColumn, normalizedEntryName)
+
     if (error) throw error
 
     const latest = await getTiqLeagueById(normalizedLeagueId)
@@ -846,8 +933,8 @@ export async function addTiqPlayerLeagueEntry(
       source: 'local',
       warning:
         error instanceof Error
-          ? 'TIQ player entry saved on this device. Cloud sync will retry later.'
-          : 'TIQ player entry saved on this device. Cloud sync will retry later.',
+          ? 'Entry request updated locally. Cloud sync will retry later.'
+          : 'Entry request updated locally. Cloud sync will retry later.',
     }
   }
 }

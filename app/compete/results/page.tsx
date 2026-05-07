@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
 import CompetePageFrame, {
   CompeteCard,
   CompeteGrid,
@@ -185,6 +186,15 @@ function ResultRow({
   const loserName = result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
   const loserId = result.winnerPlayerId === result.playerAId ? result.playerBId : result.playerAId
   const matchupHref = buildResultMatchupHref(result)
+  const supportSubject = `Question about result: ${result.winnerPlayerName} def. ${loserName}`
+  const supportBody = [
+    `League: ${leagueName}`,
+    `Result: ${result.winnerPlayerName} def. ${loserName}`,
+    result.score ? `Score: ${result.score}` : '',
+    result.resultDate ? `Date: ${result.resultDate}` : '',
+    '',
+    'What I need help with:',
+  ].filter(Boolean).join('\n')
 
   return (
     <div style={rowStyle}>
@@ -208,6 +218,29 @@ function ResultRow({
         <RowLink href={matchupHref}>
           Compare rematch
         </RowLink>
+        <QuickMessageComposer
+          mode="direct"
+          triggerLabel="Message opponent"
+          recipientName={loserName}
+          recipientPlayerId={loserId}
+          subject={`${result.winnerPlayerName} vs ${loserName}`}
+          body={[
+            `Hi ${loserName},`,
+            '',
+            `Following up on our ${leagueName} result${result.resultDate ? ` from ${formatDate(result.resultDate, 'recently')}` : ''}.`,
+          ].join('\n')}
+          entityType="tiq_individual_result"
+          entityId={result.id}
+        />
+        <QuickMessageComposer
+          mode="support"
+          triggerLabel="Ask support"
+          category="result"
+          subject={supportSubject}
+          body={supportBody}
+          entityType="tiq_individual_result"
+          entityId={result.id}
+        />
         {result.winnerPlayerId ? (
           <RowLink href={`/players/${encodeURIComponent(result.winnerPlayerId)}`}>
             Winner profile

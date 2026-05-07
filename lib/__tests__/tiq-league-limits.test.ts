@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  calculateTiqLeagueEndsOn,
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   normalizeTiqLeagueMaxMatchEvents,
@@ -15,7 +16,7 @@ describe('tiq league limits', () => {
     expect(normalizeTiqLeagueSeasonStatus('active')).toBe('active')
     expect(normalizeTiqLeagueSeasonStatus('unknown')).toBe('draft')
     expect(normalizeTiqLeagueMaxWeeks(null)).toBe(DEFAULT_TIQ_LEAGUE_MAX_WEEKS)
-    expect(normalizeTiqLeagueMaxWeeks(100)).toBe(52)
+    expect(normalizeTiqLeagueMaxWeeks(100)).toBe(12)
     expect(normalizeTiqLeagueMaxMatchEvents(null)).toBe(DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS)
     expect(normalizeTiqLeagueMaxMatchEvents(999)).toBe(500)
   })
@@ -32,6 +33,13 @@ describe('tiq league limits', () => {
       endsOn: '2026-01-31',
       maxWeeks: 8,
     })).toBeNull()
+  })
+
+  it('derives the end date from the start date and capped season length', () => {
+    expect(calculateTiqLeagueEndsOn('2026-01-01', 1)).toBe('2026-01-07')
+    expect(calculateTiqLeagueEndsOn('2026-01-01', 12)).toBe('2026-03-25')
+    expect(calculateTiqLeagueEndsOn('2026-01-01', 100)).toBe('2026-03-25')
+    expect(calculateTiqLeagueEndsOn('', 12)).toBe('')
   })
 
   it('blocks closed seasons, over-limit activity, and out-of-window results', () => {

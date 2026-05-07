@@ -14,11 +14,14 @@ import {
   normalizeTiqIndividualCompetitionFormat,
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
+import { normalizeSeasonLabel } from '@/lib/season-labels'
 import { getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
 export type TiqLeagueScoringSystem = 'standard' | 'dynamic_points'
+export type TiqLeagueSchedulingMode = 'coordinator_fixed' | 'player_arranged'
+export type TiqLeagueVisibility = 'public' | 'private'
 
 export type TiqLeagueRecord = {
   id: string
@@ -33,6 +36,13 @@ export type TiqLeagueRecord = {
   endsOn: string
   maxWeeks: number
   maxMatchEvents: number
+  isPublic: boolean
+  schedulingMode: TiqLeagueSchedulingMode
+  defaultMatchDay: string
+  defaultMatchTime: string
+  scheduleTimeZone: string
+  defaultFacility: string
+  schedulingNotes: string
   flight: string
   locationLabel: string
   photoUrl: string
@@ -55,6 +65,13 @@ export type TiqLeagueDraft = {
   endsOn: string
   maxWeeks: number
   maxMatchEvents: number
+  isPublic: boolean
+  schedulingMode: TiqLeagueSchedulingMode
+  defaultMatchDay: string
+  defaultMatchTime: string
+  scheduleTimeZone: string
+  defaultFacility: string
+  schedulingNotes: string
   flight: string
   locationLabel: string
   photoUrl: string
@@ -66,6 +83,10 @@ export type TiqLeagueDraft = {
 
 function cleanText(value: string | null | undefined) {
   return (value || '').trim()
+}
+
+export function normalizeTiqLeagueScheduleTimeZone(value: string | null | undefined) {
+  return cleanText(value) || 'America/Chicago'
 }
 
 function normalizeList(values: string[]) {
@@ -84,6 +105,44 @@ export function normalizeTiqLeagueScoringSystem(
   return value === 'dynamic_points' ? 'dynamic_points' : 'standard'
 }
 
+export function normalizeTiqLeagueSchedulingMode(
+  value: string | null | undefined,
+): TiqLeagueSchedulingMode {
+  return value === 'player_arranged' ? 'player_arranged' : 'coordinator_fixed'
+}
+
+export function normalizeTiqLeagueVisibility(
+  value: string | boolean | null | undefined,
+): TiqLeagueVisibility {
+  if (value === false || value === 'private') return 'private'
+  return 'public'
+}
+
+export function getTiqLeagueVisibilityLabel(isPublic: boolean) {
+  return isPublic ? 'Public page' : 'Private league'
+}
+
+export function getTiqLeagueVisibilityDescription(isPublic: boolean) {
+  if (isPublic) {
+    return 'Public leagues are discoverable and shareable, but join requests still require coordinator approval.'
+  }
+
+  return 'Private leagues are hidden from public browse pages. Coordinators manage requests and active participants from this workspace.'
+}
+
+export function getTiqLeagueSchedulingModeLabel(mode: TiqLeagueSchedulingMode) {
+  if (mode === 'player_arranged') return 'Players schedule'
+  return 'Coordinator schedule'
+}
+
+export function getTiqLeagueSchedulingModeDescription(mode: TiqLeagueSchedulingMode) {
+  if (mode === 'player_arranged') {
+    return 'The coordinator publishes pairings. Players schedule through TenAceIQ, then record the agreed date, time, and site.'
+  }
+
+  return 'The coordinator sets the recurring match day, time, and site so the full season schedule can be published in advance.'
+}
+
 export function getTiqLeagueScoringSystemLabel(system: TiqLeagueScoringSystem) {
   if (system === 'dynamic_points') return 'Dynamic points'
   return 'Standard wins'
@@ -94,7 +153,7 @@ export function getTiqLeagueScoringSystemDescription(system: TiqLeagueScoringSys
     return getDynamicPointsRulesSummary()
   }
 
-  return 'Standings use match wins, losses, ties, and line wins.'
+  return 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
 }
 
 function safeJsonParse<T>(raw: string | null): T | null {
@@ -127,12 +186,19 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
     leagueName: cleanText(input.leagueName),
-    seasonLabel: cleanText(input.seasonLabel),
+    seasonLabel: normalizeSeasonLabel(input.seasonLabel),
     seasonStatus: normalizeTiqLeagueSeasonStatus(input.seasonStatus),
     startsOn: cleanText(input.startsOn),
     endsOn: cleanText(input.endsOn),
     maxWeeks: normalizeTiqLeagueMaxWeeks(input.maxWeeks),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(input.maxMatchEvents),
+    isPublic: normalizeTiqLeagueVisibility(input.isPublic) === 'public',
+    schedulingMode: normalizeTiqLeagueSchedulingMode(input.schedulingMode),
+    defaultMatchDay: cleanText(input.defaultMatchDay),
+    defaultMatchTime: cleanText(input.defaultMatchTime),
+    scheduleTimeZone: normalizeTiqLeagueScheduleTimeZone(input.scheduleTimeZone),
+    defaultFacility: cleanText(input.defaultFacility),
+    schedulingNotes: cleanText(input.schedulingNotes),
     flight: cleanText(input.flight),
     locationLabel: cleanText(input.locationLabel),
     photoUrl: cleanText(input.photoUrl),
@@ -161,7 +227,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
       scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
       leagueName: cleanText(record.leagueName),
-      seasonLabel: cleanText(record.seasonLabel),
+      seasonLabel: normalizeSeasonLabel(record.seasonLabel),
       seasonStatus: normalizeTiqLeagueSeasonStatus(record.seasonStatus),
       startsOn: cleanText(record.startsOn),
       endsOn: cleanText(record.endsOn),
@@ -169,6 +235,13 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(
         record.maxMatchEvents ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
       ),
+      isPublic: normalizeTiqLeagueVisibility(record.isPublic) === 'public',
+      schedulingMode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
+      defaultMatchDay: cleanText(record.defaultMatchDay),
+      defaultMatchTime: cleanText(record.defaultMatchTime),
+      scheduleTimeZone: normalizeTiqLeagueScheduleTimeZone(record.scheduleTimeZone),
+      defaultFacility: cleanText(record.defaultFacility),
+      schedulingNotes: cleanText(record.schedulingNotes),
       flight: cleanText(record.flight),
       locationLabel: cleanText(record.locationLabel),
       photoUrl: cleanText(record.photoUrl),
@@ -217,6 +290,13 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     endsOn: normalized.endsOn,
     maxWeeks: normalized.maxWeeks,
     maxMatchEvents: normalized.maxMatchEvents,
+    isPublic: normalized.isPublic,
+    schedulingMode: normalized.schedulingMode,
+    defaultMatchDay: normalized.defaultMatchDay,
+    defaultMatchTime: normalized.defaultMatchTime,
+    scheduleTimeZone: normalized.scheduleTimeZone,
+    defaultFacility: normalized.defaultFacility,
+    schedulingNotes: normalized.schedulingNotes,
     flight: normalized.flight,
     locationLabel: normalized.locationLabel,
     photoUrl: normalized.photoUrl,
