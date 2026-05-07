@@ -117,10 +117,9 @@ export default function RootLayout({
           })();
         `}</Script>
         <ThemeProvider>{children}</ThemeProvider>
-        <Script
-          id="google-adsense-loader"
+        <script
+          async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
-          strategy="afterInteractive"
           crossOrigin="anonymous"
         />
       </body>
