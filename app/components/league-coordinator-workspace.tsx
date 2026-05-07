@@ -87,6 +87,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   schedulingMode: 'coordinator_fixed',
   defaultMatchDay: '',
   defaultMatchTime: '',
+  scheduleTimeZone: 'America/Chicago',
   defaultFacility: '',
   schedulingNotes: '',
   flight: '',
@@ -108,6 +109,71 @@ const MATCH_DAY_OPTIONS = [
   { value: 'Saturday', label: 'Saturday' },
   { value: 'Sunday', label: 'Sunday' },
 ]
+
+const TIME_ZONE_OPTIONS = [
+  { value: 'America/New_York', label: 'Eastern Time' },
+  { value: 'America/Chicago', label: 'Central Time' },
+  { value: 'America/Denver', label: 'Mountain Time' },
+  { value: 'America/Phoenix', label: 'Arizona Time' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time' },
+  { value: 'America/Anchorage', label: 'Alaska Time' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
+]
+
+const SEASON_LABEL_OPTIONS = [
+  'Winter 2026',
+  'Spring 2026',
+  'Summer 2026',
+  'Fall 2026',
+  'Winter 2027',
+  'Spring 2027',
+]
+
+const FLIGHT_OPTIONS = ['2.5', '3.0', '3.5', '4.0', '4.5', '5.0', 'Open', 'Advanced', 'Intermediate', 'Beginner']
+
+const MATCH_DAY_INDEX: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+}
+
+function addDaysToDateString(value: string, days: number) {
+  const [year, month, day] = value.split('-').map((part) => Number(part))
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (Number.isNaN(date.getTime())) return ''
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function getFirstScheduledDate(startsOn: string, matchDay: string) {
+  if (!startsOn) return ''
+  if (!matchDay || MATCH_DAY_INDEX[matchDay] === undefined) return startsOn
+
+  const [year, month, day] = startsOn.split('-').map((part) => Number(part))
+  const start = new Date(Date.UTC(year, month - 1, day))
+  if (Number.isNaN(start.getTime())) return ''
+
+  const startDay = start.getUTCDay()
+  const targetDay = MATCH_DAY_INDEX[matchDay]
+  const daysUntilMatchDay = (targetDay - startDay + 7) % 7
+  return addDaysToDateString(startsOn, daysUntilMatchDay)
+}
+
+function buildSeasonCalendarRows(draft: TiqLeagueDraft) {
+  const firstDate = getFirstScheduledDate(draft.startsOn, draft.defaultMatchDay)
+  const weeks = Math.max(1, Math.min(Number(draft.maxWeeks) || 1, 12))
+
+  return Array.from({ length: weeks }, (_, index) => ({
+    week: index + 1,
+    date: firstDate ? addDaysToDateString(firstDate, index * 7) : '',
+    time: draft.defaultMatchTime,
+    site: draft.defaultFacility,
+  }))
+}
 
 function formatDateTime(value: string) {
   const parsed = new Date(value)
@@ -197,7 +263,7 @@ function buildTeamResultLineSummaryMap(
 
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const searchParams = useSearchParams()
-  const { isTablet, isMobile } = useViewportBreakpoints()
+  const { isMobile } = useViewportBreakpoints()
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -205,6 +271,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [draft, setDraft] = useState<TiqLeagueDraft>(EMPTY_DRAFT)
   const [teamListInput, setTeamListInput] = useState('')
   const [playerListInput, setPlayerListInput] = useState('')
+  const [participantQuickAddInput, setParticipantQuickAddInput] = useState('')
   const [editingId, setEditingId] = useState('')
   const [setupOpen, setSetupOpen] = useState(false)
   const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
@@ -450,6 +517,22 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
+  const knownTeamOptions = useMemo(
+    () => Array.from(new Set(records.flatMap((record) => record.teams).filter(Boolean))).sort(),
+    [records],
+  )
+  const knownPlayerOptions = useMemo(
+    () => Array.from(new Set(records.flatMap((record) => record.players).filter(Boolean))).sort(),
+    [records],
+  )
+  const knownFacilityOptions = useMemo(
+    () => Array.from(new Set(records.map((record) => record.defaultFacility).filter(Boolean))).sort(),
+    [records],
+  )
+  const knownLocationOptions = useMemo(
+    () => Array.from(new Set(records.map((record) => record.locationLabel).filter(Boolean))).sort(),
+    [records],
+  )
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
   const individualSummaryByLeague = useMemo(
@@ -674,6 +757,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setDraft(EMPTY_DRAFT)
     setTeamListInput('')
     setPlayerListInput('')
+    setParticipantQuickAddInput('')
     setEditingId('')
     setPhotoUploadStatus('')
     if (clearHandoff) setLastSavedRecord(null)
@@ -688,6 +772,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     })
     setTeamListInput('')
     setPlayerListInput('')
+    setParticipantQuickAddInput('')
     setPhotoUploadStatus('')
     setLastSavedRecord(null)
     setSetupOpen(true)
@@ -781,6 +866,26 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     resetDraft({ clearHandoff: false })
   }
 
+  function addParticipantFromInput() {
+    const additions = parseRegistryListInput(participantQuickAddInput)
+    if (additions.length === 0) {
+      setStatus(`Enter a ${draft.leagueFormat === 'team' ? 'team' : 'player'} name before adding.`)
+      return
+    }
+
+    const currentInput = draft.leagueFormat === 'team' ? teamListInput : playerListInput
+    const nextInput = parseRegistryListInput([currentInput, additions.join('\n')].filter(Boolean).join('\n')).join('\n')
+
+    if (draft.leagueFormat === 'team') {
+      setTeamListInput(nextInput)
+    } else {
+      setPlayerListInput(nextInput)
+    }
+
+    setParticipantQuickAddInput('')
+    setStatus(`${additions.length} ${draft.leagueFormat === 'team' ? 'team' : 'player'}${additions.length === 1 ? '' : 's'} added to this draft.`)
+  }
+
   const startEditing = useCallback((record: TiqLeagueRecord, options: { scrollToForm?: boolean } = {}) => {
     setEditingId(record.id)
     setDraft({
@@ -798,6 +903,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       schedulingMode: record.schedulingMode,
       defaultMatchDay: record.defaultMatchDay,
       defaultMatchTime: record.defaultMatchTime,
+      scheduleTimeZone: record.scheduleTimeZone,
       defaultFacility: record.defaultFacility,
       schedulingNotes: record.schedulingNotes,
       flight: record.flight,
@@ -810,6 +916,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     })
     setTeamListInput(record.teams.join('\n'))
     setPlayerListInput(record.players.join('\n'))
+    setParticipantQuickAddInput('')
     setLastSavedRecord(null)
     setSetupOpen(true)
     setStatus(`Editing ${record.leagueName}.`)
@@ -903,7 +1010,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const responsiveHeroCard = isMobile ? { ...heroCard, ...mobileHeroCard } : heroCard
   const responsiveHeroTitle = isMobile ? { ...heroTitle, ...mobileHeroTitle } : heroTitle
   const responsivePanelCard = isMobile ? { ...panelCard, ...mobilePanelCard } : panelCard
-  const responsiveLayoutGrid = isTablet ? singleColumnGrid : layoutGrid
+  const responsiveLayoutGrid = singleColumnGrid
   const responsiveFieldGrid = isMobile ? singleColumnGrid : fieldGrid
   const responsiveOutcomeInfoGrid = isMobile ? singleColumnGrid : outcomeInfoGrid
   const responsiveDetailsSummary = isMobile ? { ...detailsSummary, ...mobileDetailsSummary } : detailsSummary
@@ -919,6 +1026,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
+  const seasonCalendarRows = buildSeasonCalendarRows(draft)
+  const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
+  const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
 
   return (
     <SiteShell active={activeRoute}>
@@ -1497,6 +1607,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <label style={fieldLabel}>
                 <span>Season label</span>
                 <input
+                  list="tiq-season-label-options"
                   value={draft.seasonLabel}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, seasonLabel: event.target.value }))
@@ -1504,6 +1615,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   placeholder="Spring 2026"
                   style={inputStyle}
                 />
+                <datalist id="tiq-season-label-options">
+                  {SEASON_LABEL_OPTIONS.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
               </label>
 
               <label style={fieldLabel}>
@@ -1676,15 +1792,44 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </label>
 
               <label style={fieldLabel}>
+                <span>Schedule time zone</span>
+                <select
+                  value={draft.scheduleTimeZone}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, scheduleTimeZone: event.target.value }))
+                  }
+                  style={inputStyle}
+                >
+                  {TIME_ZONE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label} ({option.value})
+                    </option>
+                  ))}
+                  {!TIME_ZONE_OPTIONS.some((option) => option.value === draft.scheduleTimeZone) ? (
+                    <option value={draft.scheduleTimeZone}>{draft.scheduleTimeZone}</option>
+                  ) : null}
+                </select>
+                <span style={fieldHelpText}>
+                  Saved with the league so coordinators and players see the same match time.
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
                 <span>Default site</span>
                 <input
+                  list="tiq-facility-options"
                   value={draft.defaultFacility}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, defaultFacility: event.target.value }))
                   }
-                  placeholder="Dallas Indoor - Courts 3-6"
+                  placeholder="Club name, court block, or TBD"
                   style={inputStyle}
                 />
+                <datalist id="tiq-facility-options">
+                  {knownFacilityOptions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
                 <span style={fieldHelpText}>
                   Site, court block, or club instructions participants should see before scheduling.
                 </span>
@@ -1693,6 +1838,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <label style={fieldLabel}>
                 <span>Flight or tier</span>
                 <input
+                  list="tiq-flight-options"
                   value={draft.flight}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, flight: event.target.value }))
@@ -1700,18 +1846,29 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   placeholder="4.0 / Advanced / Open"
                   style={inputStyle}
                 />
+                <datalist id="tiq-flight-options">
+                  {FLIGHT_OPTIONS.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
               </label>
 
               <label style={fieldLabel}>
                 <span>Location / market</span>
                 <input
+                  list="tiq-location-options"
                   value={draft.locationLabel}
                   onChange={(event) =>
                     setDraft((current) => ({ ...current, locationLabel: event.target.value }))
                   }
-                  placeholder="Dallas Indoor"
+                  placeholder="Dallas, Plano, North Dallas, or club market"
                   style={inputStyle}
                 />
+                <datalist id="tiq-location-options">
+                  {knownLocationOptions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
               </label>
 
               <label style={fieldLabel}>
@@ -1749,18 +1906,6 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   Upload a JPG, PNG, WebP, or GIF up to 5 MB. The URL fallback is there for hosted club logos.
                 </span>
                 {photoUploadStatus ? <span style={fieldHelpText}>{photoUploadStatus}</span> : null}
-              </label>
-
-              <label style={fieldLabel}>
-                <span>Organizer / owner</span>
-                <input
-                  value={draft.captainTeamName}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, captainTeamName: event.target.value }))
-                  }
-                  placeholder="North Dallas Aces"
-                  style={inputStyle}
-                />
               </label>
 
               {draft.leagueFormat === 'individual' ? (
@@ -1839,8 +1984,66 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </div>
             </div>
 
+            <div style={setupAssistPanelStyle}>
+              <div style={leagueOpsHeaderStyle}>
+                <div>
+                  <div style={sectionEyebrow}>Season calendar</div>
+                  <strong style={setupAssistTitleStyle}>
+                    {draft.schedulingMode === 'player_arranged'
+                      ? 'Players arrange matches from the published pairing list.'
+                      : 'Coordinator schedule preview'}
+                  </strong>
+                  <p style={setupAssistTextStyle}>
+                    {draft.startsOn
+                      ? `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Save the league, then publish exact matchups from the schedule workspace.`
+                      : 'Choose a start date to preview the weekly season calendar.'}
+                  </p>
+                </div>
+                <span style={pillSlate}>{draft.scheduleTimeZone}</span>
+              </div>
+              <div style={calendarGridStyle}>
+                {seasonCalendarRows.slice(0, 12).map((row) => (
+                  <div key={row.week} style={calendarRowStyle}>
+                    <span style={calendarWeekStyle}>Week {row.week}</span>
+                    <strong style={calendarDateStyle}>{row.date || 'Set start date'}</strong>
+                    <span style={calendarMetaStyle}>
+                      {[row.time || 'Time TBD', row.site || 'Site TBD'].join(' | ')}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <label style={fieldLabel}>
               <span>{draft.leagueFormat === 'team' ? 'Teams' : 'Players'}</span>
+              <div style={participantBuilderStyle}>
+                <input
+                  list={participantDatalistId}
+                  value={participantQuickAddInput}
+                  onChange={(event) => setParticipantQuickAddInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      addParticipantFromInput()
+                    }
+                  }}
+                  placeholder={
+                    draft.leagueFormat === 'team'
+                      ? 'Search or add a team'
+                      : 'Search or add a player'
+                  }
+                  style={inputStyle}
+                />
+                <GhostBtn onClick={addParticipantFromInput}>Add</GhostBtn>
+                <datalist id={participantDatalistId}>
+                  {participantOptions.map((option) => (
+                    <option key={option} value={option} />
+                  ))}
+                </datalist>
+              </div>
+              <span style={fieldHelpText}>
+                Use known names when available. Custom names are allowed, then coordinator approval keeps join requests from turning into active participants automatically.
+              </span>
               <textarea
                 value={draft.leagueFormat === 'team' ? teamListInput : playerListInput}
                 onChange={(event) =>
@@ -2292,12 +2495,6 @@ const heroActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
-}
-
-const layoutGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
-  gap: '18px',
 }
 
 const singleColumnGrid: CSSProperties = {
@@ -2795,6 +2992,68 @@ const infoCardText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const setupAssistPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.06))',
+}
+
+const setupAssistTitleStyle: CSSProperties = {
+  display: 'block',
+  color: '#f8fbff',
+  fontSize: '17px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const setupAssistTextStyle: CSSProperties = {
+  margin: '6px 0 0',
+  color: 'rgba(229,238,251,0.78)',
+  fontSize: '13px',
+  lineHeight: 1.55,
+}
+
+const calendarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gap: '10px',
+}
+
+const calendarRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: '5px',
+  minHeight: '98px',
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.50)',
+}
+
+const calendarWeekStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const calendarDateStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '15px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+}
+
+const calendarMetaStyle: CSSProperties = {
+  color: 'rgba(229,238,251,0.70)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 700,
+}
+
 const fieldLabel: CSSProperties = {
   display: 'grid',
   gap: '8px',
@@ -2808,6 +3067,13 @@ const fieldHelpText: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.6,
   fontWeight: 500,
+}
+
+const participantBuilderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: '10px',
+  alignItems: 'center',
 }
 
 const inputStyle: CSSProperties = {

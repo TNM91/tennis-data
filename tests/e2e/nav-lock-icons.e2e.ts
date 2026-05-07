@@ -50,14 +50,16 @@ async function expectLockedNavIcons(page: Page, theme: 'dark' | 'light') {
       })
       .toBe(LOCK_COLOR)
 
-    const headerBadgeBackground = await headerIcon.evaluate((icon) =>
-      getComputedStyle(icon.parentElement as HTMLElement).backgroundImage,
-    )
-    const footerBadgeBackground = await footerIcon.evaluate((icon) =>
-      getComputedStyle(icon.parentElement as HTMLElement).backgroundImage,
-    )
-    expect(headerBadgeBackground, `${label} header lock badge has a visible fill`).toContain('linear-gradient')
-    expect(footerBadgeBackground, `${label} footer lock badge has a visible fill`).toContain('linear-gradient')
+    await expect
+      .poll(() => headerIcon.evaluate((icon) => getComputedStyle(icon.parentElement as HTMLElement).backgroundImage), {
+        message: `${label} header lock badge should settle`,
+      })
+      .toContain('linear-gradient')
+    await expect
+      .poll(() => footerIcon.evaluate((icon) => getComputedStyle(icon.parentElement as HTMLElement).backgroundImage), {
+        message: `${label} footer lock badge should settle`,
+      })
+      .toContain('linear-gradient')
   }
 }
 

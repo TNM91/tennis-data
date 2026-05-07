@@ -39,6 +39,7 @@ export type TiqLeagueRecord = {
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
+  scheduleTimeZone: string
   defaultFacility: string
   schedulingNotes: string
   flight: string
@@ -67,6 +68,7 @@ export type TiqLeagueDraft = {
   schedulingMode: TiqLeagueSchedulingMode
   defaultMatchDay: string
   defaultMatchTime: string
+  scheduleTimeZone: string
   defaultFacility: string
   schedulingNotes: string
   flight: string
@@ -80,6 +82,10 @@ export type TiqLeagueDraft = {
 
 function cleanText(value: string | null | undefined) {
   return (value || '').trim()
+}
+
+export function normalizeTiqLeagueScheduleTimeZone(value: string | null | undefined) {
+  return cleanText(value) || 'America/Chicago'
 }
 
 function normalizeList(values: string[]) {
@@ -189,6 +195,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     schedulingMode: normalizeTiqLeagueSchedulingMode(input.schedulingMode),
     defaultMatchDay: cleanText(input.defaultMatchDay),
     defaultMatchTime: cleanText(input.defaultMatchTime),
+    scheduleTimeZone: normalizeTiqLeagueScheduleTimeZone(input.scheduleTimeZone),
     defaultFacility: cleanText(input.defaultFacility),
     schedulingNotes: cleanText(input.schedulingNotes),
     flight: cleanText(input.flight),
@@ -231,6 +238,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       schedulingMode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
       defaultMatchDay: cleanText(record.defaultMatchDay),
       defaultMatchTime: cleanText(record.defaultMatchTime),
+      scheduleTimeZone: normalizeTiqLeagueScheduleTimeZone(record.scheduleTimeZone),
       defaultFacility: cleanText(record.defaultFacility),
       schedulingNotes: cleanText(record.schedulingNotes),
       flight: cleanText(record.flight),
@@ -285,6 +293,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     schedulingMode: normalized.schedulingMode,
     defaultMatchDay: normalized.defaultMatchDay,
     defaultMatchTime: normalized.defaultMatchTime,
+    scheduleTimeZone: normalized.scheduleTimeZone,
     defaultFacility: normalized.defaultFacility,
     schedulingNotes: normalized.schedulingNotes,
     flight: normalized.flight,

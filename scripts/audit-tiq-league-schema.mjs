@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 const REQUIRED_TABLES = [
   {
     table: 'tiq_leagues',
-    columns: 'id, league_name, league_format, starts_on, ends_on, max_weeks, scheduling_mode, is_public',
+    columns: 'id, league_name, league_format, starts_on, ends_on, max_weeks, scheduling_mode, schedule_time_zone, is_public',
   },
   {
     table: 'tiq_player_league_entries',

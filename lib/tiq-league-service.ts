@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import {
   deleteTiqLeagueRecord,
   normalizeTiqLeagueSchedulingMode,
+  normalizeTiqLeagueScheduleTimeZone,
   normalizeTiqLeagueVisibility,
   readTiqLeagueRegistry,
   type TiqLeagueDraft,
@@ -93,6 +94,7 @@ type TiqLeagueRow = {
   scheduling_mode?: string | null
   default_match_day?: string | null
   default_match_time?: string | null
+  schedule_time_zone?: string | null
   default_facility?: string | null
   scheduling_notes?: string | null
   flight?: string | null
@@ -142,6 +144,7 @@ type TiqLeagueRemotePayload = {
   scheduling_mode: 'coordinator_fixed' | 'player_arranged'
   default_match_day: string
   default_match_time: string
+  schedule_time_zone: string
   default_facility: string
   scheduling_notes: string
   flight: string
@@ -218,6 +221,7 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     schedulingMode: normalizeTiqLeagueSchedulingMode(row.scheduling_mode),
     defaultMatchDay: cleanText(row.default_match_day),
     defaultMatchTime: cleanText(row.default_match_time),
+    scheduleTimeZone: normalizeTiqLeagueScheduleTimeZone(row.schedule_time_zone),
     defaultFacility: cleanText(row.default_facility),
     schedulingNotes: cleanText(row.scheduling_notes),
     flight: cleanText(row.flight),
@@ -315,6 +319,7 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     scheduling_mode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
     default_match_day: record.defaultMatchDay,
     default_match_time: record.defaultMatchTime,
+    schedule_time_zone: normalizeTiqLeagueScheduleTimeZone(record.scheduleTimeZone),
     default_facility: record.defaultFacility,
     scheduling_notes: record.schedulingNotes,
     flight: record.flight,
