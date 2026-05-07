@@ -50,6 +50,7 @@ import {
   getTiqLeagueSchedulingModeLabel,
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
+import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
 import { buildIndividualResultCue, buildTeamResultCue } from '@/lib/league-result-cues'
 import {
   addTiqPlayerLeagueEntry,
@@ -186,6 +187,8 @@ type HubNavItem = {
   label: string
   detail: string
 }
+
+type ScheduleDisplayMode = 'calendar' | 'list'
 
 function getLeagueRatingStatus(gap: number | null): LeagueRatingStatus | null {
   if (gap === null) return null
@@ -421,6 +424,7 @@ export default function TiqLeagueDetailPage() {
   const [scheduleTime, setScheduleTime] = useState('')
   const [scheduleFacility, setScheduleFacility] = useState('')
   const [scheduleNotes, setScheduleNotes] = useState('')
+  const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
 
   useEffect(() => {
     let active = true
@@ -1108,6 +1112,10 @@ export default function TiqLeagueDetailPage() {
     item.status === 'confirmed' || item.status === 'coordinator_set',
   ).length
   const completedScheduleItemCount = visibleScheduleItems.filter((item) => item.status === 'completed').length
+  const scheduleCalendarDays = useMemo(
+    () => buildScheduleCalendarDays(visibleScheduleItems),
+    [visibleScheduleItems],
+  )
   const individualResultByScheduleItemId = useMemo(() => {
     const resultMap = new Map<string, TiqIndividualLeagueResultRecord>()
     individualResults.forEach((result) => {
@@ -1962,6 +1970,100 @@ export default function TiqLeagueDetailPage() {
     }
   }
 
+  function renderScheduleItemRow(item: TiqLeagueScheduleItem, mode: 'calendar' | 'list' = 'list') {
+    if (!league) return null
+
+    const individualScheduleResult = individualResultByScheduleItemId.get(item.id) || null
+    const teamScheduleEvent = teamEventByScheduleItemId.get(item.id) || null
+    const scheduleOutcomeText = individualScheduleResult
+      ? `${individualScheduleResult.winnerPlayerName} def. ${resultOpponentName(individualScheduleResult)}${
+          individualScheduleResult.score ? `, ${individualScheduleResult.score}` : ''
+        }`
+      : teamScheduleEvent
+        ? `${teamScheduleEvent.teamAName} vs ${teamScheduleEvent.teamBName}${
+            teamScheduleEvent.winnerTeamName ? `, winner ${teamScheduleEvent.winnerTeamName}` : ''
+          }`
+        : ''
+    const resultHref =
+      league.leagueFormat === 'team'
+        ? buildScheduledTeamResultEntryHref(league.id, item)
+        : buildPrefilledResultHref(
+            league.id,
+            item.participantAId || `name:${item.participantAName}`,
+            item.participantBId || `name:${item.participantBName}`,
+            {
+              scheduleItemId: item.id,
+              resultDate: item.scheduledDate,
+            },
+          )
+    const statusLabel =
+      item.status === 'coordinator_set'
+        ? 'Published'
+        : item.status === 'completed'
+          ? 'Completed'
+          : item.status
+    const isCompact = mode === 'calendar'
+
+    return (
+      <div key={item.id} style={isCompact ? scheduleCalendarItemStyle : scheduleRowStyle}>
+        <div>
+          <div style={isCompact ? scheduleCalendarItemTitleStyle : listTitle}>
+            {item.participantAName} vs {item.participantBName}
+          </div>
+          <div style={listMeta}>
+            {[
+              isCompact ? null : item.scheduledDate,
+              item.scheduledTime,
+              item.facility,
+              item.notes,
+            ]
+              .filter(Boolean)
+              .join(' | ')}
+          </div>
+          {scheduleOutcomeText ? (
+            <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
+              Result: {scheduleOutcomeText}
+            </div>
+          ) : null}
+        </div>
+        <div style={isCompact ? scheduleCalendarActionsStyle : scheduleRowActionsStyle}>
+          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+            {statusLabel}
+          </span>
+          {item.status !== 'completed' ? (
+            <GhostLink href={resultHref}>Log result</GhostLink>
+          ) : null}
+          {item.status === 'proposed' ? (
+            <button
+              type="button"
+              onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
+              disabled={scheduleSaving || !userId}
+              style={{
+                ...ghostActionButton,
+                ...(scheduleSaving || !userId ? disabledButton : {}),
+              }}
+            >
+              Confirm
+            </button>
+          ) : null}
+          {item.status !== 'completed' ? (
+            <button
+              type="button"
+              onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
+              disabled={scheduleSaving || !userId}
+              style={{
+                ...ghostActionButton,
+                ...(scheduleSaving || !userId ? disabledButton : {}),
+              }}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <SiteShell active="/explore">
       <section style={pageWrap}>
@@ -2154,6 +2256,10 @@ export default function TiqLeagueDetailPage() {
                   <span>Default site</span>
                   <strong>{league.defaultFacility || 'TBD'}</strong>
                 </div>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Time zone</span>
+                  <strong>{league.scheduleTimeZone || 'America/Chicago'}</strong>
+                </div>
               </div>
 
               <div style={scheduleActionPanelStyle}>
@@ -2280,95 +2386,47 @@ export default function TiqLeagueDetailPage() {
               </div>
 
               {visibleScheduleItems.length > 0 ? (
-                <div style={scheduleListStyle}>
-                  {visibleScheduleItems.map((item) => {
-                    const individualScheduleResult = individualResultByScheduleItemId.get(item.id) || null
-                    const teamScheduleEvent = teamEventByScheduleItemId.get(item.id) || null
-                    const scheduleOutcomeText = individualScheduleResult
-                      ? `${individualScheduleResult.winnerPlayerName} def. ${resultOpponentName(individualScheduleResult)}${
-                          individualScheduleResult.score ? `, ${individualScheduleResult.score}` : ''
-                        }`
-                      : teamScheduleEvent
-                        ? `${teamScheduleEvent.teamAName} vs ${teamScheduleEvent.teamBName}${
-                            teamScheduleEvent.winnerTeamName ? `, winner ${teamScheduleEvent.winnerTeamName}` : ''
-                          }`
-                        : ''
-                    const resultHref =
-                      league.leagueFormat === 'team'
-                        ? buildScheduledTeamResultEntryHref(league.id, item)
-                        : buildPrefilledResultHref(
-                            league.id,
-                            item.participantAId || `name:${item.participantAName}`,
-                            item.participantBId || `name:${item.participantBName}`,
-                            {
-                              scheduleItemId: item.id,
-                              resultDate: item.scheduledDate,
-                            },
-                          )
-                    const statusLabel =
-                      item.status === 'coordinator_set'
-                        ? 'Published'
-                        : item.status === 'completed'
-                          ? 'Completed'
-                          : item.status
-
-                    return (
-                      <div key={item.id} style={scheduleRowStyle}>
-                        <div>
-                          <div style={listTitle}>{item.participantAName} vs {item.participantBName}</div>
-                          <div style={listMeta}>
-                            {[
-                              item.scheduledDate,
-                              item.scheduledTime,
-                              item.facility,
-                              item.notes,
-                            ]
-                              .filter(Boolean)
-                              .join(' | ')}
-                          </div>
-                          {scheduleOutcomeText ? (
-                            <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
-                              Result: {scheduleOutcomeText}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div style={scheduleRowActionsStyle}>
-                          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
-                            {statusLabel}
-                          </span>
-                          {item.status !== 'completed' ? (
-                            <GhostLink href={resultHref}>Log result</GhostLink>
-                          ) : null}
-                          {item.status === 'proposed' ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
-                              disabled={scheduleSaving || !userId}
-                              style={{
-                                ...ghostActionButton,
-                                ...(scheduleSaving || !userId ? disabledButton : {}),
-                              }}
-                            >
-                              Confirm
-                            </button>
-                          ) : null}
-                          {item.status !== 'completed' ? (
-                            <button
-                              type="button"
-                              onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
-                              disabled={scheduleSaving || !userId}
-                              style={{
-                                ...ghostActionButton,
-                                ...(scheduleSaving || !userId ? disabledButton : {}),
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          ) : null}
-                        </div>
+                <div style={schedulePublishedPanelStyle}>
+                  <div style={scheduleViewHeaderStyle}>
+                    <div>
+                      <div style={formatCalloutTitle}>Published season schedule</div>
+                      <div style={formatCalloutText}>
+                        Calendar view groups matches by date. List view is faster for status review and result entry.
                       </div>
-                    )
-                  })}
+                    </div>
+                    <div style={scheduleViewToggleStyle} aria-label="Schedule view">
+                      {(['calendar', 'list'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setScheduleDisplayMode(mode)}
+                          style={scheduleDisplayMode === mode ? scheduleViewToggleActiveStyle : scheduleViewToggleButtonStyle}
+                        >
+                          {mode === 'calendar' ? 'Calendar' : 'List'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {scheduleDisplayMode === 'calendar' ? (
+                    <div style={scheduleCalendarGridStyle}>
+                      {scheduleCalendarDays.map((day) => (
+                        <div key={day.date} style={scheduleCalendarDayStyle}>
+                          <div style={scheduleCalendarDateStyle}>
+                            <span>{day.dayLabel}</span>
+                            <strong>{day.label}</strong>
+                          </div>
+                          <div style={scheduleCalendarItemGridStyle}>
+                            {day.items.map((item) => renderScheduleItemRow(item, 'calendar'))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={scheduleListStyle}>
+                      {visibleScheduleItems.map((item) => renderScheduleItemRow(item))}
+                    </div>
+                  )}
                 </div>
               ) : league.leagueFormat === 'team' ? (
                 scheduledTeamEvents.length === 0 ? (
@@ -3690,6 +3748,104 @@ const scheduleActionPanelStyle: CSSProperties = {
 const scheduleListStyle: CSSProperties = {
   display: 'grid',
   gap: '10px',
+}
+
+const schedulePublishedPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+}
+
+const scheduleViewHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '14px',
+  flexWrap: 'wrap',
+}
+
+const scheduleViewToggleStyle: CSSProperties = {
+  display: 'inline-flex',
+  gap: '6px',
+  padding: '5px',
+  borderRadius: '999px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(7,17,33,0.56)',
+}
+
+const scheduleViewToggleButtonStyle: CSSProperties = {
+  minHeight: '34px',
+  padding: '0 12px',
+  borderRadius: '999px',
+  border: 'none',
+  background: 'transparent',
+  color: 'rgba(229,238,251,0.74)',
+  cursor: 'pointer',
+  fontSize: '12px',
+  fontWeight: 900,
+}
+
+const scheduleViewToggleActiveStyle: CSSProperties = {
+  ...scheduleViewToggleButtonStyle,
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.22), rgba(74,163,255,0.14))',
+  color: '#f8fbff',
+}
+
+const scheduleCalendarGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gap: '12px',
+}
+
+const scheduleCalendarDayStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  alignContent: 'start',
+  minHeight: '190px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const scheduleCalendarDateStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: '10px',
+  color: 'rgba(229,238,251,0.70)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+}
+
+const scheduleCalendarItemGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const scheduleCalendarItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '9px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.12)',
+  background: 'rgba(7,17,33,0.48)',
+}
+
+const scheduleCalendarItemTitleStyle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '14px',
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const scheduleCalendarActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '7px',
+  flexWrap: 'wrap',
 }
 
 const scheduleRowStyle: CSSProperties = {
