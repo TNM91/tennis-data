@@ -174,6 +174,12 @@ type TeamMatchPublicSummary = {
   scoreReviewCount: number
 }
 
+type HubNavItem = {
+  href: string
+  label: string
+  detail: string
+}
+
 function getLeagueRatingStatus(gap: number | null): LeagueRatingStatus | null {
   if (gap === null) return null
   if (gap >= 0.15) return 'Bump Up Pace'
@@ -559,6 +565,10 @@ export default function TiqLeagueDetailPage() {
   const canLogIndividualResults = league?.leagueFormat === 'individual' && access.canCreateTiqIndividualLeague
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
   const participants = league?.leagueFormat === 'team' ? league.teams || [] : league?.players || []
+  const seasonWindowText =
+    league?.startsOn || league?.endsOn
+      ? [league.startsOn || 'Start TBD', league.endsOn || 'End TBD'].join(' to ')
+      : 'Season window not set'
   const tiqSignals = league
     ? [
         {
@@ -643,6 +653,22 @@ export default function TiqLeagueDetailPage() {
       return true
     })
   }, [league, playerOptions, visiblePlayerEntries])
+  const activeEntryCount =
+    league?.leagueFormat === 'team'
+      ? visibleTeamEntries.length
+      : league?.leagueFormat === 'individual'
+        ? visiblePlayerEntries.length
+        : participants.length
+  const pendingEntries =
+    league?.leagueFormat === 'team'
+      ? teamEntries.filter((entry) => entry.entryStatus === 'pending')
+      : playerEntries.filter((entry) => entry.entryStatus === 'pending')
+  const rejectedEntries =
+    league?.leagueFormat === 'team'
+      ? teamEntries.filter((entry) => entry.entryStatus === 'rejected')
+      : playerEntries.filter((entry) => entry.entryStatus === 'rejected')
+  const pendingEntryCount = pendingEntries.length
+  const rejectedEntryCount = rejectedEntries.length
   const resultParticipantOptions = useMemo<ResultParticipantOption[]>(
     () =>
       visiblePlayerEntries.map((entry) => ({
@@ -959,6 +985,86 @@ export default function TiqLeagueDetailPage() {
       secondaryLabel: '',
     }))
   }, [individualCompetitionFormat, individualResults, individualStandings, league])
+
+  const scheduledTeamEvents = useMemo(
+    () =>
+      [...teamMatchEvents].sort((left, right) => {
+        const leftTime = left.matchDate ? new Date(left.matchDate).getTime() : Number.MAX_SAFE_INTEGER
+        const rightTime = right.matchDate ? new Date(right.matchDate).getTime() : Number.MAX_SAFE_INTEGER
+        return leftTime - rightTime
+      }),
+    [teamMatchEvents],
+  )
+  const nextTeamEvent = useMemo(() => {
+    const now = Date.now()
+    return (
+      scheduledTeamEvents.find((event) => {
+        const eventTime = event.matchDate ? new Date(event.matchDate).getTime() : 0
+        return eventTime >= now
+      }) ||
+      scheduledTeamEvents[0] ||
+      null
+    )
+  }, [scheduledTeamEvents])
+  const hubNavItems = useMemo<HubNavItem[]>(() => {
+    if (!league) return []
+
+    return [
+      {
+        href: '#league-overview',
+        label: 'Overview',
+        detail: `${activeEntryCount} active`,
+      },
+      {
+        href: '#league-schedule',
+        label: 'Schedule',
+        detail:
+          league.leagueFormat === 'team'
+            ? `${teamMatchEvents.length} matches`
+            : `${competitionOpportunities.length} prompts`,
+      },
+      {
+        href: '#league-requests',
+        label: 'Requests',
+        detail: `${pendingEntryCount} pending`,
+      },
+      {
+        href: '#league-participants',
+        label: 'Participants',
+        detail: `${activeEntryCount} active`,
+      },
+      {
+        href: league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results',
+        label: 'Results',
+        detail:
+          league.leagueFormat === 'team'
+            ? `${teamMatchEvents.length} events`
+            : `${individualResultBookStats.total} logged`,
+      },
+      {
+        href: '#league-standings',
+        label: 'Standings',
+        detail:
+          league.leagueFormat === 'team'
+            ? `${teamStandings.length} rows`
+            : `${individualStandings.length} rows`,
+      },
+      {
+        href: '#league-settings',
+        label: 'Settings',
+        detail: getTiqLeagueSchedulingModeLabel(league.schedulingMode),
+      },
+    ]
+  }, [
+    activeEntryCount,
+    competitionOpportunities.length,
+    individualResultBookStats.total,
+    individualStandings.length,
+    league,
+    pendingEntryCount,
+    teamMatchEvents.length,
+    teamStandings.length,
+  ])
 
   const teamResultCue = useMemo(() => {
     const summaries = teamMatchEvents.map((event) =>
@@ -1682,8 +1788,9 @@ export default function TiqLeagueDetailPage() {
 
                   <div style={heroHintRow}>
                     <span style={hintPill}>
-                      {participants.length} {league.leagueFormat === 'team' ? 'participants teams' : 'participants players'}
+                      {activeEntryCount} {league.leagueFormat === 'team' ? 'active teams' : 'active players'}
                     </span>
+                    {pendingEntryCount > 0 ? <span style={hintPill}>{pendingEntryCount} requests pending</span> : null}
                     <span style={hintPill}>Updated {formatDateTime(league.updatedAt)}</span>
                   </div>
 
@@ -1740,8 +1847,52 @@ export default function TiqLeagueDetailPage() {
                     : 'Team'
                 }
               />
-              <MetricCard label="Participants" value={String(participants.length)} accent />
+              <MetricCard label="Participants" value={String(activeEntryCount)} accent />
             </div>
+
+            <section id="league-overview" style={leagueHubPanelStyle}>
+              <div style={leagueHubHeaderStyle}>
+                <div>
+                  <div style={sectionEyebrow}>League hub</div>
+                  <h2 style={sectionTitle}>Everything for this season starts here.</h2>
+                  <p style={sectionText}>
+                    Coordinators manage approvals, schedule shape, results, and standings. Members get one place to
+                    see who is in, what is next, where to play, and what changed after scores are entered.
+                  </p>
+                </div>
+                <div style={leagueHubScoreStyle}>
+                  <strong>{activeEntryCount}</strong>
+                  <span>active {league.leagueFormat === 'team' ? 'teams' : 'players'}</span>
+                </div>
+              </div>
+
+              <nav style={hubNavStyle} aria-label="TIQ league hub sections">
+                {hubNavItems.map((item) => (
+                  <a key={item.href} href={item.href} style={hubNavItemStyle}>
+                    <span>{item.label}</span>
+                    <small>{item.detail}</small>
+                  </a>
+                ))}
+              </nav>
+
+              <div style={hubValueGridStyle}>
+                <div style={hubValueCardStyle}>
+                  <span style={pillGreen}>Coordinator</span>
+                  <strong>Less chasing, more control.</strong>
+                  <p>Requests, schedules, score activity, and standings live in the same operating view.</p>
+                </div>
+                <div style={hubValueCardStyle}>
+                  <span style={pillBlue}>Member</span>
+                  <strong>Know the next tennis move.</strong>
+                  <p>Players and teams can see the season context without hunting through texts or spreadsheets.</p>
+                </div>
+                <div style={hubValueCardStyle}>
+                  <span style={pillSlate}>Season</span>
+                  <strong>Finite, visible, and score-driven.</strong>
+                  <p>{seasonWindowText}. Results and standings keep the league moving toward a clear finish.</p>
+                </div>
+              </div>
+            </section>
 
             <section style={dynamicSignalGrid}>
               {tiqSignals.map((signal) => (
@@ -1760,15 +1911,81 @@ export default function TiqLeagueDetailPage() {
               <div style={formatCalloutText}>{scoringRulesText}</div>
             </section>
 
-            <section style={formatCallout}>
-              <div style={formatCalloutTitle}>
-                Scheduling: {getTiqLeagueSchedulingModeLabel(league.schedulingMode)}
+            <section id="league-schedule" style={schedulePanelStyle}>
+              <div style={leagueHubHeaderStyle}>
+                <div>
+                  <div style={sectionEyebrow}>Schedule</div>
+                  <h2 style={sectionTitle}>
+                    {league.schedulingMode === 'coordinator_fixed'
+                      ? 'Coordinator-set schedule'
+                      : 'Player-arranged schedule'}
+                  </h2>
+                  <p style={sectionText}>{scheduleRulesText}</p>
+                </div>
+                <span style={pillSlate}>{seasonWindowText}</span>
               </div>
-              <div style={formatCalloutText}>{scheduleRulesText}</div>
+
+              <div style={scheduleMetaGridStyle}>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Default day</span>
+                  <strong>{league.defaultMatchDay || 'TBD'}</strong>
+                </div>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Default time</span>
+                  <strong>{league.defaultMatchTime || 'TBD'}</strong>
+                </div>
+                <div style={scheduleMetaCardStyle}>
+                  <span>Default site</span>
+                  <strong>{league.defaultFacility || 'TBD'}</strong>
+                </div>
+              </div>
+
+              {league.leagueFormat === 'team' ? (
+                scheduledTeamEvents.length === 0 ? (
+                  <div style={emptyCard}>
+                    No match dates are published yet. Once the coordinator adds team match events, members can see
+                    who plays, when, where, and which scores are still missing.
+                  </div>
+                ) : (
+                  <div style={scheduleListStyle}>
+                    {scheduledTeamEvents.slice(0, 5).map((event) => (
+                      <div key={event.id} style={scheduleRowStyle}>
+                        <div>
+                          <div style={listTitle}>{event.teamAName} vs {event.teamBName}</div>
+                          <div style={listMeta}>
+                            {[formatDateTime(event.matchDate), event.facility || league.defaultFacility]
+                              .filter(Boolean)
+                              .join(' | ')}
+                          </div>
+                        </div>
+                        <span style={nextTeamEvent?.id === event.id ? pillGreen : metaPill}>
+                          {nextTeamEvent?.id === event.id ? 'Next up' : 'Scheduled'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : competitionOpportunities.length === 0 ? (
+                <div style={emptyCard}>
+                  Add approved players and results to unlock player-arranged match prompts for this individual season.
+                </div>
+              ) : (
+                <div style={scheduleListStyle}>
+                  {competitionOpportunities.slice(0, 5).map((item) => (
+                    <div key={item.key} style={scheduleRowStyle}>
+                      <div>
+                        <div style={listTitle}>{item.title}</div>
+                        <div style={listMeta}>{item.body}</div>
+                      </div>
+                      {item.secondaryHref ? <GhostLink href={item.secondaryHref}>Log result</GhostLink> : null}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
 
             <div style={dynamicContentGrid}>
-              <section style={dynamicPanelCard}>
+              <section id="league-requests" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Entry workflow</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
@@ -1869,7 +2086,7 @@ export default function TiqLeagueDetailPage() {
                 </div>
               </section>
 
-              <section style={dynamicPanelCard}>
+              <section id="league-participants" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Participants</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
@@ -1881,6 +2098,11 @@ export default function TiqLeagueDetailPage() {
                     ? 'Teams are the participant unit here, separate from the league container itself.'
                     : individualFormatExperience.participantsDescription}
                 </p>
+                <div style={participantStatusGridStyle}>
+                  <span style={pillGreen}>{activeEntryCount} active</span>
+                  <span style={pendingEntryCount > 0 ? pillAmber : pillSlate}>{pendingEntryCount} pending</span>
+                  <span style={rejectedEntryCount > 0 ? pillSlate : pillGreen}>{rejectedEntryCount} declined</span>
+                </div>
                 {league.leagueFormat === 'individual' ? (
                   <div style={formatCallout}>
                     <div style={formatCalloutTitle}>{individualFormatExperience.participantsHintTitle}</div>
@@ -1929,11 +2151,33 @@ export default function TiqLeagueDetailPage() {
                     ))}
                   </div>
                 )}
+
+                {pendingEntries.length > 0 ? (
+                  <div style={requestPreviewStyle}>
+                    <div style={formatCalloutTitle}>Waiting for coordinator approval</div>
+                    <div style={requestPreviewGridStyle}>
+                      {pendingEntries.slice(0, 4).map((entry) => {
+                        const entryName = 'teamName' in entry ? entry.teamName : entry.playerName
+                        const detail =
+                          'teamName' in entry
+                            ? [entry.sourceLeagueName, entry.sourceFlight].filter(Boolean).join(' | ')
+                            : entry.playerLocation
+
+                        return (
+                          <div key={`${entry.leagueId}-${entryName}`} style={requestPreviewCardStyle}>
+                            <strong>{entryName}</strong>
+                            <span>{detail || 'Request submitted'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
               </section>
             </div>
 
             {league.leagueFormat === 'individual' ? (
-              <section style={dynamicPanelCard}>
+              <section id="league-standings" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>{individualFormatExperience.standingsEyebrow}</div>
                 <h2 style={sectionTitle}>{individualFormatExperience.standingsTitle}</h2>
                 <p style={sectionText}>{individualFormatExperience.standingsDescription}</p>
@@ -2039,7 +2283,7 @@ export default function TiqLeagueDetailPage() {
             ) : null}
 
             {league.leagueFormat === 'individual' ? (
-              <section style={dynamicPanelCard}>
+              <section id="league-individual-results" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Result book</div>
                 <h2 style={sectionTitle}>Current player-result status.</h2>
                 <p style={sectionText}>
@@ -2456,8 +2700,8 @@ export default function TiqLeagueDetailPage() {
               </section>
             ) : null}
 
-            {league.leagueFormat === 'team' && teamStandings.length > 0 ? (
-              <section style={panelCard}>
+            {league.leagueFormat === 'team' ? (
+              <section id="league-standings" style={panelCard}>
                 <div style={sectionEyebrow}>Standings</div>
                 <h2 style={sectionTitle}>Team records for this league.</h2>
                 <p style={sectionText}>
@@ -2466,6 +2710,11 @@ export default function TiqLeagueDetailPage() {
                     : 'Event wins are determined by line majority. Line wins are the tiebreaker.'}
                 </p>
 
+                {teamStandings.length === 0 ? (
+                  <div style={emptyCard}>
+                    Standings will appear after the first team match result is entered and reviewed.
+                  </div>
+                ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
@@ -2511,11 +2760,12 @@ export default function TiqLeagueDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                )}
               </section>
             ) : null}
 
             {league.leagueFormat === 'team' ? (
-              <section style={panelCard}>
+              <section id="league-team-results" style={panelCard}>
                 <div style={sectionEyebrow}>Match Results</div>
                 <h2 style={sectionTitle}>Team match events and line-by-line results.</h2>
                 <p style={sectionText}>
@@ -2651,7 +2901,7 @@ export default function TiqLeagueDetailPage() {
               </section>
             ) : null}
 
-            <section style={panelCard}>
+            <section id="league-settings" style={panelCard}>
               <div style={sectionEyebrow}>Coordinator context</div>
               <h2 style={sectionTitle}>Use TIQ league context without losing the command center.</h2>
               <p style={sectionText}>
@@ -2906,6 +3156,145 @@ const metricGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
   gap: '16px',
+}
+
+const leagueHubPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '18px',
+  padding: '24px',
+  borderRadius: '26px',
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(15,34,62,0.94), rgba(17,42,39,0.86))',
+  boxShadow: '0 22px 48px rgba(2,10,24,0.24)',
+}
+
+const leagueHubHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: '16px',
+  flexWrap: 'wrap',
+}
+
+const leagueHubScoreStyle: CSSProperties = {
+  minWidth: '156px',
+  display: 'grid',
+  gap: '2px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'rgba(155,225,29,0.08)',
+  color: '#e7ffd1',
+  textAlign: 'right',
+}
+
+const hubNavStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+  gap: '10px',
+}
+
+const hubNavItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minHeight: '68px',
+  padding: '12px 14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.05)',
+  color: '#e7eefb',
+  textDecoration: 'none',
+  fontWeight: 900,
+}
+
+const hubValueGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: '12px',
+}
+
+const hubValueCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,34,0.52)',
+  color: '#dbeafe',
+}
+
+const schedulePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '16px',
+  padding: '24px',
+  borderRadius: '26px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'linear-gradient(180deg, rgba(14,31,57,0.90), rgba(8,18,35,0.94))',
+}
+
+const scheduleMetaGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gap: '10px',
+}
+
+const scheduleMetaCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+}
+
+const scheduleListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+}
+
+const scheduleRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '12px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+}
+
+const participantStatusGridStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+  marginBottom: '12px',
+}
+
+const requestPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  marginTop: '14px',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(251,191,36,0.14)',
+  background: 'rgba(251,191,36,0.06)',
+}
+
+const requestPreviewGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: '10px',
+}
+
+const requestPreviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(8,18,35,0.6)',
+  color: '#e7eefb',
 }
 
 const signalGridStyle: CSSProperties = {
