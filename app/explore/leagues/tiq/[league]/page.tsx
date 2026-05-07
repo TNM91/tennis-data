@@ -284,12 +284,18 @@ function buildPrefilledResultHref(
   leagueId: string,
   playerAValue: string,
   playerBValue: string,
+  options?: {
+    scheduleItemId?: string
+    resultDate?: string
+  },
 ) {
   const params = new URLSearchParams({
     leagueId,
     suggest_player_a: playerAValue,
     suggest_player_b: playerBValue,
   })
+  if (options?.scheduleItemId) params.set('scheduleItemId', options.scheduleItemId)
+  if (options?.resultDate) params.set('resultDate', options.resultDate)
   return `/league-coordinator/individual-results?${params.toString()}#player-result-entry`
 }
 
@@ -301,6 +307,19 @@ function buildIndividualResultEntryHref(leagueId: string, anchor = 'player-resul
 function buildTeamResultEntryHref(leagueId: string, anchor = 'team-match-entry') {
   const params = new URLSearchParams({ leagueId })
   return `/league-coordinator/results?${params.toString()}#${anchor}`
+}
+
+function buildScheduledTeamResultEntryHref(leagueId: string, item: TiqLeagueScheduleItem) {
+  const params = new URLSearchParams({
+    leagueId,
+    scheduleItemId: item.id,
+    teamA: item.participantAName,
+    teamB: item.participantBName,
+  })
+  if (item.scheduledDate) params.set('matchDate', item.scheduledDate)
+  if (item.facility) params.set('facility', item.facility)
+  if (item.notes) params.set('notes', item.notes)
+  return `/league-coordinator/results?${params.toString()}#team-match-entry`
 }
 
 function buildTeamMatchPublicSummary(
@@ -1590,7 +1609,7 @@ export default function TiqLeagueDetailPage() {
 
   async function handleScheduleStatusChange(
     scheduleItemId: string,
-    status: 'confirmed' | 'cancelled',
+    status: 'confirmed' | 'completed' | 'cancelled',
   ) {
     if (!league) return
 
@@ -1602,7 +1621,13 @@ export default function TiqLeagueDetailPage() {
       await refreshScheduleItems(league.id)
       setScheduleSource(result.source)
       setStorageWarning((current) => current || result.warning || '')
-      setScheduleStatus(status === 'confirmed' ? 'Confirmed this match time.' : 'Cancelled this schedule item.')
+      setScheduleStatus(
+        status === 'confirmed'
+          ? 'Confirmed this match time.'
+          : status === 'completed'
+            ? 'Marked this scheduled match complete.'
+            : 'Cancelled this schedule item.',
+      )
     } catch (error) {
       setScheduleStatus(error instanceof Error ? error.message : 'Unable to update this schedule item.')
     } finally {
@@ -2241,54 +2266,78 @@ export default function TiqLeagueDetailPage() {
 
               {visibleScheduleItems.length > 0 ? (
                 <div style={scheduleListStyle}>
-                  {visibleScheduleItems.map((item) => (
-                    <div key={item.id} style={scheduleRowStyle}>
-                      <div>
-                        <div style={listTitle}>{item.participantAName} vs {item.participantBName}</div>
-                        <div style={listMeta}>
-                          {[
-                            item.scheduledDate,
-                            item.scheduledTime,
-                            item.facility,
-                            item.notes,
-                          ]
-                            .filter(Boolean)
-                            .join(' | ')}
+                  {visibleScheduleItems.map((item) => {
+                    const resultHref =
+                      league.leagueFormat === 'team'
+                        ? buildScheduledTeamResultEntryHref(league.id, item)
+                        : buildPrefilledResultHref(
+                            league.id,
+                            item.participantAId || `name:${item.participantAName}`,
+                            item.participantBId || `name:${item.participantBName}`,
+                            {
+                              scheduleItemId: item.id,
+                              resultDate: item.scheduledDate,
+                            },
+                          )
+                    const statusLabel =
+                      item.status === 'coordinator_set'
+                        ? 'Published'
+                        : item.status === 'completed'
+                          ? 'Completed'
+                          : item.status
+
+                    return (
+                      <div key={item.id} style={scheduleRowStyle}>
+                        <div>
+                          <div style={listTitle}>{item.participantAName} vs {item.participantBName}</div>
+                          <div style={listMeta}>
+                            {[
+                              item.scheduledDate,
+                              item.scheduledTime,
+                              item.facility,
+                              item.notes,
+                            ]
+                              .filter(Boolean)
+                              .join(' | ')}
+                          </div>
+                        </div>
+                        <div style={scheduleRowActionsStyle}>
+                          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+                            {statusLabel}
+                          </span>
+                          {item.status !== 'completed' ? (
+                            <GhostLink href={resultHref}>Log result</GhostLink>
+                          ) : null}
+                          {item.status === 'proposed' ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
+                              disabled={scheduleSaving || !userId}
+                              style={{
+                                ...ghostActionButton,
+                                ...(scheduleSaving || !userId ? disabledButton : {}),
+                              }}
+                            >
+                              Confirm
+                            </button>
+                          ) : null}
+                          {item.status !== 'completed' ? (
+                            <button
+                              type="button"
+                              onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
+                              disabled={scheduleSaving || !userId}
+                              style={{
+                                ...ghostActionButton,
+                                ...(scheduleSaving || !userId ? disabledButton : {}),
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          ) : null}
                         </div>
                       </div>
-                      <div style={scheduleRowActionsStyle}>
-                        <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
-                          {item.status === 'coordinator_set' ? 'Published' : item.status}
-                        </span>
-                        {item.status === 'proposed' ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
-                            disabled={scheduleSaving || !userId}
-                            style={{
-                              ...ghostActionButton,
-                              ...(scheduleSaving || !userId ? disabledButton : {}),
-                            }}
-                          >
-                            Confirm
-                          </button>
-                        ) : null}
-                        {item.status !== 'completed' ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
-                            disabled={scheduleSaving || !userId}
-                            style={{
-                              ...ghostActionButton,
-                              ...(scheduleSaving || !userId ? disabledButton : {}),
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               ) : league.leagueFormat === 'team' ? (
                 scheduledTeamEvents.length === 0 ? (

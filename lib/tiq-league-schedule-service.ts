@@ -275,7 +275,7 @@ export async function saveTiqLeagueScheduleItem(input: {
 
 export async function updateTiqLeagueScheduleStatus(input: {
   scheduleItemId: string
-  status: Extract<TiqLeagueScheduleStatus, 'confirmed' | 'cancelled'>
+  status: Extract<TiqLeagueScheduleStatus, 'confirmed' | 'completed' | 'cancelled'>
 }): Promise<{ item: TiqLeagueScheduleItem | null; source: TiqLeagueScheduleSource; warning: string | null }> {
   const userId = await getAuthenticatedUserId()
   if (!userId) {

@@ -24,6 +24,7 @@ import {
   type TiqIndividualLeagueResultRecord,
   type TiqLeagueStorageSource as TiqResultStorageSource,
 } from '@/lib/tiq-individual-results-service'
+import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import { completeTiqIndividualSuggestionsForPair } from '@/lib/tiq-individual-suggestions-service'
 import {
@@ -467,6 +468,8 @@ export function IndividualLeagueResultsWorkspace({
     searchParams.get('suggest_player_a') || searchParams.get('playerA') || searchParams.get('player_a') || ''
   const suggestedResultPlayerB =
     searchParams.get('suggest_player_b') || searchParams.get('playerB') || searchParams.get('player_b') || ''
+  const scheduledResultItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
+  const scheduledResultDate = searchParams.get('resultDate') || searchParams.get('result_date') || ''
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [results, setResults] = useState<TiqIndividualLeagueResultRecord[]>([])
@@ -685,7 +688,7 @@ export function IndividualLeagueResultsWorkspace({
     if (suggestedResultPlayerA === suggestedResultPlayerB) return
     if (resultParticipantOptions.length === 0) return
 
-    const nextSuggestedKey = `${selectedLeague.id}::${suggestedResultPlayerA}::${suggestedResultPlayerB}`
+    const nextSuggestedKey = `${selectedLeague.id}::${suggestedResultPlayerA}::${suggestedResultPlayerB}::${scheduledResultItemId}::${scheduledResultDate}`
     if (appliedSuggestedResultKey === nextSuggestedKey) return
 
     const playerAOption = findParticipantOption(resultParticipantOptions, suggestedResultPlayerA)
@@ -697,15 +700,22 @@ export function IndividualLeagueResultsWorkspace({
     setResultPlayerB(playerBOption.value)
     setResultWinner('')
     setResultScore('')
+    if (scheduledResultDate) setResultDate(scheduledResultDate)
     setResultNotes('')
     setResultFormOpen(true)
-    setStatus(`Loaded ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`)
+    setStatus(
+      scheduledResultItemId
+        ? `Loaded scheduled match: ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`
+        : `Loaded ${playerAOption.playerName} vs ${playerBOption.playerName}. Choose the winner and score.`,
+    )
     setAppliedSuggestedResultKey(nextSuggestedKey)
   }, [
     appliedSuggestedResultKey,
     canEditResults,
     resultParticipantOptions,
     selectedLeague,
+    scheduledResultDate,
+    scheduledResultItemId,
     suggestedResultPlayerA,
     suggestedResultPlayerB,
   ])
@@ -836,14 +846,21 @@ export function IndividualLeagueResultsWorkspace({
         playerAName: resultPlayerAOption.playerName,
         playerBName: resultPlayerBOption.playerName,
       })
+      const scheduleCompletion =
+        scheduledResultItemId && !editingExistingResult
+          ? await updateTiqLeagueScheduleStatus({
+              scheduleItemId: scheduledResultItemId,
+              status: 'completed',
+            })
+          : null
 
       await refreshResults(filterLeagueId)
       setResultStorageSource(saveResult.source)
-      setError(saveResult.warning || completion.warning || '')
+      setError(saveResult.warning || completion.warning || scheduleCompletion?.warning || '')
       setStatus(
         `${editingExistingResult ? 'Updated' : 'Saved'} TIQ result: ${winnerOption.playerName} over ${
           winnerOption.value === resultPlayerAOption.value ? resultPlayerBOption.playerName : resultPlayerAOption.playerName
-        }.`,
+        }.${scheduleCompletion ? ' Scheduled match marked complete.' : ''}`,
       )
       resetResultForm()
     } catch (saveError) {

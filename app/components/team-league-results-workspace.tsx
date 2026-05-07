@@ -22,6 +22,7 @@ import {
   type TiqTeamMatchEventRecord,
   type TiqTeamMatchLineRecord,
 } from '@/lib/tiq-team-results-service'
+import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 import {
@@ -734,6 +735,7 @@ function DynamicPointsLine({ line }: { line: TiqTeamMatchLineRecord }) {
 
 
 type EventFormState = {
+  scheduleItemId: string
   leagueId: string
   teamAName: string
   teamBName: string
@@ -743,6 +745,7 @@ type EventFormState = {
 }
 
 const emptyEvent = (): EventFormState => ({
+  scheduleItemId: '',
   leagueId: '',
   teamAName: '',
   teamBName: '',
@@ -795,15 +798,23 @@ function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   )
 }
 
-function defaultEventForLeague(leagues: TiqLeagueRecord[], leagueId: string): EventFormState {
+function defaultEventForLeague(
+  leagues: TiqLeagueRecord[],
+  leagueId: string,
+  defaults?: Partial<EventFormState>,
+): EventFormState {
   const league = leagues.find((item) => item.id === leagueId)
   const teamOptions = teamOptionsForLeague(league)
 
   return {
     ...emptyEvent(),
     leagueId,
-    teamAName: league?.captainTeamName || teamOptions[0] || '',
-    matchDate: todayInputValue(),
+    scheduleItemId: defaults?.scheduleItemId || '',
+    teamAName: defaults?.teamAName || league?.captainTeamName || teamOptions[0] || '',
+    teamBName: defaults?.teamBName || '',
+    matchDate: defaults?.matchDate || todayInputValue(),
+    facility: defaults?.facility || '',
+    notes: defaults?.notes || '',
   }
 }
 
@@ -852,13 +863,17 @@ async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
 function NewEventForm({
   leagues,
   defaultLeagueId,
+  scheduledDefaults,
   onCreated,
 }: {
   leagues: TiqLeagueRecord[]
   defaultLeagueId: string
+  scheduledDefaults?: Partial<EventFormState>
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
-  const [form, setForm] = useState<EventFormState>(() => defaultEventForLeague(leagues, defaultLeagueId))
+  const [form, setForm] = useState<EventFormState>(() =>
+    defaultEventForLeague(leagues, scheduledDefaults?.leagueId || defaultLeagueId, scheduledDefaults),
+  )
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
   const [message, setMessage] = useState('')
@@ -884,10 +899,21 @@ function NewEventForm({
       facility: form.facility || null,
       notes: form.notes || null,
     })
+    const scheduleCompletion =
+      event && form.scheduleItemId
+        ? await updateTiqLeagueScheduleStatus({
+            scheduleItemId: form.scheduleItemId,
+            status: 'completed',
+          })
+        : null
     setSaving(false)
-    if (w) setWarning(w)
+    if (w || scheduleCompletion?.warning) setWarning(w || scheduleCompletion?.warning || '')
     if (event) {
-      setMessage('Match created. Expand below to add lines.')
+      setMessage(
+        scheduleCompletion
+          ? 'Match created and schedule marked complete. Expand below to add lines.'
+          : 'Match created. Expand below to add lines.',
+      )
       setForm(defaultEventForLeague(leagues, defaultLeagueId))
       onCreated(event)
     }
@@ -980,6 +1006,12 @@ export function TeamLeagueResultsWorkspace({
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
+  const scheduledEventItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
+  const scheduledTeamA = searchParams.get('teamA') || searchParams.get('team_a') || ''
+  const scheduledTeamB = searchParams.get('teamB') || searchParams.get('team_b') || ''
+  const scheduledMatchDate = searchParams.get('matchDate') || searchParams.get('match_date') || ''
+  const scheduledFacility = searchParams.get('facility') || ''
+  const scheduledNotes = searchParams.get('notes') || ''
 
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [events, setEvents] = useState<TiqTeamMatchEventRecord[]>([])
@@ -1059,6 +1091,26 @@ export function TeamLeagueResultsWorkspace({
     completedLineCount,
     totalLineCount,
   })
+  const scheduledEventDefaults = useMemo<Partial<EventFormState>>(
+    () => ({
+      scheduleItemId: scheduledEventItemId,
+      leagueId: initialLeagueId,
+      teamAName: scheduledTeamA,
+      teamBName: scheduledTeamB,
+      matchDate: scheduledMatchDate,
+      facility: scheduledFacility,
+      notes: scheduledNotes,
+    }),
+    [
+      initialLeagueId,
+      scheduledEventItemId,
+      scheduledFacility,
+      scheduledMatchDate,
+      scheduledNotes,
+      scheduledTeamA,
+      scheduledTeamB,
+    ],
+  )
 
   useEffect(() => {
     let mounted = true
@@ -1395,7 +1447,7 @@ export function TeamLeagueResultsWorkspace({
         <details
           id="team-match-entry"
           style={detailsCard}
-          open={canEditResults && (events.length === 0 || newMatchFormOpen)}
+          open={canEditResults && (events.length === 0 || newMatchFormOpen || Boolean(scheduledEventItemId))}
           onToggle={(event) => setNewMatchFormOpen(event.currentTarget.open)}
         >
           <summary style={detailsSummary}>
@@ -1409,9 +1461,10 @@ export function TeamLeagueResultsWorkspace({
           </summary>
           {canEditResults ? (
             <NewEventForm
-              key={filterLeagueId || 'all-leagues'}
+              key={`${filterLeagueId || 'all-leagues'}::${scheduledEventItemId || 'manual'}`}
               leagues={leagues}
               defaultLeagueId={filterLeagueId}
+              scheduledDefaults={scheduledEventDefaults}
               onCreated={(event) => {
                 setActiveEntryEventId(event.id)
                 setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 }))
