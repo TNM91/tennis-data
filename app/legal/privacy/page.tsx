@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 
@@ -129,7 +130,7 @@ export default function PrivacyPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>11. Contact</h2>
           <p>
-            For privacy or data handling questions, contact <a href="mailto:support@tenaceiq.com">support@tenaceiq.com</a>.
+            For privacy or data handling questions, open a <Link href="/messages?compose=support">TenAceIQ support thread</Link>.
           </p>
         </div>
       </LegalPage>

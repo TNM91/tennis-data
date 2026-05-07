@@ -390,6 +390,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   </span>
                 ) : null}
                 <UtilityLink href={ACCOUNT_NAV_ITEMS[0].href}>{ACCOUNT_NAV_ITEMS[0].label}</UtilityLink>
+                <UtilityLink href="/messages">Messages</UtilityLink>
                 {role === 'admin' ? (
                   <UtilityLink href="/admin">Admin dashboard</UtilityLink>
                 ) : null}
@@ -522,6 +523,10 @@ export default function SiteHeader({ active }: { active?: string }) {
                 <>
                   <Link href={ACCOUNT_NAV_ITEMS[0].href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <span>{ACCOUNT_NAV_ITEMS[0].label}</span>
+                    <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
+                  </Link>
+                  <Link href="/messages" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                    <span>Messages</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   {role === 'admin' ? (

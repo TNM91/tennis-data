@@ -19,6 +19,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/profile', label: 'Profile' },
+  { href: '/messages', label: 'Messages' },
 ]
 
 export const EXPLORE_NAV_ITEMS: NavItem[] = [
@@ -71,6 +72,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
       { href: '/', label: 'Home' },
       { href: '/pricing', label: 'Pricing' },
       { href: '/legal/billing', label: 'Billing' },
+      { href: '/messages?compose=support', label: 'Support' },
       { href: '/join', label: 'Start Free' },
       { href: '/login', label: 'Sign in' },
     ],
@@ -79,6 +81,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Player',
     items: [
       { href: '/profile', label: 'Profile' },
+      { href: '/messages', label: 'Messages' },
       { href: '/explore', label: 'Explore' },
       { href: '/mylab', label: 'My Lab' },
       { href: '/matchup', label: 'Matchup' },
