@@ -31,6 +31,7 @@ import {
   getTiqIndividualCompetitionFormatExperience,
   getTiqIndividualCompetitionFormatLabel,
 } from '@/lib/tiq-individual-format'
+import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
 
@@ -96,6 +97,7 @@ const inputStyle: CSSProperties = {
   color: '#f1f5f9',
   fontSize: 14,
 }
+const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
 const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 82, resize: 'vertical' }
 const btnPrimary: CSSProperties = {
   padding: '9px 18px',
@@ -829,6 +831,13 @@ export function IndividualLeagueResultsWorkspace({
       return
     }
 
+    const winnerSide = winnerOption.value === resultPlayerAOption.value ? 'A' : 'B'
+    const scoreValidation = validateTiqTennisMatchScore(resultScore, winnerSide)
+    if (!scoreValidation.valid) {
+      setStatus(scoreValidation.message)
+      return
+    }
+
     setSaving(true)
     setStatus('')
 
@@ -1222,6 +1231,9 @@ export function IndividualLeagueResultsWorkspace({
                     style={inputStyle}
                     disabled={saving}
                   />
+                  <small style={scoreHelpStyle}>
+                    Completed sets only: 6-4, 7-6, or a deciding 10-point tiebreak like 10-8.
+                  </small>
                 </Field>
                 <Field label="Result date">
                   <input

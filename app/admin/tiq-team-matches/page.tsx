@@ -20,7 +20,11 @@ import {
 } from '@/lib/tiq-team-results-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
-import { formatDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
+import {
+  formatDynamicPointsForSides,
+  getDynamicPointsRulesSummary,
+  validateTiqTennisMatchScore,
+} from '@/lib/tiq-scoring'
 
 type PlayerOption = { id: string; name: string }
 type MatchLineSummary = {
@@ -49,6 +53,7 @@ const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap
 const label: CSSProperties = { fontSize: 12, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }
 const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14 }
 const selectStyle: CSSProperties = { ...inputStyle }
+const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
 const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }
 const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer' }
 const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, fontSize: 13, border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer' }
@@ -126,6 +131,7 @@ const emptyLine = (lineNumber = ''): LineFormState => ({
 function LineForm({
   event,
   players,
+  scoringSystem,
   existingLine,
   defaultLineNumber = '',
   onSaved,
@@ -133,6 +139,7 @@ function LineForm({
 }: {
   event: TiqTeamMatchEventRecord
   players: PlayerOption[]
+  scoringSystem: TiqLeagueScoringSystem
   existingLine?: TiqTeamMatchLineRecord
   defaultLineNumber?: string
   onSaved: (line: TiqTeamMatchLineRecord) => void
@@ -191,6 +198,11 @@ function LineForm({
 
     if (form.score.trim() && !form.winnerSide) {
       return 'Choose a winner before saving a scored line.'
+    }
+
+    if (form.winnerSide || form.score.trim()) {
+      const scoreValidation = validateTiqTennisMatchScore(form.score, form.winnerSide || null)
+      if (!scoreValidation.valid) return scoreValidation.message
     }
 
     return ''
@@ -266,8 +278,17 @@ function LineForm({
         </Field>
         <Field label="SCORE">
           <input style={inputStyle} placeholder="e.g. 6-4, 7-5" value={form.score} onChange={(e) => setForm((f) => ({ ...f, score: e.target.value }))} />
+          <small style={scoreHelpStyle}>
+            Completed sets only: 6-4, 7-6, or a deciding 10-point tiebreak like 10-8.
+          </small>
         </Field>
       </div>
+
+      {scoringSystem === 'dynamic_points' ? (
+        <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 8 }}>
+          {getDynamicPointsRulesSummary()}
+        </div>
+      ) : null}
 
       <div style={row}>
         <Field label={`SIDE A - ${event.teamAName} - PLAYER 1`}>
@@ -452,6 +473,7 @@ function EventCard({
                     key={line.id}
                     event={event}
                     players={players}
+                    scoringSystem={scoringSystem}
                     existingLine={line}
                     onSaved={handleLineSaved}
                     onCancel={() => setEditingLine(null)}
@@ -507,6 +529,7 @@ function EventCard({
                 key={`add-line-${defaultLineNumber || lines.length}`}
                 event={event}
                 players={players}
+                scoringSystem={scoringSystem}
                 defaultLineNumber={defaultLineNumber}
                 onSaved={handleLineSaved}
                 onCancel={() => setAddingLine(false)}
