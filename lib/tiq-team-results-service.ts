@@ -7,7 +7,11 @@ import {
   deleteTiqTeamMatchLineMatch,
   syncTiqTeamMatchLineToMatch,
 } from '@/lib/tiq-match-sync'
-import { calculateDynamicPointsForSides, compareTiqTeamStandings } from '@/lib/tiq-scoring'
+import {
+  calculateDynamicPointsForSides,
+  compareTiqTeamStandings,
+  validateTiqTennisMatchScore,
+} from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
 
@@ -304,6 +308,11 @@ export async function saveTiqTeamMatchLine(
   try {
     const userId = await getUserId()
     if (!userId) return { line: null, warning: 'Sign in to save match lines.' }
+
+    if (input.winnerSide || cleanText(input.score)) {
+      const scoreValidation = validateTiqTennisMatchScore(input.score, input.winnerSide)
+      if (!scoreValidation.valid) return { line: null, warning: scoreValidation.message }
+    }
 
     const { data, error } = await supabase
       .from('tiq_team_league_match_lines')

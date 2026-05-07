@@ -78,7 +78,11 @@ import {
   type TiqLeagueScheduleItem,
   type TiqLeagueScheduleSource,
 } from '@/lib/tiq-league-schedule-service'
-import { calculateDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
+import {
+  calculateDynamicPointsForSides,
+  getDynamicPointsRulesSummary,
+  validateTiqTennisMatchScore,
+} from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 function formatDateTime(value: string | null | undefined) {
@@ -635,44 +639,10 @@ export default function TiqLeagueDetailPage() {
     league?.leagueFormat === 'team' ? access.teamLeagueMessage : access.individualLeagueMessage
   const canLogIndividualResults = league?.leagueFormat === 'individual' && access.canCreateTiqIndividualLeague
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
-  const participants = league?.leagueFormat === 'team' ? league.teams || [] : league?.players || []
   const seasonWindowText =
     league?.startsOn || league?.endsOn
       ? [league.startsOn || 'Start TBD', league.endsOn || 'End TBD'].join(' to ')
       : 'Season window not set'
-  const tiqSignals = league
-    ? [
-        {
-          label: 'Competition layer',
-          value: getCompetitionLayerLabel('tiq'),
-          note: 'TIQ leagues should feel interactive and strategic, not like official browse-only contexts.',
-        },
-        {
-          label: 'League format',
-          value:
-            league.leagueFormat === 'individual'
-              ? getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)
-              : getLeagueFormatLabel(league.leagueFormat),
-          note:
-            league.leagueFormat === 'team'
-              ? 'Team leagues connect participation directly into captain workflow and seasonal operations.'
-              : 'Individual leagues connect entry, standings, prompts, and results into one internal competition loop.',
-        },
-        {
-          label: 'Season activity',
-          value: `${participants.length} participants`,
-          note:
-            league.leagueFormat === 'team'
-              ? 'Use this page to enter teams and move quickly into availability, lineups, scenarios, and messaging.'
-              : 'Use this page to join, compare entrants, read results, and act on the next TIQ opportunity.',
-        },
-        {
-          label: 'Scheduling',
-          value: getTiqLeagueSchedulingModeLabel(league.schedulingMode),
-          note: scheduleRulesText || 'Schedule details appear here once the coordinator sets them.',
-        },
-      ]
-    : []
   const visibleTeamEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
@@ -746,7 +716,7 @@ export default function TiqLeagueDetailPage() {
       ? visibleTeamEntries.length
       : league?.leagueFormat === 'individual'
         ? visiblePlayerEntries.length
-        : participants.length
+        : 0
   const pendingEntries =
     league?.leagueFormat === 'team'
       ? teamEntries.filter((entry) => entry.entryStatus === 'pending')
@@ -864,22 +834,6 @@ export default function TiqLeagueDetailPage() {
     ...heroTitle,
     fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '56px',
     lineHeight: isMobile ? 1.02 : 0.98,
-  }
-  const dynamicMetricGrid: CSSProperties = {
-    ...metricGrid,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isMobile
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(auto-fit, minmax(180px, 1fr))',
-  }
-  const dynamicSignalGrid: CSSProperties = {
-    ...signalGridStyle,
-    gridTemplateColumns: isSmallMobile
-      ? '1fr'
-      : isMobile
-        ? 'repeat(2, minmax(0, 1fr))'
-        : 'repeat(auto-fit, minmax(220px, 1fr))',
   }
   const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
@@ -1231,6 +1185,20 @@ export default function TiqLeagueDetailPage() {
     league?.leagueFormat === 'team'
       ? buildTeamResultEntryHref(league.id, teamMatchEvents.length > 0 ? 'team-match-review' : 'team-match-entry')
       : '/league-coordinator/results#team-match-entry'
+  const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
+  const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
+  const leaderName = individualLeader?.playerName || teamLeader?.teamName || ''
+  const leaderRecord = individualLeader
+    ? `${individualLeader.leagueWins}-${individualLeader.leagueLosses}`
+    : teamLeader
+      ? `${teamLeader.wins}-${teamLeader.losses}${teamLeader.ties ? `-${teamLeader.ties}` : ''}`
+      : ''
+  const nextLeagueAction =
+    league?.leagueFormat === 'individual'
+      ? competitionOpportunities[0]?.title || 'Log the next result to move the table.'
+      : nextTeamEvent
+        ? `${nextTeamEvent.teamAName} vs ${nextTeamEvent.teamBName}`
+        : 'Publish the next match slot.'
 
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
@@ -1810,6 +1778,13 @@ export default function TiqLeagueDetailPage() {
       return
     }
 
+    const winnerSide = winnerOption.value === resultPlayerAOption.value ? 'A' : 'B'
+    const scoreValidation = validateTiqTennisMatchScore(resultScore, winnerSide)
+    if (!scoreValidation.valid) {
+      setResultStatus(scoreValidation.message)
+      return
+    }
+
     setResultSaving(true)
     setResultStatus('')
 
@@ -2131,19 +2106,26 @@ export default function TiqLeagueDetailPage() {
                       <img src={league.photoUrl} alt={`${league.leagueName} league`} style={leaguePhoto} />
                     </div>
                   ) : null}
-                  <div style={sideLabel}>Participation</div>
-                  <div style={sideValue}>
-                    {league.leagueFormat === 'team'
-                      ? 'Enter a team'
-                      : individualFormatExperience.participationCta}
-                  </div>
-                  <div style={sideText}>{entryMessage}</div>
-                  <div style={{ ...statusBanner, ...(entryEnabled ? infoBanner : warningBanner) }}>
-                    {entryEnabled
-                      ? league.leagueFormat === 'team'
-                        ? 'Team entry requests are open. The coordinator approves each team before it appears.'
-                        : individualFormatExperience.enabledMessage
-                      : entryMessage}
+                  <div style={sideLabel}>League race</div>
+                  <div style={sideValue}>{leaderName ? 'First place' : 'Standings pending'}</div>
+                  {leaderName ? (
+                    <div style={leaderCardStyle}>
+                      <div style={leaderRankStyle}>1</div>
+                      <div>
+                        <strong>{leaderName}</strong>
+                        <span>{leaderRecord || 'No record yet'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={sideText}>
+                      The table wakes up as soon as approved participants and results are in.
+                    </div>
+                  )}
+                  <div style={actionRow}>
+                    <GhostLink href="#league-standings">Standings</GhostLink>
+                    <GhostLink href={league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results'}>
+                      Results
+                    </GhostLink>
                   </div>
                 </div>
               </div>
@@ -2151,36 +2133,19 @@ export default function TiqLeagueDetailPage() {
               {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
             </section>
 
-            <div style={dynamicMetricGrid}>
-              <MetricCard label="Season" value={league.seasonLabel || 'TIQ Season'} />
-              <MetricCard label="Flight / Tier" value={league.flight || 'Open'} />
-              <MetricCard label="Market" value={league.locationLabel || 'Unassigned'} />
-              <MetricCard label="Scoring" value={getTiqLeagueScoringSystemLabel(league.scoringSystem)} />
-              <MetricCard label="Scheduling" value={getTiqLeagueSchedulingModeLabel(league.schedulingMode)} />
-              <MetricCard
-                label="Individual format"
-                value={
-                  league.leagueFormat === 'individual'
-                    ? getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)
-                    : 'Team'
-                }
-              />
-              <MetricCard label="Participants" value={String(activeEntryCount)} accent />
-            </div>
-
             <section id="league-overview" style={leagueHubPanelStyle}>
               <div style={leagueHubHeaderStyle}>
                 <div>
-                  <div style={sectionEyebrow}>League hub</div>
-                  <h2 style={sectionTitle}>Everything for this season starts here.</h2>
+                  <div style={sectionEyebrow}>Season pulse</div>
+                  <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
                   <p style={sectionText}>
-                    Coordinators manage approvals, schedule shape, results, and standings. Members get one place to
-                    see who is in, what is next, where to play, and what changed after scores are entered.
+                    This page should feel like the league scoreboard first. Admin tools stay nearby, but results,
+                    standings, schedule, and the next useful tennis move lead the experience.
                   </p>
                 </div>
                 <div style={leagueHubScoreStyle}>
-                  <strong>{activeEntryCount}</strong>
-                  <span>active {league.leagueFormat === 'team' ? 'teams' : 'players'}</span>
+                  <strong>{leaderName || activeEntryCount}</strong>
+                  <span>{leaderName ? 'currently first' : `active ${league.leagueFormat === 'team' ? 'teams' : 'players'}`}</span>
                 </div>
               </div>
 
@@ -2193,33 +2158,41 @@ export default function TiqLeagueDetailPage() {
                 ))}
               </nav>
 
-              <div style={hubValueGridStyle}>
-                <div style={hubValueCardStyle}>
-                  <span style={pillGreen}>Coordinator</span>
-                  <strong>Less chasing, more control.</strong>
-                  <p>Requests, schedules, score activity, and standings live in the same operating view.</p>
+              <div style={seasonPulseGridStyle}>
+                <div style={seasonPulseCardStyle}>
+                  <span style={pillGreen}>Leader</span>
+                  <strong>{leaderName || 'No leader yet'}</strong>
+                  <p>{leaderName ? `${leaderRecord} at the top of the league.` : 'Log the first result to start the race.'}</p>
                 </div>
-                <div style={hubValueCardStyle}>
-                  <span style={pillBlue}>Member</span>
-                  <strong>Know the next tennis move.</strong>
-                  <p>Players and teams can see the season context without hunting through texts or spreadsheets.</p>
+                <div style={seasonPulseCardStyle}>
+                  <span style={pillBlue}>Latest</span>
+                  <strong>
+                    {league.leagueFormat === 'individual'
+                      ? individualResultBookStats.latestResult?.winnerPlayerName || 'No result yet'
+                      : teamMatchEvents[0]?.winnerTeamName || teamMatchEvents[0]?.teamAName || 'No team event yet'}
+                  </strong>
+                  <p>
+                    {league.leagueFormat === 'individual' && individualResultBookStats.latestResult
+                      ? `def. ${resultOpponentName(individualResultBookStats.latestResult)}`
+                      : league.leagueFormat === 'team' && teamMatchEvents[0]
+                        ? `${teamMatchEvents.length} team events logged.`
+                        : 'Results will become the heartbeat of the league.'}
+                  </p>
                 </div>
-                <div style={hubValueCardStyle}>
-                  <span style={pillSlate}>Season</span>
-                  <strong>Finite, visible, and score-driven.</strong>
-                  <p>{seasonWindowText}. Results and standings keep the league moving toward a clear finish.</p>
+                <div style={seasonPulseCardStyle}>
+                  <span style={pillSlate}>Next</span>
+                  <strong>{nextLeagueAction}</strong>
+                  <p>{seasonWindowText}. Keep the season moving with one clear next match.</p>
                 </div>
+                {!access.canUseAdvancedPlayerInsights ? (
+                  <div style={seasonPulseUpgradeStyle}>
+                    <span style={pillAmber}>Player unlock</span>
+                    <strong>Want to climb from here?</strong>
+                    <p>Player adds My Lab, follows, and matchup insight so this table turns into better match prep.</p>
+                    <GhostLink href="/pricing#player_plus">Unlock Player</GhostLink>
+                  </div>
+                ) : null}
               </div>
-            </section>
-
-            <section style={dynamicSignalGrid}>
-              {tiqSignals.map((signal) => (
-                <article key={signal.label} style={signalCardStyle}>
-                  <div style={signalLabelStyle}>{signal.label}</div>
-                  <div style={signalValueStyle}>{signal.value}</div>
-                  <div style={signalNoteStyle}>{signal.note}</div>
-                </article>
-              ))}
             </section>
 
             <section style={formatCallout}>
@@ -3103,6 +3076,9 @@ export default function TiqLeagueDetailPage() {
                       style={inputStyle}
                       disabled={resultEntryDisabled}
                     />
+                    <small style={scoreHelpStyle}>
+                      Use completed sets only: 6-4, 7-6, or a deciding 10-point tiebreak like 10-8.
+                    </small>
                   </label>
 
                   <label style={fieldLabel}>
@@ -3419,23 +3395,6 @@ export default function TiqLeagueDetailPage() {
   )
 }
 
-function MetricCard({
-  label,
-  value,
-  accent = false,
-}: {
-  label: string
-  value: string
-  accent?: boolean
-}) {
-  return (
-    <div style={{ ...metricCard, ...(accent ? metricCardAccent : {}) }}>
-      <div style={metricLabel}>{label}</div>
-      <div style={metricValue}>{value}</div>
-    </div>
-  )
-}
-
 const pageWrap: CSSProperties = {
   width: 'min(1280px, calc(100% - 40px))',
   margin: '0 auto',
@@ -3593,6 +3552,31 @@ const sideText: CSSProperties = {
   lineHeight: 1.7,
 }
 
+const leaderCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '46px minmax(0, 1fr)',
+  gap: '12px',
+  alignItems: 'center',
+  padding: '14px',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.14), rgba(74,163,255,0.08))',
+  color: '#f8fbff',
+}
+
+const leaderRankStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 46,
+  height: 46,
+  borderRadius: '999px',
+  background: '#9be11d',
+  color: '#06121a',
+  fontWeight: 950,
+  fontSize: '20px',
+}
+
 const actionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -3626,24 +3610,6 @@ const statusBanner: CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
   color: '#dbeafe',
   fontWeight: 700,
-}
-
-const infoBanner: CSSProperties = {
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'rgba(17, 39, 27, 0.58)',
-  color: '#dcfce7',
-}
-
-const warningBanner: CSSProperties = {
-  border: '1px solid rgba(245, 158, 11, 0.2)',
-  background: 'rgba(120, 53, 15, 0.34)',
-  color: '#fde68a',
-}
-
-const metricGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-  gap: '16px',
 }
 
 const leagueHubPanelStyle: CSSProperties = {
@@ -3695,13 +3661,13 @@ const hubNavItemStyle: CSSProperties = {
   fontWeight: 900,
 }
 
-const hubValueGridStyle: CSSProperties = {
+const seasonPulseGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
   gap: '12px',
 }
 
-const hubValueCardStyle: CSSProperties = {
+const seasonPulseCardStyle: CSSProperties = {
   display: 'grid',
   gap: '8px',
   padding: '16px',
@@ -3709,6 +3675,12 @@ const hubValueCardStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(7,17,34,0.52)',
   color: '#dbeafe',
+}
+
+const seasonPulseUpgradeStyle: CSSProperties = {
+  ...seasonPulseCardStyle,
+  border: '1px solid rgba(251,191,36,0.18)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.10), rgba(7,17,34,0.56))',
 }
 
 const schedulePanelStyle: CSSProperties = {
@@ -3898,72 +3870,6 @@ const requestPreviewCardStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'rgba(8,18,35,0.6)',
   color: '#e7eefb',
-}
-
-const signalGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-  gap: '14px',
-}
-
-const signalCardStyle: CSSProperties = {
-  padding: '18px',
-  borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.16)',
-}
-
-const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
-  fontSize: '12px',
-  fontWeight: 800,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const signalValueStyle: CSSProperties = {
-  marginTop: '10px',
-  color: '#f8fbff',
-  fontSize: '1.28rem',
-  fontWeight: 900,
-  letterSpacing: '-0.03em',
-}
-
-const signalNoteStyle: CSSProperties = {
-  marginTop: '8px',
-  color: 'rgba(224,234,247,0.74)',
-  lineHeight: 1.6,
-  fontSize: '.94rem',
-}
-
-const metricCard: CSSProperties = {
-  padding: '18px',
-  borderRadius: '24px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
-}
-
-const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-}
-
-const metricLabel: CSSProperties = {
-  color: 'rgba(198,216,248,0.78)',
-  fontSize: '13px',
-  fontWeight: 750,
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-}
-
-const metricValue: CSSProperties = {
-  marginTop: '8px',
-  color: '#f8fbff',
-  fontSize: '28px',
-  lineHeight: 1.1,
-  fontWeight: 900,
-  letterSpacing: '-0.04em',
 }
 
 const resultBookGrid: CSSProperties = {
@@ -4157,6 +4063,13 @@ const inputStyle: CSSProperties = {
   color: '#f8fbff',
   padding: '0 14px',
   outline: 'none',
+}
+
+const scoreHelpStyle: CSSProperties = {
+  color: 'rgba(214,228,246,0.66)',
+  fontSize: '12px',
+  lineHeight: 1.45,
+  fontWeight: 650,
 }
 
 const textareaStyle: CSSProperties = {

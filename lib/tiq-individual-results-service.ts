@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { deleteTiqIndividualResultMatch, syncTiqIndividualResultToMatch } from '@/lib/tiq-match-sync'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
 import { validateTiqLeagueCanAcceptActivity } from '@/lib/tiq-league-limits'
+import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 
 const TIQ_INDIVIDUAL_RESULTS_TABLE = 'tiq_individual_league_results'
 const LOCAL_RESULTS_KEY = 'tenaceiq-tiq-individual-results-v1'
@@ -222,6 +223,21 @@ export async function saveTiqIndividualLeagueResult(input: {
   )
   if (activityWarning) {
     throw new Error(activityWarning)
+  }
+
+  const winnerSide =
+    cleanText(input.winnerPlayerId) && cleanText(input.winnerPlayerId) === cleanText(input.playerAId)
+      ? 'A'
+      : cleanText(input.winnerPlayerId) && cleanText(input.winnerPlayerId) === cleanText(input.playerBId)
+        ? 'B'
+        : cleanText(input.winnerPlayerName).toLowerCase() === cleanText(input.playerAName).toLowerCase()
+          ? 'A'
+          : cleanText(input.winnerPlayerName).toLowerCase() === cleanText(input.playerBName).toLowerCase()
+            ? 'B'
+            : null
+  const scoreValidation = validateTiqTennisMatchScore(input.score, winnerSide)
+  if (!scoreValidation.valid) {
+    throw new Error(scoreValidation.message)
   }
 
   const existingLocalRecord = existingResultId

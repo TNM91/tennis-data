@@ -6,6 +6,7 @@ import {
   formatDynamicPointsForSides,
   getDynamicPointsValidationMessage,
   parseTennisScoreSets,
+  validateTiqTennisMatchScore,
 } from '../tiq-scoring'
 
 describe('parseTennisScoreSets', () => {
@@ -66,6 +67,36 @@ describe('calculateDynamicPointsForSides', () => {
       sideAPoints: 0,
       sideBPoints: 0,
       valid: false,
+    })
+  })
+})
+
+describe('validateTiqTennisMatchScore', () => {
+  it('rejects tied set scores such as 7-7', () => {
+    expect(validateTiqTennisMatchScore('7-7, 6-4', 'A')).toMatchObject({
+      valid: false,
+      message: 'A tennis set cannot end tied. Use 7-6 for a tiebreak set, not 7-7.',
+    })
+  })
+
+  it('allows straight-set tiebreak scores', () => {
+    expect(validateTiqTennisMatchScore('7-6, 6-4', 'A')).toMatchObject({
+      valid: true,
+      message: '',
+    })
+  })
+
+  it('allows a deciding 10-point match tiebreak', () => {
+    expect(validateTiqTennisMatchScore('6-4, 4-6, 10-8', 'A')).toMatchObject({
+      valid: true,
+      message: '',
+    })
+  })
+
+  it('rejects scores that do not match the selected winner', () => {
+    expect(validateTiqTennisMatchScore('4-6, 4-6', 'A')).toMatchObject({
+      valid: false,
+      message: 'The selected winner must match the player who won two sets in the score.',
     })
   })
 })
