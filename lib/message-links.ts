@@ -23,6 +23,8 @@ export function buildSupportMessageHref(input: {
 
 export function buildDirectMessageHref(input: {
   recipientName?: string
+  recipientProfileId?: string
+  recipientPlayerId?: string
   subject: string
   body?: string
   entityType?: string
@@ -30,6 +32,8 @@ export function buildDirectMessageHref(input: {
 }) {
   const params = new URLSearchParams({ compose: 'direct' })
   addParam(params, 'recipient', input.recipientName)
+  addParam(params, 'recipientProfileId', input.recipientProfileId)
+  addParam(params, 'recipientPlayerId', input.recipientPlayerId)
   addParam(params, 'subject', input.subject)
   addParam(params, 'body', input.body)
   addParam(params, 'entityType', input.entityType)

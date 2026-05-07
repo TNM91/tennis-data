@@ -26,10 +26,14 @@ export type InternalConversation = {
   assignedAdminUserId: string | null
   relatedEntityType: string
   relatedEntityId: string
+  metadata: Record<string, string>
   createdAt: string
   updatedAt: string
   lastMessageBody: string
   lastMessageAt: string
+  lastMessageSenderUserId: string
+  lastReadAt: string
+  isUnread: boolean
   participantCount: number
 }
 
@@ -48,12 +52,14 @@ export type InternalRecipient = {
   role: UserRole
   tiqPublicId: string
   tiqAdminId: string
+  linkedPlayerId: string
 }
 
 type ProfileIdentityRow = {
   id?: string | null
   role?: string | null
   linked_player_name?: string | null
+  linked_player_id?: string | null
   message_display_name?: string | null
   display_name?: string | null
   tiq_public_id?: string | null
@@ -69,6 +75,7 @@ type ConversationRow = {
   assigned_admin_user_id: string | null
   related_entity_type: string | null
   related_entity_id: string | null
+  metadata?: Record<string, string> | null
   created_at: string | null
   updated_at: string | null
 }
@@ -76,6 +83,7 @@ type ConversationRow = {
 type ParticipantRow = {
   conversation_id: string
   profile_id?: string | null
+  last_read_at?: string | null
 }
 
 type MessageRow = {
@@ -114,7 +122,39 @@ function normalizeMessageKind(value: string | null | undefined): InternalMessage
   return 'message'
 }
 
-function toConversation(row: ConversationRow, lastMessage: MessageRow | null, participantCount: number): InternalConversation {
+function normalizeMetadata(value: Record<string, string> | null | undefined): Record<string, string> {
+  if (!value || typeof value !== 'object') return {}
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, item]) => typeof item === 'string' && item.trim())
+      .map(([key, item]) => [key, item.trim()]),
+  )
+}
+
+function toConversation(
+  row: ConversationRow,
+  lastMessage: MessageRow | null,
+  participantCount: number,
+  options: {
+    currentUserId: string
+    currentUserRole: UserRole
+    lastReadAt?: string | null
+  },
+): InternalConversation {
+  const lastMessageAt = lastMessage?.created_at || row.updated_at || row.created_at || ''
+  const lastMessageSenderUserId = lastMessage?.sender_user_id || ''
+  const lastReadAt = options.lastReadAt || ''
+  const isAdminUnread =
+    options.currentUserRole === 'admin' &&
+    normalizeConversationType(row.conversation_type) === 'support' &&
+    normalizeConversationStatus(row.status) !== 'closed' &&
+    normalizeConversationStatus(row.status) !== 'waiting_on_user' &&
+    lastMessageSenderUserId !== options.currentUserId
+  const isParticipantUnread =
+    Boolean(lastMessageSenderUserId) &&
+    lastMessageSenderUserId !== options.currentUserId &&
+    (!lastReadAt || new Date(lastMessageAt).getTime() > new Date(lastReadAt).getTime())
+
   return {
     id: row.id,
     conversationType: normalizeConversationType(row.conversation_type),
@@ -124,10 +164,14 @@ function toConversation(row: ConversationRow, lastMessage: MessageRow | null, pa
     assignedAdminUserId: row.assigned_admin_user_id || null,
     relatedEntityType: row.related_entity_type || '',
     relatedEntityId: row.related_entity_id || '',
+    metadata: normalizeMetadata(row.metadata),
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || row.created_at || '',
     lastMessageBody: lastMessage?.body || '',
-    lastMessageAt: lastMessage?.created_at || row.updated_at || row.created_at || '',
+    lastMessageAt,
+    lastMessageSenderUserId,
+    lastReadAt,
+    isUnread: isAdminUnread || isParticipantUnread,
     participantCount,
   }
 }
@@ -162,7 +206,7 @@ export async function getInternalIdentity(): Promise<InternalIdentity | null> {
 
   const richProfile = await supabase
     .from('profiles')
-    .select('id, role, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id')
+    .select('id, role, linked_player_id, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -171,7 +215,7 @@ export async function getInternalIdentity(): Promise<InternalIdentity | null> {
     identityColumnsAvailable = false
     const legacyProfile = await supabase
       .from('profiles')
-      .select('id, role, linked_player_name')
+      .select('id, role, linked_player_id, linked_player_name')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -211,13 +255,14 @@ function toInternalRecipient(row: ProfileIdentityRow): InternalRecipient | null 
     role: normalizeUserRole(row.role ?? 'member'),
     tiqPublicId: row.tiq_public_id || buildTiqPublicId(userId),
     tiqAdminId: row.tiq_admin_id || '',
+    linkedPlayerId: row.linked_player_id || '',
   }
 }
 
 async function findRecipientByExactId(value: string): Promise<InternalRecipient | null> {
   const normalized = value.trim()
-  const profileSelect = 'id, role, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id'
-  const directorySelect = 'id, role, display_name, tiq_public_id, tiq_admin_id'
+  const profileSelect = 'id, role, linked_player_id, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id'
+  const directorySelect = 'id, role, linked_player_id, display_name, tiq_public_id, tiq_admin_id'
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)
   let byId = isUuid
     ? await supabase
@@ -254,6 +299,55 @@ async function findRecipientByExactId(value: string): Promise<InternalRecipient 
   return toInternalRecipient(byId.data as ProfileIdentityRow)
 }
 
+export async function findInternalRecipientByProfileId(profileId: string): Promise<InternalRecipient | null> {
+  return findRecipientByExactId(profileId)
+}
+
+export async function findInternalRecipientByPlayerId(playerId: string): Promise<InternalRecipient | null> {
+  const normalized = playerId.trim()
+  if (!normalized) return null
+
+  const directorySelect = 'id, role, linked_player_id, display_name, tiq_public_id, tiq_admin_id'
+  const profileSelect = 'id, role, linked_player_id, linked_player_name, message_display_name, tiq_public_id, tiq_admin_id'
+  let result = await supabase
+    .from('internal_message_directory')
+    .select(directorySelect)
+    .eq('linked_player_id', normalized)
+    .limit(1)
+    .maybeSingle()
+
+  if (result.error) {
+    result = await supabase
+      .from('profiles')
+      .select(profileSelect)
+      .eq('linked_player_id', normalized)
+      .limit(1)
+      .maybeSingle()
+  }
+
+  if (result.error || !result.data) return null
+  return toInternalRecipient(result.data as ProfileIdentityRow)
+}
+
+export async function resolveInternalRecipient(input: {
+  profileId?: string | null
+  playerId?: string | null
+  nameOrId?: string | null
+}): Promise<InternalRecipient | null> {
+  if (input.profileId?.trim()) {
+    const profileMatch = await findInternalRecipientByProfileId(input.profileId)
+    if (profileMatch) return profileMatch
+  }
+
+  if (input.playerId?.trim()) {
+    const playerMatch = await findInternalRecipientByPlayerId(input.playerId)
+    if (playerMatch) return playerMatch
+  }
+
+  if (input.nameOrId?.trim()) return findInternalRecipient(input.nameOrId)
+  return null
+}
+
 export async function findInternalRecipient(value: string): Promise<InternalRecipient | null> {
   const normalized = value.trim()
   if (!normalized) return null
@@ -272,7 +366,7 @@ export async function searchInternalRecipients(value: string, currentUserId?: st
   const exact = await findRecipientByExactId(normalized)
   const byName = await supabase
     .from('internal_message_directory')
-    .select('id, role, display_name, tiq_public_id, tiq_admin_id')
+    .select('id, role, linked_player_id, display_name, tiq_public_id, tiq_admin_id')
     .ilike('display_name', `%${normalized}%`)
     .order('display_name', { ascending: true })
     .limit(8)
@@ -310,11 +404,12 @@ export async function saveInternalDisplayName(userId: string, displayName: strin
 
 export async function listInternalConversations(identity: InternalIdentity): Promise<InternalConversation[]> {
   let conversationRows: ConversationRow[] = []
+  const conversationSelect = 'id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at'
 
   if (identity.role === 'admin') {
     const { data, error } = await supabase
       .from('internal_conversations')
-      .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, created_at, updated_at')
+      .select(conversationSelect)
       .order('updated_at', { ascending: false })
       .limit(80)
 
@@ -333,7 +428,7 @@ export async function listInternalConversations(identity: InternalIdentity): Pro
 
     const { data, error } = await supabase
       .from('internal_conversations')
-      .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, created_at, updated_at')
+      .select(conversationSelect)
       .in('id', ids)
       .order('updated_at', { ascending: false })
 
@@ -353,7 +448,7 @@ export async function listInternalConversations(identity: InternalIdentity): Pro
       .limit(300),
     supabase
       .from('internal_conversation_participants')
-      .select('conversation_id, profile_id')
+      .select('conversation_id, profile_id, last_read_at')
       .in('conversation_id', conversationIds),
   ])
 
@@ -368,12 +463,25 @@ export async function listInternalConversations(identity: InternalIdentity): Pro
   }
 
   const participantCount = new Map<string, number>()
+  const currentUserReads = new Map<string, string>()
   for (const participant of (participantsResult.data ?? []) as ParticipantRow[]) {
     participantCount.set(participant.conversation_id, (participantCount.get(participant.conversation_id) ?? 0) + 1)
+    if (participant.profile_id === identity.userId) {
+      currentUserReads.set(participant.conversation_id, participant.last_read_at || '')
+    }
   }
 
   return conversationRows.map((row) =>
-    toConversation(row, latestByConversation.get(row.id) ?? null, participantCount.get(row.id) ?? 0),
+    toConversation(
+      row,
+      latestByConversation.get(row.id) ?? null,
+      participantCount.get(row.id) ?? 0,
+      {
+        currentUserId: identity.userId,
+        currentUserRole: identity.role,
+        lastReadAt: currentUserReads.get(row.id) || '',
+      },
+    ),
   )
 }
 
@@ -415,8 +523,13 @@ export async function createSupportConversation(
       created_by_user_id: identity.userId,
       related_entity_type: category,
       related_entity_id: entityId || entityType || identity.tiqPublicId,
+      metadata: {
+        category,
+        entityType,
+        entityId,
+      },
     })
-    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, created_at, updated_at')
+    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')
     .single()
 
   if (error) throw new Error(error.message)
@@ -450,7 +563,7 @@ export async function createDirectConversation(
       status: 'open',
       created_by_user_id: identity.userId,
     })
-    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, created_at, updated_at')
+    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')
     .single()
 
   if (error) throw new Error(error.message)
@@ -468,6 +581,70 @@ export async function createDirectConversation(
       participant_role: recipient.role === 'admin' ? 'admin' : 'member',
     },
   ]
+
+  const participantResult = await supabase.from('internal_conversation_participants').insert(participants)
+  if (participantResult.error) throw new Error(participantResult.error.message)
+
+  await sendInternalMessage(conversation.id, identity.userId, cleanBody)
+  return conversation.id
+}
+
+export async function createLeagueConversation(
+  identity: InternalIdentity,
+  input: {
+    leagueId: string
+    leagueName: string
+    subject: string
+    body: string
+    participantPlayerIds?: string[]
+    participantProfileIds?: string[]
+    participantNames?: string[]
+  },
+) {
+  const cleanBody = input.body.trim()
+  if (!cleanBody) throw new Error('Add a message before opening the league room.')
+
+  const profileIds = new Set<string>([identity.userId])
+  for (const profileId of input.participantProfileIds || []) {
+    if (profileId.trim()) profileIds.add(profileId.trim())
+  }
+
+  for (const playerId of input.participantPlayerIds || []) {
+    const recipient = await findInternalRecipientByPlayerId(playerId)
+    if (recipient) profileIds.add(recipient.id)
+  }
+
+  for (const name of input.participantNames || []) {
+    const recipient = await findInternalRecipient(name)
+    if (recipient) profileIds.add(recipient.id)
+  }
+
+  const { data, error } = await supabase
+    .from('internal_conversations')
+    .insert({
+      conversation_type: 'league',
+      subject: input.subject.trim() || `${input.leagueName} league room`,
+      status: 'open',
+      created_by_user_id: identity.userId,
+      related_entity_type: 'tiq_league',
+      related_entity_id: input.leagueId,
+      metadata: {
+        entityType: 'tiq_league',
+        entityId: input.leagueId,
+        leagueName: input.leagueName,
+      },
+    })
+    .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')
+    .single()
+
+  if (error) throw new Error(error.message)
+  const conversation = data as ConversationRow
+
+  const participants = Array.from(profileIds).map((profileId) => ({
+    conversation_id: conversation.id,
+    profile_id: profileId,
+    participant_role: profileId === identity.userId && identity.role === 'admin' ? 'admin' : 'member',
+  }))
 
   const participantResult = await supabase.from('internal_conversation_participants').insert(participants)
   if (participantResult.error) throw new Error(participantResult.error.message)
@@ -509,50 +686,5 @@ export async function markInternalConversationRead(conversationId: string, userI
 
 export async function countUnreadInternalConversations(identity: InternalIdentity): Promise<number> {
   const conversations = await listInternalConversations(identity)
-  if (!conversations.length) return 0
-
-  const conversationIds = conversations.map((conversation) => conversation.id)
-  const messagesResult = await supabase
-    .from('internal_messages')
-    .select('conversation_id, sender_user_id, created_at')
-    .in('conversation_id', conversationIds)
-    .order('created_at', { ascending: false })
-    .limit(300)
-
-  if (messagesResult.error) return 0
-
-  const readStateByConversation = new Map<string, string>()
-  if (identity.role !== 'admin') {
-    const participantsResult = await supabase
-      .from('internal_conversation_participants')
-      .select('conversation_id, last_read_at')
-      .eq('profile_id', identity.userId)
-      .in('conversation_id', conversationIds)
-
-    if (participantsResult.error) return 0
-
-    for (const participant of (participantsResult.data ?? []) as Array<{ conversation_id: string; last_read_at: string | null }>) {
-      readStateByConversation.set(participant.conversation_id, participant.last_read_at || '')
-    }
-  }
-
-  const latestByConversation = new Map<string, { sender_user_id: string; created_at: string | null }>()
-  for (const message of (messagesResult.data ?? []) as Array<{ conversation_id: string; sender_user_id: string; created_at: string | null }>) {
-    if (!latestByConversation.has(message.conversation_id)) {
-      latestByConversation.set(message.conversation_id, message)
-    }
-  }
-
-  return conversations.filter((conversation) => {
-    const latest = latestByConversation.get(conversation.id)
-    if (!latest || latest.sender_user_id === identity.userId) return false
-    if (identity.role === 'admin') {
-      return conversation.conversationType === 'support' &&
-        conversation.status !== 'closed' &&
-        conversation.status !== 'waiting_on_user'
-    }
-    const lastReadAt = readStateByConversation.get(conversation.id)
-    if (!lastReadAt) return true
-    return new Date(latest.created_at || conversation.updatedAt).getTime() > new Date(lastReadAt).getTime()
-  }).length
+  return conversations.filter((conversation) => conversation.isUnread).length
 }

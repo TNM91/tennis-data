@@ -1,4 +1,6 @@
 alter table public.profiles
+  add column if not exists linked_player_id uuid,
+  add column if not exists linked_player_name text,
   add column if not exists tiq_public_id text,
   add column if not exists tiq_admin_id text,
   add column if not exists message_display_name text not null default '',
@@ -35,6 +37,7 @@ select
     tiq_public_id,
     'TenAceIQ user'
   ) as display_name,
+  linked_player_id,
   tiq_public_id,
   tiq_admin_id
 from public.profiles
@@ -54,6 +57,7 @@ create table if not exists public.internal_conversations (
   assigned_admin_user_id uuid null references public.profiles(id) on delete set null,
   related_entity_type text not null default '',
   related_entity_id text not null default '',
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );

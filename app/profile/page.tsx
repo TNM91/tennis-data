@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import QuickMessageComposer from '@/app/components/quick-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -9,7 +10,6 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
-import { buildSupportMessageHref } from '@/lib/message-links'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { uploadProfilePhoto } from '@/lib/profile-photo-service'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
@@ -499,23 +499,20 @@ function ProfilePageInner() {
                 </button>
               ) : null}
               {canManageBilling ? (
-                <Link
-                  href={buildSupportMessageHref({
-                    category: 'billing',
-                    subject: 'Question about my TenAceIQ billing',
-                    body: [
-                      'I have a question about my TenAceIQ billing.',
-                      '',
-                      'Plan or charge:',
-                      'What I need help with:',
-                    ].join('\n'),
-                    entityType: 'billing',
-                    entityId: userId || '',
-                  })}
-                  style={secondaryButtonStyle}
-                >
-                  Ask billing support
-                </Link>
+                <QuickMessageComposer
+                  mode="support"
+                  triggerLabel="Ask billing support"
+                  category="billing"
+                  subject="Question about my TenAceIQ billing"
+                  body={[
+                    'I have a question about my TenAceIQ billing.',
+                    '',
+                    'Plan or charge:',
+                    'What I need help with:',
+                  ].join('\n')}
+                  entityType="billing"
+                  entityId={userId || ''}
+                />
               ) : null}
             </div>
             {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}

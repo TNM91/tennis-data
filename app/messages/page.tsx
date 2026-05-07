@@ -8,11 +8,11 @@ import { useAuth } from '@/app/components/auth-provider'
 import {
   createDirectConversation,
   createSupportConversation,
-  findInternalRecipient,
   getInternalIdentity,
   listInternalConversations,
   listInternalMessages,
   markInternalConversationRead,
+  resolveInternalRecipient,
   saveInternalDisplayName,
   sendInternalMessage,
   searchInternalRecipients,
@@ -29,11 +29,14 @@ type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account
 type MessagePrefill = {
   mode: ComposeMode
   recipient: string
+  recipientProfileId: string
+  recipientPlayerId: string
   subject: string
   body: string
   category: SupportFilter
   entityType: string
   entityId: string
+  threadId: string
 }
 
 function formatMessageTime(value: string) {
@@ -78,6 +81,21 @@ function statusLabel(status: InternalConversation['status']) {
   return 'Open'
 }
 
+function buildConversationContextHref(conversation: InternalConversation | null) {
+  if (!conversation) return ''
+  const entityType = conversation.metadata.entityType || conversation.relatedEntityType
+  const entityId = conversation.metadata.entityId || conversation.relatedEntityId
+  if (!entityType || !entityId) return ''
+
+  if (entityType === 'tiq_league') {
+    return `/explore/leagues/tiq/${encodeURIComponent(entityId)}?league_id=${encodeURIComponent(entityId)}`
+  }
+  if (entityType === 'tiq_individual_result') return '/compete/results'
+  if (entityType === 'tiq_schedule_item' || entityType === 'schedule_match') return '/compete/schedule'
+  if (entityType === 'billing') return '/profile'
+  return ''
+}
+
 export default function MessagesPage() {
   return (
     <Suspense fallback={<MessagesLoadingShell />}>
@@ -91,11 +109,14 @@ function MessagesPageContent() {
   const prefill = useMemo<MessagePrefill>(() => ({
     mode: searchParams.get('compose') === 'support' ? 'support' : 'direct',
     recipient: searchParams.get('recipient') || '',
+    recipientProfileId: searchParams.get('recipientProfileId') || '',
+    recipientPlayerId: searchParams.get('recipientPlayerId') || '',
     subject: searchParams.get('subject') || '',
     body: searchParams.get('body') || '',
     category: normalizeSupportFilter(searchParams.get('category')),
     entityType: searchParams.get('entityType') || '',
     entityId: searchParams.get('entityId') || '',
+    threadId: searchParams.get('thread') || '',
   }), [searchParams])
 
   return (
@@ -147,18 +168,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId],
   )
+  const selectedContextHref = useMemo(() => buildConversationContextHref(selectedConversation), [selectedConversation])
   const filteredConversations = useMemo(() => {
     if (!identity || identity.role !== 'admin' || supportFilter === 'all') return conversations
     return conversations.filter((conversation) =>
       conversation.conversationType === 'support' && conversation.relatedEntityType === supportFilter,
     )
   }, [conversations, identity, supportFilter])
-  const unreadCount = useMemo(() => conversations.filter((conversation) =>
-    identity?.role === 'admin' &&
-    conversation.conversationType === 'support' &&
-    conversation.status !== 'closed' &&
-    conversation.status !== 'waiting_on_user',
-  ).length, [conversations, identity])
+  const unreadCount = useMemo(
+    () => conversations.filter((conversation) => conversation.isUnread).length,
+    [conversations],
+  )
 
   useEffect(() => {
     setComposeMode(prefill.mode)
@@ -169,6 +189,38 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     setRecipient(null)
     setRecipientSearchResults([])
   }, [prefill])
+
+  useEffect(() => {
+    if (!identity || composeMode !== 'direct') return
+    if (!prefill.recipientProfileId && !prefill.recipientPlayerId) return
+
+    let active = true
+    setRecipientSearching(true)
+    resolveInternalRecipient({
+      profileId: prefill.recipientProfileId,
+      playerId: prefill.recipientPlayerId,
+      nameOrId: prefill.recipient,
+    })
+      .then((found) => {
+        if (!active) return
+        if (found && found.id !== identity.userId) {
+          setRecipient(found)
+          setRecipientInput(found.displayName)
+          setMessage(`Ready to message ${found.displayName}.`)
+          setError('')
+        }
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : 'Recipient could not be resolved.')
+      })
+      .finally(() => {
+        if (active) setRecipientSearching(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [composeMode, identity, prefill.recipient, prefill.recipientPlayerId, prefill.recipientProfileId])
 
   const loadInbox = useCallback(async () => {
     setLoading(true)
@@ -185,13 +237,17 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
 
       const nextConversations = await listInternalConversations(nextIdentity)
       setConversations(nextConversations)
-      setSelectedId((current) => current || nextConversations[0]?.id || '')
+      setSelectedId((current) =>
+        prefill.threadId && nextConversations.some((conversation) => conversation.id === prefill.threadId)
+          ? prefill.threadId
+          : current || nextConversations[0]?.id || '',
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Messages could not load yet.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [prefill.threadId])
 
   useEffect(() => {
     if (!authResolved) return
@@ -209,7 +265,16 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     listInternalMessages(selectedId)
       .then((nextMessages) => {
         if (active) setMessages(nextMessages)
-        if (identity?.userId) void markInternalConversationRead(selectedId, identity.userId)
+        if (identity?.userId) {
+          void markInternalConversationRead(selectedId, identity.userId)
+          setConversations((current) =>
+            current.map((conversation) =>
+              conversation.id === selectedId
+                ? { ...conversation, isUnread: false, lastReadAt: new Date().toISOString() }
+                : conversation,
+            ),
+          )
+        }
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : 'Thread could not load.')
@@ -226,7 +291,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   async function resolveRecipient() {
     setRecipient(null)
     setError('')
-    const found = await findInternalRecipient(recipientInput)
+    const found = await resolveInternalRecipient({
+      profileId: prefill.recipientProfileId,
+      playerId: prefill.recipientPlayerId,
+      nameOrId: recipientInput,
+    })
     if (!found) {
       setError('No TenAceIQ user was found for that name or ID.')
       return null
@@ -438,17 +507,18 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   key={conversation.id}
                   type="button"
                   onClick={() => setSelectedId(conversation.id)}
-                  style={threadButtonStyle(selectedId === conversation.id)}
+                  style={threadButtonStyle(selectedId === conversation.id, conversation.isUnread)}
                 >
                   <span style={threadTopStyle}>
                     <strong>{conversation.subject}</strong>
-                    <small>
+                    <small style={conversation.isUnread ? unreadPillStyle : undefined}>
                       {conversation.conversationType === 'support'
                         ? supportCategoryLabel(conversation.relatedEntityType)
                         : conversationTypeLabel(conversation.conversationType)}
                     </small>
                   </span>
                   <span style={threadPreviewStyle}>
+                    {conversation.lastMessageSenderUserId === identity.userId ? 'You: ' : conversation.isUnread ? 'New: ' : ''}
                     {conversation.lastMessageBody || statusLabel(conversation.status)}
                   </span>
                   <span style={threadMetaStyle}>
@@ -470,6 +540,22 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
             </div>
             {selectedConversation ? <span style={pillStyle}>{statusLabel(selectedConversation.status)}</span> : null}
           </div>
+
+          {selectedConversation?.conversationType === 'support' || selectedConversation?.conversationType === 'league' ? (
+            <div style={contextPanelStyle}>
+              <div>
+                <div style={labelStyle}>Context</div>
+                <p style={copyStyle}>
+                  {selectedConversation.conversationType === 'league'
+                    ? selectedConversation.metadata.leagueName || selectedConversation.relatedEntityId || 'League conversation'
+                    : `${supportCategoryLabel(selectedConversation.relatedEntityType)} support`}
+                </p>
+              </div>
+              {selectedContextHref ? (
+                <Link href={selectedContextHref} style={ghostButtonStyle}>Open context</Link>
+              ) : null}
+            </div>
+          ) : null}
 
           <div style={messageListStyle}>
             {threadLoading ? (
@@ -711,13 +797,15 @@ const threadListStyle: CSSProperties = {
   gap: 9,
 }
 
-const threadButtonStyle = (active: boolean): CSSProperties => ({
+const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
   appearance: 'none',
-  border: active
+  border: active || unread
     ? '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)'
     : '1px solid var(--shell-panel-border)',
   background: active
     ? 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)'
+    : unread
+      ? 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)'
     : 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   borderRadius: 16,
@@ -727,6 +815,14 @@ const threadButtonStyle = (active: boolean): CSSProperties => ({
   textAlign: 'left',
   cursor: 'pointer',
 })
+
+const unreadPillStyle: CSSProperties = {
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  color: 'var(--text-dark)',
+  padding: '3px 7px',
+  fontWeight: 950,
+}
 
 const threadTopStyle: CSSProperties = {
   display: 'flex',
@@ -763,6 +859,18 @@ const messageListStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
   gap: 10,
+}
+
+const contextPanelStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
 }
 
 const messageBubbleWrapStyle = (mine: boolean): CSSProperties => ({
