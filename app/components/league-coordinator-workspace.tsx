@@ -60,6 +60,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
@@ -169,6 +170,7 @@ function buildTeamResultLineSummaryMap(
 
 export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator' }: { activeRoute?: string }) {
   const searchParams = useSearchParams()
+  const { isTablet, isMobile } = useViewportBreakpoints()
   const requestedEditLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const [role, setRole] = useState<UserRole>('public')
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
@@ -787,12 +789,23 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     }
   }
 
+  const responsivePageWrap = isMobile ? { ...pageWrap, ...mobilePageWrap } : pageWrap
+  const responsiveHeroCard = isMobile ? { ...heroCard, ...mobileHeroCard } : heroCard
+  const responsiveHeroTitle = isMobile ? { ...heroTitle, ...mobileHeroTitle } : heroTitle
+  const responsivePanelCard = isMobile ? { ...panelCard, ...mobilePanelCard } : panelCard
+  const responsiveLayoutGrid = isTablet ? singleColumnGrid : layoutGrid
+  const responsiveFieldGrid = isMobile ? singleColumnGrid : fieldGrid
+  const responsiveDetailsSummary = isMobile ? { ...detailsSummary, ...mobileDetailsSummary } : detailsSummary
+  const responsiveStartScoreStyle = isMobile ? { ...startScoreStyle, ...mobileScoreStyle } : startScoreStyle
+  const responsiveLeagueOpsScoreStyle = isMobile ? { ...leagueOpsScoreStyle, ...mobileScoreStyle } : leagueOpsScoreStyle
+  const responsiveStartActionRowStyle = isMobile ? { ...startActionRowStyle, ...mobileActionRowStyle } : startActionRowStyle
+
   return (
     <SiteShell active={activeRoute}>
-      <section style={pageWrap}>
-        <div style={heroCard}>
+      <section style={responsivePageWrap}>
+        <div style={responsiveHeroCard}>
           <div style={heroEyebrow}>{LEAGUE_COORDINATOR_STORY.eyebrow}</div>
-          <h1 style={heroTitle}>{LEAGUE_COORDINATOR_STORY.headline}</h1>
+          <h1 style={responsiveHeroTitle}>{LEAGUE_COORDINATOR_STORY.headline}</h1>
           <p style={heroText}>
             {LEAGUE_COORDINATOR_STORY.body}
           </p>
@@ -841,7 +854,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 {nextLeagueOpsStep.detail}
               </p>
             </div>
-            <div style={startScoreStyle}>
+            <div style={responsiveStartScoreStyle}>
               <span>{leagueOpsReadinessScore}% ready</span>
               <span style={leagueOpsTrackStyle}>
                 <span style={leagueOpsFillStyle(leagueOpsReadinessScore)} />
@@ -849,7 +862,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             </div>
           </div>
 
-          <div style={startActionRowStyle}>
+          <div style={responsiveStartActionRowStyle}>
             <div>
               <span style={startActionLabelStyle}>Next action</span>
               <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
@@ -1241,7 +1254,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   : `Next: ${nextLeagueOpsStep.label.toLowerCase()}. ${nextLeagueOpsStep.detail}`}
               </p>
             </div>
-            <div style={leagueOpsScoreStyle}>
+            <div style={responsiveLeagueOpsScoreStyle}>
               <strong>{leagueOpsReadinessScore}%</strong>
               <span>{leagueOpsCompleteCount}/{leagueOpsChecks.length} ready</span>
             </div>
@@ -1269,9 +1282,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           </div>
         </section>
 
-        <div style={layoutGrid}>
-          <details id="league-setup-form" style={panelCard} open={!!editingId || records.length === 0}>
-            <summary style={detailsSummary}>
+        <div style={responsiveLayoutGrid}>
+          <details id="league-setup-form" style={responsivePanelCard} open={!!editingId || records.length === 0}>
+            <summary style={responsiveDetailsSummary}>
               <div>
                 <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
                 <h2 style={sectionTitle}>
@@ -1313,7 +1326,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </div>
             )}
 
-            <div style={fieldGrid}>
+            <div style={responsiveFieldGrid}>
               <label style={fieldLabel}>
                 <span>League format</span>
                 <select
@@ -1653,7 +1666,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             ) : null}
           </details>
 
-          <section id="league-registry" style={panelCard}>
+          <section id="league-registry" style={responsivePanelCard}>
             <div style={sectionEyebrow}>League registry</div>
             <h2 style={sectionTitle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
             <p style={sectionText}>
@@ -1863,6 +1876,12 @@ const pageWrap: CSSProperties = {
   gap: '18px',
 }
 
+const mobilePageWrap: CSSProperties = {
+  width: 'min(100%, calc(100% - 28px))',
+  padding: '14px 0 24px',
+  gap: '14px',
+}
+
 const heroCard: CSSProperties = {
   display: 'grid',
   gap: '14px',
@@ -1871,6 +1890,11 @@ const heroCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(180deg, rgba(16,38,70,0.78) 0%, rgba(8,19,38,0.94) 100%)',
   boxShadow: '0 28px 60px rgba(2,10,24,0.22)',
+}
+
+const mobileHeroCard: CSSProperties = {
+  padding: '20px',
+  borderRadius: '24px',
 }
 
 const heroEyebrow: CSSProperties = {
@@ -1888,6 +1912,12 @@ const heroTitle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: '940px',
+  overflowWrap: 'anywhere',
+}
+
+const mobileHeroTitle: CSSProperties = {
+  fontSize: '38px',
+  lineHeight: 1.02,
 }
 
 const heroText: CSSProperties = {
@@ -1944,6 +1974,12 @@ const layoutGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
   gap: '18px',
+}
+
+const singleColumnGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: '14px',
 }
 
 const commandCard: CSSProperties = {
@@ -2182,6 +2218,7 @@ const leagueOpsTitleStyle: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.1,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const leagueOpsTextStyle: CSSProperties = {
@@ -2203,6 +2240,12 @@ const leagueOpsScoreStyle: CSSProperties = {
 const startScoreStyle: CSSProperties = {
   ...leagueOpsScoreStyle,
   minWidth: 160,
+}
+
+const mobileScoreStyle: CSSProperties = {
+  justifyItems: 'start',
+  minWidth: 0,
+  width: '100%',
 }
 
 const leagueOpsTrackStyle: CSSProperties = {
@@ -2234,6 +2277,12 @@ const startActionRowStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
 }
 
+const mobileActionRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  alignItems: 'stretch',
+}
+
 const startActionLabelStyle: CSSProperties = {
   display: 'block',
   color: '#93c5fd',
@@ -2250,6 +2299,7 @@ const startActionTitleStyle: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const startCardGridStyle: CSSProperties = {
@@ -2282,6 +2332,7 @@ const startCardTitleStyle: CSSProperties = {
   fontSize: '16px',
   lineHeight: 1.2,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const startCardTextStyle: CSSProperties = {
@@ -2289,6 +2340,7 @@ const startCardTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.55,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const startCardCtaStyle: CSSProperties = {
@@ -2336,6 +2388,12 @@ const panelCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
 }
 
+const mobilePanelCard: CSSProperties = {
+  padding: '18px',
+  borderRadius: '22px',
+  gap: '14px',
+}
+
 const detailsSummary: CSSProperties = {
   cursor: 'pointer',
   listStyle: 'none',
@@ -2344,6 +2402,11 @@ const detailsSummary: CSSProperties = {
   justifyContent: 'space-between',
   gap: '14px',
   flexWrap: 'wrap',
+}
+
+const mobileDetailsSummary: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
 }
 
 const sectionEyebrow: CSSProperties = {
@@ -2360,12 +2423,14 @@ const sectionTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.08,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '14px',
   lineHeight: 1.72,
+  overflowWrap: 'anywhere',
 }
 
 const fieldGrid: CSSProperties = {
@@ -2600,18 +2665,21 @@ const registryTitle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 900,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const registryText: CSSProperties = {
   color: '#dbeafe',
   fontSize: '14px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const registryNotes: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '14px',
   lineHeight: 1.72,
+  overflowWrap: 'anywhere',
 }
 
 const registryFooter: CSSProperties = {

@@ -34,7 +34,9 @@ export default function BrandWordmark({
         src={logoSrc}
         alt="TenAceIQ"
         fill
-        priority={top}
+        preload={top || compact}
+        loading={top || compact ? 'eager' : 'lazy'}
+        fetchPriority={top || compact ? 'high' : undefined}
         sizes={`${width}px`}
         style={{
           objectFit: 'contain',
