@@ -599,6 +599,9 @@ export async function createLeagueConversation(
     participantPlayerIds?: string[]
     participantProfileIds?: string[]
     participantNames?: string[]
+    entityType?: string
+    entityId?: string
+    metadata?: Record<string, string>
   },
 ) {
   const cleanBody = input.body.trim()
@@ -626,12 +629,13 @@ export async function createLeagueConversation(
       subject: input.subject.trim() || `${input.leagueName} league room`,
       status: 'open',
       created_by_user_id: identity.userId,
-      related_entity_type: 'tiq_league',
-      related_entity_id: input.leagueId,
+      related_entity_type: input.entityType || 'tiq_league',
+      related_entity_id: input.entityId || input.leagueId,
       metadata: {
-        entityType: 'tiq_league',
-        entityId: input.leagueId,
+        entityType: input.entityType || 'tiq_league',
+        entityId: input.entityId || input.leagueId,
         leagueName: input.leagueName,
+        ...input.metadata,
       },
     })
     .select('id, conversation_type, subject, status, created_by_user_id, assigned_admin_user_id, related_entity_type, related_entity_id, metadata, created_at, updated_at')

@@ -6,6 +6,14 @@ import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import {
+  listInternalScheduleEventsForConversation,
+  listInternalScheduleResponses,
+  saveInternalScheduleResponse,
+  type InternalScheduleEvent,
+  type InternalScheduleResponse,
+  type InternalScheduleResponseStatus,
+} from '@/lib/internal-scheduling'
+import {
   createDirectConversation,
   createSupportConversation,
   getInternalIdentity,
@@ -146,6 +154,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [conversations, setConversations] = useState<InternalConversation[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [messages, setMessages] = useState<InternalMessage[]>([])
+  const [scheduleEvents, setScheduleEvents] = useState<InternalScheduleEvent[]>([])
+  const [scheduleResponses, setScheduleResponses] = useState<InternalScheduleResponse[]>([])
   const [composeMode, setComposeMode] = useState<ComposeMode>(prefill.mode)
   const [supportCategory, setSupportCategory] = useState<SupportFilter>(prefill.category)
   const [supportFilter, setSupportFilter] = useState<SupportFilter>('all')
@@ -160,7 +170,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [replyBody, setReplyBody] = useState('')
   const [loading, setLoading] = useState(true)
   const [threadLoading, setThreadLoading] = useState(false)
+  const [scheduleLoading, setScheduleLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [responseSaving, setResponseSaving] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -257,11 +269,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   useEffect(() => {
     if (!selectedId) {
       setMessages([])
+      setScheduleEvents([])
+      setScheduleResponses([])
       return
     }
 
     let active = true
     setThreadLoading(true)
+    setScheduleLoading(true)
     listInternalMessages(selectedId)
       .then((nextMessages) => {
         if (active) setMessages(nextMessages)
@@ -281,6 +296,24 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       })
       .finally(() => {
         if (active) setThreadLoading(false)
+      })
+
+    listInternalScheduleEventsForConversation(selectedId)
+      .then(async (events) => {
+        const responses = await listInternalScheduleResponses(events.map((event) => event.id))
+        if (!active) return
+        setScheduleEvents(events)
+        setScheduleResponses(responses)
+      })
+      .catch(() => {
+        if (!active) {
+          return
+        }
+        setScheduleEvents([])
+        setScheduleResponses([])
+      })
+      .finally(() => {
+        if (active) setScheduleLoading(false)
       })
 
     return () => {
@@ -399,6 +432,30 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setError(err instanceof Error ? err.message : 'Reply could not be sent.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function submitScheduleResponse(eventId: string, responseStatus: InternalScheduleResponseStatus) {
+    if (!identity || !selectedConversation || responseSaving) return
+
+    setResponseSaving(eventId)
+    setError('')
+    setMessage('')
+    try {
+      await saveInternalScheduleResponse({
+        eventId,
+        profileId: identity.userId,
+        responseStatus,
+        conversationId: selectedConversation.id,
+      })
+      setScheduleResponses(await listInternalScheduleResponses(scheduleEvents.map((event) => event.id)))
+      setMessages(await listInternalMessages(selectedConversation.id))
+      setConversations(await listInternalConversations(identity))
+      setMessage(`RSVP saved as ${responseStatus === 'in' ? 'In' : responseStatus === 'out' ? 'Out' : responseStatus === 'maybe' ? 'Maybe' : 'Unanswered'}.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'RSVP could not be saved.')
+    } finally {
+      setResponseSaving('')
     }
   }
 
@@ -554,6 +611,58 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               {selectedContextHref ? (
                 <Link href={selectedContextHref} style={ghostButtonStyle}>Open context</Link>
               ) : null}
+            </div>
+          ) : null}
+
+          {scheduleLoading ? (
+            <div style={schedulePanelStyle}>
+              <p style={copyStyle}>Checking schedule details...</p>
+            </div>
+          ) : scheduleEvents.length ? (
+            <div style={schedulePanelStyle}>
+              <div style={schedulePanelHeaderStyle}>
+                <div>
+                  <div style={labelStyle}>Schedule</div>
+                  <h3 style={scheduleTitleStyle}>{scheduleEvents[0].title}</h3>
+                  <p style={copyStyle}>
+                    {[
+                      scheduleEvents[0].scheduledDate,
+                      scheduleEvents[0].scheduledTime,
+                      scheduleEvents[0].facility,
+                      scheduleEvents[0].recurrenceRule ? `Repeats ${scheduleEvents[0].recurrenceRule}` : '',
+                    ].filter(Boolean).join(' | ')}
+                  </p>
+                </div>
+                <span style={pillStyle}>{scheduleEvents[0].eventType === 'tiq_league_match' ? 'League match' : 'Practice'}</span>
+              </div>
+
+              <div style={rsvpSummaryStyle}>
+                {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
+                  <div key={status} style={rsvpStatStyle}>
+                    <strong>{scheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
+                    <span>{status === 'in' ? 'In' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={rsvpActionRowStyle}>
+                {(['in', 'out', 'maybe'] as InternalScheduleResponseStatus[]).map((status) => {
+                  const active = scheduleResponses.some(
+                    (response) => response.profileId === identity.userId && response.eventId === scheduleEvents[0].id && response.responseStatus === status,
+                  )
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => void submitScheduleResponse(scheduleEvents[0].id, status)}
+                      disabled={Boolean(responseSaving)}
+                      style={rsvpButtonStyle(active, status)}
+                    >
+                      {responseSaving === scheduleEvents[0].id ? 'Saving' : status === 'in' ? 'I am in' : status === 'out' ? 'I am out' : 'Maybe'}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           ) : null}
 
@@ -872,6 +981,75 @@ const contextPanelStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
 }
+
+const schedulePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const schedulePanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+const scheduleTitleStyle: CSSProperties = {
+  margin: '4px 0 6px',
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.15,
+  fontWeight: 950,
+}
+
+const rsvpSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: 8,
+}
+
+const rsvpStatStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  textTransform: 'uppercase',
+}
+
+const rsvpActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
+const rsvpButtonStyle = (active: boolean, status: InternalScheduleResponseStatus): CSSProperties => ({
+  minHeight: 38,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: active
+    ? '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)'
+    : '1px solid var(--shell-panel-border)',
+  background: active
+    ? status === 'out'
+      ? 'rgba(248,113,113,0.16)'
+      : status === 'maybe'
+        ? 'rgba(251,191,36,0.16)'
+        : 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
+    : 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  cursor: 'pointer',
+})
 
 const messageBubbleWrapStyle = (mine: boolean): CSSProperties => ({
   display: 'flex',

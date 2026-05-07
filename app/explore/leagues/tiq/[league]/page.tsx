@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { useParams, useSearchParams } from 'next/navigation'
 import FollowButton from '@/app/components/follow-button'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
+import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -2512,6 +2513,24 @@ export default function TiqLeagueDetailPage() {
                         ? 'Publish Match Slot'
                         : 'Propose Match Time'}
                   </button>
+                  {scheduleParticipantAOption && scheduleParticipantBOption ? (
+                    <ScheduleMessageComposer
+                      mode="tiq-league-match"
+                      triggerLabel="Schedule in Messages"
+                      leagueId={league.id}
+                      leagueName={league.leagueName}
+                      leagueFormat={league.leagueFormat}
+                      participantAName={scheduleParticipantAOption.playerName}
+                      participantAId={scheduleParticipantAOption.playerId}
+                      participantBName={scheduleParticipantBOption.playerName}
+                      participantBId={scheduleParticipantBOption.playerId}
+                      defaultDate={scheduleDate}
+                      defaultTime={scheduleTime || league.defaultMatchTime}
+                      defaultFacility={scheduleFacility || league.defaultFacility}
+                      participantNames={[scheduleParticipantAOption.playerName, scheduleParticipantBOption.playerName]}
+                      participantPlayerIds={[scheduleParticipantAOption.playerId, scheduleParticipantBOption.playerId].filter(Boolean)}
+                    />
+                  ) : null}
                   <span style={metaPill}>
                     {confirmedScheduleItemCount} confirmed | {pendingScheduleItemCount} proposed | {completedScheduleItemCount} done
                   </span>

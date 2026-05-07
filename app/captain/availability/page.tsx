@@ -12,6 +12,7 @@ import {
   useState,
 } from 'react'
 import { useRouter } from 'next/navigation'
+import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -870,6 +871,18 @@ export default function CaptainAvailabilityPage() {
                 <Link href={messagingHref} style={sectionCtaSecondary}>
                   Text Team
                 </Link>
+                {selectedTeam ? (
+                  <ScheduleMessageComposer
+                    mode="captain-practice"
+                    triggerLabel="Schedule Practice"
+                    teamName={selectedTeam}
+                    leagueName={selectedLeague}
+                    flight={selectedFlight}
+                    defaultDate={selectedMatch?.match_date || preferredMatchDate}
+                    defaultTime={selectedMatch?.match_time || ''}
+                    defaultFacility={selectedMatch?.facility || ''}
+                  />
+                ) : null}
               </div>
             </div>
 
