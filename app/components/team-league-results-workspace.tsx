@@ -787,6 +787,12 @@ function resultDateIsWithinDays(value: string, days: number) {
   return parsed >= Date.now() - days * 24 * 60 * 60 * 1000
 }
 
+function buildCurrentLoginNextHref(fallbackHref: string) {
+  if (typeof window === 'undefined') return fallbackHref
+  const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  return currentHref || fallbackHref
+}
+
 function teamOptionsForLeague(league: TiqLeagueRecord | undefined) {
   if (!league) return []
 
@@ -1119,7 +1125,7 @@ export function TeamLeagueResultsWorkspace({
     async function checkAuth() {
       const authState = await getClientAuthState()
       if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(loginNextHref)}`)
+        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
         return
       }
 

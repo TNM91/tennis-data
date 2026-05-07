@@ -286,6 +286,12 @@ function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
   return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
 }
 
+function buildCurrentLoginNextHref(fallbackHref: string) {
+  if (typeof window === 'undefined') return fallbackHref
+  const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  return currentHref || fallbackHref
+}
+
 function participantValue(playerId: string, playerName: string) {
   return playerId || `name:${playerName}`
 }
@@ -610,7 +616,7 @@ export function IndividualLeagueResultsWorkspace({
     async function checkAuth() {
       const authState = await getClientAuthState()
       if (!authState.user && mounted) {
-        router.replace(`/login?next=${encodeURIComponent(loginNextHref)}`)
+        router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
         return
       }
 

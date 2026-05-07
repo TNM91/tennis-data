@@ -14,6 +14,20 @@ async function expectSurfaceLoads(page: Page, path: string) {
   expect(pageErrors, `${path} should not throw uncaught browser errors`).toEqual([])
 }
 
+async function expectLoginNextPreservesHandoff(page: Page, path: string) {
+  await page.context().clearCookies()
+  await page.addInitScript(() => {
+    window.localStorage.clear()
+    window.sessionStorage.clear()
+  })
+  await expectSurfaceLoads(page, path)
+  await page.waitForURL(/\/login\?next=/, { timeout: 15_000 })
+
+  const currentUrl = new URL(page.url())
+  expect(currentUrl.pathname).toBe('/login')
+  expect(currentUrl.searchParams.get('next')).toBe(path)
+}
+
 test.describe('TIQ league surfaces', () => {
   for (const path of [
     '/explore/leagues',
@@ -27,12 +41,12 @@ test.describe('TIQ league surfaces', () => {
   }
 
   test('scheduled result handoff routes stay renderable while signed out', async ({ page }) => {
-    await expectSurfaceLoads(
+    await expectLoginNextPreservesHandoff(
       page,
       '/league-coordinator/individual-results?leagueId=test-league&scheduleItemId=test-schedule&suggest_player_a=name%3APlayer%20A&suggest_player_b=name%3APlayer%20B&resultDate=2026-01-15#player-result-entry',
     )
 
-    await expectSurfaceLoads(
+    await expectLoginNextPreservesHandoff(
       page,
       '/league-coordinator/results?leagueId=test-league&scheduleItemId=test-schedule&teamA=Team%20A&teamB=Team%20B&matchDate=2026-01-15&facility=Court%201#team-match-entry',
     )

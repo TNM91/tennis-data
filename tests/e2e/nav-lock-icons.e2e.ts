@@ -39,10 +39,16 @@ async function expectLockedNavIcons(page: Page, theme: 'dark' | 'light') {
     await expect(headerIcon, `${label} header lock icon`).toBeVisible()
     await expect(footerIcon, `${label} footer lock icon`).toBeVisible()
 
-    const headerColor = await headerIcon.evaluate((icon) => getComputedStyle(icon).color)
-    const footerColor = await footerIcon.evaluate((icon) => getComputedStyle(icon).color)
-    expect(headerColor, `${label} header lock color is readable`).toBe(LOCK_COLOR)
-    expect(footerColor, `${label} footer lock color is readable`).toBe(LOCK_COLOR)
+    await expect
+      .poll(() => headerIcon.evaluate((icon) => getComputedStyle(icon).color), {
+        message: `${label} header lock color should settle`,
+      })
+      .toBe(LOCK_COLOR)
+    await expect
+      .poll(() => footerIcon.evaluate((icon) => getComputedStyle(icon).color), {
+        message: `${label} footer lock color should settle`,
+      })
+      .toBe(LOCK_COLOR)
 
     const headerBadgeBackground = await headerIcon.evaluate((icon) =>
       getComputedStyle(icon.parentElement as HTMLElement).backgroundImage,
