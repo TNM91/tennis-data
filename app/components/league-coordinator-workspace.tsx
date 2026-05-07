@@ -34,11 +34,14 @@ import {
   buildLeagueCardsFromRegistry,
   getTiqLeagueScoringSystemDescription,
   getTiqLeagueScoringSystemLabel,
+  getTiqLeagueSchedulingModeDescription,
+  getTiqLeagueSchedulingModeLabel,
   parseRegistryListInput,
   type TiqLeagueDraft,
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
 import {
+  calculateTiqLeagueEndsOn,
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   getTiqLeagueSeasonSummary,
@@ -73,6 +76,11 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   endsOn: '',
   maxWeeks: DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
   maxMatchEvents: DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
+  schedulingMode: 'coordinator_fixed',
+  defaultMatchDay: '',
+  defaultMatchTime: '',
+  defaultFacility: '',
+  schedulingNotes: '',
   flight: '',
   locationLabel: '',
   photoUrl: '',
@@ -81,6 +89,17 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   teams: [],
   players: [],
 }
+
+const MATCH_DAY_OPTIONS = [
+  { value: '', label: 'Choose day' },
+  { value: 'Monday', label: 'Monday' },
+  { value: 'Tuesday', label: 'Tuesday' },
+  { value: 'Wednesday', label: 'Wednesday' },
+  { value: 'Thursday', label: 'Thursday' },
+  { value: 'Friday', label: 'Friday' },
+  { value: 'Saturday', label: 'Saturday' },
+  { value: 'Sunday', label: 'Sunday' },
+]
 
 function formatDateTime(value: string) {
   const parsed = new Date(value)
@@ -662,6 +681,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       maxWeeks: normalizeTiqLeagueMaxWeeks(draft.maxWeeks),
       maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(draft.maxMatchEvents),
     }
+    nextDraft.endsOn = calculateTiqLeagueEndsOn(nextDraft.startsOn, nextDraft.maxWeeks)
 
     if (!safeText(nextDraft.leagueName) || !safeText(nextDraft.seasonLabel)) {
       setStatus('League name and season are required before saving.')
@@ -713,9 +733,14 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       seasonLabel: record.seasonLabel,
       seasonStatus: record.seasonStatus,
       startsOn: record.startsOn,
-      endsOn: record.endsOn,
+      endsOn: record.endsOn || calculateTiqLeagueEndsOn(record.startsOn, record.maxWeeks),
       maxWeeks: record.maxWeeks,
       maxMatchEvents: record.maxMatchEvents,
+      schedulingMode: record.schedulingMode,
+      defaultMatchDay: record.defaultMatchDay,
+      defaultMatchTime: record.defaultMatchTime,
+      defaultFacility: record.defaultFacility,
+      schedulingNotes: record.schedulingNotes,
       flight: record.flight,
       locationLabel: record.locationLabel,
       photoUrl: record.photoUrl,
@@ -795,10 +820,17 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const responsivePanelCard = isMobile ? { ...panelCard, ...mobilePanelCard } : panelCard
   const responsiveLayoutGrid = isTablet ? singleColumnGrid : layoutGrid
   const responsiveFieldGrid = isMobile ? singleColumnGrid : fieldGrid
+  const responsiveOutcomeInfoGrid = isMobile ? singleColumnGrid : outcomeInfoGrid
   const responsiveDetailsSummary = isMobile ? { ...detailsSummary, ...mobileDetailsSummary } : detailsSummary
   const responsiveStartScoreStyle = isMobile ? { ...startScoreStyle, ...mobileScoreStyle } : startScoreStyle
   const responsiveLeagueOpsScoreStyle = isMobile ? { ...leagueOpsScoreStyle, ...mobileScoreStyle } : leagueOpsScoreStyle
   const responsiveStartActionRowStyle = isMobile ? { ...startActionRowStyle, ...mobileActionRowStyle } : startActionRowStyle
+  const calculatedEndsOn = calculateTiqLeagueEndsOn(draft.startsOn, draft.maxWeeks)
+  const seasonWindowText = draft.startsOn
+    ? calculatedEndsOn
+      ? `${draft.startsOn} to ${calculatedEndsOn}`
+      : 'Choose a valid start date.'
+    : 'Choose a start date and TenAceIQ will calculate the end date.'
 
   return (
     <SiteShell active={activeRoute}>
@@ -1399,44 +1431,54 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </label>
 
               <label style={fieldLabel}>
-                <span>Starts</span>
-                <input
-                  type="date"
-                  value={draft.startsOn}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, startsOn: event.target.value }))
-                  }
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldLabel}>
-                <span>Ends</span>
-                <input
-                  type="date"
-                  value={draft.endsOn}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, endsOn: event.target.value }))
-                  }
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldLabel}>
-                <span>Max weeks</span>
+                <span>Season length</span>
                 <input
                   type="number"
                   min={1}
                   max={MAX_TIQ_LEAGUE_WEEKS}
                   value={draft.maxWeeks}
                   onChange={(event) =>
+                    setDraft((current) => {
+                      const maxWeeks = normalizeTiqLeagueMaxWeeks(event.target.value)
+                      return {
+                        ...current,
+                        maxWeeks,
+                        endsOn: calculateTiqLeagueEndsOn(current.startsOn, maxWeeks),
+                      }
+                    })
+                  }
+                  style={inputStyle}
+                />
+                <span style={fieldHelpText}>
+                  Capped at {MAX_TIQ_LEAGUE_WEEKS} weeks. The end date is calculated from the start date and season length.
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Start date</span>
+                <input
+                  type="date"
+                  value={draft.startsOn}
+                  onChange={(event) =>
                     setDraft((current) => ({
                       ...current,
-                      maxWeeks: normalizeTiqLeagueMaxWeeks(event.target.value),
+                      startsOn: event.target.value,
+                      endsOn: calculateTiqLeagueEndsOn(event.target.value, current.maxWeeks),
                     }))
                   }
                   style={inputStyle}
                 />
+              </label>
+
+              <label style={fieldLabel}>
+                <span>End date</span>
+                <input
+                  type="date"
+                  value={calculatedEndsOn}
+                  readOnly
+                  style={inputStyle}
+                />
+                <span style={fieldHelpText}>{seasonWindowText}</span>
               </label>
 
               <label style={fieldLabel}>
@@ -1456,6 +1498,73 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 />
                 <span style={fieldHelpText}>
                   Standard season: {DEFAULT_TIQ_LEAGUE_MAX_WEEKS} weeks and {DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS} match events. Team cap {MAX_TIQ_TEAM_LEAGUE_TEAMS}; player cap {MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS}.
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Scheduling control</span>
+                <select
+                  value={draft.schedulingMode}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      schedulingMode: event.target.value === 'player_arranged' ? 'player_arranged' : 'coordinator_fixed',
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="coordinator_fixed">Coordinator sets schedule</option>
+                  <option value="player_arranged">Players schedule matches</option>
+                </select>
+                <span style={fieldHelpText}>
+                  {getTiqLeagueSchedulingModeDescription(draft.schedulingMode)}
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Recurring match day</span>
+                <select
+                  value={draft.defaultMatchDay}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, defaultMatchDay: event.target.value }))
+                  }
+                  style={inputStyle}
+                >
+                  {MATCH_DAY_OPTIONS.map((option) => (
+                    <option key={option.value || 'none'} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <span style={fieldHelpText}>
+                  Use this when the coordinator wants the season schedule visible in advance.
+                </span>
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Default match time</span>
+                <input
+                  type="time"
+                  value={draft.defaultMatchTime}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, defaultMatchTime: event.target.value }))
+                  }
+                  style={inputStyle}
+                />
+              </label>
+
+              <label style={fieldLabel}>
+                <span>Default site</span>
+                <input
+                  value={draft.defaultFacility}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, defaultFacility: event.target.value }))
+                  }
+                  placeholder="Dallas Indoor - Courts 3-6"
+                  style={inputStyle}
+                />
+                <span style={fieldHelpText}>
+                  Site, court block, or club instructions participants should see before scheduling.
                 </span>
               </label>
 
@@ -1585,6 +1694,29 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </label>
             </div>
 
+            <div style={responsiveOutcomeInfoGrid}>
+              <div style={infoCard}>
+                <div style={sectionEyebrow}>Score format</div>
+                <strong style={infoCardTitle}>
+                  {draft.scoringSystem === 'dynamic_points' ? 'Dynamic still uses tennis scores' : 'Standard records wins first'}
+                </strong>
+                <p style={infoCardText}>
+                  Enter scores as best 2 of 3 sets: 6-4, 7-6, or 6-4, 4-6, 1-0. The third set may be played out or entered as a 10-point match tiebreak.
+                </p>
+              </div>
+              <div style={infoCard}>
+                <div style={sectionEyebrow}>Outcomes</div>
+                <strong style={infoCardTitle}>
+                  {draft.leagueFormat === 'team' ? 'Team events use line results' : 'Individual results use one winner'}
+                </strong>
+                <p style={infoCardText}>
+                  {draft.leagueFormat === 'team'
+                    ? 'Record a team-vs-team event, then each singles or doubles line with winner and score. Standings come from team wins, line wins, and dynamic points when enabled.'
+                    : 'Record Player A, Player B, result date, winner, and score. Completed results sync into the rating engine and league standings.'}
+                </p>
+              </div>
+            </div>
+
             <label style={fieldLabel}>
               <span>{draft.leagueFormat === 'team' ? 'Teams' : 'Players'}</span>
               <textarea
@@ -1611,6 +1743,18 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   setDraft((current) => ({ ...current, notes: event.target.value }))
                 }
                 placeholder="Format rules, schedule notes, eligibility, defaults, or league reminders."
+                style={textareaStyle}
+              />
+            </label>
+
+            <label style={fieldLabel}>
+              <span>Scheduling notes</span>
+              <textarea
+                value={draft.schedulingNotes}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, schedulingNotes: event.target.value }))
+                }
+                placeholder="Rainout rules, court booking links, check-in window, or how players should propose match times."
                 style={textareaStyle}
               />
             </label>
@@ -1703,6 +1847,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                         </span>
                         <span style={pillSlate}>{record.seasonLabel || 'Season label missing'}</span>
                         <span style={pillSlate}>{getTiqLeagueSeasonSummary(record)}</span>
+                        <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(record.schedulingMode)}</span>
                         <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
                       </div>
 
@@ -1715,12 +1860,16 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                           record.flight,
                           record.locationLabel,
                           record.startsOn && record.endsOn ? `${record.startsOn} to ${record.endsOn}` : null,
+                          record.schedulingMode === 'coordinator_fixed' && (record.defaultMatchDay || record.defaultMatchTime || record.defaultFacility)
+                            ? [record.defaultMatchDay, record.defaultMatchTime, record.defaultFacility].filter(Boolean).join(' ')
+                            : getTiqLeagueSchedulingModeLabel(record.schedulingMode),
                           participantLabel,
                         ]
                           .filter(Boolean)
                           .join(' | ')}
                       </div>
                       {record.notes ? <div style={registryNotes}>{record.notes}</div> : null}
+                      {record.schedulingNotes ? <div style={registryNotes}>{record.schedulingNotes}</div> : null}
 
                       <div style={registryFooter}>
                         <span style={registryTimestamp}>Updated {formatDateTime(record.updatedAt)}</span>
@@ -2437,6 +2586,38 @@ const fieldGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '14px',
+}
+
+const outcomeInfoGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: '12px',
+}
+
+const infoCard: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.07)',
+}
+
+const infoCardTitle: CSSProperties = {
+  color: '#f8fbff',
+  fontSize: '16px',
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const infoCardText: CSSProperties = {
+  margin: 0,
+  color: 'rgba(229,238,251,0.80)',
+  fontSize: '13px',
+  lineHeight: 1.55,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const fieldLabel: CSSProperties = {

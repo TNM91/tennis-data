@@ -19,6 +19,7 @@ import { getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
 export type TiqLeagueScoringSystem = 'standard' | 'dynamic_points'
+export type TiqLeagueSchedulingMode = 'coordinator_fixed' | 'player_arranged'
 
 export type TiqLeagueRecord = {
   id: string
@@ -33,6 +34,11 @@ export type TiqLeagueRecord = {
   endsOn: string
   maxWeeks: number
   maxMatchEvents: number
+  schedulingMode: TiqLeagueSchedulingMode
+  defaultMatchDay: string
+  defaultMatchTime: string
+  defaultFacility: string
+  schedulingNotes: string
   flight: string
   locationLabel: string
   photoUrl: string
@@ -55,6 +61,11 @@ export type TiqLeagueDraft = {
   endsOn: string
   maxWeeks: number
   maxMatchEvents: number
+  schedulingMode: TiqLeagueSchedulingMode
+  defaultMatchDay: string
+  defaultMatchTime: string
+  defaultFacility: string
+  schedulingNotes: string
   flight: string
   locationLabel: string
   photoUrl: string
@@ -84,6 +95,25 @@ export function normalizeTiqLeagueScoringSystem(
   return value === 'dynamic_points' ? 'dynamic_points' : 'standard'
 }
 
+export function normalizeTiqLeagueSchedulingMode(
+  value: string | null | undefined,
+): TiqLeagueSchedulingMode {
+  return value === 'player_arranged' ? 'player_arranged' : 'coordinator_fixed'
+}
+
+export function getTiqLeagueSchedulingModeLabel(mode: TiqLeagueSchedulingMode) {
+  if (mode === 'player_arranged') return 'Players schedule'
+  return 'Coordinator schedule'
+}
+
+export function getTiqLeagueSchedulingModeDescription(mode: TiqLeagueSchedulingMode) {
+  if (mode === 'player_arranged') {
+    return 'The coordinator publishes pairings. Players schedule through TenAceIQ, then record the agreed date, time, and site.'
+  }
+
+  return 'The coordinator sets the recurring match day, time, and site so the full season schedule can be published in advance.'
+}
+
 export function getTiqLeagueScoringSystemLabel(system: TiqLeagueScoringSystem) {
   if (system === 'dynamic_points') return 'Dynamic points'
   return 'Standard wins'
@@ -94,7 +124,7 @@ export function getTiqLeagueScoringSystemDescription(system: TiqLeagueScoringSys
     return getDynamicPointsRulesSummary()
   }
 
-  return 'Standings use match wins, losses, ties, and line wins.'
+  return 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
 }
 
 function safeJsonParse<T>(raw: string | null): T | null {
@@ -133,6 +163,11 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     endsOn: cleanText(input.endsOn),
     maxWeeks: normalizeTiqLeagueMaxWeeks(input.maxWeeks),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(input.maxMatchEvents),
+    schedulingMode: normalizeTiqLeagueSchedulingMode(input.schedulingMode),
+    defaultMatchDay: cleanText(input.defaultMatchDay),
+    defaultMatchTime: cleanText(input.defaultMatchTime),
+    defaultFacility: cleanText(input.defaultFacility),
+    schedulingNotes: cleanText(input.schedulingNotes),
     flight: cleanText(input.flight),
     locationLabel: cleanText(input.locationLabel),
     photoUrl: cleanText(input.photoUrl),
@@ -169,6 +204,11 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(
         record.maxMatchEvents ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
       ),
+      schedulingMode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
+      defaultMatchDay: cleanText(record.defaultMatchDay),
+      defaultMatchTime: cleanText(record.defaultMatchTime),
+      defaultFacility: cleanText(record.defaultFacility),
+      schedulingNotes: cleanText(record.schedulingNotes),
       flight: cleanText(record.flight),
       locationLabel: cleanText(record.locationLabel),
       photoUrl: cleanText(record.photoUrl),
@@ -217,6 +257,11 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     endsOn: normalized.endsOn,
     maxWeeks: normalized.maxWeeks,
     maxMatchEvents: normalized.maxMatchEvents,
+    schedulingMode: normalized.schedulingMode,
+    defaultMatchDay: normalized.defaultMatchDay,
+    defaultMatchTime: normalized.defaultMatchTime,
+    defaultFacility: normalized.defaultFacility,
+    schedulingNotes: normalized.schedulingNotes,
     flight: normalized.flight,
     locationLabel: normalized.locationLabel,
     photoUrl: normalized.photoUrl,

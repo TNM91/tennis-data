@@ -44,7 +44,12 @@ import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/pl
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { getTiqLeagueScoringSystemLabel, type TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import {
+  getTiqLeagueScoringSystemLabel,
+  getTiqLeagueSchedulingModeDescription,
+  getTiqLeagueSchedulingModeLabel,
+  type TiqLeagueRecord,
+} from '@/lib/tiq-league-registry'
 import { buildIndividualResultCue, buildTeamResultCue } from '@/lib/league-result-cues'
 import {
   addTiqPlayerLeagueEntry,
@@ -532,7 +537,16 @@ export default function TiqLeagueDetailPage() {
   const scoringRulesText =
     league?.scoringSystem === 'dynamic_points'
       ? getDynamicPointsRulesSummary()
-      : 'Standings use match wins, losses, ties, and line wins.'
+      : 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
+  const scheduleRulesText = league
+    ? [
+        getTiqLeagueSchedulingModeDescription(league.schedulingMode),
+        league.defaultMatchDay || league.defaultMatchTime || league.defaultFacility
+          ? `Default: ${[league.defaultMatchDay, league.defaultMatchTime, league.defaultFacility].filter(Boolean).join(', ')}.`
+          : '',
+        league.schedulingNotes,
+      ].filter(Boolean).join(' ')
+    : ''
   const individualFormatExperience = getTiqIndividualCompetitionFormatExperience(
     league?.individualCompetitionFormat,
   )
@@ -570,6 +584,11 @@ export default function TiqLeagueDetailPage() {
             league.leagueFormat === 'team'
               ? 'Use this page to enter teams and move quickly into availability, lineups, scenarios, and messaging.'
               : 'Use this page to join, compare entrants, read results, and act on the next TIQ opportunity.',
+        },
+        {
+          label: 'Scheduling',
+          value: getTiqLeagueSchedulingModeLabel(league.schedulingMode),
+          note: scheduleRulesText || 'Schedule details appear here once the coordinator sets them.',
         },
       ]
     : []
@@ -1636,6 +1655,7 @@ export default function TiqLeagueDetailPage() {
                         {getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)}
                       </span>
                     ) : null}
+                    <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(league.schedulingMode)}</span>
                     <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(league.scoringSystem)}</span>
                     <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
                       {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
@@ -1697,6 +1717,7 @@ export default function TiqLeagueDetailPage() {
               <MetricCard label="Flight / Tier" value={league.flight || 'Open'} />
               <MetricCard label="Market" value={league.locationLabel || 'Unassigned'} />
               <MetricCard label="Scoring" value={getTiqLeagueScoringSystemLabel(league.scoringSystem)} />
+              <MetricCard label="Scheduling" value={getTiqLeagueSchedulingModeLabel(league.schedulingMode)} />
               <MetricCard
                 label="Individual format"
                 value={
@@ -1723,6 +1744,13 @@ export default function TiqLeagueDetailPage() {
                 Scoring: {getTiqLeagueScoringSystemLabel(league.scoringSystem)}
               </div>
               <div style={formatCalloutText}>{scoringRulesText}</div>
+            </section>
+
+            <section style={formatCallout}>
+              <div style={formatCalloutTitle}>
+                Scheduling: {getTiqLeagueSchedulingModeLabel(league.schedulingMode)}
+              </div>
+              <div style={formatCalloutText}>{scheduleRulesText}</div>
             </section>
 
             <div style={dynamicContentGrid}>

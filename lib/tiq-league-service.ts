@@ -4,6 +4,7 @@ import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import {
   deleteTiqLeagueRecord,
+  normalizeTiqLeagueSchedulingMode,
   readTiqLeagueRegistry,
   type TiqLeagueDraft,
   type TiqLeagueRecord,
@@ -86,6 +87,11 @@ type TiqLeagueRow = {
   ends_on?: string | null
   max_weeks?: number | null
   max_match_events?: number | null
+  scheduling_mode?: string | null
+  default_match_day?: string | null
+  default_match_time?: string | null
+  default_facility?: string | null
+  scheduling_notes?: string | null
   flight?: string | null
   location_label?: string | null
   photo_url?: string | null
@@ -129,6 +135,11 @@ type TiqLeagueRemotePayload = {
   ends_on: string | null
   max_weeks: number
   max_match_events: number
+  scheduling_mode: 'coordinator_fixed' | 'player_arranged'
+  default_match_day: string
+  default_match_time: string
+  default_facility: string
+  scheduling_notes: string
   flight: string
   location_label: string
   photo_url: string
@@ -197,6 +208,11 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     endsOn: cleanText(row.ends_on),
     maxWeeks: normalizeTiqLeagueMaxWeeks(row.max_weeks ?? DEFAULT_TIQ_LEAGUE_MAX_WEEKS),
     maxMatchEvents: normalizeTiqLeagueMaxMatchEvents(row.max_match_events ?? DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS),
+    schedulingMode: normalizeTiqLeagueSchedulingMode(row.scheduling_mode),
+    defaultMatchDay: cleanText(row.default_match_day),
+    defaultMatchTime: cleanText(row.default_match_time),
+    defaultFacility: cleanText(row.default_facility),
+    schedulingNotes: cleanText(row.scheduling_notes),
     flight: cleanText(row.flight),
     locationLabel: cleanText(row.location_label),
     photoUrl: cleanText(row.photo_url),
@@ -288,6 +304,11 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     ends_on: record.endsOn || null,
     max_weeks: record.maxWeeks,
     max_match_events: record.maxMatchEvents,
+    scheduling_mode: normalizeTiqLeagueSchedulingMode(record.schedulingMode),
+    default_match_day: record.defaultMatchDay,
+    default_match_time: record.defaultMatchTime,
+    default_facility: record.defaultFacility,
+    scheduling_notes: record.schedulingNotes,
     flight: record.flight,
     location_label: record.locationLabel,
     photo_url: record.photoUrl,

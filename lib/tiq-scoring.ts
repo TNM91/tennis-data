@@ -74,7 +74,7 @@ export function calculateDynamicPointsForSides(
 }
 
 export function getDynamicPointsRulesSummary() {
-  return 'Best 2 of 3 sets: straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won up to 8.'
+  return 'Best 2 of 3 sets. The third set is optional and may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Straight-set winner 14, split-set winner 12, split-set loser 8, straight-set loser gets one point per game won up to 8.'
 }
 
 export function getDynamicPointsValidationMessage(
