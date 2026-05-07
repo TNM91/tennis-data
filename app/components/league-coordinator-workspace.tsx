@@ -206,6 +206,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [teamListInput, setTeamListInput] = useState('')
   const [playerListInput, setPlayerListInput] = useState('')
   const [editingId, setEditingId] = useState('')
+  const [setupOpen, setSetupOpen] = useState(false)
   const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
   const [status, setStatus] = useState('')
   const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
@@ -678,6 +679,28 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     if (clearHandoff) setLastSavedRecord(null)
   }
 
+  function beginNewLeague(format: TiqLeagueDraft['leagueFormat']) {
+    setEditingId('')
+    setDraft({
+      ...EMPTY_DRAFT,
+      leagueFormat: format,
+      individualCompetitionFormat: format === 'individual' ? 'round_robin' : 'standard',
+    })
+    setTeamListInput('')
+    setPlayerListInput('')
+    setPhotoUploadStatus('')
+    setLastSavedRecord(null)
+    setSetupOpen(true)
+    setStatus(
+      format === 'individual'
+        ? 'Starting a new individual league setup.'
+        : 'Starting a new team league setup.',
+    )
+    window.requestAnimationFrame(() => {
+      document.getElementById('league-setup-form')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
+
   async function handlePhotoUpload(file: File | null) {
     if (!file) return
 
@@ -788,6 +811,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setTeamListInput(record.teams.join('\n'))
     setPlayerListInput(record.players.join('\n'))
     setLastSavedRecord(null)
+    setSetupOpen(true)
     setStatus(`Editing ${record.leagueName}.`)
     if (options.scrollToForm) {
       window.requestAnimationFrame(() => {
@@ -981,9 +1005,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         <section style={commandCard}>
           <div>
             <div style={sectionEyebrow}>League command center</div>
-            <h2 style={sectionTitle}>{records.length ? 'Your TIQ league system is active.' : 'Create the first league.'}</h2>
+            <h2 style={sectionTitle}>{records.length ? 'Your season control room is active.' : 'Create the first league workspace.'}</h2>
             <p style={sectionText}>
-              Keep setup simple: create the league, add participants, record results, then let standings and schedules tell the story.
+              The job is simple: approve who belongs, keep the schedule visible, collect scores, and let the standings update around the season.
             </p>
           </div>
           <div style={commandGrid}>
@@ -991,6 +1015,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <span style={commandLabel}>Leagues</span>
               <strong style={commandValue}>{records.length}</strong>
               <span style={commandText}>{teamLeagues.length} team - {individualLeagues.length} individual</span>
+            </div>
+            <div style={commandTile}>
+              <span style={commandLabel}>Requests</span>
+              <strong style={commandValue}>{pendingEntryRequestCount}</strong>
+              <span style={commandText}>Waiting for coordinator approval</span>
             </div>
             <div style={commandTile}>
               <span style={commandLabel}>Participants</span>
@@ -1128,9 +1157,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   : 'Create a team league to start match review'}
               </div>
               <div style={buttonRow}>
-                <GhostLink href={teamLeagues.length > 0 ? teamResultEntryHref : '#league-setup-form'}>
-                  {teamLeagues.length > 0 ? 'Review team results' : 'Add team league'}
-                </GhostLink>
+                {teamLeagues.length > 0 ? (
+                  <GhostLink href={teamResultEntryHref}>Review team results</GhostLink>
+                ) : (
+                  <GhostBtn onClick={() => beginNewLeague('team')}>Add team league</GhostBtn>
+                )}
               </div>
             </div>
 
@@ -1161,9 +1192,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   : 'Create an individual league to start player review'}
               </div>
               <div style={buttonRow}>
-                <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : '#league-setup-form'}>
-                  {individualLeagues.length > 0 ? 'Review player results' : 'Add individual league'}
-                </GhostLink>
+                {individualLeagues.length > 0 ? (
+                  <GhostLink href={individualResultEntryHref}>Review player results</GhostLink>
+                ) : (
+                  <GhostBtn onClick={() => beginNewLeague('individual')}>Add individual league</GhostBtn>
+                )}
               </div>
             </div>
 
@@ -1379,7 +1412,12 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         </section>
 
         <div style={responsiveLayoutGrid}>
-          <details id="league-setup-form" style={responsivePanelCard} open={!!editingId || records.length === 0}>
+          <details
+            id="league-setup-form"
+            style={responsivePanelCard}
+            open={setupOpen || !!editingId || records.length === 0}
+            onToggle={(event) => setSetupOpen(event.currentTarget.open)}
+          >
             <summary style={responsiveDetailsSummary}>
               <div>
                 <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>

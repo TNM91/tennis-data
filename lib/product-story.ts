@@ -83,16 +83,16 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   league: {
     id: 'league',
     name: 'TIQ League Coordinator',
-    shortPromise: 'Run leagues with less manual work.',
+    shortPromise: 'Run the season from one place.',
     audience: 'League coordinators and admins running players or teams',
-    upgradeCue: 'Operate a league of players or teams from one place.',
+    upgradeCue: 'Give coordinators and members one place for requests, schedules, results, and standings.',
     description:
-      'Run leagues of players or teams with structure, visibility, participation, rankings, results, and admin workflows.',
+      'Run leagues of players or teams with one home for participation, scheduling, results, standings, visibility, and admin workflows.',
     valueProps: [
-      'Manage league structure and visibility',
-      'Coordinate player or team participation',
-      'Track rankings, schedules, and results',
-      'Reduce manual league operations',
+      'Approve teams or players before they enter the season',
+      'Keep schedules, sites, and match details in one league home',
+      'Turn results into standings without spreadsheet cleanup',
+      'Give members a clear place to know who, when, where, and what happened',
     ],
   },
 } as const
@@ -156,12 +156,12 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   league: {
     stage: 'Coordinator unlock',
-    headline: 'Run leagues with less manual work.',
-    copy: 'Manage leagues of players or teams with structure, visibility, participation, rankings, results, and admin workflows.',
+    headline: 'Run the season from one place.',
+    copy: 'Manage approvals, schedules, results, standings, and league visibility so coordinators and members spend less time chasing details.',
     bullets: [
-      'Manage league structure and visibility',
-      'Coordinate players or teams',
-      'Track rankings, schedules, and results',
+      'Approve players or teams before they enter',
+      'Keep schedule and site details visible',
+      'Turn match results into standings',
     ],
     primaryCta: { label: 'Run Your League on TIQ', href: '/pricing#league' },
     secondaryCta: { label: 'Explore Leagues', href: '/explore/leagues' },
@@ -272,27 +272,27 @@ export const CAPTAIN_STORY = {
 
 export const LEAGUE_COORDINATOR_STORY = {
   eyebrow: 'TIQ League Coordinator unlock',
-  headline: 'Create and run TIQ leagues.',
+  headline: 'Run the season from one place.',
   body:
-    'Set the format, add teams or players, and keep season structure ready for schedules, standings, and results.',
+    'Approve entries, set the schedule shape, collect results, and keep standings moving so everyone can focus on playing.',
   subnavTitle: 'League Coordinator',
   subnavDescription:
-    'Manage league setup separately from weekly captain tools.',
+    'Manage league operations separately from weekly captain tools.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
-    'Choose team or individual format, name the season, then add participants.',
+    'Choose team or individual format, name the season, set visibility, then approve participants.',
   upgradeHeadline: 'Ready to run organized competition without spreadsheets?',
   upgradeBody:
-    'TIQ League Coordinator gives organizers a cleaner way to create seasons, structure participation, track results, and keep standings and communication in one place.',
+    'TIQ League Coordinator gives organizers one operating home for approvals, schedules, results, standings, and member clarity.',
   draftUpgradeHeadline: 'Need this draft to become a real league workspace?',
   draftUpgradeBody:
-    'TIQ League Coordinator turns setup into a usable organizer layer with season structure, scheduling, standings, participants, and clearer league coordination.',
+    'TIQ League Coordinator turns setup into a season workspace where requests, scheduling, results, and standings stay together.',
   registryTitle: 'Current TIQ league definitions',
   registryBody:
-    'Manage the league records that can power schedules, standings, results, and organizer workflows.',
+    'Manage the league records that power approvals, schedules, standings, results, and organizer workflows.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
-    'TIQ League Coordinator turns league records into one cleaner system for scheduling, standings, team or player structure, and league-wide communication.',
+    'TIQ League Coordinator turns league records into one cleaner system for scheduling, standings, participation, and league-wide clarity.',
   cta: 'Run Your League on TIQ',
 } as const
 
