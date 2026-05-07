@@ -194,6 +194,14 @@ type HubNavItem = {
 
 type ScheduleDisplayMode = 'calendar' | 'list'
 
+type LeagueLeaderRow = {
+  rank: number
+  name: string
+  record: string
+  detail: string
+  href: string | null
+}
+
 function getLeagueRatingStatus(gap: number | null): LeagueRatingStatus | null {
   if (gap === null) return null
   if (gap >= 0.15) return 'Bump Up Pace'
@@ -1070,6 +1078,14 @@ export default function TiqLeagueDetailPage() {
     () => buildScheduleCalendarDays(visibleScheduleItems),
     [visibleScheduleItems],
   )
+  const upcomingScheduleItems = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const datedItems = visibleScheduleItems.filter(
+      (item) => item.status !== 'completed' && item.scheduledDate && item.scheduledDate >= today,
+    )
+    const fallbackItems = visibleScheduleItems.filter((item) => item.status !== 'completed')
+    return (datedItems.length > 0 ? datedItems : fallbackItems).slice(0, 4)
+  }, [visibleScheduleItems])
   const individualResultByScheduleItemId = useMemo(() => {
     const resultMap = new Map<string, TiqIndividualLeagueResultRecord>()
     individualResults.forEach((result) => {
@@ -1188,18 +1204,33 @@ export default function TiqLeagueDetailPage() {
   const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
   const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
   const leaderName = individualLeader?.playerName || teamLeader?.teamName || ''
-  const leaderRecord = individualLeader
-    ? `${individualLeader.leagueWins}-${individualLeader.leagueLosses}`
-    : teamLeader
-      ? `${teamLeader.wins}-${teamLeader.losses}${teamLeader.ties ? `-${teamLeader.ties}` : ''}`
-      : ''
-  const nextLeagueAction =
-    league?.leagueFormat === 'individual'
-      ? competitionOpportunities[0]?.title || 'Log the next result to move the table.'
-      : nextTeamEvent
-        ? `${nextTeamEvent.teamAName} vs ${nextTeamEvent.teamBName}`
-        : 'Publish the next match slot.'
+  const leaderRows = useMemo<LeagueLeaderRow[]>(() => {
+    if (!league) return []
 
+    if (league.leagueFormat === 'individual') {
+      return individualStandings.slice(0, 5).map((entry) => ({
+        rank: entry.rank,
+        name: entry.playerName,
+        record: `${entry.leagueWins}-${entry.leagueLosses}`,
+        detail:
+          league.scoringSystem === 'dynamic_points'
+            ? `${entry.leaguePoints} pts`
+            : `${entry.leagueMatches} result${entry.leagueMatches === 1 ? '' : 's'}`,
+        href: entry.playerId ? `/players/${encodeURIComponent(entry.playerId)}` : null,
+      }))
+    }
+
+    return teamStandings.slice(0, 5).map((entry, index) => ({
+      rank: index + 1,
+      name: entry.teamName,
+      record: `${entry.wins}-${entry.losses}${entry.ties ? `-${entry.ties}` : ''}`,
+      detail:
+        league.scoringSystem === 'dynamic_points'
+          ? `${entry.points} pts`
+          : `${entry.lineWins} line win${entry.lineWins === 1 ? '' : 's'}`,
+      href: `/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(league.leagueName)}`,
+    }))
+  }, [individualStandings, league, teamStandings])
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
     if (!suggestedResultPlayerA || !suggestedResultPlayerB) return
@@ -2107,14 +2138,21 @@ export default function TiqLeagueDetailPage() {
                     </div>
                   ) : null}
                   <div style={sideLabel}>League race</div>
-                  <div style={sideValue}>{leaderName ? 'First place' : 'Standings pending'}</div>
-                  {leaderName ? (
-                    <div style={leaderCardStyle}>
-                      <div style={leaderRankStyle}>1</div>
-                      <div>
-                        <strong>{leaderName}</strong>
-                        <span>{leaderRecord || 'No record yet'}</span>
-                      </div>
+                  <div style={sideValue}>{leaderRows.length > 0 ? 'Leaders' : 'Standings pending'}</div>
+                  {leaderRows.length > 0 ? (
+                    <div style={leaderTableStyle} aria-label="League leaders">
+                      {leaderRows.slice(0, 5).map((row) => (
+                        <div key={`${row.rank}-${row.name}`} style={leaderRowStyle}>
+                          <span style={row.rank === 1 ? leaderRankAccentStyle : leaderRankMiniStyle}>
+                            {row.rank}
+                          </span>
+                          <div style={leaderNameCellStyle}>
+                            <strong>{row.name}</strong>
+                            <span>{row.detail}</span>
+                          </div>
+                          <span style={leaderRecordStyle}>{row.record}</span>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div style={sideText}>
@@ -2159,10 +2197,29 @@ export default function TiqLeagueDetailPage() {
               </nav>
 
               <div style={seasonPulseGridStyle}>
-                <div style={seasonPulseCardStyle}>
-                  <span style={pillGreen}>Leader</span>
-                  <strong>{leaderName || 'No leader yet'}</strong>
-                  <p>{leaderName ? `${leaderRecord} at the top of the league.` : 'Log the first result to start the race.'}</p>
+                <div style={seasonPulseWideCardStyle}>
+                  <div style={seasonPulseCardHeaderStyle}>
+                    <span style={pillGreen}>Leaders</span>
+                    <GhostLink href="#league-standings">Full table</GhostLink>
+                  </div>
+                  {leaderRows.length > 0 ? (
+                    <div style={leaderTableStyle}>
+                      {leaderRows.map((row) => (
+                        <div key={`pulse-${row.rank}-${row.name}`} style={leaderRowStyle}>
+                          <span style={row.rank === 1 ? leaderRankAccentStyle : leaderRankMiniStyle}>
+                            {row.rank}
+                          </span>
+                          <div style={leaderNameCellStyle}>
+                            <strong>{row.name}</strong>
+                            <span>{row.detail}</span>
+                          </div>
+                          <span style={leaderRecordStyle}>{row.record}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>Log the first result to start the standings race.</p>
+                  )}
                 </div>
                 <div style={seasonPulseCardStyle}>
                   <span style={pillBlue}>Latest</span>
@@ -2179,10 +2236,36 @@ export default function TiqLeagueDetailPage() {
                         : 'Results will become the heartbeat of the league.'}
                   </p>
                 </div>
-                <div style={seasonPulseCardStyle}>
-                  <span style={pillSlate}>Next</span>
-                  <strong>{nextLeagueAction}</strong>
-                  <p>{seasonWindowText}. Keep the season moving with one clear next match.</p>
+                <div style={seasonPulseWideCardStyle}>
+                  <div style={seasonPulseCardHeaderStyle}>
+                    <span style={pillSlate}>Upcoming matches</span>
+                    <GhostLink href="#league-schedule">Schedule</GhostLink>
+                  </div>
+                  {upcomingScheduleItems.length > 0 ? (
+                    <div style={upcomingMatchListStyle}>
+                      {upcomingScheduleItems.map((item) => (
+                        <div key={`upcoming-${item.id}`} style={upcomingMatchRowStyle}>
+                          <div>
+                            <strong>{item.participantAName} vs {item.participantBName}</strong>
+                            <span>
+                              {[item.scheduledDate, item.scheduledTime, item.facility || league.defaultFacility]
+                                .filter(Boolean)
+                                .join(' | ') || 'Time and site TBD'}
+                            </span>
+                          </div>
+                          <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+                            {item.status === 'coordinator_set' ? 'Published' : item.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>
+                      {league.schedulingMode === 'coordinator_fixed'
+                        ? 'The coordinator has not published match times yet.'
+                        : 'Players can propose times here; confirmed matches will appear at the top.'}
+                    </p>
+                  )}
                 </div>
                 {!access.canUseAdvancedPlayerInsights ? (
                   <div style={seasonPulseUpgradeStyle}>
@@ -3552,29 +3635,52 @@ const sideText: CSSProperties = {
   lineHeight: 1.7,
 }
 
-const leaderCardStyle: CSSProperties = {
+const leaderTableStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '46px minmax(0, 1fr)',
-  gap: '12px',
+  gap: '8px',
+}
+
+const leaderRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr) auto',
+  gap: '10px',
   alignItems: 'center',
-  padding: '14px',
-  borderRadius: '18px',
-  border: '1px solid rgba(155,225,29,0.24)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.14), rgba(74,163,255,0.08))',
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(7,17,33,0.48)',
   color: '#f8fbff',
 }
 
-const leaderRankStyle: CSSProperties = {
+const leaderRankMiniStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  width: 46,
-  height: 46,
+  width: 34,
+  height: 34,
   borderRadius: '999px',
+  background: 'rgba(142,161,189,0.18)',
+  color: '#e7eefb',
+  fontWeight: 900,
+  fontSize: '13px',
+}
+
+const leaderRankAccentStyle: CSSProperties = {
+  ...leaderRankMiniStyle,
   background: '#9be11d',
   color: '#06121a',
+}
+
+const leaderNameCellStyle: CSSProperties = {
+  display: 'grid',
+  gap: '2px',
+  minWidth: 0,
+}
+
+const leaderRecordStyle: CSSProperties = {
+  color: '#dffad5',
   fontWeight: 950,
-  fontSize: '20px',
+  fontSize: '14px',
 }
 
 const actionRow: CSSProperties = {
@@ -3677,10 +3783,39 @@ const seasonPulseCardStyle: CSSProperties = {
   color: '#dbeafe',
 }
 
+const seasonPulseWideCardStyle: CSSProperties = {
+  ...seasonPulseCardStyle,
+  gridColumn: '1 / -1',
+}
+
+const seasonPulseCardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  flexWrap: 'wrap',
+}
+
 const seasonPulseUpgradeStyle: CSSProperties = {
   ...seasonPulseCardStyle,
   border: '1px solid rgba(251,191,36,0.18)',
   background: 'linear-gradient(135deg, rgba(251,191,36,0.10), rgba(7,17,34,0.56))',
+}
+
+const upcomingMatchListStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+}
+
+const upcomingMatchRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: '10px',
+  alignItems: 'center',
+  padding: '10px',
+  borderRadius: '14px',
+  border: '1px solid rgba(116,190,255,0.10)',
+  background: 'rgba(255,255,255,0.04)',
 }
 
 const schedulePanelStyle: CSSProperties = {
