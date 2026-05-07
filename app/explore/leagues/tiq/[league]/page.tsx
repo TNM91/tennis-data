@@ -70,6 +70,13 @@ import {
   type TiqTeamMatchLineRecord,
   type TiqTeamStandingRow,
 } from '@/lib/tiq-team-results-service'
+import {
+  listTiqLeagueScheduleItems,
+  saveTiqLeagueScheduleItem,
+  updateTiqLeagueScheduleStatus,
+  type TiqLeagueScheduleItem,
+  type TiqLeagueScheduleSource,
+} from '@/lib/tiq-league-schedule-service'
 import { calculateDynamicPointsForSides, getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -385,6 +392,16 @@ export default function TiqLeagueDetailPage() {
   const [matchEventLines, setMatchEventLines] = useState<Record<string, TiqTeamMatchLineRecord[]>>({})
   const [matchEventLinesLoading, setMatchEventLinesLoading] = useState<Record<string, boolean>>({})
   const [teamStandings, setTeamStandings] = useState<TiqTeamStandingRow[]>([])
+  const [scheduleItems, setScheduleItems] = useState<TiqLeagueScheduleItem[]>([])
+  const [scheduleSource, setScheduleSource] = useState<TiqLeagueScheduleSource>('local')
+  const [scheduleStatus, setScheduleStatus] = useState('')
+  const [scheduleSaving, setScheduleSaving] = useState(false)
+  const [scheduleParticipantA, setScheduleParticipantA] = useState('')
+  const [scheduleParticipantB, setScheduleParticipantB] = useState('')
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleTime, setScheduleTime] = useState('')
+  const [scheduleFacility, setScheduleFacility] = useState('')
+  const [scheduleNotes, setScheduleNotes] = useState('')
 
   useEffect(() => {
     let active = true
@@ -523,6 +540,37 @@ export default function TiqLeagueDetailPage() {
     }
   }, [league])
 
+  useEffect(() => {
+    let active = true
+
+    async function loadScheduleItems() {
+      if (!league) {
+        if (active) setScheduleItems([])
+        return
+      }
+
+      const result = await listTiqLeagueScheduleItems(league.id)
+      if (!active) return
+      setScheduleItems(result.items)
+      setScheduleSource(result.source)
+      if (result.warning) {
+        setStorageWarning((current) => current || result.warning || '')
+      }
+    }
+
+    void loadScheduleItems()
+
+    return () => {
+      active = false
+    }
+  }, [league])
+
+  useEffect(() => {
+    if (!league) return
+    setScheduleTime(league.defaultMatchTime || '')
+    setScheduleFacility(league.defaultFacility || '')
+  }, [league])
+
   async function handleExpandMatchEvent(eventId: string) {
     if (expandedMatchEventId === eventId) {
       setExpandedMatchEventId(null)
@@ -653,6 +701,23 @@ export default function TiqLeagueDetailPage() {
       return true
     })
   }, [league, playerOptions, visiblePlayerEntries])
+  const scheduleParticipantOptions = useMemo<ResultParticipantOption[]>(() => {
+    if (!league) return []
+
+    if (league.leagueFormat === 'team') {
+      return visibleTeamEntries.map((entry) => ({
+        value: entry.teamEntityId || `name:${entry.teamName}`,
+        playerId: entry.teamEntityId,
+        playerName: entry.teamName,
+      }))
+    }
+
+    return visiblePlayerEntries.map((entry) => ({
+      value: entry.playerId || `name:${entry.playerName}`,
+      playerId: entry.playerId,
+      playerName: entry.playerName,
+    }))
+  }, [league, visiblePlayerEntries, visibleTeamEntries])
   const activeEntryCount =
     league?.leagueFormat === 'team'
       ? visibleTeamEntries.length
@@ -721,6 +786,10 @@ export default function TiqLeagueDetailPage() {
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
   const resultPlayerBOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerB) || null
+  const scheduleParticipantAOption =
+    scheduleParticipantOptions.find((option) => option.value === scheduleParticipantA) || null
+  const scheduleParticipantBOption =
+    scheduleParticipantOptions.find((option) => option.value === scheduleParticipantB) || null
   const resultWinnerOptions = [resultPlayerAOption, resultPlayerBOption].filter(
     (option): option is ResultParticipantOption => Boolean(option),
   )
@@ -1006,6 +1075,19 @@ export default function TiqLeagueDetailPage() {
       null
     )
   }, [scheduledTeamEvents])
+  const visibleScheduleItems = useMemo(
+    () =>
+      scheduleItems.filter((item) => item.status !== 'cancelled').sort((left, right) => {
+        const leftKey = `${left.scheduledDate || '9999-12-31'} ${left.scheduledTime || '99:99'}`
+        const rightKey = `${right.scheduledDate || '9999-12-31'} ${right.scheduledTime || '99:99'}`
+        return leftKey.localeCompare(rightKey)
+      }),
+    [scheduleItems],
+  )
+  const pendingScheduleItemCount = visibleScheduleItems.filter((item) => item.status === 'proposed').length
+  const confirmedScheduleItemCount = visibleScheduleItems.filter((item) =>
+    item.status === 'confirmed' || item.status === 'coordinator_set',
+  ).length
   const hubNavItems = useMemo<HubNavItem[]>(() => {
     if (!league) return []
 
@@ -1019,9 +1101,11 @@ export default function TiqLeagueDetailPage() {
         href: '#league-schedule',
         label: 'Schedule',
         detail:
-          league.leagueFormat === 'team'
-            ? `${teamMatchEvents.length} matches`
-            : `${competitionOpportunities.length} prompts`,
+          visibleScheduleItems.length > 0
+            ? `${visibleScheduleItems.length} items`
+            : league.leagueFormat === 'team'
+              ? `${teamMatchEvents.length} matches`
+              : `${competitionOpportunities.length} prompts`,
       },
       {
         href: '#league-requests',
@@ -1064,6 +1148,7 @@ export default function TiqLeagueDetailPage() {
     pendingEntryCount,
     teamMatchEvents.length,
     teamStandings.length,
+    visibleScheduleItems.length,
   ])
 
   const teamResultCue = useMemo(() => {
@@ -1432,6 +1517,97 @@ export default function TiqLeagueDetailPage() {
     const option = playerOptions.find((item) => item.id === nextId)
     if (!option) return
     setEntryValue(option.name)
+  }
+
+  async function refreshScheduleItems(leagueId: string) {
+    const latest = await listTiqLeagueScheduleItems(leagueId)
+    setScheduleItems(latest.items)
+    setScheduleSource(latest.source)
+    setStorageWarning((current) => current || latest.warning || '')
+  }
+
+  async function handleScheduleSubmit() {
+    if (!league) return
+
+    if (!scheduleParticipantAOption || !scheduleParticipantBOption) {
+      setScheduleStatus('Choose both participants before scheduling this match.')
+      return
+    }
+
+    if (scheduleParticipantAOption.value === scheduleParticipantBOption.value) {
+      setScheduleStatus('Choose two different participants before scheduling this match.')
+      return
+    }
+
+    if (!scheduleDate) {
+      setScheduleStatus('Choose a match date before saving this schedule item.')
+      return
+    }
+
+    if (!userId) {
+      setScheduleStatus('Sign in before scheduling this league match.')
+      return
+    }
+
+    setScheduleSaving(true)
+    setScheduleStatus('')
+
+    try {
+      const result = await saveTiqLeagueScheduleItem({
+        leagueId: league.id,
+        leagueFormat: league.leagueFormat,
+        participantAName: scheduleParticipantAOption.playerName,
+        participantAId: scheduleParticipantAOption.playerId,
+        participantBName: scheduleParticipantBOption.playerName,
+        participantBId: scheduleParticipantBOption.playerId,
+        scheduledDate: scheduleDate,
+        scheduledTime: scheduleTime,
+        facility: scheduleFacility || league.defaultFacility,
+        status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools ? 'coordinator_set' : 'proposed',
+        notes: scheduleNotes,
+      })
+
+      await refreshScheduleItems(league.id)
+      setScheduleSource(result.source)
+      setStorageWarning((current) => current || result.warning || '')
+      setScheduleStatus(
+        league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+          ? 'Published this match slot to the league schedule.'
+          : 'Proposed this match time. A coordinator or participant can confirm it.',
+      )
+      setScheduleParticipantA('')
+      setScheduleParticipantB('')
+      setScheduleDate('')
+      setScheduleTime(league.defaultMatchTime || '')
+      setScheduleFacility(league.defaultFacility || '')
+      setScheduleNotes('')
+    } catch (error) {
+      setScheduleStatus(error instanceof Error ? error.message : 'Unable to save this schedule item.')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
+
+  async function handleScheduleStatusChange(
+    scheduleItemId: string,
+    status: 'confirmed' | 'cancelled',
+  ) {
+    if (!league) return
+
+    setScheduleSaving(true)
+    setScheduleStatus('')
+
+    try {
+      const result = await updateTiqLeagueScheduleStatus({ scheduleItemId, status })
+      await refreshScheduleItems(league.id)
+      setScheduleSource(result.source)
+      setStorageWarning((current) => current || result.warning || '')
+      setScheduleStatus(status === 'confirmed' ? 'Confirmed this match time.' : 'Cancelled this schedule item.')
+    } catch (error) {
+      setScheduleStatus(error instanceof Error ? error.message : 'Unable to update this schedule item.')
+    } finally {
+      setScheduleSaving(false)
+    }
   }
 
   async function refreshSuggestionState(leagueId: string) {
@@ -1940,7 +2116,181 @@ export default function TiqLeagueDetailPage() {
                 </div>
               </div>
 
-              {league.leagueFormat === 'team' ? (
+              <div style={scheduleActionPanelStyle}>
+                <div style={leagueHubHeaderStyle}>
+                  <div>
+                    <div style={formatCalloutTitle}>
+                      {league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+                        ? 'Publish a match slot'
+                        : 'Propose a match time'}
+                    </div>
+                    <div style={formatCalloutText}>
+                      {league.schedulingMode === 'coordinator_fixed'
+                        ? 'Coordinator-set leagues can publish dates, times, and sites so the season schedule is visible before match week.'
+                        : 'Player-arranged leagues let members propose the date, time, and site through TenAceIQ before the result is recorded.'}
+                    </div>
+                  </div>
+                  <span style={scheduleSource === 'supabase' ? pillGreen : pillSlate}>
+                    {scheduleSource === 'supabase' ? 'Live schedule' : 'Local schedule'}
+                  </span>
+                </div>
+
+                <div style={dynamicResultFormGrid}>
+                  <label style={fieldLabel}>
+                    <span>{league.leagueFormat === 'team' ? 'Team A' : 'Player A'}</span>
+                    <select
+                      value={scheduleParticipantA}
+                      onChange={(event) => setScheduleParticipantA(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    >
+                      <option value="">Choose participant A</option>
+                      {scheduleParticipantOptions.map((option) => (
+                        <option key={`schedule-a-${option.value}`} value={option.value}>
+                          {option.playerName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>{league.leagueFormat === 'team' ? 'Team B' : 'Player B'}</span>
+                    <select
+                      value={scheduleParticipantB}
+                      onChange={(event) => setScheduleParticipantB(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    >
+                      <option value="">Choose participant B</option>
+                      {scheduleParticipantOptions.map((option) => (
+                        <option key={`schedule-b-${option.value}`} value={option.value}>
+                          {option.playerName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Date</span>
+                    <input
+                      type="date"
+                      value={scheduleDate}
+                      onChange={(event) => setScheduleDate(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+
+                  <label style={fieldLabel}>
+                    <span>Time</span>
+                    <input
+                      type="time"
+                      value={scheduleTime}
+                      onChange={(event) => setScheduleTime(event.target.value)}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+
+                  <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
+                    <span>Site</span>
+                    <input
+                      value={scheduleFacility}
+                      onChange={(event) => setScheduleFacility(event.target.value)}
+                      placeholder={league.defaultFacility || 'Club, park, or court block'}
+                      style={inputStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+
+                  <label style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
+                    <span>Notes</span>
+                    <textarea
+                      value={scheduleNotes}
+                      onChange={(event) => setScheduleNotes(event.target.value)}
+                      placeholder="Court instructions, rain plan, contact notes, or make-up match context."
+                      style={textareaStyle}
+                      disabled={scheduleSaving}
+                    />
+                  </label>
+                </div>
+
+                {scheduleStatus ? <div style={statusBanner}>{scheduleStatus}</div> : null}
+
+                <div style={actionRow}>
+                  <button
+                    type="button"
+                    onClick={handleScheduleSubmit}
+                    disabled={scheduleSaving || !userId || scheduleParticipantOptions.length < 2}
+                    style={{
+                      ...primaryButton,
+                      ...(scheduleSaving || !userId || scheduleParticipantOptions.length < 2 ? disabledButton : {}),
+                    }}
+                  >
+                    {scheduleSaving
+                      ? 'Saving schedule...'
+                      : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+                        ? 'Publish Match Slot'
+                        : 'Propose Match Time'}
+                  </button>
+                  <span style={metaPill}>
+                    {confirmedScheduleItemCount} confirmed | {pendingScheduleItemCount} proposed
+                  </span>
+                </div>
+              </div>
+
+              {visibleScheduleItems.length > 0 ? (
+                <div style={scheduleListStyle}>
+                  {visibleScheduleItems.map((item) => (
+                    <div key={item.id} style={scheduleRowStyle}>
+                      <div>
+                        <div style={listTitle}>{item.participantAName} vs {item.participantBName}</div>
+                        <div style={listMeta}>
+                          {[
+                            item.scheduledDate,
+                            item.scheduledTime,
+                            item.facility,
+                            item.notes,
+                          ]
+                            .filter(Boolean)
+                            .join(' | ')}
+                        </div>
+                      </div>
+                      <div style={scheduleRowActionsStyle}>
+                        <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
+                          {item.status === 'coordinator_set' ? 'Published' : item.status}
+                        </span>
+                        {item.status === 'proposed' ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleScheduleStatusChange(item.id, 'confirmed')}
+                            disabled={scheduleSaving || !userId}
+                            style={{
+                              ...ghostActionButton,
+                              ...(scheduleSaving || !userId ? disabledButton : {}),
+                            }}
+                          >
+                            Confirm
+                          </button>
+                        ) : null}
+                        {item.status !== 'completed' ? (
+                          <button
+                            type="button"
+                            onClick={() => void handleScheduleStatusChange(item.id, 'cancelled')}
+                            disabled={scheduleSaving || !userId}
+                            style={{
+                              ...ghostActionButton,
+                              ...(scheduleSaving || !userId ? disabledButton : {}),
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : league.leagueFormat === 'team' ? (
                 scheduledTeamEvents.length === 0 ? (
                   <div style={emptyCard}>
                     No match dates are published yet. Once the coordinator adds team match events, members can see
@@ -3248,6 +3598,15 @@ const scheduleMetaCardStyle: CSSProperties = {
   color: '#dbeafe',
 }
 
+const scheduleActionPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '16px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(155,225,29,0.06)',
+}
+
 const scheduleListStyle: CSSProperties = {
   display: 'grid',
   gap: '10px',
@@ -3262,6 +3621,14 @@ const scheduleRowStyle: CSSProperties = {
   borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.04)',
+}
+
+const scheduleRowActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: '8px',
+  flexWrap: 'wrap',
 }
 
 const participantStatusGridStyle: CSSProperties = {
