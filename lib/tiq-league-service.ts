@@ -23,6 +23,7 @@ import {
   normalizeTiqLeagueSeasonStatus,
   type TiqLeagueSeasonStatus,
 } from '@/lib/tiq-league-limits'
+import { normalizeSeasonLabel } from '@/lib/season-labels'
 
 const TIQ_LEAGUES_TABLE = 'tiq_leagues'
 const TIQ_TEAM_ENTRIES_TABLE = 'tiq_team_league_entries'
@@ -211,7 +212,7 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
     scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
     leagueName: cleanText(row.league_name),
-    seasonLabel: cleanText(row.season_label),
+    seasonLabel: normalizeSeasonLabel(row.season_label),
     seasonStatus: normalizeTiqLeagueSeasonStatus(row.season_status),
     startsOn: cleanText(row.starts_on),
     endsOn: cleanText(row.ends_on),

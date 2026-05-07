@@ -14,6 +14,7 @@ import {
   normalizeTiqIndividualCompetitionFormat,
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
+import { normalizeSeasonLabel } from '@/lib/season-labels'
 import { getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
@@ -185,7 +186,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
     leagueName: cleanText(input.leagueName),
-    seasonLabel: cleanText(input.seasonLabel),
+    seasonLabel: normalizeSeasonLabel(input.seasonLabel),
     seasonStatus: normalizeTiqLeagueSeasonStatus(input.seasonStatus),
     startsOn: cleanText(input.startsOn),
     endsOn: cleanText(input.endsOn),
@@ -226,7 +227,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
       scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
       leagueName: cleanText(record.leagueName),
-      seasonLabel: cleanText(record.seasonLabel),
+      seasonLabel: normalizeSeasonLabel(record.seasonLabel),
       seasonStatus: normalizeTiqLeagueSeasonStatus(record.seasonStatus),
       startsOn: cleanText(record.startsOn),
       endsOn: cleanText(record.endsOn),

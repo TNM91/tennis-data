@@ -69,6 +69,7 @@ import {
   type TiqLeagueStorageSource,
 } from '@/lib/tiq-league-service'
 import { cleanText as safeText } from '@/lib/captain-formatters'
+import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -120,14 +121,7 @@ const TIME_ZONE_OPTIONS = [
   { value: 'Pacific/Honolulu', label: 'Hawaii Time' },
 ]
 
-const SEASON_LABEL_OPTIONS = [
-  'Winter 2026',
-  'Spring 2026',
-  'Summer 2026',
-  'Fall 2026',
-  'Winter 2027',
-  'Spring 2027',
-]
+const CUSTOM_SEASON_VALUE = '__custom_season__'
 
 const FLIGHT_OPTIONS = ['2.5', '3.0', '3.5', '4.0', '4.5', '5.0', 'Open', 'Advanced', 'Intermediate', 'Beginner']
 
@@ -292,6 +286,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const [playerEntryRequests, setPlayerEntryRequests] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [entryRequestStatus, setEntryRequestStatus] = useState('')
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
+  const [customSeasonLabelOpen, setCustomSeasonLabelOpen] = useState(false)
 
   const refreshRegistry = useCallback(async () => {
     const result = await listTiqLeagues()
@@ -533,6 +528,18 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     () => Array.from(new Set(records.map((record) => record.locationLabel).filter(Boolean))).sort(),
     [records],
   )
+  const seasonLabelOptions = useMemo(
+    () => mergeSeasonLabelOptions(records.map((record) => record.seasonLabel)),
+    [records],
+  )
+  const normalizedDraftSeasonLabel = normalizeSeasonLabel(draft.seasonLabel)
+  const draftSeasonMatchesPreset = Boolean(
+    normalizedDraftSeasonLabel && seasonLabelOptions.includes(normalizedDraftSeasonLabel),
+  )
+  const seasonSelectValue =
+    customSeasonLabelOpen || (normalizedDraftSeasonLabel && !draftSeasonMatchesPreset)
+      ? CUSTOM_SEASON_VALUE
+      : normalizedDraftSeasonLabel
   const teamResultEntryHref = buildTeamResultEntryHref(latestTeamLeague?.id)
   const individualResultEntryHref = buildIndividualResultEntryHref(latestIndividualLeague?.id)
   const individualSummaryByLeague = useMemo(
@@ -759,6 +766,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setPlayerListInput('')
     setParticipantQuickAddInput('')
     setEditingId('')
+    setCustomSeasonLabelOpen(false)
     setPhotoUploadStatus('')
     if (clearHandoff) setLastSavedRecord(null)
   }
@@ -773,6 +781,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setTeamListInput('')
     setPlayerListInput('')
     setParticipantQuickAddInput('')
+    setCustomSeasonLabelOpen(false)
     setPhotoUploadStatus('')
     setLastSavedRecord(null)
     setSetupOpen(true)
@@ -819,6 +828,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
     const nextDraft: TiqLeagueDraft = {
       ...draft,
+      seasonLabel: normalizeSeasonLabel(draft.seasonLabel),
       teams: draft.leagueFormat === 'team' ? parsedTeams : [],
       players: draft.leagueFormat === 'individual' ? parsedPlayers : [],
       maxWeeks: normalizeTiqLeagueMaxWeeks(draft.maxWeeks),
@@ -887,13 +897,14 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   }
 
   const startEditing = useCallback((record: TiqLeagueRecord, options: { scrollToForm?: boolean } = {}) => {
+    const normalizedSeason = normalizeSeasonLabel(record.seasonLabel)
     setEditingId(record.id)
     setDraft({
       leagueFormat: record.leagueFormat,
       individualCompetitionFormat: record.individualCompetitionFormat,
       scoringSystem: record.scoringSystem,
       leagueName: record.leagueName,
-      seasonLabel: record.seasonLabel,
+      seasonLabel: normalizedSeason,
       seasonStatus: record.seasonStatus,
       startsOn: record.startsOn,
       endsOn: record.endsOn || calculateTiqLeagueEndsOn(record.startsOn, record.maxWeeks),
@@ -917,6 +928,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     setTeamListInput(record.teams.join('\n'))
     setPlayerListInput(record.players.join('\n'))
     setParticipantQuickAddInput('')
+    setCustomSeasonLabelOpen(Boolean(normalizedSeason && !seasonLabelOptions.includes(normalizedSeason)))
     setLastSavedRecord(null)
     setSetupOpen(true)
     setStatus(`Editing ${record.leagueName}.`)
@@ -925,7 +937,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
         document.getElementById('league-setup-form')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
       })
     }
-  }, [])
+  }, [seasonLabelOptions])
 
   useEffect(() => {
     if (
@@ -1606,20 +1618,48 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
               <label style={fieldLabel}>
                 <span>Season label</span>
-                <input
-                  list="tiq-season-label-options"
-                  value={draft.seasonLabel}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, seasonLabel: event.target.value }))
-                  }
-                  placeholder="Spring 2026"
+                <select
+                  value={seasonSelectValue}
+                  onChange={(event) => {
+                    if (event.target.value === CUSTOM_SEASON_VALUE) {
+                      setCustomSeasonLabelOpen(true)
+                      setDraft((current) => ({
+                        ...current,
+                        seasonLabel: draftSeasonMatchesPreset ? '' : current.seasonLabel,
+                      }))
+                      return
+                    }
+
+                    setCustomSeasonLabelOpen(false)
+                    setDraft((current) => ({
+                      ...current,
+                      seasonLabel: normalizeSeasonLabel(event.target.value),
+                    }))
+                  }}
                   style={inputStyle}
-                />
-                <datalist id="tiq-season-label-options">
-                  {SEASON_LABEL_OPTIONS.map((option) => (
-                    <option key={option} value={option} />
+                >
+                  <option value="">Choose season</option>
+                  {seasonLabelOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
                   ))}
-                </datalist>
+                  <option value={CUSTOM_SEASON_VALUE}>Custom season...</option>
+                </select>
+                {customSeasonLabelOpen || (normalizedDraftSeasonLabel && !draftSeasonMatchesPreset) ? (
+                  <input
+                    value={draft.seasonLabel}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, seasonLabel: event.target.value }))
+                    }
+                    onBlur={() =>
+                      setDraft((current) => ({
+                        ...current,
+                        seasonLabel: normalizeSeasonLabel(current.seasonLabel),
+                      }))
+                    }
+                    placeholder="Club Championship 2026"
+                    style={inputStyle}
+                  />
+                ) : null}
               </label>
 
               <label style={fieldLabel}>
