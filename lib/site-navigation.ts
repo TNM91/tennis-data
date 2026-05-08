@@ -20,6 +20,7 @@ export const PRIMARY_NAV_ITEMS: NavItem[] = [
 export const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: '/profile', label: 'Profile' },
   { href: '/messages', label: 'Messages' },
+  { href: '/data-assist', label: 'Data Assist' },
 ]
 
 export const EXPLORE_NAV_ITEMS: NavItem[] = [
@@ -34,6 +35,7 @@ export const COMPETE_NAV_ITEMS: NavItem[] = [
   { href: '/compete/teams', label: 'My Teams' },
   { href: '/compete/schedule', label: 'Schedule' },
   { href: '/compete/results', label: 'Results' },
+  { href: '/data-assist', label: 'Data Assist' },
 ]
 
 export const CAPTAIN_NAV_ITEMS: NavItem[] = [
@@ -82,6 +84,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/profile', label: 'Profile' },
       { href: '/messages', label: 'Messages' },
+      { href: '/data-assist', label: 'Data Assist' },
       { href: '/explore', label: 'Explore' },
       { href: '/mylab', label: 'My Lab' },
       { href: '/matchup', label: 'Matchup' },

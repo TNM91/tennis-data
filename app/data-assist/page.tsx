@@ -1,0 +1,774 @@
+'use client'
+
+import Link from 'next/link'
+import { useMemo, useState, type ChangeEvent, type CSSProperties } from 'react'
+import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
+import {
+  getDataAssistContributionValue,
+  getDataAssistImportTypeLabel,
+  prepareDataAssistBatch,
+  reorderDataAssistScreenshots,
+  saveDataAssistDraftBatch,
+  summarizeDataAssistBatch,
+  type DataAssistBatchSummary,
+  type DataAssistImportType,
+  type DataAssistPreparedScreenshot,
+} from '@/lib/data-assist'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+
+const importTypes: Array<{
+  id: DataAssistImportType
+  label: string
+  detail: string
+}> = [
+  {
+    id: 'scorecard',
+    label: 'Scorecard',
+    detail: 'Completed match results and lines',
+  },
+  {
+    id: 'schedule',
+    label: 'Schedule',
+    detail: 'Upcoming team match dates and sites',
+  },
+  {
+    id: 'team_summary',
+    label: 'Team summary',
+    detail: 'Roster and team page context',
+  },
+]
+
+export default function DataAssistPage() {
+  return (
+    <SiteShell active="/data-assist">
+      <DataAssistWorkspace />
+    </SiteShell>
+  )
+}
+
+function DataAssistWorkspace() {
+  const { userId, authResolved } = useAuth()
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
+  const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
+  const [preparing, setPreparing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [savedBatchId, setSavedBatchId] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const confidenceLabel = useMemo(() => {
+    if (!summary) return 'Waiting'
+    if (summary.status === 'layout_detected') return 'Strong'
+    if (summary.status === 'needs_review') return 'Needs review'
+    return 'Rejected'
+  }, [summary])
+
+  async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || [])
+    setPreparing(true)
+    setSavedBatchId('')
+    setMessage('')
+    setError('')
+
+    try {
+      const nextSummary = await prepareDataAssistBatch(files, importType)
+      setSummary(nextSummary)
+      if (nextSummary.status === 'rejected') {
+        setError(nextSummary.rejectionReason)
+      } else if (nextSummary.status === 'needs_review') {
+        setMessage('Screenshots are staged. A verifier should confirm the TennisLink layout before parsing.')
+      } else {
+        setMessage('Supported TennisLink layout signals found. Review the order before saving the draft.')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Screenshots could not be prepared.')
+    } finally {
+      setPreparing(false)
+      event.target.value = ''
+    }
+  }
+
+  function moveScreenshot(fromIndex: number, direction: -1 | 1) {
+    if (!summary) return
+    const toIndex = fromIndex + direction
+    if (toIndex < 0 || toIndex >= summary.screenshots.length) return
+    const nextScreenshots = reorderDataAssistScreenshots(summary.screenshots, fromIndex, toIndex)
+    setSummary(summarizeDataAssistBatch(importType, nextScreenshots))
+    setSavedBatchId('')
+  }
+
+  function removeScreenshot(id: string) {
+    if (!summary) return
+    const nextScreenshots = summary.screenshots
+      .filter((screenshot) => screenshot.id !== id)
+      .map((screenshot, index) => ({ ...screenshot, uploadOrder: index + 1 }))
+    setSummary(summarizeDataAssistBatch(importType, nextScreenshots))
+    setSavedBatchId('')
+  }
+
+  async function saveDraft() {
+    if (!summary || saving) return
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const result = await saveDataAssistDraftBatch(summary)
+      setSavedBatchId(result.batchId)
+      setMessage('Data Assist draft saved for review. Nothing has been imported yet.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Data Assist draft could not be saved.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <section style={pageStyle(isMobile)}>
+      <section style={heroStyle(isTablet, isMobile)}>
+        <div style={heroCopyStyle}>
+          <div className="section-kicker">TenAceIQ Data Assist</div>
+          <h1 style={titleStyle(isSmallMobile)}>Upload TennisLink screenshots. Review them. Improve the read.</h1>
+          <p style={heroTextStyle}>
+            Data Assist starts with trusted TennisLink screenshots only. Scorecards, schedules, and team summaries
+            become draft imports first, then verified tennis intelligence.
+          </p>
+          <div style={heroActionRowStyle}>
+            <a href="#upload" style={primaryButtonStyle}>Start upload</a>
+            <Link href="/messages?compose=support&category=data&subject=Data%20Assist%20question" style={secondaryButtonStyle}>
+              Ask support
+            </Link>
+          </div>
+        </div>
+
+        <div style={trustPanelStyle}>
+          <div style={trustStatStyle}>
+            <span>Source</span>
+            <strong>TennisLink only</strong>
+          </div>
+          <div style={trustStatStyle}>
+            <span>Commit path</span>
+            <strong>Review first</strong>
+          </div>
+          <div style={trustStatStyle}>
+            <span>Reward basis</span>
+            <strong>Verified quality</strong>
+          </div>
+        </div>
+      </section>
+
+      <section style={workspaceStyle(isTablet)}>
+        <section id="upload" style={panelStyle}>
+          <div style={sectionHeaderStyle}>
+            <div>
+              <div className="section-kicker">Upload batch</div>
+              <h2 style={sectionTitleStyle}>Choose the TennisLink page you captured.</h2>
+            </div>
+            <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
+          </div>
+
+          <div style={typeGridStyle(isMobile)}>
+            {importTypes.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setImportType(item.id)
+                  setSummary((current) => current ? summarizeDataAssistBatch(item.id, current.screenshots) : null)
+                  setSavedBatchId('')
+                  setMessage('')
+                  setError('')
+                }}
+                style={typeButtonStyle(importType === item.id)}
+              >
+                <strong>{item.label}</strong>
+                <span>{item.detail}</span>
+              </button>
+            ))}
+          </div>
+
+          <label style={dropzoneStyle(summary?.status || '')}>
+            <input
+              type="file"
+              multiple
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(event) => void handleFiles(event)}
+              style={fileInputStyle}
+            />
+            <span style={dropzoneKickerStyle}>TennisLink screenshots only</span>
+            <strong>{preparing ? 'Checking screenshots...' : 'Tap or drag screenshots here'}</strong>
+            <small>JPG, PNG, or WebP. Upload up to 8 images in scroll order.</small>
+          </label>
+
+          <div style={guardrailListStyle}>
+            {[
+              'No manual data entry',
+              'No CSV, PDF, pasted text, or arbitrary screenshots',
+              'No data imported until the draft is reviewed',
+              'Multiple mobile screenshots stay ordered and deduplicatable',
+            ].map((item) => (
+              <span key={item} style={guardrailStyle}>{item}</span>
+            ))}
+          </div>
+
+          {!authResolved || !userId ? (
+            <div style={noticeStyle}>
+              Sign in before saving a Data Assist draft. You can still stage screenshots on this screen.
+            </div>
+          ) : null}
+        </section>
+
+        <aside style={panelStyle}>
+          <div className="section-kicker">Quality read</div>
+          <h2 style={sectionTitleStyle}>{confidenceLabel}</h2>
+          <div style={confidenceMeterStyle}>
+            <span style={confidenceFillStyle(summary?.confidenceScore || 0)} />
+          </div>
+          <p style={copyStyle}>
+            {summary
+              ? summary.status === 'layout_detected'
+                ? 'Strong enough to save as a draft. OCR parsing and verification come next.'
+                : summary.status === 'needs_review'
+                  ? 'The batch is image-safe, but needs stronger TennisLink layout confidence before parsing.'
+                  : summary.rejectionReason
+              : 'Upload TennisLink screenshots to see whether the batch can move into review.'}
+          </p>
+
+          <div style={impactBoxStyle}>
+            <span>What this improves</span>
+            <strong>{getDataAssistImportTypeLabel(importType)}</strong>
+            <p>{summary?.contributionValue || getDataAssistContributionValue(importType)}</p>
+          </div>
+
+          <div style={achievementBoxStyle}>
+            <span>Contributor path</span>
+            <strong>Quality over volume</strong>
+            <p>Badges and future perks should unlock from verified, accurate uploads, not raw upload count.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section style={panelStyle}>
+        <div style={sectionHeaderStyle}>
+          <div>
+            <div className="section-kicker">Review before save</div>
+            <h2 style={sectionTitleStyle}>Confirm order and support status.</h2>
+          </div>
+          {summary ? <span style={pillStyle}>{summary.screenshots.length} screenshot{summary.screenshots.length === 1 ? '' : 's'}</span> : null}
+        </div>
+
+        {summary?.screenshots.length ? (
+          <div style={screenshotGridStyle(isTablet)}>
+            {summary.screenshots.map((screenshot, index) => (
+              <ScreenshotCard
+                key={screenshot.id}
+                screenshot={screenshot}
+                index={index}
+                total={summary.screenshots.length}
+                onMove={moveScreenshot}
+                onRemove={removeScreenshot}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={emptyStateStyle}>
+            Upload TennisLink screenshots to build a draft. The future parser will merge ordered screenshots into one logical page.
+          </div>
+        )}
+
+        <div style={draftActionRowStyle}>
+          <button
+            type="button"
+            onClick={() => void saveDraft()}
+            disabled={!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length}
+            style={{
+              ...primaryButtonStyle,
+              ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
+            }}
+          >
+            {saving ? 'Saving draft...' : 'Save draft for review'}
+          </button>
+          <span style={hintStyle}>Import stays locked until parsing and verification are added.</span>
+        </div>
+
+        {savedBatchId ? (
+          <div style={successStyle}>Draft saved: {savedBatchId.slice(0, 8).toUpperCase()}</div>
+        ) : null}
+        {message ? <div style={successStyle}>{message}</div> : null}
+        {error ? <div style={errorStyle}>{error}</div> : null}
+      </section>
+    </section>
+  )
+}
+
+function ScreenshotCard({
+  screenshot,
+  index,
+  total,
+  onMove,
+  onRemove,
+}: {
+  screenshot: DataAssistPreparedScreenshot
+  index: number
+  total: number
+  onMove: (fromIndex: number, direction: -1 | 1) => void
+  onRemove: (id: string) => void
+}) {
+  const supported = screenshot.detectionStatus === 'supported'
+  const rejected = screenshot.detectionStatus === 'rejected'
+
+  return (
+    <article style={screenshotCardStyle}>
+      <div style={thumbnailWrapStyle}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={screenshot.previewUrl} alt={`Screenshot ${screenshot.uploadOrder}`} style={thumbnailStyle} />
+        <span style={orderBadgeStyle}>{screenshot.uploadOrder}</span>
+      </div>
+      <div style={screenshotBodyStyle}>
+        <div style={screenshotHeaderStyle}>
+          <strong>{screenshot.fileName}</strong>
+          <span style={rejected ? pillDangerStyle : supported ? pillGreenStyle : pillAmberStyle}>
+            {rejected ? 'Rejected' : supported ? 'Supported' : 'Review'}
+          </span>
+        </div>
+        <p style={copyStyle}>
+          {screenshot.imageWidth} x {screenshot.imageHeight} · {(screenshot.fileSizeBytes / 1024 / 1024).toFixed(1)} MB
+        </p>
+        {screenshot.rejectionReason ? <p style={warningStyle}>{screenshot.rejectionReason}</p> : null}
+        <div style={signalListStyle}>
+          {screenshot.visualSignals.slice(0, 5).map((signal) => (
+            <span key={signal}>{signal}</span>
+          ))}
+        </div>
+        <div style={cardActionRowStyle}>
+          <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} style={smallButtonStyle}>
+            Up
+          </button>
+          <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} style={smallButtonStyle}>
+            Down
+          </button>
+          <button type="button" onClick={() => onRemove(screenshot.id)} style={smallDangerButtonStyle}>
+            Remove
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+const pageStyle = (isMobile: boolean): CSSProperties => ({
+  position: 'relative',
+  zIndex: 2,
+  width: '100%',
+  maxWidth: 1280,
+  margin: '0 auto',
+  padding: isMobile ? '14px 12px 28px' : '20px 24px 38px',
+  display: 'grid',
+  gap: 18,
+})
+
+const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.12fr) minmax(320px, 0.88fr)',
+  gap: isMobile ? 14 : 18,
+  alignItems: 'stretch',
+})
+
+const heroCopyStyle: CSSProperties = {
+  borderRadius: 28,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-card)',
+  padding: 'clamp(22px, 4vw, 38px)',
+  display: 'grid',
+  alignContent: 'center',
+  gap: 16,
+}
+
+const titleStyle = (isSmallMobile: boolean): CSSProperties => ({
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: isSmallMobile ? 38 : 'clamp(2.55rem, 5vw, 4.5rem)',
+  lineHeight: 0.96,
+  fontWeight: 950,
+  letterSpacing: 0,
+  maxWidth: 760,
+})
+
+const heroTextStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: 700,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 17,
+  lineHeight: 1.75,
+  fontWeight: 700,
+}
+
+const heroActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const trustPanelStyle: CSSProperties = {
+  borderRadius: 28,
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-green) 15%, transparent) 0%, transparent 45%), var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-card)',
+  padding: 18,
+  display: 'grid',
+  alignContent: 'center',
+  gap: 12,
+}
+
+const trustStatStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  padding: 16,
+  minHeight: 116,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+  textTransform: 'uppercase',
+}
+
+const workspaceStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.35fr) minmax(300px, 0.65fr)',
+  gap: 18,
+  alignItems: 'start',
+})
+
+const panelStyle: CSSProperties = {
+  borderRadius: 24,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-card)',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+}
+
+const sectionHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+const sectionTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 24,
+  lineHeight: 1.1,
+  fontWeight: 950,
+}
+
+const typeGridStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+})
+
+const typeButtonStyle = (active: boolean): CSSProperties => ({
+  minHeight: 92,
+  borderRadius: 18,
+  border: active
+    ? '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)'
+    : '1px solid var(--shell-panel-border)',
+  background: active
+    ? 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)'
+    : 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: 14,
+  textAlign: 'left',
+  display: 'grid',
+  gap: 6,
+  cursor: 'pointer',
+})
+
+const dropzoneStyle = (status: string): CSSProperties => ({
+  minHeight: 190,
+  borderRadius: 22,
+  border: status === 'rejected'
+    ? '1px dashed rgba(248,113,113,0.55)'
+    : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  color: 'var(--foreground-strong)',
+  padding: 18,
+  display: 'grid',
+  placeItems: 'center',
+  textAlign: 'center',
+  gap: 8,
+  cursor: 'pointer',
+})
+
+const fileInputStyle: CSSProperties = {
+  display: 'none',
+}
+
+const dropzoneKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const guardrailListStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
+const guardrailStyle: CSSProperties = {
+  minHeight: 32,
+  display: 'inline-flex',
+  alignItems: 'center',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  padding: '0 10px',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const pillStyle: CSSProperties = {
+  width: 'fit-content',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  padding: '7px 10px',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const confidenceMeterStyle: CSSProperties = {
+  height: 12,
+  borderRadius: 999,
+  overflow: 'hidden',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const confidenceFillStyle = (value: number): CSSProperties => ({
+  display: 'block',
+  width: `${Math.round(value * 100)}%`,
+  height: '100%',
+  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-green))',
+})
+
+const impactBoxStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const achievementBoxStyle: CSSProperties = {
+  ...impactBoxStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+}
+
+const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const screenshotCardStyle: CSSProperties = {
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+  display: 'grid',
+  gridTemplateColumns: 'minmax(108px, 0.34fr) minmax(0, 0.66fr)',
+}
+
+const thumbnailWrapStyle: CSSProperties = {
+  position: 'relative',
+  minHeight: 190,
+  background: 'var(--shell-panel-bg-strong)',
+}
+
+const thumbnailStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  display: 'block',
+}
+
+const orderBadgeStyle: CSSProperties = {
+  position: 'absolute',
+  top: 10,
+  left: 10,
+  width: 30,
+  height: 30,
+  borderRadius: 999,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'var(--brand-green)',
+  color: 'var(--text-dark)',
+  fontWeight: 950,
+}
+
+const screenshotBodyStyle: CSSProperties = {
+  padding: 13,
+  display: 'grid',
+  gap: 9,
+}
+
+const screenshotHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 8,
+  alignItems: 'flex-start',
+}
+
+const signalListStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+}
+
+const cardActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
+const smallButtonStyle: CSSProperties = {
+  minHeight: 32,
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 10px',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const smallDangerButtonStyle: CSSProperties = {
+  ...smallButtonStyle,
+  border: '1px solid rgba(248,113,113,0.26)',
+  color: '#fecaca',
+}
+
+const draftActionRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  flexWrap: 'wrap',
+}
+
+const primaryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 'fit-content',
+  minHeight: 44,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
+  color: 'var(--text-dark)',
+  padding: '0 16px',
+  fontWeight: 950,
+  textDecoration: 'none',
+  cursor: 'pointer',
+}
+
+const secondaryButtonStyle: CSSProperties = {
+  ...primaryButtonStyle,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+}
+
+const disabledStyle: CSSProperties = {
+  opacity: 0.52,
+  cursor: 'not-allowed',
+}
+
+const pillGreenStyle: CSSProperties = {
+  ...pillStyle,
+}
+
+const pillAmberStyle: CSSProperties = {
+  ...pillStyle,
+  border: '1px solid rgba(251,191,36,0.32)',
+  background: 'rgba(251,191,36,0.12)',
+  color: '#fde68a',
+}
+
+const pillDangerStyle: CSSProperties = {
+  ...pillStyle,
+  border: '1px solid rgba(248,113,113,0.32)',
+  background: 'rgba(248,113,113,0.12)',
+  color: '#fecaca',
+}
+
+const copyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
+}
+
+const hintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+}
+
+const warningStyle: CSSProperties = {
+  ...hintStyle,
+  color: '#fde68a',
+}
+
+const noticeStyle: CSSProperties = {
+  ...hintStyle,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const emptyStateStyle: CSSProperties = {
+  minHeight: 160,
+  borderRadius: 18,
+  border: '1px dashed var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  display: 'grid',
+  placeItems: 'center',
+  padding: 18,
+  textAlign: 'center',
+  fontWeight: 800,
+}
+
+const successStyle: CSSProperties = {
+  color: '#bbf7d0',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const errorStyle: CSSProperties = {
+  color: '#fecaca',
+  fontSize: 13,
+  fontWeight: 900,
+}

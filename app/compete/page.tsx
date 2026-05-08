@@ -35,6 +35,12 @@ export default function CompetePage() {
           title="Results"
           text="Review completed match outcomes, recent movement, and the competitive signals that should feed your next lineup or scenario pass."
         />
+        <CompeteCard
+          href="/data-assist"
+          meta="Community assist"
+          title="Data Assist"
+          text="Upload TennisLink screenshots as review-first drafts so scorecards, schedules, and roster context can improve the platform safely."
+        />
       </CompeteGrid>
 
     </CompetePageFrame>
