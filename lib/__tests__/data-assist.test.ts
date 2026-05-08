@@ -11,6 +11,7 @@ vi.mock('../supabase', () => ({
 
 const {
   getDataAssistContributionValue,
+  getDataAssistContributorBadges,
   reorderDataAssistScreenshots,
   summarizeDataAssistBatch,
   validateDataAssistFiles,
@@ -87,5 +88,12 @@ describe('Data Assist foundation helpers', () => {
 
   it('states contribution value without rewarding raw volume', () => {
     expect(getDataAssistContributionValue('team_summary')).toContain('roster identity')
+  })
+
+  it('awards contributor badges from verified quality instead of raw uploads', () => {
+    expect(getDataAssistContributorBadges(0, 0)).toEqual([])
+    expect(getDataAssistContributorBadges(1, 0.2).map((badge) => badge.id)).toEqual(['first_import'])
+    expect(getDataAssistContributorBadges(3, 0.75).map((badge) => badge.id)).toContain('verified_contributor')
+    expect(getDataAssistContributorBadges(8, 0.8).map((badge) => badge.id)).toContain('community_scout')
   })
 })

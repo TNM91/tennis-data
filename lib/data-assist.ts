@@ -135,6 +135,26 @@ export type DataAssistSubmission = {
   updatedAt: string
 }
 
+export type DataAssistContributorBadge = {
+  id: string
+  label: string
+  detail: string
+}
+
+export type DataAssistContributorStats = {
+  profileId: string
+  verifiedImportCount: number
+  rejectedImportCount: number
+  pendingReviewCount: number
+  contributionAccuracyScore: number
+  captainVerifiedImports: number
+  adminVerifiedImports: number
+  badges: DataAssistContributorBadge[]
+  lastVerifiedAt: string
+  lastRejectedAt: string
+  updatedAt: string
+}
+
 type DataAssistBatchRow = {
   id?: string | null
   submitted_by_user_id?: string | null
@@ -150,6 +170,26 @@ type DataAssistBatchRow = {
   reviewed_at?: string | null
   created_at?: string | null
   updated_at?: string | null
+}
+
+type DataAssistContributorStatsRow = {
+  profile_id?: string | null
+  verified_import_count?: number | null
+  rejected_import_count?: number | null
+  pending_review_count?: number | null
+  contribution_accuracy_score?: number | null
+  captain_verified_imports?: number | null
+  admin_verified_imports?: number | null
+  badges?: unknown
+  last_verified_at?: string | null
+  last_rejected_at?: string | null
+  updated_at?: string | null
+}
+
+type DataAssistStatsBatchRow = {
+  id?: string | null
+  status?: string | null
+  reviewed_at?: string | null
 }
 
 type DataAssistSubmissionDraftRow = {
@@ -267,6 +307,24 @@ function normalizeSignals(value: unknown): string[] {
     : []
 }
 
+function normalizeBadges(value: unknown): DataAssistContributorBadge[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null
+      const badge = item as Partial<DataAssistContributorBadge>
+      const id = cleanText(badge.id)
+      const label = cleanText(badge.label)
+      if (!id || !label) return null
+      return {
+        id,
+        label,
+        detail: cleanText(badge.detail),
+      }
+    })
+    .filter((badge): badge is DataAssistContributorBadge => Boolean(badge))
+}
+
 function toAdminBatch(row: DataAssistBatchRow): DataAssistAdminBatch | null {
   const id = cleanText(row.id)
   if (!id) return null
@@ -341,6 +399,25 @@ function toAdminDraft(row: DataAssistDraftRow): DataAssistAdminDraft | null {
     lineCount: row.line_count ?? 0,
     parserWarnings: normalizeSignals(row.parser_warnings),
     createdAt: cleanText(row.created_at),
+    updatedAt: cleanText(row.updated_at),
+  }
+}
+
+function toContributorStats(row: DataAssistContributorStatsRow): DataAssistContributorStats | null {
+  const profileId = cleanText(row.profile_id)
+  if (!profileId) return null
+
+  return {
+    profileId,
+    verifiedImportCount: row.verified_import_count ?? 0,
+    rejectedImportCount: row.rejected_import_count ?? 0,
+    pendingReviewCount: row.pending_review_count ?? 0,
+    contributionAccuracyScore: row.contribution_accuracy_score ?? 0,
+    captainVerifiedImports: row.captain_verified_imports ?? 0,
+    adminVerifiedImports: row.admin_verified_imports ?? 0,
+    badges: normalizeBadges(row.badges),
+    lastVerifiedAt: cleanText(row.last_verified_at),
+    lastRejectedAt: cleanText(row.last_rejected_at),
     updatedAt: cleanText(row.updated_at),
   }
 }
@@ -593,6 +670,22 @@ export async function listMyDataAssistSubmissions() {
   })
 }
 
+export async function getMyDataAssistContributorStats() {
+  const authState = await getClientAuthState()
+  const userId = authState.user?.id?.trim()
+  if (!userId) return null
+
+  const { data, error } = await supabase
+    .from('data_assist_contributor_stats')
+    .select('profile_id, verified_import_count, rejected_import_count, pending_review_count, contribution_accuracy_score, captain_verified_imports, admin_verified_imports, badges, last_verified_at, last_rejected_at, updated_at')
+    .eq('profile_id', userId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return buildEmptyContributorStats(userId)
+  return toContributorStats(data as DataAssistContributorStatsRow) || buildEmptyContributorStats(userId)
+}
+
 export async function listDataAssistAdminBatches() {
   const { data, error } = await supabase
     .from('data_assist_batches')
@@ -649,6 +742,15 @@ export async function reviewDataAssistBatch(input: {
   if (!userId) throw new Error('Sign in as an admin to review Data Assist batches.')
 
   const reviewedAt = new Date().toISOString()
+  const { data: existingBatch, error: existingBatchError } = await supabase
+    .from('data_assist_batches')
+    .select('submitted_by_user_id')
+    .eq('id', input.batchId)
+    .single()
+
+  if (existingBatchError) throw new Error(existingBatchError.message)
+  const submittedByUserId = cleanText((existingBatch as { submitted_by_user_id?: string | null } | null)?.submitted_by_user_id)
+
   const batchUpdate = await supabase
     .from('data_assist_batches')
     .update({
@@ -680,6 +782,10 @@ export async function reviewDataAssistBatch(input: {
       .eq('id', input.draftId)
 
     if (draftUpdate.error) throw new Error(draftUpdate.error.message)
+  }
+
+  if (submittedByUserId) {
+    await refreshDataAssistContributorStats(submittedByUserId)
   }
 }
 
@@ -716,6 +822,93 @@ async function uploadDataAssistScreenshots(
   }
 
   return uploaded
+}
+
+async function refreshDataAssistContributorStats(profileId: string) {
+  const { data, error } = await supabase
+    .from('data_assist_batches')
+    .select('id, status, reviewed_at')
+    .eq('submitted_by_user_id', profileId)
+
+  if (error) throw new Error(error.message)
+
+  const rows = (data || []) as DataAssistStatsBatchRow[]
+  const verifiedRows = rows.filter((row) => row.status === 'ready_to_import' || row.status === 'verified' || row.status === 'imported')
+  const rejectedRows = rows.filter((row) => row.status === 'rejected')
+  const pendingRows = rows.filter((row) => row.status !== 'ready_to_import' && row.status !== 'verified' && row.status !== 'imported' && row.status !== 'rejected')
+  const reviewedCount = verifiedRows.length + rejectedRows.length
+  const accuracyScore = reviewedCount ? Math.round((verifiedRows.length / reviewedCount) * 100) / 100 : 0
+  const badges = getDataAssistContributorBadges(verifiedRows.length, accuracyScore)
+
+  const { error: upsertError } = await supabase
+    .from('data_assist_contributor_stats')
+    .upsert({
+      profile_id: profileId,
+      verified_import_count: verifiedRows.length,
+      rejected_import_count: rejectedRows.length,
+      pending_review_count: pendingRows.length,
+      contribution_accuracy_score: accuracyScore,
+      admin_verified_imports: verifiedRows.length,
+      badges,
+      last_verified_at: latestReviewedAt(verifiedRows),
+      last_rejected_at: latestReviewedAt(rejectedRows),
+    }, { onConflict: 'profile_id' })
+
+  if (upsertError) throw new Error(upsertError.message)
+}
+
+export function getDataAssistContributorBadges(verifiedImportCount: number, accuracyScore: number): DataAssistContributorBadge[] {
+  const badges: DataAssistContributorBadge[] = []
+
+  if (verifiedImportCount >= 1) {
+    badges.push({
+      id: 'first_import',
+      label: 'First Import',
+      detail: 'First admin-approved Data Assist upload.',
+    })
+  }
+
+  if (verifiedImportCount >= 3 && accuracyScore >= 0.75) {
+    badges.push({
+      id: 'verified_contributor',
+      label: 'Verified Contributor',
+      detail: 'Three approved uploads with strong accuracy.',
+    })
+  }
+
+  if (verifiedImportCount >= 8 && accuracyScore >= 0.8) {
+    badges.push({
+      id: 'community_scout',
+      label: 'Community Scout',
+      detail: 'Consistently improves local tennis intelligence.',
+    })
+  }
+
+  return badges
+}
+
+function latestReviewedAt(rows: DataAssistStatsBatchRow[]) {
+  return rows
+    .map((row) => cleanText(row.reviewed_at))
+    .filter(Boolean)
+    .sort()
+    .at(-1) || null
+}
+
+function buildEmptyContributorStats(profileId: string): DataAssistContributorStats {
+  return {
+    profileId,
+    verifiedImportCount: 0,
+    rejectedImportCount: 0,
+    pendingReviewCount: 0,
+    contributionAccuracyScore: 0,
+    captainVerifiedImports: 0,
+    adminVerifiedImports: 0,
+    badges: [],
+    lastVerifiedAt: '',
+    lastRejectedAt: '',
+    updatedAt: '',
+  }
 }
 
 async function addSignedScreenshotUrls(screenshots: DataAssistAdminScreenshot[]) {
