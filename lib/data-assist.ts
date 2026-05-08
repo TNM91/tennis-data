@@ -9,6 +9,8 @@ import {
   type DataAssistAutoAssessment,
   type DataAssistScorecardParsedDraft,
 } from './data-assist-ocr'
+import type { DataAssistImportPreview } from './data-assist-import'
+import type { RunImportSuccess } from './ingestion/runImport'
 import { supabase } from './supabase'
 
 export type DataAssistImportType = 'scorecard' | 'schedule' | 'team_summary'
@@ -70,6 +72,16 @@ export type DataAssistOcrVerificationResult = {
 }
 
 export type DataAssistOcrReviewDecision = 'confirmed' | 'flagged'
+
+export type DataAssistImportAction = 'preview' | 'commit'
+
+export type DataAssistImportActionResult = {
+  ok: boolean
+  action: DataAssistImportAction
+  message: string
+  importPreview?: DataAssistImportPreview
+  importResult?: Extract<RunImportSuccess, { kind: 'scorecard' }>
+}
 
 export type DataAssistAdminBatch = {
   id: string
@@ -802,6 +814,44 @@ export async function reviewMyDataAssistOcrDraft(input: {
 
   if (!response.ok || !result?.ok) {
     throw new Error(result?.message || 'Could not review this Data Assist draft.')
+  }
+
+  return result
+}
+
+export async function runMyDataAssistImport(input: {
+  batchId: string
+  draftId: string
+  action: DataAssistImportAction
+}): Promise<DataAssistImportActionResult> {
+  const normalizedBatchId = cleanText(input.batchId)
+  const normalizedDraftId = cleanText(input.draftId)
+  if (!normalizedBatchId || !normalizedDraftId) {
+    throw new Error('Missing Data Assist batch or draft id.')
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const token = session?.access_token?.trim()
+  if (!token) throw new Error('Sign in to run this Data Assist import.')
+
+  const response = await fetch('/api/data-assist/import', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      batchId: normalizedBatchId,
+      draftId: normalizedDraftId,
+      action: input.action,
+    }),
+  })
+  const result = (await response.json().catch(() => null)) as DataAssistImportActionResult | null
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || 'Could not run this Data Assist import.')
   }
 
   return result
