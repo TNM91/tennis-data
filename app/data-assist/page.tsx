@@ -13,10 +13,12 @@ import {
   queueDataAssistOcrVerification,
   reorderDataAssistScreenshots,
   reviewMyDataAssistOcrDraft,
+  runMyDataAssistImport,
   saveDataAssistDraftBatch,
   summarizeDataAssistBatch,
   type DataAssistBatchSummary,
   type DataAssistContributorStats,
+  type DataAssistImportActionResult,
   type DataAssistImportType,
   type DataAssistPreparedScreenshot,
   type DataAssistSubmission,
@@ -70,6 +72,8 @@ function DataAssistWorkspace() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState('')
+  const [importingSubmissionId, setImportingSubmissionId] = useState('')
+  const [importResultsBySubmission, setImportResultsBySubmission] = useState<Record<string, DataAssistImportActionResult>>({})
 
   const confidenceLabel = useMemo(() => {
     if (!summary) return 'Waiting for screenshots'
@@ -199,6 +203,31 @@ function DataAssistWorkspace() {
     }
   }
 
+  async function runSubmissionImport(submission: DataAssistSubmission, action: 'preview' | 'commit') {
+    if (!submission.draftId || importingSubmissionId) return
+    setImportingSubmissionId(submission.id)
+    setMessage('')
+    setError('')
+
+    try {
+      const result = await runMyDataAssistImport({
+        batchId: submission.id,
+        draftId: submission.draftId,
+        action,
+      })
+      setImportResultsBySubmission((current) => ({
+        ...current,
+        [submission.id]: result,
+      }))
+      setMessage(result.message)
+      if (action === 'commit') await refreshSubmissions()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not run this Data Assist import.')
+    } finally {
+      setImportingSubmissionId('')
+    }
+  }
+
   return (
     <section style={pageStyle(isMobile)}>
       <section style={heroStyle(isTablet, isMobile)}>
@@ -243,6 +272,9 @@ function DataAssistWorkspace() {
         onRefresh={() => void refreshSubmissions()}
         reviewingSubmissionId={reviewingSubmissionId}
         onReviewSubmission={(submission, decision) => void reviewSubmission(submission, decision)}
+        importingSubmissionId={importingSubmissionId}
+        importResultsBySubmission={importResultsBySubmission}
+        onRunImport={(submission, action) => void runSubmissionImport(submission, action)}
       />
 
       <section style={workspaceStyle(isTablet)}>
@@ -479,6 +511,9 @@ function MySubmissionsPanel({
   onRefresh,
   reviewingSubmissionId,
   onReviewSubmission,
+  importingSubmissionId,
+  importResultsBySubmission,
+  onRunImport,
 }: {
   authResolved: boolean
   userId: string | null
@@ -489,6 +524,9 @@ function MySubmissionsPanel({
   onRefresh: () => void
   reviewingSubmissionId: string
   onReviewSubmission: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+  importingSubmissionId: string
+  importResultsBySubmission: Record<string, DataAssistImportActionResult>
+  onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
 }) {
   const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
@@ -525,6 +563,9 @@ function MySubmissionsPanel({
                 submission={submission}
                 busy={reviewingSubmissionId === submission.id}
                 onReview={onReviewSubmission}
+                importing={importingSubmissionId === submission.id}
+                importResult={importResultsBySubmission[submission.id]}
+                onRunImport={onRunImport}
               />
             ))}
           </div>
@@ -591,10 +632,16 @@ function SubmissionCard({
   submission,
   busy,
   onReview,
+  importing,
+  importResult,
+  onRunImport,
 }: {
   submission: DataAssistSubmission
   busy: boolean
   onReview: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+  importing: boolean
+  importResult?: DataAssistImportActionResult
+  onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
 }) {
   const status = getSubmissionStatusCopy(submission)
   const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
@@ -605,6 +652,8 @@ function SubmissionCard({
     submission.draftOcrStatus === 'processed' &&
     submission.draftStatus === 'ready_for_verification' &&
     (submission.status === 'ready_to_import' || submission.status === 'needs_review')
+  const canPreviewImport = Boolean(parsedDraft && submission.draftId && (submission.status === 'verified' || submission.status === 'imported'))
+  const canCommitImport = Boolean(canPreviewImport && submission.status === 'verified')
 
   return (
     <article style={submissionCardStyle}>
@@ -630,11 +679,88 @@ function SubmissionCard({
           onFlag={() => onReview(submission, 'flagged')}
         />
       ) : null}
+      {parsedDraft && canPreviewImport ? (
+        <ImportPreviewPanel
+          result={importResult}
+          importing={importing}
+          canCommit={canCommitImport}
+          onPreview={() => onRunImport(submission, 'preview')}
+          onCommit={() => onRunImport(submission, 'commit')}
+        />
+      ) : null}
       <div style={submissionMetaStyle}>
         <span>{formatDate(submission.createdAt)}</span>
         <span>{submission.draftOcrStatus.replace(/_/g, ' ')}</span>
       </div>
     </article>
+  )
+}
+
+function ImportPreviewPanel({
+  result,
+  importing,
+  canCommit,
+  onPreview,
+  onCommit,
+}: {
+  result: DataAssistImportActionResult | undefined
+  importing: boolean
+  canCommit: boolean
+  onPreview: () => void
+  onCommit: () => void
+}) {
+  const preview = result?.importPreview
+  const unresolvedWinnerCount = preview?.unresolvedWinnerCount ?? 0
+  const unknownPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'unknown').length ?? 0
+  const likelyPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'likely').length ?? 0
+  const commitBlocked = unresolvedWinnerCount > 0 || unknownPlayers > 0 || !canCommit
+
+  return (
+    <div style={importPanelStyle}>
+      <div style={submissionCardTopStyle}>
+        <div>
+          <strong>Import preview</strong>
+          <p style={copyStyle}>
+            Check match, player mapping, and line readiness before TenAceIQ writes match records.
+          </p>
+        </div>
+        {result ? <span style={pillGreenStyle}>{result.action}</span> : null}
+      </div>
+      {preview ? (
+        <>
+          <div style={scorecardHeaderGridStyle}>
+            <ReviewFact label="Lines" value={String(preview.row.lines.length)} />
+            <ReviewFact label="Winners" value={unresolvedWinnerCount ? `${unresolvedWinnerCount} unresolved` : 'Ready'} />
+            <ReviewFact label="Players" value={unknownPlayers ? `${unknownPlayers} unknown` : likelyPlayers ? `${likelyPlayers} likely` : 'Matched'} />
+          </div>
+          <div style={parsedLineListStyle}>
+            {preview.playerMappings.slice(0, 6).map((mapping) => (
+              <div key={mapping.name} style={parsedLineStyle}>
+                <span>{mapping.name}</span>
+                <strong>{mapping.status}</strong>
+                <small>{mapping.matchedPlayerName || 'Will need resolution before commit'}</small>
+              </div>
+            ))}
+          </div>
+          {result?.importResult?.result.rows[0]?.message ? (
+            <p style={copyStyle}>{result.importResult.result.rows[0].message}</p>
+          ) : null}
+        </>
+      ) : (
+        <p style={copyStyle}>Run preview to see what will be created or updated.</p>
+      )}
+      <div style={cardActionRowStyle}>
+        <button type="button" onClick={onPreview} disabled={importing} style={{ ...smallButtonStyle, ...(importing ? disabledStyle : {}) }}>
+          {importing ? 'Running...' : 'Preview import'}
+        </button>
+        <button type="button" onClick={onCommit} disabled={importing || commitBlocked} style={{ ...smallButtonStyle, ...(importing || commitBlocked ? disabledStyle : {}) }}>
+          Commit import
+        </button>
+      </div>
+      {commitBlocked && preview ? (
+        <p style={warningStyle}>Commit unlocks after winners and player matches are resolved.</p>
+      ) : null}
+    </div>
   )
 }
 
@@ -1080,6 +1206,11 @@ const scorecardReviewStyle: CSSProperties = {
   padding: 12,
   display: 'grid',
   gap: 10,
+}
+
+const importPanelStyle: CSSProperties = {
+  ...scorecardReviewStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
 }
 
 const scorecardHeaderGridStyle: CSSProperties = {
