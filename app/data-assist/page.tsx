@@ -117,7 +117,7 @@ function DataAssistWorkspace() {
     try {
       const result = await saveDataAssistDraftBatch(summary)
       setSavedBatchId(result.batchId)
-      setMessage('Data Assist draft saved for review. Nothing has been imported yet.')
+      setMessage(`Data Assist draft saved with ${result.screenshotCount} stored screenshot${result.screenshotCount === 1 ? '' : 's'}. Nothing has been imported yet.`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data Assist draft could not be saved.')
     } finally {
@@ -334,7 +334,7 @@ function ScreenshotCard({
           </span>
         </div>
         <p style={copyStyle}>
-          {screenshot.imageWidth} x {screenshot.imageHeight} · {(screenshot.fileSizeBytes / 1024 / 1024).toFixed(1)} MB
+          {screenshot.imageWidth} x {screenshot.imageHeight} - {(screenshot.fileSizeBytes / 1024 / 1024).toFixed(1)} MB
         </p>
         {screenshot.rejectionReason ? <p style={warningStyle}>{screenshot.rejectionReason}</p> : null}
         <div style={signalListStyle}>

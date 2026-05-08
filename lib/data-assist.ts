@@ -53,6 +53,7 @@ export type DataAssistBatchSummary = {
 export type DataAssistSaveResult = {
   batchId: string
   draftId: string
+  screenshotCount: number
 }
 
 export type DataAssistAdminBatch = {
@@ -87,6 +88,10 @@ export type DataAssistAdminScreenshot = {
   confidenceScore: number
   visualSignals: string[]
   rejectionReason: string
+  storageBucket: string
+  storagePath: string
+  storageUploadedAt: string
+  signedImageUrl: string
   createdAt: string
 }
 
@@ -144,6 +149,9 @@ type DataAssistScreenshotRow = {
   confidence_score?: number | null
   visual_signals?: unknown
   rejection_reason?: string | null
+  storage_bucket?: string | null
+  storage_path?: string | null
+  storage_uploaded_at?: string | null
   created_at?: string | null
 }
 
@@ -169,6 +177,7 @@ type DataAssistDraftRow = {
   updated_at?: string | null
 }
 
+const DATA_ASSIST_SCREENSHOT_BUCKET = 'data-assist-screenshots'
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 const MAX_BATCH_SIZE = 8
 const ALLOWED_SCREENSHOT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -275,6 +284,10 @@ function toAdminScreenshot(row: DataAssistScreenshotRow): DataAssistAdminScreens
     confidenceScore: row.confidence_score ?? 0,
     visualSignals: normalizeSignals(row.visual_signals),
     rejectionReason: cleanText(row.rejection_reason),
+    storageBucket: cleanText(row.storage_bucket) || DATA_ASSIST_SCREENSHOT_BUCKET,
+    storagePath: cleanText(row.storage_path),
+    storageUploadedAt: cleanText(row.storage_uploaded_at),
+    signedImageUrl: '',
     createdAt: cleanText(row.created_at),
   }
 }
@@ -433,7 +446,8 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   const batchId = (batch as { id?: string | null } | null)?.id
   if (!batchId) throw new Error('Data Assist batch could not be created.')
 
-  const screenshotPayload = summary.screenshots.map((screenshot) => ({
+  const uploadedScreenshots = await uploadDataAssistScreenshots(userId, batchId, summary.screenshots)
+  const screenshotPayload = uploadedScreenshots.map(({ screenshot, storagePath, storageUploadedAt }) => ({
     batch_id: batchId,
     submitted_by_user_id: userId,
     upload_order: screenshot.uploadOrder,
@@ -448,6 +462,9 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
     confidence_score: screenshot.confidenceScore,
     visual_signals: screenshot.visualSignals,
     rejection_reason: screenshot.rejectionReason,
+    storage_bucket: DATA_ASSIST_SCREENSHOT_BUCKET,
+    storage_path: storagePath,
+    storage_uploaded_at: storageUploadedAt,
   }))
   const screenshotResult = await supabase.from('data_assist_screenshots').insert(screenshotPayload)
   if (screenshotResult.error) throw new Error(screenshotResult.error.message)
@@ -492,7 +509,7 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   const draftId = (draft as { id?: string | null } | null)?.id
   if (!draftId) throw new Error('Data Assist draft could not be created.')
 
-  return { batchId, draftId }
+  return { batchId, draftId, screenshotCount: uploadedScreenshots.length }
 }
 
 export async function listDataAssistAdminBatches() {
@@ -515,7 +532,7 @@ export async function loadDataAssistAdminBatchDetail(batchId: string) {
   const [screenshotsResult, draftsResult] = await Promise.all([
     supabase
       .from('data_assist_screenshots')
-      .select('id, batch_id, upload_order, file_name, mime_type, file_size_bytes, image_width, image_height, client_fingerprint, detection_status, detected_layout, confidence_score, visual_signals, rejection_reason, created_at')
+      .select('id, batch_id, upload_order, file_name, mime_type, file_size_bytes, image_width, image_height, client_fingerprint, detection_status, detected_layout, confidence_score, visual_signals, rejection_reason, storage_bucket, storage_path, storage_uploaded_at, created_at')
       .eq('batch_id', normalizedBatchId)
       .order('upload_order', { ascending: true }),
     supabase
@@ -528,10 +545,12 @@ export async function loadDataAssistAdminBatchDetail(batchId: string) {
   if (screenshotsResult.error) throw new Error(screenshotsResult.error.message)
   if (draftsResult.error) throw new Error(draftsResult.error.message)
 
+  const screenshots = ((screenshotsResult.data || []) as DataAssistScreenshotRow[])
+    .map(toAdminScreenshot)
+    .filter((screenshot): screenshot is DataAssistAdminScreenshot => Boolean(screenshot))
+
   return {
-    screenshots: ((screenshotsResult.data || []) as DataAssistScreenshotRow[])
-      .map(toAdminScreenshot)
-      .filter((screenshot): screenshot is DataAssistAdminScreenshot => Boolean(screenshot)),
+    screenshots: await addSignedScreenshotUrls(screenshots),
     drafts: ((draftsResult.data || []) as DataAssistDraftRow[])
       .map(toAdminDraft)
       .filter((draft): draft is DataAssistAdminDraft => Boolean(draft)),
@@ -581,6 +600,60 @@ export async function reviewDataAssistBatch(input: {
 
     if (draftUpdate.error) throw new Error(draftUpdate.error.message)
   }
+}
+
+async function uploadDataAssistScreenshots(
+  userId: string,
+  batchId: string,
+  screenshots: DataAssistPreparedScreenshot[],
+) {
+  const uploaded: Array<{
+    screenshot: DataAssistPreparedScreenshot
+    storagePath: string
+    storageUploadedAt: string
+  }> = []
+
+  for (const screenshot of screenshots) {
+    const storagePath = `${userId}/${batchId}/${String(screenshot.uploadOrder).padStart(2, '0')}-${screenshot.clientFingerprint}.${getScreenshotExtension(screenshot.file)}`
+    const { error } = await supabase.storage
+      .from(DATA_ASSIST_SCREENSHOT_BUCKET)
+      .upload(storagePath, screenshot.file, {
+        cacheControl: '3600',
+        contentType: screenshot.mimeType,
+        upsert: false,
+      })
+
+    if (error) {
+      throw new Error(error.message || `Could not upload ${screenshot.fileName}.`)
+    }
+
+    uploaded.push({
+      screenshot,
+      storagePath,
+      storageUploadedAt: new Date().toISOString(),
+    })
+  }
+
+  return uploaded
+}
+
+async function addSignedScreenshotUrls(screenshots: DataAssistAdminScreenshot[]) {
+  return Promise.all(
+    screenshots.map(async (screenshot) => {
+      if (!screenshot.storagePath) return screenshot
+
+      const { data, error } = await supabase.storage
+        .from(screenshot.storageBucket || DATA_ASSIST_SCREENSHOT_BUCKET)
+        .createSignedUrl(screenshot.storagePath, 60 * 20)
+
+      if (error || !data?.signedUrl) return screenshot
+
+      return {
+        ...screenshot,
+        signedImageUrl: data.signedUrl,
+      }
+    }),
+  )
 }
 
 async function prepareDataAssistScreenshot(
@@ -668,6 +741,14 @@ async function buildFileFingerprint(file: File) {
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
   return `${hash.slice(0, 24)}-${file.size}`
+}
+
+function getScreenshotExtension(file: File) {
+  const fromName = file.name.split('.').pop()?.toLowerCase() || ''
+  if (['jpg', 'jpeg', 'png', 'webp'].includes(fromName)) return fromName
+  if (file.type === 'image/png') return 'png'
+  if (file.type === 'image/webp') return 'webp'
+  return 'jpg'
 }
 
 function impactAreasForImportType(importType: DataAssistImportType) {
