@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildDataAssistOcrQualitySummary,
   buildScorecardOcrDraftFromText,
   buildMockScorecardOcrDraft,
   buildEmptyScorecardDraftFields,
@@ -106,6 +107,11 @@ describe('Data Assist OCR boundary', () => {
     expect(draft.sourceScreenshotCount).toBe(1)
     expect(draft.confidenceScore).toBeGreaterThan(0.7)
     expect(draft.parserWarnings[0]).toContain('Review-only')
+    expect(draft.ocrQuality).toMatchObject({
+      provider: 'mock_review',
+      parsedLineCount: 1,
+      reviewPriority: 'needs_manual_review',
+    })
   })
 
   it('marks parsed drafts with the OCR provider that supplied the text', () => {
@@ -118,5 +124,25 @@ describe('Data Assist OCR boundary', () => {
     expect(draft.provider).toBe('tesseract')
     expect(draft.externalMatchId).toBe('USTA-246810')
     expect(draft.lines[0].lineLabel).toBe('1 Singles')
+  })
+
+  it('summarizes OCR quality for review triage', () => {
+    expect(buildDataAssistOcrQualitySummary({
+      provider: 'tesseract',
+      rawText: '',
+      parserWarnings: [],
+      parsedLineCount: 0,
+      ocrConfidenceScore: 0,
+      parserConfidenceScore: 0,
+    }).reviewPriority).toBe('blocked')
+
+    expect(buildDataAssistOcrQualitySummary({
+      provider: 'tesseract',
+      rawText: '1S Jane Ace def. Molly Baseline 6-1 6-0',
+      parserWarnings: ['Missing TennisLink match id.'],
+      parsedLineCount: 1,
+      ocrConfidenceScore: 0.72,
+      parserConfidenceScore: 0.7,
+    }).reviewPriority).toBe('needs_manual_review')
   })
 })

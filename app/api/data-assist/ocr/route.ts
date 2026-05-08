@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
+  buildDataAssistOcrQualitySummary,
   buildScorecardOcrDraftFromText,
   getServerDataAssistOcrReadiness,
   type DataAssistOcrScreenshotInput,
@@ -126,6 +127,14 @@ export async function POST(request: Request) {
     parserWarnings: uniqueText([...ocrResult.warnings, ...parsedDraftBase.parserWarnings]),
     confidenceScore: Math.max(parsedDraftBase.confidenceScore, ocrResult.confidenceScore),
   }
+  parsedDraft.ocrQuality = buildDataAssistOcrQualitySummary({
+    provider: parsedDraft.provider,
+    rawText: ocrResult.rawText,
+    parserWarnings: parsedDraft.parserWarnings,
+    parsedLineCount: parsedDraft.lineCount,
+    ocrConfidenceScore: ocrResult.confidenceScore,
+    parserConfidenceScore: parsedDraftBase.confidenceScore,
+  })
   const screenshotConfidence = screenshots.length
     ? screenshots.reduce((sum, screenshot) => sum + screenshot.confidenceScore, 0) / screenshots.length
     : 0

@@ -48,6 +48,18 @@ export type DataAssistScorecardParsedDraft = DataAssistScorecardDraftFields & {
   sourceScreenshotCount: number
   provider: DataAssistOcrProvider
   confidenceScore: number
+  ocrQuality?: DataAssistOcrQualitySummary
+}
+
+export type DataAssistOcrQualitySummary = {
+  provider: DataAssistOcrProvider
+  textLength: number
+  nonEmptyLineCount: number
+  parserWarningCount: number
+  parsedLineCount: number
+  ocrConfidenceScore: number
+  parserConfidenceScore: number
+  reviewPriority: 'ready_for_review' | 'needs_manual_review' | 'blocked'
 }
 
 export const DATA_ASSIST_OCR_PROVIDER: DataAssistOcrProvider = 'disabled'
@@ -149,6 +161,43 @@ export function buildScorecardOcrDraftFromText(
     ],
     sourceScreenshotCount: orderedScreenshots.length,
     provider,
+    ocrQuality: buildDataAssistOcrQualitySummary({
+      provider,
+      rawText: parsedDraft.rawTextPreview,
+      parserWarnings: parsedDraft.parserWarnings,
+      parsedLineCount: parsedDraft.lineCount,
+      ocrConfidenceScore: parsedDraft.confidenceScore,
+      parserConfidenceScore: parsedDraft.confidenceScore,
+    }),
+  }
+}
+
+export function buildDataAssistOcrQualitySummary(input: {
+  provider: DataAssistOcrProvider
+  rawText: string
+  parserWarnings: string[]
+  parsedLineCount: number
+  ocrConfidenceScore: number
+  parserConfidenceScore: number
+}): DataAssistOcrQualitySummary {
+  const textLength = input.rawText.trim().length
+  const nonEmptyLineCount = input.rawText.split('\n').filter((line) => line.trim()).length
+  const reviewPriority: DataAssistOcrQualitySummary['reviewPriority'] =
+    !textLength || !input.parsedLineCount
+      ? 'blocked'
+      : input.parserWarnings.length || input.parserConfidenceScore < 0.8 || input.ocrConfidenceScore < 0.65
+        ? 'needs_manual_review'
+        : 'ready_for_review'
+
+  return {
+    provider: input.provider,
+    textLength,
+    nonEmptyLineCount,
+    parserWarningCount: input.parserWarnings.length,
+    parsedLineCount: input.parsedLineCount,
+    ocrConfidenceScore: roundConfidence(input.ocrConfidenceScore),
+    parserConfidenceScore: roundConfidence(input.parserConfidenceScore),
+    reviewPriority,
   }
 }
 
@@ -159,6 +208,10 @@ function normalizeDataAssistOcrProvider(value: string | undefined): DataAssistOc
 
 function getClientSafeEnv(): Record<string, string | undefined> {
   return typeof process === 'undefined' ? {} : process.env
+}
+
+function roundConfidence(value: number) {
+  return Math.max(0, Math.min(1, Math.round(value * 100) / 100))
 }
 
 export function getScorecardDraftReadiness(fields: DataAssistScorecardDraftFields) {
