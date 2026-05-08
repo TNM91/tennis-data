@@ -69,6 +69,7 @@ function DataAssistWorkspace() {
   const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
+  const [selectedFileCount, setSelectedFileCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [savedBatchId, setSavedBatchId] = useState('')
   const [submissions, setSubmissions] = useState<DataAssistSubmission[]>([])
@@ -143,12 +144,14 @@ function DataAssistWorkspace() {
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
+    setSelectedFileCount(files.length)
     setPreparing(true)
     setSavedBatchId('')
-    setMessage('')
+    setMessage(`Preparing ${files.length} screenshot${files.length === 1 ? '' : 's'}...`)
     setError('')
 
     try {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
       const preparedSummary = await prepareDataAssistBatch(files, importType)
       const existingScreenshots = summary?.screenshots || []
       const appendedScreenshots = [
@@ -171,6 +174,7 @@ function DataAssistWorkspace() {
       setError(err instanceof Error ? err.message : 'Screenshots could not be prepared.')
     } finally {
       setPreparing(false)
+      setSelectedFileCount(0)
       event.target.value = ''
     }
   }
@@ -431,7 +435,7 @@ function DataAssistWorkspace() {
                 >
                   <span style={typeButtonHeaderStyle}>
                     <strong>{item.label}</strong>
-                    {item.badge ? <small>{item.badge}</small> : null}
+                    {item.badge ? <small style={typeRecommendedBadgeStyle}>{item.badge}</small> : null}
                   </span>
                   <span>{item.detail}</span>
                 </button>
@@ -447,12 +451,12 @@ function DataAssistWorkspace() {
               <input
                 type="file"
                 multiple
-                accept="image/png,image/jpeg,image/webp"
+                accept="image/*"
                 onChange={(event) => void handleFiles(event)}
                 style={fileInputStyle}
               />
               <span style={dropzoneKickerStyle}>TennisLink screenshots only</span>
-              <strong>{preparing ? 'Checking screenshots...' : 'Tap or drag screenshots here'}</strong>
+              <strong>{preparing ? `Preparing ${selectedFileCount || ''} screenshot${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose screenshots'}</strong>
               <small>{getUploadHint(importType)}</small>
             </label>
 
@@ -490,12 +494,12 @@ function DataAssistWorkspace() {
           <input
             type="file"
             multiple
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/*"
             onChange={(event) => void handleFiles(event)}
             style={fileInputStyle}
           />
           <span style={dropzoneKickerStyle}>Add screenshots</span>
-          <strong>{preparing ? 'Checking...' : 'Add another image or select several'}</strong>
+          <strong>{preparing ? `Preparing ${selectedFileCount || ''}...` : 'Add another or select several'}</strong>
           <small>Use this when a phone screenshot only captures part of the TennisLink table.</small>
         </label>
 
@@ -1826,11 +1830,11 @@ const heroStyle = (isMobile: boolean): CSSProperties => ({
 })
 
 const heroCopyStyle: CSSProperties = {
-  borderRadius: 28,
+  borderRadius: 'clamp(18px, 5vw, 28px)',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
-  padding: 'clamp(22px, 4vw, 38px)',
+  padding: 'clamp(16px, 4vw, 38px)',
   display: 'grid',
   alignContent: 'center',
   gap: 16,
@@ -1839,8 +1843,8 @@ const heroCopyStyle: CSSProperties = {
 const titleStyle = (isSmallMobile: boolean): CSSProperties => ({
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: isSmallMobile ? 38 : 'clamp(2.55rem, 5vw, 4.5rem)',
-  lineHeight: 0.96,
+  fontSize: isSmallMobile ? 31 : 'clamp(2rem, 5vw, 4.5rem)',
+  lineHeight: 1.04,
   fontWeight: 950,
   letterSpacing: 0,
   maxWidth: 760,
@@ -1850,8 +1854,8 @@ const heroTextStyle: CSSProperties = {
   margin: 0,
   maxWidth: 700,
   color: 'var(--shell-copy-muted)',
-  fontSize: 17,
-  lineHeight: 1.75,
+  fontSize: 15,
+  lineHeight: 1.55,
   fontWeight: 700,
 }
 
@@ -1869,11 +1873,11 @@ const workspaceStyle = (isTablet: boolean): CSSProperties => ({
 })
 
 const panelStyle: CSSProperties = {
-  borderRadius: 24,
+  borderRadius: 18,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-card)',
-  padding: 18,
+  padding: 'clamp(13px, 4vw, 18px)',
   display: 'grid',
   gap: 14,
 }
@@ -1889,8 +1893,8 @@ const sectionHeaderStyle: CSSProperties = {
 const sectionTitleStyle: CSSProperties = {
   margin: '5px 0 0',
   color: 'var(--foreground-strong)',
-  fontSize: 24,
-  lineHeight: 1.1,
+  fontSize: 'clamp(20px, 5vw, 24px)',
+  lineHeight: 1.18,
   fontWeight: 950,
 }
 
@@ -1922,6 +1926,8 @@ const stepBadgeStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 950,
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
 }
 
 const stepBadgeNumberStyle: CSSProperties = {
@@ -1935,8 +1941,8 @@ const stepBadgeNumberStyle: CSSProperties = {
 }
 
 const typeButtonStyle = (active: boolean): CSSProperties => ({
-  minHeight: 82,
-  borderRadius: 18,
+  minHeight: 76,
+  borderRadius: 14,
   border: active
     ? '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)'
     : '1px solid var(--shell-panel-border)',
@@ -1949,6 +1955,7 @@ const typeButtonStyle = (active: boolean): CSSProperties => ({
   display: 'grid',
   gap: 6,
   cursor: 'pointer',
+  minWidth: 0,
 })
 
 const typeButtonHeaderStyle: CSSProperties = {
@@ -1956,11 +1963,23 @@ const typeButtonHeaderStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const typeRecommendedBadgeStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-panel-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  padding: '3px 7px',
+  fontSize: 10,
+  fontWeight: 950,
 }
 
 const dropzoneStyle = (status: string): CSSProperties => ({
-  minHeight: 190,
-  borderRadius: 22,
+  minHeight: 150,
+  borderRadius: 16,
   border: status === 'rejected'
     ? '1px dashed rgba(248,113,113,0.55)'
     : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
@@ -1985,7 +2004,7 @@ const fileInputStyle: CSSProperties = {
 }
 
 const dropzoneKickerStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
+  color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 950,
   letterSpacing: '0.08em',
@@ -2127,6 +2146,8 @@ const submissionCardTopStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const submissionMetaStyle: CSSProperties = {
@@ -2173,7 +2194,7 @@ const importPanelStyle: CSSProperties = {
 
 const scorecardHeaderGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
   gap: 8,
 }
 
@@ -2189,11 +2210,13 @@ const reviewFactStyle: CSSProperties = {
   fontSize: 10,
   fontWeight: 900,
   textTransform: 'uppercase',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamMatchupStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
   alignItems: 'center',
   color: 'var(--foreground-strong)',
@@ -2228,10 +2251,12 @@ const parsedLineStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   padding: 9,
   display: 'grid',
-  gridTemplateColumns: 'auto auto',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
   gap: 6,
   color: 'var(--foreground-strong)',
   fontSize: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const parsedScorecardLineStyle = (winner: string): CSSProperties => ({
@@ -2247,6 +2272,8 @@ const parsedScorecardLineStyle = (winner: string): CSSProperties => ({
   gap: 9,
   color: 'var(--foreground-strong)',
   fontSize: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const scheduleMatchRowStyle: CSSProperties = {
@@ -2258,11 +2285,13 @@ const scheduleMatchRowStyle: CSSProperties = {
   gap: 9,
   color: 'var(--foreground-strong)',
   fontSize: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const scheduleMatchGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 8,
 }
 
@@ -2272,6 +2301,7 @@ const parsedLineMainStyle: CSSProperties = {
   alignItems: 'center',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const lineScoreStyle: CSSProperties = {
@@ -2281,7 +2311,7 @@ const lineScoreStyle: CSSProperties = {
 
 const playerSidesGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 8,
 }
 
@@ -2313,13 +2343,15 @@ const lineHeaderStyle: CSSProperties = {
   alignItems: 'center',
   gap: 6,
   flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const lineCheckStyle: CSSProperties = {
   borderRadius: 999,
   border: '1px solid rgba(251,191,36,0.32)',
   background: 'rgba(251,191,36,0.12)',
-  color: '#fde68a',
+  color: 'var(--foreground-strong)',
   padding: '1px 6px',
   fontSize: 9,
   fontWeight: 950,
@@ -2330,7 +2362,7 @@ const reviewChecklistStyle: CSSProperties = {
   borderRadius: 12,
   border: '1px solid rgba(251,191,36,0.22)',
   background: 'rgba(251,191,36,0.08)',
-  color: '#fde68a',
+  color: 'var(--foreground-strong)',
   padding: 10,
   display: 'grid',
   gap: 5,
@@ -2463,6 +2495,8 @@ const screenshotHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 8,
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const signalListStyle: CSSProperties = {
@@ -2475,6 +2509,7 @@ const cardActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 8,
+  minWidth: 0,
 }
 
 const smallButtonStyle: CSSProperties = {
@@ -2492,7 +2527,7 @@ const smallButtonStyle: CSSProperties = {
 const smallDangerButtonStyle: CSSProperties = {
   ...smallButtonStyle,
   border: '1px solid rgba(248,113,113,0.26)',
-  color: '#fecaca',
+  color: 'var(--foreground-strong)',
 }
 
 const draftActionRowStyle: CSSProperties = {
@@ -2500,6 +2535,7 @@ const draftActionRowStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const primaryButtonStyle: CSSProperties = {
@@ -2516,6 +2552,9 @@ const primaryButtonStyle: CSSProperties = {
   fontWeight: 950,
   textDecoration: 'none',
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -2538,14 +2577,14 @@ const pillAmberStyle: CSSProperties = {
   ...pillStyle,
   border: '1px solid rgba(251,191,36,0.32)',
   background: 'rgba(251,191,36,0.12)',
-  color: '#fde68a',
+  color: 'var(--foreground-strong)',
 }
 
 const pillDangerStyle: CSSProperties = {
   ...pillStyle,
   border: '1px solid rgba(248,113,113,0.32)',
   background: 'rgba(248,113,113,0.12)',
-  color: '#fecaca',
+  color: 'var(--foreground-strong)',
 }
 
 const copyStyle: CSSProperties = {
@@ -2584,7 +2623,7 @@ const scanLoadingCopyStyle: CSSProperties = {
 
 const warningStyle: CSSProperties = {
   ...hintStyle,
-  color: '#fde68a',
+  color: 'var(--foreground-strong)',
 }
 
 const noticeStyle: CSSProperties = {
