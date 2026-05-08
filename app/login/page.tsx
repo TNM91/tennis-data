@@ -263,9 +263,17 @@ export default function LoginPage() {
         throw new Error('Sign in timed out. Check your connection and try again.')
       }
 
-      const { error: signInError } = signInResult.result
+      const { data: signInData, error: signInError } = signInResult.result
 
       if (signInError) throw new Error(signInError.message)
+      if (!signInData.session?.access_token || !signInData.session.refresh_token) {
+        throw new Error('Sign in did not return an active session. Please check the account credentials and try again.')
+      }
+
+      await supabase.auth.setSession({
+        access_token: signInData.session.access_token,
+        refresh_token: signInData.session.refresh_token,
+      })
 
       const authState = await withLoginTimeout(
         getClientAuthState(),
@@ -283,7 +291,12 @@ export default function LoginPage() {
       setRedirecting(true)
       setRole(nextRole)
       setAuthLoading(false)
-      router.replace(await getPostLoginRoute(nextRole, authState.entitlements, authState.user?.id))
+      const nextRoute = await getPostLoginRoute(
+        nextRole,
+        authState.entitlements,
+        authState.user?.id ?? signInData.session.user.id,
+      )
+      window.location.assign(nextRoute)
     } catch (err) {
       hasRedirectedRef.current = false
       setRedirecting(false)
