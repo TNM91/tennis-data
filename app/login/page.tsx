@@ -118,7 +118,7 @@ export default function LoginPage() {
   const router = useRouter()
 
   const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
+  const [authLoading, setAuthLoading] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
 
   const [email, setEmail] = useState('')
@@ -157,18 +157,6 @@ export default function LoginPage() {
     router.prefetch('/captain')
     router.prefetch('/league-coordinator')
   }, [router, getPostLoginRoute])
-
-  useEffect(() => {
-    if (!authLoading) return
-
-    const timeoutId = window.setTimeout(() => {
-      if (!hasRedirectedRef.current) {
-        setAuthLoading(false)
-      }
-    }, LOGIN_AUTH_TIMEOUT_MS)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [authLoading])
 
   useEffect(() => {
     let mounted = true
@@ -260,14 +248,35 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password,
-      })
+      const signInResult = await withLoginTimeout<
+        | { timedOut: false; result: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>> }
+        | { timedOut: true }
+      >(
+        supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        }).then((result) => ({ timedOut: false as const, result })),
+        LOGIN_AUTH_TIMEOUT_MS,
+        { timedOut: true as const },
+      )
+      if (signInResult.timedOut) {
+        throw new Error('Sign in timed out. Check your connection and try again.')
+      }
+
+      const { error: signInError } = signInResult.result
 
       if (signInError) throw new Error(signInError.message)
 
-      const authState = await getClientAuthState()
+      const authState = await withLoginTimeout(
+        getClientAuthState(),
+        LOGIN_AUTH_TIMEOUT_MS,
+        {
+          user: null,
+          role: 'member',
+          entitlements: null,
+          loading: false,
+        },
+      )
       const nextRole = authState.role === 'public' ? 'member' : authState.role
 
       hasRedirectedRef.current = true
@@ -306,19 +315,6 @@ export default function LoginPage() {
   const loginPanelInnerResponsive: CSSProperties = {
     ...loginPanelInner,
     padding: isMobile ? 0 : '22px',
-  }
-
-  if (authLoading) {
-    return (
-      <SiteShell active="login">
-        <section style={loadingShell}>
-          <div style={loadingCard}>
-            <span style={spinnerStyle} />
-            Checking sign-in status...
-          </div>
-        </section>
-      </SiteShell>
-    )
   }
 
   if (role !== 'public' || redirecting) {

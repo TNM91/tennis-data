@@ -300,6 +300,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
   const canUseCaptainTools = access.canUseCaptainWorkflow
+  const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
 
   return (
     <header
@@ -454,12 +455,12 @@ export default function SiteHeader({ active }: { active?: string }) {
             )}
 
             {useCompactHeader && !authenticated ? (
-              <Link href="/login" style={compactSignInStyle}>
+              <Link href={signInHref} style={compactSignInStyle}>
                 Sign in
               </Link>
             ) : null}
 
-            {useCompactHeader ? (
+            {useCompactHeader && authenticated ? (
               <button
                 type="button"
                 aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -615,7 +616,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </>
               ) : (
                 <>
-                  <Link href="/login" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                  <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <span>Sign in</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
