@@ -1215,9 +1215,20 @@ function detectVisualSignals(file: File, dimensions: { width: number; height: nu
 
 function detectLayoutSignals(file: File, requestedImportType: DataAssistImportType) {
   const lowerName = file.name.toLowerCase()
-  return FILE_HINTS[requestedImportType]
+  const signals = FILE_HINTS[requestedImportType]
     .filter((hint) => lowerName.includes(hint))
     .map((hint) => `${getDataAssistImportTypeLabel(requestedImportType)} filename hint: ${hint}`)
+
+  if (isTrustedTennisLinkFilename(lowerName) && signals.length === 0) {
+    signals.push(`${getDataAssistImportTypeLabel(requestedImportType)} selected from TennisLink screenshot`)
+  }
+
+  return signals
+}
+
+export function isTrustedTennisLinkFilename(fileName: string) {
+  const lowerName = fileName.toLowerCase()
+  return lowerName.includes('tennislink.usta.com') || lowerName.includes('tennislink') || lowerName.includes('usta')
 }
 
 function buildScreenshotRejectionReason(file: File, dimensions: { width: number; height: number }) {

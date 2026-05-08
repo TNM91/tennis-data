@@ -67,10 +67,10 @@ function DataAssistWorkspace() {
   const [error, setError] = useState('')
 
   const confidenceLabel = useMemo(() => {
-    if (!summary) return 'Waiting'
-    if (summary.status === 'layout_detected') return 'Strong'
-    if (summary.status === 'needs_review') return 'Needs review'
-    return 'Rejected'
+    if (!summary) return 'Waiting for screenshots'
+    if (summary.status === 'layout_detected') return 'Ready for review'
+    if (summary.status === 'needs_review') return 'Review recommended'
+    return 'Not supported'
   }, [summary])
 
   async function refreshSubmissions() {
@@ -113,9 +113,9 @@ function DataAssistWorkspace() {
       if (nextSummary.status === 'rejected') {
         setError(nextSummary.rejectionReason)
       } else if (nextSummary.status === 'needs_review') {
-        setMessage('Screenshots are staged. A verifier should confirm the TennisLink layout before parsing.')
+        setMessage('Screenshots are staged. Full-page captures are accepted, but cropped scorecard screenshots usually OCR better.')
       } else {
-        setMessage('Supported TennisLink layout signals found. Review the order before saving the draft.')
+        setMessage('TennisLink screenshot signals found. Review the order, then save the draft.')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Screenshots could not be prepared.')
@@ -245,7 +245,7 @@ function DataAssistWorkspace() {
             />
             <span style={dropzoneKickerStyle}>TennisLink screenshots only</span>
             <strong>{preparing ? 'Checking screenshots...' : 'Tap or drag screenshots here'}</strong>
-            <small>JPG, PNG, or WebP. Upload up to 8 images in scroll order.</small>
+            <small>JPG, PNG, or WebP. Scorecard-area screenshots work best; full-page captures are okay.</small>
           </label>
 
           <div style={guardrailListStyle}>
@@ -275,11 +275,11 @@ function DataAssistWorkspace() {
           <p style={copyStyle}>
             {summary
               ? summary.status === 'layout_detected'
-                ? 'Strong enough to save as a draft. OCR parsing and verification come next.'
+                  ? 'Ready to save. Admin review and OCR verification come next.'
                 : summary.status === 'needs_review'
-                  ? 'The batch is image-safe, but needs stronger TennisLink layout confidence before parsing.'
+                  ? 'This looks image-safe. Save it if it is TennisLink; a cleaner scorecard crop may OCR better.'
                   : summary.rejectionReason
-              : 'Upload TennisLink screenshots to see whether the batch can move into review.'}
+              : 'Upload TennisLink screenshots to stage them for review.'}
           </p>
 
           <div style={impactBoxStyle}>
@@ -336,7 +336,7 @@ function DataAssistWorkspace() {
           >
             {saving ? 'Saving draft...' : 'Save draft for review'}
           </button>
-          <span style={hintStyle}>Import stays locked until parsing and verification are added.</span>
+          <span style={hintStyle}>Import stays locked until admin verification.</span>
         </div>
 
         {savedBatchId ? (

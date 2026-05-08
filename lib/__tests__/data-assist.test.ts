@@ -12,6 +12,7 @@ vi.mock('../supabase', () => ({
 const {
   getDataAssistContributionValue,
   getDataAssistContributorBadges,
+  isTrustedTennisLinkFilename,
   reorderDataAssistScreenshots,
   summarizeDataAssistBatch,
   validateDataAssistFiles,
@@ -88,6 +89,11 @@ describe('Data Assist foundation helpers', () => {
 
   it('states contribution value without rewarding raw volume', () => {
     expect(getDataAssistContributionValue('team_summary')).toContain('roster identity')
+  })
+
+  it('recognizes browser screenshot filenames from TennisLink as trusted source hints', () => {
+    expect(isTrustedTennisLinkFilename('Screenshot_7-5-2026_214730_tennislink.usta.com.jpeg')).toBe(true)
+    expect(isTrustedTennisLinkFilename('random-court-photo.jpeg')).toBe(false)
   })
 
   it('awards contributor badges from verified quality instead of raw uploads', () => {
