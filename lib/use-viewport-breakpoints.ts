@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 
-const DEFAULT_SCREEN_WIDTH = 1280
+const DEFAULT_SCREEN_WIDTH = 390
 
 function getViewportWidth() {
   if (typeof window === 'undefined') return DEFAULT_SCREEN_WIDTH
