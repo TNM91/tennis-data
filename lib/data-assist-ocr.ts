@@ -76,6 +76,7 @@ export type DataAssistOcrScreenshotQualitySummary = {
 export const DATA_ASSIST_OCR_PROVIDER: DataAssistOcrProvider = 'disabled'
 export const DATA_ASSIST_MOCK_OCR_PROVIDER: DataAssistOcrProvider = 'mock_review'
 export const DATA_ASSIST_TESSERACT_OCR_PROVIDER: DataAssistOcrProvider = 'tesseract'
+const NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER = process.env.NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER
 
 export function getDataAssistOcrReadiness(env: Record<string, string | undefined> = getClientSafeEnv()): DataAssistOcrReadiness {
   const provider = normalizeDataAssistOcrProvider(env.NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER)
@@ -222,7 +223,9 @@ function normalizeDataAssistOcrProvider(value: string | undefined): DataAssistOc
 }
 
 function getClientSafeEnv(): Record<string, string | undefined> {
-  return typeof process === 'undefined' ? {} : process.env
+  return {
+    NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER,
+  }
 }
 
 function roundConfidence(value: number) {
