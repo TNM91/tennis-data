@@ -1,3 +1,5 @@
+import { parseDataAssistScorecardText } from './data-assist-scorecard-parser'
+
 export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'future_ocr'
 
 export type DataAssistOcrStatus = 'not_started' | 'queued' | 'processed' | 'failed' | 'disabled'
@@ -45,6 +47,7 @@ export type DataAssistScorecardParsedDraft = DataAssistScorecardDraftFields & {
   rawTextPreview: string
   sourceScreenshotCount: number
   provider: DataAssistOcrProvider
+  confidenceScore: number
 }
 
 export const DATA_ASSIST_OCR_PROVIDER: DataAssistOcrProvider = 'disabled'
@@ -96,6 +99,26 @@ export function buildMockScorecardOcrDraft(screenshots: DataAssistOcrScreenshotI
       .join('\n'),
     sourceScreenshotCount: orderedScreenshots.length,
     provider: DATA_ASSIST_MOCK_OCR_PROVIDER,
+    confidenceScore: 0,
+  }
+}
+
+export function buildScorecardOcrDraftFromText(
+  rawText: string,
+  screenshots: DataAssistOcrScreenshotInput[],
+  provider: DataAssistOcrProvider = DATA_ASSIST_MOCK_OCR_PROVIDER,
+): DataAssistScorecardParsedDraft {
+  const parsedDraft = parseDataAssistScorecardText(rawText)
+  const orderedScreenshots = [...screenshots].sort((a, b) => a.uploadOrder - b.uploadOrder)
+
+  return {
+    ...parsedDraft,
+    parserWarnings: [
+      'Review-only OCR draft. Admin verification is required before import.',
+      ...parsedDraft.parserWarnings,
+    ],
+    sourceScreenshotCount: orderedScreenshots.length,
+    provider,
   }
 }
 
