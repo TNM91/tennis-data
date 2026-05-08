@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
-import { AuthProvider, useAuth } from '@/app/components/auth-provider'
+import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
 import {
   getMyDataAssistContributorStats,
@@ -56,27 +57,9 @@ const importTypes: Array<{
 
 export default function DataAssistPage() {
   return (
-    <AuthProvider>
-      <main style={dataAssistShellStyle}>
-        <DataAssistAppHeader />
-        <DataAssistWorkspace />
-      </main>
-    </AuthProvider>
-  )
-}
-
-function DataAssistAppHeader() {
-  return (
-    <header style={appHeaderStyle}>
-      <Link href="/" style={appHeaderBrandStyle}>
-        <span style={appHeaderLogoStyle}>T</span>
-        <span>
-          <strong>TenAceIQ</strong>
-          <small>Data Assist</small>
-        </span>
-      </Link>
-      <Link href="/profile" style={appHeaderLinkStyle}>Profile</Link>
-    </header>
+    <SiteShell active="/data-assist">
+      <DataAssistWorkspace />
+    </SiteShell>
   )
 }
 
@@ -1848,63 +1831,6 @@ const pageStyle = (isMobile: boolean): CSSProperties => ({
   gap: 18,
 })
 
-const dataAssistShellStyle: CSSProperties = {
-  minHeight: '100dvh',
-  background: 'var(--page-background)',
-  color: 'var(--foreground)',
-  paddingBottom: 'max(18px, env(safe-area-inset-bottom))',
-}
-
-const appHeaderStyle: CSSProperties = {
-  position: 'sticky',
-  top: 0,
-  zIndex: 20,
-  minHeight: 60,
-  padding: 'max(8px, env(safe-area-inset-top)) 12px 8px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 10,
-  borderBottom: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 88%, transparent 12%)',
-  backdropFilter: 'blur(14px)',
-}
-
-const appHeaderBrandStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: 10,
-  minWidth: 0,
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontWeight: 950,
-}
-
-const appHeaderLogoStyle: CSSProperties = {
-  width: 34,
-  height: 34,
-  borderRadius: 10,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'linear-gradient(135deg, var(--brand-green), #4ade80)',
-  color: 'var(--text-dark)',
-  fontWeight: 950,
-}
-
-const appHeaderLinkStyle: CSSProperties = {
-  minHeight: 36,
-  borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  padding: '0 12px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  textDecoration: 'none',
-  fontSize: 13,
-  fontWeight: 900,
-}
-
 const heroStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: '1fr',
@@ -2090,7 +2016,12 @@ const compactDropzoneStyle: CSSProperties = {
 }
 
 const fileInputStyle: CSSProperties = {
-  display: 'none',
+  width: '100%',
+  maxWidth: 360,
+  minHeight: 44,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 850,
 }
 
 const dropzoneKickerStyle: CSSProperties = {
@@ -2603,15 +2534,18 @@ const cardActionRowStyle: CSSProperties = {
 }
 
 const smallButtonStyle: CSSProperties = {
-  minHeight: 32,
-  borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  minHeight: 40,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'var(--shell-panel-bg-strong)',
   color: 'var(--foreground-strong)',
-  padding: '0 10px',
-  fontSize: 12,
-  fontWeight: 900,
+  padding: '0 12px',
+  fontSize: 13,
+  fontWeight: 950,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const smallDangerButtonStyle: CSSProperties = {
