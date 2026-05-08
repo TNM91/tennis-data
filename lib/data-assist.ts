@@ -69,6 +69,7 @@ export type DataAssistOcrVerificationResult = {
   jobId: string
   parsedDraft: DataAssistScorecardParsedDraft
   autoAssessment?: DataAssistAutoAssessment
+  autoImport?: DataAssistImportActionResult
 }
 
 export type DataAssistOcrReviewDecision = 'confirmed' | 'flagged'
@@ -1124,6 +1125,7 @@ async function queueDataAssistFreeOcrVerification(input: {
     jobId?: string
     parsedDraft?: DataAssistScorecardParsedDraft
     autoAssessment?: DataAssistAutoAssessment
+    autoImport?: DataAssistImportActionResult
   } | null
 
   if (!response.ok || !result?.ok || !result.jobId || !result.parsedDraft) {
@@ -1134,6 +1136,7 @@ async function queueDataAssistFreeOcrVerification(input: {
     jobId: result.jobId,
     parsedDraft: result.parsedDraft,
     autoAssessment: result.autoAssessment,
+    autoImport: result.autoImport,
   }
 }
 

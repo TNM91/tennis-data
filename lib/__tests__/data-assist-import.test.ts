@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildDataAssistScorecardImportRow, collectDataAssistImportPlayerNames } from '../data-assist-import'
+import {
+  applyDataAssistPlayerMappingsToRow,
+  buildDataAssistScorecardImportRow,
+  collectDataAssistImportPlayerNames,
+} from '../data-assist-import'
 import type { DataAssistScorecardParsedDraft } from '../data-assist-ocr'
 
 function parsedDraft(overrides: Partial<DataAssistScorecardParsedDraft> = {}): DataAssistScorecardParsedDraft {
@@ -56,5 +60,32 @@ describe('Data Assist import transformer', () => {
     expect(preview.row.lines[1].winnerSide).toBeNull()
     expect(preview.unresolvedWinnerCount).toBe(1)
     expect(collectDataAssistImportPlayerNames(preview.row)).toContain('Cyrus Mevorach')
+  })
+
+  it('canonicalizes likely player matches before commit', () => {
+    const preview = buildDataAssistScorecardImportRow(parsedDraft({
+      lines: [
+        {
+          lineLabel: '2 Doubles',
+          homePlayers: ['Bill Hamilton', 'Eric Abramson'],
+          awayPlayers: ['Edwin Ernst', 'Tony Richards'],
+          score: '5-7 6-4 1-0',
+          winner: 'away',
+          confidenceScore: 0.91,
+        },
+      ],
+    }))
+
+    const row = applyDataAssistPlayerMappingsToRow(preview.row, [
+      {
+        name: 'Bill Hamilton',
+        status: 'likely',
+        matchedPlayerId: 'player-1',
+        matchedPlayerName: 'William Hamilton',
+      },
+    ])
+
+    expect(row.lines[0].sideAPlayers[0]).toBe('William Hamilton')
+    expect(row.lines[0].sideAPlayers[1]).toBe('Eric Abramson')
   })
 })

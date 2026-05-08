@@ -18,7 +18,7 @@ import {
 } from '@/lib/data-assist'
 import { getDataAssistOcrReadiness, getScorecardDraftReadiness } from '@/lib/data-assist-ocr'
 
-type QueueFilter = 'exceptions' | 'all' | 'needs_review' | 'layout_detected' | 'ready_to_import' | 'verified' | 'rejected'
+type QueueFilter = 'exceptions' | 'all' | 'needs_review' | 'layout_detected' | 'ready_to_import' | 'verified' | 'imported' | 'rejected'
 
 const filterLabels: Record<QueueFilter, string> = {
   exceptions: 'Exceptions',
@@ -27,6 +27,7 @@ const filterLabels: Record<QueueFilter, string> = {
   layout_detected: 'Layout detected',
   ready_to_import: 'Ready',
   verified: 'Verified',
+  imported: 'Imported',
   rejected: 'Rejected',
 }
 
@@ -61,18 +62,19 @@ function DataAssistReviewQueue() {
   const filteredBatches = useMemo(
     () => batches.filter((batch) => {
       if (filter === 'all') return true
-      if (filter === 'exceptions') return batch.status === 'needs_review' || batch.status === 'layout_detected' || batch.status === 'rejected'
+      if (filter === 'exceptions') return batch.status === 'needs_review' || batch.status === 'rejected'
       return batch.status === filter
     }),
     [batches, filter],
   )
 
   const stats = useMemo(() => {
-    const needsReview = batches.filter((batch) => batch.status === 'needs_review' || batch.status === 'layout_detected').length
+    const needsReview = batches.filter((batch) => batch.status === 'needs_review').length
     const ready = batches.filter((batch) => batch.status === 'ready_to_import').length
     const rejected = batches.filter((batch) => batch.status === 'rejected').length
     const scorecards = batches.filter((batch) => batch.requestedImportType === 'scorecard').length
-    return { needsReview, ready, rejected, scorecards }
+    const imported = batches.filter((batch) => batch.status === 'imported').length
+    return { needsReview, ready, rejected, scorecards, imported }
   }, [batches])
 
   async function refreshQueue(nextSelectedId = selectedId) {
@@ -205,9 +207,9 @@ function DataAssistReviewQueue() {
 
       <div className="metric-grid" style={{ marginTop: 18 }}>
         <QueueMetric label="Needs review" value={stats.needsReview} />
-        <QueueMetric label="Auto-ready" value={stats.ready} />
+        <QueueMetric label="Ready" value={stats.ready} />
+        <QueueMetric label="Imported" value={stats.imported} />
         <QueueMetric label="Rejected" value={stats.rejected} />
-        <QueueMetric label="Scorecards" value={stats.scorecards} />
       </div>
 
       {message ? <StatusPanel tone="success" text={message} /> : null}

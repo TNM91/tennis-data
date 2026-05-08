@@ -6,6 +6,8 @@ export type DataAssistImportPlayerMapping = {
   status: 'exact' | 'likely' | 'unknown'
   matchedPlayerId: string
   matchedPlayerName: string
+  matchConfidence?: number
+  matchReason?: string
 }
 
 export type DataAssistImportPreview = {
@@ -57,6 +59,29 @@ export function buildDataAssistScorecardImportRow(
 
 export function collectDataAssistImportPlayerNames(row: ScorecardImportRow) {
   return uniqueStrings(row.lines.flatMap((line) => [...line.sideAPlayers, ...line.sideBPlayers]))
+}
+
+export function applyDataAssistPlayerMappingsToRow(
+  row: ScorecardImportRow,
+  mappings: DataAssistImportPlayerMapping[],
+): ScorecardImportRow {
+  const canonicalNameByKey = new Map(
+    mappings
+      .filter((mapping) => mapping.status === 'exact' || mapping.status === 'likely')
+      .filter((mapping) => mapping.matchedPlayerName.trim())
+      .map((mapping) => [normalizeName(mapping.name), mapping.matchedPlayerName.trim()] as const),
+  )
+
+  if (!canonicalNameByKey.size) return row
+
+  return {
+    ...row,
+    lines: row.lines.map((line) => ({
+      ...line,
+      sideAPlayers: line.sideAPlayers.map((name) => canonicalNameByKey.get(normalizeName(name)) || name),
+      sideBPlayers: line.sideBPlayers.map((name) => canonicalNameByKey.get(normalizeName(name)) || name),
+    })),
+  }
 }
 
 function toScorecardImportLine(line: DataAssistScorecardParsedLine, index: number) {
@@ -112,4 +137,8 @@ function uniqueStrings(values: string[]) {
     result.push(cleaned)
   }
   return result
+}
+
+function normalizeName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
