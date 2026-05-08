@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
-import SiteShell from '@/app/components/site-shell'
-import { useAuth } from '@/app/components/auth-provider'
+import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
 import {
   getMyDataAssistContributorStats,
@@ -57,9 +56,27 @@ const importTypes: Array<{
 
 export default function DataAssistPage() {
   return (
-    <SiteShell active="/data-assist">
-      <DataAssistWorkspace />
-    </SiteShell>
+    <AuthProvider>
+      <main style={dataAssistShellStyle}>
+        <DataAssistAppHeader />
+        <DataAssistWorkspace />
+      </main>
+    </AuthProvider>
+  )
+}
+
+function DataAssistAppHeader() {
+  return (
+    <header style={appHeaderStyle}>
+      <Link href="/" style={appHeaderBrandStyle}>
+        <span style={appHeaderLogoStyle}>T</span>
+        <span>
+          <strong>TenAceIQ</strong>
+          <small>Data Assist</small>
+        </span>
+      </Link>
+      <Link href="/profile" style={appHeaderLinkStyle}>Profile</Link>
+    </header>
   )
 }
 
@@ -104,11 +121,20 @@ function DataAssistWorkspace() {
   const showScanStep = saving
   const showLatestReviewStep = Boolean(latestScan)
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
+  const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
 
   function resetUploadFlow() {
     scanRunRef.current += 1
     setSummary(null)
     setLatestScan(null)
+    setSavedBatchId('')
+    setMessage('')
+    setError('')
+  }
+
+  function updateImportType(nextType: DataAssistImportType) {
+    setImportType(nextType)
+    setSummary((current) => current ? summarizeDataAssistBatch(nextType, current.screenshots) : null)
     setSavedBatchId('')
     setMessage('')
     setError('')
@@ -419,27 +445,27 @@ function DataAssistWorkspace() {
               <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
             </div>
 
-            <div style={typeGridStyle(isMobile)}>
-              {importTypes.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    setImportType(item.id)
-                    setSummary((current) => current ? summarizeDataAssistBatch(item.id, current.screenshots) : null)
-                    setSavedBatchId('')
-                    setMessage('')
-                    setError('')
-                  }}
-                  style={typeButtonStyle(importType === item.id)}
-                >
-                  <span style={typeButtonHeaderStyle}>
-                    <strong>{item.label}</strong>
-                    {item.badge ? <small style={typeRecommendedBadgeStyle}>{item.badge}</small> : null}
-                  </span>
-                  <span>{item.detail}</span>
-                </button>
-              ))}
+            <label style={typeSelectWrapStyle}>
+              <span>Upload type</span>
+              <select
+                value={importType}
+                onChange={(event) => updateImportType(event.target.value as DataAssistImportType)}
+                style={typeSelectStyle}
+              >
+                {importTypes.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}{item.badge ? ` - ${item.badge}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div style={typeSelectedCardStyle}>
+              <span style={typeButtonHeaderStyle}>
+                <strong>{activeImportType.label}</strong>
+                {activeImportType.badge ? <small style={typeRecommendedBadgeStyle}>{activeImportType.badge}</small> : null}
+              </span>
+              <span>{activeImportType.detail}</span>
             </div>
 
             <div style={stepDividerStyle}>
@@ -1822,6 +1848,63 @@ const pageStyle = (isMobile: boolean): CSSProperties => ({
   gap: 18,
 })
 
+const dataAssistShellStyle: CSSProperties = {
+  minHeight: '100dvh',
+  background: 'var(--page-background)',
+  color: 'var(--foreground)',
+  paddingBottom: 'max(18px, env(safe-area-inset-bottom))',
+}
+
+const appHeaderStyle: CSSProperties = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 20,
+  minHeight: 60,
+  padding: 'max(8px, env(safe-area-inset-top)) 12px 8px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  borderBottom: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 88%, transparent 12%)',
+  backdropFilter: 'blur(14px)',
+}
+
+const appHeaderBrandStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontWeight: 950,
+}
+
+const appHeaderLogoStyle: CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: 10,
+  display: 'grid',
+  placeItems: 'center',
+  background: 'linear-gradient(135deg, var(--brand-green), #4ade80)',
+  color: 'var(--text-dark)',
+  fontWeight: 950,
+}
+
+const appHeaderLinkStyle: CSSProperties = {
+  minHeight: 36,
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  textDecoration: 'none',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
 const heroStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: '1fr',
@@ -1898,11 +1981,36 @@ const sectionTitleStyle: CSSProperties = {
   fontWeight: 950,
 }
 
-const typeGridStyle = (isMobile: boolean): CSSProperties => ({
+const typeSelectWrapStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
-  gap: 10,
-})
+  gap: 7,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+}
+
+const typeSelectStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 52,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'var(--shell-panel-bg-strong)',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  fontSize: 16,
+  fontWeight: 900,
+}
+
+const typeSelectedCardStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  padding: 12,
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
 
 const stepDividerStyle: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
@@ -1939,24 +2047,6 @@ const stepBadgeNumberStyle: CSSProperties = {
   placeItems: 'center',
   fontSize: 12,
 }
-
-const typeButtonStyle = (active: boolean): CSSProperties => ({
-  minHeight: 76,
-  borderRadius: 14,
-  border: active
-    ? '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)'
-    : '1px solid var(--shell-panel-border)',
-  background: active
-    ? 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)'
-    : 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  padding: 14,
-  textAlign: 'left',
-  display: 'grid',
-  gap: 6,
-  cursor: 'pointer',
-  minWidth: 0,
-})
 
 const typeButtonHeaderStyle: CSSProperties = {
   display: 'flex',
