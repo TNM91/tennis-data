@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, type ChangeEvent, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   getDataAssistContributionValue,
   getDataAssistImportTypeLabel,
+  listMyDataAssistSubmissions,
   prepareDataAssistBatch,
   reorderDataAssistScreenshots,
   saveDataAssistDraftBatch,
@@ -14,6 +15,7 @@ import {
   type DataAssistBatchSummary,
   type DataAssistImportType,
   type DataAssistPreparedScreenshot,
+  type DataAssistSubmission,
 } from '@/lib/data-assist'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -55,6 +57,9 @@ function DataAssistWorkspace() {
   const [preparing, setPreparing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savedBatchId, setSavedBatchId] = useState('')
+  const [submissions, setSubmissions] = useState<DataAssistSubmission[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
+  const [submissionsError, setSubmissionsError] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -64,6 +69,28 @@ function DataAssistWorkspace() {
     if (summary.status === 'needs_review') return 'Needs review'
     return 'Rejected'
   }, [summary])
+
+  async function refreshSubmissions() {
+    if (!authResolved || !userId) {
+      setSubmissions([])
+      return
+    }
+
+    setSubmissionsLoading(true)
+    setSubmissionsError('')
+    try {
+      setSubmissions(await listMyDataAssistSubmissions())
+    } catch (err) {
+      setSubmissionsError(err instanceof Error ? err.message : 'Your Data Assist submissions could not be loaded.')
+    } finally {
+      setSubmissionsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void refreshSubmissions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authResolved, userId])
 
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
@@ -118,6 +145,7 @@ function DataAssistWorkspace() {
       const result = await saveDataAssistDraftBatch(summary)
       setSavedBatchId(result.batchId)
       setMessage(`Data Assist draft saved with ${result.screenshotCount} stored screenshot${result.screenshotCount === 1 ? '' : 's'}. Nothing has been imported yet.`)
+      await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data Assist draft could not be saved.')
     } finally {
@@ -158,6 +186,15 @@ function DataAssistWorkspace() {
           </div>
         </div>
       </section>
+
+      <MySubmissionsPanel
+        authResolved={authResolved}
+        userId={userId}
+        submissions={submissions}
+        loading={submissionsLoading}
+        error={submissionsError}
+        onRefresh={() => void refreshSubmissions()}
+      />
 
       <section style={workspaceStyle(isTablet)}>
         <section id="upload" style={panelStyle}>
@@ -356,6 +393,139 @@ function ScreenshotCard({
       </div>
     </article>
   )
+}
+
+function MySubmissionsPanel({
+  authResolved,
+  userId,
+  submissions,
+  loading,
+  error,
+  onRefresh,
+}: {
+  authResolved: boolean
+  userId: string | null
+  submissions: DataAssistSubmission[]
+  loading: boolean
+  error: string
+  onRefresh: () => void
+}) {
+  const totals = submissions.reduce(
+    (acc, submission) => {
+      if (submission.status === 'ready_to_import') acc.ready += 1
+      else if (submission.status === 'rejected') acc.rejected += 1
+      else acc.pending += 1
+      return acc
+    },
+    { pending: 0, ready: 0, rejected: 0 },
+  )
+
+  return (
+    <section style={panelStyle}>
+      <div style={sectionHeaderStyle}>
+        <div>
+          <div className="section-kicker">My submissions</div>
+          <h2 style={sectionTitleStyle}>Track what you have contributed.</h2>
+        </div>
+        <button type="button" onClick={onRefresh} disabled={!authResolved || !userId || loading} style={smallButtonStyle}>
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </button>
+      </div>
+
+      {!authResolved || !userId ? (
+        <div style={noticeStyle}>Sign in to track your Data Assist submissions and review status.</div>
+      ) : submissions.length ? (
+        <>
+          <div style={submissionStatsStyle}>
+            <SubmissionStat label="Pending review" value={totals.pending} />
+            <SubmissionStat label="Ready for OCR" value={totals.ready} />
+            <SubmissionStat label="Rejected" value={totals.rejected} />
+          </div>
+          <div style={submissionListStyle}>
+            {submissions.slice(0, 6).map((submission) => (
+              <SubmissionCard key={submission.id} submission={submission} />
+            ))}
+          </div>
+        </>
+      ) : loading ? (
+        <div style={emptyStateStyle}>Loading your submissions...</div>
+      ) : (
+        <div style={emptyStateStyle}>Your saved Data Assist drafts will appear here after upload.</div>
+      )}
+
+      {error ? <div style={errorStyle}>{error}</div> : null}
+    </section>
+  )
+}
+
+function SubmissionStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div style={submissionStatStyle}>
+      <span>{label}</span>
+      <strong>{value.toLocaleString()}</strong>
+    </div>
+  )
+}
+
+function SubmissionCard({ submission }: { submission: DataAssistSubmission }) {
+  const status = getSubmissionStatusCopy(submission)
+  const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
+
+  return (
+    <article style={submissionCardStyle}>
+      <div style={submissionCardTopStyle}>
+        <div>
+          <strong>{getDataAssistImportTypeLabel(submission.requestedImportType)}</strong>
+          <p style={copyStyle}>
+            {submission.screenshotCount} screenshot{submission.screenshotCount === 1 ? '' : 's'} saved - {Math.round(submission.confidenceScore * 100)}% confidence
+          </p>
+        </div>
+        <span style={status.tone === 'green' ? pillGreenStyle : status.tone === 'red' ? pillDangerStyle : pillAmberStyle}>
+          {status.label}
+        </span>
+      </div>
+      <p style={copyStyle}>{status.detail}</p>
+      {reviewNote ? <p style={warningStyle}>{reviewNote}</p> : null}
+      <div style={submissionMetaStyle}>
+        <span>{formatDate(submission.createdAt)}</span>
+        <span>{submission.draftOcrStatus.replace(/_/g, ' ')}</span>
+      </div>
+    </article>
+  )
+}
+
+function getSubmissionStatusCopy(submission: DataAssistSubmission) {
+  if (submission.status === 'ready_to_import') {
+    return {
+      label: 'Approved for OCR',
+      detail: 'An admin confirmed this batch can move into OCR verification when parsing is enabled.',
+      tone: 'green' as const,
+    }
+  }
+  if (submission.status === 'rejected') {
+    return {
+      label: 'Rejected',
+      detail: 'This batch will not be parsed. Upload a clearer supported TennisLink screenshot set.',
+      tone: 'red' as const,
+    }
+  }
+  if (submission.status === 'layout_detected') {
+    return {
+      label: 'In review',
+      detail: 'Strong TennisLink layout signals were detected. Admin review is next.',
+      tone: 'amber' as const,
+    }
+  }
+  return {
+    label: 'Needs review',
+    detail: 'This upload is saved, but it needs stronger layout confirmation before OCR verification.',
+    tone: 'amber' as const,
+  }
+}
+
+function formatDate(value: string) {
+  if (!value) return 'Unknown date'
+  return new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 const pageStyle = (isMobile: boolean): CSSProperties => ({
@@ -587,6 +757,60 @@ const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({
   gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
   gap: 12,
 })
+
+const submissionStatsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: 10,
+}
+
+const submissionStatStyle: CSSProperties = {
+  minHeight: 82,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 6,
+  alignContent: 'center',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const submissionListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gap: 12,
+}
+
+const submissionCardStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 10,
+}
+
+const submissionCardTopStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+  alignItems: 'flex-start',
+}
+
+const submissionMetaStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
 
 const screenshotCardStyle: CSSProperties = {
   borderRadius: 20,

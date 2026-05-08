@@ -117,6 +117,24 @@ export type DataAssistAdminDraft = {
   updatedAt: string
 }
 
+export type DataAssistSubmission = {
+  id: string
+  requestedImportType: DataAssistImportType
+  detectedLayout: DataAssistLayout
+  status: DataAssistBatchStatus
+  screenshotCount: number
+  confidenceScore: number
+  rejectionReason: string
+  contributionValue: string
+  reviewNote: string
+  reviewedAt: string
+  draftStatus: DataAssistDraftStatus
+  draftOcrStatus: string
+  draftReviewNote: string
+  createdAt: string
+  updatedAt: string
+}
+
 type DataAssistBatchRow = {
   id?: string | null
   submitted_by_user_id?: string | null
@@ -132,6 +150,13 @@ type DataAssistBatchRow = {
   reviewed_at?: string | null
   created_at?: string | null
   updated_at?: string | null
+}
+
+type DataAssistSubmissionDraftRow = {
+  batch_id?: string | null
+  status?: string | null
+  ocr_status?: string | null
+  review_note?: string | null
 }
 
 type DataAssistScreenshotRow = {
@@ -510,6 +535,62 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   if (!draftId) throw new Error('Data Assist draft could not be created.')
 
   return { batchId, draftId, screenshotCount: uploadedScreenshots.length }
+}
+
+export async function listMyDataAssistSubmissions() {
+  const authState = await getClientAuthState()
+  const userId = authState.user?.id?.trim()
+  if (!userId) return []
+
+  const { data: batchRows, error: batchError } = await supabase
+    .from('data_assist_batches')
+    .select('id, submitted_by_user_id, requested_import_type, detected_layout, status, screenshot_count, confidence_score, rejection_reason, contribution_value, review_note, reviewed_by_user_id, reviewed_at, created_at, updated_at')
+    .eq('submitted_by_user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(40)
+
+  if (batchError) throw new Error(batchError.message)
+
+  const batches = ((batchRows || []) as DataAssistBatchRow[])
+    .map(toAdminBatch)
+    .filter((batch): batch is DataAssistAdminBatch => Boolean(batch))
+
+  if (!batches.length) return []
+
+  const batchIds = batches.map((batch) => batch.id)
+  const { data: draftRows, error: draftError } = await supabase
+    .from('data_assist_drafts')
+    .select('batch_id, status, ocr_status, review_note')
+    .in('batch_id', batchIds)
+
+  if (draftError) throw new Error(draftError.message)
+
+  const draftsByBatchId = new Map(
+    ((draftRows || []) as DataAssistSubmissionDraftRow[])
+      .map((draft) => [cleanText(draft.batch_id), draft] as const)
+      .filter(([batchId]) => Boolean(batchId)),
+  )
+
+  return batches.map((batch): DataAssistSubmission => {
+    const draft = draftsByBatchId.get(batch.id)
+    return {
+      id: batch.id,
+      requestedImportType: batch.requestedImportType,
+      detectedLayout: batch.detectedLayout,
+      status: batch.status,
+      screenshotCount: batch.screenshotCount,
+      confidenceScore: batch.confidenceScore,
+      rejectionReason: batch.rejectionReason,
+      contributionValue: batch.contributionValue,
+      reviewNote: batch.reviewNote,
+      reviewedAt: batch.reviewedAt,
+      draftStatus: normalizeDraftStatus(draft?.status),
+      draftOcrStatus: cleanText(draft?.ocr_status) || 'not_started',
+      draftReviewNote: cleanText(draft?.review_note),
+      createdAt: batch.createdAt,
+      updatedAt: batch.updatedAt,
+    }
+  })
 }
 
 export async function listDataAssistAdminBatches() {
