@@ -445,6 +445,17 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
   const parsedPayload = draft.parsedPayload as {
     rawTextPreview?: string
     sourceScreenshotCount?: number
+    confidenceScore?: number
+    ocrQuality?: {
+      provider?: string
+      textLength?: number
+      nonEmptyLineCount?: number
+      parserWarningCount?: number
+      parsedLineCount?: number
+      ocrConfidenceScore?: number
+      parserConfidenceScore?: number
+      reviewPriority?: string
+    }
     lines?: Array<{
       lineLabel?: string
       homePlayers?: string[]
@@ -455,6 +466,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
     }>
   }
   const latestJob = jobs[0] ?? null
+  const ocrQuality = parsedPayload.ocrQuality || null
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -484,6 +496,28 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
             </div>
           ) : null}
         </div>
+
+        {ocrQuality ? (
+          <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>OCR quality</div>
+                <div className="subtle-text" style={{ marginTop: 6 }}>
+                  {getOcrReviewPriorityCopy(ocrQuality.reviewPriority)}
+                </div>
+              </div>
+              <StatusBadge status={ocrQuality.reviewPriority || 'needs_manual_review'} compact />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10, marginTop: 12 }}>
+              <MiniFact label="OCR confidence" value={formatPercent(ocrQuality.ocrConfidenceScore)} />
+              <MiniFact label="Parser confidence" value={formatPercent(ocrQuality.parserConfidenceScore ?? parsedPayload.confidenceScore)} />
+              <MiniFact label="Parsed lines" value={String(ocrQuality.parsedLineCount ?? parsedPayload.lines?.length ?? 0)} />
+              <MiniFact label="Text lines" value={String(ocrQuality.nonEmptyLineCount ?? 0)} />
+              <MiniFact label="Text chars" value={(ocrQuality.textLength ?? 0).toLocaleString()} />
+              <MiniFact label="Warnings" value={String(ocrQuality.parserWarningCount ?? draft.parserWarnings.length)} />
+            </div>
+          </div>
+        ) : null}
 
         {draft.parserWarnings.length ? (
           <div style={{ padding: 14, borderRadius: 16, border: '1px solid rgba(251,191,36,0.24)', background: 'rgba(251,191,36,0.08)' }}>
@@ -518,7 +552,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
             ))}
           </div>
         ) : (
-          <EmptyState text="No scorecard lines have been extracted yet. This boundary is ready for a real OCR provider." />
+          <EmptyState text="No scorecard lines have been extracted yet. Run free OCR or keep this in manual review." />
         )}
       </div>
     </div>
@@ -643,6 +677,17 @@ function getOcrProviderLabel(provider: string) {
   if (provider === 'mock_review') return 'Mock OCR boundary'
   if (provider === 'tesseract') return 'Free Tesseract OCR'
   return provider
+}
+
+function getOcrReviewPriorityCopy(priority: string | undefined) {
+  if (priority === 'ready_for_review') return 'OCR found enough structure for admin verification.'
+  if (priority === 'blocked') return 'OCR did not find enough usable scorecard text.'
+  return 'Review carefully before trusting these extracted fields.'
+}
+
+function formatPercent(value: number | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '0%'
+  return `${Math.round(value * 100)}%`
 }
 
 function StatusPanel({ tone, text }: { tone: 'success' | 'error'; text: string }) {
