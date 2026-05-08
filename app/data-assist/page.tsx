@@ -814,7 +814,7 @@ function ScorecardReviewPanel({
       ) : null}
       <div style={cardActionRowStyle}>
         <button type="button" onClick={onConfirm} disabled={!canReview || busy} style={{ ...smallButtonStyle, ...(!canReview || busy ? disabledStyle : {}) }}>
-          {busy ? 'Saving...' : 'Looks right'}
+          {busy ? 'Importing...' : 'Looks right - import'}
         </button>
         <button type="button" onClick={onFlag} disabled={!canReview || busy} style={{ ...smallDangerButtonStyle, ...(!canReview || busy ? disabledStyle : {}) }}>
           Needs fix
