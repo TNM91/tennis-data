@@ -17,6 +17,16 @@ describe('Data Assist OCR boundary', () => {
     expect(readiness.reason).toContain('disabled')
   })
 
+  it('can expose the free Tesseract provider when explicitly enabled', () => {
+    const readiness = getDataAssistOcrReadiness({
+      NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER: 'tesseract',
+    })
+
+    expect(readiness.provider).toBe('tesseract')
+    expect(readiness.canRun).toBe(true)
+    expect(readiness.reason).toContain('Free Tesseract OCR')
+  })
+
   it('creates an empty scorecard draft that cannot be imported', () => {
     const fields = buildEmptyScorecardDraftFields()
     const readiness = getScorecardDraftReadiness(fields)
@@ -96,5 +106,17 @@ describe('Data Assist OCR boundary', () => {
     expect(draft.sourceScreenshotCount).toBe(1)
     expect(draft.confidenceScore).toBeGreaterThan(0.7)
     expect(draft.parserWarnings[0]).toContain('Review-only')
+  })
+
+  it('marks parsed drafts with the OCR provider that supplied the text', () => {
+    const draft = buildScorecardOcrDraftFromText(
+      'Match ID: USTA-246810\nMatch Date: 05/01/2026\nHome Team: Dallas Indoor Aces\nAway Team: Plano Net Rush\n1S Jane Ace def. Molly Baseline 6-1 6-0',
+      [],
+      'tesseract',
+    )
+
+    expect(draft.provider).toBe('tesseract')
+    expect(draft.externalMatchId).toBe('USTA-246810')
+    expect(draft.lines[0].lineLabel).toBe('1 Singles')
   })
 })
