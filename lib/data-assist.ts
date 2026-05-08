@@ -1,6 +1,7 @@
 'use client'
 
 import { getClientAuthState } from './auth'
+import { buildEmptyScorecardDraftFields, getDataAssistOcrReadiness } from './data-assist-ocr'
 import { supabase } from './supabase'
 
 export type DataAssistImportType = 'scorecard' | 'schedule' | 'team_summary'
@@ -11,7 +12,15 @@ export type DataAssistLayout =
   | 'tennislink_team_summary'
   | 'unsupported'
 export type DataAssistScreenshotStatus = 'pending' | 'supported' | 'needs_review' | 'rejected'
-export type DataAssistBatchStatus = 'uploaded' | 'layout_detected' | 'needs_review' | 'ready_to_import' | 'rejected'
+export type DataAssistBatchStatus =
+  | 'uploaded'
+  | 'layout_detected'
+  | 'needs_review'
+  | 'ready_to_import'
+  | 'rejected'
+  | 'verified'
+  | 'imported'
+export type DataAssistDraftStatus = 'needs_review' | 'blocked' | 'ready_for_verification' | 'verified' | 'imported'
 
 export type DataAssistPreparedScreenshot = {
   id: string
@@ -46,6 +55,120 @@ export type DataAssistSaveResult = {
   draftId: string
 }
 
+export type DataAssistAdminBatch = {
+  id: string
+  submittedByUserId: string
+  requestedImportType: DataAssistImportType
+  detectedLayout: DataAssistLayout
+  status: DataAssistBatchStatus
+  screenshotCount: number
+  confidenceScore: number
+  rejectionReason: string
+  contributionValue: string
+  reviewNote: string
+  reviewedByUserId: string
+  reviewedAt: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type DataAssistAdminScreenshot = {
+  id: string
+  batchId: string
+  uploadOrder: number
+  fileName: string
+  mimeType: string
+  fileSizeBytes: number
+  imageWidth: number
+  imageHeight: number
+  clientFingerprint: string
+  detectionStatus: DataAssistScreenshotStatus
+  detectedLayout: DataAssistLayout
+  confidenceScore: number
+  visualSignals: string[]
+  rejectionReason: string
+  createdAt: string
+}
+
+export type DataAssistAdminDraft = {
+  id: string
+  batchId: string
+  draftType: DataAssistImportType
+  status: DataAssistDraftStatus
+  confidenceScore: number
+  validationSummary: Record<string, unknown>
+  impactSummary: Record<string, unknown>
+  reviewNote: string
+  reviewedByUserId: string
+  reviewedAt: string
+  ocrStatus: string
+  externalMatchId: string
+  homeTeam: string
+  awayTeam: string
+  matchDate: string
+  lineCount: number
+  parserWarnings: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+type DataAssistBatchRow = {
+  id?: string | null
+  submitted_by_user_id?: string | null
+  requested_import_type?: string | null
+  detected_layout?: string | null
+  status?: string | null
+  screenshot_count?: number | null
+  confidence_score?: number | null
+  rejection_reason?: string | null
+  contribution_value?: string | null
+  review_note?: string | null
+  reviewed_by_user_id?: string | null
+  reviewed_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+type DataAssistScreenshotRow = {
+  id?: string | null
+  batch_id?: string | null
+  upload_order?: number | null
+  file_name?: string | null
+  mime_type?: string | null
+  file_size_bytes?: number | null
+  image_width?: number | null
+  image_height?: number | null
+  client_fingerprint?: string | null
+  detection_status?: string | null
+  detected_layout?: string | null
+  confidence_score?: number | null
+  visual_signals?: unknown
+  rejection_reason?: string | null
+  created_at?: string | null
+}
+
+type DataAssistDraftRow = {
+  id?: string | null
+  batch_id?: string | null
+  draft_type?: string | null
+  status?: string | null
+  confidence_score?: number | null
+  validation_summary?: Record<string, unknown> | null
+  impact_summary?: Record<string, unknown> | null
+  review_note?: string | null
+  reviewed_by_user_id?: string | null
+  reviewed_at?: string | null
+  ocr_status?: string | null
+  external_match_id?: string | null
+  home_team?: string | null
+  away_team?: string | null
+  match_date?: string | null
+  line_count?: number | null
+  parser_warnings?: unknown
+  created_at?: string | null
+  updated_at?: string | null
+}
+
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 const MAX_BATCH_SIZE = 8
 const ALLOWED_SCREENSHOT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -66,6 +189,122 @@ const FILE_HINTS: Record<DataAssistImportType, string[]> = {
   scorecard: ['scorecard', 'score-card', 'scores', 'match-card', 'matchcard'],
   schedule: ['schedule', 'sched', 'match-list', 'matchlist'],
   team_summary: ['team-summary', 'teamsummary', 'team_summary', 'roster', 'lineup', 'players'],
+}
+
+function cleanText(value: string | null | undefined) {
+  return (value || '').trim()
+}
+
+function normalizeImportType(value: string | null | undefined): DataAssistImportType {
+  if (value === 'schedule' || value === 'team_summary') return value
+  return 'scorecard'
+}
+
+function normalizeLayout(value: string | null | undefined): DataAssistLayout {
+  if (value === 'tennislink_scorecard' || value === 'tennislink_schedule' || value === 'tennislink_team_summary' || value === 'unsupported') return value
+  return 'pending'
+}
+
+function normalizeBatchStatus(value: string | null | undefined): DataAssistBatchStatus {
+  if (
+    value === 'layout_detected' ||
+    value === 'needs_review' ||
+    value === 'ready_to_import' ||
+    value === 'rejected' ||
+    value === 'verified' ||
+    value === 'imported'
+  ) return value
+  return 'uploaded'
+}
+
+function normalizeDraftStatus(value: string | null | undefined): DataAssistDraftStatus {
+  if (value === 'blocked' || value === 'ready_for_verification' || value === 'verified' || value === 'imported') return value
+  return 'needs_review'
+}
+
+function normalizeScreenshotStatus(value: string | null | undefined): DataAssistScreenshotStatus {
+  if (value === 'supported' || value === 'needs_review' || value === 'rejected') return value
+  return 'pending'
+}
+
+function normalizeSignals(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map((item) => (typeof item === 'string' ? item.trim() : '')).filter(Boolean)
+    : []
+}
+
+function toAdminBatch(row: DataAssistBatchRow): DataAssistAdminBatch | null {
+  const id = cleanText(row.id)
+  if (!id) return null
+
+  return {
+    id,
+    submittedByUserId: cleanText(row.submitted_by_user_id),
+    requestedImportType: normalizeImportType(row.requested_import_type),
+    detectedLayout: normalizeLayout(row.detected_layout),
+    status: normalizeBatchStatus(row.status),
+    screenshotCount: row.screenshot_count ?? 0,
+    confidenceScore: row.confidence_score ?? 0,
+    rejectionReason: cleanText(row.rejection_reason),
+    contributionValue: cleanText(row.contribution_value),
+    reviewNote: cleanText(row.review_note),
+    reviewedByUserId: cleanText(row.reviewed_by_user_id),
+    reviewedAt: cleanText(row.reviewed_at),
+    createdAt: cleanText(row.created_at),
+    updatedAt: cleanText(row.updated_at),
+  }
+}
+
+function toAdminScreenshot(row: DataAssistScreenshotRow): DataAssistAdminScreenshot | null {
+  const id = cleanText(row.id)
+  const batchId = cleanText(row.batch_id)
+  if (!id || !batchId) return null
+
+  return {
+    id,
+    batchId,
+    uploadOrder: row.upload_order ?? 0,
+    fileName: cleanText(row.file_name),
+    mimeType: cleanText(row.mime_type),
+    fileSizeBytes: row.file_size_bytes ?? 0,
+    imageWidth: row.image_width ?? 0,
+    imageHeight: row.image_height ?? 0,
+    clientFingerprint: cleanText(row.client_fingerprint),
+    detectionStatus: normalizeScreenshotStatus(row.detection_status),
+    detectedLayout: normalizeLayout(row.detected_layout),
+    confidenceScore: row.confidence_score ?? 0,
+    visualSignals: normalizeSignals(row.visual_signals),
+    rejectionReason: cleanText(row.rejection_reason),
+    createdAt: cleanText(row.created_at),
+  }
+}
+
+function toAdminDraft(row: DataAssistDraftRow): DataAssistAdminDraft | null {
+  const id = cleanText(row.id)
+  const batchId = cleanText(row.batch_id)
+  if (!id || !batchId) return null
+
+  return {
+    id,
+    batchId,
+    draftType: normalizeImportType(row.draft_type),
+    status: normalizeDraftStatus(row.status),
+    confidenceScore: row.confidence_score ?? 0,
+    validationSummary: row.validation_summary || {},
+    impactSummary: row.impact_summary || {},
+    reviewNote: cleanText(row.review_note),
+    reviewedByUserId: cleanText(row.reviewed_by_user_id),
+    reviewedAt: cleanText(row.reviewed_at),
+    ocrStatus: cleanText(row.ocr_status) || 'not_started',
+    externalMatchId: cleanText(row.external_match_id),
+    homeTeam: cleanText(row.home_team),
+    awayTeam: cleanText(row.away_team),
+    matchDate: cleanText(row.match_date),
+    lineCount: row.line_count ?? 0,
+    parserWarnings: normalizeSignals(row.parser_warnings),
+    createdAt: cleanText(row.created_at),
+    updatedAt: cleanText(row.updated_at),
+  }
 }
 
 export function getDataAssistImportTypeLabel(importType: DataAssistImportType) {
@@ -213,6 +452,10 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   const screenshotResult = await supabase.from('data_assist_screenshots').insert(screenshotPayload)
   if (screenshotResult.error) throw new Error(screenshotResult.error.message)
 
+  const emptyScorecardFields = summary.requestedImportType === 'scorecard'
+    ? buildEmptyScorecardDraftFields()
+    : null
+  const ocrReadiness = getDataAssistOcrReadiness()
   const { data: draft, error: draftError } = await supabase
     .from('data_assist_drafts')
     .insert({
@@ -234,6 +477,13 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
         value: summary.contributionValue,
         improves: impactAreasForImportType(summary.requestedImportType),
       },
+      ocr_status: ocrReadiness.status,
+      external_match_id: emptyScorecardFields?.externalMatchId || '',
+      home_team: emptyScorecardFields?.homeTeam || '',
+      away_team: emptyScorecardFields?.awayTeam || '',
+      match_date: emptyScorecardFields?.matchDate || '',
+      line_count: emptyScorecardFields?.lineCount || 0,
+      parser_warnings: emptyScorecardFields?.parserWarnings || [],
     })
     .select('id')
     .single()
@@ -243,6 +493,94 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   if (!draftId) throw new Error('Data Assist draft could not be created.')
 
   return { batchId, draftId }
+}
+
+export async function listDataAssistAdminBatches() {
+  const { data, error } = await supabase
+    .from('data_assist_batches')
+    .select('id, submitted_by_user_id, requested_import_type, detected_layout, status, screenshot_count, confidence_score, rejection_reason, contribution_value, review_note, reviewed_by_user_id, reviewed_at, created_at, updated_at')
+    .order('created_at', { ascending: false })
+    .limit(80)
+
+  if (error) throw new Error(error.message)
+  return ((data || []) as DataAssistBatchRow[])
+    .map(toAdminBatch)
+    .filter((batch): batch is DataAssistAdminBatch => Boolean(batch))
+}
+
+export async function loadDataAssistAdminBatchDetail(batchId: string) {
+  const normalizedBatchId = cleanText(batchId)
+  if (!normalizedBatchId) return { screenshots: [], drafts: [] }
+
+  const [screenshotsResult, draftsResult] = await Promise.all([
+    supabase
+      .from('data_assist_screenshots')
+      .select('id, batch_id, upload_order, file_name, mime_type, file_size_bytes, image_width, image_height, client_fingerprint, detection_status, detected_layout, confidence_score, visual_signals, rejection_reason, created_at')
+      .eq('batch_id', normalizedBatchId)
+      .order('upload_order', { ascending: true }),
+    supabase
+      .from('data_assist_drafts')
+      .select('id, batch_id, draft_type, status, confidence_score, validation_summary, impact_summary, review_note, reviewed_by_user_id, reviewed_at, ocr_status, external_match_id, home_team, away_team, match_date, line_count, parser_warnings, created_at, updated_at')
+      .eq('batch_id', normalizedBatchId)
+      .order('created_at', { ascending: true }),
+  ])
+
+  if (screenshotsResult.error) throw new Error(screenshotsResult.error.message)
+  if (draftsResult.error) throw new Error(draftsResult.error.message)
+
+  return {
+    screenshots: ((screenshotsResult.data || []) as DataAssistScreenshotRow[])
+      .map(toAdminScreenshot)
+      .filter((screenshot): screenshot is DataAssistAdminScreenshot => Boolean(screenshot)),
+    drafts: ((draftsResult.data || []) as DataAssistDraftRow[])
+      .map(toAdminDraft)
+      .filter((draft): draft is DataAssistAdminDraft => Boolean(draft)),
+  }
+}
+
+export async function reviewDataAssistBatch(input: {
+  batchId: string
+  draftId?: string
+  status: Extract<DataAssistBatchStatus, 'needs_review' | 'ready_to_import' | 'rejected'>
+  reviewNote: string
+}) {
+  const authState = await getClientAuthState()
+  const userId = authState.user?.id?.trim()
+  if (!userId) throw new Error('Sign in as an admin to review Data Assist batches.')
+
+  const reviewedAt = new Date().toISOString()
+  const batchUpdate = await supabase
+    .from('data_assist_batches')
+    .update({
+      status: input.status,
+      review_note: input.reviewNote.trim(),
+      reviewed_by_user_id: userId,
+      reviewed_at: reviewedAt,
+    })
+    .eq('id', input.batchId)
+
+  if (batchUpdate.error) throw new Error(batchUpdate.error.message)
+
+  if (input.draftId) {
+    const draftStatus: DataAssistDraftStatus =
+      input.status === 'ready_to_import'
+        ? 'ready_for_verification'
+        : input.status === 'rejected'
+          ? 'blocked'
+          : 'needs_review'
+    const draftUpdate = await supabase
+      .from('data_assist_drafts')
+      .update({
+        status: draftStatus,
+        ocr_status: input.status === 'needs_review' ? 'not_started' : 'disabled',
+        review_note: input.reviewNote.trim(),
+        reviewed_by_user_id: userId,
+        reviewed_at: reviewedAt,
+      })
+      .eq('id', input.draftId)
+
+    if (draftUpdate.error) throw new Error(draftUpdate.error.message)
+  }
 }
 
 async function prepareDataAssistScreenshot(

@@ -43,6 +43,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Needs review',
   },
   {
+    title: 'Data Assist Review',
+    href: '/admin/data-assist',
+    description:
+      'Review community TennisLink screenshot batches, confirm layout confidence, and hold imports behind OCR verification before anything can affect trusted data.',
+    badge: 'Data Assist',
+    accent: 'green',
+    highlights: ['Screenshot batches', 'Layout confidence', 'OCR boundary', 'Import lock'],
+    statLabel: 'Best for',
+    statValue: 'Community uploads',
+  },
+  {
     title: 'Missing Scorecards',
     href: '/admin/missing-scorecards',
     description:
@@ -166,7 +177,7 @@ const adminTools: AdminTool[] = [
 ]
 
 const importTools = adminTools.filter((tool) =>
-  ['/admin/import', '/admin/import-queue', '/admin/missing-scorecards', '/admin/lineup-availability'].includes(tool.href)
+  ['/admin/import', '/admin/import-queue', '/admin/data-assist', '/admin/missing-scorecards', '/admin/lineup-availability'].includes(tool.href)
 )
 
 const managementTools = adminTools.filter((tool) =>
@@ -378,6 +389,11 @@ export default function AdminDashboardPage() {
                     <td>Use only when the extension says a capture needs review</td>
                   </tr>
                   <tr>
+                    <td>/admin/data-assist</td>
+                    <td>Community TennisLink screenshot review queue</td>
+                    <td>Confirm supported layouts and keep OCR/import locked behind review</td>
+                  </tr>
+                  <tr>
                     <td>/admin/missing-scorecards</td>
                     <td>Schedule-to-scorecard operations dashboard</td>
                     <td>Best for past-due result follow-up and weekly tracking</td>
@@ -516,6 +532,7 @@ export default function AdminDashboardPage() {
               >
                 <QuickAction href="/admin/import" label="Open Unified Import Center" />
                 <QuickAction href="/admin/import-queue" label="Open Automated Import Queue" />
+                <QuickAction href="/admin/data-assist" label="Open Data Assist Review" />
                 <QuickAction href="/admin/missing-scorecards" label="Open Missing Scorecards" />
                 <QuickAction href="/admin/lineup-availability" label="Open Lineup Availability" />
                 <QuickAction href="/admin/add-match" label="Open Add Match" />
