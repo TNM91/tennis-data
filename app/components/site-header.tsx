@@ -212,13 +212,8 @@ export default function SiteHeader({ active }: { active?: string }) {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [unreadAlerts, setUnreadAlerts] = useState(0)
 
-  // Close mobile menu whenever the route changes (back/forward navigation)
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setMenuOpen(false)
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    setMenuOpen(false)
   }, [pathname])
 
   useEffect(() => {
@@ -481,11 +476,14 @@ export default function SiteHeader({ active }: { active?: string }) {
         {useCompactHeader && menuOpen ? (
           <div
             style={{
-              position: 'absolute',
-              top: 'calc(100% - 8px)',
-              left: isMobile ? 2 : 4,
-              right: isMobile ? 2 : 4,
-              zIndex: 60,
+              position: 'fixed',
+              top: `calc(${isMobile ? 76 : 86}px + env(safe-area-inset-top))`,
+              left: `max(12px, env(safe-area-inset-left))`,
+              right: `max(12px, env(safe-area-inset-right))`,
+              zIndex: 1000,
+              maxHeight: 'calc(100dvh - 98px)',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             <div

@@ -15,6 +15,7 @@ import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
+const LOGIN_AUTH_TIMEOUT_MS = 8000
 
 const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
@@ -73,11 +74,24 @@ async function getDefaultPostLoginRoute(
   if (access.currentPlanId === 'league') return '/league-coordinator'
   if (access.currentPlanId === 'captain') return '/captain'
   if (access.canUseAdvancedPlayerInsights) {
-    const profileRes = await loadUserProfileLink(userId)
+    const profileRes = await withLoginTimeout(
+      loadUserProfileLink(userId),
+      LOGIN_AUTH_TIMEOUT_MS,
+      { data: null, error: null, source: 'none', cloudSchemaReady: false },
+    )
     const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
     if (!hasLinkedPlayer) return '/profile'
   }
   return DEFAULT_POST_LOGIN_ROUTE
+}
+
+async function withLoginTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      window.setTimeout(() => resolve(fallback), timeoutMs)
+    }),
+  ])
 }
 
 async function resolvePostLoginRoute(
@@ -143,6 +157,18 @@ export default function LoginPage() {
     router.prefetch('/captain')
     router.prefetch('/league-coordinator')
   }, [router, getPostLoginRoute])
+
+  useEffect(() => {
+    if (!authLoading) return
+
+    const timeoutId = window.setTimeout(() => {
+      if (!hasRedirectedRef.current) {
+        setAuthLoading(false)
+      }
+    }, LOGIN_AUTH_TIMEOUT_MS)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [authLoading])
 
   useEffect(() => {
     let mounted = true
