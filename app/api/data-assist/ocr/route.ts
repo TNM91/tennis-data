@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { runDataAssistScorecardImportAction, type DataAssistScorecardImportActionResult } from '@/lib/data-assist-import-runner'
 import {
   assessDataAssistScorecardDraft,
   buildDataAssistOcrQualitySummary,
@@ -227,11 +228,68 @@ export async function POST(request: Request) {
 
   if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
 
+  let autoImport: DataAssistScorecardImportActionResult | undefined
+  if (autoAssessment.decision === 'auto_ready') {
+    try {
+      autoImport = await runDataAssistScorecardImportAction({
+        supabase,
+        parsedDraft,
+        batchId,
+        draftId,
+        reviewedBy: requesterCheck.userId,
+        action: 'commit',
+        validationSummary: {
+          message: autoAssessment.detail,
+          autoAssessment,
+          importLocked: false,
+          sourceScreenshotCount: screenshots.length,
+          ocrConfidenceScore: ocrResult.confidenceScore,
+        },
+      })
+    } catch (error) {
+      autoImport = {
+        ok: false,
+        action: 'commit',
+        message: error instanceof Error ? error.message : 'Automatic scorecard import failed.',
+      }
+    }
+
+    if (!autoImport.ok) {
+      const exceptionNote = `Auto-import paused: ${autoImport.message}`
+      await Promise.all([
+        supabase
+          .from('data_assist_batches')
+          .update({
+            status: 'needs_review',
+            review_note: exceptionNote,
+            reviewed_by_user_id: null,
+            reviewed_at: null,
+          })
+          .eq('id', batchId),
+        supabase
+          .from('data_assist_drafts')
+          .update({
+            status: 'ready_for_verification',
+            validation_summary: {
+              message: exceptionNote,
+              autoAssessment,
+              autoImport,
+              importLocked: true,
+              sourceScreenshotCount: screenshots.length,
+              ocrConfidenceScore: ocrResult.confidenceScore,
+            },
+          })
+          .eq('id', draftId),
+      ])
+    }
+  }
+
   return Response.json({
     ok: true,
     jobId,
     parsedDraft,
     autoAssessment,
+    autoImport,
   })
 }
 

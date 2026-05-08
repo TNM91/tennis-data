@@ -168,7 +168,7 @@ function DataAssistWorkspace() {
           batchId: result.batchId,
           draftId: result.draftId,
         })
-        setMessage(getAutoAssessmentMessage(ocrResult.autoAssessment))
+        setMessage(getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport))
       } else {
         setMessage(`Data Assist draft saved with ${result.screenshotCount} stored screenshot${result.screenshotCount === 1 ? '' : 's'}. Nothing has been imported yet.`)
       }
@@ -430,12 +430,21 @@ function DataAssistWorkspace() {
   )
 }
 
-function getAutoAssessmentMessage(assessment: DataAssistAutoAssessment | undefined) {
+function getAutoAssessmentMessage(
+  assessment: DataAssistAutoAssessment | undefined,
+  autoImport: DataAssistImportActionResult | undefined,
+) {
+  if (autoImport?.ok && autoImport.action === 'commit') {
+    return autoImport.message || 'Free OCR finished and TenAceIQ imported this scorecard automatically.'
+  }
+  if (autoImport && !autoImport.ok) {
+    return `Free OCR finished, but automatic import paused: ${autoImport.message}`
+  }
   if (!assessment) {
     return 'Free OCR finished. Review the parsed draft before any import is committed.'
   }
   if (assessment.decision === 'auto_ready') {
-    return 'Free OCR finished. This scorecard passed auto-checks and does not need admin review.'
+    return 'Free OCR finished. This scorecard passed auto-checks and is ready without admin review.'
   }
   if (assessment.decision === 'member_confirm') {
     return 'Free OCR finished. TenAceIQ found a usable scorecard draft; confirm the read before import.'
@@ -711,9 +720,9 @@ function ImportPreviewPanel({
 }) {
   const preview = result?.importPreview
   const unresolvedWinnerCount = preview?.unresolvedWinnerCount ?? 0
-  const unknownPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'unknown').length ?? 0
+  const newPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'unknown').length ?? 0
   const likelyPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'likely').length ?? 0
-  const commitBlocked = unresolvedWinnerCount > 0 || unknownPlayers > 0 || !canCommit
+  const commitBlocked = unresolvedWinnerCount > 0 || !canCommit
 
   return (
     <div style={importPanelStyle}>
@@ -731,14 +740,14 @@ function ImportPreviewPanel({
           <div style={scorecardHeaderGridStyle}>
             <ReviewFact label="Lines" value={String(preview.row.lines.length)} />
             <ReviewFact label="Winners" value={unresolvedWinnerCount ? `${unresolvedWinnerCount} unresolved` : 'Ready'} />
-            <ReviewFact label="Players" value={unknownPlayers ? `${unknownPlayers} unknown` : likelyPlayers ? `${likelyPlayers} likely` : 'Matched'} />
+            <ReviewFact label="Players" value={newPlayers ? `${newPlayers} new` : likelyPlayers ? `${likelyPlayers} likely` : 'Matched'} />
           </div>
           <div style={parsedLineListStyle}>
             {preview.playerMappings.slice(0, 6).map((mapping) => (
               <div key={mapping.name} style={parsedLineStyle}>
                 <span>{mapping.name}</span>
                 <strong>{mapping.status}</strong>
-                <small>{mapping.matchedPlayerName || 'Will need resolution before commit'}</small>
+                <small>{mapping.matchedPlayerName || 'Will be created from TennisLink name'}</small>
               </div>
             ))}
           </div>
@@ -758,7 +767,7 @@ function ImportPreviewPanel({
         </button>
       </div>
       {commitBlocked && preview ? (
-        <p style={warningStyle}>Commit unlocks after winners and player matches are resolved.</p>
+        <p style={warningStyle}>Commit unlocks after winners are resolved and the parsed read is confirmed.</p>
       ) : null}
     </div>
   )
@@ -854,7 +863,14 @@ function getSubmissionStatusCopy(submission: DataAssistSubmission) {
       tone: 'amber' as const,
     }
   }
-  if (submission.status === 'verified' || submission.status === 'imported') {
+  if (submission.status === 'imported') {
+    return {
+      label: 'Imported',
+      detail: 'TenAceIQ read this scorecard and refreshed the match, player links, and ratings.',
+      tone: 'green' as const,
+    }
+  }
+  if (submission.status === 'verified') {
     return {
       label: 'Verified',
       detail: 'The parsed read was confirmed and contribution credit has been applied.',
