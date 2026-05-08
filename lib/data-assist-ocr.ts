@@ -55,11 +55,22 @@ export type DataAssistOcrQualitySummary = {
   provider: DataAssistOcrProvider
   textLength: number
   nonEmptyLineCount: number
+  duplicateLineCount?: number
   parserWarningCount: number
   parsedLineCount: number
   ocrConfidenceScore: number
   parserConfidenceScore: number
   reviewPriority: 'ready_for_review' | 'needs_manual_review' | 'blocked'
+  screenshotSummaries?: DataAssistOcrScreenshotQualitySummary[]
+}
+
+export type DataAssistOcrScreenshotQualitySummary = {
+  uploadOrder: number
+  fileName: string
+  confidenceScore: number
+  textLength: number
+  nonEmptyLineCount: number
+  duplicateLineCount: number
 }
 
 export const DATA_ASSIST_OCR_PROVIDER: DataAssistOcrProvider = 'disabled'
@@ -179,6 +190,8 @@ export function buildDataAssistOcrQualitySummary(input: {
   parsedLineCount: number
   ocrConfidenceScore: number
   parserConfidenceScore: number
+  duplicateLineCount?: number
+  screenshotSummaries?: DataAssistOcrScreenshotQualitySummary[]
 }): DataAssistOcrQualitySummary {
   const textLength = input.rawText.trim().length
   const nonEmptyLineCount = input.rawText.split('\n').filter((line) => line.trim()).length
@@ -193,11 +206,13 @@ export function buildDataAssistOcrQualitySummary(input: {
     provider: input.provider,
     textLength,
     nonEmptyLineCount,
+    duplicateLineCount: input.duplicateLineCount ?? 0,
     parserWarningCount: input.parserWarnings.length,
     parsedLineCount: input.parsedLineCount,
     ocrConfidenceScore: roundConfidence(input.ocrConfidenceScore),
     parserConfidenceScore: roundConfidence(input.parserConfidenceScore),
     reviewPriority,
+    screenshotSummaries: input.screenshotSummaries,
   }
 }
 

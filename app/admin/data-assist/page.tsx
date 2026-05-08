@@ -450,11 +450,20 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
       provider?: string
       textLength?: number
       nonEmptyLineCount?: number
+      duplicateLineCount?: number
       parserWarningCount?: number
       parsedLineCount?: number
       ocrConfidenceScore?: number
       parserConfidenceScore?: number
       reviewPriority?: string
+      screenshotSummaries?: Array<{
+        uploadOrder?: number
+        fileName?: string
+        confidenceScore?: number
+        textLength?: number
+        nonEmptyLineCount?: number
+        duplicateLineCount?: number
+      }>
     }
     lines?: Array<{
       lineLabel?: string
@@ -514,8 +523,31 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
               <MiniFact label="Parsed lines" value={String(ocrQuality.parsedLineCount ?? parsedPayload.lines?.length ?? 0)} />
               <MiniFact label="Text lines" value={String(ocrQuality.nonEmptyLineCount ?? 0)} />
               <MiniFact label="Text chars" value={(ocrQuality.textLength ?? 0).toLocaleString()} />
+              <MiniFact label="Duplicates removed" value={String(ocrQuality.duplicateLineCount ?? 0)} />
               <MiniFact label="Warnings" value={String(ocrQuality.parserWarningCount ?? draft.parserWarnings.length)} />
             </div>
+            {ocrQuality.screenshotSummaries?.length ? (
+              <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                {ocrQuality.screenshotSummaries.map((summary) => (
+                  <div
+                    key={`${summary.uploadOrder}-${summary.fileName}`}
+                    style={{
+                      padding: 10,
+                      borderRadius: 12,
+                      border: '1px solid var(--shell-panel-border)',
+                      background: 'var(--shell-panel-bg-strong)',
+                    }}
+                  >
+                    <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
+                      #{summary.uploadOrder || '?'} {summary.fileName || 'Screenshot'}
+                    </div>
+                    <div className="subtle-text" style={{ marginTop: 5, fontSize: 12 }}>
+                      {formatPercent(summary.confidenceScore)} OCR - {summary.nonEmptyLineCount ?? 0} lines - {summary.duplicateLineCount ?? 0} overlap lines removed
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 
