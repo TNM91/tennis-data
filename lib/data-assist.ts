@@ -811,6 +811,7 @@ export async function reviewMyDataAssistOcrDraft(input: {
   const result = (await response.json().catch(() => null)) as {
     ok?: boolean
     message?: string
+    autoImport?: DataAssistImportActionResult
   } | null
 
   if (!response.ok || !result?.ok) {
