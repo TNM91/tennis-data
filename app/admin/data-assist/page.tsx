@@ -8,11 +8,13 @@ import {
   getDataAssistImportTypeLabel,
   listDataAssistAdminBatches,
   loadDataAssistAdminBatchDetail,
+  queueDataAssistOcrVerification,
   reviewDataAssistBatch,
   type DataAssistAdminBatch,
   type DataAssistAdminDraft,
   type DataAssistAdminScreenshot,
   type DataAssistBatchStatus,
+  type DataAssistOcrJob,
 } from '@/lib/data-assist'
 import { getDataAssistOcrReadiness, getScorecardDraftReadiness } from '@/lib/data-assist-ocr'
 
@@ -41,6 +43,7 @@ function DataAssistReviewQueue() {
   const [selectedId, setSelectedId] = useState('')
   const [screenshots, setScreenshots] = useState<DataAssistAdminScreenshot[]>([])
   const [drafts, setDrafts] = useState<DataAssistAdminDraft[]>([])
+  const [ocrJobs, setOcrJobs] = useState<DataAssistOcrJob[]>([])
   const [filter, setFilter] = useState<QueueFilter>('all')
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -48,6 +51,7 @@ function DataAssistReviewQueue() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [savingStatus, setSavingStatus] = useState<DataAssistBatchStatus | ''>('')
+  const [queueingOcr, setQueueingOcr] = useState(false)
 
   const selectedBatch = batches.find((batch) => batch.id === selectedId) ?? null
   const selectedDraft = drafts[0] ?? null
@@ -89,6 +93,7 @@ function DataAssistReviewQueue() {
     if (!selectedId) {
       setScreenshots([])
       setDrafts([])
+      setOcrJobs([])
       setReviewNote('')
       return
     }
@@ -99,6 +104,7 @@ function DataAssistReviewQueue() {
       .then((detail) => {
         setScreenshots(detail.screenshots)
         setDrafts(detail.drafts)
+        setOcrJobs(detail.ocrJobs)
         const draftNote = detail.drafts[0]?.reviewNote || ''
         const batchNote = batches.find((batch) => batch.id === selectedId)?.reviewNote || ''
         setReviewNote(draftNote || batchNote)
@@ -131,6 +137,29 @@ function DataAssistReviewQueue() {
       setError(err instanceof Error ? err.message : 'Could not update this Data Assist batch.')
     } finally {
       setSavingStatus('')
+    }
+  }
+
+  async function handleQueueOcr() {
+    if (!selectedBatch || !selectedDraft || queueingOcr) return
+    setQueueingOcr(true)
+    setMessage('')
+    setError('')
+    try {
+      const result = await queueDataAssistOcrVerification({
+        batchId: selectedBatch.id,
+        draftId: selectedDraft.id,
+      })
+      setMessage(`OCR verification boundary queued. Job ${result.jobId.slice(0, 8).toUpperCase()} produced a review-only draft; import remains locked.`)
+      const detail = await loadDataAssistAdminBatchDetail(selectedBatch.id)
+      setScreenshots(detail.screenshots)
+      setDrafts(detail.drafts)
+      setOcrJobs(detail.ocrJobs)
+      await refreshQueue(selectedBatch.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not queue OCR verification.')
+    } finally {
+      setQueueingOcr(false)
     }
   }
 
@@ -278,6 +307,7 @@ function DataAssistReviewQueue() {
               ) : (
                 <>
                   <ScorecardBoundary draft={selectedDraft} />
+                  <OcrJobPanel draft={selectedDraft} jobs={ocrJobs} />
                   <ScreenshotGrid screenshots={screenshots} />
                   <DraftSummary draft={selectedDraft} />
                 </>
@@ -314,6 +344,14 @@ function DataAssistReviewQueue() {
                   disabled={Boolean(savingStatus)}
                 >
                   {savingStatus === 'ready_to_import' ? 'Saving...' : 'Approve for OCR verification'}
+                </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => void handleQueueOcr()}
+                  disabled={Boolean(savingStatus) || queueingOcr || !selectedDraft || selectedBatch.requestedImportType !== 'scorecard'}
+                >
+                  {queueingOcr ? 'Queueing...' : 'Queue OCR verification'}
                 </button>
                 <button
                   type="button"
@@ -396,6 +434,101 @@ function ScorecardBoundary({ draft }: { draft: DataAssistAdminDraft | null }) {
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs: DataAssistOcrJob[] }) {
+  if (!draft) return null
+
+  const parsedPayload = draft.parsedPayload as {
+    rawTextPreview?: string
+    sourceScreenshotCount?: number
+    lines?: Array<{
+      lineLabel?: string
+      homePlayers?: string[]
+      awayPlayers?: string[]
+      score?: string
+      winner?: string
+      confidenceScore?: number
+    }>
+  }
+  const latestJob = jobs[0] ?? null
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div className="section-kicker">OCR verification</div>
+      <div style={{ marginTop: 10, display: 'grid', gap: 12 }}>
+        <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
+                {draft.ocrProvider === 'mock_review' ? 'Mock OCR boundary' : draft.ocrProvider}
+              </div>
+              <div className="subtle-text" style={{ marginTop: 6 }}>
+                {draft.ocrStatus === 'processed'
+                  ? 'A review-only parsed draft was generated. Import remains disabled.'
+                  : 'No OCR verification draft has been generated yet.'}
+              </div>
+            </div>
+            <StatusBadge status={draft.ocrStatus} compact />
+          </div>
+
+          {latestJob ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 12 }}>
+              <MiniFact label="Job" value={latestJob.id.slice(0, 8).toUpperCase()} />
+              <MiniFact label="Provider" value={latestJob.provider} />
+              <MiniFact label="Screenshots" value={String(latestJob.screenshotCount)} />
+              <MiniFact label="Processed" value={formatDate(latestJob.processedAt || latestJob.createdAt)} />
+            </div>
+          ) : null}
+        </div>
+
+        {draft.parserWarnings.length ? (
+          <div style={{ padding: 14, borderRadius: 16, border: '1px solid rgba(251,191,36,0.24)', background: 'rgba(251,191,36,0.08)' }}>
+            <div style={{ color: '#fde68a', fontWeight: 900 }}>Parser warnings</div>
+            <div style={{ display: 'grid', gap: 7, marginTop: 8 }}>
+              {draft.parserWarnings.map((warning) => (
+                <div key={warning} className="subtle-text">{warning}</div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {parsedPayload.rawTextPreview ? (
+          <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+            <div className="metric-label">OCR source preview</div>
+            <pre style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap', color: 'var(--foreground)', fontSize: 12, lineHeight: 1.5 }}>
+              {parsedPayload.rawTextPreview}
+            </pre>
+          </div>
+        ) : null}
+
+        {parsedPayload.lines?.length ? (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {parsedPayload.lines.map((line, index) => (
+              <div key={`${line.lineLabel}-${index}`} style={{ padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+                <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>{line.lineLabel || `Line ${index + 1}`}</div>
+                <div className="subtle-text" style={{ marginTop: 6 }}>
+                  {(line.homePlayers || []).join(' / ') || 'Home players not parsed'} vs {(line.awayPlayers || []).join(' / ') || 'Away players not parsed'}
+                </div>
+                <div className="subtle-text" style={{ marginTop: 4 }}>{line.score || 'Score not parsed'}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState text="No scorecard lines have been extracted yet. This boundary is ready for a real OCR provider." />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MiniFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ padding: 10, borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)' }}>
+      <div className="metric-label">{label}</div>
+      <div style={{ color: 'var(--foreground)', fontWeight: 900, marginTop: 5 }}>{value || 'None'}</div>
     </div>
   )
 }
