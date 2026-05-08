@@ -4,6 +4,7 @@ import { getClientAuthState } from './auth'
 import {
   buildEmptyScorecardDraftFields,
   buildMockScorecardOcrDraft,
+  buildScorecardOcrDraftFromText,
   getDataAssistOcrReadiness,
   type DataAssistScorecardParsedDraft,
 } from './data-assist-ocr'
@@ -878,6 +879,7 @@ export async function reviewDataAssistBatch(input: {
 export async function queueDataAssistOcrVerification(input: {
   batchId: string
   draftId: string
+  rawOcrText?: string
 }) {
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
@@ -920,10 +922,14 @@ export async function queueDataAssistOcrVerification(input: {
     visualSignals: normalizeSignals(screenshot.visual_signals),
   }))
 
-  const parsedDraft = buildMockScorecardOcrDraft(screenshots)
-  const confidenceScore = screenshots.length
-    ? roundConfidence(screenshots.reduce((sum, screenshot) => sum + screenshot.confidenceScore, 0) / screenshots.length)
+  const rawOcrText = input.rawOcrText?.trim() || ''
+  const parsedDraft = rawOcrText
+    ? buildScorecardOcrDraftFromText(rawOcrText, screenshots)
+    : buildMockScorecardOcrDraft(screenshots)
+  const screenshotConfidence = screenshots.length
+    ? screenshots.reduce((sum, screenshot) => sum + screenshot.confidenceScore, 0) / screenshots.length
     : 0
+  const confidenceScore = roundConfidence(Math.max(parsedDraft.confidenceScore, screenshotConfidence))
   const processedAt = new Date().toISOString()
 
   const { data: job, error: jobError } = await supabase
@@ -963,7 +969,9 @@ export async function queueDataAssistOcrVerification(input: {
       line_count: parsedDraft.lineCount,
       parser_warnings: parsedDraft.parserWarnings,
       validation_summary: {
-        message: 'Mock OCR boundary completed. No scorecard text has been extracted yet.',
+        message: rawOcrText
+          ? 'Review-only OCR parser completed. Admin verification is required before import.'
+          : 'Mock OCR boundary completed. No scorecard text has been extracted yet.',
         importLocked: true,
         sourceScreenshotCount: screenshots.length,
       },
