@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties } fr
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import {
+  getMyDataAssistContributorStats,
   getDataAssistContributionValue,
   getDataAssistImportTypeLabel,
   listMyDataAssistSubmissions,
@@ -13,6 +14,7 @@ import {
   saveDataAssistDraftBatch,
   summarizeDataAssistBatch,
   type DataAssistBatchSummary,
+  type DataAssistContributorStats,
   type DataAssistImportType,
   type DataAssistPreparedScreenshot,
   type DataAssistSubmission,
@@ -58,6 +60,7 @@ function DataAssistWorkspace() {
   const [saving, setSaving] = useState(false)
   const [savedBatchId, setSavedBatchId] = useState('')
   const [submissions, setSubmissions] = useState<DataAssistSubmission[]>([])
+  const [contributorStats, setContributorStats] = useState<DataAssistContributorStats | null>(null)
   const [submissionsLoading, setSubmissionsLoading] = useState(false)
   const [submissionsError, setSubmissionsError] = useState('')
   const [message, setMessage] = useState('')
@@ -79,7 +82,12 @@ function DataAssistWorkspace() {
     setSubmissionsLoading(true)
     setSubmissionsError('')
     try {
-      setSubmissions(await listMyDataAssistSubmissions())
+      const [nextSubmissions, nextStats] = await Promise.all([
+        listMyDataAssistSubmissions(),
+        getMyDataAssistContributorStats(),
+      ])
+      setSubmissions(nextSubmissions)
+      setContributorStats(nextStats)
     } catch (err) {
       setSubmissionsError(err instanceof Error ? err.message : 'Your Data Assist submissions could not be loaded.')
     } finally {
@@ -191,6 +199,7 @@ function DataAssistWorkspace() {
         authResolved={authResolved}
         userId={userId}
         submissions={submissions}
+        contributorStats={contributorStats}
         loading={submissionsLoading}
         error={submissionsError}
         onRefresh={() => void refreshSubmissions()}
@@ -399,6 +408,7 @@ function MySubmissionsPanel({
   authResolved,
   userId,
   submissions,
+  contributorStats,
   loading,
   error,
   onRefresh,
@@ -406,19 +416,15 @@ function MySubmissionsPanel({
   authResolved: boolean
   userId: string | null
   submissions: DataAssistSubmission[]
+  contributorStats: DataAssistContributorStats | null
   loading: boolean
   error: string
   onRefresh: () => void
 }) {
-  const totals = submissions.reduce(
-    (acc, submission) => {
-      if (submission.status === 'ready_to_import') acc.ready += 1
-      else if (submission.status === 'rejected') acc.rejected += 1
-      else acc.pending += 1
-      return acc
-    },
-    { pending: 0, ready: 0, rejected: 0 },
-  )
+  const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'ready_to_import' && submission.status !== 'rejected').length
+  const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'ready_to_import').length
+  const rejectedCount = contributorStats?.rejectedImportCount ?? submissions.filter((submission) => submission.status === 'rejected').length
+  const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
 
   return (
     <section style={panelStyle}>
@@ -437,10 +443,12 @@ function MySubmissionsPanel({
       ) : submissions.length ? (
         <>
           <div style={submissionStatsStyle}>
-            <SubmissionStat label="Pending review" value={totals.pending} />
-            <SubmissionStat label="Ready for OCR" value={totals.ready} />
-            <SubmissionStat label="Rejected" value={totals.rejected} />
+            <SubmissionStat label="Pending review" value={pendingCount} />
+            <SubmissionStat label="Verified quality" value={verifiedCount} />
+            <SubmissionStat label="Accuracy score" value={`${accuracyScore}%`} />
+            <SubmissionStat label="Rejected" value={rejectedCount} />
           </div>
+          <ContributorBadges stats={contributorStats} />
           <div style={submissionListStyle}>
             {submissions.slice(0, 6).map((submission) => (
               <SubmissionCard key={submission.id} submission={submission} />
@@ -458,11 +466,40 @@ function MySubmissionsPanel({
   )
 }
 
-function SubmissionStat({ label, value }: { label: string; value: number }) {
+function SubmissionStat({ label, value }: { label: string; value: number | string }) {
   return (
     <div style={submissionStatStyle}>
       <span>{label}</span>
-      <strong>{value.toLocaleString()}</strong>
+      <strong>{typeof value === 'number' ? value.toLocaleString() : value}</strong>
+    </div>
+  )
+}
+
+function ContributorBadges({ stats }: { stats: DataAssistContributorStats | null }) {
+  const badges = stats?.badges ?? []
+
+  return (
+    <div style={badgePanelStyle}>
+      <div>
+        <div className="section-kicker">Contributor badges</div>
+        <p style={copyStyle}>
+          Badges unlock from admin-approved upload quality, not upload volume.
+        </p>
+      </div>
+      {badges.length ? (
+        <div style={badgeListStyle}>
+          {badges.map((badge) => (
+            <div key={badge.id} style={badgeCardStyle}>
+              <strong>{badge.label}</strong>
+              <span>{badge.detail}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={badgeEmptyStyle}>
+          First badge unlocks after an admin approves one Data Assist upload for OCR verification.
+        </div>
+      )}
     </div>
   )
 }
@@ -810,6 +847,48 @@ const submissionMetaStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   textTransform: 'uppercase',
+}
+
+const badgePanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+}
+
+const badgeListStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const badgeCardStyle: CSSProperties = {
+  minHeight: 74,
+  minWidth: 190,
+  flex: '1 1 190px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 6,
+  color: 'var(--foreground-strong)',
+}
+
+const badgeEmptyStyle: CSSProperties = {
+  minHeight: 56,
+  display: 'grid',
+  alignItems: 'center',
+  borderRadius: 14,
+  border: '1px dashed var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
 }
 
 const screenshotCardStyle: CSSProperties = {
