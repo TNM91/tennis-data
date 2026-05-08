@@ -312,7 +312,7 @@ export default function SiteHeader({ active }: { active?: string }) {
         position: 'sticky',
         top: 0,
         zIndex: 40,
-        overflow: 'clip',
+        overflow: 'visible',
         padding: `max(0px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left))`,
         background: 'transparent',
         backdropFilter: 'blur(20px)',
