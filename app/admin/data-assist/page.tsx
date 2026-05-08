@@ -407,10 +407,30 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 10 }}>
         {screenshots.length ? (
           screenshots.map((screenshot) => (
-            <div key={screenshot.id} style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+            <div key={screenshot.id} style={{ overflow: 'hidden', borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+              <div style={{ position: 'relative', aspectRatio: '4 / 5', background: 'var(--shell-panel-bg-strong)', borderBottom: '1px solid var(--shell-panel-border)' }}>
+                {screenshot.signedImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={screenshot.signedImageUrl}
+                    alt={`TennisLink screenshot ${screenshot.uploadOrder}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                ) : (
+                  <div style={{ height: '100%', display: 'grid', placeItems: 'center', padding: 14, textAlign: 'center' }}>
+                    <div className="subtle-text">Stored image unavailable. Metadata is still available below.</div>
+                  </div>
+                )}
+                <div style={{ position: 'absolute', top: 10, left: 10 }}>
+                  <StatusBadge status={screenshot.detectionStatus} compact />
+                </div>
+              </div>
+              <div style={{ padding: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
                 <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>#{screenshot.uploadOrder}</div>
-                <StatusBadge status={screenshot.detectionStatus} compact />
+                <span className="badge badge-blue" style={{ fontSize: 10 }}>
+                  {screenshot.storagePath ? 'Stored' : 'Metadata only'}
+                </span>
               </div>
               <div className="subtle-text" style={{ marginTop: 8, wordBreak: 'break-word' }}>
                 {screenshot.fileName}
@@ -424,6 +444,7 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
                     {signal}
                   </span>
                 ))}
+              </div>
               </div>
             </div>
           ))
