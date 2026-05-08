@@ -458,6 +458,12 @@ export default function SiteHeader({ active }: { active?: string }) {
               </>
             )}
 
+            {useCompactHeader && !authenticated ? (
+              <Link href="/login" style={compactSignInStyle}>
+                Sign in
+              </Link>
+            ) : null}
+
             {useCompactHeader ? (
               <button
                 type="button"
@@ -472,13 +478,14 @@ export default function SiteHeader({ active }: { active?: string }) {
           </div>
         </div>
 
-        {useCompactHeader ? (
+        {useCompactHeader && menuOpen ? (
           <div
             style={{
-              maxHeight: menuOpen ? '760px' : '0px',
-              opacity: menuOpen ? 1 : 0,
-              overflow: 'hidden',
-              transition: 'max-height 220ms ease, opacity 180ms ease',
+              position: 'absolute',
+              top: 'calc(100% - 8px)',
+              left: isMobile ? 2 : 4,
+              right: isMobile ? 2 : 4,
+              zIndex: 60,
             }}
           >
             <div
@@ -804,6 +811,22 @@ const primaryCtaStyle = {
   letterSpacing: '-0.02em',
   textDecoration: 'none',
   boxShadow: '0 12px 24px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.28)',
+} as const
+
+const compactSignInStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 38,
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 11px',
+  fontSize: 13,
+  fontWeight: 850,
+  textDecoration: 'none',
+  whiteSpace: 'nowrap' as const,
 } as const
 
 const menuButtonStyle = {
