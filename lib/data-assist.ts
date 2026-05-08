@@ -69,6 +69,8 @@ export type DataAssistOcrVerificationResult = {
   autoAssessment?: DataAssistAutoAssessment
 }
 
+export type DataAssistOcrReviewDecision = 'confirmed' | 'flagged'
+
 export type DataAssistAdminBatch = {
   id: string
   submittedByUserId: string
@@ -152,6 +154,7 @@ export type DataAssistOcrJob = {
 
 export type DataAssistSubmission = {
   id: string
+  draftId: string
   requestedImportType: DataAssistImportType
   detectedLayout: DataAssistLayout
   status: DataAssistBatchStatus
@@ -164,6 +167,8 @@ export type DataAssistSubmission = {
   draftStatus: DataAssistDraftStatus
   draftOcrStatus: string
   draftReviewNote: string
+  validationSummary: Record<string, unknown>
+  parsedPayload: DataAssistScorecardParsedDraft | Record<string, unknown>
   createdAt: string
   updatedAt: string
 }
@@ -226,10 +231,13 @@ type DataAssistStatsBatchRow = {
 }
 
 type DataAssistSubmissionDraftRow = {
+  id?: string | null
   batch_id?: string | null
   status?: string | null
   ocr_status?: string | null
   review_note?: string | null
+  validation_summary?: Record<string, unknown> | null
+  parsed_payload?: Record<string, unknown> | null
 }
 
 type DataAssistScreenshotRow = {
@@ -722,7 +730,7 @@ export async function listMyDataAssistSubmissions() {
   const batchIds = batches.map((batch) => batch.id)
   const { data: draftRows, error: draftError } = await supabase
     .from('data_assist_drafts')
-    .select('batch_id, status, ocr_status, review_note')
+    .select('id, batch_id, status, ocr_status, review_note, validation_summary, parsed_payload')
     .in('batch_id', batchIds)
 
   if (draftError) throw new Error(draftError.message)
@@ -737,6 +745,7 @@ export async function listMyDataAssistSubmissions() {
     const draft = draftsByBatchId.get(batch.id)
     return {
       id: batch.id,
+      draftId: cleanText(draft?.id),
       requestedImportType: batch.requestedImportType,
       detectedLayout: batch.detectedLayout,
       status: batch.status,
@@ -749,10 +758,53 @@ export async function listMyDataAssistSubmissions() {
       draftStatus: normalizeDraftStatus(draft?.status),
       draftOcrStatus: cleanText(draft?.ocr_status) || 'not_started',
       draftReviewNote: cleanText(draft?.review_note),
+      validationSummary: draft?.validation_summary || {},
+      parsedPayload: draft?.parsed_payload || {},
       createdAt: batch.createdAt,
       updatedAt: batch.updatedAt,
     }
   })
+}
+
+export async function reviewMyDataAssistOcrDraft(input: {
+  batchId: string
+  draftId: string
+  decision: DataAssistOcrReviewDecision
+}) {
+  const normalizedBatchId = cleanText(input.batchId)
+  const normalizedDraftId = cleanText(input.draftId)
+  if (!normalizedBatchId || !normalizedDraftId) {
+    throw new Error('Missing Data Assist batch or draft id.')
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const token = session?.access_token?.trim()
+  if (!token) throw new Error('Sign in to review this Data Assist draft.')
+
+  const response = await fetch('/api/data-assist/review', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      batchId: normalizedBatchId,
+      draftId: normalizedDraftId,
+      decision: input.decision,
+    }),
+  })
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean
+    message?: string
+  } | null
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || 'Could not review this Data Assist draft.')
+  }
+
+  return result
 }
 
 export async function getMyDataAssistContributorStats() {
@@ -1079,9 +1131,9 @@ async function refreshDataAssistContributorStats(profileId: string) {
   if (error) throw new Error(error.message)
 
   const rows = (data || []) as DataAssistStatsBatchRow[]
-  const verifiedRows = rows.filter((row) => row.status === 'ready_to_import' || row.status === 'verified' || row.status === 'imported')
+  const verifiedRows = rows.filter((row) => row.status === 'verified' || row.status === 'imported')
   const rejectedRows = rows.filter((row) => row.status === 'rejected')
-  const pendingRows = rows.filter((row) => row.status !== 'ready_to_import' && row.status !== 'verified' && row.status !== 'imported' && row.status !== 'rejected')
+  const pendingRows = rows.filter((row) => row.status !== 'verified' && row.status !== 'imported' && row.status !== 'rejected')
   const reviewedCount = verifiedRows.length + rejectedRows.length
   const accuracyScore = reviewedCount ? Math.round((verifiedRows.length / reviewedCount) * 100) / 100 : 0
   const badges = getDataAssistContributorBadges(verifiedRows.length, accuracyScore)
