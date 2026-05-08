@@ -881,6 +881,10 @@ export async function queueDataAssistOcrVerification(input: {
   draftId: string
   rawOcrText?: string
 }) {
+  if (!input.rawOcrText && getDataAssistOcrReadiness().provider === 'tesseract') {
+    return queueDataAssistFreeOcrVerification(input)
+  }
+
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
   if (!userId) throw new Error('Sign in as an admin to queue OCR verification.')
@@ -983,6 +987,41 @@ export async function queueDataAssistOcrVerification(input: {
   return {
     jobId,
     parsedDraft,
+  }
+}
+
+async function queueDataAssistFreeOcrVerification(input: {
+  batchId: string
+  draftId: string
+}) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const token = session?.access_token?.trim()
+  if (!token) throw new Error('Sign in as an admin to queue OCR verification.')
+
+  const response = await fetch('/api/data-assist/ocr', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(input),
+  })
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean
+    message?: string
+    jobId?: string
+    parsedDraft?: DataAssistScorecardParsedDraft
+  } | null
+
+  if (!response.ok || !result?.ok || !result.jobId || !result.parsedDraft) {
+    throw new Error(result?.message || 'Could not queue free OCR verification.')
+  }
+
+  return {
+    jobId: result.jobId,
+    parsedDraft: result.parsedDraft,
   }
 }
 

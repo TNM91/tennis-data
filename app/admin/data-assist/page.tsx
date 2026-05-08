@@ -164,6 +164,7 @@ function DataAssistReviewQueue() {
   }
 
   const ocrReadiness = getDataAssistOcrReadiness()
+  const ocrButtonLabel = ocrReadiness.provider === 'tesseract' ? 'Run free OCR' : 'Queue OCR verification'
 
   return (
     <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: '18px 24px 36px' }}>
@@ -351,7 +352,7 @@ function DataAssistReviewQueue() {
                   onClick={() => void handleQueueOcr()}
                   disabled={Boolean(savingStatus) || queueingOcr || !selectedDraft || selectedBatch.requestedImportType !== 'scorecard'}
                 >
-                  {queueingOcr ? 'Queueing...' : 'Queue OCR verification'}
+                  {queueingOcr ? 'Queueing...' : ocrButtonLabel}
                 </button>
                 <button
                   type="button"
@@ -463,7 +464,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
-                {draft.ocrProvider === 'mock_review' ? 'Mock OCR boundary' : draft.ocrProvider}
+                {getOcrProviderLabel(draft.ocrProvider)}
               </div>
               <div className="subtle-text" style={{ marginTop: 6 }}>
                 {draft.ocrStatus === 'processed'
@@ -636,6 +637,12 @@ function StatusBadge({ status, compact = false }: { status: string; compact?: bo
       {status.replace(/_/g, ' ')}
     </span>
   )
+}
+
+function getOcrProviderLabel(provider: string) {
+  if (provider === 'mock_review') return 'Mock OCR boundary'
+  if (provider === 'tesseract') return 'Free Tesseract OCR'
+  return provider
 }
 
 function StatusPanel({ tone, text }: { tone: 'success' | 'error'; text: string }) {

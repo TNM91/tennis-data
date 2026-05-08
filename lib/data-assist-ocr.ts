@@ -1,6 +1,6 @@
 import { parseDataAssistScorecardText } from './data-assist-scorecard-parser'
 
-export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'future_ocr'
+export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'tesseract' | 'future_ocr'
 
 export type DataAssistOcrStatus = 'not_started' | 'queued' | 'processed' | 'failed' | 'disabled'
 
@@ -52,13 +52,43 @@ export type DataAssistScorecardParsedDraft = DataAssistScorecardDraftFields & {
 
 export const DATA_ASSIST_OCR_PROVIDER: DataAssistOcrProvider = 'disabled'
 export const DATA_ASSIST_MOCK_OCR_PROVIDER: DataAssistOcrProvider = 'mock_review'
+export const DATA_ASSIST_TESSERACT_OCR_PROVIDER: DataAssistOcrProvider = 'tesseract'
 
-export function getDataAssistOcrReadiness(): DataAssistOcrReadiness {
+export function getDataAssistOcrReadiness(env: Record<string, string | undefined> = getClientSafeEnv()): DataAssistOcrReadiness {
+  const provider = normalizeDataAssistOcrProvider(env.NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER)
+  if (provider === DATA_ASSIST_TESSERACT_OCR_PROVIDER) {
+    return {
+      provider,
+      status: 'queued',
+      canRun: true,
+      reason: 'Free Tesseract OCR is enabled for admin-triggered review drafts. Imports still require admin verification.',
+    }
+  }
+
   return {
     provider: DATA_ASSIST_OCR_PROVIDER,
     status: 'disabled',
     canRun: false,
-    reason: 'OCR is intentionally disabled until TennisLink scorecard layout verification is stable.',
+    reason: 'OCR is intentionally disabled until a free provider is enabled for admin review.',
+  }
+}
+
+export function getServerDataAssistOcrReadiness(env: Record<string, string | undefined> = process.env): DataAssistOcrReadiness {
+  const provider = normalizeDataAssistOcrProvider(env.DATA_ASSIST_OCR_PROVIDER || env.NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER)
+  if (provider === DATA_ASSIST_TESSERACT_OCR_PROVIDER) {
+    return {
+      provider,
+      status: 'queued',
+      canRun: true,
+      reason: 'Free Tesseract OCR is enabled for review-only scorecard drafts.',
+    }
+  }
+
+  return {
+    provider: DATA_ASSIST_OCR_PROVIDER,
+    status: 'disabled',
+    canRun: false,
+    reason: 'Set DATA_ASSIST_OCR_PROVIDER=tesseract to enable free server-side OCR.',
   }
 }
 
@@ -120,6 +150,15 @@ export function buildScorecardOcrDraftFromText(
     sourceScreenshotCount: orderedScreenshots.length,
     provider,
   }
+}
+
+function normalizeDataAssistOcrProvider(value: string | undefined): DataAssistOcrProvider {
+  const normalized = value?.trim().toLowerCase()
+  return normalized === DATA_ASSIST_TESSERACT_OCR_PROVIDER ? DATA_ASSIST_TESSERACT_OCR_PROVIDER : DATA_ASSIST_OCR_PROVIDER
+}
+
+function getClientSafeEnv(): Record<string, string | undefined> {
+  return typeof process === 'undefined' ? {} : process.env
 }
 
 export function getScorecardDraftReadiness(fields: DataAssistScorecardDraftFields) {

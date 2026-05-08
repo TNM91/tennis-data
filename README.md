@@ -32,6 +32,17 @@ The admin import flow now supports review-safe scorecard preview, approval, and 
 - Best-effort server persistence is wired into the ingestion engine and will write review metadata when your Supabase schema supports it.
 - An optional SQL starter for review/audit columns and a dedicated audit table lives in [docs/scorecard-review-audit.sql](./docs/scorecard-review-audit.sql).
 
+## Data Assist OCR
+
+Data Assist OCR is disabled by default. To enable the free, open-source Tesseract provider for admin-triggered, review-only scorecard drafts, set both environment variables:
+
+```bash
+DATA_ASSIST_OCR_PROVIDER=tesseract
+NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER=tesseract
+```
+
+The OCR result still requires admin verification before any import path can affect trusted data.
+
 ## AdSense rollout
 
 The site is already wired for:
