@@ -406,6 +406,11 @@ function DataAssistWorkspace() {
           </p>
           <div style={heroActionRowStyle}>
             <a href="#upload" style={primaryButtonStyle}>Start upload</a>
+            {!authResolved || !userId ? (
+              <Link href="/login?next=/data-assist%23upload" style={secondaryButtonStyle}>
+                Sign in
+              </Link>
+            ) : null}
             <Link href="/messages?compose=support&category=data&subject=Data%20Assist%20question" style={secondaryButtonStyle}>
               Ask support
             </Link>
@@ -479,8 +484,14 @@ function DataAssistWorkspace() {
             ) : null}
 
             {!authResolved || !userId ? (
-              <div style={noticeStyle}>
-                Sign in before saving a Data Assist draft. You can still stage screenshots on this screen.
+              <div style={signInPromptStyle}>
+                <div>
+                  <strong>Sign in to scan</strong>
+                  <span>You can choose screenshots first, but scanning needs your test account.</span>
+                </div>
+                <Link href="/login?next=/data-assist%23upload" style={primaryButtonStyle}>
+                  Sign in
+                </Link>
               </div>
             ) : null}
           </section>
@@ -2656,6 +2667,22 @@ const noticeStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+}
+
+const signInPromptStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  padding: 14,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 850,
 }
 
 const emptyStateStyle: CSSProperties = {
