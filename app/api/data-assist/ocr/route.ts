@@ -134,6 +134,8 @@ export async function POST(request: Request) {
     parsedLineCount: parsedDraft.lineCount,
     ocrConfidenceScore: ocrResult.confidenceScore,
     parserConfidenceScore: parsedDraftBase.confidenceScore,
+    duplicateLineCount: ocrResult.screenshotSummaries.reduce((sum, screenshot) => sum + screenshot.duplicateLineCount, 0),
+    screenshotSummaries: ocrResult.screenshotSummaries,
   })
   const screenshotConfidence = screenshots.length
     ? screenshots.reduce((sum, screenshot) => sum + screenshot.confidenceScore, 0) / screenshots.length
