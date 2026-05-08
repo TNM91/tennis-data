@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildMockScorecardOcrDraft,
   buildEmptyScorecardDraftFields,
   getDataAssistOcrReadiness,
   getScorecardDraftReadiness,
@@ -30,5 +31,32 @@ describe('Data Assist OCR boundary', () => {
     expect(result.canRun).toBe(false)
     expect(result.status).toBe('disabled')
     expect(new Date(result.queuedAt).toString()).not.toBe('Invalid Date')
+  })
+
+  it('builds a review-only mock OCR draft from stored screenshots', () => {
+    const draft = buildMockScorecardOcrDraft([
+      {
+        fileName: 'tennislink-scorecard-2.png',
+        uploadOrder: 2,
+        imageWidth: 1200,
+        imageHeight: 2400,
+        confidenceScore: 0.8,
+        visualSignals: ['Readable screenshot dimensions'],
+      },
+      {
+        fileName: 'tennislink-scorecard-1.png',
+        uploadOrder: 1,
+        imageWidth: 1200,
+        imageHeight: 2400,
+        confidenceScore: 0.82,
+        visualSignals: ['Readable screenshot dimensions'],
+      },
+    ])
+
+    expect(draft.provider).toBe('mock_review')
+    expect(draft.sourceScreenshotCount).toBe(2)
+    expect(draft.rawTextPreview.split('\n')[0]).toContain('tennislink-scorecard-1.png')
+    expect(draft.parserWarnings[0]).toContain('Mock OCR boundary')
+    expect(draft.lines).toEqual([])
   })
 })

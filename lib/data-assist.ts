@@ -1,7 +1,12 @@
 'use client'
 
 import { getClientAuthState } from './auth'
-import { buildEmptyScorecardDraftFields, getDataAssistOcrReadiness } from './data-assist-ocr'
+import {
+  buildEmptyScorecardDraftFields,
+  buildMockScorecardOcrDraft,
+  getDataAssistOcrReadiness,
+  type DataAssistScorecardParsedDraft,
+} from './data-assist-ocr'
 import { supabase } from './supabase'
 
 export type DataAssistImportType = 'scorecard' | 'schedule' | 'team_summary'
@@ -102,11 +107,15 @@ export type DataAssistAdminDraft = {
   status: DataAssistDraftStatus
   confidenceScore: number
   validationSummary: Record<string, unknown>
+  parsedPayload: DataAssistScorecardParsedDraft | Record<string, unknown>
   impactSummary: Record<string, unknown>
   reviewNote: string
   reviewedByUserId: string
   reviewedAt: string
   ocrStatus: string
+  ocrJobId: string
+  ocrProvider: string
+  ocrProcessedAt: string
   externalMatchId: string
   homeTeam: string
   awayTeam: string
@@ -115,6 +124,22 @@ export type DataAssistAdminDraft = {
   parserWarnings: string[]
   createdAt: string
   updatedAt: string
+}
+
+export type DataAssistOcrJob = {
+  id: string
+  batchId: string
+  draftId: string
+  requestedByUserId: string
+  provider: string
+  status: 'queued' | 'blocked' | 'completed' | 'failed'
+  screenshotCount: number
+  confidenceScore: number
+  warnings: string[]
+  resultPayload: DataAssistScorecardParsedDraft | Record<string, unknown>
+  errorMessage: string
+  createdAt: string
+  processedAt: string
 }
 
 export type DataAssistSubmission = {
@@ -227,11 +252,15 @@ type DataAssistDraftRow = {
   status?: string | null
   confidence_score?: number | null
   validation_summary?: Record<string, unknown> | null
+  parsed_payload?: Record<string, unknown> | null
   impact_summary?: Record<string, unknown> | null
   review_note?: string | null
   reviewed_by_user_id?: string | null
   reviewed_at?: string | null
   ocr_status?: string | null
+  ocr_job_id?: string | null
+  ocr_provider?: string | null
+  ocr_processed_at?: string | null
   external_match_id?: string | null
   home_team?: string | null
   away_team?: string | null
@@ -240,6 +269,22 @@ type DataAssistDraftRow = {
   parser_warnings?: unknown
   created_at?: string | null
   updated_at?: string | null
+}
+
+type DataAssistOcrJobRow = {
+  id?: string | null
+  batch_id?: string | null
+  draft_id?: string | null
+  requested_by_user_id?: string | null
+  provider?: string | null
+  status?: string | null
+  screenshot_count?: number | null
+  confidence_score?: number | null
+  warnings?: unknown
+  result_payload?: Record<string, unknown> | null
+  error_message?: string | null
+  created_at?: string | null
+  processed_at?: string | null
 }
 
 const DATA_ASSIST_SCREENSHOT_BUCKET = 'data-assist-screenshots'
@@ -387,11 +432,15 @@ function toAdminDraft(row: DataAssistDraftRow): DataAssistAdminDraft | null {
     status: normalizeDraftStatus(row.status),
     confidenceScore: row.confidence_score ?? 0,
     validationSummary: row.validation_summary || {},
+    parsedPayload: row.parsed_payload || {},
     impactSummary: row.impact_summary || {},
     reviewNote: cleanText(row.review_note),
     reviewedByUserId: cleanText(row.reviewed_by_user_id),
     reviewedAt: cleanText(row.reviewed_at),
     ocrStatus: cleanText(row.ocr_status) || 'not_started',
+    ocrJobId: cleanText(row.ocr_job_id),
+    ocrProvider: cleanText(row.ocr_provider) || 'disabled',
+    ocrProcessedAt: cleanText(row.ocr_processed_at),
     externalMatchId: cleanText(row.external_match_id),
     homeTeam: cleanText(row.home_team),
     awayTeam: cleanText(row.away_team),
@@ -400,6 +449,34 @@ function toAdminDraft(row: DataAssistDraftRow): DataAssistAdminDraft | null {
     parserWarnings: normalizeSignals(row.parser_warnings),
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
+  }
+}
+
+function normalizeOcrJobStatus(value: string | null | undefined): DataAssistOcrJob['status'] {
+  if (value === 'queued' || value === 'blocked' || value === 'failed') return value
+  return 'completed'
+}
+
+function toOcrJob(row: DataAssistOcrJobRow): DataAssistOcrJob | null {
+  const id = cleanText(row.id)
+  const batchId = cleanText(row.batch_id)
+  const draftId = cleanText(row.draft_id)
+  if (!id || !batchId || !draftId) return null
+
+  return {
+    id,
+    batchId,
+    draftId,
+    requestedByUserId: cleanText(row.requested_by_user_id),
+    provider: cleanText(row.provider) || 'mock_review',
+    status: normalizeOcrJobStatus(row.status),
+    screenshotCount: row.screenshot_count ?? 0,
+    confidenceScore: row.confidence_score ?? 0,
+    warnings: normalizeSignals(row.warnings),
+    resultPayload: row.result_payload || {},
+    errorMessage: cleanText(row.error_message),
+    createdAt: cleanText(row.created_at),
+    processedAt: cleanText(row.processed_at),
   }
 }
 
@@ -701,9 +778,9 @@ export async function listDataAssistAdminBatches() {
 
 export async function loadDataAssistAdminBatchDetail(batchId: string) {
   const normalizedBatchId = cleanText(batchId)
-  if (!normalizedBatchId) return { screenshots: [], drafts: [] }
+  if (!normalizedBatchId) return { screenshots: [], drafts: [], ocrJobs: [] }
 
-  const [screenshotsResult, draftsResult] = await Promise.all([
+  const [screenshotsResult, draftsResult, ocrJobsResult] = await Promise.all([
     supabase
       .from('data_assist_screenshots')
       .select('id, batch_id, upload_order, file_name, mime_type, file_size_bytes, image_width, image_height, client_fingerprint, detection_status, detected_layout, confidence_score, visual_signals, rejection_reason, storage_bucket, storage_path, storage_uploaded_at, created_at')
@@ -711,13 +788,19 @@ export async function loadDataAssistAdminBatchDetail(batchId: string) {
       .order('upload_order', { ascending: true }),
     supabase
       .from('data_assist_drafts')
-      .select('id, batch_id, draft_type, status, confidence_score, validation_summary, impact_summary, review_note, reviewed_by_user_id, reviewed_at, ocr_status, external_match_id, home_team, away_team, match_date, line_count, parser_warnings, created_at, updated_at')
+      .select('id, batch_id, draft_type, status, confidence_score, validation_summary, parsed_payload, impact_summary, review_note, reviewed_by_user_id, reviewed_at, ocr_status, ocr_job_id, ocr_provider, ocr_processed_at, external_match_id, home_team, away_team, match_date, line_count, parser_warnings, created_at, updated_at')
       .eq('batch_id', normalizedBatchId)
       .order('created_at', { ascending: true }),
+    supabase
+      .from('data_assist_ocr_jobs')
+      .select('id, batch_id, draft_id, requested_by_user_id, provider, status, screenshot_count, confidence_score, warnings, result_payload, error_message, created_at, processed_at')
+      .eq('batch_id', normalizedBatchId)
+      .order('created_at', { ascending: false }),
   ])
 
   if (screenshotsResult.error) throw new Error(screenshotsResult.error.message)
   if (draftsResult.error) throw new Error(draftsResult.error.message)
+  if (ocrJobsResult.error) throw new Error(ocrJobsResult.error.message)
 
   const screenshots = ((screenshotsResult.data || []) as DataAssistScreenshotRow[])
     .map(toAdminScreenshot)
@@ -728,6 +811,9 @@ export async function loadDataAssistAdminBatchDetail(batchId: string) {
     drafts: ((draftsResult.data || []) as DataAssistDraftRow[])
       .map(toAdminDraft)
       .filter((draft): draft is DataAssistAdminDraft => Boolean(draft)),
+    ocrJobs: ((ocrJobsResult.data || []) as DataAssistOcrJobRow[])
+      .map(toOcrJob)
+      .filter((job): job is DataAssistOcrJob => Boolean(job)),
   }
 }
 
@@ -786,6 +872,109 @@ export async function reviewDataAssistBatch(input: {
 
   if (submittedByUserId) {
     await refreshDataAssistContributorStats(submittedByUserId)
+  }
+}
+
+export async function queueDataAssistOcrVerification(input: {
+  batchId: string
+  draftId: string
+}) {
+  const authState = await getClientAuthState()
+  const userId = authState.user?.id?.trim()
+  if (!userId) throw new Error('Sign in as an admin to queue OCR verification.')
+
+  const [batchResult, screenshotsResult] = await Promise.all([
+    supabase
+      .from('data_assist_batches')
+      .select('requested_import_type, status')
+      .eq('id', input.batchId)
+      .single(),
+    supabase
+      .from('data_assist_screenshots')
+      .select('upload_order, file_name, image_width, image_height, confidence_score, visual_signals')
+      .eq('batch_id', input.batchId)
+      .order('upload_order', { ascending: true }),
+  ])
+
+  if (batchResult.error) throw new Error(batchResult.error.message)
+  if (screenshotsResult.error) throw new Error(screenshotsResult.error.message)
+
+  const batch = batchResult.data as { requested_import_type?: string | null; status?: string | null } | null
+  if (batch?.requested_import_type !== 'scorecard') {
+    throw new Error('OCR verification is currently scoped to TennisLink scorecard batches.')
+  }
+
+  const screenshots = ((screenshotsResult.data || []) as Array<{
+    upload_order?: number | null
+    file_name?: string | null
+    image_width?: number | null
+    image_height?: number | null
+    confidence_score?: number | null
+    visual_signals?: unknown
+  }>).map((screenshot) => ({
+    uploadOrder: screenshot.upload_order ?? 0,
+    fileName: cleanText(screenshot.file_name),
+    imageWidth: screenshot.image_width ?? 0,
+    imageHeight: screenshot.image_height ?? 0,
+    confidenceScore: screenshot.confidence_score ?? 0,
+    visualSignals: normalizeSignals(screenshot.visual_signals),
+  }))
+
+  const parsedDraft = buildMockScorecardOcrDraft(screenshots)
+  const confidenceScore = screenshots.length
+    ? roundConfidence(screenshots.reduce((sum, screenshot) => sum + screenshot.confidenceScore, 0) / screenshots.length)
+    : 0
+  const processedAt = new Date().toISOString()
+
+  const { data: job, error: jobError } = await supabase
+    .from('data_assist_ocr_jobs')
+    .insert({
+      batch_id: input.batchId,
+      draft_id: input.draftId,
+      requested_by_user_id: userId,
+      provider: parsedDraft.provider,
+      status: 'completed',
+      screenshot_count: screenshots.length,
+      confidence_score: confidenceScore,
+      warnings: parsedDraft.parserWarnings,
+      result_payload: parsedDraft,
+      processed_at: processedAt,
+    })
+    .select('id')
+    .single()
+
+  if (jobError) throw new Error(jobError.message)
+  const jobId = cleanText((job as { id?: string | null } | null)?.id)
+  if (!jobId) throw new Error('OCR verification job could not be created.')
+
+  const draftUpdate = await supabase
+    .from('data_assist_drafts')
+    .update({
+      status: 'ready_for_verification',
+      ocr_status: 'processed',
+      ocr_job_id: jobId,
+      ocr_provider: parsedDraft.provider,
+      ocr_processed_at: processedAt,
+      parsed_payload: parsedDraft,
+      external_match_id: parsedDraft.externalMatchId,
+      home_team: parsedDraft.homeTeam,
+      away_team: parsedDraft.awayTeam,
+      match_date: parsedDraft.matchDate,
+      line_count: parsedDraft.lineCount,
+      parser_warnings: parsedDraft.parserWarnings,
+      validation_summary: {
+        message: 'Mock OCR boundary completed. No scorecard text has been extracted yet.',
+        importLocked: true,
+        sourceScreenshotCount: screenshots.length,
+      },
+    })
+    .eq('id', input.draftId)
+
+  if (draftUpdate.error) throw new Error(draftUpdate.error.message)
+
+  return {
+    jobId,
+    parsedDraft,
   }
 }
 
