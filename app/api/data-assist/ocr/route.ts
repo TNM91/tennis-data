@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
+  assessDataAssistScorecardDraft,
   buildDataAssistOcrQualitySummary,
   buildScorecardOcrDraftFromText,
   getServerDataAssistOcrReadiness,
@@ -44,12 +45,12 @@ type StorageDownloadClient = {
 export async function POST(request: Request) {
   const token = getBearerToken(request)
   if (!token) {
-    return Response.json({ ok: false, message: 'Admin sign-in required.' }, { status: 401 })
+    return Response.json({ ok: false, message: 'Sign in required.' }, { status: 401 })
   }
 
-  const adminCheck = await getAdminUserId(token)
-  if (!adminCheck.ok) {
-    return Response.json({ ok: false, message: adminCheck.message }, { status: adminCheck.status })
+  const requesterCheck = await getRequester(token)
+  if (!requesterCheck.ok) {
+    return Response.json({ ok: false, message: requesterCheck.message }, { status: requesterCheck.status })
   }
 
   const readiness = getServerDataAssistOcrReadiness()
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
   const [batchResult, screenshotResult] = await Promise.all([
     supabase
       .from('data_assist_batches')
-      .select('requested_import_type, status')
+      .select('requested_import_type, status, submitted_by_user_id')
       .eq('id', batchId)
       .maybeSingle(),
     supabase
@@ -102,7 +103,17 @@ export async function POST(request: Request) {
   if (batchResult.error) return Response.json({ ok: false, message: batchResult.error.message }, { status: 500 })
   if (screenshotResult.error) return Response.json({ ok: false, message: screenshotResult.error.message }, { status: 500 })
 
-  const batch = batchResult.data as { requested_import_type?: string | null; status?: string | null } | null
+  const batch = batchResult.data as {
+    requested_import_type?: string | null
+    status?: string | null
+    submitted_by_user_id?: string | null
+  } | null
+  if (!batch) {
+    return Response.json({ ok: false, message: 'Data Assist batch was not found.' }, { status: 404 })
+  }
+  if (!requesterCheck.isAdmin && cleanText(batch.submitted_by_user_id) !== requesterCheck.userId) {
+    return Response.json({ ok: false, message: 'You can only OCR your own Data Assist uploads.' }, { status: 403 })
+  }
   if (batch?.requested_import_type !== 'scorecard') {
     return Response.json(
       { ok: false, message: 'Free OCR is currently scoped to TennisLink scorecard batches.' },
@@ -137,6 +148,8 @@ export async function POST(request: Request) {
     duplicateLineCount: ocrResult.screenshotSummaries.reduce((sum, screenshot) => sum + screenshot.duplicateLineCount, 0),
     screenshotSummaries: ocrResult.screenshotSummaries,
   })
+  const autoAssessment = assessDataAssistScorecardDraft(parsedDraft)
+  parsedDraft.ocrQuality.autoAssessment = autoAssessment
   const screenshotConfidence = screenshots.length
     ? screenshots.reduce((sum, screenshot) => sum + screenshot.confidenceScore, 0) / screenshots.length
     : 0
@@ -148,7 +161,7 @@ export async function POST(request: Request) {
     .insert({
       batch_id: batchId,
       draft_id: draftId,
-      requested_by_user_id: adminCheck.userId,
+      requested_by_user_id: requesterCheck.userId,
       provider: parsedDraft.provider,
       status: 'completed',
       screenshot_count: screenshots.length,
@@ -167,7 +180,7 @@ export async function POST(request: Request) {
   const draftUpdate = await supabase
     .from('data_assist_drafts')
     .update({
-      status: 'ready_for_verification',
+      status: autoAssessment.decision === 'blocked' ? 'blocked' : 'ready_for_verification',
       confidence_score: confidenceScore,
       ocr_status: 'processed',
       ocr_job_id: jobId,
@@ -181,8 +194,9 @@ export async function POST(request: Request) {
       line_count: parsedDraft.lineCount,
       parser_warnings: parsedDraft.parserWarnings,
       validation_summary: {
-        message: 'Free Tesseract OCR completed. Admin verification is required before import.',
-        importLocked: true,
+        message: autoAssessment.detail,
+        autoAssessment,
+        importLocked: autoAssessment.importLocked,
         sourceScreenshotCount: screenshots.length,
         ocrConfidenceScore: ocrResult.confidenceScore,
       },
@@ -191,15 +205,38 @@ export async function POST(request: Request) {
 
   if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
 
+  const batchStatus = autoAssessment.decision === 'auto_ready' || autoAssessment.decision === 'member_confirm'
+    ? 'ready_to_import'
+    : autoAssessment.decision === 'blocked'
+      ? 'needs_review'
+      : 'needs_review'
+  const batchReviewNote = autoAssessment.adminReviewRequired
+    ? autoAssessment.detail
+    : autoAssessment.decision === 'blocked'
+      ? autoAssessment.detail
+      : ''
+  const batchUpdate = await supabase
+    .from('data_assist_batches')
+    .update({
+      status: batchStatus,
+      review_note: batchReviewNote,
+      reviewed_by_user_id: autoAssessment.adminReviewRequired ? null : requesterCheck.userId,
+      reviewed_at: autoAssessment.adminReviewRequired ? null : processedAt,
+    })
+    .eq('id', batchId)
+
+  if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
+
   return Response.json({
     ok: true,
     jobId,
     parsedDraft,
+    autoAssessment,
   })
 }
 
-async function getAdminUserId(token: string): Promise<
-  | { ok: true; userId: string }
+async function getRequester(token: string): Promise<
+  | { ok: true; userId: string; isAdmin: boolean }
   | { ok: false; status: number; message: string }
 > {
   const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -217,7 +254,7 @@ async function getAdminUserId(token: string): Promise<
   const { data: userData, error: userError } = await supabase.auth.getUser(token)
 
   if (userError || !userData.user) {
-    return { ok: false, status: 401, message: 'Admin sign-in required.' }
+    return { ok: false, status: 401, message: 'Sign in required.' }
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -230,11 +267,11 @@ async function getAdminUserId(token: string): Promise<
     return { ok: false, status: 500, message: profileError.message }
   }
 
-  if ((profile as { role?: string } | null)?.role !== 'admin') {
-    return { ok: false, status: 403, message: 'Admin access required.' }
+  return {
+    ok: true,
+    userId: userData.user.id,
+    isAdmin: (profile as { role?: string } | null)?.role === 'admin',
   }
-
-  return { ok: true, userId: userData.user.id }
 }
 
 function toScreenshotInput(row: ScreenshotRow): DataAssistOcrScreenshotInput & {

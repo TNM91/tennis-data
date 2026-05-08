@@ -51,6 +51,18 @@ export type DataAssistScorecardParsedDraft = DataAssistScorecardDraftFields & {
   ocrQuality?: DataAssistOcrQualitySummary
 }
 
+export type DataAssistAutoAssessmentDecision = 'auto_ready' | 'member_confirm' | 'admin_exception' | 'blocked'
+
+export type DataAssistAutoAssessment = {
+  decision: DataAssistAutoAssessmentDecision
+  label: string
+  detail: string
+  reasons: string[]
+  importLocked: boolean
+  adminReviewRequired: boolean
+  memberConfirmationRequired: boolean
+}
+
 export type DataAssistOcrQualitySummary = {
   provider: DataAssistOcrProvider
   textLength: number
@@ -61,6 +73,7 @@ export type DataAssistOcrQualitySummary = {
   ocrConfidenceScore: number
   parserConfidenceScore: number
   reviewPriority: 'ready_for_review' | 'needs_manual_review' | 'blocked'
+  autoAssessment?: DataAssistAutoAssessment
   screenshotSummaries?: DataAssistOcrScreenshotQualitySummary[]
 }
 
@@ -85,7 +98,7 @@ export function getDataAssistOcrReadiness(env: Record<string, string | undefined
       provider,
       status: 'queued',
       canRun: true,
-      reason: 'Free Tesseract OCR is enabled for admin-triggered review drafts. Imports still require admin verification.',
+      reason: 'Free Tesseract OCR is enabled for trusted TennisLink scorecard drafts.',
     }
   }
 
@@ -93,7 +106,7 @@ export function getDataAssistOcrReadiness(env: Record<string, string | undefined
     provider: DATA_ASSIST_OCR_PROVIDER,
     status: 'disabled',
     canRun: false,
-    reason: 'OCR is intentionally disabled until a free provider is enabled for admin review.',
+    reason: 'OCR is intentionally disabled until a free provider is enabled.',
   }
 }
 
@@ -104,7 +117,7 @@ export function getServerDataAssistOcrReadiness(env: Record<string, string | und
       provider,
       status: 'queued',
       canRun: true,
-      reason: 'Free Tesseract OCR is enabled for review-only scorecard drafts.',
+      reason: 'Free Tesseract OCR is enabled for trusted scorecard drafts.',
     }
   }
 
@@ -123,7 +136,7 @@ export function buildEmptyScorecardDraftFields(): DataAssistScorecardDraftFields
     awayTeam: '',
     matchDate: '',
     lineCount: 0,
-    parserWarnings: ['OCR not run. Draft requires admin review before any import path is enabled.'],
+    parserWarnings: ['OCR not run. Draft requires trusted verification before any import path is enabled.'],
   }
 }
 
@@ -138,7 +151,7 @@ export function buildMockScorecardOcrDraft(screenshots: DataAssistOcrScreenshotI
   const orderedScreenshots = [...screenshots].sort((a, b) => a.uploadOrder - b.uploadOrder)
   const parserWarnings = [
     'Mock OCR boundary only. No text extraction has run yet.',
-    'Admin verification is required before any scorecard import path can be enabled.',
+    'Trusted verification is required before any scorecard import path can be enabled.',
     orderedScreenshots.length
       ? `Queued ${orderedScreenshots.length} stored screenshot${orderedScreenshots.length === 1 ? '' : 's'} for future OCR.`
       : 'No stored screenshots were available for OCR.',
@@ -168,7 +181,7 @@ export function buildScorecardOcrDraftFromText(
   return {
     ...parsedDraft,
     parserWarnings: [
-      'Review-only OCR draft. Admin verification is required before import.',
+      'OCR draft. Trusted verification is required before import.',
       ...parsedDraft.parserWarnings,
     ],
     sourceScreenshotCount: orderedScreenshots.length,
@@ -217,6 +230,67 @@ export function buildDataAssistOcrQualitySummary(input: {
   }
 }
 
+export function assessDataAssistScorecardDraft(draft: DataAssistScorecardParsedDraft): DataAssistAutoAssessment {
+  const quality = draft.ocrQuality
+  const readiness = getScorecardDraftReadiness(draft)
+  const actionableWarnings = draft.parserWarnings.filter(isActionableParserWarning)
+  const reasons = uniqueText([
+    ...readiness.warnings,
+    ...actionableWarnings,
+  ])
+
+  if (!quality || quality.reviewPriority === 'blocked' || !draft.rawTextPreview.trim() || draft.lineCount <= 0) {
+    return {
+      decision: 'blocked',
+      label: 'Could not read this scorecard',
+      detail: 'Upload a clearer TennisLink scorecard crop or the full scorecard area. Nothing was imported.',
+      reasons: reasons.length ? reasons : ['No scorecard lines could be parsed from the OCR text.'],
+      importLocked: true,
+      adminReviewRequired: false,
+      memberConfirmationRequired: false,
+    }
+  }
+
+  const missingIdentity = readiness.warnings.some((warning) => {
+    const lower = warning.toLowerCase()
+    return lower.includes('match id') || lower.includes('team names') || lower.includes('match date')
+  })
+
+  if (missingIdentity || quality.ocrConfidenceScore < 0.55 || quality.parserConfidenceScore < 0.55) {
+    return {
+      decision: 'admin_exception',
+      label: 'Needs exception review',
+      detail: 'TenAceIQ read part of the scorecard, but key identity or confidence checks need an admin look.',
+      reasons: reasons.length ? reasons : ['OCR confidence was below the safe auto-assessment threshold.'],
+      importLocked: true,
+      adminReviewRequired: true,
+      memberConfirmationRequired: false,
+    }
+  }
+
+  if (reasons.length || quality.ocrConfidenceScore < 0.76 || quality.parserConfidenceScore < 0.8 || draft.lineCount < 3) {
+    return {
+      decision: 'member_confirm',
+      label: 'Check the read',
+      detail: 'TenAceIQ found a usable scorecard draft. The uploader should confirm the teams, date, and lines before import.',
+      reasons: reasons.length ? reasons : ['OCR confidence is good, but not high enough to skip member confirmation.'],
+      importLocked: true,
+      adminReviewRequired: false,
+      memberConfirmationRequired: true,
+    }
+  }
+
+  return {
+    decision: 'auto_ready',
+    label: 'Ready after auto-check',
+    detail: 'Strong TennisLink signals and scorecard fields were found. This can move forward without exception review once import commit is wired.',
+    reasons: ['Trusted TennisLink scorecard fields and lines were parsed with strong confidence.'],
+    importLocked: true,
+    adminReviewRequired: false,
+    memberConfirmationRequired: false,
+  }
+}
+
 function normalizeDataAssistOcrProvider(value: string | undefined): DataAssistOcrProvider {
   const normalized = value?.trim().toLowerCase()
   return normalized === DATA_ASSIST_TESSERACT_OCR_PROVIDER ? DATA_ASSIST_TESSERACT_OCR_PROVIDER : DATA_ASSIST_OCR_PROVIDER
@@ -230,6 +304,21 @@ function getClientSafeEnv(): Record<string, string | undefined> {
 
 function roundConfidence(value: number) {
   return Math.max(0, Math.min(1, Math.round(value * 100) / 100))
+}
+
+function isActionableParserWarning(value: string) {
+  const warning = value.trim().toLowerCase()
+  if (!warning) return false
+  return ![
+    'review-only',
+    'admin verification',
+    'trusted verification',
+    'import path',
+  ].some((guardrail) => warning.includes(guardrail))
+}
+
+function uniqueText(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
 }
 
 export function getScorecardDraftReadiness(fields: DataAssistScorecardDraftFields) {

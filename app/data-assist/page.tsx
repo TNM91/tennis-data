@@ -10,6 +10,7 @@ import {
   getDataAssistImportTypeLabel,
   listMyDataAssistSubmissions,
   prepareDataAssistBatch,
+  queueDataAssistOcrVerification,
   reorderDataAssistScreenshots,
   saveDataAssistDraftBatch,
   summarizeDataAssistBatch,
@@ -19,6 +20,7 @@ import {
   type DataAssistPreparedScreenshot,
   type DataAssistSubmission,
 } from '@/lib/data-assist'
+import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const importTypes: Array<{
@@ -152,7 +154,17 @@ function DataAssistWorkspace() {
     try {
       const result = await saveDataAssistDraftBatch(summary)
       setSavedBatchId(result.batchId)
-      setMessage(`Data Assist draft saved with ${result.screenshotCount} stored screenshot${result.screenshotCount === 1 ? '' : 's'}. Nothing has been imported yet.`)
+      const readiness = getDataAssistOcrReadiness()
+      if (summary.requestedImportType === 'scorecard' && readiness.canRun && readiness.provider === 'tesseract') {
+        setMessage(`Saved ${result.screenshotCount} screenshot${result.screenshotCount === 1 ? '' : 's'}. Running free OCR now...`)
+        const ocrResult = await queueDataAssistOcrVerification({
+          batchId: result.batchId,
+          draftId: result.draftId,
+        })
+        setMessage(getAutoAssessmentMessage(ocrResult.autoAssessment))
+      } else {
+        setMessage(`Data Assist draft saved with ${result.screenshotCount} stored screenshot${result.screenshotCount === 1 ? '' : 's'}. Nothing has been imported yet.`)
+      }
       await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Data Assist draft could not be saved.')
@@ -275,7 +287,7 @@ function DataAssistWorkspace() {
           <p style={copyStyle}>
             {summary
               ? summary.status === 'layout_detected'
-                  ? 'Ready to save. Admin review and OCR verification come next.'
+                  ? 'Ready to save. TenAceIQ will scan scorecards automatically when free OCR is enabled.'
                 : summary.status === 'needs_review'
                   ? 'This looks image-safe. Save it if it is TennisLink; a cleaner scorecard crop may OCR better.'
                   : summary.rejectionReason
@@ -334,9 +346,9 @@ function DataAssistWorkspace() {
               ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
             }}
           >
-            {saving ? 'Saving draft...' : 'Save draft for review'}
+            {saving ? 'Saving and scanning...' : 'Save and scan'}
           </button>
-          <span style={hintStyle}>Import stays locked until admin verification.</span>
+          <span style={hintStyle}>Scorecards scan automatically. Import stays locked until the parsed read is trusted.</span>
         </div>
 
         {savedBatchId ? (
@@ -347,6 +359,22 @@ function DataAssistWorkspace() {
       </section>
     </section>
   )
+}
+
+function getAutoAssessmentMessage(assessment: DataAssistAutoAssessment | undefined) {
+  if (!assessment) {
+    return 'Free OCR finished. Review the parsed draft before any import is committed.'
+  }
+  if (assessment.decision === 'auto_ready') {
+    return 'Free OCR finished. This scorecard passed auto-checks and does not need admin review.'
+  }
+  if (assessment.decision === 'member_confirm') {
+    return 'Free OCR finished. TenAceIQ found a usable scorecard draft; confirm the read before import.'
+  }
+  if (assessment.decision === 'admin_exception') {
+    return 'Free OCR finished, but this one needs exception review because key details were uncertain.'
+  }
+  return 'Free OCR could not safely read this scorecard. Try a cleaner crop of the scorecard area.'
 }
 
 function ScreenshotCard({
@@ -483,7 +511,7 @@ function ContributorBadges({ stats }: { stats: DataAssistContributorStats | null
       <div>
         <div className="section-kicker">Contributor badges</div>
         <p style={copyStyle}>
-          Badges unlock from admin-approved upload quality, not upload volume.
+          Badges unlock from verified upload quality, not upload volume.
         </p>
       </div>
       {badges.length ? (
@@ -497,7 +525,7 @@ function ContributorBadges({ stats }: { stats: DataAssistContributorStats | null
         </div>
       ) : (
         <div style={badgeEmptyStyle}>
-          First badge unlocks after an admin approves one Data Assist upload for OCR verification.
+          First badge unlocks after one verified Data Assist upload.
         </div>
       )}
     </div>
@@ -534,8 +562,8 @@ function SubmissionCard({ submission }: { submission: DataAssistSubmission }) {
 function getSubmissionStatusCopy(submission: DataAssistSubmission) {
   if (submission.status === 'ready_to_import') {
     return {
-      label: 'Approved for OCR',
-      detail: 'An admin confirmed this batch can move into OCR verification when parsing is enabled.',
+      label: 'Auto-checked',
+      detail: 'TenAceIQ scanned this upload and found enough trusted scorecard structure to keep moving.',
       tone: 'green' as const,
     }
   }
@@ -548,14 +576,14 @@ function getSubmissionStatusCopy(submission: DataAssistSubmission) {
   }
   if (submission.status === 'layout_detected') {
     return {
-      label: 'In review',
-      detail: 'Strong TennisLink layout signals were detected. Admin review is next.',
+      label: 'Ready to scan',
+      detail: 'Strong TennisLink layout signals were detected. Scorecards scan automatically when OCR is enabled.',
       tone: 'amber' as const,
     }
   }
   return {
     label: 'Needs review',
-    detail: 'This upload is saved, but it needs stronger layout confirmation before OCR verification.',
+    detail: 'This upload is saved, but it needs stronger layout or OCR confidence before it can move forward.',
     tone: 'amber' as const,
   }
 }
