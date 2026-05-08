@@ -18,13 +18,15 @@ import {
 } from '@/lib/data-assist'
 import { getDataAssistOcrReadiness, getScorecardDraftReadiness } from '@/lib/data-assist-ocr'
 
-type QueueFilter = 'all' | 'needs_review' | 'layout_detected' | 'ready_to_import' | 'rejected'
+type QueueFilter = 'exceptions' | 'all' | 'needs_review' | 'layout_detected' | 'ready_to_import' | 'verified' | 'rejected'
 
 const filterLabels: Record<QueueFilter, string> = {
+  exceptions: 'Exceptions',
   all: 'All',
   needs_review: 'Needs review',
   layout_detected: 'Layout detected',
   ready_to_import: 'Ready',
+  verified: 'Verified',
   rejected: 'Rejected',
 }
 
@@ -44,7 +46,7 @@ function DataAssistReviewQueue() {
   const [screenshots, setScreenshots] = useState<DataAssistAdminScreenshot[]>([])
   const [drafts, setDrafts] = useState<DataAssistAdminDraft[]>([])
   const [ocrJobs, setOcrJobs] = useState<DataAssistOcrJob[]>([])
-  const [filter, setFilter] = useState<QueueFilter>('all')
+  const [filter, setFilter] = useState<QueueFilter>('exceptions')
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [reviewNote, setReviewNote] = useState('')
@@ -57,7 +59,11 @@ function DataAssistReviewQueue() {
   const selectedDraft = drafts[0] ?? null
 
   const filteredBatches = useMemo(
-    () => batches.filter((batch) => filter === 'all' || batch.status === filter),
+    () => batches.filter((batch) => {
+      if (filter === 'all') return true
+      if (filter === 'exceptions') return batch.status === 'needs_review' || batch.status === 'layout_detected' || batch.status === 'rejected'
+      return batch.status === filter
+    }),
     [batches, filter],
   )
 
@@ -221,7 +227,7 @@ function DataAssistReviewQueue() {
             <div>
               <div className="section-kicker">Queue</div>
               <h2 className="section-title" style={{ marginTop: 6, fontSize: '1.4rem' }}>
-                Review batches
+                Exception queue
               </h2>
             </div>
             <button type="button" className="button-secondary" onClick={() => void refreshQueue()} disabled={loading}>
@@ -725,7 +731,7 @@ function StatusBadge({ status, compact = false }: { status: string; compact?: bo
   const tone =
     status === 'rejected' || status === 'blocked'
       ? 'badge-slate'
-      : status === 'ready_to_import' || status === 'ready_for_verification' || status === 'supported'
+      : status === 'ready_to_import' || status === 'ready_for_verification' || status === 'supported' || status === 'verified' || status === 'imported'
         ? 'badge-green'
         : 'badge-blue'
 

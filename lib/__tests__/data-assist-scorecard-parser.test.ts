@@ -54,6 +54,32 @@ describe('Data Assist scorecard OCR text parser', () => {
     expect(parsed.lines[1].lineLabel).toBe('2 Doubles')
   })
 
+  it('parses TennisLink table-style scorecard rows without def wording', () => {
+    const parsed = parseDataAssistScorecardText(`
+      Scorecard for Match # 1011650664 in 2026 Adult 18 & Over Spring
+      Schnellaveria (S) Vs. Gontarz/Wild William's Wily Wolverines (S)
+      Date Scheduled: 1/18/2026 12:00 PM
+      Date Match Played: 1/18/2026
+      1# Singles 12:00 noon Kevin Chen Completed Vs. Ralf Nosic 6-2 6-1
+      2# Singles 12:00 noon Zachanas Barringer Completed Vs. Shawn Khosla 6-1 6-0
+      1# Doubles 12:00 noon Neil Arora / Cyrus Mevorach Completed Vs. Stefan Nosic / Paul Gontarz 7-6 6-1
+    `)
+
+    expect(parsed.externalMatchId).toBe('1011650664')
+    expect(parsed.matchDate).toBe('1/18/2026')
+    expect(parsed.homeTeam).toBe('Schnellaveria (S)')
+    expect(parsed.awayTeam).toBe("Gontarz/Wild William's Wily Wolverines (S)")
+    expect(parsed.lineCount).toBe(3)
+    expect(parsed.lines[0]).toMatchObject({
+      lineLabel: '1 Singles',
+      homePlayers: ['Kevin Chen'],
+      awayPlayers: ['Ralf Nosic'],
+      score: '6-2 6-1',
+      winner: 'unknown',
+    })
+    expect(parsed.lines[2].homePlayers).toEqual(['Neil Arora', 'Cyrus Mevorach'])
+  })
+
   it('returns warnings and low confidence for incomplete OCR text', () => {
     const parsed = parseDataAssistScorecardText(`
       blurry screenshot

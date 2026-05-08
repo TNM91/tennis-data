@@ -12,6 +12,7 @@ import {
   prepareDataAssistBatch,
   queueDataAssistOcrVerification,
   reorderDataAssistScreenshots,
+  reviewMyDataAssistOcrDraft,
   saveDataAssistDraftBatch,
   summarizeDataAssistBatch,
   type DataAssistBatchSummary,
@@ -21,6 +22,7 @@ import {
   type DataAssistSubmission,
 } from '@/lib/data-assist'
 import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
+import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const importTypes: Array<{
@@ -67,6 +69,7 @@ function DataAssistWorkspace() {
   const [submissionsError, setSubmissionsError] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [reviewingSubmissionId, setReviewingSubmissionId] = useState('')
 
   const confidenceLabel = useMemo(() => {
     if (!summary) return 'Waiting for screenshots'
@@ -173,6 +176,29 @@ function DataAssistWorkspace() {
     }
   }
 
+  async function reviewSubmission(submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') {
+    if (!submission.draftId || reviewingSubmissionId) return
+    setReviewingSubmissionId(submission.id)
+    setMessage('')
+    setError('')
+
+    try {
+      const result = await reviewMyDataAssistOcrDraft({
+        batchId: submission.id,
+        draftId: submission.draftId,
+        decision,
+      })
+      setMessage(result.message || (decision === 'confirmed'
+        ? 'Scorecard confirmed. Contribution credit updated.'
+        : 'Scorecard flagged for exception review.'))
+      await refreshSubmissions()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not review this Data Assist draft.')
+    } finally {
+      setReviewingSubmissionId('')
+    }
+  }
+
   return (
     <section style={pageStyle(isMobile)}>
       <section style={heroStyle(isTablet, isMobile)}>
@@ -215,6 +241,8 @@ function DataAssistWorkspace() {
         loading={submissionsLoading}
         error={submissionsError}
         onRefresh={() => void refreshSubmissions()}
+        reviewingSubmissionId={reviewingSubmissionId}
+        onReviewSubmission={(submission, decision) => void reviewSubmission(submission, decision)}
       />
 
       <section style={workspaceStyle(isTablet)}>
@@ -264,11 +292,20 @@ function DataAssistWorkspace() {
             {[
               'No manual data entry',
               'No CSV, PDF, pasted text, or arbitrary screenshots',
-              'No data imported until the draft is reviewed',
+              'Confirm the OCR read before import',
               'Multiple mobile screenshots stay ordered and deduplicatable',
             ].map((item) => (
               <span key={item} style={guardrailStyle}>{item}</span>
             ))}
+          </div>
+
+          <div style={tutorialPanelStyle}>
+            <div className="section-kicker">Quick capture guide</div>
+            <div style={tutorialGridStyle}>
+              <TutorialStep label="Chrome / Edge" text="Use the browser snip tool and capture the scorecard table plus match header." />
+              <TutorialStep label="Mobile" text="Take ordered screenshots while scrolling from the header through the final team score." />
+              <TutorialStep label="Best read" text="Crop out ads and footer when easy; keep team names, date, lines, scores, and winners visible." />
+            </div>
           </div>
 
           {!authResolved || !userId ? (
@@ -440,6 +477,8 @@ function MySubmissionsPanel({
   loading,
   error,
   onRefresh,
+  reviewingSubmissionId,
+  onReviewSubmission,
 }: {
   authResolved: boolean
   userId: string | null
@@ -448,9 +487,11 @@ function MySubmissionsPanel({
   loading: boolean
   error: string
   onRefresh: () => void
+  reviewingSubmissionId: string
+  onReviewSubmission: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
 }) {
-  const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'ready_to_import' && submission.status !== 'rejected').length
-  const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'ready_to_import').length
+  const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
+  const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
   const rejectedCount = contributorStats?.rejectedImportCount ?? submissions.filter((submission) => submission.status === 'rejected').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
 
@@ -479,7 +520,12 @@ function MySubmissionsPanel({
           <ContributorBadges stats={contributorStats} />
           <div style={submissionListStyle}>
             {submissions.slice(0, 6).map((submission) => (
-              <SubmissionCard key={submission.id} submission={submission} />
+              <SubmissionCard
+                key={submission.id}
+                submission={submission}
+                busy={reviewingSubmissionId === submission.id}
+                onReview={onReviewSubmission}
+              />
             ))}
           </div>
         </>
@@ -491,6 +537,15 @@ function MySubmissionsPanel({
 
       {error ? <div style={errorStyle}>{error}</div> : null}
     </section>
+  )
+}
+
+function TutorialStep({ label, text }: { label: string; text: string }) {
+  return (
+    <div style={tutorialStepStyle}>
+      <strong>{label}</strong>
+      <span>{text}</span>
+    </div>
   )
 }
 
@@ -532,9 +587,24 @@ function ContributorBadges({ stats }: { stats: DataAssistContributorStats | null
   )
 }
 
-function SubmissionCard({ submission }: { submission: DataAssistSubmission }) {
+function SubmissionCard({
+  submission,
+  busy,
+  onReview,
+}: {
+  submission: DataAssistSubmission
+  busy: boolean
+  onReview: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+}) {
   const status = getSubmissionStatusCopy(submission)
   const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
+  const parsedDraft = toScorecardParsedDraft(submission.parsedPayload)
+  const canReviewParsedDraft =
+    parsedDraft &&
+    submission.draftId &&
+    submission.draftOcrStatus === 'processed' &&
+    submission.draftStatus === 'ready_for_verification' &&
+    (submission.status === 'ready_to_import' || submission.status === 'needs_review')
 
   return (
     <article style={submissionCardStyle}>
@@ -551,6 +621,15 @@ function SubmissionCard({ submission }: { submission: DataAssistSubmission }) {
       </div>
       <p style={copyStyle}>{status.detail}</p>
       {reviewNote ? <p style={warningStyle}>{reviewNote}</p> : null}
+      {parsedDraft ? (
+        <ScorecardReviewPanel
+          parsedDraft={parsedDraft}
+          canReview={Boolean(canReviewParsedDraft)}
+          busy={busy}
+          onConfirm={() => onReview(submission, 'confirmed')}
+          onFlag={() => onReview(submission, 'flagged')}
+        />
+      ) : null}
       <div style={submissionMetaStyle}>
         <span>{formatDate(submission.createdAt)}</span>
         <span>{submission.draftOcrStatus.replace(/_/g, ' ')}</span>
@@ -559,11 +638,100 @@ function SubmissionCard({ submission }: { submission: DataAssistSubmission }) {
   )
 }
 
+function ScorecardReviewPanel({
+  parsedDraft,
+  canReview,
+  busy,
+  onConfirm,
+  onFlag,
+}: {
+  parsedDraft: DataAssistScorecardParsedDraft
+  canReview: boolean
+  busy: boolean
+  onConfirm: () => void
+  onFlag: () => void
+}) {
+  return (
+    <div style={scorecardReviewStyle}>
+      <div style={scorecardHeaderGridStyle}>
+        <ReviewFact label="Match" value={parsedDraft.externalMatchId || 'Needs read'} />
+        <ReviewFact label="Date" value={parsedDraft.matchDate || 'Needs read'} />
+        <ReviewFact label="Lines" value={String(parsedDraft.lineCount || parsedDraft.lines.length)} />
+      </div>
+      <div style={teamMatchupStyle}>
+        <strong>{parsedDraft.homeTeam || 'Home team'}</strong>
+        <span>vs</span>
+        <strong>{parsedDraft.awayTeam || 'Visiting team'}</strong>
+      </div>
+      <div style={parsedLineListStyle}>
+        {parsedDraft.lines.slice(0, 5).map((line, index) => (
+          <div key={`${line.lineLabel}-${index}`} style={parsedLineStyle}>
+            <span>{line.lineLabel}</span>
+            <strong>{line.score || 'No score'}</strong>
+            <small>
+              {line.homePlayers.join(' / ') || 'Home players'} vs {line.awayPlayers.join(' / ') || 'Away players'}
+            </small>
+          </div>
+        ))}
+      </div>
+      {parsedDraft.parserWarnings.length ? (
+        <div style={warningStyle}>{parsedDraft.parserWarnings.slice(0, 2).join(' ')}</div>
+      ) : null}
+      <div style={cardActionRowStyle}>
+        <button type="button" onClick={onConfirm} disabled={!canReview || busy} style={{ ...smallButtonStyle, ...(!canReview || busy ? disabledStyle : {}) }}>
+          {busy ? 'Saving...' : 'Looks right'}
+        </button>
+        <button type="button" onClick={onFlag} disabled={!canReview || busy} style={{ ...smallDangerButtonStyle, ...(!canReview || busy ? disabledStyle : {}) }}>
+          Needs fix
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ReviewFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={reviewFactStyle}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function toScorecardParsedDraft(value: DataAssistSubmission['parsedPayload']): DataAssistScorecardParsedDraft | null {
+  if (!value || typeof value !== 'object') return null
+  const draft = value as Partial<DataAssistScorecardParsedDraft>
+  if (!Array.isArray(draft.lines) || !draft.lines.length) return null
+  return {
+    externalMatchId: typeof draft.externalMatchId === 'string' ? draft.externalMatchId : '',
+    homeTeam: typeof draft.homeTeam === 'string' ? draft.homeTeam : '',
+    awayTeam: typeof draft.awayTeam === 'string' ? draft.awayTeam : '',
+    matchDate: typeof draft.matchDate === 'string' ? draft.matchDate : '',
+    lineCount: typeof draft.lineCount === 'number' ? draft.lineCount : draft.lines.length,
+    parserWarnings: Array.isArray(draft.parserWarnings)
+      ? draft.parserWarnings.filter((warning): warning is string => typeof warning === 'string')
+      : [],
+    lines: draft.lines as DataAssistScorecardParsedDraft['lines'],
+    rawTextPreview: typeof draft.rawTextPreview === 'string' ? draft.rawTextPreview : '',
+    sourceScreenshotCount: typeof draft.sourceScreenshotCount === 'number' ? draft.sourceScreenshotCount : 0,
+    provider: draft.provider || 'manual_review',
+    confidenceScore: typeof draft.confidenceScore === 'number' ? draft.confidenceScore : 0,
+    ocrQuality: draft.ocrQuality,
+  }
+}
+
 function getSubmissionStatusCopy(submission: DataAssistSubmission) {
   if (submission.status === 'ready_to_import') {
     return {
-      label: 'Auto-checked',
-      detail: 'TenAceIQ scanned this upload and found enough trusted scorecard structure to keep moving.',
+      label: 'Confirm read',
+      detail: 'TenAceIQ scanned this upload. Confirm the parsed scorecard or flag it for exception review.',
+      tone: 'amber' as const,
+    }
+  }
+  if (submission.status === 'verified' || submission.status === 'imported') {
+    return {
+      label: 'Verified',
+      detail: 'The parsed read was confirmed and contribution credit has been applied.',
       tone: 'green' as const,
     }
   }
@@ -817,6 +985,34 @@ const achievementBoxStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
 }
 
+const tutorialPanelStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 10,
+}
+
+const tutorialGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 10,
+}
+
+const tutorialStepStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 6,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 800,
+}
+
 const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
@@ -846,7 +1042,7 @@ const submissionStatStyle: CSSProperties = {
 
 const submissionListStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
   gap: 12,
 }
 
@@ -875,6 +1071,62 @@ const submissionMetaStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 900,
   textTransform: 'uppercase',
+}
+
+const scorecardReviewStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'var(--shell-panel-bg)',
+  padding: 12,
+  display: 'grid',
+  gap: 10,
+}
+
+const scorecardHeaderGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))',
+  gap: 8,
+}
+
+const reviewFactStyle: CSSProperties = {
+  minHeight: 58,
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 9,
+  display: 'grid',
+  gap: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const teamMatchupStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)',
+  gap: 8,
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.35,
+}
+
+const parsedLineListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+}
+
+const parsedLineStyle: CSSProperties = {
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 9,
+  display: 'grid',
+  gridTemplateColumns: 'auto auto',
+  gap: 6,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
 }
 
 const badgePanelStyle: CSSProperties = {

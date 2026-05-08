@@ -7,7 +7,7 @@ export type DataAssistScorecardParseResult = DataAssistScorecardParsedDraft & {
 const SCORE_PATTERN = /\b\d{1,2}\s*-\s*\d{1,2}(?:\s*\(\s*\d{1,2}\s*\))?/g
 const DATE_PATTERN = /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4})\b/
 const MATCH_ID_PATTERN = /\b(?:match\s*(?:id|number|#)?|scorecard\s*(?:id|#)|tennislink\s+match)\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{4,})\b/i
-const LINE_START_PATTERN = /^(?:(?:court|line)\s*)?([1-5]\s*(?:singles|doubles|s|d)|\d+)\b[:.\-\s]*/i
+const LINE_START_PATTERN = /^(?:(?:court|line)\s*)?([1-5]\s*#?\s*(?:singles|doubles|s|d)|\d+\s*#?\s*(?:singles|doubles)?)\b[:.\-\s]*/i
 const TEAM_SEPARATOR_PATTERN = /\s+(?:vs\.?|v\.?|at|@)\s+/i
 const RESULT_SEPARATOR_PATTERN = /\s+(def\.?|d\.?|defeated|bt\.?|beat|beats|over|lost\s+to)\s+/i
 
@@ -69,7 +69,10 @@ function extractMatchId(text: string) {
 }
 
 function extractMatchDate(text: string) {
-  const labeled = text.match(/\b(?:date|match date|played)\s*[:#-]?\s*([A-Za-z0-9,/-]+(?:\s+\d{4})?)/i)?.[1]
+  const tennisLinkPlayed = text.match(/\bDate\s+Match\s+Played\s*[:#-]?\s*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})/i)?.[1]
+  const tennisLinkScheduled = text.match(/\bDate\s+Scheduled\s*[:#-]?\s*([0-9]{1,2}[/-][0-9]{1,2}[/-][0-9]{2,4})/i)?.[1]
+  const labeled = text.match(/\b(?:match date|played|date)\s*[:#-]?\s*([A-Za-z0-9,/-]+(?:\s+\d{4})?)/i)?.[1]
+  if (tennisLinkPlayed || tennisLinkScheduled) return cleanText(tennisLinkPlayed || tennisLinkScheduled)
   const match = labeled?.match(DATE_PATTERN)?.[0] || text.match(DATE_PATTERN)?.[0] || ''
   return cleanText(match)
 }
@@ -111,7 +114,11 @@ function extractScorecardLines(lines: string[]): DataAssistScorecardParsedLine[]
     const beforeScore = rawLine.slice(0, rawLine.indexOf(scoreMatches[0])).trim()
     const afterLineLabel = beforeScore.replace(LINE_START_PATTERN, '').trim()
     const resultParts = afterLineLabel.split(RESULT_SEPARATOR_PATTERN)
-    if (resultParts.length < 3) continue
+    if (resultParts.length < 3) {
+      const tableLine = parseTennisLinkTableLine(lineMatch[1], afterLineLabel, score)
+      if (tableLine) parsedLines.push(tableLine)
+      continue
+    }
 
     const resultVerb = resultParts[1]?.toLowerCase() || ''
     const leftPlayers = splitPlayers(resultParts[0])
@@ -129,6 +136,31 @@ function extractScorecardLines(lines: string[]): DataAssistScorecardParsedLine[]
   }
 
   return parsedLines
+}
+
+function parseTennisLinkTableLine(lineLabel: string, value: string, score: string): DataAssistScorecardParsedLine | null {
+  if (!TEAM_SEPARATOR_PATTERN.test(value)) return null
+
+  const withoutStatus = value
+    .replace(/\b(?:completed|defaulted|retired|walkover)\b/gi, ' ')
+    .replace(/\b\d{1,2}:\d{2}\s*(?:am|pm|noon)?\b/gi, ' ')
+    .replace(/\b\d{1,2}:?\d{0,2}\s*noon\b/gi, ' ')
+    .replace(SCORE_PATTERN, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const [home, away] = withoutStatus.split(TEAM_SEPARATOR_PATTERN)
+  const homePlayers = splitPlayers(home)
+  const awayPlayers = splitPlayers(away)
+  if (!homePlayers.length || !awayPlayers.length) return null
+
+  return {
+    lineLabel: normalizeLineLabel(lineLabel),
+    homePlayers,
+    awayPlayers,
+    score,
+    winner: 'unknown',
+    confidenceScore: roundConfidence(calculateLineConfidence(homePlayers, awayPlayers, score) - 0.12),
+  }
 }
 
 function splitPlayers(value: string) {
