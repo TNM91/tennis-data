@@ -6,6 +6,7 @@ import {
   buildMockScorecardOcrDraft,
   buildScorecardOcrDraftFromText,
   getDataAssistOcrReadiness,
+  type DataAssistAutoAssessment,
   type DataAssistScorecardParsedDraft,
 } from './data-assist-ocr'
 import { supabase } from './supabase'
@@ -60,6 +61,12 @@ export type DataAssistSaveResult = {
   batchId: string
   draftId: string
   screenshotCount: number
+}
+
+export type DataAssistOcrVerificationResult = {
+  jobId: string
+  parsedDraft: DataAssistScorecardParsedDraft
+  autoAssessment?: DataAssistAutoAssessment
 }
 
 export type DataAssistAdminBatch = {
@@ -880,14 +887,14 @@ export async function queueDataAssistOcrVerification(input: {
   batchId: string
   draftId: string
   rawOcrText?: string
-}) {
+}): Promise<DataAssistOcrVerificationResult> {
   if (!input.rawOcrText && getDataAssistOcrReadiness().provider === 'tesseract') {
     return queueDataAssistFreeOcrVerification(input)
   }
 
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
-  if (!userId) throw new Error('Sign in as an admin to queue OCR verification.')
+  if (!userId) throw new Error('Sign in to queue OCR verification.')
 
   const [batchResult, screenshotsResult] = await Promise.all([
     supabase
@@ -974,7 +981,7 @@ export async function queueDataAssistOcrVerification(input: {
       parser_warnings: parsedDraft.parserWarnings,
       validation_summary: {
         message: rawOcrText
-          ? 'Review-only OCR parser completed. Admin verification is required before import.'
+          ? 'OCR parser completed. Trusted verification is required before import.'
           : 'Mock OCR boundary completed. No scorecard text has been extracted yet.',
         importLocked: true,
         sourceScreenshotCount: screenshots.length,
@@ -987,6 +994,7 @@ export async function queueDataAssistOcrVerification(input: {
   return {
     jobId,
     parsedDraft,
+    autoAssessment: undefined,
   }
 }
 
@@ -1013,6 +1021,7 @@ async function queueDataAssistFreeOcrVerification(input: {
     message?: string
     jobId?: string
     parsedDraft?: DataAssistScorecardParsedDraft
+    autoAssessment?: DataAssistAutoAssessment
   } | null
 
   if (!response.ok || !result?.ok || !result.jobId || !result.parsedDraft) {
@@ -1022,6 +1031,7 @@ async function queueDataAssistFreeOcrVerification(input: {
   return {
     jobId: result.jobId,
     parsedDraft: result.parsedDraft,
+    autoAssessment: result.autoAssessment,
   }
 }
 
@@ -1100,7 +1110,7 @@ export function getDataAssistContributorBadges(verifiedImportCount: number, accu
     badges.push({
       id: 'first_import',
       label: 'First Import',
-      detail: 'First admin-approved Data Assist upload.',
+      detail: 'First verified Data Assist upload.',
     })
   }
 

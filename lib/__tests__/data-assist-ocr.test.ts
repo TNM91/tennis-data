@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assessDataAssistScorecardDraft,
   buildDataAssistOcrQualitySummary,
   buildScorecardOcrDraftFromText,
   buildMockScorecardOcrDraft,
@@ -106,7 +107,7 @@ describe('Data Assist OCR boundary', () => {
     })
     expect(draft.sourceScreenshotCount).toBe(1)
     expect(draft.confidenceScore).toBeGreaterThan(0.7)
-    expect(draft.parserWarnings[0]).toContain('Review-only')
+    expect(draft.parserWarnings[0]).toContain('Trusted verification')
     expect(draft.ocrQuality).toMatchObject({
       provider: 'mock_review',
       parsedLineCount: 1,
@@ -144,5 +145,56 @@ describe('Data Assist OCR boundary', () => {
       ocrConfidenceScore: 0.72,
       parserConfidenceScore: 0.7,
     }).reviewPriority).toBe('needs_manual_review')
+  })
+
+  it('auto-assesses high-confidence complete scorecards without admin review', () => {
+    const draft = buildScorecardOcrDraftFromText(
+      [
+        'Match ID: USTA-246810',
+        'Match Date: 05/01/2026',
+        'Home Team: Dallas Indoor Aces',
+        'Away Team: Plano Net Rush',
+        '1S Jane Ace def. Molly Baseline 6-1 6-0',
+        '2S Tina Topspin def. Sara Slice 6-4 6-4',
+        '1D John Smith / Bob Lee def. Adam Roe / Tim Fox 6-4 6-3',
+      ].join('\n'),
+      [],
+      'tesseract',
+    )
+    draft.ocrQuality = buildDataAssistOcrQualitySummary({
+      provider: 'tesseract',
+      rawText: draft.rawTextPreview,
+      parserWarnings: [],
+      parsedLineCount: draft.lineCount,
+      ocrConfidenceScore: 0.86,
+      parserConfidenceScore: 0.88,
+    })
+
+    const assessment = assessDataAssistScorecardDraft(draft)
+
+    expect(assessment.decision).toBe('auto_ready')
+    expect(assessment.adminReviewRequired).toBe(false)
+  })
+
+  it('routes incomplete scorecard identity to admin exception review', () => {
+    const draft = buildScorecardOcrDraftFromText(
+      '1S Jane Ace def. Molly Baseline 6-1 6-0',
+      [],
+      'tesseract',
+    )
+    draft.ocrQuality = buildDataAssistOcrQualitySummary({
+      provider: 'tesseract',
+      rawText: draft.rawTextPreview,
+      parserWarnings: [],
+      parsedLineCount: draft.lineCount,
+      ocrConfidenceScore: 0.82,
+      parserConfidenceScore: 0.82,
+    })
+
+    const assessment = assessDataAssistScorecardDraft(draft)
+
+    expect(assessment.decision).toBe('admin_exception')
+    expect(assessment.adminReviewRequired).toBe(true)
+    expect(assessment.reasons).toContain('Missing TennisLink match id.')
   })
 })

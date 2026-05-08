@@ -127,11 +127,11 @@ function DataAssistReviewQueue() {
       })
       const label =
         status === 'ready_to_import'
-          ? 'approved for OCR verification'
+          ? 'marked ready'
           : status === 'rejected'
             ? 'rejected'
             : 'held for review'
-      setMessage(`Batch ${label}. Import remains locked until verified parsing is implemented.`)
+      setMessage(`Batch ${label}. Import remains locked until the parsed read is trusted.`)
       await refreshQueue(selectedBatch.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update this Data Assist batch.')
@@ -150,7 +150,7 @@ function DataAssistReviewQueue() {
         batchId: selectedBatch.id,
         draftId: selectedDraft.id,
       })
-      setMessage(`OCR verification boundary queued. Job ${result.jobId.slice(0, 8).toUpperCase()} produced a review-only draft; import remains locked.`)
+      setMessage(`OCR scan completed. Job ${result.jobId.slice(0, 8).toUpperCase()} produced an auto-assessed draft.`)
       const detail = await loadDataAssistAdminBatchDetail(selectedBatch.id)
       setScreenshots(detail.screenshots)
       setDrafts(detail.drafts)
@@ -183,7 +183,7 @@ function DataAssistReviewQueue() {
             TennisLink screenshot queue
           </h1>
           <p className="page-subtitle" style={{ maxWidth: 860 }}>
-            Review community-assisted screenshot batches, confirm the TennisLink layout, and hold every import behind OCR verification.
+            Monitor community-assisted screenshot batches, resolve exceptions, and keep imports behind trusted OCR checks.
           </p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 18 }}>
@@ -199,7 +199,7 @@ function DataAssistReviewQueue() {
 
       <div className="metric-grid" style={{ marginTop: 18 }}>
         <QueueMetric label="Needs review" value={stats.needsReview} />
-        <QueueMetric label="Ready for OCR" value={stats.ready} />
+        <QueueMetric label="Auto-ready" value={stats.ready} />
         <QueueMetric label="Rejected" value={stats.rejected} />
         <QueueMetric label="Scorecards" value={stats.scorecards} />
       </div>
@@ -344,7 +344,7 @@ function DataAssistReviewQueue() {
                   onClick={() => void handleReview('ready_to_import')}
                   disabled={Boolean(savingStatus)}
                 >
-                  {savingStatus === 'ready_to_import' ? 'Saving...' : 'Approve for OCR verification'}
+                  {savingStatus === 'ready_to_import' ? 'Saving...' : 'Mark ready'}
                 </button>
                 <button
                   type="button"
@@ -456,6 +456,14 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
       ocrConfidenceScore?: number
       parserConfidenceScore?: number
       reviewPriority?: string
+      autoAssessment?: {
+        decision?: string
+        label?: string
+        detail?: string
+        reasons?: string[]
+        adminReviewRequired?: boolean
+        memberConfirmationRequired?: boolean
+      }
       screenshotSummaries?: Array<{
         uploadOrder?: number
         fileName?: string
@@ -476,6 +484,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
   }
   const latestJob = jobs[0] ?? null
   const ocrQuality = parsedPayload.ocrQuality || null
+  const autoAssessment = ocrQuality?.autoAssessment || null
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -489,7 +498,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
               </div>
               <div className="subtle-text" style={{ marginTop: 6 }}>
                 {draft.ocrStatus === 'processed'
-                  ? 'A review-only parsed draft was generated. Import remains disabled.'
+                  ? 'A parsed draft was generated. Admin review is only needed for exceptions.'
                   : 'No OCR verification draft has been generated yet.'}
               </div>
             </div>
@@ -517,6 +526,28 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
               </div>
               <StatusBadge status={ocrQuality.reviewPriority || 'needs_manual_review'} compact />
             </div>
+            {autoAssessment ? (
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
+                      {autoAssessment.label || 'Auto assessment'}
+                    </div>
+                    <div className="subtle-text" style={{ marginTop: 5 }}>
+                      {autoAssessment.detail || 'TenAceIQ auto-assessed this OCR draft.'}
+                    </div>
+                  </div>
+                  <StatusBadge status={autoAssessment.decision || 'needs_review'} compact />
+                </div>
+                {autoAssessment.reasons?.length ? (
+                  <div style={{ display: 'grid', gap: 5, marginTop: 10 }}>
+                    {autoAssessment.reasons.slice(0, 4).map((reason) => (
+                      <div key={reason} className="subtle-text" style={{ fontSize: 12 }}>{reason}</div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10, marginTop: 12 }}>
               <MiniFact label="OCR confidence" value={formatPercent(ocrQuality.ocrConfidenceScore)} />
               <MiniFact label="Parser confidence" value={formatPercent(ocrQuality.parserConfidenceScore ?? parsedPayload.confidenceScore)} />
@@ -712,7 +743,7 @@ function getOcrProviderLabel(provider: string) {
 }
 
 function getOcrReviewPriorityCopy(priority: string | undefined) {
-  if (priority === 'ready_for_review') return 'OCR found enough structure for admin verification.'
+  if (priority === 'ready_for_review') return 'OCR found enough trusted structure to keep moving.'
   if (priority === 'blocked') return 'OCR did not find enough usable scorecard text.'
   return 'Review carefully before trusting these extracted fields.'
 }
