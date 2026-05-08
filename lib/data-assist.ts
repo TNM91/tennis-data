@@ -9,6 +9,8 @@ import {
   type DataAssistAutoAssessment,
   type DataAssistScorecardParsedDraft,
 } from './data-assist-ocr'
+import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
+import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
 import type { DataAssistImportPreview } from './data-assist-import'
 import type { RunImportSuccess } from './ingestion/runImport'
 import { supabase } from './supabase'
@@ -67,7 +69,7 @@ export type DataAssistSaveResult = {
 
 export type DataAssistOcrVerificationResult = {
   jobId: string
-  parsedDraft: DataAssistScorecardParsedDraft
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
   autoAssessment?: DataAssistAutoAssessment
   autoImport?: DataAssistImportActionResult
 }
@@ -81,7 +83,7 @@ export type DataAssistImportActionResult = {
   action: DataAssistImportAction
   message: string
   importPreview?: DataAssistImportPreview
-  importResult?: Extract<RunImportSuccess, { kind: 'scorecard' }>
+  importResult?: Extract<RunImportSuccess, { kind: 'scorecard' | 'schedule' | 'team_summary' }>
 }
 
 export type DataAssistAdminBatch = {
@@ -130,7 +132,7 @@ export type DataAssistAdminDraft = {
   status: DataAssistDraftStatus
   confidenceScore: number
   validationSummary: Record<string, unknown>
-  parsedPayload: DataAssistScorecardParsedDraft | Record<string, unknown>
+  parsedPayload: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft | Record<string, unknown>
   impactSummary: Record<string, unknown>
   reviewNote: string
   reviewedByUserId: string
@@ -159,7 +161,7 @@ export type DataAssistOcrJob = {
   screenshotCount: number
   confidenceScore: number
   warnings: string[]
-  resultPayload: DataAssistScorecardParsedDraft | Record<string, unknown>
+  resultPayload: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft | Record<string, unknown>
   errorMessage: string
   createdAt: string
   processedAt: string
@@ -181,7 +183,7 @@ export type DataAssistSubmission = {
   draftOcrStatus: string
   draftReviewNote: string
   validationSummary: Record<string, unknown>
-  parsedPayload: DataAssistScorecardParsedDraft | Record<string, unknown>
+  parsedPayload: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft | Record<string, unknown>
   createdAt: string
   updatedAt: string
 }
@@ -821,6 +823,36 @@ export async function reviewMyDataAssistOcrDraft(input: {
   return result
 }
 
+export async function deleteMyDataAssistSubmission(batchId: string) {
+  const cleanBatchId = batchId.trim()
+  if (!cleanBatchId) throw new Error('Choose a Data Assist draft to remove.')
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const token = session?.access_token?.trim()
+  if (!token) throw new Error('Sign in to remove a Data Assist draft.')
+
+  const response = await fetch(`/api/data-assist/submissions/${encodeURIComponent(cleanBatchId)}`, {
+    method: 'DELETE',
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  })
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean
+    message?: string
+  } | null
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || 'Could not remove this Data Assist draft.')
+  }
+
+  return {
+    message: result.message || 'Data Assist draft removed.',
+  }
+}
+
 export async function runMyDataAssistImport(input: {
   batchId: string
   draftId: string
@@ -1018,7 +1050,7 @@ export async function queueDataAssistOcrVerification(input: {
 
   const batch = batchResult.data as { requested_import_type?: string | null; status?: string | null } | null
   if (batch?.requested_import_type !== 'scorecard') {
-    throw new Error('OCR verification is currently scoped to TennisLink scorecard batches.')
+    throw new Error('Manual OCR verification is currently scoped to TennisLink scorecard batches.')
   }
 
   const screenshots = ((screenshotsResult.data || []) as Array<{
@@ -1124,13 +1156,13 @@ async function queueDataAssistFreeOcrVerification(input: {
     ok?: boolean
     message?: string
     jobId?: string
-    parsedDraft?: DataAssistScorecardParsedDraft
+    parsedDraft?: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
     autoAssessment?: DataAssistAutoAssessment
     autoImport?: DataAssistImportActionResult
   } | null
 
   if (!response.ok || !result?.ok || !result.jobId || !result.parsedDraft) {
-    throw new Error(result?.message || 'Could not queue free OCR verification.')
+    throw new Error(result?.message || 'Could not start Data Assist review.')
   }
 
   return {
