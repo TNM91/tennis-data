@@ -127,6 +127,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
+  const [authNote, setAuthNote] = useState('')
 
   const hasRedirectedRef = useRef(false)
 
@@ -246,6 +247,7 @@ export default function LoginPage() {
     setSubmitting(true)
     setRedirecting(false)
     setError('')
+    setAuthNote('')
 
     try {
       const signInResult = await withLoginTimeout<
@@ -274,6 +276,7 @@ export default function LoginPage() {
         access_token: signInData.session.access_token,
         refresh_token: signInData.session.refresh_token,
       })
+      setAuthNote(canUseBrowserStorage() ? 'Session accepted. Opening Data Assist...' : 'Session accepted for this tab. Browser storage looks blocked on this device.')
 
       const authState = await withLoginTimeout(
         getClientAuthState(),
@@ -296,7 +299,8 @@ export default function LoginPage() {
         authState.entitlements,
         authState.user?.id ?? signInData.session.user.id,
       )
-      window.location.assign(nextRoute)
+      router.replace(nextRoute)
+      router.refresh()
     } catch (err) {
       hasRedirectedRef.current = false
       setRedirecting(false)
@@ -305,6 +309,19 @@ export default function LoginPage() {
       setSubmitting(false)
     }
   }
+
+function canUseBrowserStorage() {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const key = '__tenaceiq_auth_storage_check__'
+    window.localStorage.setItem(key, '1')
+    window.localStorage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
@@ -474,6 +491,7 @@ export default function LoginPage() {
               </button>
 
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
+              {!error && authNote ? <div role="status" aria-live="polite" style={successBanner}>{authNote}</div> : null}
 
               <div style={helperRow}>
                 <Link href="/join" style={inlineLink}>
@@ -877,6 +895,13 @@ const errorBanner: CSSProperties = {
   color: '#ffd7d7',
   fontWeight: 700,
   fontSize: '14px',
+}
+
+const successBanner: CSSProperties = {
+  ...errorBanner,
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  color: 'var(--foreground-strong)',
 }
 
 const helperRow: CSSProperties = {
