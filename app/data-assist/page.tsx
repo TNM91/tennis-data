@@ -655,13 +655,14 @@ function SubmissionCard({
   const status = getSubmissionStatusCopy(submission)
   const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
   const parsedDraft = toScorecardParsedDraft(submission.parsedPayload)
+  const importSummary = getSubmissionImportSummary(submission)
   const canReviewParsedDraft =
     parsedDraft &&
     submission.draftId &&
     submission.draftOcrStatus === 'processed' &&
     submission.draftStatus === 'ready_for_verification' &&
     (submission.status === 'ready_to_import' || submission.status === 'needs_review')
-  const canPreviewImport = Boolean(parsedDraft && submission.draftId && (submission.status === 'verified' || submission.status === 'imported'))
+  const canPreviewImport = Boolean(parsedDraft && submission.draftId && submission.status === 'verified')
   const canCommitImport = Boolean(canPreviewImport && submission.status === 'verified')
 
   return (
@@ -687,6 +688,9 @@ function SubmissionCard({
           onConfirm={() => onReview(submission, 'confirmed')}
           onFlag={() => onReview(submission, 'flagged')}
         />
+      ) : null}
+      {submission.status === 'imported' ? (
+        <ImportedSummaryPanel summary={importSummary} parsedDraft={parsedDraft} />
       ) : null}
       {parsedDraft && canPreviewImport ? (
         <ImportPreviewPanel
@@ -773,6 +777,41 @@ function ImportPreviewPanel({
   )
 }
 
+function ImportedSummaryPanel({
+  summary,
+  parsedDraft,
+}: {
+  summary: SubmissionImportSummary
+  parsedDraft: DataAssistScorecardParsedDraft | null
+}) {
+  const lineCount = summary.lineCount || parsedDraft?.lineCount || parsedDraft?.lines.length || 0
+  const playerValue = !summary.linkedPlayers && !summary.createdPlayers
+    ? 'Refreshed'
+    : summary.createdPlayers
+    ? `${summary.linkedPlayers} linked, ${summary.createdPlayers} new`
+    : `${summary.linkedPlayers} linked`
+
+  return (
+    <div style={importPanelStyle}>
+      <div style={submissionCardTopStyle}>
+        <div>
+          <strong>Import complete</strong>
+          <p style={copyStyle}>
+            Match records, player links, and rating inputs were refreshed from this TennisLink scorecard.
+          </p>
+        </div>
+        <span style={pillGreenStyle}>Done</span>
+      </div>
+      <div style={scorecardHeaderGridStyle}>
+        <ReviewFact label="Lines" value={String(lineCount)} />
+        <ReviewFact label="Players" value={playerValue} />
+        <ReviewFact label="Imported" value={summary.importedAt ? formatDate(summary.importedAt) : 'Complete'} />
+      </div>
+      {summary.message ? <p style={copyStyle}>{summary.message}</p> : null}
+    </div>
+  )
+}
+
 function ScorecardReviewPanel({
   parsedDraft,
   canReview,
@@ -812,14 +851,16 @@ function ScorecardReviewPanel({
       {parsedDraft.parserWarnings.length ? (
         <div style={warningStyle}>{parsedDraft.parserWarnings.slice(0, 2).join(' ')}</div>
       ) : null}
-      <div style={cardActionRowStyle}>
-        <button type="button" onClick={onConfirm} disabled={!canReview || busy} style={{ ...smallButtonStyle, ...(!canReview || busy ? disabledStyle : {}) }}>
-          {busy ? 'Importing...' : 'Looks right - import'}
-        </button>
-        <button type="button" onClick={onFlag} disabled={!canReview || busy} style={{ ...smallDangerButtonStyle, ...(!canReview || busy ? disabledStyle : {}) }}>
-          Needs fix
-        </button>
-      </div>
+      {canReview ? (
+        <div style={cardActionRowStyle}>
+          <button type="button" onClick={onConfirm} disabled={busy} style={{ ...smallButtonStyle, ...(busy ? disabledStyle : {}) }}>
+            {busy ? 'Importing...' : 'Looks right - import'}
+          </button>
+          <button type="button" onClick={onFlag} disabled={busy} style={{ ...smallDangerButtonStyle, ...(busy ? disabledStyle : {}) }}>
+            Needs fix
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -853,6 +894,42 @@ function toScorecardParsedDraft(value: DataAssistSubmission['parsedPayload']): D
     confidenceScore: typeof draft.confidenceScore === 'number' ? draft.confidenceScore : 0,
     ocrQuality: draft.ocrQuality,
   }
+}
+
+type SubmissionImportSummary = {
+  importedAt: string
+  linkedPlayers: number
+  createdPlayers: number
+  lineCount: number
+  message: string
+}
+
+function getSubmissionImportSummary(submission: DataAssistSubmission): SubmissionImportSummary {
+  const validation = toRecord(submission.validationSummary)
+  const importSummary = toRecord(validation.importSummary)
+  const importResult = toRecord(importSummary.importResult)
+  const result = toRecord(importResult.result)
+  const rows = Array.isArray(result.rows) ? result.rows : []
+
+  return {
+    importedAt: cleanSummaryText(importSummary.importedAt),
+    linkedPlayers: toFiniteNumber(result.linkedPlayersCount),
+    createdPlayers: toFiniteNumber(result.createdPlayersCount),
+    lineCount: toFiniteNumber(result.totalRows) || rows.length,
+    message: cleanSummaryText(rows[0] ? toRecord(rows[0]).message : '') || submission.reviewNote || submission.draftReviewNote,
+  }
+}
+
+function toRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function toFiniteNumber(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0
+}
+
+function cleanSummaryText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function getSubmissionStatusCopy(submission: DataAssistSubmission) {
