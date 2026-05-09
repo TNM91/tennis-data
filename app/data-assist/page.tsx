@@ -66,6 +66,13 @@ const importTypes: Array<{
   },
 ]
 
+type BulkScorecardResult = {
+  fileName: string
+  status: 'imported' | 'duplicate' | 'review' | 'failed'
+  detail: string
+  matchId: string
+}
+
 export default function DataAssistPage() {
   return (
     <SiteShell active="/data-assist">
@@ -89,6 +96,7 @@ function DataAssistWorkspace() {
   const [submissionsError, setSubmissionsError] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [bulkScorecardResults, setBulkScorecardResults] = useState<BulkScorecardResult[]>([])
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState('')
   const [importingSubmissionId, setImportingSubmissionId] = useState('')
   const [deletingSubmissionId, setDeletingSubmissionId] = useState('')
@@ -110,6 +118,7 @@ function DataAssistWorkspace() {
   const showScanStep = saving
   const showLatestReviewStep = Boolean(latestScan)
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
+  const showBulkScorecardResults = !hasPreparedScreenshots && !saving && !latestScan && bulkScorecardResults.length > 0
   const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
 
   function resetUploadFlow() {
@@ -119,6 +128,7 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage('')
     setError('')
+    setBulkScorecardResults([])
   }
 
   function updateImportType(nextType: DataAssistImportType) {
@@ -127,6 +137,7 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage('')
     setError('')
+    setBulkScorecardResults([])
   }
 
   async function refreshSubmissions() {
@@ -171,6 +182,7 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
     setError('')
+    setBulkScorecardResults([])
 
     const detected = await detectDataAssistExportType(files, importType)
     if (files.length > 1 && detected.importType !== 'scorecard') {
@@ -247,11 +259,13 @@ function DataAssistWorkspace() {
     setLatestScan(null)
     setSavedBatchId('')
     setError('')
+    setBulkScorecardResults([])
 
     let importedCount = 0
     let duplicateCount = 0
     let reviewCount = 0
     let failedCount = 0
+    const results: BulkScorecardResult[] = []
 
     try {
       for (let index = 0; index < files.length; index += 1) {
@@ -263,6 +277,12 @@ function DataAssistWorkspace() {
           const nextSummary = summarizeDataAssistBatch('scorecard', preparedSummary.screenshots)
           if (nextSummary.status === 'rejected') {
             failedCount += 1
+            results.push({
+              fileName: file.name,
+              status: 'failed',
+              detail: nextSummary.rejectionReason || 'TenAceIQ could not read this export.',
+              matchId: '',
+            })
             continue
           }
 
@@ -282,17 +302,42 @@ function DataAssistWorkspace() {
 
           if (ocrResult.autoImport?.ok) {
             importedCount += 1
+            results.push({
+              fileName: file.name,
+              status: 'imported',
+              detail: ocrResult.autoImport.message || 'Imported',
+              matchId: isScorecardParsedDraft(ocrResult.parsedDraft) ? ocrResult.parsedDraft.externalMatchId : '',
+            })
           } else if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
             duplicateCount += 1
+            results.push({
+              fileName: file.name,
+              status: 'duplicate',
+              detail: ocrResult.autoImport.message || 'Already imported',
+              matchId: isScorecardParsedDraft(ocrResult.parsedDraft) ? ocrResult.parsedDraft.externalMatchId : '',
+            })
           } else {
             reviewCount += 1
+            results.push({
+              fileName: file.name,
+              status: 'review',
+              detail: 'Saved for review',
+              matchId: isScorecardParsedDraft(ocrResult.parsedDraft) ? ocrResult.parsedDraft.externalMatchId : '',
+            })
           }
-        } catch {
+        } catch (err) {
           failedCount += 1
+          results.push({
+            fileName: file.name,
+            status: 'failed',
+            detail: err instanceof Error ? err.message : 'Import failed',
+            matchId: '',
+          })
         }
       }
 
       if (scanRunRef.current !== scanRunId) return
+      setBulkScorecardResults(results)
       setMessage(buildBulkScorecardMessage({
         total: files.length,
         importedCount,
@@ -541,6 +586,12 @@ function DataAssistWorkspace() {
 
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
+      {showBulkScorecardResults ? (
+        <BulkScorecardResultsPanel
+          results={bulkScorecardResults}
+          onStartOver={resetUploadFlow}
+        />
+      ) : null}
 
       <section style={workspaceStyle()}>
         {showUploadStep ? (
@@ -855,6 +906,13 @@ function getDropzoneTitle(importType: DataAssistImportType) {
   return 'Tap to choose .xls export'
 }
 
+function getBulkScorecardStatusLabel(status: BulkScorecardResult['status']) {
+  if (status === 'imported') return 'Imported'
+  if (status === 'duplicate') return 'Already in'
+  if (status === 'review') return 'Review'
+  return 'Retry'
+}
+
 function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
   if (importType === 'team_summary') return 'team summary'
@@ -957,6 +1015,52 @@ function UploadIssueNotice({
         </button>
       ) : null}
     </div>
+  )
+}
+
+function BulkScorecardResultsPanel({
+  results,
+  onStartOver,
+}: {
+  results: BulkScorecardResult[]
+  onStartOver: () => void
+}) {
+  const importedCount = results.filter((result) => result.status === 'imported').length
+  const duplicateCount = results.filter((result) => result.status === 'duplicate').length
+  const reviewCount = results.filter((result) => result.status === 'review').length
+  const failedCount = results.filter((result) => result.status === 'failed').length
+
+  return (
+    <section style={panelStyle}>
+      <div style={sectionHeaderStyle}>
+        <div>
+          <StepBadge step={4} label="Batch results" />
+          <h2 style={sectionTitleStyle}>Scorecards processed.</h2>
+          <p style={copyStyle}>Each export was saved and read as its own match.</p>
+        </div>
+        <span style={failedCount ? pillAmberStyle : pillGreenStyle}>{failedCount ? 'Needs attention' : 'Complete'}</span>
+      </div>
+      <div style={scorecardHeaderGridStyle}>
+        <ReviewFact label="Imported" value={String(importedCount)} />
+        <ReviewFact label="Already in" value={String(duplicateCount)} />
+        <ReviewFact label="Review" value={String(reviewCount)} />
+        <ReviewFact label="Retry" value={String(failedCount)} />
+      </div>
+      <div style={bulkResultListStyle}>
+        {results.map((result) => (
+          <div key={`${result.fileName}-${result.status}-${result.matchId}`} style={bulkResultRowStyle(result.status)}>
+            <div>
+              <strong>{result.matchId || result.fileName}</strong>
+              <p>{result.matchId ? result.fileName : result.detail}</p>
+            </div>
+            <span>{getBulkScorecardStatusLabel(result.status)}</span>
+          </div>
+        ))}
+      </div>
+      <div style={draftActionRowStyle}>
+        <button type="button" onClick={onStartOver} style={primaryButtonStyle}>Upload more scorecards</button>
+      </div>
+    </section>
   )
 }
 
@@ -2653,6 +2757,34 @@ const scheduleMatchGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 8,
 }
+
+const bulkResultListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+}
+
+const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSProperties => ({
+  borderRadius: 14,
+  border: status === 'failed'
+    ? '1px solid rgba(248,113,113,0.34)'
+    : status === 'review'
+      ? '1px solid rgba(251,191,36,0.34)'
+      : '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: status === 'failed'
+    ? 'rgba(248,113,113,0.08)'
+    : status === 'review'
+      ? 'rgba(251,191,36,0.08)'
+      : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
+  padding: 11,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 10,
+  alignItems: 'center',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
 
 const parsedLineMainStyle: CSSProperties = {
   display: 'flex',
