@@ -912,11 +912,13 @@ function MySubmissionsPanel({
   onDeleteAllDrafts: () => void
 }) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>('all')
   const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
   const rejectedCount = contributorStats?.rejectedImportCount ?? submissions.filter((submission) => submission.status === 'rejected').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
   const removableCount = submissions.filter((submission) => submission.status !== 'imported').length
+  const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
 
   return (
     <section style={panelStyle}>
@@ -959,22 +961,31 @@ function MySubmissionsPanel({
             <SubmissionStat label="Accuracy score" value={`${accuracyScore}%`} />
             <SubmissionStat label="Rejected" value={rejectedCount} />
           </div>
+          <HistoryFilterTabs
+            activeFilter={historyFilter}
+            submissions={submissions}
+            onChange={setHistoryFilter}
+          />
           <ContributorBadges stats={contributorStats} />
-          <div style={submissionListStyle}>
-            {submissions.map((submission) => (
-              <SubmissionCard
-                key={submission.id}
-                submission={submission}
-                busy={reviewingSubmissionId === submission.id}
-                onReview={onReviewSubmission}
-                importing={importingSubmissionId === submission.id}
-                deleting={deletingSubmissionId === submission.id}
-                importResult={importResultsBySubmission[submission.id]}
-                onRunImport={onRunImport}
-                onDelete={onDeleteSubmission}
-              />
-            ))}
-          </div>
+          {filteredSubmissions.length ? (
+            <div style={submissionListStyle}>
+              {filteredSubmissions.map((submission) => (
+                <SubmissionCard
+                  key={submission.id}
+                  submission={submission}
+                  busy={reviewingSubmissionId === submission.id}
+                  onReview={onReviewSubmission}
+                  importing={importingSubmissionId === submission.id}
+                  deleting={deletingSubmissionId === submission.id}
+                  importResult={importResultsBySubmission[submission.id]}
+                  onRunImport={onRunImport}
+                  onDelete={onDeleteSubmission}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={emptyStateStyle}>No uploads match this filter.</div>
+          )}
         </>
       ) : loading ? (
         <div style={emptyStateStyle}>Loading your submissions...</div>
@@ -985,6 +996,53 @@ function MySubmissionsPanel({
       {error ? <div style={errorStyle}>{error}</div> : null}
     </section>
   )
+}
+
+type DataAssistHistoryFilter = 'all' | 'imported' | 'needs_review' | DataAssistImportType
+
+const historyFilters: Array<{ id: DataAssistHistoryFilter; label: string }> = [
+  { id: 'all', label: 'All' },
+  { id: 'imported', label: 'Imported' },
+  { id: 'needs_review', label: 'Needs review' },
+  { id: 'scorecard', label: 'Scorecards' },
+  { id: 'schedule', label: 'Schedules' },
+  { id: 'team_summary', label: 'Rosters' },
+]
+
+function HistoryFilterTabs({
+  activeFilter,
+  submissions,
+  onChange,
+}: {
+  activeFilter: DataAssistHistoryFilter
+  submissions: DataAssistSubmission[]
+  onChange: (filter: DataAssistHistoryFilter) => void
+}) {
+  return (
+    <div style={historyFilterStyle}>
+      {historyFilters.map((filter) => {
+        const count = filterDataAssistSubmissions(submissions, filter.id).length
+        return (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => onChange(filter.id)}
+            style={historyFilterButtonStyle(activeFilter === filter.id)}
+          >
+            {filter.label}
+            <span>{count}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function filterDataAssistSubmissions(submissions: DataAssistSubmission[], filter: DataAssistHistoryFilter) {
+  if (filter === 'all') return submissions
+  if (filter === 'imported') return submissions.filter((submission) => submission.status === 'imported')
+  if (filter === 'needs_review') return submissions.filter((submission) => submission.status !== 'imported' && submission.status !== 'verified' && submission.status !== 'rejected')
+  return submissions.filter((submission) => submission.requestedImportType === filter)
 }
 
 function TutorialStep({ label, text }: { label: string; text: string }) {
@@ -1464,9 +1522,13 @@ function PostImportActions({ actions }: { actions: Array<{ label: string; href: 
 }
 
 function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
+  const [expanded, setExpanded] = useState(false)
+  const visibleMatches = expanded ? parsedDraft.matches : parsedDraft.matches.slice(0, 8)
+  const hiddenCount = parsedDraft.matches.length - visibleMatches.length
+
   return (
     <div style={parsedLineListStyle}>
-      {parsedDraft.matches.map((match) => (
+      {visibleMatches.map((match) => (
         <div key={match.externalMatchId} style={scheduleMatchRowStyle}>
           <div style={parsedLineMainStyle}>
             <span style={lineHeaderStyle}>
@@ -1483,14 +1545,27 @@ function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistSchedulePars
           </div>
         </div>
       ))}
+      {hiddenCount > 0 ? (
+        <button type="button" onClick={() => setExpanded(true)} style={showMoreButtonStyle}>
+          Show {hiddenCount} more match{hiddenCount === 1 ? '' : 'es'}
+        </button>
+      ) : expanded && parsedDraft.matches.length > 8 ? (
+        <button type="button" onClick={() => setExpanded(false)} style={showMoreButtonStyle}>
+          Show fewer matches
+        </button>
+      ) : null}
     </div>
   )
 }
 
 function RosterPlayersList({ parsedDraft }: { parsedDraft: DataAssistTeamSummaryParsedDraft }) {
+  const [expanded, setExpanded] = useState(false)
+  const visiblePlayers = expanded ? parsedDraft.players : parsedDraft.players.slice(0, 12)
+  const hiddenCount = parsedDraft.players.length - visiblePlayers.length
+
   return (
     <div style={parsedLineListStyle}>
-      {parsedDraft.players.map((player) => (
+      {visiblePlayers.map((player) => (
         <div key={`${player.name}-${player.ntrp ?? 'rating'}`} style={scheduleMatchRowStyle}>
           <div style={parsedLineMainStyle}>
             <span style={lineHeaderStyle}>
@@ -1504,6 +1579,15 @@ function RosterPlayersList({ parsedDraft }: { parsedDraft: DataAssistTeamSummary
           </div>
         </div>
       ))}
+      {hiddenCount > 0 ? (
+        <button type="button" onClick={() => setExpanded(true)} style={showMoreButtonStyle}>
+          Show {hiddenCount} more player{hiddenCount === 1 ? '' : 's'}
+        </button>
+      ) : expanded && parsedDraft.players.length > 12 ? (
+        <button type="button" onClick={() => setExpanded(false)} style={showMoreButtonStyle}>
+          Show fewer players
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -2307,6 +2391,34 @@ const historyCollapsedStyle: CSSProperties = {
   fontWeight: 800,
 }
 
+const historyFilterStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  overflowX: 'auto',
+  paddingBottom: 2,
+  WebkitOverflowScrolling: 'touch',
+}
+
+const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
+  minHeight: 40,
+  borderRadius: 999,
+  border: selected
+    ? '1px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)'
+    : '1px solid var(--shell-panel-border)',
+  background: selected
+    ? 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
+    : 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 11px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  whiteSpace: 'nowrap',
+  fontSize: 12,
+  fontWeight: 950,
+  cursor: 'pointer',
+})
+
 const scorecardReviewStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
@@ -2423,6 +2535,18 @@ const scheduleMatchRowStyle: CSSProperties = {
   fontSize: 12,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const showMoreButtonStyle: CSSProperties = {
+  minHeight: 42,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  fontSize: 13,
+  fontWeight: 950,
+  cursor: 'pointer',
 }
 
 const scheduleMatchGridStyle: CSSProperties = {
