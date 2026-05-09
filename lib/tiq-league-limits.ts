@@ -83,6 +83,40 @@ export function validateTiqLeagueParticipantLimit(record: Pick<TiqLeagueRecord, 
   return null
 }
 
+export function getTiqLeagueParticipantCount(record: Pick<TiqLeagueRecord, 'leagueFormat' | 'teams' | 'players'>) {
+  return record.leagueFormat === 'team' ? record.teams.length : record.players.length
+}
+
+export function getTiqLeagueRoundRobinEventCount(record: Pick<TiqLeagueRecord, 'leagueFormat' | 'teams' | 'players'>) {
+  const participantCount = getTiqLeagueParticipantCount(record)
+  if (participantCount < 2) return 0
+  return (participantCount * (participantCount - 1)) / 2
+}
+
+export function getTiqLeagueScheduleCapacitySummary(
+  record: Pick<TiqLeagueRecord, 'leagueFormat' | 'teams' | 'players' | 'maxMatchEvents'>,
+) {
+  const participantCount = getTiqLeagueParticipantCount(record)
+  const roundRobinEventCount = getTiqLeagueRoundRobinEventCount(record)
+  const participantLabel = record.leagueFormat === 'team' ? 'teams' : 'players'
+  const eventLabel = roundRobinEventCount === 1 ? 'match event' : 'match events'
+
+  if (participantCount < 2) {
+    return `Add at least two ${participantLabel} to estimate schedule capacity.`
+  }
+
+  return `${participantCount} ${participantLabel} need ${roundRobinEventCount} ${eventLabel} for one round robin.`
+}
+
+export function validateTiqLeagueScheduleCapacity(
+  record: Pick<TiqLeagueRecord, 'leagueFormat' | 'teams' | 'players' | 'maxMatchEvents'>,
+) {
+  const requiredEvents = getTiqLeagueRoundRobinEventCount(record)
+  if (requiredEvents <= 0 || requiredEvents <= record.maxMatchEvents) return null
+
+  return `One round robin needs ${requiredEvents} match events, but this season is capped at ${record.maxMatchEvents}. Raise the max match events or reduce participants.`
+}
+
 export function validateTiqLeagueCanAcceptActivity(
   record: Pick<TiqLeagueRecord, 'seasonStatus' | 'startsOn' | 'endsOn' | 'maxMatchEvents'>,
   existingActivityCount: number,

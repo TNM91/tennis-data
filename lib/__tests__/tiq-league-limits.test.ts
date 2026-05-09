@@ -4,10 +4,13 @@ import {
   calculateTiqLeagueEndsOn,
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  getTiqLeagueRoundRobinEventCount,
+  getTiqLeagueScheduleCapacitySummary,
   normalizeTiqLeagueMaxMatchEvents,
   normalizeTiqLeagueMaxWeeks,
   normalizeTiqLeagueSeasonStatus,
   validateTiqLeagueCanAcceptActivity,
+  validateTiqLeagueScheduleCapacity,
   validateTiqLeagueSeasonWindow,
 } from '../tiq-league-limits'
 
@@ -54,6 +57,38 @@ describe('tiq league limits', () => {
     expect(validateTiqLeagueCanAcceptActivity(record, 3, '2026-02-01')).toContain('season limit')
     expect(validateTiqLeagueCanAcceptActivity(record, 1, '2026-04-01')).toContain('after the league season ends')
     expect(validateTiqLeagueCanAcceptActivity({ ...record, seasonStatus: 'completed' }, 1, '2026-02-01')).toContain('closed')
+  })
+
+  it('estimates round-robin schedule capacity from participants', () => {
+    const teamRecord = {
+      leagueFormat: 'team' as const,
+      teams: ['Aces', 'Baseliners', 'Courtside', 'Dropshots'],
+      players: [],
+      maxMatchEvents: 5,
+    }
+
+    expect(getTiqLeagueRoundRobinEventCount(teamRecord)).toBe(6)
+    expect(getTiqLeagueScheduleCapacitySummary(teamRecord)).toBe(
+      '4 teams need 6 match events for one round robin.',
+    )
+    expect(validateTiqLeagueScheduleCapacity(teamRecord)).toContain('season is capped at 5')
+    expect(validateTiqLeagueScheduleCapacity({ ...teamRecord, maxMatchEvents: 6 })).toBeNull()
+  })
+
+  it('handles individual league schedule capacity copy', () => {
+    expect(getTiqLeagueScheduleCapacitySummary({
+      leagueFormat: 'individual',
+      teams: [],
+      players: ['A'],
+      maxMatchEvents: 10,
+    })).toBe('Add at least two players to estimate schedule capacity.')
+
+    expect(getTiqLeagueScheduleCapacitySummary({
+      leagueFormat: 'individual',
+      teams: [],
+      players: ['A', 'B', 'C'],
+      maxMatchEvents: 10,
+    })).toBe('3 players need 3 match events for one round robin.')
   })
 })
 
