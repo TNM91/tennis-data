@@ -1921,6 +1921,8 @@ const pulseTopRow: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '14px',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const pulseSubtitle: CSSProperties = {
@@ -1947,6 +1949,7 @@ const pulseLeaderGrid: CSSProperties = {
   alignItems: 'end',
   gap: '16px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const pulseMiniLabel: CSSProperties = {
@@ -1965,6 +1968,7 @@ const pulseLeaderName: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 900,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const pulseSubline: CSSProperties = {
@@ -1976,7 +1980,7 @@ const pulseSubline: CSSProperties = {
 
 const pulseRatingBadge: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '42px',
+  fontSize: '38px',
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
@@ -2000,7 +2004,7 @@ const pulseMeterFill: CSSProperties = {
 
 const pulseSignalGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
   gap: '10px',
   marginTop: '14px',
 }
@@ -2018,6 +2022,7 @@ const pulseSignalTop: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '8px',
+  flexWrap: 'wrap',
   color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 800,
@@ -2043,9 +2048,11 @@ const pulseRiserRow: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   alignItems: 'center',
+  flexWrap: 'wrap',
   marginTop: '14px',
   paddingTop: '14px',
   borderTop: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const pulseRiserLink: CSSProperties = {
@@ -2054,6 +2061,7 @@ const pulseRiserLink: CSSProperties = {
   fontWeight: 900,
   textDecoration: 'none',
   textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const pulseActionRow: CSSProperties = {
@@ -2501,12 +2509,15 @@ const compactPlayerNameStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '17px',
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+  textDecoration: 'none',
 }
 
 const compactPlayerMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const compactRatingStackStyle: CSSProperties = {
@@ -2517,8 +2528,8 @@ const compactRatingStackStyle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 950,
   lineHeight: 1,
-  gridColumn: '1 / -1',
-  paddingLeft: 'calc(2.2rem + 12px)',
+  gridColumn: '2 / -1',
+  minWidth: 0,
 }
 
 const compactSignalRowStyle: CSSProperties = {
@@ -2540,6 +2551,7 @@ const compactActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: '9px',
   paddingTop: '2px',
+  minWidth: 0,
 }
 
 const compactMiniLabelStyle: CSSProperties = {

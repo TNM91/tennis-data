@@ -11,6 +11,12 @@ async function expectSurfaceLoads(page: Page, path: string) {
   await expect(page.locator('body')).toBeVisible()
   await expect(page).toHaveTitle(/TenAceIQ|tennis|Login/i)
   await expect(page.locator('body')).not.toContainText('Application error')
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1),
+      { message: `${path} should not create page-level horizontal overflow` },
+    )
+    .toBe(true)
   expect(pageErrors, `${path} should not throw uncaught browser errors`).toEqual([])
 }
 
@@ -31,6 +37,7 @@ async function expectLoginNextPreservesHandoff(page: Page, path: string) {
 test.describe('TIQ league surfaces', () => {
   for (const path of [
     '/explore/leagues',
+    '/explore/rankings',
     '/data-assist',
     '/league-coordinator',
     '/league-coordinator/results',
