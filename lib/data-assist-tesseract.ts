@@ -193,7 +193,7 @@ export async function recognizeDataAssistTeamSummaryScreenshotsWithTesseract(
       tessedit_pageseg_mode: PSM.SPARSE_TEXT,
     })
 
-    const orderedImages = [...images].sort((a, b) => a.uploadOrder - b.uploadOrder)
+    const orderedImages = selectTeamSummaryImagesForOcr([...images].sort((a, b) => a.uploadOrder - b.uploadOrder))
 
     for (const [imageIndex, image] of orderedImages.entries()) {
       const ocrBuffer = await prepareTeamSummaryOcrBuffer(image)
@@ -242,6 +242,21 @@ function shouldUseDesktopTeamSummaryRosterRead(image: DataAssistTesseractImageIn
 
   const aspectRatio = image.imageHeight / Math.max(image.imageWidth, 1)
   return aspectRatio < 1.95
+}
+
+function selectTeamSummaryImagesForOcr(images: DataAssistTesseractImageInput[]) {
+  if (images.length <= 2) return images
+
+  const selected = new Map<number, DataAssistTesseractImageInput>()
+  const addImage = (image: DataAssistTesseractImageInput | undefined) => {
+    if (image) selected.set(image.uploadOrder, image)
+  }
+
+  addImage(images[0])
+  addImage(images.at(-2))
+  addImage(images.at(-1))
+
+  return [...selected.values()].sort((a, b) => a.uploadOrder - b.uploadOrder)
 }
 
 export function mergeDataAssistOcrBlocks(blocks: Array<{
@@ -326,7 +341,7 @@ async function prepareTeamSummaryOcrBuffer(image: DataAssistTesseractImageInput)
     const sharp = (await import('sharp')).default
     return sharp(image.imageBuffer)
       .rotate()
-      .resize({ width: 900, withoutEnlargement: true })
+      .resize({ width: 720, withoutEnlargement: true })
       .grayscale()
       .normalise()
       .png({ compressionLevel: 3 })

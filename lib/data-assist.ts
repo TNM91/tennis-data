@@ -323,6 +323,8 @@ const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 const MAX_BATCH_SIZE = 8
 const MAX_PREPARED_SCREENSHOT_WIDTH = 1000
 const MAX_PREPARED_SCREENSHOT_HEIGHT = 2000
+const MAX_PREPARED_TEAM_SUMMARY_WIDTH = 760
+const MAX_PREPARED_TEAM_SUMMARY_HEIGHT = 1520
 const PREPARED_SCREENSHOT_QUALITY = 0.82
 const ALLOWED_SCREENSHOT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
@@ -1322,7 +1324,7 @@ async function prepareDataAssistScreenshot(
   uploadOrder: number,
   requestedImportType: DataAssistImportType,
 ): Promise<DataAssistPreparedScreenshot> {
-  const prepared = await prepareScreenshotForUpload(file).catch(async () => {
+  const prepared = await prepareScreenshotForUpload(file, requestedImportType).catch(async () => {
     const previewUrl = URL.createObjectURL(file)
     const dimensions = await readImageDimensions(previewUrl).catch(() => ({ width: 0, height: 0 }))
     URL.revokeObjectURL(previewUrl)
@@ -1360,7 +1362,7 @@ async function prepareDataAssistScreenshot(
   }
 }
 
-async function prepareScreenshotForUpload(file: File): Promise<{
+async function prepareScreenshotForUpload(file: File, requestedImportType: DataAssistImportType): Promise<{
   file: File
   dimensions: { width: number; height: number }
 }> {
@@ -1374,10 +1376,16 @@ async function prepareScreenshotForUpload(file: File): Promise<{
       return { file, dimensions: { width: 0, height: 0 } }
     }
 
+    const maxWidth = requestedImportType === 'team_summary'
+      ? MAX_PREPARED_TEAM_SUMMARY_WIDTH
+      : MAX_PREPARED_SCREENSHOT_WIDTH
+    const maxHeight = requestedImportType === 'team_summary'
+      ? MAX_PREPARED_TEAM_SUMMARY_HEIGHT
+      : MAX_PREPARED_SCREENSHOT_HEIGHT
     const scale = Math.min(
       1,
-      MAX_PREPARED_SCREENSHOT_WIDTH / originalWidth,
-      MAX_PREPARED_SCREENSHOT_HEIGHT / originalHeight,
+      maxWidth / originalWidth,
+      maxHeight / originalHeight,
     )
     if (scale >= 1 && file.type === 'image/jpeg') {
       return { file, dimensions: { width: originalWidth, height: originalHeight } }
