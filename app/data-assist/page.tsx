@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
@@ -101,13 +101,8 @@ function DataAssistWorkspace() {
     autoImport?: DataAssistImportActionResult
   } | null>(null)
   const scanRunRef = useRef(0)
+  const latestReadRef = useRef<HTMLElement | null>(null)
 
-  const confidenceLabel = useMemo(() => {
-    if (!summary) return 'Waiting for TennisLink export'
-    if (summary.status === 'layout_detected') return 'Ready for review'
-    if (summary.status === 'needs_review') return 'Review recommended'
-    return 'Not supported'
-  }, [summary])
   const hasPreparedScreenshots = Boolean(summary?.screenshots.length)
   const showUploadStep = !hasPreparedScreenshots && !saving && !latestScan
   const showOrderStep = hasPreparedScreenshots && !saving && !latestScan
@@ -159,6 +154,13 @@ function DataAssistWorkspace() {
     void refreshSubmissions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved, userId])
+
+  useEffect(() => {
+    if (!latestScan) return
+    window.setTimeout(() => {
+      latestReadRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+  }, [latestScan])
 
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
@@ -476,6 +478,13 @@ function DataAssistWorkspace() {
               <strong>{activeImportType.exportHint}</strong>
             </div>
 
+            {authResolved && !userId ? (
+              <div style={noticeStyle}>
+                Sign in first, then choose the TennisLink export. Data Assist imports directly into your TenAceIQ account.
+                <Link href="/login?redirect=/data-assist" style={inlineLinkStyle}>Sign in</Link>
+              </div>
+            ) : null}
+
             <label style={dropzoneStyle(summary?.status || '')}>
               <input
                 type="file"
@@ -495,6 +504,7 @@ function DataAssistWorkspace() {
                   <strong>{getUploadHelpTitle(importType)}</strong>
                   <span>{getUploadHelpText(importType)}</span>
                 </div>
+                <ExportHelpPanel importType={importType} />
               </>
             ) : null}
 
@@ -591,7 +601,7 @@ function DataAssistWorkspace() {
       ) : null}
 
         {showLatestReviewStep && latestScan ? (
-          <section id="latest-data-assist-read" style={latestReadStyle}>
+          <section id="latest-data-assist-read" ref={latestReadRef} style={latestReadStyle}>
             {latestScan.autoImport?.importPreview?.duplicateMatch ? (
               <DuplicateImportBanner
                 matchId={isScorecardParsedDraft(latestScan.parsedDraft) ? latestScan.parsedDraft.externalMatchId : ''}
@@ -758,6 +768,61 @@ function getUploadHelpText(importType: DataAssistImportType) {
     return 'Open Team Summary and choose Send To Excel. TenAceIQ imports roster players and base ratings.'
   }
   return 'Open the Score Card tab and choose Send To Excel. TenAceIQ imports players, scores, winners, and team score.'
+}
+
+function getExportHelpSteps(importType: DataAssistImportType) {
+  if (importType === 'schedule') {
+    return [
+      'Open TennisLink and go to the Match Schedule tab.',
+      'Choose Send To Excel.',
+      'Upload the MatchSchedule .xls file here.',
+    ]
+  }
+  if (importType === 'team_summary') {
+    return [
+      'Open TennisLink and go to Team Summary.',
+      'Choose Send To Excel.',
+      'Upload the TeamSummary .xls file here.',
+    ]
+  }
+  return [
+    'Open the TennisLink scorecard.',
+    'Choose Send To Excel.',
+    'Upload the Scorecard .xls file here.',
+  ]
+}
+
+function getExportFileExample(importType: DataAssistImportType) {
+  if (importType === 'schedule') return 'MatchSchedule_582026.xls'
+  if (importType === 'team_summary') return 'TeamSummary_582026.xls'
+  return 'Scorecard_582026.xls'
+}
+
+function ExportHelpPanel({ importType }: { importType: DataAssistImportType }) {
+  const [open, setOpen] = useState(false)
+  const steps = getExportHelpSteps(importType)
+
+  return (
+    <div style={exportHelpStyle}>
+      <button type="button" onClick={() => setOpen((current) => !current)} style={exportHelpToggleStyle}>
+        <span>How to get this export</span>
+        <strong>{open ? 'Hide' : 'Show'}</strong>
+      </button>
+      {open ? (
+        <div style={exportHelpBodyStyle}>
+          {steps.map((step, index) => (
+            <div key={step} style={exportHelpStepStyle}>
+              <span>{index + 1}</span>
+              <span>{step}</span>
+            </div>
+          ))}
+          <div style={exportHelpExampleStyle}>
+            Expected file: <strong>{getExportFileExample(importType)}</strong>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function getScanSetupText(importType: DataAssistImportType, screenshotCount: number) {
@@ -1528,6 +1593,9 @@ function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistSchedulePars
 
   return (
     <div style={parsedLineListStyle}>
+      {hiddenCount > 0 ? (
+        <p style={compactListHintStyle}>Showing the first {visibleMatches.length} of {parsedDraft.matches.length} matches.</p>
+      ) : null}
       {visibleMatches.map((match) => (
         <div key={match.externalMatchId} style={scheduleMatchRowStyle}>
           <div style={parsedLineMainStyle}>
@@ -1565,6 +1633,9 @@ function RosterPlayersList({ parsedDraft }: { parsedDraft: DataAssistTeamSummary
 
   return (
     <div style={parsedLineListStyle}>
+      {hiddenCount > 0 ? (
+        <p style={compactListHintStyle}>Showing the first {visiblePlayers.length} of {parsedDraft.players.length} players.</p>
+      ) : null}
       {visiblePlayers.map((player) => (
         <div key={`${player.name}-${player.ntrp ?? 'rating'}`} style={scheduleMatchRowStyle}>
           <div style={parsedLineMainStyle}>
@@ -2549,6 +2620,13 @@ const showMoreButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
+const compactListHintStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
 const scheduleMatchGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
@@ -2641,6 +2719,59 @@ const simpleHelpStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.45,
   fontWeight: 800,
+}
+
+const exportHelpStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+}
+
+const exportHelpToggleStyle: CSSProperties = {
+  width: '100%',
+  minHeight: 48,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  cursor: 'pointer',
+  font: 'inherit',
+  fontSize: 13,
+  fontWeight: 950,
+  textAlign: 'left',
+}
+
+const exportHelpBodyStyle: CSSProperties = {
+  borderTop: '1px solid var(--shell-panel-border)',
+  padding: 12,
+  display: 'grid',
+  gap: 9,
+}
+
+const exportHelpStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '28px minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'start',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 800,
+}
+
+const exportHelpExampleStyle: CSSProperties = {
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  color: 'var(--foreground-strong)',
+  padding: 10,
+  fontSize: 12,
+  fontWeight: 850,
 }
 
 const readyImportNoteStyle: CSSProperties = {
@@ -2842,6 +2973,12 @@ const secondaryButtonStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
+}
+
+const inlineLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  marginLeft: 8,
 }
 
 const disabledStyle: CSSProperties = {
