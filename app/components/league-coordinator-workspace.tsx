@@ -46,6 +46,7 @@ import {
   calculateTiqLeagueEndsOn,
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  getTiqLeagueParticipantCount,
   getTiqLeagueScheduleCapacitySummary,
   getTiqLeagueSeasonSummary,
   MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS,
@@ -468,6 +469,18 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     (sum, record) => sum + (record.leagueFormat === 'team' ? record.teams.length : record.players.length),
     0,
   )
+  const scheduleReadyLeagueCount = records.filter(
+    (record) => getTiqLeagueParticipantCount(record) > 1 && !validateTiqLeagueScheduleCapacity(record),
+  ).length
+  const scheduleCapacityIssueCount = records.filter((record) => validateTiqLeagueScheduleCapacity(record)).length
+  const scheduleReadinessDetail =
+    records.length === 0
+      ? 'Create a league before planning match weeks.'
+      : scheduleCapacityIssueCount > 0
+        ? `${scheduleCapacityIssueCount} league${scheduleCapacityIssueCount === 1 ? '' : 's'} need a larger match-event cap.`
+        : scheduleReadyLeagueCount === records.length
+          ? 'Each saved league can fit at least one round robin.'
+          : 'Add at least two teams or players to estimate schedule capacity.'
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
@@ -658,6 +671,13 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       cta: 'Add participants',
     },
     {
+      label: 'Schedule',
+      complete: records.length > 0 && scheduleReadyLeagueCount === records.length && scheduleCapacityIssueCount === 0,
+      detail: scheduleReadinessDetail,
+      href: '#league-setup-form',
+      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review schedule',
+    },
+    {
       label: 'Sync',
       complete: storageSource === 'supabase',
       detail: storageSource === 'supabase' ? 'League setup is synced.' : 'League setup is saved as a local preview.',
@@ -697,6 +717,14 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       href: '#league-setup-form',
       cta: activeParticipantCount > 0 ? 'Review participants' : 'Add participants',
       complete: activeParticipantCount > 0,
+    },
+    {
+      label: 'Schedule',
+      title: records.length > 0 && scheduleCapacityIssueCount === 0 ? 'Schedule capacity is clear' : 'Check schedule capacity',
+      detail: scheduleReadinessDetail,
+      href: '#league-setup-form',
+      cta: scheduleCapacityIssueCount > 0 ? 'Fix cap' : 'Review schedule',
+      complete: records.length > 0 && scheduleReadyLeagueCount === records.length && scheduleCapacityIssueCount === 0,
     },
     {
       label: 'Results',
