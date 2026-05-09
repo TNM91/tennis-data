@@ -71,7 +71,7 @@ import {
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
-import { buildTiqLeagueSeasonCalendarRows } from '@/lib/tiq-league-calendar'
+import { buildTiqLeagueSchedulingPlanRows } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
@@ -995,7 +995,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
-  const seasonCalendarRows = buildTiqLeagueSeasonCalendarRows(draft)
+  const schedulingPlanRows = buildTiqLeagueSchedulingPlanRows(draft)
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
 
@@ -2023,20 +2023,23 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   </strong>
                   <p style={setupAssistTextStyle}>
                     {draft.startsOn
-                      ? `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Save the league, then use Data Assist or the schedule workspace to keep exact matchups current.`
+                      ? draft.schedulingMode === 'player_arranged'
+                        ? `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Pairings publish by week; players agree on exact date, time, and site.`
+                        : `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Save the league, then use Data Assist or the schedule workspace to keep exact matchups current.`
                       : 'Choose a start date to preview the weekly season calendar.'}
                   </p>
                 </div>
                 <span style={pillSlate}>{draft.scheduleTimeZone}</span>
               </div>
               <div style={calendarGridStyle}>
-                {seasonCalendarRows.slice(0, 12).map((row) => (
+                {schedulingPlanRows.slice(0, 12).map((row) => (
                   <div key={row.week} style={calendarRowStyle}>
                     <span style={calendarWeekStyle}>Week {row.week}</span>
-                    <strong style={calendarDateStyle}>{row.date || 'Set start date'}</strong>
+                    <strong style={calendarDateStyle}>{row.label}</strong>
                     <span style={calendarMetaStyle}>
-                      {[row.time || 'Time TBD', row.site || 'Site TBD'].join(' | ')}
+                      {row.meta}
                     </span>
+                    <span style={calendarActionStyle}>{row.action}</span>
                   </div>
                 ))}
               </div>
@@ -3152,6 +3155,21 @@ const calendarMetaStyle: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.45,
   fontWeight: 700,
+}
+
+const calendarActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  justifySelf: 'start',
+  minHeight: 28,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
 }
 
 const fieldLabel: CSSProperties = {

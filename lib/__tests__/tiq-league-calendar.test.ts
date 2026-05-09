@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addDaysToDateString,
   buildTiqLeagueSeasonCalendarRows,
+  buildTiqLeagueSchedulingPlanRows,
   getFirstScheduledDate,
 } from '../tiq-league-calendar'
 
@@ -34,5 +35,45 @@ describe('TIQ league calendar helpers', () => {
       { week: 1, date: '', time: '', site: '' },
       { week: 2, date: '', time: '', site: '' },
     ])
+  })
+
+  it('turns coordinator schedules into publish-ready weekly rows', () => {
+    const rows = buildTiqLeagueSchedulingPlanRows({
+      startsOn: '2026-05-04',
+      maxWeeks: 1,
+      defaultMatchDay: 'Wednesday',
+      defaultMatchTime: '19:00',
+      defaultFacility: 'Court 4',
+      schedulingMode: 'coordinator_fixed',
+    })
+
+    expect(rows[0]).toMatchObject({
+      mode: 'coordinator_fixed',
+      label: '2026-05-06',
+      meta: '19:00 | Court 4',
+      action: 'Coordinator publishes',
+      windowStart: '2026-05-06',
+      windowEnd: '2026-05-06',
+    })
+  })
+
+  it('turns player-arranged schedules into weekly scheduling windows', () => {
+    const rows = buildTiqLeagueSchedulingPlanRows({
+      startsOn: '2026-05-04',
+      maxWeeks: 1,
+      defaultMatchDay: 'Monday',
+      defaultMatchTime: '19:00',
+      defaultFacility: 'Court 4',
+      schedulingMode: 'player_arranged',
+    })
+
+    expect(rows[0]).toMatchObject({
+      mode: 'player_arranged',
+      label: '2026-05-04 to 2026-05-10',
+      meta: 'Pairings open for player scheduling. Players record agreed date, time, and site.',
+      action: 'Players schedule',
+      windowStart: '2026-05-04',
+      windowEnd: '2026-05-10',
+    })
   })
 })

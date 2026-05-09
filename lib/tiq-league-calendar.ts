@@ -4,6 +4,7 @@ export type TiqLeagueCalendarInput = {
   defaultMatchDay?: string
   defaultMatchTime?: string
   defaultFacility?: string
+  schedulingMode?: 'coordinator_fixed' | 'player_arranged'
 }
 
 export type TiqLeagueCalendarRow = {
@@ -11,6 +12,15 @@ export type TiqLeagueCalendarRow = {
   date: string
   time: string
   site: string
+}
+
+export type TiqLeagueSchedulingPlanRow = TiqLeagueCalendarRow & {
+  mode: 'coordinator_fixed' | 'player_arranged'
+  label: string
+  meta: string
+  action: string
+  windowStart: string
+  windowEnd: string
 }
 
 const MATCH_DAY_INDEX: Record<string, number> = {
@@ -55,4 +65,37 @@ export function buildTiqLeagueSeasonCalendarRows(input: TiqLeagueCalendarInput):
     time: input.defaultMatchTime || '',
     site: input.defaultFacility || '',
   }))
+}
+
+export function buildTiqLeagueSchedulingPlanRows(input: TiqLeagueCalendarInput): TiqLeagueSchedulingPlanRow[] {
+  const mode = input.schedulingMode === 'player_arranged' ? 'player_arranged' : 'coordinator_fixed'
+
+  return buildTiqLeagueSeasonCalendarRows(input).map((row) => {
+    if (mode === 'player_arranged') {
+      const windowEnd = row.date ? addDaysToDateString(row.date, 6) : ''
+      return {
+        ...row,
+        mode,
+        time: '',
+        site: '',
+        label: row.date && windowEnd ? `${row.date} to ${windowEnd}` : 'Set start date',
+        meta: row.date
+          ? 'Pairings open for player scheduling. Players record agreed date, time, and site.'
+          : 'Choose a start date to create weekly player scheduling windows.',
+        action: 'Players schedule',
+        windowStart: row.date,
+        windowEnd,
+      }
+    }
+
+    return {
+      ...row,
+      mode,
+      label: row.date || 'Set start date',
+      meta: [row.time || 'Time TBD', row.site || 'Site TBD'].join(' | '),
+      action: 'Coordinator publishes',
+      windowStart: row.date,
+      windowEnd: row.date,
+    }
+  })
 }
