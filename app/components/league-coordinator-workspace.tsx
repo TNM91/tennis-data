@@ -46,6 +46,7 @@ import {
   calculateTiqLeagueEndsOn,
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
+  getTiqLeagueScheduleCapacitySummary,
   getTiqLeagueSeasonSummary,
   MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS,
   MAX_TIQ_LEAGUE_MATCH_EVENTS,
@@ -54,6 +55,7 @@ import {
   normalizeTiqLeagueMaxMatchEvents,
   normalizeTiqLeagueMaxWeeks,
   validateTiqLeagueParticipantLimit,
+  validateTiqLeagueScheduleCapacity,
   validateTiqLeagueSeasonWindow,
 } from '@/lib/tiq-league-limits'
 import { type UserRole } from '@/lib/roles'
@@ -820,6 +822,12 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       return
     }
 
+    const scheduleCapacityMessage = validateTiqLeagueScheduleCapacity(nextDraft)
+    if (scheduleCapacityMessage) {
+      setStatus(scheduleCapacityMessage)
+      return
+    }
+
     const saved = await saveTiqLeague(nextDraft, editingId || undefined)
     await refreshRegistry()
     setLastSavedRecord(saved.record)
@@ -992,6 +1000,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       ? `${draft.startsOn} to ${calculatedEndsOn}`
       : 'Choose a valid start date.'
     : 'Choose a start date and TenAceIQ will calculate the end date.'
+  const scheduleCapacityText = getTiqLeagueScheduleCapacitySummary(draft)
+  const scheduleCapacityWarning = validateTiqLeagueScheduleCapacity(draft)
   const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
@@ -1764,6 +1774,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 />
                 <span style={fieldHelpText}>
                   Standard season: {DEFAULT_TIQ_LEAGUE_MAX_WEEKS} weeks and {DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS} match events. End date is calculated from weeks selected. Team cap {MAX_TIQ_TEAM_LEAGUE_TEAMS}; player cap {MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS}.
+                </span>
+                <span style={scheduleCapacityWarning ? fieldWarningText : fieldHelpText}>
+                  {scheduleCapacityWarning || scheduleCapacityText}
                 </span>
               </label>
 
@@ -3186,6 +3199,12 @@ const fieldHelpText: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.6,
   fontWeight: 500,
+}
+
+const fieldWarningText: CSSProperties = {
+  ...fieldHelpText,
+  color: '#fca5a5',
+  fontWeight: 850,
 }
 
 const participantBuilderStyle: CSSProperties = {
