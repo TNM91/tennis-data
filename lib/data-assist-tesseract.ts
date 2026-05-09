@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { DATA_ASSIST_TESSERACT_OCR_PROVIDER, type DataAssistOcrScreenshotInput } from './data-assist-ocr'
 
@@ -39,13 +40,8 @@ export async function recognizeDataAssistScreenshotsWithTesseract(
     }
   }
 
-  const { createWorker, PSM } = await import('tesseract.js')
-  const cachePath = path.join(process.cwd(), '.next', 'cache', 'tesseract')
-  fs.mkdirSync(cachePath, { recursive: true })
-  const worker = await createWorker('eng', undefined, {
-    cachePath,
-    workerPath: path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js'),
-  })
+  const { PSM } = await import('tesseract.js')
+  const worker = await createDataAssistTesseractWorker()
   const orderedImages = [...images].sort((a, b) => a.uploadOrder - b.uploadOrder)
   const blocks: Array<{
     uploadOrder: number
@@ -113,13 +109,8 @@ export async function recognizeDataAssistScheduleScreenshotsWithTesseract(
     }
   }
 
-  const { createWorker, PSM } = await import('tesseract.js')
-  const cachePath = path.join(process.cwd(), '.next', 'cache', 'tesseract')
-  fs.mkdirSync(cachePath, { recursive: true })
-  const worker = await createWorker('eng', undefined, {
-    cachePath,
-    workerPath: path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js'),
-  })
+  const { PSM } = await import('tesseract.js')
+  const worker = await createDataAssistTesseractWorker()
   const orderedImages = [...images].sort((a, b) => a.uploadOrder - b.uploadOrder)
   const blocks: Array<{
     uploadOrder: number
@@ -185,13 +176,8 @@ export async function recognizeDataAssistTeamSummaryScreenshotsWithTesseract(
     }
   }
 
-  const { createWorker, PSM } = await import('tesseract.js')
-  const cachePath = path.join(process.cwd(), '.next', 'cache', 'tesseract')
-  fs.mkdirSync(cachePath, { recursive: true })
-  const worker = await createWorker('eng', undefined, {
-    cachePath,
-    workerPath: path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js'),
-  })
+  const { PSM } = await import('tesseract.js')
+  const worker = await createDataAssistTesseractWorker()
   const blocks: Array<{
     uploadOrder: number
     fileName: string
@@ -295,6 +281,25 @@ export function mergeDataAssistOcrBlocks(blocks: Array<{
     rawText: textBlocks.join('\n\n'),
     screenshotSummaries,
   }
+}
+
+async function createDataAssistTesseractWorker() {
+  const { createWorker } = await import('tesseract.js')
+  const cachePath = getWritableTesseractCachePath()
+  fs.mkdirSync(cachePath, { recursive: true })
+
+  return createWorker('eng', undefined, {
+    cachePath,
+    workerPath: path.join(process.cwd(), 'node_modules', 'tesseract.js', 'src', 'worker-script', 'node', 'index.js'),
+  })
+}
+
+function getWritableTesseractCachePath() {
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    return path.join(os.tmpdir(), 'tenaceiq-tesseract-cache')
+  }
+
+  return path.join(process.cwd(), '.next', 'cache', 'tesseract')
 }
 
 function normalizeOcrBlock(value: string) {
