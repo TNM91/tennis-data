@@ -1326,17 +1326,6 @@ function MySubmissionsPanel({
           <button type="button" onClick={() => setHistoryOpen((current) => !current)} style={smallButtonStyle}>
             {historyOpen ? 'Hide history' : `Show history${submissions.length ? ` (${submissions.length})` : ''}`}
           </button>
-          <button type="button" onClick={onRefresh} disabled={!authResolved || !userId || loading} style={smallButtonStyle}>
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            type="button"
-            onClick={onDeleteAllDrafts}
-            disabled={!authResolved || !userId || loading || bulkDeleting || removableCount === 0}
-            style={{ ...smallDangerButtonStyle, ...((!authResolved || !userId || loading || bulkDeleting || removableCount === 0) ? disabledStyle : {}) }}
-          >
-            {bulkDeleting ? 'Removing...' : 'Remove saved uploads'}
-          </button>
         </div>
       </div>
 
@@ -1350,6 +1339,22 @@ function MySubmissionsPanel({
         </div>
       ) : submissions.length ? (
         <>
+          <div style={historyManagementStyle}>
+            <span>Imported uploads stay as references. Drafts and review items can be removed.</span>
+            <div style={cardActionRowStyle}>
+              <button type="button" onClick={onRefresh} disabled={!authResolved || !userId || loading} style={smallButtonStyle}>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button
+                type="button"
+                onClick={onDeleteAllDrafts}
+                disabled={!authResolved || !userId || loading || bulkDeleting || removableCount === 0}
+                style={{ ...smallDangerButtonStyle, ...((!authResolved || !userId || loading || bulkDeleting || removableCount === 0) ? disabledStyle : {}) }}
+              >
+                {bulkDeleting ? 'Removing...' : 'Remove saved uploads'}
+              </button>
+            </div>
+          </div>
           <div style={submissionStatsStyle}>
             <SubmissionStat label="Pending review" value={pendingCount} />
             <SubmissionStat label="Verified quality" value={verifiedCount} />
@@ -2734,6 +2739,22 @@ const historyCollapsedStyle: CSSProperties = {
   padding: 12,
   fontSize: 13,
   fontWeight: 800,
+}
+
+const historyManagementStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, transparent)',
+  color: 'var(--shell-copy-muted)',
+  padding: 12,
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 12,
+  flexWrap: 'wrap',
+  fontSize: 12,
+  lineHeight: 1.4,
+  fontWeight: 850,
 }
 
 const historyFilterStyle: CSSProperties = {
