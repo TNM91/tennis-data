@@ -76,6 +76,8 @@ type BulkScorecardResult = {
   status: 'pending' | 'imported' | 'duplicate' | 'review' | 'failed'
   detail: string
   matchId: string
+  matchDate: string
+  matchup: string
 }
 
 export default function DataAssistPage() {
@@ -276,6 +278,8 @@ function DataAssistWorkspace() {
       status: 'pending',
       detail: 'Waiting to import',
       matchId: '',
+      matchDate: '',
+      matchup: '',
     }))
     setBulkScorecardResults(pendingResults)
 
@@ -299,6 +303,8 @@ function DataAssistWorkspace() {
               status: 'failed',
               detail: nextSummary.rejectionReason || 'TenAceIQ could not read this export.',
               matchId: '',
+              matchDate: '',
+              matchup: '',
             })
             continue
           }
@@ -319,27 +325,30 @@ function DataAssistWorkspace() {
 
           if (ocrResult.autoImport?.ok) {
             importedCount += 1
+            const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'imported',
               detail: ocrResult.autoImport.message || 'Imported',
-              matchId: isScorecardParsedDraft(ocrResult.parsedDraft) ? ocrResult.parsedDraft.externalMatchId : '',
+              ...matchMeta,
             })
           } else if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
             duplicateCount += 1
+            const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'duplicate',
               detail: ocrResult.autoImport.message || 'Already imported',
-              matchId: isScorecardParsedDraft(ocrResult.parsedDraft) ? ocrResult.parsedDraft.externalMatchId : '',
+              ...matchMeta,
             })
           } else {
             reviewCount += 1
+            const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'review',
               detail: 'Saved for review',
-              matchId: isScorecardParsedDraft(ocrResult.parsedDraft) ? ocrResult.parsedDraft.externalMatchId : '',
+              ...matchMeta,
             })
           }
         } catch (err) {
@@ -349,6 +358,8 @@ function DataAssistWorkspace() {
             status: 'failed',
             detail: err instanceof Error ? err.message : 'Import failed',
             matchId: '',
+            matchDate: '',
+            matchup: '',
           })
         }
       }
@@ -942,6 +953,31 @@ function getBulkScorecardStatusLabel(status: BulkScorecardResult['status']) {
   return 'Retry'
 }
 
+function getBulkScorecardMatchMeta(value: unknown): Pick<BulkScorecardResult, 'matchId' | 'matchDate' | 'matchup'> {
+  if (!isScorecardParsedDraft(value)) {
+    return { matchId: '', matchDate: '', matchup: '' }
+  }
+  const matchup = value.homeTeam && value.awayTeam ? `${value.homeTeam} vs ${value.awayTeam}` : ''
+  return {
+    matchId: value.externalMatchId,
+    matchDate: value.matchDate,
+    matchup,
+  }
+}
+
+function getBulkScorecardResultTitle(result: BulkScorecardResult) {
+  return result.matchup || result.matchId || result.fileName
+}
+
+function getBulkScorecardResultDetail(result: BulkScorecardResult) {
+  if (!result.matchup && !result.matchId && !result.matchDate) return result.detail
+  return [
+    result.matchDate,
+    result.matchId ? `Match ${result.matchId}` : '',
+    result.fileName,
+  ].filter(Boolean).join(' - ')
+}
+
 function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
   if (importType === 'team_summary') return 'team summary'
@@ -1079,10 +1115,10 @@ function BulkScorecardResultsPanel({
       </div>
       <div style={bulkResultListStyle}>
         {results.map((result) => (
-          <div key={`${result.fileName}-${result.status}-${result.matchId}`} style={bulkResultRowStyle(result.status)}>
+          <div key={`${result.fileName}-${result.status}-${result.matchId}-${result.matchDate}`} style={bulkResultRowStyle(result.status)}>
             <div>
-              <strong>{result.matchId || result.fileName}</strong>
-              <p>{result.matchId ? result.fileName : result.detail}</p>
+              <strong>{getBulkScorecardResultTitle(result)}</strong>
+              <p>{getBulkScorecardResultDetail(result)}</p>
             </div>
             <span>{getBulkScorecardStatusLabel(result.status)}</span>
           </div>
