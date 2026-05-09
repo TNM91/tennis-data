@@ -70,6 +70,7 @@ export type DataAssistSaveResult = {
 export type DataAssistOcrVerificationResult = {
   jobId: string
   parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
+  effectiveImportType?: DataAssistImportType
   autoAssessment?: DataAssistAutoAssessment
   autoImport?: DataAssistImportActionResult
 }
@@ -1168,6 +1169,7 @@ async function queueDataAssistFreeOcrVerification(input: {
     parsedDraft?: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
     autoAssessment?: DataAssistAutoAssessment
     autoImport?: DataAssistImportActionResult
+    effectiveImportType?: DataAssistImportType
   } | null
 
   if (!response.ok || !result?.ok || !result.jobId || !result.parsedDraft) {
@@ -1179,6 +1181,7 @@ async function queueDataAssistFreeOcrVerification(input: {
     parsedDraft: result.parsedDraft,
     autoAssessment: result.autoAssessment,
     autoImport: result.autoImport,
+    effectiveImportType: result.effectiveImportType,
   }
 }
 

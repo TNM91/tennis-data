@@ -337,6 +337,7 @@ export async function POST(request: Request) {
       parsedDraft,
       autoAssessment: undefined,
       autoImport,
+      effectiveImportType,
     })
   }
 
@@ -481,6 +482,7 @@ export async function POST(request: Request) {
       parsedDraft,
       autoAssessment: undefined,
       autoImport,
+      effectiveImportType,
     })
   }
 
@@ -652,6 +654,7 @@ export async function POST(request: Request) {
     parsedDraft,
     autoAssessment,
     autoImport,
+    effectiveImportType,
   })
 }
 
