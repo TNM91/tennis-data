@@ -482,6 +482,7 @@ function DataAssistWorkspace() {
 
   async function reviewLatestScan(decision: 'confirmed' | 'flagged') {
     if (!latestScan || reviewingSubmissionId) return
+    const reviewLabel = getParsedDraftReviewLabel(latestScan.parsedDraft)
     setReviewingSubmissionId(latestScan.batchId)
     setMessage('')
     setError('')
@@ -493,14 +494,14 @@ function DataAssistWorkspace() {
         decision,
       })
       setMessage(result.message || (decision === 'confirmed'
-        ? 'Scorecard confirmed. TenAceIQ is preparing this result.'
-        : 'Thanks. This scorecard is marked for a closer look.'))
+        ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
+        : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
       setLatestScan(null)
       setSummary(null)
       setSavedBatchId('')
       await refreshSubmissions()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update this scorecard review.')
+      setError(err instanceof Error ? err.message : 'Could not update this Data Assist review.')
     } finally {
       setReviewingSubmissionId('')
     }
@@ -508,6 +509,7 @@ function DataAssistWorkspace() {
 
   async function reviewSubmission(submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') {
     if (!submission.draftId || reviewingSubmissionId) return
+    const reviewLabel = getDataAssistImportTypeLabel(submission.requestedImportType)
     setReviewingSubmissionId(submission.id)
     setMessage('')
     setError('')
@@ -519,8 +521,8 @@ function DataAssistWorkspace() {
         decision,
       })
       setMessage(result.message || (decision === 'confirmed'
-        ? 'Scorecard confirmed. Contribution credit updated.'
-        : 'Thanks. This scorecard is marked for a closer look.'))
+        ? `${reviewLabel} confirmed. Contribution credit updated.`
+        : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
       await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not review this Data Assist draft.')
@@ -1209,6 +1211,14 @@ function getLatestReadDescription(scan: {
     return 'TenAceIQ found a team summary export. Review roster names and ratings before importing.'
   }
   return getScorecardReviewLead(scan.parsedDraft)
+}
+
+function getParsedDraftReviewLabel(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+) {
+  if (isScheduleParsedDraft(parsedDraft)) return 'Schedule'
+  if (isTeamSummaryParsedDraft(parsedDraft)) return 'Roster'
+  return 'Scorecard'
 }
 
 function ScreenshotCard({

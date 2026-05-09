@@ -104,10 +104,7 @@ export async function POST(request: Request) {
   }
 
   const reviewedAt = new Date().toISOString()
-  const parsedLineCount = getParsedLineCount(draft.parsed_payload)
-  if (decision === 'confirmed' && parsedLineCount <= 0) {
-    return Response.json({ ok: false, message: 'This OCR draft has no parsed scorecard lines to confirm.' }, { status: 400 })
-  }
+  const draftLabel = getParsedDraftLabel(draft.parsed_payload)
 
   if (decision === 'confirmed') {
     const parsedDraft = toParsedDraft(draft.parsed_payload)
@@ -115,7 +112,12 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'This OCR draft does not have a complete parsed payload to import.' }, { status: 400 })
     }
 
-    const verifiedNote = 'Uploader confirmed the OCR scorecard read.'
+    const parsedLineCount = getParsedLineCount(parsedDraft)
+    if (parsedLineCount <= 0) {
+      return Response.json({ ok: false, message: `This ${draftLabel} read has no parsed rows to confirm.` }, { status: 400 })
+    }
+
+    const verifiedNote = `Uploader confirmed the ${draftLabel} read.`
     const [batchUpdate, draftUpdate] = await Promise.all([
       supabase
         .from('data_assist_batches')
@@ -193,7 +195,7 @@ export async function POST(request: Request) {
     })
   }
 
-  const reviewNote = 'Uploader flagged the OCR scorecard read for exception review.'
+  const reviewNote = `Uploader flagged the ${draftLabel} read for exception review.`
   const [batchUpdate, draftUpdate] = await Promise.all([
     supabase
       .from('data_assist_batches')
@@ -223,7 +225,7 @@ export async function POST(request: Request) {
   return Response.json({
     ok: true,
     status: 'needs_review',
-    message: 'Scorecard flagged for exception review.',
+    message: `${capitalizeFirst(draftLabel)} flagged for exception review.`,
   })
 }
 
@@ -282,7 +284,7 @@ async function runConfirmedReviewImport(input: {
     return {
       ok: false,
       action: 'commit',
-      message: error instanceof Error ? error.message : 'Confirmed scorecard import failed.',
+      message: error instanceof Error ? error.message : 'Confirmed Data Assist import failed.',
     }
   }
 }
@@ -398,6 +400,16 @@ function getParsedLineCount(value: unknown) {
   const draft = value as { lineCount?: unknown; lines?: unknown }
   if (typeof draft.lineCount === 'number' && Number.isFinite(draft.lineCount)) return draft.lineCount
   return Array.isArray(draft.lines) ? draft.lines.length : 0
+}
+
+function getParsedDraftLabel(value: unknown) {
+  if (isTeamSummaryParsedDraft(value)) return 'team roster'
+  if (isScheduleParsedDraft(value)) return 'team schedule'
+  return 'scorecard'
+}
+
+function capitalizeFirst(value: string) {
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : value
 }
 
 function isScheduleParsedDraft(value: unknown): value is DataAssistScheduleParsedDraft {
