@@ -166,10 +166,16 @@ function DataAssistWorkspace() {
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
+    if (files.length > 1) {
+      setError('Choose one TennisLink Excel export at a time. Import scorecards, schedules, and team summaries as separate uploads.')
+      setSelectedFileCount(0)
+      event.target.value = ''
+      return
+    }
     setSelectedFileCount(files.length)
     setPreparing(true)
     setSavedBatchId('')
-    setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
+    setMessage('Checking TennisLink export...')
     setError('')
 
     const detected = await detectDataAssistExportType(files, importType)
@@ -189,25 +195,21 @@ function DataAssistWorkspace() {
     }
     const changedType = detected.importType !== importType
     setImportType(detected.importType)
-    setMessage(`Preparing ${files.length} ${getShortImportTypeLabel(detected.importType)} export${files.length === 1 ? '' : 's'}...`)
+    setMessage(`Preparing ${getShortImportTypeLabel(detected.importType)} export...`)
 
     try {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
       const preparedSummary = await prepareDataAssistBatch(files, detected.importType)
-      const existingScreenshots = summary?.screenshots || []
-      const appendedScreenshots = [
-        ...existingScreenshots,
-        ...preparedSummary.screenshots.map((screenshot, index) => ({
-          ...screenshot,
-          uploadOrder: existingScreenshots.length + index + 1,
-        })),
-      ]
+      const appendedScreenshots = preparedSummary.screenshots.map((screenshot, index) => ({
+        ...screenshot,
+        uploadOrder: index + 1,
+      }))
       const nextSummary = summarizeDataAssistBatch(detected.importType, appendedScreenshots)
       setSummary(nextSummary)
       if (nextSummary.status === 'rejected') {
         setError(nextSummary.rejectionReason)
       } else {
-        const exportLabel = `${nextSummary.screenshots.length} TennisLink export${nextSummary.screenshots.length === 1 ? '' : 's'}`
+        const exportLabel = 'TennisLink export'
         if (userId) {
           setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is importing from the table data now.`)
           window.setTimeout(() => void saveDraft(nextSummary), 0)
@@ -502,7 +504,6 @@ function DataAssistWorkspace() {
             <label style={dropzoneStyle(summary?.status || '')}>
               <input
                 type="file"
-                multiple
                 accept=".xls,.html,application/vnd.ms-excel,text/html"
                 onChange={(event) => void handleFiles(event)}
                 style={fileInputStyle}
@@ -541,14 +542,13 @@ function DataAssistWorkspace() {
         <label style={compactDropzoneStyle}>
           <input
             type="file"
-            multiple
             accept=".xls,.html,application/vnd.ms-excel,text/html"
             onChange={(event) => void handleFiles(event)}
             style={fileInputStyle}
           />
-          <span style={dropzoneKickerStyle}>Add exports</span>
-          <strong>{preparing ? `Preparing ${selectedFileCount || ''}...` : 'Add another or select several'}</strong>
-          <small>Add more of the same export type. Use a new upload for scorecards, schedules, and rosters.</small>
+          <span style={dropzoneKickerStyle}>Replace export</span>
+          <strong>{preparing ? 'Preparing...' : 'Choose a different .xls export'}</strong>
+          <small>Use a separate upload for each scorecard, schedule, or roster export.</small>
         </label>
 
         {summary?.screenshots.length ? (
@@ -827,17 +827,17 @@ function UploadIssueNotice({
   message: string
   onStartOver: () => void
 }) {
-  const mixedExportIssue = /one at a time|different TennisLink export types|scorecards, schedules, and team summaries/i.test(message)
+  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries/i.test(message)
   return (
     <div style={uploadIssueStyle}>
       <div>
         <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
         <p style={uploadIssueCopyStyle}>
           {mixedExportIssue
-            ? 'Choose either scorecard, schedule, or team summary files for this import. Start a new upload when you switch TennisLink pages.'
+            ? 'Choose one TennisLink Excel export for this import. Start a new upload for the next scorecard, schedule, or team summary.'
             : message}
         </p>
-        {mixedExportIssue ? <small style={hintStyle}>Tip: multiple files are fine when they are the same TennisLink export type.</small> : null}
+        {mixedExportIssue ? <small style={hintStyle}>This keeps each import easy to verify and prevents merged reads.</small> : null}
       </div>
       {mixedExportIssue ? (
         <button type="button" onClick={onStartOver} style={secondaryButtonStyle}>
