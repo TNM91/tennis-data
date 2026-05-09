@@ -1919,6 +1919,7 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
   const awayHref = parsedDraft?.awayTeam ? buildTeamHref(parsedDraft.awayTeam, {}) : ''
   if (homeHref) actions.push({ label: 'Home team', href: homeHref })
   if (awayHref && awayHref !== homeHref) actions.push({ label: 'Visiting team', href: awayHref })
+  actions.push({ label: 'Coordinator results', href: '/league-coordinator/results' })
   actions.push({ label: 'View players', href: '/players' })
   return actions
 }
@@ -1927,6 +1928,7 @@ function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDra
   const actions: Array<{ label: string; href: string }> = []
   const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
+  actions.push({ label: 'Open Coordinator', href: '/league-coordinator#league-registry' })
   actions.push({ label: 'View schedule', href: '/compete/schedule' })
   return actions
 }
@@ -1935,6 +1937,7 @@ function buildRosterPostImportActions(parsedDraft: DataAssistTeamSummaryParsedDr
   const actions: Array<{ label: string; href: string }> = []
   const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
+  actions.push({ label: 'Open Coordinator', href: '/league-coordinator#league-setup-form' })
   actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
   return actions
 }
