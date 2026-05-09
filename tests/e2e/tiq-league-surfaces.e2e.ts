@@ -37,6 +37,7 @@ async function expectLoginNextPreservesHandoff(page: Page, path: string) {
 test.describe('TIQ league surfaces', () => {
   for (const path of [
     '/explore/leagues',
+    '/explore/players',
     '/explore/rankings',
     '/data-assist',
     '/league-coordinator',
