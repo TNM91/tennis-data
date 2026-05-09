@@ -18,6 +18,14 @@ async function expectLockedNavIcons(page: Page, theme: 'dark' | 'light') {
   await page.goto('/')
   await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
 
+  const viewportWidth = page.viewportSize()?.width ?? 1280
+  if (viewportWidth < 980) {
+    const menuButton = page.getByRole('button', { name: 'Open menu' }).first()
+    await expect(menuButton).toBeVisible()
+    await menuButton.click()
+    await expect(page.getByRole('button', { name: 'Close menu' })).toBeVisible()
+  }
+
   for (const label of LOCKED_LABELS) {
     const accessibleLabel = `${label} locked. Unlock to open.`
     const headerLink = page.locator(`header a[aria-label="${accessibleLabel}"]`).first()
