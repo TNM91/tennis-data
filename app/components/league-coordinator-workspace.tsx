@@ -2248,6 +2248,8 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     record.leagueFormat === 'team'
                       ? `${record.teams.length} teams`
                       : `${record.players.length} players`
+                  const recordCapacityWarning = validateTiqLeagueScheduleCapacity(record)
+                  const recordCapacitySummary = getTiqLeagueScheduleCapacitySummary(record)
 
                   return (
                     <div key={record.id} style={registryCard}>
@@ -2292,6 +2294,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       </div>
                       {record.notes ? <div style={registryNotes}>{record.notes}</div> : null}
                       {record.schedulingNotes ? <div style={registryNotes}>{record.schedulingNotes}</div> : null}
+                      <div style={recordCapacityWarning ? registryWarning : registryNotes}>
+                        {recordCapacityWarning || recordCapacitySummary}
+                      </div>
 
                       <div style={registryFooter}>
                         <span style={registryTimestamp}>Updated {formatDateTime(record.updatedAt)}</span>
@@ -3451,6 +3456,16 @@ const registryNotes: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.72,
   overflowWrap: 'anywhere',
+}
+
+const registryWarning: CSSProperties = {
+  ...registryNotes,
+  padding: '10px 12px',
+  borderRadius: '14px',
+  border: '1px solid color-mix(in srgb, #f87171 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, #7f1d1d 12%, var(--shell-chip-bg) 88%)',
+  color: 'color-mix(in srgb, #fca5a5 76%, var(--foreground-strong) 24%)',
+  fontWeight: 850,
 }
 
 const registryFooter: CSSProperties = {
