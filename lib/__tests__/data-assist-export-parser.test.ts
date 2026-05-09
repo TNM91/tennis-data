@@ -32,6 +32,7 @@ describe('parseTennisLinkExportFiles', () => {
     const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
     const draft = buildScorecardOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
 
+    expect(parsed.detectedImportType).toBe('scorecard')
     expect(draft.externalMatchId).toBe('1011650664')
     expect(draft.homeTeam).toBe('Schnellaveria (S)')
     expect(draft.awayTeam).toBe("Gontarz/Wild William's Wily Wolverines (S)")
@@ -54,6 +55,7 @@ describe('parseTennisLinkExportFiles', () => {
     const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
     const draft = buildScheduleOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
 
+    expect(parsed.detectedImportType).toBe('schedule')
     expect(draft.matches[0]?.externalMatchId).toBe('1011650664')
     expect(draft.matches[0]?.facility).toBe('Forest Lake Tennis Club')
   })
@@ -72,8 +74,23 @@ describe('parseTennisLinkExportFiles', () => {
     const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
     const draft = buildTeamSummaryOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
 
+    expect(parsed.detectedImportType).toBe('team_summary')
     expect(draft.rosterTeamName).toBe('Meinert/The Other Guys (S)')
     expect(draft.players.map((player) => player.name)).toContain('Nathan Meinert')
     expect(draft.players.map((player) => player.name)).toContain('Connor Zielonko')
+  })
+
+  it('flags mixed export types without guessing the import type', () => {
+    const scorecardHtml = '<table><tr><td>Scorecard for Match # 1011650664</td></tr></table>'
+    const scheduleHtml = '<table><tr><td>Match Schedule by Flight Report</td></tr><tr><td>Match ID</td><td>Schedule Date</td><td>Schedule Time</td><td>Home Team</td><td></td><td>Visiting Team</td><td></td><td>Facility/Match Site</td></tr></table>'
+
+    const parsed = parseTennisLinkExportFiles([
+      { ...screenshot, uploadOrder: 1, fileName: 'Scorecard.xls', fileBuffer: Buffer.from(scorecardHtml), mimeType: 'application/vnd.ms-excel' },
+      { ...screenshot, uploadOrder: 2, fileName: 'MatchSchedule.xls', fileBuffer: Buffer.from(scheduleHtml), mimeType: 'application/vnd.ms-excel' },
+    ])
+
+    expect(parsed.mixedImportTypes).toBe(true)
+    expect(parsed.detectedImportType).toBeUndefined()
+    expect(parsed.warnings).toContain('Multiple TennisLink export types were found. Upload one type at a time.')
   })
 })

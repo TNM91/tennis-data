@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import type { DataAssistImportType } from '@/lib/data-assist'
 import {
   runDataAssistScheduleImportAction,
   runDataAssistScorecardImportAction,
@@ -151,11 +152,52 @@ export async function POST(request: Request) {
     .map((input) => ({ ...input, fileBuffer: input.imageBuffer }))
     .filter(isTennisLinkExportFile)
 
-  if (batch.requested_import_type === 'schedule') {
+  let exportParseResult: ReturnType<typeof parseTennisLinkExportFiles> | null = null
+  try {
+    exportParseResult = exportInputs.length ? parseTennisLinkExportFiles(exportInputs) : null
+  } catch (error) {
+    return Response.json(
+      { ok: false, message: error instanceof Error ? error.message : 'TenAceIQ could not process these TennisLink exports.' },
+      { status: 500 },
+    )
+  }
+
+  const requestedImportType = batch.requested_import_type as DataAssistImportType
+  if (exportParseResult?.mixedImportTypes) {
+    return Response.json(
+      { ok: false, message: 'Upload one TennisLink export type at a time: scorecard, schedule, or team summary.' },
+      { status: 400 },
+    )
+  }
+
+  const effectiveImportType = exportParseResult?.detectedImportType || requestedImportType
+  if (exportParseResult?.detectedImportType && exportParseResult.detectedImportType !== requestedImportType) {
+    const correctedLayout = getDataAssistLayoutForImportType(effectiveImportType)
+    const [batchTypeUpdate, draftTypeUpdate] = await Promise.all([
+      supabase
+        .from('data_assist_batches')
+        .update({
+          requested_import_type: effectiveImportType,
+          detected_layout: correctedLayout,
+        })
+        .eq('id', batchId),
+      supabase
+        .from('data_assist_drafts')
+        .update({
+          draft_type: effectiveImportType,
+        })
+        .eq('id', draftId),
+    ])
+
+    if (batchTypeUpdate.error) return Response.json({ ok: false, message: batchTypeUpdate.error.message }, { status: 500 })
+    if (draftTypeUpdate.error) return Response.json({ ok: false, message: draftTypeUpdate.error.message }, { status: 500 })
+  }
+
+  if (effectiveImportType === 'schedule') {
     let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScheduleScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
     try {
-      ocrResult = exportInputs.length
-        ? parseTennisLinkExportFiles(exportInputs)
+      ocrResult = exportParseResult
+        ? exportParseResult
         : await recognizeDataAssistScheduleScreenshotsWithTesseract(imageInputs)
     } catch (error) {
       return Response.json(
@@ -298,11 +340,11 @@ export async function POST(request: Request) {
     })
   }
 
-  if (batch.requested_import_type === 'team_summary') {
+  if (effectiveImportType === 'team_summary') {
     let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistTeamSummaryScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
     try {
-      ocrResult = exportInputs.length
-        ? parseTennisLinkExportFiles(exportInputs)
+      ocrResult = exportParseResult
+        ? exportParseResult
         : await recognizeDataAssistTeamSummaryScreenshotsWithTesseract(imageInputs)
     } catch (error) {
       return Response.json(
@@ -444,8 +486,8 @@ export async function POST(request: Request) {
 
   let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
   try {
-    ocrResult = exportInputs.length
-      ? parseTennisLinkExportFiles(exportInputs)
+    ocrResult = exportParseResult
+      ? exportParseResult
       : await recognizeDataAssistScreenshotsWithTesseract(imageInputs)
   } catch (error) {
     return Response.json(
@@ -720,4 +762,10 @@ function uniqueText(values: string[]) {
 
 function roundConfidence(value: number) {
   return Math.max(0, Math.min(1, Math.round(value * 100) / 100))
+}
+
+function getDataAssistLayoutForImportType(importType: DataAssistImportType) {
+  if (importType === 'schedule') return 'tennislink_schedule'
+  if (importType === 'team_summary') return 'tennislink_team_summary'
+  return 'tennislink_scorecard'
 }

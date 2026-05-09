@@ -1,8 +1,12 @@
 import type { DataAssistOcrProvider, DataAssistOcrScreenshotInput } from './data-assist-ocr'
+import type { DataAssistImportType } from './data-assist'
+import { detectImportTypeFromExportText } from './data-assist-export-detection'
 
 export type DataAssistExportParseResult = {
   provider: DataAssistOcrProvider
   rawText: string
+  detectedImportType?: DataAssistImportType
+  mixedImportTypes?: boolean
   confidenceScore: number
   warnings: string[]
   screenshotSummaries: []
@@ -34,11 +38,25 @@ export function parseTennisLinkExportFiles(files: ExportFileInput[]): DataAssist
     .filter(Boolean)
 
   const rawText = blocks.join('\n\n')
+  const blockTypes = uniqueText(blocks.map((block) => detectImportTypeFromExportText(block) || ''))
+  const mixedImportTypes = blockTypes.length > 1
+  const detectedImportType = mixedImportTypes
+    ? undefined
+    : (blockTypes[0] as DataAssistImportType | undefined) || detectImportTypeFromExportText(rawText) || undefined
+  const warnings = rawText
+    ? ['TennisLink Excel export parsed from table data.']
+    : ['No readable TennisLink export rows were found.']
+  if (mixedImportTypes) {
+    warnings.push('Multiple TennisLink export types were found. Upload one type at a time.')
+  }
+
   return {
     provider: 'tennislink_export',
     rawText,
+    detectedImportType,
+    mixedImportTypes,
     confidenceScore: rawText ? 0.96 : 0,
-    warnings: rawText ? ['TennisLink Excel export parsed from table data.'] : ['No readable TennisLink export rows were found.'],
+    warnings,
     screenshotSummaries: [],
   }
 }
@@ -195,4 +213,8 @@ function decodeHtmlEntities(value: string) {
     .replace(/&quot;/gi, '"')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
+}
+
+function uniqueText(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
 }
