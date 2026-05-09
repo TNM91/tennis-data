@@ -245,6 +245,7 @@ function shouldUseDesktopTeamSummaryRosterRead(image: DataAssistTesseractImageIn
 }
 
 function selectTeamSummaryImagesForOcr(images: DataAssistTesseractImageInput[]) {
+  if (images.every(isLikelyUstaMobileAppScreenshot)) return images.slice(0, 4)
   if (images.length <= 2) return images
 
   const selected = new Map<number, DataAssistTesseractImageInput>()
@@ -335,12 +336,12 @@ function normalizeOcrBlock(value: string) {
 }
 
 async function prepareTeamSummaryOcrBuffer(image: DataAssistTesseractImageInput) {
-  if (image.imageWidth <= 950) return image.imageBuffer
-
   try {
     const sharp = (await import('sharp')).default
+    const crop = getTeamSummaryOcrCrop(image)
     return sharp(image.imageBuffer)
       .rotate()
+      .extract(crop)
       .resize({ width: 720, withoutEnlargement: true })
       .grayscale()
       .normalise()
@@ -348,6 +349,26 @@ async function prepareTeamSummaryOcrBuffer(image: DataAssistTesseractImageInput)
       .toBuffer()
   } catch {
     return image.imageBuffer
+  }
+}
+
+function isLikelyUstaMobileAppScreenshot(image: DataAssistTesseractImageInput) {
+  const aspectRatio = image.imageHeight / Math.max(image.imageWidth, 1)
+  return image.imageWidth <= 1100 && aspectRatio >= 1.9
+}
+
+function getTeamSummaryOcrCrop(image: DataAssistTesseractImageInput) {
+  const isMobileApp = isLikelyUstaMobileAppScreenshot(image)
+  const topRatio = isMobileApp ? 0.12 : 0
+  const heightRatio = isMobileApp ? 0.72 : 1
+  const top = Math.max(0, Math.round(image.imageHeight * topRatio))
+  const height = Math.min(image.imageHeight - top, Math.round(image.imageHeight * heightRatio))
+
+  return {
+    left: 0,
+    top,
+    width: image.imageWidth,
+    height: Math.max(1, height),
   }
 }
 

@@ -75,7 +75,10 @@ export function buildTeamSummaryOcrDraftFromText(
   provider: DataAssistOcrProvider,
 ): DataAssistTeamSummaryParsedDraft {
   const normalizedText = normalizeWhitespace(rawText)
-  const rosterTeamName = cleanTeamName(extractFirst(rawText, /\bTeam:\s*([^\n]+)/i))
+  const rosterTeamName = cleanTeamName(
+    extractFirst(rawText, /\bTeam:\s*([^\n]+)/i) ||
+    extractFirst(rawText, /\b([A-Z][A-Za-z' /.-]+\/[A-Z][A-Za-z' /.-]+\s*\(S\))/),
+  )
   const leagueName = cleanText(extractFirst(rawText, /\b(20\d{2}\s+(?:Adult|Mixed|Combo|Tri-Level)[^\n]{0,80}?(?:Spring|Summer|Fall|Winter))\b/i))
   const flight = cleanText(extractFirst(rawText, /\b((?:Men|Women|Mixed)\s*\d\.?[05])\b/i)).replace(/([a-z])\s*(\d)([05])$/i, '$1 $2.$3')
   const ustaSection = /missouri valley/i.test(normalizedText) ? 'USTA/MISSOURI VALLEY' : ''
@@ -134,6 +137,12 @@ function parsePlayers(rawText: string, rosterTeamName: string): DataAssistTeamSu
       continue
     }
 
+    const mobilePlayer = parseMobileRosterPlayerLine(line, lines, rosterTeamName)
+    if (mobilePlayer) {
+      addPlayer(players, seen, mobilePlayer)
+      continue
+    }
+
     const chunks = line.split(/\s{2,}|\|/).map((chunk) => chunk.trim()).filter(Boolean)
     const candidates = chunks.length > 1 ? chunks : [line]
 
@@ -151,6 +160,26 @@ function parsePlayers(rawText: string, rosterTeamName: string): DataAssistTeamSu
   }
 
   return players
+}
+
+function parseMobileRosterPlayerLine(
+  line: string,
+  lines: string[],
+  rosterTeamName: string,
+): DataAssistTeamSummaryParsedPlayer | null {
+  const lineIndex = lines.indexOf(line)
+  const ratingText = lineIndex >= 0 ? lines.slice(lineIndex + 1, lineIndex + 4).join(' ') : ''
+  const ratingMatch = ratingText.match(/(?:^|[^0-9])([2-5](?:\.[05])?|45|40)\s*-/)
+  if (!ratingMatch) return null
+
+  const name = cleanPlayerName(line)
+  if (!name || isJunkPlayerName(name) || !isLikelyPlayerName(name)) return null
+
+  return {
+    name,
+    ntrp: normalizeRatingToken(ratingMatch[1]),
+    teamName: rosterTeamName,
+  }
 }
 
 function parseStructuredPlayerLine(line: string, rosterTeamName: string): DataAssistTeamSummaryParsedPlayer | null {
@@ -254,6 +283,8 @@ function repairKnownPlayerName(value: string) {
     'benjamin state': 'Benjamin Strate',
     'benjamin strate': 'Benjamin Strate',
     'ry tovonian': 'Rj Tovonian',
+    'rj tevonian': 'Rj Tovonian',
+    'rj tovonian': 'Rj Tovonian',
     'nn tovenien': 'Rj Tovonian',
     'andy orton': 'Andy Horton',
     'andy horton': 'Andy Horton',
@@ -300,6 +331,11 @@ function normalizeRatingToken(value: string): number | null {
 function isJunkPlayerName(value: string) {
   const key = normalizeKey(value)
   return key.length < 5 || JUNK_PLAYER_TERMS.some((term) => key.includes(term))
+}
+
+function isLikelyPlayerName(value: string) {
+  const words = value.split(/\s+/).filter(Boolean)
+  return words.length >= 2 && words.length <= 4 && words.every((word) => /^[A-Za-z'.-]+$/.test(word))
 }
 
 function extractFirst(value: string, pattern: RegExp) {
