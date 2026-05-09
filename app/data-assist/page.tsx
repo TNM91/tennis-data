@@ -127,6 +127,8 @@ function DataAssistWorkspace() {
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
   const showBulkScorecardResults = !hasPreparedScreenshots && !latestScan && bulkScorecardResults.length > 0
   const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
+  const scorecardImportType = importTypes.find((item) => item.id === 'scorecard') || importTypes[0]
+  const seasonSetupImportTypes = importTypes.filter((item) => item.id !== 'scorecard')
 
   function resetUploadFlow() {
     scanRunRef.current += 1
@@ -632,34 +634,56 @@ function DataAssistWorkspace() {
             <div style={sectionHeaderStyle}>
               <div>
                 <StepBadge step={1} label="Select type" />
-                <h2 style={sectionTitleStyle}>What are you uploading?</h2>
-                <p style={copyStyle}>Pick the TennisLink page so TenAceIQ uses the right reader.</p>
+                <h2 style={sectionTitleStyle}>Choose your import.</h2>
+                <p style={copyStyle}>Most weeks, upload scorecards. Add schedule and roster once per season for richer context.</p>
               </div>
               <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
             </div>
 
-            <div style={typeOptionGridStyle}>
-              {importTypes.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => updateImportType(item.id)}
-                  style={typeOptionStyle(importType === item.id)}
-                >
-                  <span style={typeButtonHeaderStyle}>
-                    <strong>{item.label}</strong>
-                    {item.badge ? <small style={typeRecommendedBadgeStyle}>{item.badge}</small> : null}
-                  </span>
-                  <span>{item.detail}</span>
-                  <small>{item.updates}</small>
-                  <em style={typeCadenceStyle}>{item.cadence}</em>
-                </button>
-              ))}
+            <div style={uploadChoiceStackStyle}>
+              <button
+                type="button"
+                onClick={() => updateImportType(scorecardImportType.id)}
+                style={primaryTypeOptionStyle(importType === scorecardImportType.id)}
+              >
+                <span style={typeButtonHeaderStyle}>
+                  <strong>{scorecardImportType.label}</strong>
+                  {scorecardImportType.badge ? <small style={typeRecommendedBadgeStyle}>{scorecardImportType.badge}</small> : null}
+                </span>
+                <span>{scorecardImportType.detail}</span>
+                <small>{scorecardImportType.updates}</small>
+                <em style={typeCadenceStyle}>{scorecardImportType.cadence}</em>
+              </button>
+
+              <div style={seasonSetupGroupStyle}>
+                <div style={seasonSetupHeaderStyle}>
+                  <strong>Season setup</strong>
+                  <span>Usually once every few months</span>
+                </div>
+                <div style={typeOptionGridStyle}>
+                  {seasonSetupImportTypes.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => updateImportType(item.id)}
+                      style={typeOptionStyle(importType === item.id)}
+                    >
+                      <span style={typeButtonHeaderStyle}>
+                        <strong>{item.label}</strong>
+                        {item.badge ? <small style={typeRecommendedBadgeStyle}>{item.badge}</small> : null}
+                      </span>
+                      <span>{item.detail}</span>
+                      <small>{item.updates}</small>
+                      <em style={typeCadenceStyle}>{item.cadence}</em>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div style={seasonGuideStyle}>
-              <strong>Simple rhythm</strong>
-              <span>Start with scorecards. Schedule and team summary improve context, but they are not required for weekly result imports.</span>
+              <strong>Scorecards can stand alone</strong>
+              <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
             </div>
 
             <div style={stepDividerStyle}>
@@ -2454,6 +2478,43 @@ const typeOptionGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
+}
+
+const uploadChoiceStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+}
+
+const primaryTypeOptionStyle = (selected: boolean): CSSProperties => ({
+  ...typeOptionStyle(selected),
+  minHeight: 142,
+  padding: 16,
+  border: selected
+    ? '1px solid color-mix(in srgb, var(--brand-green) 68%, var(--shell-panel-border) 32%)'
+    : '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: selected
+    ? 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 30%, var(--shell-chip-bg) 70%), color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-bg) 82%))'
+    : 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+})
+
+const seasonSetupGroupStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent)',
+  padding: 10,
+  display: 'grid',
+  gap: 10,
+}
+
+const seasonSetupHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 850,
 }
 
 const typeOptionStyle = (selected: boolean): CSSProperties => ({
