@@ -7,7 +7,6 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
 import {
   getMyDataAssistContributorStats,
-  getDataAssistContributionValue,
   getDataAssistImportTypeLabel,
   deleteMyDataAssistSubmission,
   listMyDataAssistSubmissions,
@@ -451,7 +450,7 @@ function DataAssistWorkspace() {
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <div style={errorStyle}>{error}</div> : null}
 
-      <section style={workspaceStyle(isTablet)}>
+      <section style={workspaceStyle()}>
         {showUploadStep ? (
           <section id="upload" style={panelStyle}>
             <div style={sectionHeaderStyle}>
@@ -1163,15 +1162,6 @@ function filterDataAssistSubmissions(submissions: DataAssistSubmission[], filter
   if (filter === 'imported') return submissions.filter((submission) => submission.status === 'imported')
   if (filter === 'needs_review') return submissions.filter((submission) => submission.status !== 'imported' && submission.status !== 'verified' && submission.status !== 'rejected')
   return submissions.filter((submission) => submission.requestedImportType === filter)
-}
-
-function TutorialStep({ label, text }: { label: string; text: string }) {
-  return (
-    <div style={tutorialStepStyle}>
-      <strong>{label}</strong>
-      <span>{text}</span>
-    </div>
-  )
 }
 
 function StepBadge({ step, label }: { step: number; label: string }) {
@@ -1895,11 +1885,6 @@ function getScorecardReviewLead(parsedDraft: DataAssistScorecardParsedDraft) {
     : 'TenAceIQ found the match. Review the highlighted lines, then confirm the read or mark it needs a fix.'
 }
 
-function formatParsedLinePlayers(line: DataAssistScorecardParsedDraft['lines'][number]) {
-  const matchup = `${line.homePlayers.join(' / ') || 'Check home players'} vs ${line.awayPlayers.join(' / ') || 'Check visiting players'}`
-  return lineNeedsCheck(line) ? `Draft read: ${matchup}` : matchup
-}
-
 function getParsedTeamScore(parsedDraft: DataAssistScorecardParsedDraft) {
   let home = 0
   let away = 0
@@ -1945,35 +1930,6 @@ function ParsedSidePlayers({
       <p>{players.join(' / ') || 'Check players'}</p>
     </div>
   )
-}
-
-function getLineWinnerLabel(
-  line: DataAssistScorecardParsedDraft['lines'][number],
-  parsedDraft: DataAssistScorecardParsedDraft,
-) {
-  if (line.winner === 'home') return `Winner: ${parsedDraft.homeTeam || 'Home'}`
-  if (line.winner === 'away') return `Winner: ${parsedDraft.awayTeam || 'Visiting'}`
-  return 'Winner: check'
-}
-
-function getWinnerBadgeStyle(winner: string): CSSProperties {
-  const isResolved = winner === 'home' || winner === 'away'
-  return {
-    justifySelf: 'start',
-    borderRadius: 999,
-    border: isResolved
-      ? '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)'
-      : '1px solid rgba(251,191,36,0.32)',
-    background: isResolved
-      ? 'color-mix(in srgb, var(--brand-green) 12%, transparent)'
-      : 'rgba(251,191,36,0.12)',
-    color: isResolved
-      ? 'color-mix(in srgb, var(--brand-green) 80%, white 20%)'
-      : '#fde68a',
-    padding: '2px 7px',
-    fontSize: 10,
-    fontWeight: 950,
-  }
 }
 
 function ReviewFact({ label, value }: { label: string; value: string }) {
@@ -2209,7 +2165,7 @@ const heroActionRowStyle: CSSProperties = {
   gap: 10,
 }
 
-const workspaceStyle = (isTablet: boolean): CSSProperties => ({
+const workspaceStyle = (): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 18,
@@ -2267,37 +2223,6 @@ const typeOptionStyle = (selected: boolean): CSSProperties => ({
   boxShadow: selected ? '0 14px 28px rgba(20, 184, 116, 0.16)' : 'none',
   font: 'inherit',
 })
-
-const typeSelectWrapStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 950,
-}
-
-const typeSelectStyle: CSSProperties = {
-  width: '100%',
-  minHeight: 52,
-  borderRadius: 14,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'var(--shell-panel-bg-strong)',
-  color: 'var(--foreground-strong)',
-  padding: '0 12px',
-  fontSize: 16,
-  fontWeight: 900,
-}
-
-const typeSelectedCardStyle: CSSProperties = {
-  borderRadius: 14,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
-  color: 'var(--foreground-strong)',
-  padding: 12,
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-}
 
 const stepDividerStyle: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
@@ -2393,25 +2318,6 @@ const dropzoneKickerStyle: CSSProperties = {
   textTransform: 'uppercase',
 }
 
-const guardrailListStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-}
-
-const guardrailStyle: CSSProperties = {
-  minHeight: 32,
-  display: 'inline-flex',
-  alignItems: 'center',
-  borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--shell-copy-muted)',
-  padding: '0 10px',
-  fontSize: 12,
-  fontWeight: 850,
-}
-
 const pillStyle: CSSProperties = {
   width: 'fit-content',
   borderRadius: 999,
@@ -2422,63 +2328,6 @@ const pillStyle: CSSProperties = {
   fontSize: 11,
   fontWeight: 950,
   textTransform: 'uppercase',
-}
-
-const confidenceMeterStyle: CSSProperties = {
-  height: 12,
-  borderRadius: 999,
-  overflow: 'hidden',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const confidenceFillStyle = (value: number): CSSProperties => ({
-  display: 'block',
-  width: `${Math.round(value * 100)}%`,
-  height: '100%',
-  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-green))',
-})
-
-const impactBoxStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  padding: 14,
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const achievementBoxStyle: CSSProperties = {
-  ...impactBoxStyle,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-}
-
-const tutorialPanelStyle: CSSProperties = {
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: 14,
-  display: 'grid',
-  gap: 10,
-}
-
-const tutorialGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-  gap: 10,
-}
-
-const tutorialStepStyle: CSSProperties = {
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: 12,
-  display: 'grid',
-  gap: 6,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.45,
-  fontWeight: 800,
 }
 
 const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({

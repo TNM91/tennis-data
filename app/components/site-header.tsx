@@ -213,7 +213,8 @@ export default function SiteHeader({ active }: { active?: string }) {
   const [unreadAlerts, setUnreadAlerts] = useState(0)
 
   useEffect(() => {
-    setMenuOpen(false)
+    const timeout = window.setTimeout(() => setMenuOpen(false), 0)
+    return () => window.clearTimeout(timeout)
   }, [pathname])
 
   useEffect(() => {

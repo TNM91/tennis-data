@@ -118,7 +118,7 @@ export default function LoginPage() {
   const router = useRouter()
 
   const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(false)
+  const [, setAuthLoading] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
 
   const [email, setEmail] = useState('')
