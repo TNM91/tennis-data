@@ -599,7 +599,7 @@ export function summarizeDataAssistBatch(
       detectedLayout: 'unsupported',
       status: 'rejected',
       confidenceScore: 0,
-      rejectionReason: 'Choose at least one TennisLink screenshot.',
+      rejectionReason: 'Choose at least one TennisLink Excel export.',
       contributionValue: getDataAssistContributionValue(requestedImportType),
       screenshots,
     }
@@ -620,7 +620,7 @@ export function summarizeDataAssistBatch(
     status,
     confidenceScore: roundConfidence(averageConfidence),
     rejectionReason: status === 'rejected'
-      ? rejected[0]?.rejectionReason || 'These screenshots do not look like a supported TennisLink page yet.'
+      ? rejected[0]?.rejectionReason || 'These exports do not look like a supported TennisLink file yet.'
       : '',
     contributionValue: getDataAssistContributionValue(requestedImportType),
     screenshots,
@@ -642,7 +642,7 @@ export function reorderDataAssistScreenshots(
 export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary): Promise<DataAssistSaveResult> {
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
-  if (!userId) throw new Error('Sign in to save a Data Assist draft.')
+  if (!userId) throw new Error('Sign in to import with Data Assist.')
   if (summary.status === 'rejected') throw new Error(summary.rejectionReason || 'This batch is not supported.')
 
   const { data: batch, error: batchError } = await supabase
@@ -703,7 +703,7 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
       validation_summary: {
         message:
           summary.status === 'layout_detected'
-            ? 'Supported TennisLink layout signals found. OCR parsing and verification come next.'
+            ? 'Supported TennisLink export found. Table parsing comes next.'
             : 'Saved for review, but this batch needs stronger TennisLink layout confidence before parsing.',
         screenshotCount: summary.screenshots.length,
         visualSignals: Array.from(new Set(summary.screenshots.flatMap((screenshot) => screenshot.visualSignals))),
@@ -1488,7 +1488,7 @@ function detectLayoutSignals(file: File, requestedImportType: DataAssistImportTy
     .map((hint) => `${getDataAssistImportTypeLabel(requestedImportType)} filename hint: ${hint}`)
 
   if (isTrustedTennisLinkFilename(lowerName) && signals.length === 0) {
-    signals.push(`${getDataAssistImportTypeLabel(requestedImportType)} selected from TennisLink screenshot`)
+    signals.push(`${getDataAssistImportTypeLabel(requestedImportType)} selected from TennisLink export`)
   }
 
   return signals
