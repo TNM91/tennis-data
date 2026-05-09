@@ -176,6 +176,14 @@ function DataAssistWorkspace() {
       setSummary(nextSummary)
       if (nextSummary.status === 'rejected') {
         setError(nextSummary.rejectionReason)
+      } else if (nextSummary.requestedImportType === 'team_summary') {
+        const screenshotLabel = `${nextSummary.screenshots.length} roster screenshot${nextSummary.screenshots.length === 1 ? '' : 's'}`
+        if (userId) {
+          setMessage(`${screenshotLabel} ready. TenAceIQ is importing players and ratings now.`)
+          window.setTimeout(() => void saveDraft(nextSummary), 0)
+        } else {
+          setMessage(`${screenshotLabel} ready. Sign in to import players and ratings.`)
+        }
       } else if (nextSummary.status === 'needs_review') {
         setMessage(`${nextSummary.screenshots.length} screenshot${nextSummary.screenshots.length === 1 ? '' : 's'} staged. Add more if needed, then scan when the order looks right.`)
       } else {
@@ -208,8 +216,8 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
   }
 
-  async function saveDraft() {
-    const draftSummary = summary
+  async function saveDraft(summaryOverride?: DataAssistBatchSummary) {
+    const draftSummary = summaryOverride || summary
     if (!draftSummary || saving) return
     const scanRunId = scanRunRef.current + 1
     scanRunRef.current = scanRunId
