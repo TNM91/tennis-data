@@ -165,23 +165,30 @@ function DataAssistWorkspace() {
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
-    const detected = detectUploadImportType(files, importType)
+    setSelectedFileCount(files.length)
+    setPreparing(true)
+    setSavedBatchId('')
+    setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
+    setError('')
+
+    const detected = await detectUploadImportType(files, importType)
     if (detected.mixed) {
       setError('These look like different TennisLink export types. Upload scorecards, schedules, and team summaries one at a time.')
+      setPreparing(false)
+      setSelectedFileCount(0)
       event.target.value = ''
       return
     }
     if (summary && detected.importType !== summary.requestedImportType) {
       setError(`This looks like a ${getShortImportTypeLabel(detected.importType)} export. Finish or start over before uploading a different export type.`)
+      setPreparing(false)
+      setSelectedFileCount(0)
       event.target.value = ''
       return
     }
+    const changedType = detected.importType !== importType
     setImportType(detected.importType)
-    setSelectedFileCount(files.length)
-    setPreparing(true)
-    setSavedBatchId('')
     setMessage(`Preparing ${files.length} ${getShortImportTypeLabel(detected.importType)} export${files.length === 1 ? '' : 's'}...`)
-    setError('')
 
     try {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
@@ -201,10 +208,10 @@ function DataAssistWorkspace() {
       } else {
         const exportLabel = `${nextSummary.screenshots.length} TennisLink export${nextSummary.screenshots.length === 1 ? '' : 's'}`
         if (userId) {
-          setMessage(`${exportLabel} detected as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is importing from the table data now.`)
+          setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is importing from the table data now.`)
           window.setTimeout(() => void saveDraft(nextSummary), 0)
         } else {
-          setMessage(`${exportLabel} detected as ${getShortImportTypeLabel(detected.importType)}. Sign in to import it.`)
+          setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. Sign in to import it.`)
         }
       }
     } catch (err) {
@@ -735,15 +742,23 @@ function getShortImportTypeLabel(importType: DataAssistImportType) {
   return 'scorecard'
 }
 
-function detectUploadImportType(files: File[], fallback: DataAssistImportType): {
+async function detectUploadImportType(files: File[], fallback: DataAssistImportType): Promise<{
   importType: DataAssistImportType
   mixed: boolean
-} {
-  const detectedTypes = Array.from(new Set(files.map((file) => detectImportTypeFromFileName(file.name)).filter(Boolean))) as DataAssistImportType[]
+}> {
+  const detectedTypes = Array.from(new Set((
+    await Promise.all(files.map((file) => detectImportTypeFromFile(file)))
+  ).filter(Boolean))) as DataAssistImportType[]
   if (detectedTypes.length > 1) {
     return { importType: fallback, mixed: true }
   }
   return { importType: detectedTypes[0] || fallback, mixed: false }
+}
+
+async function detectImportTypeFromFile(file: File): Promise<DataAssistImportType | null> {
+  const fromFileName = detectImportTypeFromFileName(file.name)
+  const fromContents = await detectImportTypeFromFileContents(file)
+  return fromContents || fromFileName
 }
 
 function detectImportTypeFromFileName(fileName: string): DataAssistImportType | null {
@@ -751,6 +766,45 @@ function detectImportTypeFromFileName(fileName: string): DataAssistImportType | 
   if (lowerName.includes('matchschedule') || lowerName.includes('match-schedule') || lowerName.includes('schedule')) return 'schedule'
   if (lowerName.includes('teamsummary') || lowerName.includes('team-summary') || lowerName.includes('team_summary') || lowerName.includes('roster')) return 'team_summary'
   if (lowerName.includes('scorecard') || lowerName.includes('score-card') || lowerName.includes('score_card')) return 'scorecard'
+  return null
+}
+
+async function detectImportTypeFromFileContents(file: File): Promise<DataAssistImportType | null> {
+  const text = await file.slice(0, Math.min(file.size, 350_000)).text().catch(() => '')
+  if (!text) return null
+  const normalized = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+
+  if (
+    normalized.includes('scorecard for match') ||
+    (normalized.includes('score card') && normalized.includes('3rd set tie-break')) ||
+    (normalized.includes('match win criteria') && normalized.includes('home team') && normalized.includes('visiting team') && normalized.includes('3rd set'))
+  ) {
+    return 'scorecard'
+  }
+
+  if (
+    normalized.includes('match schedule by') ||
+    normalized.includes('match schedule tab') ||
+    (normalized.includes('schedule date') && normalized.includes('schedule time') && normalized.includes('facility/match site')) ||
+    (normalized.includes('match id') && normalized.includes('home team') && normalized.includes('visiting team') && normalized.includes('facility/match site'))
+  ) {
+    return 'schedule'
+  }
+
+  if (
+    normalized.includes('team summary') ||
+    normalized.includes('team standings') ||
+    normalized.includes('championship advancements') ||
+    (normalized.includes('player name') && normalized.includes('ntrp')) ||
+    (normalized.includes('team matches') && normalized.includes('players') && normalized.includes('wins'))
+  ) {
+    return 'team_summary'
+  }
+
   return null
 }
 
