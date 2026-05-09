@@ -193,10 +193,14 @@ export async function recognizeDataAssistTeamSummaryScreenshotsWithTesseract(
       tessedit_pageseg_mode: PSM.SPARSE_TEXT,
     })
 
-    for (const image of [...images].sort((a, b) => a.uploadOrder - b.uploadOrder)) {
+    const orderedImages = [...images].sort((a, b) => a.uploadOrder - b.uploadOrder)
+
+    for (const [imageIndex, image] of orderedImages.entries()) {
       const result = await worker.recognize(image.imageBuffer)
       const fullText = normalizeOcrBlock(result.data.text)
-      const structuredRosterText = await recognizeDesktopTeamSummaryRoster(worker, image, PSM.SINGLE_BLOCK)
+      const structuredRosterText = shouldUseDesktopTeamSummaryRosterRead(image, imageIndex)
+        ? await recognizeDesktopTeamSummaryRoster(worker, image, PSM.SINGLE_BLOCK)
+        : ''
       const text = [structuredRosterText, fullText].filter(Boolean).join('\n\n')
       const confidence = normalizeConfidence(result.data.confidence)
       confidences.push(confidence)
@@ -229,6 +233,14 @@ export async function recognizeDataAssistTeamSummaryScreenshotsWithTesseract(
     warnings,
     screenshotSummaries: merged.screenshotSummaries,
   }
+}
+
+function shouldUseDesktopTeamSummaryRosterRead(image: DataAssistTesseractImageInput, imageIndex: number) {
+  if (imageIndex > 0) return false
+  if (image.imageWidth < 1000 || image.imageHeight < 1400) return false
+
+  const aspectRatio = image.imageHeight / Math.max(image.imageWidth, 1)
+  return aspectRatio < 1.95
 }
 
 export function mergeDataAssistOcrBlocks(blocks: Array<{

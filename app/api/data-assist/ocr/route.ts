@@ -25,7 +25,7 @@ import {
 } from '@/lib/data-assist-tesseract'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 120
 
 const DATA_ASSIST_SCREENSHOT_BUCKET = 'data-assist-screenshots'
 

@@ -31,6 +31,8 @@ import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-p
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
+const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
+
 const importTypes: Array<{
   id: DataAssistImportType
   label: string
@@ -235,7 +237,7 @@ function DataAssistWorkspace() {
             batchId: result.batchId,
             draftId: result.draftId,
           }),
-          30_000,
+          DATA_ASSIST_OCR_TIMEOUT_MS,
           `${draftSummary.requestedImportType === 'schedule' ? 'Schedule' : draftSummary.requestedImportType === 'team_summary' ? 'Team roster' : 'Scorecard'} reading is taking longer than expected. The draft was saved; try scanning it again from history in a moment.`,
         )
         if (scanRunRef.current !== scanRunId) return
