@@ -31,10 +31,10 @@ export default function MethodologyPage() {
           <p>
             Every player carries two parallel sets of dynamic ratings: a <strong>TIQ track</strong> that
             updates from all matches regardless of source, and a <strong>USTA track</strong> that updates
-            only from USTA-imported matches. TIQ ratings reflect full competitive activity across all
-            leagues; USTA ratings mirror what a purely USTA-based system would produce. Both tracks
-            maintain separate singles, doubles, and overall ratings -- six dynamic values per player in
-            total.
+            only from reviewed USTA/TennisLink league results added through Data Assist or admin review.
+            TIQ ratings reflect full competitive activity across all leagues; USTA ratings mirror what
+            a USTA-only result set would produce. Both tracks maintain separate singles, doubles, and
+            overall ratings -- six dynamic values per player in total.
           </p>
         </div>
 

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -8,7 +8,7 @@ import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { getClientAuthState } from '@/lib/auth'
-import { LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   getTiqIndividualCompetitionFormatDescription,
@@ -71,6 +71,7 @@ import {
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
+import { buildTiqLeagueSeasonCalendarRows } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
@@ -124,50 +125,6 @@ const TIME_ZONE_OPTIONS = [
 const CUSTOM_SEASON_VALUE = '__custom_season__'
 
 const FLIGHT_OPTIONS = ['2.5', '3.0', '3.5', '4.0', '4.5', '5.0', 'Open', 'Advanced', 'Intermediate', 'Beginner']
-
-const MATCH_DAY_INDEX: Record<string, number> = {
-  Sunday: 0,
-  Monday: 1,
-  Tuesday: 2,
-  Wednesday: 3,
-  Thursday: 4,
-  Friday: 5,
-  Saturday: 6,
-}
-
-function addDaysToDateString(value: string, days: number) {
-  const [year, month, day] = value.split('-').map((part) => Number(part))
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (Number.isNaN(date.getTime())) return ''
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
-}
-
-function getFirstScheduledDate(startsOn: string, matchDay: string) {
-  if (!startsOn) return ''
-  if (!matchDay || MATCH_DAY_INDEX[matchDay] === undefined) return startsOn
-
-  const [year, month, day] = startsOn.split('-').map((part) => Number(part))
-  const start = new Date(Date.UTC(year, month - 1, day))
-  if (Number.isNaN(start.getTime())) return ''
-
-  const startDay = start.getUTCDay()
-  const targetDay = MATCH_DAY_INDEX[matchDay]
-  const daysUntilMatchDay = (targetDay - startDay + 7) % 7
-  return addDaysToDateString(startsOn, daysUntilMatchDay)
-}
-
-function buildSeasonCalendarRows(draft: TiqLeagueDraft) {
-  const firstDate = getFirstScheduledDate(draft.startsOn, draft.defaultMatchDay)
-  const weeks = Math.max(1, Math.min(Number(draft.maxWeeks) || 1, 12))
-
-  return Array.from({ length: weeks }, (_, index) => ({
-    week: index + 1,
-    date: firstDate ? addDaysToDateString(firstDate, index * 7) : '',
-    time: draft.defaultMatchTime,
-    site: draft.defaultFacility,
-  }))
-}
 
 function formatDateTime(value: string) {
   const parsed = new Date(value)
@@ -1038,7 +995,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
-  const seasonCalendarRows = buildSeasonCalendarRows(draft)
+  const seasonCalendarRows = buildTiqLeagueSeasonCalendarRows(draft)
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
 
@@ -1069,6 +1026,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
           <div style={heroActionRow}>
             <GhostLink href={resultEntryHref}>Record results</GhostLink>
+            <GhostLink href="/data-assist">Upload data</GhostLink>
             <GhostLink href="/compete/leagues">My leagues</GhostLink>
             <GhostLink href="/explore/leagues">Browse leagues</GhostLink>
           </div>
@@ -1129,7 +1087,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             <div style={sectionEyebrow}>League command center</div>
             <h2 style={sectionTitle}>{records.length ? 'Your season control room is active.' : 'Create the first league workspace.'}</h2>
             <p style={sectionText}>
-              The job is simple: approve who belongs, keep the schedule visible, collect scores, and let the standings update around the season.
+              The job is simple: approve who belongs, keep the schedule visible, collect scores, review uploads, and let the standings update around the season.
             </p>
           </div>
           <div style={commandGrid}>
@@ -1165,6 +1123,36 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
             )}
             <GhostLink href="/compete/leagues">View leagues</GhostLink>
             <GhostLink href="/explore/rankings">View rankings</GhostLink>
+          </div>
+        </section>
+
+        <section style={dataAssistOpsPanelStyle}>
+          <div style={leagueOpsHeaderStyle}>
+            <div>
+              <div style={sectionEyebrow}>{DATA_ASSIST_STORY.eyebrow}</div>
+              <h2 style={leagueOpsTitleStyle}>Use uploads as the coordinator refresh path.</h2>
+              <p style={leagueOpsTextStyle}>
+                {DATA_ASSIST_STORY.shortCue} Coordinator setup stays manual and reviewable; Data Assist is where schedules, rosters, and official scorecards can come in when the season changes.
+              </p>
+            </div>
+            <GhostLink href="/data-assist">{DATA_ASSIST_STORY.cta}</GhostLink>
+          </div>
+          <div style={dataAssistOpsGridStyle}>
+            <div style={dataAssistOpsCardStyle}>
+              <span style={pillBlue}>Schedules</span>
+              <strong>Upload match weeks and sites</strong>
+              <span>Use reviewed schedule files to keep dates, facilities, and match windows visible for players.</span>
+            </div>
+            <div style={dataAssistOpsCardStyle}>
+              <span style={pillGreen}>Rosters</span>
+              <strong>Refresh teams or players</strong>
+              <span>Bring participant lists into the workspace, then approve what becomes active league structure.</span>
+            </div>
+            <div style={dataAssistOpsCardStyle}>
+              <span style={pillSlate}>Scorecards</span>
+              <strong>Review before standings move</strong>
+              <span>Uploaded scorecards should land in review before they update result books and public standings.</span>
+            </div>
           </div>
         </section>
 
@@ -1547,7 +1535,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   {editingId ? 'Edit league setup' : 'Add a league'}
                 </h2>
                 <p style={sectionText}>
-                  Use only the fields needed to create the structure. Results and rankings come later.
+                  Use only the fields needed to create the structure. Uploads, results, and rankings come after the league record is clear.
                 </p>
               </div>
               <span style={pillSlate}>{editingId ? 'Editing' : 'Open form'}</span>
@@ -1775,7 +1763,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   style={inputStyle}
                 />
                 <span style={fieldHelpText}>
-                  Standard season: {DEFAULT_TIQ_LEAGUE_MAX_WEEKS} weeks and {DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS} match events. Team cap {MAX_TIQ_TEAM_LEAGUE_TEAMS}; player cap {MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS}.
+                  Standard season: {DEFAULT_TIQ_LEAGUE_MAX_WEEKS} weeks and {DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS} match events. End date is calculated from weeks selected. Team cap {MAX_TIQ_TEAM_LEAGUE_TEAMS}; player cap {MAX_TIQ_INDIVIDUAL_LEAGUE_PLAYERS}.
                 </span>
               </label>
 
@@ -1815,7 +1803,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   ))}
                 </select>
                 <span style={fieldHelpText}>
-                  Use this when the coordinator wants the season schedule visible in advance.
+                  Use this when the coordinator wants recurring match days visible before exact pairings are published.
                 </span>
               </label>
 
@@ -2035,7 +2023,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   </strong>
                   <p style={setupAssistTextStyle}>
                     {draft.startsOn
-                      ? `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Save the league, then publish exact matchups from the schedule workspace.`
+                      ? `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Save the league, then use Data Assist or the schedule workspace to keep exact matchups current.`
                       : 'Choose a start date to preview the weekly season calendar.'}
                   </p>
                 </div>
@@ -2082,7 +2070,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 </datalist>
               </div>
               <span style={fieldHelpText}>
-                Use known names when available. Custom names are allowed, then coordinator approval keeps join requests from turning into active participants automatically.
+                Use known names when available, or paste reviewed roster names from Data Assist. Custom names are allowed; coordinator approval keeps join requests from turning into active participants automatically.
               </span>
               <textarea
                 value={draft.leagueFormat === 'team' ? teamListInput : playerListInput}
@@ -2369,7 +2357,13 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
       href={href}
       style={{
         ...ghostButton,
-        ...(hovered ? { background: 'rgba(255,255,255,0.10)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}),
+        ...(hovered
+          ? {
+              background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+              transform: 'translateY(-2px)',
+              boxShadow: 'var(--shadow-soft)',
+            }
+          : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -2387,7 +2381,13 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactN
       onClick={onClick}
       style={{
         ...ghostButtonButton,
-        ...(hovered ? { background: 'rgba(255,255,255,0.10)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}),
+        ...(hovered
+          ? {
+              background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+              transform: 'translateY(-2px)',
+              boxShadow: 'var(--shadow-soft)',
+            }
+          : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -2407,7 +2407,7 @@ function PrimaryBtn({ onClick, disabled, children }: { onClick: () => void; disa
       style={{
         ...primaryButton,
         ...(disabled ? disabledPrimaryButton : {}),
-        ...(hovered && !disabled ? { transform: 'translateY(-2px)', boxShadow: '0 8px 22px rgba(155,225,29,0.30)' } : {}),
+        ...(hovered && !disabled ? { transform: 'translateY(-2px)', boxShadow: 'var(--shadow-soft)' } : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -2425,7 +2425,7 @@ function DangerBtn({ onClick, children }: { onClick: () => void; children: React
       onClick={onClick}
       style={{
         ...dangerButton,
-        ...(hovered ? { background: 'rgba(80,20,30,0.90)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(248,113,113,0.20)' } : {}),
+        ...(hovered ? { transform: 'translateY(-2px)', boxShadow: 'var(--shadow-soft)' } : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -2452,11 +2452,13 @@ const mobilePageWrap: CSSProperties = {
 const heroCard: CSSProperties = {
   display: 'grid',
   gap: '14px',
-  padding: '28px',
-  borderRadius: '30px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(16,38,70,0.78) 0%, rgba(8,19,38,0.94) 100%)',
-  boxShadow: '0 28px 60px rgba(2,10,24,0.22)',
+  padding: 'clamp(20px, 4vw, 28px)',
+  borderRadius: '24px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 12%, transparent) 0%, transparent 34%), linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg) 90%) 0%, var(--shell-panel-bg-strong) 100%)',
+  boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
 }
 
 const mobileHeroCard: CSSProperties = {
@@ -2467,15 +2469,15 @@ const mobileHeroCard: CSSProperties = {
 const heroEyebrow: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.18em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
 }
 
 const heroTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
-  fontSize: '52px',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2.3rem, 6vw, 3.25rem)',
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: '940px',
@@ -2489,10 +2491,11 @@ const mobileHeroTitle: CSSProperties = {
 
 const heroText: CSSProperties = {
   margin: 0,
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '16px',
   lineHeight: 1.75,
   maxWidth: '920px',
+  overflowWrap: 'anywhere',
 }
 
 const heroPillRow: CSSProperties = {
@@ -2504,31 +2507,35 @@ const heroPillRow: CSSProperties = {
 const pillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const pillBlue: CSSProperties = {
   ...pillBase,
-  background: 'rgba(74,163,255,0.14)',
-  color: '#dfeeff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
 }
 
 const pillGreen: CSSProperties = {
   ...pillBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'color-mix(in srgb, var(--brand-lime) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const pillSlate: CSSProperties = {
   ...pillBase,
-  background: 'rgba(142, 161, 189, 0.14)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
 }
 
 const heroActionRow: CSSProperties = {
@@ -2546,16 +2553,18 @@ const singleColumnGrid: CSSProperties = {
 const commandCard: CSSProperties = {
   display: 'grid',
   gap: '18px',
-  padding: '24px',
-  borderRadius: '28px',
-  border: '1px solid rgba(155,225,29,0.16)',
-  background: 'linear-gradient(135deg, rgba(14,30,58,0.86) 0%, rgba(11,24,45,0.94) 58%, rgba(39,72,37,0.28) 100%)',
-  boxShadow: '0 24px 52px rgba(2,10,24,0.18)',
+  padding: 'clamp(18px, 3vw, 24px)',
+  borderRadius: '24px',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%) 0%, color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%) 100%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const commandGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: '12px',
 }
 
@@ -2564,31 +2573,31 @@ const commandTile: CSSProperties = {
   gap: '8px',
   padding: '16px',
   borderRadius: '20px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const commandLabel: CSSProperties = {
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 900,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
 }
 
 const commandValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '26px',
   fontWeight: 950,
   lineHeight: 1.05,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const commandText: CSSProperties = {
-  color: 'rgba(229,238,251,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
 }
@@ -2598,9 +2607,10 @@ const leagueOpsPanelStyle: CSSProperties = {
   gap: '14px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(135deg, rgba(23,47,37,0.72) 0%, rgba(10,24,45,0.94) 68%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const resultBookPanelStyle: CSSProperties = {
@@ -2608,9 +2618,10 @@ const resultBookPanelStyle: CSSProperties = {
   gap: '14px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(135deg, rgba(14,30,58,0.84) 0%, rgba(10,24,45,0.94) 64%, rgba(42,84,130,0.22) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const startPanelStyle: CSSProperties = {
@@ -2618,9 +2629,10 @@ const startPanelStyle: CSSProperties = {
   gap: '14px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(135deg, rgba(18,42,36,0.82) 0%, rgba(9,22,42,0.96) 62%, rgba(53,92,42,0.22) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-panel-bg) 93%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const reviewQueuePanelStyle: CSSProperties = {
@@ -2628,9 +2640,10 @@ const reviewQueuePanelStyle: CSSProperties = {
   gap: '14px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'linear-gradient(135deg, rgba(20,43,37,0.82) 0%, rgba(10,24,45,0.94) 60%, rgba(42,84,130,0.20) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const publicReadinessPanelStyle: CSSProperties = {
@@ -2638,20 +2651,55 @@ const publicReadinessPanelStyle: CSSProperties = {
   gap: '14px',
   padding: '20px',
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(135deg, rgba(13,31,58,0.86) 0%, rgba(10,24,45,0.96) 62%, rgba(155,225,29,0.10) 100%)',
-  boxShadow: '0 18px 46px rgba(2,10,24,0.16)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-panel-bg) 93%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const dataAssistOpsPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: '14px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-blue-2) 10%, transparent) 0%, transparent 36%), var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const dataAssistOpsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  gap: '12px',
+}
+
+const dataAssistOpsCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '10px',
+  alignContent: 'start',
+  minHeight: '150px',
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.55,
+  fontWeight: 750,
+  minWidth: 0,
 }
 
 const reviewQueueGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: '12px',
 }
 
 const publicReadinessGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '12px',
 }
 
@@ -2665,19 +2713,21 @@ const publicReadinessFilterButtonStyle: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'rgba(229,238,251,0.78)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
 }
 
 const publicReadinessFilterActiveStyle: CSSProperties = {
   ...publicReadinessFilterButtonStyle,
-  border: '1px solid rgba(155,225,29,0.30)',
-  background: 'rgba(155,225,29,0.14)',
-  color: '#f8fbff',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
 }
 
 const publicReadinessCardStyle: CSSProperties = {
@@ -2686,18 +2736,19 @@ const publicReadinessCardStyle: CSSProperties = {
   alignContent: 'start',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const publicReadinessCardReadyStyle: CSSProperties = {
   ...publicReadinessCardStyle,
-  border: '1px solid rgba(74,222,128,0.20)',
-  background: 'rgba(155,225,29,0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
 }
 
 const publicReadinessTitleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   lineHeight: 1.2,
   fontWeight: 950,
@@ -2714,20 +2765,20 @@ const reviewCueCardStyle: CSSProperties = {
   gap: '11px',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid rgba(155,225,29,0.12)',
-  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const reviewCueValueStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '34px',
   fontWeight: 950,
   lineHeight: 1,
 }
 
 const reviewCueTitleStyle: CSSProperties = {
-  color: '#e5eefb',
+  color: 'var(--foreground-strong)',
   fontSize: '15px',
   fontWeight: 900,
   lineHeight: 1.25,
@@ -2735,7 +2786,7 @@ const reviewCueTitleStyle: CSSProperties = {
 
 const resultBookGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: '12px',
 }
 
@@ -2744,13 +2795,14 @@ const resultBookCardStyle: CSSProperties = {
   gap: '12px',
   padding: '16px',
   borderRadius: '20px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(255,255,255,0.045)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const resultBookMetricRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: '10px',
 }
 
@@ -2759,9 +2811,9 @@ const resultBookMetricStyle: CSSProperties = {
   gap: '4px',
   padding: '10px 12px',
   borderRadius: '14px',
-  border: '1px solid rgba(116,190,255,0.10)',
-  background: 'rgba(7,17,33,0.48)',
-  color: 'rgba(229,238,251,0.72)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
 }
 
@@ -2775,7 +2827,7 @@ const leagueOpsHeaderStyle: CSSProperties = {
 
 const leagueOpsTitleStyle: CSSProperties = {
   margin: '4px 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.1,
   fontWeight: 950,
@@ -2784,7 +2836,7 @@ const leagueOpsTitleStyle: CSSProperties = {
 
 const leagueOpsTextStyle: CSSProperties = {
   margin: '8px 0 0',
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
 }
@@ -2793,14 +2845,14 @@ const leagueOpsScoreStyle: CSSProperties = {
   display: 'grid',
   gap: '4px',
   justifyItems: 'end',
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
 }
 
 const startScoreStyle: CSSProperties = {
   ...leagueOpsScoreStyle,
-  minWidth: 160,
+  minWidth: 0,
 }
 
 const mobileScoreStyle: CSSProperties = {
@@ -2812,8 +2864,8 @@ const mobileScoreStyle: CSSProperties = {
 const leagueOpsTrackStyle: CSSProperties = {
   height: '14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(7,17,33,0.72)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   overflow: 'hidden',
   padding: '2px',
 }
@@ -2834,8 +2886,9 @@ const startActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   padding: '14px 16px',
   borderRadius: '18px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const mobileActionRowStyle: CSSProperties = {
@@ -2846,17 +2899,17 @@ const mobileActionRowStyle: CSSProperties = {
 
 const startActionLabelStyle: CSSProperties = {
   display: 'block',
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
   fontSize: '11px',
   fontWeight: 900,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
 const startActionTitleStyle: CSSProperties = {
   display: 'block',
   marginTop: '4px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '18px',
   lineHeight: 1.15,
   fontWeight: 950,
@@ -2865,7 +2918,7 @@ const startActionTitleStyle: CSSProperties = {
 
 const startCardGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: '10px',
 }
 
@@ -2876,20 +2929,21 @@ const startCardStyle: CSSProperties = {
   minHeight: '166px',
   padding: '14px',
   borderRadius: '18px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.045)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   textDecoration: 'none',
+  minWidth: 0,
 }
 
 const startCardCompleteStyle: CSSProperties = {
   ...startCardStyle,
-  border: '1px solid rgba(74,222,128,0.20)',
-  background: 'rgba(155,225,29,0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
 }
 
 const startCardTitleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   lineHeight: 1.2,
   fontWeight: 950,
@@ -2897,7 +2951,7 @@ const startCardTitleStyle: CSSProperties = {
 }
 
 const startCardTextStyle: CSSProperties = {
-  color: 'rgba(229,238,251,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
   fontWeight: 700,
@@ -2906,16 +2960,16 @@ const startCardTextStyle: CSSProperties = {
 
 const startCardCtaStyle: CSSProperties = {
   alignSelf: 'end',
-  color: '#d9f99d',
+  color: 'var(--brand-lime)',
   fontSize: '12px',
   fontWeight: 950,
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
 const leagueOpsCheckGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '10px',
 }
 
@@ -2925,28 +2979,31 @@ const leagueOpsCheckStyle: CSSProperties = {
   minHeight: '94px',
   padding: '12px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'rgba(229,238,251,0.76)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
   textDecoration: 'none',
   fontSize: '12px',
   fontWeight: 750,
+  minWidth: 0,
 }
 
 const leagueOpsCheckCompleteStyle: CSSProperties = {
   ...leagueOpsCheckStyle,
-  border: '1px solid rgba(74,222,128,0.22)',
-  background: 'rgba(155,225,29,0.10)',
-  color: '#f8fbff',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
 }
 
 const panelCard: CSSProperties = {
   display: 'grid',
   gap: '16px',
-  padding: '24px',
-  borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(8,18,35,0.96) 100%)',
+  padding: 'clamp(18px, 3vw, 24px)',
+  borderRadius: '24px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const mobilePanelCard: CSSProperties = {
@@ -2973,22 +3030,22 @@ const mobileDetailsSummary: CSSProperties = {
 const sectionEyebrow: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
-  letterSpacing: '0.14em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
 }
 
 const sectionTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
-  fontSize: '28px',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 3vw, 1.75rem)',
   lineHeight: 1.08,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
 const sectionText: CSSProperties = {
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.72,
   overflowWrap: 'anywhere',
@@ -2996,13 +3053,13 @@ const sectionText: CSSProperties = {
 
 const fieldGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
 }
 
 const outcomeInfoGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: '12px',
 }
 
@@ -3011,12 +3068,13 @@ const infoCard: CSSProperties = {
   gap: '8px',
   padding: '16px',
   borderRadius: '18px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(116,190,255,0.07)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const infoCardTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   lineHeight: 1.2,
   fontWeight: 950,
@@ -3025,7 +3083,7 @@ const infoCardTitle: CSSProperties = {
 
 const infoCardText: CSSProperties = {
   margin: 0,
-  color: 'rgba(229,238,251,0.80)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
   fontWeight: 700,
@@ -3037,13 +3095,14 @@ const setupAssistPanelStyle: CSSProperties = {
   gap: '14px',
   padding: '16px',
   borderRadius: '20px',
-  border: '1px solid rgba(155,225,29,0.16)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.06))',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-panel-bg) 93%)',
+  minWidth: 0,
 }
 
 const setupAssistTitleStyle: CSSProperties = {
   display: 'block',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '17px',
   lineHeight: 1.2,
   fontWeight: 950,
@@ -3051,14 +3110,14 @@ const setupAssistTitleStyle: CSSProperties = {
 
 const setupAssistTextStyle: CSSProperties = {
   margin: '6px 0 0',
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
 }
 
 const calendarGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: '10px',
 }
 
@@ -3068,27 +3127,28 @@ const calendarRowStyle: CSSProperties = {
   minHeight: '98px',
   padding: '12px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(7,17,33,0.50)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const calendarWeekStyle: CSSProperties = {
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
   fontSize: '11px',
   fontWeight: 900,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
 const calendarDateStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '15px',
   lineHeight: 1.2,
   fontWeight: 950,
 }
 
 const calendarMetaStyle: CSSProperties = {
-  color: 'rgba(229,238,251,0.70)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.45,
   fontWeight: 700,
@@ -3097,13 +3157,14 @@ const calendarMetaStyle: CSSProperties = {
 const fieldLabel: CSSProperties = {
   display: 'grid',
   gap: '8px',
-  color: '#e7eefb',
+  color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
+  minWidth: 0,
 }
 
 const fieldHelpText: CSSProperties = {
-  color: 'rgba(214,228,246,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.6,
   fontWeight: 500,
@@ -3111,20 +3172,22 @@ const fieldHelpText: CSSProperties = {
 
 const participantBuilderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '10px',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const inputStyle: CSSProperties = {
   width: '100%',
   minHeight: '48px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(7,17,33,0.72)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   outline: 'none',
+  minWidth: 0,
 }
 
 const photoUploadBox: CSSProperties = {
@@ -3137,8 +3200,8 @@ const photoPreviewWrap: CSSProperties = {
   aspectRatio: '16 / 7',
   overflow: 'hidden',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const photoPreviewImage: CSSProperties = {
@@ -3153,16 +3216,16 @@ const photoPlaceholder: CSSProperties = {
   placeItems: 'center',
   minHeight: '112px',
   borderRadius: '16px',
-  border: '1px dashed rgba(116,190,255,0.24)',
-  background: 'rgba(255,255,255,0.04)',
-  color: 'rgba(229,238,251,0.62)',
+  border: '1px dashed var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 800,
 }
 
 const fileInputStyle: CSSProperties = {
   width: '100%',
-  color: 'rgba(229,238,251,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
 }
 
@@ -3170,9 +3233,9 @@ const textareaStyle: CSSProperties = {
   width: '100%',
   minHeight: '126px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(7,17,33,0.72)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '14px',
   outline: 'none',
   resize: 'vertical',
@@ -3181,16 +3244,16 @@ const textareaStyle: CSSProperties = {
 const statusBanner: CSSProperties = {
   padding: '12px 14px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#dbeafe',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   fontWeight: 700,
 }
 
 const noteBanner: CSSProperties = {
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'rgba(17, 39, 27, 0.58)',
-  color: '#dcfce7',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
 }
 
 const nextActionCardStyle: CSSProperties = {
@@ -3201,19 +3264,20 @@ const nextActionCardStyle: CSSProperties = {
   flexWrap: 'wrap',
   padding: '14px 16px',
   borderRadius: '18px',
-  border: '1px solid rgba(155,225,29,0.20)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(69,227,161,0.08))',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 9%, var(--shell-chip-bg) 91%)',
+  minWidth: 0,
 }
 
 const nextActionTitleStyle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '15px',
   fontWeight: 900,
 }
 
 const nextActionTextStyle: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(229,238,251,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
 }
@@ -3243,6 +3307,9 @@ const primaryButton: CSSProperties = {
   color: '#04121a',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const disabledPrimaryButton: CSSProperties = {
@@ -3258,11 +3325,14 @@ const ghostButton: CSSProperties = {
   minHeight: '42px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
   textDecoration: 'none',
   fontWeight: 800,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const ghostButtonButton: CSSProperties = {
@@ -3272,18 +3342,19 @@ const ghostButtonButton: CSSProperties = {
 
 const dangerButton: CSSProperties = {
   ...ghostButtonButton,
-  border: '1px solid rgba(248,113,113,0.22)',
-  background: 'rgba(60,16,24,0.76)',
+  border: '1px solid color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, #ef4444 12%, var(--shell-chip-bg) 88%)',
   color: '#fecaca',
 }
 
 const emptyCard: CSSProperties = {
   padding: '18px',
   borderRadius: '20px',
-  border: '1px dashed rgba(116,190,255,0.18)',
-  color: 'rgba(229,238,251,0.76)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px dashed var(--shell-panel-border)',
+  color: 'var(--shell-copy-muted)',
+  background: 'var(--shell-chip-bg)',
   lineHeight: 1.7,
+  overflowWrap: 'anywhere',
 }
 
 const stackList: CSSProperties = {
@@ -3296,8 +3367,9 @@ const registryCard: CSSProperties = {
   gap: '10px',
   padding: '18px',
   borderRadius: '22px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const registryPhotoWrap: CSSProperties = {
@@ -3305,8 +3377,8 @@ const registryPhotoWrap: CSSProperties = {
   aspectRatio: '16 / 7',
   overflow: 'hidden',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const registryPhoto: CSSProperties = {
@@ -3323,7 +3395,7 @@ const registryMetaRow: CSSProperties = {
 }
 
 const registryTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
   lineHeight: 1.1,
@@ -3331,14 +3403,14 @@ const registryTitle: CSSProperties = {
 }
 
 const registryText: CSSProperties = {
-  color: '#dbeafe',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   overflowWrap: 'anywhere',
 }
 
 const registryNotes: CSSProperties = {
-  color: 'rgba(229,238,251,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.72,
   overflowWrap: 'anywhere',
@@ -3358,23 +3430,25 @@ const entryRequestPanelStyle: CSSProperties = {
   gap: '12px',
   padding: '16px',
   borderRadius: '20px',
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.06)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-panel-bg) 93%)',
+  minWidth: 0,
 }
 
 const requestCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
   alignItems: 'center',
   padding: '14px',
   borderRadius: '16px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(8,18,35,0.72)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const registryTimestamp: CSSProperties = {
-  color: 'rgba(197,213,234,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
 }
@@ -3382,6 +3456,6 @@ const registryTimestamp: CSSProperties = {
 const noteCard: CSSProperties = {
   padding: '16px 18px',
   borderRadius: '20px',
-  border: '1px solid rgba(74,222,128,0.16)',
-  background: 'linear-gradient(180deg, rgba(32,58,31,0.24) 0%, rgba(18,36,66,0.62) 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
 }

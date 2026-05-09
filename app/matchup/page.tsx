@@ -9,11 +9,12 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import SiteShell from '@/app/components/site-shell'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { MATCHUP_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
+import { normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -152,6 +153,7 @@ export default function MatchupPage() {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectionNotice, setSelectionNotice] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
   const [accuracyLoading, setAccuracyLoading] = useState(false)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -236,12 +238,17 @@ export default function MatchupPage() {
     if (profilePrefillAttemptedRef.current) return
     if (!urlReadyRef.current || !profileLink?.linked_player_id) return
     if (matchType !== 'singles') return
+    if (players.length && !players.some((player) => player.id === profileLink.linked_player_id)) {
+      profilePrefillAttemptedRef.current = true
+      setSelectionNotice('Your linked player record is no longer in the active Matchup list. Refresh your profile after Data Assist review connects the current record.')
+      return
+    }
     if (playerAId) return
     if (playerBId === profileLink.linked_player_id) return
 
     profilePrefillAttemptedRef.current = true
     setPlayerAId(profileLink.linked_player_id)
-  }, [matchType, playerAId, playerBId, profileLink?.linked_player_id])
+  }, [matchType, playerAId, playerBId, players, profileLink?.linked_player_id])
 
   useEffect(() => {
     if (!urlReadyRef.current || typeof window === 'undefined') return
@@ -272,6 +279,31 @@ export default function MatchupPage() {
     }
     setHeadToHead(null)
   }, [matchType])
+
+  useEffect(() => {
+    if (loading || !urlReadyRef.current) return
+
+    const activePlayerIds = new Set(players.map((player) => player.id))
+    const selectedIds = [playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id].filter(Boolean)
+    const staleIds = selectedIds.filter((id) => !activePlayerIds.has(id))
+
+    if (staleIds.length === 0) return
+
+    if (staleIds.includes(playerAId)) setPlayerAId('')
+    if (staleIds.includes(playerBId)) setPlayerBId('')
+    if (staleIds.includes(teamA1Id)) setTeamA1Id('')
+    if (staleIds.includes(teamA2Id)) setTeamA2Id('')
+    if (staleIds.includes(teamB1Id)) setTeamB1Id('')
+    if (staleIds.includes(teamB2Id)) setTeamB2Id('')
+    setHeadToHead(null)
+    setFormScores({ left: null, right: null })
+    setTrajectories({ left: [], right: [] })
+    setSelectionNotice(
+      staleIds.length === 1
+        ? 'One selected player is no longer available, so Matchup cleared that slot.'
+        : 'Some selected players are no longer available, so Matchup cleared those slots.',
+    )
+  }, [loading, players, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
   useEffect(() => {
     if (matchType === 'singles') {
@@ -381,9 +413,9 @@ export default function MatchupPage() {
 
       if (error) throw new Error(error.message)
 
-      setPlayers((data || []) as Player[])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load players')
+      setPlayers(normalizeMatchupPlayerOptions((data || []) as Player[]))
+    } catch {
+      setError('Matchup players could not load. Try again, or use Data Assist to refresh player records if the list looks out of date.')
     } finally {
       setLoading(false)
     }
@@ -515,8 +547,7 @@ export default function MatchupPage() {
         lastMatch,
         recentMatches,
       })
-    } catch (err) {
-      console.error('Failed to load singles head-to-head', err)
+    } catch {
       setHeadToHead(null)
     } finally {
       setHeadToHeadLoading(false)
@@ -666,8 +697,7 @@ export default function MatchupPage() {
         lastMatch,
         recentMatches,
       })
-    } catch (err) {
-      console.error('Failed to load doubles head-to-head', err)
+    } catch {
       setHeadToHead(null)
     } finally {
       setHeadToHeadLoading(false)
@@ -828,8 +858,7 @@ export default function MatchupPage() {
         low: toAccuracyValue(lowCorrect, lowTotal),
         sampleSize: overallTotal,
       })
-    } catch (err) {
-      console.error('Failed to load prediction accuracy', err)
+    } catch {
       setAccuracy({
         overall: null,
         high: null,
@@ -1291,7 +1320,7 @@ export default function MatchupPage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(280px, 0.8fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 280px), 0.8fr)',
     gap: isMobile ? '14px' : '20px',
   }
 
@@ -1551,14 +1580,20 @@ export default function MatchupPage() {
               <SelectField
                 label="Player A"
                 value={playerAId}
-                onChange={setPlayerAId}
+                onChange={(value) => {
+                  setSelectionNotice('')
+                  setPlayerAId(value)
+                }}
                 options={availablePlayersForA}
                 disabled={loading}
               />
               <SelectField
                 label="Player B"
                 value={playerBId}
-                onChange={setPlayerBId}
+                onChange={(value) => {
+                  setSelectionNotice('')
+                  setPlayerBId(value)
+                }}
                 options={availablePlayersForB}
                 disabled={loading}
               />
@@ -1573,7 +1608,10 @@ export default function MatchupPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setTeamA1Id(profilePlayer.id)}
+                    onClick={() => {
+                      setSelectionNotice('')
+                      setTeamA1Id(profilePlayer.id)
+                    }}
                     style={quickStartButtonStyle}
                   >
                     Start with me
@@ -1584,28 +1622,40 @@ export default function MatchupPage() {
                 <SelectField
                   label="Your side - Player 1"
                   value={teamA1Id}
-                  onChange={setTeamA1Id}
+                  onChange={(value) => {
+                    setSelectionNotice('')
+                    setTeamA1Id(value)
+                  }}
                   options={availableTeamA1}
                   disabled={loading}
                 />
                 <SelectField
                   label="Your side - Player 2"
                   value={teamA2Id}
-                  onChange={setTeamA2Id}
+                  onChange={(value) => {
+                    setSelectionNotice('')
+                    setTeamA2Id(value)
+                  }}
                   options={availableTeamA2}
                   disabled={loading}
                 />
                 <SelectField
                   label="Other side - Player 1"
                   value={teamB1Id}
-                  onChange={setTeamB1Id}
+                  onChange={(value) => {
+                    setSelectionNotice('')
+                    setTeamB1Id(value)
+                  }}
                   options={availableTeamB1}
                   disabled={loading}
                 />
                 <SelectField
                   label="Other side - Player 2"
                   value={teamB2Id}
-                  onChange={setTeamB2Id}
+                  onChange={(value) => {
+                    setSelectionNotice('')
+                    setTeamB2Id(value)
+                  }}
                   options={availableTeamB2}
                   disabled={loading}
                 />
@@ -1623,6 +1673,7 @@ export default function MatchupPage() {
                 <div style={{ display: 'flex', justifyContent: 'center', marginTop: '12px' }}>
                   <SwapSidesButton
                     onClick={() => {
+                      setSelectionNotice('')
                       const [a1, a2, b1, b2] = [teamA1Id, teamA2Id, teamB1Id, teamB2Id]
                       setTeamA1Id(b1)
                       setTeamA2Id(b2)
@@ -1691,16 +1742,38 @@ export default function MatchupPage() {
           {error ? (
             <div style={errorBanner}>
               <div>{error}</div>
-              <div style={{ marginTop: 12 }}>
+              <div style={errorActionRowStyle}>
                 <button type="button" onClick={() => void loadPlayers()} style={retryButtonStyle}>
                   Retry matchup load
                 </button>
+                <Link href="/data-assist" style={retryLinkStyle}>
+                  {DATA_ASSIST_STORY.cta}
+                </Link>
               </div>
+            </div>
+          ) : null}
+
+          {selectionNotice ? (
+            <div style={noticeBannerStyle}>
+              <span>{selectionNotice}</span>
+              <button type="button" onClick={() => setSelectionNotice('')} style={noticeDismissButtonStyle}>
+                Dismiss
+              </button>
             </div>
           ) : null}
 
           {loading ? (
             <div style={emptyState}>Loading players...</div>
+          ) : !players.length && !error ? (
+            <div style={emptyState}>
+              <div style={emptyStateTitle}>No active players are ready for Matchup.</div>
+              <div style={emptyStateText}>
+                {DATA_ASSIST_STORY.shortCue} Once reviewed players have ratings, they will appear here for comparison.
+              </div>
+              <Link href="/data-assist" style={retryLinkStyle}>
+                {DATA_ASSIST_STORY.cta}
+              </Link>
+            </div>
           ) : !comparison ? (
             <div style={emptyState}>
               <div style={emptyStateTitle}>Build the matchup first</div>
@@ -1723,6 +1796,7 @@ export default function MatchupPage() {
                 type="button"
                 style={resetButton}
                 onClick={() => {
+                  setSelectionNotice('')
                   setPlayerAId('')
                   setPlayerBId('')
                   setTeamA1Id('')
@@ -2279,7 +2353,7 @@ function CopyLinkButton() {
         cursor: 'pointer',
         transition: 'all 160ms ease',
         transform: hovered ? 'translateY(-1px)' : 'none',
-        whiteSpace: 'nowrap' as const,
+        whiteSpace: 'normal' as const,
       }}
     >
       {copied ? 'Copied' : 'Copy matchup'}
@@ -2309,10 +2383,10 @@ function SwapSidesButton({ onClick }: { onClick: () => void }) {
         cursor: 'pointer',
         transition: 'all 160ms ease',
         transform: hovered ? 'translateY(-1px)' : 'none',
-        letterSpacing: '-0.01em',
+        letterSpacing: 0,
       }}
     >
-      ↕ Swap sides
+      Swap sides
     </button>
   )
 }
@@ -2339,7 +2413,7 @@ function SelectField({
         style={selectStyle}
         disabled={disabled}
       >
-        <option value="">Select player</option>
+        <option value="">{options.length ? 'Select player' : 'No active players'}</option>
         {options.map((player) => (
           <option key={player.id} value={player.id}>
             {player.name}
@@ -2571,7 +2645,7 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -2635,7 +2709,7 @@ const engineValue: CSSProperties = {
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const engineText: CSSProperties = {
@@ -2751,7 +2825,7 @@ const toolHeaderTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.25rem, 2vw, 1.75rem)',
   lineHeight: 1.05,
   fontWeight: 950,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const toolHeaderTextStyle: CSSProperties = {
@@ -2816,7 +2890,7 @@ const identitySetupButtonStyle: CSSProperties = {
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 950,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const toolbarTop: CSSProperties = {
@@ -2861,7 +2935,7 @@ const toggleButton: CSSProperties = {
   fontSize: '14px',
   fontWeight: 800,
   cursor: 'pointer',
-  letterSpacing: '-0.01em',
+  letterSpacing: 0,
   transition: 'all 180ms ease',
 }
 
@@ -2889,7 +2963,7 @@ const inputLabel: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: '13px',
   fontWeight: 800,
-  letterSpacing: '0.05em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -2904,18 +2978,56 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
-  colorScheme: 'dark',
+  minWidth: 0,
 }
 
 const errorBanner: CSSProperties = {
   marginBottom: '16px',
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'rgba(239,68,68,0.08)',
-  border: '1px solid rgba(239,68,68,0.18)',
-  color: '#fecaca',
+  background: 'color-mix(in srgb, #ef4444 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, #ef4444 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 700,
   fontSize: '14px',
+  lineHeight: 1.55,
+}
+
+const errorActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  alignItems: 'center',
+  marginTop: 12,
+}
+
+const noticeBannerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  flexWrap: 'wrap',
+  marginBottom: '16px',
+  borderRadius: '16px',
+  padding: '12px 14px',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-chip-bg) 91%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--foreground)',
+  fontSize: '14px',
+  fontWeight: 750,
+  lineHeight: 1.55,
+}
+
+const noticeDismissButtonStyle: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  borderRadius: '999px',
+  minHeight: '32px',
+  padding: '0 10px',
+  fontSize: '12px',
+  fontWeight: 900,
+  cursor: 'pointer',
 }
 
 const editorialPanel: CSSProperties = {
@@ -2939,7 +3051,7 @@ const editorialText: CSSProperties = {
 const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
 }
 
 const editorialCard: CSSProperties = {
@@ -2964,7 +3076,7 @@ const editorialCardValue: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const editorialCardText: CSSProperties = {
@@ -2985,6 +3097,17 @@ const retryButtonStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+}
+
+const retryLinkStyle: CSSProperties = {
+  ...retryButtonStyle,
+  textDecoration: 'none',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
 }
 
 const emptyState: CSSProperties = {
@@ -2998,13 +3121,14 @@ const emptyState: CSSProperties = {
   fontWeight: 600,
   textAlign: 'center',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflowWrap: 'anywhere',
 }
 
 const emptyStateTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '24px',
+  fontSize: 'clamp(1.35rem, 3vw, 1.5rem)',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginBottom: '10px',
 }
 
@@ -3024,12 +3148,14 @@ const resetButton: CSSProperties = {
   minHeight: '42px',
   padding: '0 16px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.22)',
-  background: 'linear-gradient(180deg, rgba(58,115,212,0.22) 0%, rgba(27,62,120,0.18) 100%)',
-  color: '#e7eefb',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: '13px',
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
 }
 
 const selectionProgressCard: CSSProperties = {
@@ -3037,7 +3163,7 @@ const selectionProgressCard: CSSProperties = {
   padding: '14px 16px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  minWidth: '220px',
+  minWidth: 0,
 }
 
 const selectionProgressLabel: CSSProperties = {
@@ -3053,7 +3179,7 @@ const selectionProgressValue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginBottom: '6px',
 }
 
@@ -3102,7 +3228,7 @@ const handoffTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '20px',
   fontWeight: 950,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const handoffTextStyle: CSSProperties = {
@@ -3116,7 +3242,7 @@ const handoffTextStyle: CSSProperties = {
 
 const handoffSidesGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '10px',
 }
 
@@ -3191,7 +3317,7 @@ const quickStartButtonStyle: CSSProperties = {
 
 const doublesPreviewGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
   marginTop: '-2px',
   marginBottom: '14px',
@@ -3253,7 +3379,7 @@ const prefillPromptTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const prefillPromptText: CSSProperties = {
@@ -3265,7 +3391,7 @@ const prefillPromptText: CSSProperties = {
 
 const suggestionGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '10px',
 }
 
@@ -3323,7 +3449,7 @@ const decisionWinner: CSSProperties = {
   fontWeight: 900,
   color: '#fff',
   lineHeight: 1.05,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const decisionSub: CSSProperties = {
@@ -3361,7 +3487,7 @@ const decisionCtaRow: CSSProperties = {
 
 const prepReadGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
   marginBottom: '16px',
 }
@@ -3404,7 +3530,7 @@ const prepReadValue: CSSProperties = {
   fontSize: '25px',
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const prepReadText: CSSProperties = {
@@ -3476,7 +3602,7 @@ const compareTitle: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.15,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const compareSubtitle: CSSProperties = {
@@ -3488,7 +3614,7 @@ const compareSubtitle: CSSProperties = {
 }
 
 const miniGhostButton: CSSProperties = {
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -3536,7 +3662,7 @@ const ratingPillValue: CSSProperties = {
   fontSize: '20px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const highlightBox: CSSProperties = {
@@ -3560,7 +3686,7 @@ const highlightValue: CSSProperties = {
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const centerColumn: CSSProperties = {
@@ -3611,7 +3737,7 @@ const gapValue: CSSProperties = {
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const gapMeta: CSSProperties = {
@@ -3671,7 +3797,7 @@ function formCellValue(delta: number | null): CSSProperties {
   return {
     fontSize: '22px',
     fontWeight: 900,
-    letterSpacing: '-0.03em',
+    letterSpacing: 0,
     color: positive ? '#86efac' : negative ? '#fca5a5' : 'var(--foreground)',
   }
 }
@@ -3697,7 +3823,7 @@ const sectionTitle: CSSProperties = {
   fontSize: '22px',
   lineHeight: 1.2,
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -3712,7 +3838,7 @@ const projectionSectionTitle: CSSProperties = {
   ...sectionTitle,
   fontSize: '28px',
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const paragraph: CSSProperties = {
@@ -3748,7 +3874,7 @@ const metricValue: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.1,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const metricSub: CSSProperties = {
@@ -3801,7 +3927,7 @@ const upsetPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.03em',
   textTransform: 'uppercase',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const recommendationCard: CSSProperties = {
@@ -3843,7 +3969,7 @@ const emptyHeadToHeadTitle: CSSProperties = {
   fontSize: '22px',
   lineHeight: 1.15,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const emptyHeadToHeadText: CSSProperties = {

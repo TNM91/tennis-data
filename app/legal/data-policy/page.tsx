@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
 
@@ -20,7 +21,8 @@ export default function DataPolicyPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>1. Data sources</h2>
           <p>
             Data displayed or processed on TenAceIQ may come from user-submitted information,
-            publicly available information, and third-party sources where permitted.
+            reviewed Data Assist uploads, publicly available information, and third-party sources
+            where permitted.
           </p>
         </div>
 
@@ -53,7 +55,8 @@ export default function DataPolicyPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Takedown or correction requests</h2>
           <p>
             If you believe content or data on TenAceIQ should be corrected, reviewed, or removed,
-            please contact us with enough detail for us to evaluate the request.
+            open a <Link href="/messages?compose=support&category=data">TenAceIQ support thread</Link>{' '}
+            with enough detail for us to evaluate the request.
           </p>
         </div>
       </LegalPage>

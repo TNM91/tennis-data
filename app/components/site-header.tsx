@@ -12,6 +12,7 @@ import { countUnreadInternalNotifications } from '@/lib/internal-notifications'
 import { countUnreadInternalConversations, getInternalIdentity } from '@/lib/internal-messages'
 import { getPrimaryNavTarget, PRIMARY_NAV_VISUALS } from '@/lib/primary-nav-access'
 import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
+import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { supabase } from '@/lib/supabase'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -108,7 +109,7 @@ function ThemeToggle({
         color: 'var(--foreground-strong)',
         fontWeight: 750,
         fontSize: '12px',
-        letterSpacing: '-0.01em',
+        letterSpacing: 0,
         cursor: 'pointer',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
         transition: 'transform 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease',
@@ -283,7 +284,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   }
 
   const authenticated = role !== 'public'
-  const useCompactHeader = screenWidth < 1180
+  const useCompactHeader = shouldUseCompactSiteHeader({ role, authenticated, screenWidth })
   const useCompactBrand = useCompactHeader
   const access = buildProductAccessState(role, entitlements)
   const roleLabel =
@@ -492,9 +493,9 @@ export default function SiteHeader({ active }: { active?: string }) {
                 gap: '8px',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', paddingBottom: '2px' }}>
+              <div style={mobilePanelTopStyle}>
                 <div style={mobileSectionLabelStyle}>{roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <div style={mobileAccountToolsStyle}>
                   {accountLabel ? (
                     <span style={accountPillStyle}>
                       {profilePhotoUrl ? (
@@ -646,7 +647,7 @@ const utilityLinkStyle = {
   color: 'var(--header-link)',
   fontSize: '13.5px',
   fontWeight: 700,
-  letterSpacing: '-0.01em',
+  letterSpacing: 0,
   textDecoration: 'none',
   background: 'transparent',
   whiteSpace: 'nowrap' as const,
@@ -715,6 +716,7 @@ const accountPillStyle = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: '6px',
+  maxWidth: '100%',
   minHeight: '30px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -726,6 +728,8 @@ const accountPillStyle = {
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
   whiteSpace: 'nowrap' as const,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 } as const
 
 const messageLinkWrapStyle = {
@@ -782,7 +786,7 @@ const utilityButtonStyle = {
   color: 'var(--header-link)',
   fontSize: '13.5px',
   fontWeight: 700,
-  letterSpacing: '-0.01em',
+  letterSpacing: 0,
   cursor: 'pointer',
   whiteSpace: 'nowrap' as const,
 } as const
@@ -799,7 +803,7 @@ const primaryCtaStyle = {
   color: 'var(--text-dark)',
   fontSize: '13.5px',
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
   textDecoration: 'none',
   boxShadow: '0 12px 24px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.28)',
 } as const
@@ -818,6 +822,8 @@ const menuButtonStyle = {
 } as const
 
 const mobileItemStyle = {
+  width: '100%',
+  minWidth: 0,
   minHeight: '58px',
   padding: '8px 14px',
   borderRadius: '15px',
@@ -830,18 +836,21 @@ const mobileItemStyle = {
   fontSize: '14px',
   fontWeight: 700,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 } as const
 
 const mobileItemMainStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '10px',
+  minWidth: 0,
 } as const
 
 const mobileItemTextStyle = {
   display: 'grid',
   gap: '3px',
   lineHeight: 1,
+  minWidth: 0,
 } as const
 
 const mobileItemLabelStyle = {
@@ -885,3 +894,22 @@ const mobileSectionLabelStyle = {
   letterSpacing: '0.12em',
   textTransform: 'uppercase' as const,
 } as const
+
+const mobilePanelTopStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: '10px',
+  paddingBottom: '2px',
+  flexWrap: 'wrap' as const,
+  minWidth: 0,
+}
+
+const mobileAccountToolsStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 8,
+  flex: '1 1 220px',
+  minWidth: 0,
+}

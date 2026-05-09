@@ -280,7 +280,7 @@ const triggerStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const overlayStyle: CSSProperties = {

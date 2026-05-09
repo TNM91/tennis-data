@@ -606,9 +606,9 @@ function DataAssistWorkspace() {
       <section style={heroStyle(isMobile)}>
         <div style={heroCopyStyle}>
           <div className="section-kicker">TenAceIQ Data Assist</div>
-          <h1 style={titleStyle(isSmallMobile)}>Import from your phone.</h1>
+          <h1 style={titleStyle(isSmallMobile)}>Upload trusted tennis data.</h1>
           <p style={heroTextStyle}>
-            Upload scorecards weekly. Add schedule and roster exports once per season when they are easy to grab.
+            Upload scorecards weekly. Add schedule and roster exports once per season so TenAceIQ can review and refresh your workspace.
           </p>
           <div style={heroActionRowStyle}>
             <a href="#upload" style={primaryButtonStyle}>Start upload</a>
@@ -693,7 +693,7 @@ function DataAssistWorkspace() {
 
             {authResolved && !userId ? (
               <div style={noticeStyle}>
-                Sign in first, then choose the TennisLink export. Data Assist imports directly into your TenAceIQ account.
+                Sign in first, then choose the supported export. Data Assist saves it to your TenAceIQ account for review.
                 <Link href="/login?redirect=/data-assist" style={inlineLinkStyle}>Sign in</Link>
               </div>
             ) : null}
@@ -706,7 +706,7 @@ function DataAssistWorkspace() {
                 onChange={(event) => void handleFiles(event)}
                 style={fileInputStyle}
               />
-              <span style={dropzoneKickerStyle}>TennisLink Excel exports only</span>
+              <span style={dropzoneKickerStyle}>Supported Excel exports</span>
               <strong>{preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
               <small>{getUploadHint(importType)} Standard filenames are detected automatically.</small>
             </label>
@@ -746,7 +746,7 @@ function DataAssistWorkspace() {
             style={fileInputStyle}
           />
           <span style={dropzoneKickerStyle}>Replace export</span>
-          <strong>{preparing ? 'Preparing...' : 'Choose a different .xls export'}</strong>
+          <strong>{preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
           <small>{summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
         </label>
 
@@ -765,7 +765,7 @@ function DataAssistWorkspace() {
           </div>
         ) : (
           <div style={emptyStateStyle}>
-            Upload a TennisLink Excel export from the page you want TenAceIQ to import.
+            Upload a supported export from the page you want TenAceIQ to import.
           </div>
         )}
 
@@ -2677,7 +2677,7 @@ const screenshotGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const submissionStatsStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
 }
 
@@ -2779,7 +2779,7 @@ const historyFilterButtonStyle = (selected: boolean): CSSProperties => ({
   display: 'inline-flex',
   alignItems: 'center',
   gap: 7,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   fontSize: 12,
   fontWeight: 950,
   cursor: 'pointer',
@@ -3172,7 +3172,7 @@ const screenshotCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   overflow: 'hidden',
   display: 'grid',
-  gridTemplateColumns: 'minmax(108px, 0.34fr) minmax(0, 0.66fr)',
+  gridTemplateColumns: 'minmax(min(38%, 108px), 0.34fr) minmax(0, 0.66fr)',
 }
 
 const thumbnailWrapStyle: CSSProperties = {

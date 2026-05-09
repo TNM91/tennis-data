@@ -17,6 +17,7 @@ import {
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
@@ -455,12 +456,17 @@ export default function RankingsPage() {
 
   const dynamicControlsGrid: CSSProperties = {
     ...controlsGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(220px, 0.75fr)',
+    gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(min(100%, 220px), 0.75fr)',
   }
 
   const dynamicPodiumGrid: CSSProperties = {
     ...podiumGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  }
+
+  const dynamicTableCard: CSSProperties = {
+    ...tableCard,
+    padding: isSmallMobile ? 14 : isMobile ? 16 : 20,
   }
 
   const activeCount = Math.max(rankedPlayers.length - inactiveCount, 0)
@@ -795,7 +801,7 @@ export default function RankingsPage() {
                         <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                         <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
                       </div>
-                      <span style={{ color: '#9be11d', fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em' }}>+{delta.toFixed(2)}</span>
+                      <span style={{ color: '#9be11d', fontWeight: 900, fontSize: 16, letterSpacing: 0 }}>+{delta.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -810,7 +816,7 @@ export default function RankingsPage() {
                         <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                         <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
                       </div>
-                      <span style={{ color: '#f87171', fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em' }}>{delta.toFixed(2)}</span>
+                      <span style={{ color: '#f87171', fontWeight: 900, fontSize: 16, letterSpacing: 0 }}>{delta.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -869,7 +875,7 @@ export default function RankingsPage() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 13, fontWeight: 700 }}>{player.selectedRating.toFixed(2)}</span>
-                      <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: '-0.02em', color: positive ? '#9be11d' : '#f87171' }}>
+                      <span style={{ fontWeight: 900, fontSize: 16, letterSpacing: 0, color: positive ? '#9be11d' : '#f87171' }}>
                         {positive ? '+' : ''}{weekDelta.toFixed(3)}
                       </span>
                     </div>
@@ -898,7 +904,7 @@ export default function RankingsPage() {
                     <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {matchesThisMonth} match{matchesThisMonth !== 1 ? 'es' : ''} this month · {player.selectedRating.toFixed(2)} TIQ</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontWeight: 900, fontSize: 16, color: '#a7f3d0', letterSpacing: '-0.02em' }}>+{delta30.toFixed(3)}</span>
+                    <span style={{ fontWeight: 900, fontSize: 16, color: '#a7f3d0', letterSpacing: 0 }}>+{delta30.toFixed(3)}</span>
                     <span style={{ padding: '3px 9px', borderRadius: 999, background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.22)', color: '#a7f3d0', fontSize: 11, fontWeight: 800 }}>30d</span>
                   </div>
                 </div>
@@ -909,7 +915,7 @@ export default function RankingsPage() {
       ) : null}
 
       <section style={contentWrap}>
-        <article id="full-rankings" style={tableCard}>
+        <article id="full-rankings" style={dynamicTableCard}>
           <div style={panelHead}>
             <div>
               <div style={sectionKicker}>Leaderboard</div>
@@ -957,7 +963,7 @@ export default function RankingsPage() {
                 <div style={emptyCell}>
                   {hasActiveFilters
                     ? 'No players matched the current search or location filter. Clear filters to widen the board.'
-                    : 'Player rankings are not available yet.'}
+                    : `Player rankings are not available yet. ${DATA_ASSIST_STORY.shortCue}`}
                 </div>
               ) : (
                 tieredRows.map((row) => {
@@ -1014,7 +1020,7 @@ export default function RankingsPage() {
                       <td colSpan={14} style={emptyCell}>
                         {hasActiveFilters
                           ? 'No players matched the current search or location filter. Clear filters to widen the board.'
-                          : 'Player rankings are not available yet.'}
+                          : `Player rankings are not available yet. ${DATA_ASSIST_STORY.shortCue}`}
                       </td>
                     </tr>
                   ) : (
@@ -1792,6 +1798,7 @@ const heroShell: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
+  minWidth: 0,
 }
 
 const heroNoise: CSSProperties = {
@@ -1821,7 +1828,8 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -1930,7 +1938,7 @@ const pulseModePill: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const pulseLeaderGrid: CSSProperties = {
@@ -1971,7 +1979,7 @@ const pulseRatingBadge: CSSProperties = {
   fontSize: '42px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
 }
 
 const pulseMeterTrack: CSSProperties = {
@@ -2095,7 +2103,7 @@ const controlsLabel: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '24px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const controlsHint: CSSProperties = {
@@ -2239,7 +2247,7 @@ const chipStatValue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '20px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const contentWrap: CSSProperties = {
@@ -2247,7 +2255,8 @@ const contentWrap: CSSProperties = {
   zIndex: 2,
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '0 18px 0',
+  padding: '0 clamp(14px, 3vw, 18px) 0',
+  minWidth: 0,
 }
 
 const podiumGrid: CSSProperties = {
@@ -2288,7 +2297,7 @@ const podiumName: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.05,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const podiumLocation: CSSProperties = {
@@ -2304,7 +2313,7 @@ const podiumRating: CSSProperties = {
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const podiumSubtext: CSSProperties = {
@@ -2356,7 +2365,7 @@ const panelTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const panelChipWrap: CSSProperties = {
@@ -2380,7 +2389,7 @@ const panelChip: CSSProperties = {
 
 const leaderboardActionGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: '10px',
   marginBottom: '16px',
 }
@@ -2477,7 +2486,7 @@ const compactRankingCardStyle: CSSProperties = {
 
 const compactRankingTopStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
   alignItems: 'center',
   gap: '12px',
 }
@@ -2502,12 +2511,14 @@ const compactPlayerMetaStyle: CSSProperties = {
 
 const compactRatingStackStyle: CSSProperties = {
   display: 'grid',
-  justifyItems: 'end',
+  justifyItems: 'start',
   gap: '3px',
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 950,
   lineHeight: 1,
+  gridColumn: '1 / -1',
+  paddingLeft: 'calc(2.2rem + 12px)',
 }
 
 const compactSignalRowStyle: CSSProperties = {
@@ -2519,7 +2530,7 @@ const compactSignalRowStyle: CSSProperties = {
 
 const compactBottomGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1.2fr repeat(2, minmax(0, 0.8fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
   gap: '10px',
   alignItems: 'center',
 }
@@ -2550,7 +2561,7 @@ const compactMiniValueStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: '1100px',
+  minWidth: '760px',
 }
 
 const tableHead: CSSProperties = {
@@ -2563,7 +2574,8 @@ const tableHead: CSSProperties = {
   fontWeight: 800,
   borderBottom: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const activeTableHead: CSSProperties = {
@@ -2633,7 +2645,7 @@ const insightSummaryTitle: CSSProperties = {
   fontSize: '22px',
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const insightSummaryMeta: CSSProperties = {
@@ -2648,7 +2660,7 @@ const insightSummaryMeta: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const insightBody: CSSProperties = {
@@ -2722,7 +2734,7 @@ const distributionCount: CSSProperties = {
 
 const signalGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
 }
 
@@ -2838,7 +2850,7 @@ const editorialText: CSSProperties = {
 const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
 }
 
 const editorialCard: CSSProperties = {
@@ -2863,7 +2875,7 @@ const editorialCardValue: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const editorialCardText: CSSProperties = {
@@ -2883,7 +2895,7 @@ const statusPill: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const trendPill: CSSProperties = {
@@ -2895,7 +2907,7 @@ const trendPill: CSSProperties = {
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const confidencePill: CSSProperties = {
@@ -2910,7 +2922,7 @@ const confidencePill: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const tierDividerCell: CSSProperties = {

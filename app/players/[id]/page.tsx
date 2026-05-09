@@ -1591,32 +1591,32 @@ export default function PlayerProfilePage() {
               </div>
             </div>
             <p style={sectionText}>Best marks across the full tracked history for this profile.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginTop: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12, marginTop: 16 }}>
               {careerHighs.peakRating !== null ? (
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)' }}>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Peak TIQ</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#d9f84a' }}>{careerHighs.peakRating.toFixed(2)}</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#d9f84a' }}>{careerHighs.peakRating.toFixed(2)}</div>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>Highest rating reached</div>
                 </div>
               ) : null}
               {careerHighs.longestStreak > 1 ? (
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(116,190,255,0.05)', border: '1px solid rgba(116,190,255,0.14)' }}>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best win streak</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#93c5fd' }}>{careerHighs.longestStreak}W</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#93c5fd' }}>{careerHighs.longestStreak}W</div>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>Consecutive wins</div>
                 </div>
               ) : null}
               {careerHighs.bestSeason ? (
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.14)' }}>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best season</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#a7f3d0' }}>{careerHighs.bestSeason.year}</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#a7f3d0' }}>{careerHighs.bestSeason.year}</div>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.bestSeason.wins}W–{careerHighs.bestSeason.losses}L · {careerHighs.bestSeason.winRate}% win rate</div>
                 </div>
               ) : null}
               {careerHighs.mostMatchesSeason && careerHighs.mostMatchesSeason.year !== careerHighs.bestSeason?.year ? (
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(251,146,60,0.05)', border: '1px solid rgba(251,146,60,0.14)' }}>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Most active season</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-0.03em', color: '#fed7aa' }}>{careerHighs.mostMatchesSeason.year}</div>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#fed7aa' }}>{careerHighs.mostMatchesSeason.year}</div>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.mostMatchesSeason.total} matches played</div>
                 </div>
               ) : null}
@@ -1634,7 +1634,7 @@ export default function PlayerProfilePage() {
               <span style={panelChip}>Field avg {benchmark.fieldAvgRating.toFixed(2)}</span>
             </div>
             <p style={sectionText}>How this profile compares to the field average across TIQ rating, win rate, and recent form.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 12, marginTop: 16 }}>
               {[
                 {
                   label: 'TIQ vs field avg',
@@ -1660,7 +1660,7 @@ export default function PlayerProfilePage() {
               ].map((row) => (
                 <div key={row.label} style={{ padding: '13px 16px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>{row.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.03em', color: row.positive ? '#86efac' : row.negative ? '#fca5a5' : 'var(--foreground)' }}>{row.value}</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0, color: row.positive ? '#86efac' : row.negative ? '#fca5a5' : 'var(--foreground)' }}>{row.value}</div>
                   <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{row.note}</div>
                 </div>
               ))}
@@ -1689,7 +1689,7 @@ export default function PlayerProfilePage() {
                 return (
                   <div key={key} style={{ padding: '14px 16px', borderRadius: 16, background: bg, border: `1px solid ${border}` }}>
                     <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>{label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: '-0.03em' }}>{b.w}–{b.l}</div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: 0 }}>{b.w}–{b.l}</div>
                     {pct !== null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{pct}% win rate</div> : null}
                   </div>
                 )
@@ -1706,7 +1706,7 @@ export default function PlayerProfilePage() {
                 <span style={{ ...dynamicStatusPill }}>{ratingStatus}</span>
                 <span style={sectionKicker}>What this means</span>
               </div>
-              <h3 style={{ margin: '0 0 10px', color: 'var(--foreground)', fontWeight: 900, fontSize: 20, letterSpacing: '-0.03em' }}>{rec.headline}</h3>
+              <h3 style={{ margin: '0 0 10px', color: 'var(--foreground)', fontWeight: 900, fontSize: 20, letterSpacing: 0 }}>{rec.headline}</h3>
               <p style={{ margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.65, fontSize: 15 }}>{rec.body}</p>
             </article>
           )
@@ -2070,7 +2070,7 @@ export default function PlayerProfilePage() {
                             const isPositive = q === 'Dominant'
                             const isTense = q === 'Tiebreak' || q === '3 sets'
                             return (
-                              <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' as const, background: isPositive ? 'rgba(155,225,29,0.10)' : isTense ? 'rgba(251,146,60,0.10)' : 'rgba(116,190,255,0.08)', color: isPositive ? '#d9f84a' : isTense ? '#fed7aa' : '#93c5fd', border: `1px solid ${isPositive ? 'rgba(155,225,29,0.20)' : isTense ? 'rgba(251,146,60,0.18)' : 'rgba(116,190,255,0.14)'}` }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'normal' as const, background: isPositive ? 'rgba(155,225,29,0.10)' : isTense ? 'rgba(251,146,60,0.10)' : 'rgba(116,190,255,0.08)', color: isPositive ? '#d9f84a' : isTense ? '#fed7aa' : '#93c5fd', border: `1px solid ${isPositive ? 'rgba(155,225,29,0.20)' : isTense ? 'rgba(251,146,60,0.18)' : 'rgba(116,190,255,0.14)'}` }}>
                                 {q}
                               </span>
                             )
@@ -2123,9 +2123,9 @@ export default function PlayerProfilePage() {
                   <div key={opp.name} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' as const, padding: '11px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       {opp.id ? (
-                        <Link href="/mylab" style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, textDecoration: 'none' }}>{opp.name}</Link>
+                        <Link href="/mylab" style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'normal' as const, textDecoration: 'none' }}>{opp.name}</Link>
                       ) : (
-                        <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{opp.name}</div>
+                        <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'normal' as const }}>{opp.name}</div>
                       )}
                       <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 2 }}>{opp.total} match{opp.total === 1 ? '' : 'es'} · last {formatDate(opp.lastDate)}</div>
                     </div>
@@ -2621,7 +2621,7 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
           <div style={{ color: '#8fb7ff', fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 6 }}>
             {formatChartDate(hoveredPoint.date)}
           </div>
-          <div style={{ color: '#f8fbff', fontSize: 19, fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}>
+          <div style={{ color: '#f8fbff', fontSize: 19, fontWeight: 900, letterSpacing: 0, lineHeight: 1 }}>
             {hoveredPoint.rating.toFixed(3)}
           </div>
           {hoveredPoint.delta !== null ? (
@@ -2987,7 +2987,7 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground)',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -3063,7 +3063,7 @@ const meterLabel: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '22px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const meterStatusRow: CSSProperties = {
@@ -3133,7 +3133,7 @@ const meterCurrent: CSSProperties = {
   fontWeight: 900,
   fontSize: '32px',
   lineHeight: 1,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const meterTarget: CSSProperties = {
@@ -3197,7 +3197,7 @@ const focusLabel: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '24px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const focusSubtitle: CSSProperties = {
@@ -3272,7 +3272,7 @@ const summaryTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '24px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginBottom: '14px',
 }
 
@@ -3308,7 +3308,7 @@ const chipStatValue: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '20px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const statsGrid: CSSProperties = {
@@ -3352,7 +3352,7 @@ const profileDiscoveryPanelStyle: CSSProperties = {
 
 const profileDiscoveryHeaderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
   alignItems: 'end',
 }
@@ -3485,7 +3485,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '1.32rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -3510,7 +3510,7 @@ const statValue: CSSProperties = {
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const statValueSmall: CSSProperties = {
@@ -3519,7 +3519,7 @@ const statValueSmall: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.15,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const contentWrap: CSSProperties = {
@@ -3532,7 +3532,7 @@ const contentWrap: CSSProperties = {
 
 const scorecardPanelStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '14px',
   marginBottom: '18px',
   padding: '18px',
@@ -3561,12 +3561,12 @@ const scorecardTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.35rem, 2.2vw, 2rem)',
   lineHeight: 1.05,
   fontWeight: 950,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const scorecardMetricGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
   gap: '10px',
 }
 
@@ -3598,7 +3598,7 @@ const scorecardMetricValueStyle: CSSProperties = {
   fontSize: 'clamp(1.7rem, 3vw, 2.45rem)',
   lineHeight: 1,
   fontWeight: 950,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   textTransform: 'none',
 }
 
@@ -3626,7 +3626,7 @@ const scorecardRailValueStyle: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.05,
   fontWeight: 950,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const scorecardRailTextStyle: CSSProperties = {
@@ -3653,7 +3653,7 @@ const panelCard: CSSProperties = {
 
 const rosterReadyCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.1fr) minmax(260px, 0.9fr)',
+  gridTemplateColumns: 'minmax(0, 1.1fr) minmax(min(100%, 260px), 0.9fr)',
   gap: '18px',
   alignItems: 'center',
   margin: '0 0 16px',
@@ -3675,7 +3675,7 @@ const rosterReadyTitle: CSSProperties = {
   fontSize: '26px',
   lineHeight: 1.1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const rosterReadyText: CSSProperties = {
@@ -3750,7 +3750,7 @@ const panelTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const panelChip: CSSProperties = {
@@ -3802,7 +3802,7 @@ const tableHead: CSSProperties = {
   fontWeight: 800,
   borderBottom: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg-strong)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const tableCell: CSSProperties = {
@@ -3871,7 +3871,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '30px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const sectionText: CSSProperties = {
@@ -3922,6 +3922,6 @@ const showAllButton: CSSProperties = {
   fontWeight: 700,
   cursor: 'pointer',
   transition: 'all 140ms ease',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
 }
 

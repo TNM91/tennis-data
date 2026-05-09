@@ -10,6 +10,7 @@ import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { getMembershipTier } from '@/lib/product-story'
+import { buildSupportMessageHref } from '@/lib/message-links'
 import { type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -431,7 +432,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
     successHandoff.body,
   ])
 
-  const mailtoHref = buildAccessRequestMailto(submittedRequest ?? {
+  const supportThreadHref = buildAccessRequestSupportHref(submittedRequest ?? {
     id: '',
     planId,
     ...pricingSnapshot,
@@ -518,7 +519,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
         setSubmittedRequest(record)
         setRequestStorageMode('local')
       } catch {
-        setRequestError('This browser could not save the request. Use the email link below and we will handle it.')
+        setRequestError('This browser could not save the request. Open a support thread and we will handle it inside TenAceIQ.')
       }
     } finally {
       setRequestSubmitting(false)
@@ -531,7 +532,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
         <section
           style={{
             ...heroStyle,
-            gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.04fr) minmax(320px, 0.96fr)',
+            gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.04fr) minmax(min(100%, 320px), 0.96fr)',
             padding: isSmallMobile ? 18 : 26,
           }}
         >
@@ -608,7 +609,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
               <h2 style={activationTitleStyle}>Ready to turn on {plan.name}?</h2>
               <p style={noteTextStyle}>
                 {isPublic
-                  ? 'Send the plan request first. You can create an account after we know the tennis job you need solved.'
+                  ? 'Send the plan request first. Account creation starts Free access; the selected plan opens after access is active.'
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
@@ -690,8 +691,8 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                 <h3 style={successTitleStyle}>We have your {plan.name} request.</h3>
                 <p style={noteTextStyle}>
                   {requestStorageMode === 'supabase'
-                    ? 'We captured the plan, email, and tennis job for admin follow-up.'
-                    : 'We saved this request in the browser. Send an email copy if you want this routed outside the device.'}
+                    ? 'We captured the plan, account contact, and tennis job for admin follow-up.'
+                    : 'We saved this request in the browser. Open a support thread if you want this routed inside TenAceIQ.'}
                 </p>
                 {requestLinkStatus ? <p style={successMetaStyle}>{requestLinkStatus}</p> : null}
                 {requestStorageMode === 'supabase' && submittedRequest.userId ? (
@@ -704,9 +705,9 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                     >
                       {checkoutSubmitting ? 'Opening checkout...' : 'Continue to secure checkout'}
                     </button>
-                    <a href={mailtoHref} style={secondaryButtonStyle}>
-                      Email instead
-                    </a>
+                    <Link href={supportThreadHref} style={secondaryButtonStyle}>
+                      Open support thread
+                    </Link>
                   </div>
                 ) : isPublic && requestStorageMode === 'supabase' ? (
                   <div style={formActionRowStyle}>
@@ -714,7 +715,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                       href={`/join?plan=${planId}&next=${encodeURIComponent(`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`)}`}
                       style={primaryButtonStyle}
                     >
-                      Create account
+                      Create free account first
                     </Link>
                     <Link
                       href={`/login?plan=${planId}&next=${encodeURIComponent(`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`)}`}
@@ -726,9 +727,9 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                 ) : null}
                 {checkoutError ? <p style={errorTextStyle}>{checkoutError}</p> : null}
                 {requestStorageMode !== 'supabase' || !submittedRequest.userId ? (
-                  <a href={mailtoHref} style={primaryButtonStyle}>
-                    Send email copy
-                  </a>
+                  <Link href={supportThreadHref} style={primaryButtonStyle}>
+                    Open support thread
+                  </Link>
                 ) : null}
               </div>
             ) : (
@@ -781,9 +782,9 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
                   <button type="submit" disabled={requestSubmitting} style={submitButtonStyle}>
                     {requestSubmitting ? 'Saving request...' : `Request ${plan.name}`}
                   </button>
-                  <a href={mailtoHref} style={secondaryButtonStyle}>
-                    Email instead
-                  </a>
+                  <Link href={supportThreadHref} style={secondaryButtonStyle}>
+                    Ask support
+                  </Link>
                 </div>
               </form>
             )}
@@ -794,22 +795,23 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
   )
 }
 
-function buildAccessRequestMailto(request: UpgradeRequestRecord) {
-  const subject = encodeURIComponent(`TenAceIQ ${request.planName} access request`)
-  const body = encodeURIComponent(
-    [
+function buildAccessRequestSupportHref(request: UpgradeRequestRecord) {
+  return buildSupportMessageHref({
+    category: 'billing',
+    subject: `TenAceIQ ${request.planName} access request`,
+    body: [
       `Plan: ${request.planName}`,
       `Price: ${request.priceLabel || 'Not captured'}`,
       `Billing: ${request.checkoutMode || 'manual'} ${request.billingInterval || ''}`.trim(),
       `Name: ${request.name || 'Not provided'}`,
-      `Email: ${request.email || 'Not provided'}`,
+      `Account contact: ${request.email || 'Not provided'}`,
       `Team or league: ${request.organization || 'Not provided'}`,
       `Goal: ${request.goal || 'Not provided'}`,
       `Requested destination: ${request.nextHref}`,
     ].join('\n'),
-  )
-
-  return `mailto:hello@tenaceiq.com?subject=${subject}&body=${body}`
+    entityType: 'billing',
+    entityId: request.planId,
+  })
 }
 
 function getSearchParamValue(value: string | string[] | undefined) {
@@ -981,7 +983,7 @@ const labelStyle: CSSProperties = {
 
 const metaGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 9,
 }
 

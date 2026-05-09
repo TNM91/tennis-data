@@ -140,6 +140,11 @@ export default function UpgradePrompt({
 
         <h3 style={titleStyle}>{headline}</h3>
         <p style={bodyStyle}>{body}</p>
+        {planId !== 'free' ? (
+          <p style={{ ...entitlementNoteStyle, ...(isLight ? lightEntitlementNoteStyle : null) }}>
+            Creating an account starts Free access. {plan.name} unlocks after the plan is active.
+          </p>
+        ) : null}
 
         <div style={{ ...resultWrapStyle, ...(isLight ? lightResultWrapStyle : null) }}>
           <span style={{ ...resultLabelStyle, ...(isLight ? lightResultLabelStyle : null) }}>Result</span>
@@ -352,7 +357,7 @@ const titleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 'clamp(1.32rem, 2vw, 1.8rem)',
   lineHeight: 1.1,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const bodyStyle: CSSProperties = {
@@ -361,6 +366,23 @@ const bodyStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   maxWidth: 760,
+}
+
+const entitlementNoteStyle: CSSProperties = {
+  margin: 0,
+  padding: '10px 12px',
+  borderRadius: 14,
+  border: '1px solid rgba(155, 225, 29, 0.16)',
+  background: 'rgba(155, 225, 29, 0.07)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
+const lightEntitlementNoteStyle: CSSProperties = {
+  border: '1px solid rgba(155, 225, 29, 0.22)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, var(--brand-green) 12%)',
 }
 
 const resultWrapStyle: CSSProperties = {
@@ -412,7 +434,7 @@ const priceStyle: CSSProperties = {
   fontSize: 24,
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const subtitleStyle: CSSProperties = {

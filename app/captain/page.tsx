@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +17,7 @@ import {
   readCaptainResumeState,
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
-import { CAPTAIN_STORY } from '@/lib/product-story'
+import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import {
   buildCaptainWeekNotesScopeKey,
@@ -662,6 +662,20 @@ export default function CaptainHubPage() {
   const filteredTeamOptions = useMemo(() => {
     return teamOptions.filter((option) => option.team && option.league && option.flight)
   }, [teamOptions])
+  const selectedTeamOption = useMemo(
+    () =>
+      filteredTeamOptions.find(
+        (option) =>
+          option.team === selectedTeam &&
+          option.league === selectedLeague &&
+          option.flight === selectedFlight,
+      ) || null,
+    [filteredTeamOptions, selectedFlight, selectedLeague, selectedTeam],
+  )
+  const selectedFromCaptainScope = useMemo(
+    () => Boolean(selectedTeamOption && captainTeamScopes.some((scope) => teamOptionMatchesCaptainScopes(selectedTeamOption, [scope]))),
+    [captainTeamScopes, selectedTeamOption],
+  )
   const selectedTeamOptionKey = buildTeamOptionKey({
     team: selectedTeam,
     league: selectedLeague,
@@ -1097,16 +1111,18 @@ export default function CaptainHubPage() {
   const scopeStatusText = loadingOptions
     ? 'Loading your team options and recent match context.'
     : captainScopeRestricted && teamScopeResolved && !captainTeamScopes.length
-      ? 'Link your player profile and team in My Lab to show only the USTA and TIQ teams connected to your account.'
+      ? `Link your player profile in My Lab, or ${DATA_ASSIST_STORY.shortCue.toLowerCase()}`
     : !filteredTeamOptions.length
-      ? 'No active team history matches your linked player, team, or TIQ captain entries yet.'
+      ? 'No active team history matches your linked player, team, TIQ captain entries, or reviewed Data Assist uploads yet.'
+      : selectedFromCaptainScope
+        ? `Auto-loaded from your profile/team entries: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
       : hasTeamScope
         ? `Active scope: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
         : 'Choose a team, league, and flight to start planning.'
 
   const dynamicHeroCard: CSSProperties = {
     ...heroCard,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.02fr) minmax(380px, 0.98fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.02fr) minmax(min(100%, 380px), 0.98fr)',
     gap: isMobile ? 18 : 22,
     padding: isSmallMobile ? 18 : isMobile ? 20 : 24,
   }
@@ -1179,8 +1195,9 @@ const dynamicHeroRightCard: CSSProperties = {
 
   const dynamicSelectStyle: CSSProperties = {
     ...selectStyle,
-    minWidth: isSmallMobile ? '100%' : selectStyle.minWidth,
-    width: isSmallMobile ? '100%' : undefined,
+    minWidth: 0,
+    width: '100%',
+    flex: '1 1 min(100%, 320px)',
   }
 
   const captainHeroVisualStyle: CSSProperties = {
@@ -1614,7 +1631,13 @@ const captainHeroVisualMaskStyle: CSSProperties = {
     return (
       <SiteShell active="/captain">
         <section style={loadingWrap}>
-          <div style={stateCard}>Loading Captain tools...</div>
+          <div style={loadingStateCardStyle}>
+            <TiqFeatureIcon name="captainDashboard" size="md" variant="surface" />
+            <div>
+              <div style={loadingStateTitleStyle}>Loading Captain tools</div>
+              <div style={loadingStateTextStyle}>Checking your role, team profile, and match-week context.</div>
+            </div>
+          </div>
         </section>
       </SiteShell>
     )
@@ -1654,7 +1677,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
             <div id="captain-team-scope" style={dynamicHeroControlRow}>
               <select
+                aria-label="Captain team scope"
                 value={selectedTeamOptionKey}
+                disabled={loadingOptions || !filteredTeamOptions.length}
                 onChange={(e) => {
                   const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === e.target.value)
                   if (option) {
@@ -1676,9 +1701,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
                 style={dynamicSelectStyle}
               >
                 {loadingOptions && !filteredTeamOptions.length ? (
-                  <option>Loading teams...</option>
+                  <option value="">Loading teams...</option>
                 ) : !filteredTeamOptions.length ? (
-                  <option>No linked active teams</option>
+                  <option value="">No linked active teams</option>
                 ) : (
                   filteredTeamOptions.map((option) => (
                     <option
@@ -1719,6 +1744,28 @@ const captainHeroVisualMaskStyle: CSSProperties = {
             >
               {scopeStatusText}
             </div>
+
+            {!loadingOptions && !filteredTeamOptions.length ? (
+              <div style={captainDataAssistCueStyle}>
+                <div>
+                  <strong>Need team history here?</strong>
+                  <span>{DATA_ASSIST_STORY.shortCue}</span>
+                </div>
+                <Link href="/data-assist" style={captainDataAssistLinkStyle}>
+                  {DATA_ASSIST_STORY.cta}
+                </Link>
+              </div>
+            ) : selectedFromCaptainScope ? (
+              <div style={captainDataAssistCueStyle}>
+                <div>
+                  <strong>Team scope is set.</strong>
+                  <span>Roster, schedule, and scorecard uploads can keep this captain workspace current.</span>
+                </div>
+                <Link href="/data-assist" style={captainDataAssistLinkStyle}>
+                  Refresh with Data Assist
+                </Link>
+              </div>
+            ) : null}
 
             <div style={heroBadgeRow}>
               <span style={badgeBlue}>{quickStats.matches} matches</span>
@@ -2365,10 +2412,16 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
           {!hasTeamScope ? (
             <div style={stateCard}>
-              Choose a team scope above to unlock lineup intelligence, pairings, and roster signals.
+              Choose a team scope above to unlock lineup intelligence, pairings, and roster signals. If your team is missing, refresh rosters through Data Assist.
             </div>
           ) : loadingTeam ? (
-            <div style={stateCard}>Loading captain insights...</div>
+            <div style={loadingStateCardStyle}>
+              <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
+              <div>
+                <div style={loadingStateTitleStyle}>Loading captain insights</div>
+                <div style={loadingStateTextStyle}>Checking match history, roster usage, and pairing patterns.</div>
+              </div>
+            </div>
           ) : (
             <div style={dynamicInsightGrid}>
               <div style={insightCard}>
@@ -2379,7 +2432,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
                 <div style={stackList}>
                   {recommendedSingles.length === 0 ? (
-                    <div style={emptyLine}>No singles history yet.</div>
+                    <div style={emptyLine}>No singles history yet. Upload reviewed scorecards through Data Assist to refresh this read.</div>
                   ) : (
                     recommendedSingles.map((player, index) => (
                       <div key={player.id} style={listCard}>
@@ -2414,7 +2467,7 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
                 <div style={stackList}>
                   {pairings.length === 0 ? (
-                    <div style={emptyLine}>No doubles pair history yet.</div>
+                    <div style={emptyLine}>No doubles pair history yet. Data Assist scorecard uploads can fill this in after review.</div>
                   ) : (
                     pairings.slice(0, 3).map((pair, index) => (
                       <div key={pair.key} style={listCard}>
@@ -2527,9 +2580,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
           <div style={rosterTableWrap}>
             {!hasTeamScope ? (
-              <div style={emptyLine}>Choose a team scope to see roster usage and match mix.</div>
+              <div style={emptyLine}>Choose a team scope to see roster usage and match mix. Missing team context usually means the profile/team link or reviewed roster upload is not connected yet.</div>
             ) : roster.length === 0 ? (
-              <div style={emptyLine}>No roster players are available for this team selection yet.</div>
+              <div style={emptyLine}>No roster players are available for this team selection yet. Refresh rosters through Data Assist, then review the imported names.</div>
             ) : (
               <div style={rosterList}>
                 {sortedRoster.map((player) => (
@@ -2754,21 +2807,50 @@ const loadingWrap: CSSProperties = {
   padding: '32px 0 72px',
 }
 
+const loadingStateCardStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 14,
+  flexWrap: 'wrap',
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg-strong)',
+  boxShadow: 'var(--shadow-soft)',
+  color: 'var(--foreground)',
+}
+
+const loadingStateTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+  lineHeight: 1.2,
+}
+
+const loadingStateTextStyle: CSSProperties = {
+  marginTop: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+}
+
 const heroCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.2fr) minmax(320px, 0.8fr)',
+  gridTemplateColumns: 'minmax(0, 1.2fr) minmax(min(100%, 320px), 0.8fr)',
   gap: 22,
   padding: 24,
   borderRadius: 32,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
 }
 
 const heroLeft: CSSProperties = {
   display: 'grid',
   gap: 16,
   alignContent: 'start',
+  minWidth: 0,
 }
 
 const heroRightCard: CSSProperties = {
@@ -2793,7 +2875,7 @@ const eyebrow: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 800,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -2803,6 +2885,7 @@ const heroTitle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -2811,6 +2894,7 @@ const heroText: CSSProperties = {
   fontSize: 16,
   lineHeight: 1.7,
   color: 'var(--foreground)',
+  overflowWrap: 'anywhere',
 }
 
 const heroControlRow: CSSProperties = {
@@ -2821,8 +2905,9 @@ const heroControlRow: CSSProperties = {
 }
 
 const selectStyle: CSSProperties = {
-  minWidth: 280,
-  flex: '1 1 320px',
+  minWidth: 0,
+  width: '100%',
+  flex: '1 1 min(100%, 320px)',
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -2831,7 +2916,6 @@ const selectStyle: CSSProperties = {
   outline: 'none',
   fontSize: 14,
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
-  colorScheme: 'dark',
 }
 
 const primaryButton: CSSProperties = {
@@ -2846,6 +2930,9 @@ const primaryButton: CSSProperties = {
   color: '#04121a',
   background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
   boxShadow: '0 16px 30px rgba(74,222,128,0.18)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const primaryButtonSmall: CSSProperties = {
@@ -2866,6 +2953,9 @@ const secondaryButtonSmall: CSSProperties = {
   color: 'var(--foreground-strong)',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const primaryButtonButton: CSSProperties = {
@@ -3014,15 +3104,16 @@ const captainQuickMetricTextStyle: CSSProperties = {
 const errorCard: CSSProperties = {
   padding: 16,
   borderRadius: 20,
-  border: '1px solid rgba(248,113,113,0.22)',
-  background: 'rgba(60,16,24,0.76)',
-  color: '#fecaca',
+  border: '1px solid color-mix(in srgb, #ef4444 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, #ef4444 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 700,
+  lineHeight: 1.55,
 }
 
 const statusStrip: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
 }
 
@@ -3160,7 +3251,7 @@ const commandCenterHeader: CSSProperties = {
 
 const commandCenterGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
 }
 
@@ -3215,7 +3306,9 @@ const captainValueTitleStyle: CSSProperties = {
 
 const captainValueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })
 
@@ -3254,10 +3347,10 @@ const commandCenterLabelCluster: CSSProperties = {
 }
 
 const commandCenterLabel: CSSProperties = {
-  color: '#93c5fd',
+  color: 'var(--brand-blue-2)',
   fontSize: 12,
   fontWeight: 900,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -3284,7 +3377,7 @@ const commandCenterActionRow: CSSProperties = {
 
 const nextActionShell: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(320px, 1.1fr)',
+  gridTemplateColumns: 'minmax(0, 0.9fr) minmax(min(100%, 320px), 1.1fr)',
   gap: 18,
   padding: 22,
   borderRadius: 28,
@@ -3419,14 +3512,48 @@ const scopeBanner: CSSProperties = {
 }
 
 const scopeBannerWarn: CSSProperties = {
-  background: 'rgba(245, 158, 11, 0.12)',
-  border: '1px solid rgba(245, 158, 11, 0.2)',
-  color: '#fde68a',
+  background: 'color-mix(in srgb, #f59e0b 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, #f59e0b 22%, var(--shell-panel-border) 78%)',
+  color: 'var(--foreground-strong)',
+}
+
+const captainDataAssistCueStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  maxWidth: 940,
+  padding: '12px 14px',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+}
+
+const captainDataAssistLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 950,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const glanceGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
   gap: 16,
 }
 
@@ -3584,7 +3711,7 @@ const notesScopeBanner: CSSProperties = {
 
 const notesGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: 16,
 }
 
@@ -3620,7 +3747,7 @@ const notesTextarea: CSSProperties = {
 
 const captainLaneGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: 16,
 }
 
@@ -3674,7 +3801,7 @@ const captainLaneActions: CSSProperties = {
 
 const insightGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   gap: 18,
 }
 
@@ -3766,7 +3893,7 @@ const emptyLine: CSSProperties = {
 
 const summaryGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 14,
 }
 
@@ -3781,7 +3908,7 @@ const miniStatLabel: CSSProperties = {
   fontSize: 12,
   color: 'var(--shell-copy-muted)',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   fontWeight: 800,
 }
 
@@ -3852,7 +3979,7 @@ const captainStatusPill: CSSProperties = {
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.03em',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
 }
 
 function getCaptainRatingStatus(base: number, dynamic: number): RatingStatus {

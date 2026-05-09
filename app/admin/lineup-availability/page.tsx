@@ -500,7 +500,7 @@ export default function LineupAvailabilityPage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
             gap: 16,
             marginBottom: 18,
           }}
@@ -707,7 +707,7 @@ export default function LineupAvailabilityPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
                 gap: 16,
               }}
             >
@@ -757,7 +757,7 @@ export default function LineupAvailabilityPage() {
                         </div>
                       </div>
 
-                      <div className="badge badge-blue" style={{ whiteSpace: 'nowrap' }}>
+                      <div className="badge badge-blue" style={{ whiteSpace: 'normal' }}>
                         TIQ S {formatRating(player.singlesDynamic)} · D {formatRating(player.doublesDynamic)} | USTA S {formatRating(player.singlesUstaDynamic)} · D {formatRating(player.doublesUstaDynamic)}
                       </div>
                     </div>

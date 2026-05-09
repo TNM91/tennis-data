@@ -108,7 +108,7 @@ const btnPrimary: CSSProperties = {
   fontSize: 14,
   border: 'none',
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 const btnSecondary: CSSProperties = {
   padding: '8px 12px',
@@ -133,7 +133,7 @@ const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
 const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
 const pillAmber: CSSProperties = { ...pill, background: 'rgba(251,191,36,0.13)', color: '#fbbf24' }
-const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 18 }
+const scorekeeperGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 10, marginTop: 18 }
 const scorekeeperTile: CSSProperties = {
   padding: '14px 16px',
   borderRadius: 14,
@@ -143,7 +143,7 @@ const scorekeeperTile: CSSProperties = {
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05 }
 const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6 }
-const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginTop: 16 }
+const flowStrip: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 10, marginTop: 16 }
 const flowStep: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '32px 1fr',
@@ -197,7 +197,7 @@ const readinessText: CSSProperties = {
 }
 const readinessGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 10,
 }
 const readinessItem: CSSProperties = {
@@ -233,7 +233,7 @@ const resultMeta: CSSProperties = { color: '#94a3b8', fontSize: 13, lineHeight: 
 const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }
 const insightGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: 14,
   marginTop: 18,
 }
@@ -270,7 +270,7 @@ const emptyCard: CSSProperties = {
 const reviewToolbar: CSSProperties = {
   ...card,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
   alignItems: 'end',
 }

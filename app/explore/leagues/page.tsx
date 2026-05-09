@@ -29,6 +29,7 @@ import {
 } from '@/lib/tiq-individual-results-summary'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import { type UserRole } from '@/lib/roles'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
 
@@ -232,9 +233,9 @@ export default function ExploreLeaguesPage() {
           <div style={heroGridStyle}>
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={eyebrowStyle}>Explore leagues</div>
-              <h1 style={titleStyle}>Browse USTA and TIQ leagues without mixing their context.</h1>
+              <h1 style={titleStyle}>Browse imported TennisLink and TIQ leagues without mixing their context.</h1>
               <p style={descriptionStyle}>
-                Keep official league history, ratings, flights, and team structure clear while TIQ leagues
+                Keep uploaded league history, ratings, flights, and team structure clear while TIQ leagues
                 stay focused on planning, play, and captain workflows.
               </p>
 
@@ -255,9 +256,8 @@ export default function ExploreLeaguesPage() {
               <div style={heroPanelLabelStyle}>Product model</div>
               <div style={heroPanelValueStyle}>One player, multiple competition contexts.</div>
               <div style={heroPanelTextStyle}>
-                USTA answers status questions. TIQ answers strategy questions. These routes now keep
-                the two concepts structurally separate instead of blending them into one mixed league
-                list.
+                Data Assist keeps TennisLink exports reviewable. TIQ answers strategy questions. These routes
+                keep the two concepts structurally separate instead of blending them into one mixed league list.
               </div>
             </div>
           </div>
@@ -347,8 +347,8 @@ export default function ExploreLeaguesPage() {
               eyebrow={getCompetitionLayerLabel('usta')}
               description={getCompetitionLayerDescription('usta')}
               leagues={ustaLeagues}
-              emptyTitle="No USTA leagues matched this view."
-              emptyBody="Try widening the search, or switch back to all layers if you filtered down too far."
+              emptyTitle="No imported TennisLink leagues matched this view."
+              emptyBody={`Try widening the search, switch back to all layers, or use Data Assist if this season should already be visible. ${DATA_ASSIST_STORY.shortCue}`}
             />
 
             <LeagueSection
@@ -448,6 +448,7 @@ function LeagueSection({
           <div style={emptyTitleStyle}>{emptyTitle}</div>
           <div style={emptyBodyStyle}>{emptyBody}</div>
           <div style={emptyActionRowStyle}>
+            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
             <GhostLink href="/compete">Open Compete</GhostLink>
             <GhostLink href="/captain">Open Captain</GhostLink>
           </div>
@@ -499,7 +500,8 @@ function LeagueSection({
 }
 
 const wrapStyle: CSSProperties = {
-  padding: '14px 16px 28px',
+  padding: '14px clamp(14px, 3vw, 16px) 28px',
+  minWidth: 0,
 }
 
 const heroStyle: CSSProperties = {
@@ -512,6 +514,7 @@ const heroStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
 }
 
 const noiseStyle: CSSProperties = {
@@ -546,8 +549,9 @@ const titleStyle: CSSProperties = {
   maxWidth: '760px',
   fontSize: 'clamp(34px, 5vw, 58px)',
   lineHeight: 0.98,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   color: '#f4f9ff',
+  overflowWrap: 'anywhere',
 }
 
 const descriptionStyle: CSSProperties = {
@@ -644,6 +648,7 @@ const filterBarStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))',
   gap: '16px',
   marginTop: '24px',
+  minWidth: 0,
 }
 
 const searchGroupStyle: CSSProperties = {
@@ -736,7 +741,7 @@ const sectionTitleStyle: CSSProperties = {
   margin: '8px 0 0',
   fontSize: '34px',
   lineHeight: 1.05,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   color: '#f4f9ff',
 }
 
@@ -752,6 +757,7 @@ const gridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))',
   gap: '16px',
   marginTop: '20px',
+  minWidth: 0,
 }
 
 const cardStyle: CSSProperties = {
@@ -764,6 +770,7 @@ const cardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   textDecoration: 'none',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const cardMetaRowStyle: CSSProperties = {
@@ -801,6 +808,7 @@ const cardTitleStyle: CSSProperties = {
   lineHeight: 1.1,
   fontWeight: 800,
   color: '#f4f9ff',
+  overflowWrap: 'anywhere',
 }
 
 const cardSubtitleStyle: CSSProperties = {
@@ -904,7 +912,7 @@ const errorStyle: CSSProperties = {
 
 const upgradeGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '16px',
   marginBottom: '24px',
 }

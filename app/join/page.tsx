@@ -43,36 +43,36 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     eyebrow: 'Player path',
     mobileTitle: 'Set up your lab.',
     desktopTitle: 'Create your account. Make TenAceIQ personal.',
-    mobileText: 'Start with an account, then connect your player identity.',
-    desktopText: 'Player starts with your account, then opens My Lab, follows, matchup reads, and player-linked prep around your game.',
-    formCue: 'After signup, connect your player record so My Lab can revolve around your tennis.',
-    success: 'Account created. Sign in, then connect your player identity for My Lab.',
+    mobileText: 'Create the free account first. Player unlocks after the plan is active.',
+    desktopText: 'Player starts with a free account, then unlocks My Lab, follows, matchup reads, and player-linked prep after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Player next, then connect your player record so My Lab can revolve around your tennis.',
+    success: 'Free account created. Sign in, then activate Player and connect your player identity for My Lab.',
   },
   captain: {
     eyebrow: 'Captain path',
     mobileTitle: 'Set up Captain.',
     desktopTitle: 'Create your account. Run the team week.',
-    mobileText: 'Start with an account, then open the captain workflow.',
-    desktopText: 'Captain starts with your account, then brings lineups, scouting, readiness, and weekly team decisions into one flow.',
-    formCue: 'After signup, open Captain tools to start organizing lineups, scouting, and readiness.',
-    success: 'Account created. Sign in, then open Captain tools.',
+    mobileText: 'Create the free account first. Captain unlocks after the plan is active.',
+    desktopText: 'Captain starts with a free account, then unlocks lineups, scouting, readiness, and weekly team decisions after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Captain next, then open the team-week workflow.',
+    success: 'Free account created. Sign in, then activate Captain to open team-week tools.',
   },
   league: {
     eyebrow: 'Coordinator path',
     mobileTitle: 'Set up league tools.',
     desktopTitle: 'Create your account. Operate the season.',
-    mobileText: 'Start with an account, then set up the league path.',
-    desktopText: 'Coordinator starts with your account, then supports league structure, visibility, rankings, schedules, results, and admin workflows.',
-    formCue: 'After signup, move into league setup when you are ready to organize the season.',
-    success: 'Account created. Sign in, then continue into league setup.',
+    mobileText: 'Create the free account first. Coordinator tools unlock after access is active.',
+    desktopText: 'Coordinator starts with a free account, then unlocks league structure, visibility, rankings, schedules, results, and admin workflows after access is active.',
+    formCue: 'Signup creates Free access. Activate Coordinator access next, then move into league setup.',
+    success: 'Free account created. Sign in, then activate Coordinator access to continue league setup.',
   },
 }
 
 const JOIN_UNLOCK_STEPS: Record<MembershipTierId, string[]> = {
-  free: ['Create account', 'Explore public tennis context', 'Upgrade only when a tool helps'],
-  player_plus: ['Create account', 'Connect your player identity', 'Open My Lab and Matchup'],
-  captain: ['Create account', 'Open Captain tools', 'Start lineup and readiness work'],
-  league: ['Create account', 'Open league setup', 'Structure teams, players, and results'],
+  free: ['Create free account', 'Explore public tennis context', 'Upgrade only when a tool helps'],
+  player_plus: ['Create free account', 'Activate Player plan', 'Connect identity and open My Lab'],
+  captain: ['Create free account', 'Activate Captain plan', 'Start lineup and readiness work'],
+  league: ['Create free account', 'Activate Coordinator access', 'Structure teams, players, and results'],
 }
 
 function getJoinNextRoute(planId: MembershipTierId) {
@@ -225,7 +225,7 @@ export default function JoinPage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
     padding: isMobile ? '22px 18px' : '34px 26px',
     gap: isMobile ? '14px' : '24px',
   }
@@ -275,6 +275,11 @@ export default function JoinPage() {
             <div style={selectedPlanLabelStyle}>Selected path</div>
             <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
             <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
+            {selectedPlanId !== 'free' ? (
+              <div style={entitlementNoticeStyle}>
+                Account creation starts Free access. {selectedTier.name} opens after the plan is active.
+              </div>
+            ) : null}
             <div style={selectedPlanStepGridStyle}>
               {JOIN_UNLOCK_STEPS[selectedPlanId].map((step, index) => (
                 <span key={step} style={selectedPlanStepStyle}>
@@ -439,7 +444,7 @@ export default function JoinPage() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Creating account...' : 'Create free account'}
+                {submitting ? 'Creating account...' : selectedPlanId === 'free' ? 'Create free account' : 'Create free account first'}
               </button>
 
               {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
@@ -550,6 +555,17 @@ const selectedPlanTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.55,
   fontWeight: 750,
+}
+
+const entitlementNoticeStyle: CSSProperties = {
+  padding: '10px 12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 800,
 }
 
 const selectedPlanStepGridStyle: CSSProperties = {

@@ -14,7 +14,7 @@ import {
   PRICING_PROOF_POINTS,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
-import { getMembershipTier } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanSignupHref } from '@/lib/plan-intent'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -63,6 +63,12 @@ const VALUE_MOMENTS: {
     icon: 'teamRankings',
     href: '#league',
   },
+  {
+    title: 'Need fresher data?',
+    cue: DATA_ASSIST_STORY.shortCue,
+    icon: 'reports',
+    href: DATA_ASSIST_STORY.href,
+  },
 ]
 
 const PERSONALIZATION_FLOW: {
@@ -71,8 +77,8 @@ const PERSONALIZATION_FLOW: {
   icon: TiqFeatureIconName
 }[] = [
   {
-    title: 'Create account',
-    cue: 'Start free and explore the tennis landscape.',
+    title: 'Create free account',
+    cue: 'Start Free access. Paid tools unlock only when that plan is active.',
     icon: 'accountSecurity',
   },
   {
@@ -84,6 +90,11 @@ const PERSONALIZATION_FLOW: {
     title: 'Open your tools',
     cue: 'Open the Player, Captain, or Coordinator workspace that matches your role.',
     icon: 'myLab',
+  },
+  {
+    title: 'Refresh context',
+    cue: 'Upload scorecards, schedules, or team summaries through Data Assist when the site needs new tennis data.',
+    icon: 'reports',
   },
 ]
 
@@ -650,6 +661,8 @@ const fitMatrixShellStyle: CSSProperties = {
     'linear-gradient(180deg, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 0%, var(--shell-panel-bg) 100%)',
   boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
   overflowX: 'auto',
+  maxWidth: '100%',
+  minWidth: 0,
 }
 
 const fitMatrixHeaderStyle: CSSProperties = {
@@ -671,9 +684,9 @@ const fitMatrixTitleStyle: CSSProperties = {
 
 const fitMatrixGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(210px, 1.25fr) repeat(4, minmax(132px, 1fr))',
+  gridTemplateColumns: 'minmax(min(100%, 190px), 1.25fr) repeat(4, minmax(min(100%, 112px), 1fr))',
   gap: 8,
-  minWidth: 760,
+  minWidth: 0,
 }
 
 const fitMatrixMobileStackStyle: CSSProperties = {
@@ -688,7 +701,7 @@ const fitMatrixMobileCardStyle: CSSProperties = {
 
 const fitMatrixMobilePlanGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 136px), 1fr))',
   gap: 8,
 }
 
@@ -809,7 +822,7 @@ const unlockPathTitleStyle: CSSProperties = {
 
 const unlockPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 }
 
@@ -878,18 +891,20 @@ const unlockStepPillStyle: CSSProperties = {
 }
 
 const pageWrapStyle: CSSProperties = {
-  width: 'min(1280px, calc(100% - 32px))',
+  width: 'min(1280px, calc(100% - 28px))',
+  maxWidth: '100%',
   margin: '0 auto',
   padding: '20px 0 36px',
   display: 'grid',
   gap: 20,
+  minWidth: 0,
 }
 
 const heroStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
-  padding: 28,
-  borderRadius: 30,
+  padding: 'clamp(20px, 3vw, 28px)',
+  borderRadius: 24,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 24px 56px rgba(2, 10, 24, 0.14)',
@@ -918,6 +933,7 @@ const heroTitleStyle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: 980,
+  overflowWrap: 'anywhere',
 }
 
 const heroTextStyle: CSSProperties = {
@@ -956,7 +972,7 @@ const proofPillStyle: CSSProperties = {
 
 const decisionPathStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
   padding: 12,
   borderRadius: 24,
@@ -1075,7 +1091,7 @@ const identityBridgeTitleStyle: CSSProperties = {
 
 const identityFlowGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 }
 
@@ -1109,7 +1125,7 @@ const identityFlowCueStyle: CSSProperties = {
 
 const cardGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: 16,
 }
 
@@ -1385,7 +1401,7 @@ const billingPolicyTextStyle: CSSProperties = {
 
 const supportGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   gap: 16,
 }
 

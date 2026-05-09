@@ -1,7 +1,7 @@
 'use client'
 
-import type { CompetitionLayer, LeagueFormat } from '@/lib/competition-layers'
-import type { LeagueCard } from '@/lib/league-summary'
+import type { CompetitionLayer, LeagueFormat } from './competition-layers'
+import type { LeagueCard } from './league-summary'
 import {
   DEFAULT_TIQ_LEAGUE_MAX_MATCH_EVENTS,
   DEFAULT_TIQ_LEAGUE_MAX_WEEKS,
@@ -9,13 +9,13 @@ import {
   normalizeTiqLeagueMaxWeeks,
   normalizeTiqLeagueSeasonStatus,
   type TiqLeagueSeasonStatus,
-} from '@/lib/tiq-league-limits'
+} from './tiq-league-limits'
 import {
   normalizeTiqIndividualCompetitionFormat,
   type TiqIndividualCompetitionFormat,
-} from '@/lib/tiq-individual-format'
-import { normalizeSeasonLabel } from '@/lib/season-labels'
-import { getDynamicPointsRulesSummary } from '@/lib/tiq-scoring'
+} from './tiq-individual-format'
+import { normalizeSeasonLabel } from './season-labels'
+import { getDynamicPointsRulesSummary } from './tiq-scoring'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 

@@ -376,7 +376,7 @@ export default function ScorecardReviewPanel({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(220px, 260px) 1fr',
+          gridTemplateColumns: 'minmax(min(100%, 220px), 260px) 1fr',
           gap: 14,
           marginTop: 18,
         }}

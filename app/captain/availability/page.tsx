@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -978,7 +978,7 @@ function MetricCard({
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(330px, 0.84fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(min(100%, 330px), 0.84fr)',
     padding: isMobile ? '26px 18px' : '34px 26px',
     gap: isMobile ? '18px' : '22px',
   }

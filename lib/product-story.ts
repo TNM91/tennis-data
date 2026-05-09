@@ -8,6 +8,7 @@ export const PRODUCT_PRINCIPLES = [
   'Simple tiers',
   'Clear upgrade value',
   'Tennis-specific intelligence',
+  'User-uploaded Data Assist refreshes',
   'Practical tools over generic dashboards',
   'Personalized insight for players',
   'Team decision support for captains',
@@ -21,7 +22,24 @@ export const PRODUCT_AVOID_LIST = [
   'Decorative pages that do not help users act',
   'Tier confusion',
   'Copy that sounds disconnected from tennis',
+  'Promises that imply direct USTA API dependence',
 ] as const
+
+export const DATA_ASSIST_STORY = {
+  eyebrow: 'Data Assist',
+  headline: 'Keep tennis context current with trusted uploads.',
+  body:
+    'TenAceIQ uses player, captain, coordinator, and admin uploads instead of relying on a direct USTA API. Upload TennisLink exports for scorecards, schedules, and team summaries, then review before they shape platform intelligence.',
+  shortCue: 'Upload TennisLink exports through Data Assist when results, schedules, or rosters need to refresh.',
+  cta: 'Open Data Assist',
+  href: '/data-assist',
+  proof: [
+    'Scorecard uploads refresh match history',
+    'Schedule uploads power weekly planning',
+    'Team summaries improve roster context',
+    'Review keeps imported data trustworthy',
+  ],
+} as const
 
 export type MembershipTierId = 'free' | 'player_plus' | 'captain' | 'league'
 
@@ -47,6 +65,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
+      'Contribute TennisLink exports through Data Assist',
       'Understand the landscape before upgrading',
     ],
   },
@@ -77,6 +96,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
       'Build and compare lineups',
       'Scout players and teams',
       'Track availability and readiness',
+      'Use Data Assist uploads to keep match-week context fresh',
       'Make weekly team decisions with less guesswork',
     ],
   },
@@ -91,6 +111,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     valueProps: [
       'Approve teams or players before they enter the season',
       'Keep schedules, sites, and match details in one league home',
+      'Use Data Assist uploads for schedules, rosters, and official scorecards',
       'Turn results into standings without spreadsheet cleanup',
       'Give members a clear place to know who, when, where, and what happened',
     ],
@@ -183,7 +204,7 @@ export const MY_LAB_STORY = {
   eyebrow: 'Player home base',
   headline: 'Welcome to your tennis lab.',
   body:
-    'See where you are, how you are playing, what to work on next, and who makes sense to play.',
+    'See where you are, how you are playing, what to work on next, and who makes sense to play as uploaded results connect to your profile.',
   railKicker: 'Your home base',
   railTitle: 'Built around you',
   upgradeHeadline: 'Make My Lab yours',
@@ -232,12 +253,12 @@ export const CAPTAIN_STORY = {
   eyebrow: 'Captain unlock',
   headline: 'Run the week without chasing answers.',
   body:
-    'See who can play, build the lineup, test the choice, and send the plan from one captain workspace.',
+    'See who can play, build the lineup, test the choice, refresh match context through Data Assist, and send the plan from one captain workspace.',
   quickStartKicker: 'Captain weekly flow',
   quickStartTitle: 'Four steps to match day',
   activeTitle: 'Captain keeps this team organized.',
   activeBody:
-    'Save time, build smarter lineups, keep availability visible, and send team updates from one place.',
+    'Save time, build smarter lineups, keep availability visible, refresh results from uploads, and send team updates from one place.',
   upgradeHeadline: 'Still building the week from scattered texts?',
   upgradeBody:
     'Captain brings availability, lineup building, scenario testing, scouting, readiness, and team messaging into one weekly workflow.',
@@ -274,10 +295,10 @@ export const LEAGUE_COORDINATOR_STORY = {
   eyebrow: 'TIQ League Coordinator unlock',
   headline: 'Run the season from one place.',
   body:
-    'Approve entries, set the schedule shape, collect results, and keep standings moving so everyone can focus on playing.',
+    'Approve entries, set the schedule shape, collect Data Assist uploads, and keep standings moving so everyone can focus on playing.',
   subnavTitle: 'League Coordinator',
   subnavDescription:
-    'Manage league operations separately from weekly captain tools.',
+    'Manage league operations separately from weekly captain tools, with Data Assist as the upload path for schedules, rosters, and scorecards.',
   newLeagueTitle: 'Create league setup',
   newLeagueBody:
     'Choose team or individual format, name the season, set visibility, then approve participants.',
@@ -289,7 +310,7 @@ export const LEAGUE_COORDINATOR_STORY = {
     'TIQ League Coordinator turns setup into a season workspace where requests, scheduling, results, and standings stay together.',
   registryTitle: 'Current TIQ league definitions',
   registryBody:
-    'Manage the league records that power approvals, schedules, standings, results, and organizer workflows.',
+    'Manage the league records that power approvals, uploaded schedules, standings, results, and organizer workflows.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
     'TIQ League Coordinator turns league records into one cleaner system for scheduling, standings, participation, and league-wide clarity.',

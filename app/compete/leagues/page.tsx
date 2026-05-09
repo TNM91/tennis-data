@@ -329,12 +329,12 @@ const upgradeTitleStyle = {
   fontSize: 'clamp(1.4rem, 2vw, 2rem)',
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 } as const
 
 const upgradeGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: '16px',
 } as const
 
@@ -439,7 +439,7 @@ const rowMetaStrongStyle = {
   color: '#dffad5',
   fontSize: '13px',
   fontWeight: 800,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 } as const
 
 const rowLinkStyle = {
@@ -447,5 +447,5 @@ const rowLinkStyle = {
   fontSize: '13px',
   fontWeight: 800,
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 } as const

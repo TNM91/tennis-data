@@ -14,6 +14,7 @@ import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
@@ -681,8 +682,11 @@ export default function PlayersPage() {
             <div style={sectionKicker}>Directory reset</div>
             <div style={emptyStateTitle}>No players matched the current directory view.</div>
             <p style={emptyStateText}>
-              Try a broader name or location search, or reset the sort and filter controls to reopen the full player board.
+              Try a broader name or location search, reset the filters, or refresh roster and scorecard context through Data Assist.
             </p>
+            <Link href={DATA_ASSIST_STORY.href} style={secondaryLink}>
+              {DATA_ASSIST_STORY.cta}
+            </Link>
           </div>
         ) : (
           <div style={dynamicCardGrid}>
@@ -982,6 +986,7 @@ const heroShell: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
+  minWidth: 0,
 }
 
 const heroNoise: CSSProperties = {
@@ -1033,7 +1038,8 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -1081,14 +1087,14 @@ const controlsLabel: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '15px',
   fontWeight: 800,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 }
 
 const controlsHint: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const controlsRow: CSSProperties = {
@@ -1210,7 +1216,7 @@ const summaryTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '24px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginBottom: '14px',
 }
 
@@ -1245,7 +1251,7 @@ const statChipValue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '20px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const summaryFooterWrap: CSSProperties = {
@@ -1276,7 +1282,8 @@ const contentWrap: CSSProperties = {
   zIndex: 2,
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '0 18px 0',
+  padding: '0 clamp(14px, 3vw, 18px) 0',
+  minWidth: 0,
 }
 
 const sectionHeader: CSSProperties = {
@@ -1301,7 +1308,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '30px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const sectionText: CSSProperties = {
@@ -1370,6 +1377,7 @@ const playerCard: CSSProperties = {
   padding: '20px',
   boxShadow: 'var(--shadow-soft)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+  minWidth: 0,
 }
 
 const playerCardHover: CSSProperties = {
@@ -1396,6 +1404,7 @@ const playerCardTopRow: CSSProperties = {
   alignItems: 'center',
   gap: '10px',
   marginBottom: '14px',
+  flexWrap: 'wrap',
 }
 
 const miniKicker: CSSProperties = {
@@ -1427,9 +1436,10 @@ const playerName: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '28px',
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   lineHeight: 1.05,
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const playerNameLink: CSSProperties = {
@@ -1450,7 +1460,7 @@ const playerScorecard: CSSProperties = {
   position: 'relative',
   zIndex: 2,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
   gap: '10px',
   marginBottom: '16px',
 }
@@ -1480,7 +1490,7 @@ const scoreValue: CSSProperties = {
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 950,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
 }
 
 const playerScoreMiniGrid: CSSProperties = {
@@ -1612,7 +1622,7 @@ const signalTrendPill: CSSProperties = {
   borderRadius: '999px',
   fontSize: '11px',
   fontWeight: 800,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const signalConfidencePill: CSSProperties = {
@@ -1661,5 +1671,5 @@ const deltaValue: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }

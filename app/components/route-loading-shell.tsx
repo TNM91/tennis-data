@@ -103,14 +103,14 @@ const shellStyle: CSSProperties = {
 const cardGridStyle: CSSProperties = {
   width: '100%',
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 16,
 }
 
 const dashboardStyle: CSSProperties = {
   width: '100%',
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 14,
 }
 

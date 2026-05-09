@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -1557,7 +1557,7 @@ function MetricStat({ label, value }: { label: string; value: string }) {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
     padding: isMobile ? '26px 18px' : '34px 26px',
   }
@@ -1580,14 +1580,14 @@ function heroMetricGridStyle(isSmallMobile: boolean): CSSProperties {
 function builderLayoutResponsive(isTablet: boolean): CSSProperties {
   return {
     ...builderLayoutStyle,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 320px), 0.95fr)',
   }
 }
 
 function toggleGridResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...toggleGridStyle,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   }
 }
 
@@ -1760,7 +1760,7 @@ const contentWrap: CSSProperties = {
 
 const decisionBoardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '18px',
   alignItems: 'stretch',
   maxWidth: '1240px',
@@ -1790,7 +1790,7 @@ const decisionTitleStyle: CSSProperties = {
 
 const decisionMetricGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
   gap: '12px',
 }
 
@@ -1912,7 +1912,7 @@ const bannerMetaStyle: CSSProperties = {
 
 const formGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
 }
 
@@ -1955,7 +1955,7 @@ const actionRowStyle: CSSProperties = {
 
 const readinessGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '12px',
   marginTop: '18px',
 }
@@ -2122,7 +2122,7 @@ const slotLabelInputStyle: CSSProperties = {
 
 const slotPlayersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '12px',
 }
 
@@ -2209,7 +2209,7 @@ const statusBadgeStyle: CSSProperties = {
   borderRadius: '999px',
   fontWeight: 700,
   fontSize: '0.8rem',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const pillRowStyle: CSSProperties = {

@@ -173,7 +173,7 @@ export const sectionTitle: CSSProperties = {
   fontSize: 'clamp(1.4rem, 1.8vw, 2rem)',
   lineHeight: 1.1,
   fontWeight: 800,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   color: colors.textStrong,
 }
 
@@ -198,7 +198,7 @@ export const heroTitle: CSSProperties = {
   fontSize: 'clamp(2.2rem, 4vw, 4.3rem)',
   lineHeight: 0.95,
   fontWeight: 900,
-  letterSpacing: '-0.06em',
+  letterSpacing: 0,
 }
 
 export const heroSubtitle: CSSProperties = {
@@ -215,7 +215,7 @@ export const pageTitle: CSSProperties = {
   fontSize: 'clamp(2rem, 3vw, 3rem)',
   lineHeight: 1,
   fontWeight: 850,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 export const pageSubtitle: CSSProperties = {

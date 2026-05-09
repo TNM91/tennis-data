@@ -1189,7 +1189,7 @@ const pageStyle: CSSProperties = {
 
 const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(320px, 0.8fr)',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(min(100%, 320px), 0.8fr)',
   gap: isMobile ? 14 : 18,
   alignItems: 'stretch',
   marginBottom: 18,
@@ -1231,7 +1231,9 @@ const copyStyle: CSSProperties = {
 
 const workspaceGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(250px, 0.8fr) minmax(0, 1.35fr) minmax(280px, 0.85fr)',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'minmax(min(100%, 250px), 0.8fr) minmax(0, 1.35fr) minmax(min(100%, 280px), 0.85fr)',
   gap: 16,
   alignItems: 'start',
 })
@@ -1380,7 +1382,7 @@ const threadPreviewStyle: CSSProperties = {
   fontWeight: 700,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const threadMetaStyle: CSSProperties = {

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import AdminGate from '@/app/components/admin-gate'
+import { buildSupportMessageHref } from '@/lib/message-links'
 import { getMembershipTier } from '@/lib/product-story'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
@@ -321,9 +322,9 @@ export default function AdminUpgradeRequestsPage() {
                       <span style={dateStyle}>{formatRequestDate(request.createdAt)}</span>
                     </div>
                     <h2 style={cardTitleStyle}>{request.name || 'Unnamed request'}</h2>
-                    <a href={`mailto:${request.email}`} style={emailStyle}>
+                    <span style={emailStyle}>
                       {request.email}
-                    </a>
+                    </span>
                     {request.organization ? (
                       <div style={metaLineStyle}>Team or league: {request.organization}</div>
                     ) : null}
@@ -345,9 +346,9 @@ export default function AdminUpgradeRequestsPage() {
                       >
                         Access control
                       </Link>
-                      <a href={buildMailtoHref(request)} className="button-primary">
-                        Follow up
-                      </a>
+                      <Link href={buildUpgradeRequestSupportHref(request)} className="button-primary">
+                        Open support thread
+                      </Link>
                       <button
                         type="button"
                         onClick={() => void activateRequest(request)}
@@ -523,20 +524,25 @@ function formatRequestDate(value: string) {
   return date.toLocaleString()
 }
 
-function buildMailtoHref(request: UpgradeRequestRecord) {
-  const subject = encodeURIComponent(`TenAceIQ ${request.planName} follow-up`)
-  const body = encodeURIComponent(
-    [
-      `Hi${request.name ? ` ${request.name}` : ''},`,
+function buildUpgradeRequestSupportHref(request: UpgradeRequestRecord) {
+  return buildSupportMessageHref({
+    category: 'billing',
+    subject: `TenAceIQ ${request.planName} follow-up`,
+    body: [
+      `Request: ${request.planName}`,
+      `Requester: ${request.name || 'Unnamed request'} <${request.email}>`,
+      request.organization ? `Team or league: ${request.organization}` : null,
+      request.userId ? `Account: ${request.userId}` : 'Account: not linked yet',
       '',
-      `Thanks for your interest in ${request.planName}. I saw that you want to:`,
+      'Tennis goal:',
       request.goal,
       '',
-      'What would be the best next step for your tennis setup?',
-    ].join('\n'),
-  )
-
-  return `mailto:${request.email}?subject=${subject}&body=${body}`
+      'Next step:',
+      'Follow up inside TenAceIQ support and coordinate access or activation from the admin queue.',
+    ].filter(Boolean).join('\n'),
+    entityType: 'billing',
+    entityId: request.id,
+  })
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -601,7 +607,7 @@ const heroStyle: CSSProperties = {
 
 const metricGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 12,
   marginTop: 8,
 }

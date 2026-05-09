@@ -757,7 +757,7 @@ const pageStyle: CSSProperties = {
 
 const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(320px, 0.75fr)',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
   gap: isMobile ? 18 : 24,
   padding: isMobile ? '20px 18px' : '30px 28px',
   borderRadius: isMobile ? 24 : 30,
@@ -984,7 +984,7 @@ const metricValueStyle: CSSProperties = {
 
 const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(320px, 0.75fr)',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.25fr) minmax(min(100%, 320px), 0.75fr)',
   gap: 18,
   marginTop: 18,
 })
@@ -1138,7 +1138,7 @@ const pillGreenStyle: CSSProperties = {
   padding: '7px 11px',
   fontSize: 12,
   fontWeight: 900,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const pillSlateStyle: CSSProperties = {
@@ -1155,7 +1155,7 @@ const formGridStyle = (isMobile: boolean): CSSProperties => ({
 
 const identityGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.2fr) minmax(280px, 0.8fr)',
+  gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.2fr) minmax(min(100%, 280px), 0.8fr)',
   gap: 12,
   alignItems: 'end',
 })

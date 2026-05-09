@@ -188,10 +188,10 @@ function DataAssistReviewQueue() {
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div className="section-kicker">Data Assist Review</div>
           <h1 className="page-title" style={{ marginTop: 8 }}>
-            TennisLink screenshot queue
+            Data Assist upload queue
           </h1>
           <p className="page-subtitle" style={{ maxWidth: 860 }}>
-            Monitor community-assisted screenshot batches, resolve exceptions, and keep imports behind trusted OCR checks.
+            Monitor player, captain, and coordinator TennisLink uploads, resolve exceptions, and keep imports behind trusted review checks.
           </p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 18 }}>
@@ -276,7 +276,7 @@ function DataAssistReviewQueue() {
                     <StatusBadge status={batch.status} />
                   </div>
                   <div className="subtle-text" style={{ marginTop: 7, fontSize: 13 }}>
-                    {batch.screenshotCount} screenshots - {Math.round(batch.confidenceScore * 100)}% confidence
+                    {batch.screenshotCount} upload file{batch.screenshotCount === 1 ? '' : 's'} - {Math.round(batch.confidenceScore * 100)}% confidence
                   </div>
                   <div className="subtle-text" style={{ marginTop: 6, fontSize: 12 }}>
                     {formatDate(batch.createdAt)}
@@ -291,7 +291,7 @@ function DataAssistReviewQueue() {
 
         <section className="surface-card" style={{ padding: 18, minHeight: 520 }}>
           {!selectedBatch ? (
-            <EmptyState text="Select a batch to review its screenshots and draft boundary." />
+            <EmptyState text="Select a batch to review its upload files and draft boundary." />
           ) : (
             <div>
               <BatchHeader batch={selectedBatch} />
@@ -312,7 +312,7 @@ function DataAssistReviewQueue() {
               </div>
 
               {detailLoading ? (
-                <EmptyState text="Loading screenshots and draft detail..." />
+                <EmptyState text="Loading upload files and draft detail..." />
               ) : (
                 <>
                   <ScorecardBoundary draft={selectedDraft} />
@@ -428,7 +428,7 @@ function ScorecardBoundary({ draft }: { draft: DataAssistAdminDraft | null }) {
   return (
     <div style={{ marginTop: 18 }}>
       <div className="section-kicker">Scorecard boundary</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 10 }}>
         {fields.map(([label, value]) => (
           <div key={label} style={{ padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
             <div className="metric-label">{label}</div>
@@ -514,10 +514,10 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
           </div>
 
           {latestJob ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 12 }}>
               <MiniFact label="Job" value={latestJob.id.slice(0, 8).toUpperCase()} />
               <MiniFact label="Provider" value={latestJob.provider} />
-              <MiniFact label="Screenshots" value={String(latestJob.screenshotCount)} />
+              <MiniFact label="Upload files" value={String(latestJob.screenshotCount)} />
               <MiniFact label="Processed" value={formatDate(latestJob.processedAt || latestJob.createdAt)} />
             </div>
           ) : null}
@@ -556,7 +556,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
                 ) : null}
               </div>
             ) : null}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: 10, marginTop: 12 }}>
               <MiniFact label="OCR confidence" value={formatPercent(ocrQuality.ocrConfidenceScore)} />
               <MiniFact label="Parser confidence" value={formatPercent(ocrQuality.parserConfidenceScore ?? parsedPayload.confidenceScore)} />
               <MiniFact label="Parsed lines" value={String(ocrQuality.parsedLineCount ?? parsedPayload.lines?.length ?? 0)} />
@@ -578,7 +578,7 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
                     }}
                   >
                     <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
-                      #{summary.uploadOrder || '?'} {summary.fileName || 'Screenshot'}
+                      #{summary.uploadOrder || '?'} {summary.fileName || 'Upload file'}
                     </div>
                     <div className="subtle-text" style={{ marginTop: 5, fontSize: 12 }}>
                       {formatPercent(summary.confidenceScore)} OCR - {summary.nonEmptyLineCount ?? 0} lines - {summary.duplicateLineCount ?? 0} overlap lines removed
@@ -642,8 +642,8 @@ function MiniFact({ label, value }: { label: string; value: string }) {
 function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreenshot[] }) {
   return (
     <div style={{ marginTop: 18 }}>
-      <div className="section-kicker">Screenshots</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 10 }}>
+      <div className="section-kicker">Upload Files</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12, marginTop: 10 }}>
         {screenshots.length ? (
           screenshots.map((screenshot) => (
             <div key={screenshot.id} style={{ overflow: 'hidden', borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
@@ -652,7 +652,7 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={screenshot.signedImageUrl}
-                    alt={`TennisLink screenshot ${screenshot.uploadOrder}`}
+                    alt={`TennisLink upload ${screenshot.uploadOrder}`}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                 ) : (
@@ -688,7 +688,7 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
             </div>
           ))
         ) : (
-          <EmptyState text="No screenshot metadata found for this batch." />
+          <EmptyState text="No upload metadata found for this batch." />
         )}
       </div>
     </div>
@@ -699,7 +699,7 @@ function DraftSummary({ draft }: { draft: DataAssistAdminDraft | null }) {
   if (!draft) return <EmptyState text="No draft row found for this batch." />
 
   return (
-    <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+    <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
       <div style={{ padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
         <div className="metric-label">Draft status</div>
         <div style={{ marginTop: 8 }}>

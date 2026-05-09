@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -3897,7 +3897,7 @@ function MetricMini({ label, value, pill }: { label: string; value: string; pill
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(320px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 320px), 0.95fr)',
     gap: isMobile ? 18 : 24,
     padding: isMobile ? '26px 18px' : '34px 26px',
   }
@@ -3995,7 +3995,7 @@ const heroTextStyle: CSSProperties = {
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
   marginTop: 22,
 }
@@ -4028,7 +4028,7 @@ const heroStatusText: CSSProperties = {
 
 const heroStatusButtonRow: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
 }
 
@@ -4132,7 +4132,7 @@ const messagePlaybookSurfaceStyle: CSSProperties = {
 
 const messagePlaybookGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 12,
   marginTop: 16,
 }
@@ -4175,7 +4175,7 @@ const messagePlaybookTextStyle: CSSProperties = {
 
 const teamRoomGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
   marginTop: 16,
 }
@@ -4206,7 +4206,7 @@ const builderHandoffSurfaceStyle: CSSProperties = {
 
 const builderHandoffGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 12,
   marginTop: 16,
 }
@@ -4287,8 +4287,8 @@ const sectionTitleSmall: CSSProperties = {
 
 const sectionBodyTextStyle: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', lineHeight: 1.65, maxWidth: 780 }
 
-const filtersGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }
-const statsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12 }
+const filtersGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14 }
+const statsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))', gap: 12 }
 const miniMetricCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
 const miniMetricValueStyle: CSSProperties = { color: 'var(--foreground)', fontSize: '1.15rem', fontWeight: 900, marginBottom: 10 }
 
@@ -4334,7 +4334,7 @@ const composerPreviewTitleStyle: CSSProperties = {
 
 const composerPreviewGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
 }
 
@@ -4404,19 +4404,19 @@ const singlePlayerGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 
 const linkButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#9cc6ff', fontWeight: 800, cursor: 'pointer', padding: 0 }
 const linkButtonStyleDanger: CSSProperties = { ...linkButtonStyle, color: '#fca5a5' }
 const recipientChooserStyle: CSSProperties = { maxHeight: 180, overflow: 'auto', borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', padding: 12, display: 'grid', gap: 8, marginBottom: 14 }
-const checkboxGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 14 }
+const checkboxGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginBottom: 14 }
 const checkboxRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, color: 'var(--foreground)' }
-const actionRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 16 }
-const actionRowStyleCompact: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 12 }
+const actionRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 12, marginTop: 16 }
+const actionRowStyleCompact: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))', gap: 12 }
 
-const templateGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }
+const templateGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }
 const templateCardStyle: CSSProperties = { borderRadius: 18, padding: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
 const templateTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontWeight: 800 }
 const templateBodyStyle: CSSProperties = { color: 'var(--shell-copy-muted)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }
 
 const intelligenceGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4485,7 +4485,7 @@ const blockingMetaStyle: CSSProperties = {
 
 const recipientIntelligenceGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4523,7 +4523,7 @@ const recipientIntelligenceTextStyle: CSSProperties = {
 
 const sendStrategyGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4561,7 +4561,7 @@ const sendStrategyTextStyle: CSSProperties = {
 
 const weeklyCommandGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4599,7 +4599,7 @@ const weeklyCommandTextStyle: CSSProperties = {
 
 const actionQueueGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4651,7 +4651,7 @@ const actionQueueTextStyle: CSSProperties = {
 
 const executionChecklistGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4687,7 +4687,7 @@ const executionChecklistDetailStyle: CSSProperties = {
 
 const outcomePlannerGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4725,7 +4725,7 @@ const outcomePlannerTextStyle: CSSProperties = {
 
 const sequencePlannerGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4777,7 +4777,7 @@ const sequencePlannerTextStyle: CSSProperties = {
 
 const launchSnapshotGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4815,7 +4815,7 @@ const launchSnapshotTextStyle: CSSProperties = {
 
 const sendConfidenceGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4853,7 +4853,7 @@ const sendConfidenceTextStyle: CSSProperties = {
 
 const sendGateGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4891,7 +4891,7 @@ const sendGateTextStyle: CSSProperties = {
 
 const riskRadarGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }
@@ -4929,7 +4929,7 @@ const riskRadarTextStyle: CSSProperties = {
 
 const deliveryReadinessGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
   marginTop: 4,
 }

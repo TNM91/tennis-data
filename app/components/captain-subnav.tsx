@@ -123,7 +123,7 @@ const descriptionStyle: CSSProperties = {
 
 const gridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(176px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
   gap: 12,
 }
 
@@ -219,7 +219,7 @@ const moreToolsSummaryStyle: CSSProperties = {
 
 const secondaryGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 12,
 }

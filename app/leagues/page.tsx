@@ -218,12 +218,12 @@ export default function LeaguesPage() {
 
   const dynamicFilterGrid: CSSProperties = {
     ...filterGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))',
+    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   }
 
   const dynamicCardGrid: CSSProperties = {
     ...cardGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   }
 
   const dynamicLeagueDetailGrid: CSSProperties = {
@@ -714,7 +714,7 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -781,7 +781,7 @@ const coverageValue: CSSProperties = {
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const coverageText: CSSProperties = {
@@ -822,7 +822,7 @@ const editorialText: CSSProperties = {
 const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
 }
 
 const editorialCard: CSSProperties = {
@@ -847,7 +847,7 @@ const editorialCardValue: CSSProperties = {
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const editorialCardText: CSSProperties = {
@@ -891,7 +891,7 @@ const metricValue: CSSProperties = {
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const panelCard: CSSProperties = {
@@ -928,7 +928,7 @@ const panelTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const filterGrid: CSSProperties = {
@@ -1201,7 +1201,7 @@ const leagueTitle: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const leagueFlight: CSSProperties = {
@@ -1237,7 +1237,7 @@ const primaryButton: CSSProperties = {
   fontSize: '13px',
   letterSpacing: '0.01em',
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
 }
 

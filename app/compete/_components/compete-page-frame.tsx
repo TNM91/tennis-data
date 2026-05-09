@@ -101,7 +101,7 @@ export default function CompetePageFrame({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(360px, 0.94fr)',
+                gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(min(100%, 360px), 0.94fr)',
                 gap: isTablet ? '14px' : '0',
                 minHeight: isTablet ? 'auto' : '560px',
               }}
@@ -130,7 +130,7 @@ export default function CompetePageFrame({
                       margin: 0,
                       fontSize: isSmallMobile ? '42px' : isMobile ? '50px' : isTablet ? '58px' : '70px',
                       lineHeight: isMobile ? 1.02 : 0.98,
-                      letterSpacing: '-0.06em',
+                      letterSpacing: 0,
                       fontWeight: 900,
                       color: 'var(--foreground-strong)',
                     }}
@@ -293,7 +293,7 @@ function HeroSignal({
           color: 'var(--foreground-strong)',
           fontSize: '24px',
           fontWeight: 900,
-          letterSpacing: '-0.05em',
+          letterSpacing: 0,
         }}
       >
         {value}
@@ -350,7 +350,7 @@ export function CompeteGrid({ children }: { children: ReactNode }) {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
         gap: '16px',
       }}
     >
@@ -379,7 +379,7 @@ function SubnavLink({ href, label }: { href: string; label: string }) {
         color: 'var(--foreground-strong)',
         fontSize: '17px',
         fontWeight: 800,
-        letterSpacing: '-0.03em',
+        letterSpacing: 0,
         textDecoration: 'none',
         boxShadow: 'var(--shadow-soft)',
       }}
@@ -479,7 +479,7 @@ const cardTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const cardTextStyle: CSSProperties = {

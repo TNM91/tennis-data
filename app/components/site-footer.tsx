@@ -47,7 +47,7 @@ export default function SiteFooter() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: isTablet ? '1fr' : 'minmax(320px, 1fr) auto',
+            gridTemplateColumns: isTablet ? '1fr' : 'minmax(min(100%, 320px), 1fr) auto',
             gap: isMobile ? 14 : 18,
             alignItems: 'center',
           }}
@@ -192,7 +192,7 @@ const footerPrimaryCtaStyle = {
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
   boxShadow: '0 12px 24px rgba(155, 225, 29, 0.10)',
 } as const
 
@@ -209,12 +209,12 @@ const footerSecondaryCtaStyle = {
   textDecoration: 'none',
   fontSize: '14px',
   fontWeight: 800,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 } as const
 
 const footerJourneyGridStyle = (isMobile: boolean) => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: isMobile ? '8px' : '12px',
   paddingTop: 12,
   borderTop: '1px solid rgba(116, 190, 255, 0.08)',

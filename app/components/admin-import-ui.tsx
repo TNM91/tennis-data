@@ -107,7 +107,7 @@ export function AdminInvalidRowsTable({
           fontSize: '1.08rem',
           fontWeight: 800,
           color: '#F8FBFF',
-          letterSpacing: '-0.02em',
+          letterSpacing: 0,
         }}
       >
         {title}
@@ -156,7 +156,7 @@ export function AdminImportPreviewTable({
           fontSize: '1.08rem',
           fontWeight: 800,
           color: '#F8FBFF',
-          letterSpacing: '-0.02em',
+          letterSpacing: 0,
         }}
       >
         {title}

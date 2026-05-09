@@ -445,7 +445,7 @@ export default function AddMatchPage() {
                     fontSize: '1.2rem',
                     fontWeight: 800,
                     color: 'var(--foreground)',
-                    letterSpacing: '-0.03em',
+                    letterSpacing: 0,
                   }}
                 >
                   Side A
@@ -498,7 +498,7 @@ export default function AddMatchPage() {
                     fontSize: '1.2rem',
                     fontWeight: 800,
                     color: 'var(--foreground)',
-                    letterSpacing: '-0.03em',
+                    letterSpacing: 0,
                   }}
                 >
                   Side B
@@ -556,7 +556,7 @@ export default function AddMatchPage() {
                   fontSize: '1.05rem',
                   fontWeight: 800,
                   color: 'var(--foreground)',
-                  letterSpacing: '-0.02em',
+                  letterSpacing: 0,
                 }}
               >
                 Import Behavior

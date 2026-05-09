@@ -1025,7 +1025,7 @@ export default function TeamPage() {
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '26px 18px' : '34px 26px',
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(300px, 0.85fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(min(100%, 300px), 0.85fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
@@ -1986,7 +1986,7 @@ const heroTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   lineHeight: 0.98,
-  letterSpacing: '-0.055em',
+  letterSpacing: 0,
   maxWidth: '760px',
 }
 
@@ -2094,7 +2094,7 @@ const teamStatusPill: CSSProperties = {
   fontSize: 11,
   fontWeight: 800,
   letterSpacing: '0.03em',
-  whiteSpace: 'nowrap' as const,
+  whiteSpace: 'normal' as const,
 }
 
 function getTeamPlayerStatus(player: Player): TeamRatingStatus | null {
@@ -2135,7 +2135,7 @@ const summaryTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '24px',
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
   marginBottom: '14px',
 }
 
@@ -2163,7 +2163,7 @@ const summaryMetricValue: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   lineHeight: 1,
 }
 
@@ -2209,7 +2209,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '1.28rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -2285,7 +2285,7 @@ const teamDiscoveryPanelStyle: CSSProperties = {
 
 const teamDiscoveryHeaderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
   alignItems: 'end',
 }
@@ -2369,7 +2369,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const panelCountPill: CSSProperties = {
@@ -2641,7 +2641,7 @@ const rosterActionLink: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const rosterActionLinkAccent: CSSProperties = {

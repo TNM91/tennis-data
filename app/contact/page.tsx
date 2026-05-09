@@ -30,15 +30,18 @@ export default function ContactPage() {
           <p>
             If a schedule, league, team, or scorecard looks wrong, include the league name, date,
             match identifier when available, and a short description of the issue. That makes it
-            much easier to trace import problems and correct the affected records.
+            much easier to trace upload or review problems and correct the affected records.
           </p>
         </div>
 
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Business and partnership inquiries</h2>
           <p>
-            For partnerships, club or league rollouts, or product collaboration, email{' '}
-            <a href="mailto:hello@tenaceiq.com">hello@tenaceiq.com</a>.
+            For partnerships, club or league rollouts, or product collaboration, open a{' '}
+            <Link href="/messages?compose=support&category=general&subject=Partnership%20or%20league%20rollout%20question">
+              TenAceIQ support thread
+            </Link>{' '}
+            so the conversation stays inside the platform.
           </p>
         </div>
 

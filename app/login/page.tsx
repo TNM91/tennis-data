@@ -37,24 +37,24 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
     eyebrow: 'Player path',
     mobileTitle: 'Open your lab.',
     desktopTitle: 'Sign in. Connect your player path.',
-    mobileText: 'Continue toward My Lab and player-linked prep.',
-    desktopText: 'Sign in to continue toward My Lab, follows, matchup reads, and player-linked prep.',
+    mobileText: 'Sign in, then activate Player if it is not active yet.',
+    desktopText: 'Sign in to continue toward Player access. My Lab, follows, matchup reads, and player-linked prep open after the plan is active.',
     destination: 'My Lab setup',
   },
   captain: {
     eyebrow: 'Captain path',
     mobileTitle: 'Open Captain.',
     desktopTitle: 'Sign in. Run the team week.',
-    mobileText: 'Continue into lineups, readiness, and team decisions.',
-    desktopText: 'Sign in to continue toward lineups, scouting, readiness, and the weekly captain flow.',
+    mobileText: 'Sign in, then activate Captain if it is not active yet.',
+    desktopText: 'Sign in to continue toward Captain access. Lineups, scouting, readiness, and the weekly captain flow open after the plan is active.',
     destination: 'Captain tools',
   },
   league: {
     eyebrow: 'Coordinator path',
     mobileTitle: 'Open league tools.',
     desktopTitle: 'Sign in. Operate the season.',
-    mobileText: 'Continue into league setup and season operations.',
-    desktopText: 'Sign in to continue toward league structure, visibility, rankings, schedules, and results.',
+    mobileText: 'Sign in, then activate Coordinator access if it is not active yet.',
+    desktopText: 'Sign in to continue toward Coordinator access. League structure, visibility, rankings, schedules, and results open after access is active.',
     destination: 'League desk',
   },
 }
@@ -276,7 +276,7 @@ export default function LoginPage() {
         access_token: signInData.session.access_token,
         refresh_token: signInData.session.refresh_token,
       })
-      setAuthNote(canUseBrowserStorage() ? 'Session accepted. Opening Data Assist...' : 'Session accepted for this tab. Browser storage looks blocked on this device.')
+      setAuthNote(canUseBrowserStorage() ? 'Session accepted. Opening TenAceIQ...' : 'Session accepted for this tab. Browser storage looks blocked on this device.')
 
       const authState = await withLoginTimeout(
         getClientAuthState(),
@@ -325,7 +325,7 @@ function canUseBrowserStorage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
     padding: isMobile ? '22px 18px' : '34px 26px',
     gap: isMobile ? '14px' : '24px',
   }
@@ -376,6 +376,11 @@ function canUseBrowserStorage() {
             <div style={selectedPlanLabelStyle}>After sign in</div>
             <div style={selectedPlanTitleStyle}>{selectedIntent.destination}</div>
             <div style={selectedPlanTextStyle}>{selectedTier.upgradeCue}</div>
+            {selectedPlanId !== 'free' ? (
+              <div style={entitlementNoticeStyle}>
+                Sign-in restores your account. {selectedTier.name} opens only when that plan or access is active.
+              </div>
+            ) : null}
           </div>
 
           {isMobile ? (
@@ -494,8 +499,11 @@ function canUseBrowserStorage() {
               {!error && authNote ? <div role="status" aria-live="polite" style={successBanner}>{authNote}</div> : null}
 
               <div style={helperRow}>
-                <Link href="/join" style={inlineLink}>
-                  Create account
+                <Link
+                  href={selectedPlanId === 'free' ? '/join' : `/join?plan=${selectedPlanId}`}
+                  style={inlineLink}
+                >
+                  Create free account
                 </Link>
                 <Link href="/forget-password" style={inlineLinkMuted}>
                   Forgot password?
@@ -626,6 +634,17 @@ const selectedPlanTextStyle: CSSProperties = {
   fontWeight: 750,
 }
 
+const entitlementNoticeStyle: CSSProperties = {
+  padding: '10px 12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(251,191,36,0.24)',
+  background: 'rgba(251,191,36,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.5,
+  fontWeight: 800,
+}
+
 const accessPanel: CSSProperties = {
   marginTop: '24px',
   borderRadius: '24px',
@@ -680,7 +699,7 @@ const accessPathGrid: CSSProperties = {
 
 const teamFlowGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
   gap: '10px',
 }
 

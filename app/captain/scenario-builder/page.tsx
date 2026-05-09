@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -1757,7 +1757,7 @@ function MetricStat({ label, value }: { label: string; value: string }) {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
     padding: isMobile ? '26px 18px' : '34px 26px',
   }
@@ -1859,7 +1859,7 @@ const heroTextStyle: CSSProperties = {
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
   marginTop: 22,
 }
@@ -1983,7 +1983,7 @@ const detailsSummaryStyle: CSSProperties = {
 
 const verdictCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
   gap: '18px',
   padding: '22px',
   borderRadius: '28px',
@@ -2010,7 +2010,7 @@ const verdictTitleStyle: CSSProperties = {
 
 const verdictMetricGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
   gap: '12px',
 }
 
@@ -2075,13 +2075,13 @@ const sectionBodyTextStyle: CSSProperties = {
 
 const filtersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '14px',
 }
 
 const filterFooterStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   justifyContent: 'flex-start',
   alignItems: 'center',
   gap: '12px',
@@ -2113,7 +2113,7 @@ const panelTopStyle: CSSProperties = {
 
 const metaGridStylePanel: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
   gap: '10px',
   marginTop: '18px',
 }
@@ -2140,7 +2140,7 @@ const metaValueStyle: CSSProperties = {
 
 const actionRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '12px',
   marginTop: '16px',
 }
@@ -2338,7 +2338,7 @@ const notesTextStyle: CSSProperties = {
 
 const finalizeGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }
@@ -2376,7 +2376,7 @@ const finalizeTextStyle: CSSProperties = {
 
 const takeawayGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
 }
 
@@ -2413,7 +2413,7 @@ const takeawayTextStyle: CSSProperties = {
 
 const scenarioCommandGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }
@@ -2451,7 +2451,7 @@ const scenarioCommandTextStyle: CSSProperties = {
 
 const deltaSummaryGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }
@@ -2489,7 +2489,7 @@ const deltaSummaryTextStyle: CSSProperties = {
 
 const readinessGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }
@@ -2527,7 +2527,7 @@ const readinessTextStyle: CSSProperties = {
 
 const confidenceLadderGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }
@@ -2572,7 +2572,7 @@ const confidenceLadderInsightStyle: CSSProperties = {
 
 const scoreboardGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }
@@ -2617,7 +2617,7 @@ const scoreboardInsightStyle: CSSProperties = {
 
 const changeDigestGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '14px',
   marginTop: '4px',
 }

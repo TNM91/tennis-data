@@ -354,12 +354,12 @@ const rowLinkStyle = {
   fontSize: '13px',
   fontWeight: 800,
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 } as const
 
 const statGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
   gap: '10px',
 } as const
 
