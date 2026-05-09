@@ -40,29 +40,33 @@ const importTypes: Array<{
   detail: string
   updates: string
   exportHint: string
+  cadence: string
   badge?: string
 }> = [
   {
     id: 'scorecard',
     label: 'Scorecard',
-    detail: 'Fastest path from a phone',
+    detail: 'Weekly results or catch-up',
     updates: 'Players, scores, winners, and team result',
     exportHint: 'Score Card > Send To Excel',
+    cadence: 'Use after each match. Select several scorecards when catching up.',
     badge: 'Recommended',
   },
   {
     id: 'schedule',
     label: 'Schedule',
-    detail: 'Optional season context',
+    detail: 'Season setup',
     updates: 'Match IDs, dates, teams, times, and sites',
     exportHint: 'Match Schedule > Send To Excel',
+    cadence: 'Usually once per season, unless you are loading history.',
   },
   {
     id: 'team_summary',
     label: 'Team summary',
-    detail: 'Optional roster context',
+    detail: 'Roster setup',
     updates: 'Roster players and baseline USTA ratings',
     exportHint: 'Team Summary > Send To Excel',
+    cadence: 'Usually once per season after rosters are set.',
   },
 ]
 
@@ -573,7 +577,7 @@ function DataAssistWorkspace() {
           <div className="section-kicker">TenAceIQ Data Assist</div>
           <h1 style={titleStyle(isSmallMobile)}>Import from your phone.</h1>
           <p style={heroTextStyle}>
-            Upload TennisLink Excel exports from Send To Excel. TenAceIQ reads the table data directly and imports clean records.
+            Upload scorecards weekly. Add schedule and roster exports once per season when they are easy to grab.
           </p>
           <div style={heroActionRowStyle}>
             <a href="#upload" style={primaryButtonStyle}>Start upload</a>
@@ -619,8 +623,14 @@ function DataAssistWorkspace() {
                   </span>
                   <span>{item.detail}</span>
                   <small>{item.updates}</small>
+                  <em style={typeCadenceStyle}>{item.cadence}</em>
                 </button>
               ))}
+            </div>
+
+            <div style={seasonGuideStyle}>
+              <strong>Simple rhythm</strong>
+              <span>Start with scorecards. Schedule and team summary improve context, but they are not required for weekly result imports.</span>
             </div>
 
             <div style={stepDividerStyle}>
@@ -927,12 +937,12 @@ function getUploadHelpTitle(importType: DataAssistImportType) {
 
 function getUploadHelpText(importType: DataAssistImportType) {
   if (importType === 'schedule') {
-    return 'Open the Match Schedule tab and choose Send To Excel. TenAceIQ imports match IDs, dates, teams, times, and sites.'
+    return 'Open the Match Schedule tab and choose Send To Excel. This is season setup; most teams only need it once.'
   }
   if (importType === 'team_summary') {
-    return 'Open Team Summary and choose Send To Excel. TenAceIQ imports roster players and base ratings.'
+    return 'Open Team Summary and choose Send To Excel. This imports roster players and base ratings for the season.'
   }
-  return 'Open the Score Card tab and choose Send To Excel. TenAceIQ imports players, scores, winners, and team score.'
+  return 'Open each Score Card and choose Send To Excel. Import one match after play or select several scorecards to catch up.'
 }
 
 function getExportHelpSteps(importType: DataAssistImportType) {
@@ -2408,6 +2418,27 @@ const typeOptionStyle = (selected: boolean): CSSProperties => ({
   boxShadow: selected ? '0 14px 28px rgba(20, 184, 116, 0.16)' : 'none',
   font: 'inherit',
 })
+
+const typeCadenceStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontStyle: 'normal',
+  fontWeight: 850,
+}
+
+const seasonGuideStyle: CSSProperties = {
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  padding: 12,
+  display: 'grid',
+  gap: 4,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 850,
+}
 
 const stepDividerStyle: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
