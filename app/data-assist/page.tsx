@@ -29,6 +29,7 @@ import { type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
+import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
@@ -1471,10 +1472,7 @@ function ImportedSummaryPanel({
           : 'Schedule and roster uploads can enrich this later, but this result is ready now.')}</span>
       </div>
       <PostImportActions
-        actions={[
-          { label: 'View players', href: '/players' },
-          { label: 'View teams', href: '/teams' },
-        ]}
+        actions={buildScorecardPostImportActions(parsedDraft)}
       />
     </div>
   )
@@ -1555,10 +1553,7 @@ function ScheduleImportedSummaryPanel({
         <span>{result.message || 'Team schedule imported to TenAceIQ.'}</span>
       </div>
       <PostImportActions
-        actions={[
-          { label: 'View schedule', href: '/compete/schedule' },
-          { label: 'View teams', href: '/teams' },
-        ]}
+        actions={buildSchedulePostImportActions(parsedDraft)}
       />
     </div>
   )
@@ -1619,10 +1614,7 @@ function TeamSummaryImportedPanel({
         <span>{result.message || 'Team roster imported to TenAceIQ.'}</span>
       </div>
       <PostImportActions
-        actions={[
-          { label: 'View players', href: '/players' },
-          { label: 'View teams', href: '/teams' },
-        ]}
+        actions={buildRosterPostImportActions(parsedDraft)}
       />
     </div>
   )
@@ -1638,6 +1630,51 @@ function PostImportActions({ actions }: { actions: Array<{ label: string; href: 
       ))}
     </div>
   )
+}
+
+function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedDraft | null) {
+  const actions: Array<{ label: string; href: string }> = []
+  const homeHref = parsedDraft?.homeTeam ? buildTeamHref(parsedDraft.homeTeam, {}) : ''
+  const awayHref = parsedDraft?.awayTeam ? buildTeamHref(parsedDraft.awayTeam, {}) : ''
+  if (homeHref) actions.push({ label: 'Home team', href: homeHref })
+  if (awayHref && awayHref !== homeHref) actions.push({ label: 'Visiting team', href: awayHref })
+  actions.push({ label: 'View players', href: '/players' })
+  return actions
+}
+
+function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft) {
+  const actions: Array<{ label: string; href: string }> = []
+  const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
+  if (teamHref) actions.push({ label: 'View team', href: teamHref })
+  actions.push({ label: 'View schedule', href: '/compete/schedule' })
+  return actions
+}
+
+function buildRosterPostImportActions(parsedDraft: DataAssistTeamSummaryParsedDraft) {
+  const actions: Array<{ label: string; href: string }> = []
+  const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
+  if (teamHref) actions.push({ label: 'View team', href: teamHref })
+  actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
+  return actions
+}
+
+function buildTeamHref(
+  teamName: string,
+  context: {
+    leagueName?: string
+    flight?: string
+  },
+) {
+  const params = new URLSearchParams()
+  params.set('layer', 'usta')
+  if (context.leagueName) params.set('league', context.leagueName)
+  if (context.flight) params.set('flight', context.flight)
+  return `/teams/${encodeTeamRouteSegment(teamName)}?${params.toString()}`
+}
+
+function buildPlayerSearchHref(query: string) {
+  const cleanQuery = query.trim()
+  return cleanQuery ? `/explore/search?scope=players&q=${encodeURIComponent(cleanQuery)}` : '/players'
 }
 
 function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
