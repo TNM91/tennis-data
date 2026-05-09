@@ -46,9 +46,14 @@ export function parseTennisLinkExportFiles(files: ExportFileInput[]): DataAssist
 function parseTennisLinkExportFile(file: ExportFileInput) {
   const html = decodeFileBuffer(file.fileBuffer)
   const rows = extractHtmlRows(html)
-  const textRows = rows.map((row) => row.join(' | ')).filter(Boolean)
-  const structuredRows = [
+  const textRows = rows.map((row) => `Export table row | ${row.join(' | ')}`).filter(Boolean)
+  const scorecardRows = [
+    ...buildStructuredScorecardMeta(rows),
+    ...buildStructuredScorecardTeams(rows),
     ...buildStructuredScorecardLines(rows),
+  ]
+  const structuredRows = [
+    ...scorecardRows,
     ...buildStructuredScheduleLines(rows),
     ...buildStructuredRosterLines(rows),
   ]
@@ -56,8 +61,31 @@ function parseTennisLinkExportFile(file: ExportFileInput) {
   return [
     `Export ${file.uploadOrder}: ${file.fileName}`,
     ...structuredRows,
-    ...textRows,
+    ...(scorecardRows.length ? [] : textRows),
   ].join('\n')
+}
+
+function buildStructuredScorecardMeta(rows: HtmlRow[]) {
+  const lines: string[] = []
+  const scorecardRow = rows.find((cells) => /\bScorecard\s+for\s+Match\s*#/i.test(cells.join(' ')))
+  if (scorecardRow?.[0]) lines.push(scorecardRow[0])
+
+  const dateRow = rows.find((cells) => cells.some((cell) => /\bDate Match Played\b/i.test(cell)))
+  const playedDate = dateRow?.join(' ').match(/\bDate Match Played:\s*([0-9/]+)/i)?.[1]
+  const scheduledDate = dateRow?.join(' ').match(/\bDate Scheduled:\s*([0-9/]+)/i)?.[1]
+  if (playedDate || scheduledDate) lines.push(`Date Match Played: ${playedDate || scheduledDate}`)
+
+  return lines
+}
+
+function buildStructuredScorecardTeams(rows: HtmlRow[]) {
+  const teamRow = rows.find((cells) => /\bteam id\b/i.test(cells.join(' ')) && /\bvs\.?\b/i.test(cells.join(' ')))
+  if (!teamRow) return []
+
+  const teams = teamRow.filter((cell) => /\bTeam ID\b/i.test(cell)).map(cleanScorecardTeam).filter(Boolean)
+  const homeTeam = teams[0] || ''
+  const awayTeam = teams[1] || ''
+  return homeTeam && awayTeam ? [`Home Team: ${homeTeam}`, `Visiting Team: ${awayTeam}`] : []
 }
 
 function buildStructuredScheduleLines(rows: HtmlRow[]) {
@@ -93,10 +121,12 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
 function buildStructuredScorecardLines(rows: HtmlRow[]) {
   const lines: string[] = []
   for (const cells of rows) {
-    if (cells.length < 7) continue
+    if (cells.length < 5) continue
+    const vsIndex = cells.findIndex((cell) => /^vs\.?$/i.test(cell))
+    if (vsIndex < 0) continue
     const lineLabel = normalizeScorecardLineLabel(cells[0] || '')
     const homePlayers = cleanScorecardPlayers(cells[1] || '')
-    const awayPlayers = cleanScorecardPlayers(cells[4] || '')
+    const awayPlayers = cleanScorecardPlayers(cells[vsIndex + 1] || '')
     const score = cells.at(-1) || ''
     if (!lineLabel || !homePlayers || !awayPlayers || !/\d+\s*-\s*\d+/.test(score)) continue
 
@@ -107,13 +137,20 @@ function buildStructuredScorecardLines(rows: HtmlRow[]) {
 }
 
 function normalizeScorecardLineLabel(value: string) {
-  const match = value.match(/\b([1-5])#?\s*(Singles|Doubles)\b/i)
+  const match = value.match(/\b([1-5])#?\s*(Singles|Doubles)/i)
   return match ? `${match[1]} ${match[2]}` : ''
 }
 
 function cleanScorecardPlayers(value: string) {
   return value
     .replace(/\bCompleted\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function cleanScorecardTeam(value: string) {
+  return value
+    .replace(/\bTeam ID:.*$/i, '')
     .replace(/\s+/g, ' ')
     .trim()
 }

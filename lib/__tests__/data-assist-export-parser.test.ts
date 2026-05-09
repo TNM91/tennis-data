@@ -21,6 +21,10 @@ describe('parseTennisLinkExportFiles', () => {
         <tr><td></td><td>Schnellaveria (S) Team ID: *****</td><td></td><td>Vs.</td><td>Gontarz/Wild William's Wily Wolverines (S) Team ID: *****</td></tr>
         <tr><td>Date Scheduled: 1/18/2026 12:00 PM</td><td>Date Match Played: 1/18/2026</td></tr>
         <tr><td>1# Singles12:00 noon</td><td>Kevin Chen Completed</td><td><img id="ctl00_imgHomePlayer" /></td><td>Vs.</td><td>Ralf Nosic</td><td></td><td>6-2 6-1</td></tr>
+        <tr><td>2# Singles12:00 noon</td><td>Zacharias Barringer Completed</td><td><img id="ctl01_imgHomePlayer" /></td><td>Vs.</td><td>Shawn Khosla</td><td></td><td>6-1 6-0</td></tr>
+        <tr><td>1# Doubles12:00 noon</td><td>Neil Arora<br />Cyrus Mevorach Completed</td><td></td><td>Vs.</td><td>Stefan Nosic<br />Paul Gontarz</td><td><img id="ctl02_imgVisitorPlayer" /></td><td>7-6 6-1</td></tr>
+        <tr><td>2# Doubles12:00 noon</td><td>William Hamilton<br />Eric Abramson Completed</td><td></td><td>Vs.</td><td>Edwin Ernst<br />Tony Richards</td><td><img id="ctl03_imgVisitorPlayer" /></td><td>5-7 6-4 1-0</td></tr>
+        <tr><td>3# Doubles12:00 noon</td><td>Daniel Schneller<br />Conner Harrison Completed</td><td><img id="ctl04_imgHomePlayer" /></td><td>Vs.</td><td>Mark Sophir<br />Kevin Bayer</td><td></td><td>6-3 6-2</td></tr>
         <tr><td>TOTAL TEAM SCORE:</td></tr>
         <tr><td>Schnellaveria (S) (Home Team) 3 WINS Gontarz/Wild William's Wily Wolverines (S) (Visiting Team) 2 WINS</td></tr>
       </table>
@@ -29,8 +33,13 @@ describe('parseTennisLinkExportFiles', () => {
     const draft = buildScorecardOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
 
     expect(draft.externalMatchId).toBe('1011650664')
+    expect(draft.homeTeam).toBe('Schnellaveria (S)')
+    expect(draft.awayTeam).toBe("Gontarz/Wild William's Wily Wolverines (S)")
+    expect(draft.lineCount).toBe(5)
     expect(draft.lines[0]?.homePlayers.join(' ')).toContain('Kevin Chen')
     expect(draft.lines[0]?.winner).toBe('home')
+    expect(draft.lines[2]?.awayPlayers.join(' ')).toContain('Paul Gontarz')
+    expect(draft.lines[2]?.winner).toBe('away')
   })
 
   it('turns match schedule export rows into schedule matches', () => {
