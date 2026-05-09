@@ -33,6 +33,7 @@ import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
+const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
 
 const importTypes: Array<{
   id: DataAssistImportType
@@ -198,6 +199,13 @@ function DataAssistWorkspace() {
     }
     if (detected.mixed) {
       setError('These look like different TennisLink export types. Upload scorecards together, but keep schedules and team summaries separate.')
+      setPreparing(false)
+      setSelectedFileCount(0)
+      event.target.value = ''
+      return
+    }
+    if (files.length > DATA_ASSIST_MAX_BULK_SCORECARDS && detected.importType === 'scorecard') {
+      setError(`Choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports at a time. Run another batch for the rest.`)
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
@@ -694,7 +702,7 @@ function DataAssistWorkspace() {
           />
           <span style={dropzoneKickerStyle}>Replace export</span>
           <strong>{preparing ? 'Preparing...' : 'Choose a different .xls export'}</strong>
-          <small>{summary?.requestedImportType === 'scorecard' ? 'You can also choose several scorecard exports to catch up.' : 'Use a separate upload for each schedule or roster export.'}</small>
+          <small>{summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
         </label>
 
         {summary?.screenshots.length ? (
@@ -908,7 +916,7 @@ function buildBulkScorecardMessage({
 function getUploadHint(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'Use Match Schedule, then Send To Excel.'
   if (importType === 'team_summary') return 'Use Team Summary, then Send To Excel.'
-  return 'Use Score Card, then Send To Excel. You can select several scorecards.'
+  return `Use Score Card, then Send To Excel. Select up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecards.`
 }
 
 function getDropzoneTitle(importType: DataAssistImportType) {
@@ -1007,14 +1015,14 @@ function UploadIssueNotice({
   message: string
   onStartOver: () => void
 }) {
-  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries|schedules and team summaries/i.test(message)
+  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries|schedules and team summaries|up to \d+ scorecard/i.test(message)
   return (
     <div style={uploadIssueStyle}>
       <div>
         <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
         <p style={uploadIssueCopyStyle}>
           {mixedExportIssue
-            ? 'Scorecards can be selected together. Schedules and team summaries should be uploaded one at a time.'
+            ? `Scorecards can be selected together in batches of ${DATA_ASSIST_MAX_BULK_SCORECARDS}. Schedules and team summaries should be uploaded one at a time.`
             : message}
         </p>
         {mixedExportIssue ? <small style={hintStyle}>This keeps season setup clean while still supporting scorecard catch-up batches.</small> : null}
