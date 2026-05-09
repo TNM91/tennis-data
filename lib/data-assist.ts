@@ -321,6 +321,9 @@ type DataAssistOcrJobRow = {
 const DATA_ASSIST_SCREENSHOT_BUCKET = 'data-assist-screenshots'
 const MAX_SCREENSHOT_BYTES = 10 * 1024 * 1024
 const MAX_BATCH_SIZE = 8
+const MAX_PREPARED_SCREENSHOT_WIDTH = 1000
+const MAX_PREPARED_SCREENSHOT_HEIGHT = 2000
+const PREPARED_SCREENSHOT_QUALITY = 0.82
 const ALLOWED_SCREENSHOT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 const IMPORT_TYPE_LAYOUT: Record<DataAssistImportType, DataAssistLayout> = {
@@ -1319,11 +1322,18 @@ async function prepareDataAssistScreenshot(
   uploadOrder: number,
   requestedImportType: DataAssistImportType,
 ): Promise<DataAssistPreparedScreenshot> {
-  const previewUrl = URL.createObjectURL(file)
-  const dimensions = await readImageDimensions(previewUrl).catch(() => ({ width: 0, height: 0 }))
-  const visualSignals = detectVisualSignals(file, dimensions)
+  const prepared = await prepareScreenshotForUpload(file).catch(async () => {
+    const previewUrl = URL.createObjectURL(file)
+    const dimensions = await readImageDimensions(previewUrl).catch(() => ({ width: 0, height: 0 }))
+    URL.revokeObjectURL(previewUrl)
+    return { file, dimensions }
+  })
+  const preparedFile = prepared.file
+  const previewUrl = URL.createObjectURL(preparedFile)
+  const dimensions = prepared.dimensions
+  const visualSignals = detectVisualSignals(preparedFile, dimensions)
   const layoutSignals = detectLayoutSignals(file, requestedImportType)
-  const rejectionReason = buildScreenshotRejectionReason(file, dimensions)
+  const rejectionReason = buildScreenshotRejectionReason(preparedFile, dimensions)
   const confidenceScore = rejectionReason ? 0 : calculateConfidence(visualSignals, layoutSignals)
   const detectionStatus: DataAssistScreenshotStatus = rejectionReason
     ? 'rejected'
@@ -1332,22 +1342,93 @@ async function prepareDataAssistScreenshot(
       : 'needs_review'
 
   return {
-    id: `${file.name}-${file.size}-${file.lastModified}-${uploadOrder}`,
-    file,
+    id: `${preparedFile.name}-${preparedFile.size}-${file.lastModified}-${uploadOrder}`,
+    file: preparedFile,
     previewUrl,
     uploadOrder,
-    fileName: file.name,
-    mimeType: file.type,
-    fileSizeBytes: file.size,
+    fileName: preparedFile.name,
+    mimeType: preparedFile.type,
+    fileSizeBytes: preparedFile.size,
     imageWidth: dimensions.width,
     imageHeight: dimensions.height,
-    clientFingerprint: await buildFileFingerprint(file),
+    clientFingerprint: await buildFileFingerprint(preparedFile),
     detectionStatus,
     detectedLayout: rejectionReason ? 'unsupported' : IMPORT_TYPE_LAYOUT[requestedImportType],
     confidenceScore,
     visualSignals: [...visualSignals, ...layoutSignals],
     rejectionReason,
   }
+}
+
+async function prepareScreenshotForUpload(file: File): Promise<{
+  file: File
+  dimensions: { width: number; height: number }
+}> {
+  const sourceUrl = URL.createObjectURL(file)
+
+  try {
+    const image = await loadImageElement(sourceUrl)
+    const originalWidth = image.naturalWidth
+    const originalHeight = image.naturalHeight
+    if (!originalWidth || !originalHeight) {
+      return { file, dimensions: { width: 0, height: 0 } }
+    }
+
+    const scale = Math.min(
+      1,
+      MAX_PREPARED_SCREENSHOT_WIDTH / originalWidth,
+      MAX_PREPARED_SCREENSHOT_HEIGHT / originalHeight,
+    )
+    if (scale >= 1 && file.type === 'image/jpeg') {
+      return { file, dimensions: { width: originalWidth, height: originalHeight } }
+    }
+
+    const width = Math.max(1, Math.round(originalWidth * scale))
+    const height = Math.max(1, Math.round(originalHeight * scale))
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+    if (!context) return { file, dimensions: { width: originalWidth, height: originalHeight } }
+
+    context.imageSmoothingEnabled = true
+    context.imageSmoothingQuality = 'high'
+    context.drawImage(image, 0, 0, width, height)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', PREPARED_SCREENSHOT_QUALITY)
+    })
+    if (!blob) return { file, dimensions: { width: originalWidth, height: originalHeight } }
+
+    const compressedFile = new File([blob], buildPreparedScreenshotFileName(file.name), {
+      type: 'image/jpeg',
+      lastModified: file.lastModified,
+    })
+    const shouldUseCompressedFile = compressedFile.size < file.size || scale < 1
+
+    return {
+      file: shouldUseCompressedFile ? compressedFile : file,
+      dimensions: shouldUseCompressedFile
+        ? { width, height }
+        : { width: originalWidth, height: originalHeight },
+    }
+  } finally {
+    URL.revokeObjectURL(sourceUrl)
+  }
+}
+
+function loadImageElement(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Image could not be read.'))
+    image.src = src
+  })
+}
+
+function buildPreparedScreenshotFileName(fileName: string) {
+  const baseName = fileName.replace(/\.[^.]+$/, '').trim() || 'tennislink-screenshot'
+  return `${baseName}-data-assist.jpg`
 }
 
 function detectVisualSignals(file: File, dimensions: { width: number; height: number }) {
