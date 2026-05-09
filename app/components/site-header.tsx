@@ -471,12 +471,9 @@ export default function SiteHeader({ active }: { active?: string }) {
         {useCompactHeader && menuOpen ? (
           <div
             style={{
-              position: 'fixed',
-              top: `calc(${isMobile ? 76 : 86}px + env(safe-area-inset-top))`,
-              left: `max(12px, env(safe-area-inset-left))`,
-              right: `max(12px, env(safe-area-inset-right))`,
-              zIndex: 1000,
-              maxHeight: 'calc(100dvh - 98px)',
+              position: 'relative',
+              zIndex: 2,
+              maxHeight: 'calc(100dvh - 120px)',
               overflowY: 'auto',
               WebkitOverflowScrolling: 'touch',
             }}
