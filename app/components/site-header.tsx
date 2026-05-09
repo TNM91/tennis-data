@@ -454,13 +454,7 @@ export default function SiteHeader({ active }: { active?: string }) {
               </>
             )}
 
-            {useCompactHeader && !authenticated ? (
-              <Link href={signInHref} style={compactSignInStyle}>
-                Sign in
-              </Link>
-            ) : null}
-
-            {useCompactHeader && authenticated ? (
+            {useCompactHeader ? (
               <button
                 type="button"
                 aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -810,22 +804,6 @@ const primaryCtaStyle = {
   letterSpacing: '-0.02em',
   textDecoration: 'none',
   boxShadow: '0 12px 24px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.28)',
-} as const
-
-const compactSignInStyle = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: 38,
-  borderRadius: 999,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  padding: '0 11px',
-  fontSize: 13,
-  fontWeight: 850,
-  textDecoration: 'none',
-  whiteSpace: 'nowrap' as const,
 } as const
 
 const menuButtonStyle = {
