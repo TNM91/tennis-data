@@ -73,7 +73,7 @@ const importTypes: Array<{
 
 type BulkScorecardResult = {
   fileName: string
-  status: 'imported' | 'duplicate' | 'review' | 'failed'
+  status: 'pending' | 'imported' | 'duplicate' | 'review' | 'failed'
   detail: string
   matchId: string
 }
@@ -123,7 +123,7 @@ function DataAssistWorkspace() {
   const showScanStep = saving
   const showLatestReviewStep = Boolean(latestScan)
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
-  const showBulkScorecardResults = !hasPreparedScreenshots && !saving && !latestScan && bulkScorecardResults.length > 0
+  const showBulkScorecardResults = !hasPreparedScreenshots && !latestScan && bulkScorecardResults.length > 0
   const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
 
   function resetUploadFlow() {
@@ -271,13 +271,18 @@ function DataAssistWorkspace() {
     setLatestScan(null)
     setSavedBatchId('')
     setError('')
-    setBulkScorecardResults([])
+    const pendingResults = files.map((file): BulkScorecardResult => ({
+      fileName: file.name,
+      status: 'pending',
+      detail: 'Waiting to import',
+      matchId: '',
+    }))
+    setBulkScorecardResults(pendingResults)
 
     let importedCount = 0
     let duplicateCount = 0
     let reviewCount = 0
     let failedCount = 0
-    const results: BulkScorecardResult[] = []
 
     try {
       for (let index = 0; index < files.length; index += 1) {
@@ -289,7 +294,7 @@ function DataAssistWorkspace() {
           const nextSummary = summarizeDataAssistBatch('scorecard', preparedSummary.screenshots)
           if (nextSummary.status === 'rejected') {
             failedCount += 1
-            results.push({
+            updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'failed',
               detail: nextSummary.rejectionReason || 'TenAceIQ could not read this export.',
@@ -314,7 +319,7 @@ function DataAssistWorkspace() {
 
           if (ocrResult.autoImport?.ok) {
             importedCount += 1
-            results.push({
+            updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'imported',
               detail: ocrResult.autoImport.message || 'Imported',
@@ -322,7 +327,7 @@ function DataAssistWorkspace() {
             })
           } else if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
             duplicateCount += 1
-            results.push({
+            updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'duplicate',
               detail: ocrResult.autoImport.message || 'Already imported',
@@ -330,7 +335,7 @@ function DataAssistWorkspace() {
             })
           } else {
             reviewCount += 1
-            results.push({
+            updateBulkScorecardResult(index, {
               fileName: file.name,
               status: 'review',
               detail: 'Saved for review',
@@ -339,7 +344,7 @@ function DataAssistWorkspace() {
           }
         } catch (err) {
           failedCount += 1
-          results.push({
+          updateBulkScorecardResult(index, {
             fileName: file.name,
             status: 'failed',
             detail: err instanceof Error ? err.message : 'Import failed',
@@ -349,7 +354,6 @@ function DataAssistWorkspace() {
       }
 
       if (scanRunRef.current !== scanRunId) return
-      setBulkScorecardResults(results)
       setMessage(buildBulkScorecardMessage({
         total: files.length,
         importedCount,
@@ -364,6 +368,12 @@ function DataAssistWorkspace() {
         setSelectedFileCount(0)
       }
     }
+  }
+
+  function updateBulkScorecardResult(index: number, result: BulkScorecardResult) {
+    setBulkScorecardResults((current) => current.map((item, itemIndex) => (
+      itemIndex === index ? result : item
+    )))
   }
 
   function moveScreenshot(fromIndex: number, direction: -1 | 1) {
@@ -925,6 +935,7 @@ function getDropzoneTitle(importType: DataAssistImportType) {
 }
 
 function getBulkScorecardStatusLabel(status: BulkScorecardResult['status']) {
+  if (status === 'pending') return 'Pending'
   if (status === 'imported') return 'Imported'
   if (status === 'duplicate') return 'Already in'
   if (status === 'review') return 'Review'
@@ -1047,6 +1058,7 @@ function BulkScorecardResultsPanel({
   const duplicateCount = results.filter((result) => result.status === 'duplicate').length
   const reviewCount = results.filter((result) => result.status === 'review').length
   const failedCount = results.filter((result) => result.status === 'failed').length
+  const pendingCount = results.filter((result) => result.status === 'pending').length
 
   return (
     <section style={panelStyle}>
@@ -1054,11 +1066,12 @@ function BulkScorecardResultsPanel({
         <div>
           <StepBadge step={4} label="Batch results" />
           <h2 style={sectionTitleStyle}>Scorecards processed.</h2>
-          <p style={copyStyle}>Each export was saved and read as its own match.</p>
+          <p style={copyStyle}>{pendingCount ? 'Each export is being saved and read as its own match.' : 'Each export was saved and read as its own match.'}</p>
         </div>
-        <span style={failedCount ? pillAmberStyle : pillGreenStyle}>{failedCount ? 'Needs attention' : 'Complete'}</span>
+        <span style={pendingCount || failedCount ? pillAmberStyle : pillGreenStyle}>{pendingCount ? 'Working' : failedCount ? 'Needs attention' : 'Complete'}</span>
       </div>
       <div style={scorecardHeaderGridStyle}>
+        <ReviewFact label="Pending" value={String(pendingCount)} />
         <ReviewFact label="Imported" value={String(importedCount)} />
         <ReviewFact label="Already in" value={String(duplicateCount)} />
         <ReviewFact label="Review" value={String(reviewCount)} />
@@ -2808,12 +2821,16 @@ const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSPropertie
     ? '1px solid rgba(248,113,113,0.34)'
     : status === 'review'
       ? '1px solid rgba(251,191,36,0.34)'
-      : '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+      : status === 'pending'
+        ? '1px solid var(--shell-panel-border)'
+        : '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   background: status === 'failed'
     ? 'rgba(248,113,113,0.08)'
     : status === 'review'
       ? 'rgba(251,191,36,0.08)'
-      : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
+      : status === 'pending'
+        ? 'var(--shell-chip-bg)'
+        : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
   padding: 11,
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
