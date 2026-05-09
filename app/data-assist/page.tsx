@@ -1289,25 +1289,7 @@ function ScheduleReviewPanel({ parsedDraft }: { parsedDraft: DataAssistScheduleP
       <p style={copyStyle}>
         This is a team schedule read. TenAceIQ is capturing the visible match IDs, dates, times, opponents, and sites for this team.
       </p>
-      <div style={parsedLineListStyle}>
-        {parsedDraft.matches.map((match) => (
-          <div key={match.externalMatchId} style={scheduleMatchRowStyle}>
-            <div style={parsedLineMainStyle}>
-              <span style={lineHeaderStyle}>
-                {match.externalMatchId || 'Match'}
-                {match.reviewNotes.length ? <small style={lineCheckStyle}>Review</small> : null}
-              </span>
-              <strong style={lineScoreStyle}>{match.matchDate || 'Check date'}</strong>
-            </div>
-            <div style={scheduleMatchGridStyle}>
-              <ReviewFact label="Time" value={match.matchTime || 'Check time'} />
-              <ReviewFact label="Home" value={match.homeTeam || 'Check home team'} />
-              <ReviewFact label="Visiting" value={match.awayTeam || 'Check visiting team'} />
-              <ReviewFact label="Site" value={match.facility || 'Check site'} />
-            </div>
-          </div>
-        ))}
-      </div>
+      <ScheduleRowsList parsedDraft={parsedDraft} />
       <div style={needsCheckCount ? reviewChecklistStyle : readyImportNoteStyle}>
         <strong>{needsCheckCount ? 'Before importing' : 'Schedule ready'}</strong>
         <span>{needsCheckCount ? `${needsCheckCount} visible match row${needsCheckCount === 1 ? '' : 's'} need review.` : 'Visible team schedule rows are captured for one final check.'}</span>
@@ -1344,6 +1326,7 @@ function ScheduleImportedSummaryPanel({
         <ReviewFact label="Updated" value={String(updated)} />
         <ReviewFact label="League" value={parsedDraft.leagueName || 'Imported'} />
       </div>
+      <ScheduleRowsList parsedDraft={parsedDraft} />
       <div style={readyImportNoteStyle}>
         <strong>All set</strong>
         <span>{result.message || 'Team schedule imported to TenAceIQ.'}</span>
@@ -1366,22 +1349,7 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
       <p style={copyStyle}>
         TenAceIQ is capturing roster player names and starting NTRP ratings for team and captain workflows.
       </p>
-      <div style={parsedLineListStyle}>
-        {parsedDraft.players.map((player) => (
-          <div key={`${player.name}-${player.ntrp ?? 'rating'}`} style={scheduleMatchRowStyle}>
-            <div style={parsedLineMainStyle}>
-              <span style={lineHeaderStyle}>
-                {player.name}
-                {player.ntrp === null ? <small style={lineCheckStyle}>Review</small> : null}
-              </span>
-              <strong style={lineScoreStyle}>{player.ntrp === null ? 'Check rating' : player.ntrp.toFixed(1)}</strong>
-            </div>
-            <div style={scheduleMatchGridStyle}>
-              <ReviewFact label="Team" value={player.teamName || parsedDraft.rosterTeamName || 'Check team'} />
-            </div>
-          </div>
-        ))}
-      </div>
+      <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
         <strong>{missingRatingCount ? 'Before importing' : 'Roster ready'}</strong>
         <span>{missingRatingCount ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.` : 'Roster names and ratings are captured for import.'}</span>
@@ -1416,10 +1384,56 @@ function TeamSummaryImportedPanel({
         <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
         <ReviewFact label="Updated" value={String(rosterResult?.updatedCount ?? 0)} />
       </div>
+      <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={readyImportNoteStyle}>
         <strong>All set</strong>
         <span>{result.message || 'Team roster imported to TenAceIQ.'}</span>
       </div>
+    </div>
+  )
+}
+
+function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
+  return (
+    <div style={parsedLineListStyle}>
+      {parsedDraft.matches.map((match) => (
+        <div key={match.externalMatchId} style={scheduleMatchRowStyle}>
+          <div style={parsedLineMainStyle}>
+            <span style={lineHeaderStyle}>
+              {match.externalMatchId || 'Match'}
+              {match.reviewNotes.length ? <small style={lineCheckStyle}>Review</small> : null}
+            </span>
+            <strong style={lineScoreStyle}>{match.matchDate || 'Check date'}</strong>
+          </div>
+          <div style={scheduleMatchGridStyle}>
+            <ReviewFact label="Time" value={match.matchTime || 'Check time'} />
+            <ReviewFact label="Home" value={match.homeTeam || 'Check home team'} />
+            <ReviewFact label="Visiting" value={match.awayTeam || 'Check visiting team'} />
+            <ReviewFact label="Site" value={match.facility || 'Check site'} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RosterPlayersList({ parsedDraft }: { parsedDraft: DataAssistTeamSummaryParsedDraft }) {
+  return (
+    <div style={parsedLineListStyle}>
+      {parsedDraft.players.map((player) => (
+        <div key={`${player.name}-${player.ntrp ?? 'rating'}`} style={scheduleMatchRowStyle}>
+          <div style={parsedLineMainStyle}>
+            <span style={lineHeaderStyle}>
+              {player.name}
+              {player.ntrp === null ? <small style={lineCheckStyle}>Review</small> : null}
+            </span>
+            <strong style={lineScoreStyle}>{player.ntrp === null ? 'Check rating' : player.ntrp.toFixed(1)}</strong>
+          </div>
+          <div style={scheduleMatchGridStyle}>
+            <ReviewFact label="Team" value={player.teamName || parsedDraft.rosterTeamName || 'Check team'} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
