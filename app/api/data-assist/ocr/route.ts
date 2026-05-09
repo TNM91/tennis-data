@@ -152,6 +152,13 @@ export async function POST(request: Request) {
     .map((input) => ({ ...input, fileBuffer: input.imageBuffer }))
     .filter(isTennisLinkExportFile)
 
+  if (exportInputs.length > 1) {
+    return Response.json(
+      { ok: false, message: 'Upload one TennisLink Excel export at a time. Import scorecards, schedules, and team summaries as separate uploads.' },
+      { status: 400 },
+    )
+  }
+
   let exportParseResult: ReturnType<typeof parseTennisLinkExportFiles> | null = null
   try {
     exportParseResult = exportInputs.length ? parseTennisLinkExportFiles(exportInputs) : null
