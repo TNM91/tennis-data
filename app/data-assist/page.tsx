@@ -275,6 +275,9 @@ function DataAssistWorkspace() {
           `${draftSummary.requestedImportType === 'schedule' ? 'Schedule' : draftSummary.requestedImportType === 'team_summary' ? 'Team roster' : 'Scorecard'} reading is taking longer than expected. The upload was saved; try it again from history in a moment.`,
         )
         if (scanRunRef.current !== scanRunId) return
+        if (ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType) {
+          setImportType(ocrResult.effectiveImportType)
+        }
         setLatestScan({
           batchId: result.batchId,
           draftId: result.draftId,
@@ -282,7 +285,10 @@ function DataAssistWorkspace() {
           autoAssessment: ocrResult.autoAssessment,
           autoImport: ocrResult.autoImport,
         })
-        setMessage(isScheduleParsedDraft(ocrResult.parsedDraft)
+        const typeCorrection = ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType
+          ? `TenAceIQ detected this as a ${getShortImportTypeLabel(ocrResult.effectiveImportType)} export. `
+          : ''
+        setMessage(typeCorrection + (isScheduleParsedDraft(ocrResult.parsedDraft)
           ? ocrResult.autoImport?.ok
             ? ocrResult.autoImport.message || 'Team schedule imported.'
             : 'Team schedule read complete. Review the visible matches before import.'
@@ -290,7 +296,7 @@ function DataAssistWorkspace() {
             ? ocrResult.autoImport?.ok
               ? ocrResult.autoImport.message || 'Team roster imported.'
               : 'Team summary read complete. Review the roster before import.'
-          : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport))
+          : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
         window.setTimeout(() => {
           document.getElementById('latest-data-assist-read')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 120)
@@ -449,7 +455,7 @@ function DataAssistWorkspace() {
       </section>
 
       {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
-      {!showOrderStep && error ? <div style={errorStyle}>{error}</div> : null}
+      {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
 
       <section style={workspaceStyle()}>
         {showUploadStep ? (
@@ -593,7 +599,7 @@ function DataAssistWorkspace() {
           <div style={successStyle}>Upload saved: {savedBatchId.slice(0, 8).toUpperCase()}</div>
         ) : null}
         {message ? <div style={successStyle}>{message}</div> : null}
-        {error ? <div style={errorStyle}>{error}</div> : null}
+        {error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
       </section>
       ) : null}
 
@@ -809,6 +815,34 @@ function ExportHelpPanel({ importType }: { importType: DataAssistImportType }) {
             Expected file: <strong>{getExportFileExample(importType)}</strong>
           </div>
         </div>
+      ) : null}
+    </div>
+  )
+}
+
+function UploadIssueNotice({
+  message,
+  onStartOver,
+}: {
+  message: string
+  onStartOver: () => void
+}) {
+  const mixedExportIssue = /one at a time|different TennisLink export types|scorecards, schedules, and team summaries/i.test(message)
+  return (
+    <div style={uploadIssueStyle}>
+      <div>
+        <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
+        <p style={uploadIssueCopyStyle}>
+          {mixedExportIssue
+            ? 'Choose either scorecard, schedule, or team summary files for this import. Start a new upload when you switch TennisLink pages.'
+            : message}
+        </p>
+        {mixedExportIssue ? <small style={hintStyle}>Tip: multiple files are fine when they are the same TennisLink export type.</small> : null}
+      </div>
+      {mixedExportIssue ? (
+        <button type="button" onClick={onStartOver} style={secondaryButtonStyle}>
+          Start fresh
+        </button>
       ) : null}
     </div>
   )
@@ -2924,6 +2958,27 @@ const noticeStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+}
+
+const uploadIssueStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 14,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(251,191,36,0.38)',
+  background: 'linear-gradient(135deg, rgba(251,191,36,0.14), rgba(15,23,42,0.08))',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const uploadIssueCopyStyle: CSSProperties = {
+  ...copyStyle,
+  marginTop: 4,
+  color: 'var(--foreground-strong)',
 }
 
 const emptyStateStyle: CSSProperties = {
