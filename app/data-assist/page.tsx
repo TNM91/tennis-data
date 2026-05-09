@@ -26,6 +26,7 @@ import {
 } from '@/lib/data-assist'
 import { type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
+import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
@@ -171,7 +172,7 @@ function DataAssistWorkspace() {
     setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
     setError('')
 
-    const detected = await detectUploadImportType(files, importType)
+    const detected = await detectDataAssistExportType(files, importType)
     if (detected.mixed) {
       setError('These look like different TennisLink export types. Upload scorecards, schedules, and team summaries one at a time.')
       setPreparing(false)
@@ -740,72 +741,6 @@ function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
   if (importType === 'team_summary') return 'team summary'
   return 'scorecard'
-}
-
-async function detectUploadImportType(files: File[], fallback: DataAssistImportType): Promise<{
-  importType: DataAssistImportType
-  mixed: boolean
-}> {
-  const detectedTypes = Array.from(new Set((
-    await Promise.all(files.map((file) => detectImportTypeFromFile(file)))
-  ).filter(Boolean))) as DataAssistImportType[]
-  if (detectedTypes.length > 1) {
-    return { importType: fallback, mixed: true }
-  }
-  return { importType: detectedTypes[0] || fallback, mixed: false }
-}
-
-async function detectImportTypeFromFile(file: File): Promise<DataAssistImportType | null> {
-  const fromFileName = detectImportTypeFromFileName(file.name)
-  const fromContents = await detectImportTypeFromFileContents(file)
-  return fromContents || fromFileName
-}
-
-function detectImportTypeFromFileName(fileName: string): DataAssistImportType | null {
-  const lowerName = fileName.toLowerCase()
-  if (lowerName.includes('matchschedule') || lowerName.includes('match-schedule') || lowerName.includes('schedule')) return 'schedule'
-  if (lowerName.includes('teamsummary') || lowerName.includes('team-summary') || lowerName.includes('team_summary') || lowerName.includes('roster')) return 'team_summary'
-  if (lowerName.includes('scorecard') || lowerName.includes('score-card') || lowerName.includes('score_card')) return 'scorecard'
-  return null
-}
-
-async function detectImportTypeFromFileContents(file: File): Promise<DataAssistImportType | null> {
-  const text = await file.slice(0, Math.min(file.size, 350_000)).text().catch(() => '')
-  if (!text) return null
-  const normalized = text
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .toLowerCase()
-
-  if (
-    normalized.includes('scorecard for match') ||
-    (normalized.includes('score card') && normalized.includes('3rd set tie-break')) ||
-    (normalized.includes('match win criteria') && normalized.includes('home team') && normalized.includes('visiting team') && normalized.includes('3rd set'))
-  ) {
-    return 'scorecard'
-  }
-
-  if (
-    normalized.includes('match schedule by') ||
-    normalized.includes('match schedule tab') ||
-    (normalized.includes('schedule date') && normalized.includes('schedule time') && normalized.includes('facility/match site')) ||
-    (normalized.includes('match id') && normalized.includes('home team') && normalized.includes('visiting team') && normalized.includes('facility/match site'))
-  ) {
-    return 'schedule'
-  }
-
-  if (
-    normalized.includes('team summary') ||
-    normalized.includes('team standings') ||
-    normalized.includes('championship advancements') ||
-    (normalized.includes('player name') && normalized.includes('ntrp')) ||
-    (normalized.includes('team matches') && normalized.includes('players') && normalized.includes('wins'))
-  ) {
-    return 'team_summary'
-  }
-
-  return null
 }
 
 function getUploadHelpTitle(importType: DataAssistImportType) {
