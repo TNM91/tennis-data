@@ -497,7 +497,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 <div style={mobileSectionLabelStyle}>{roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
                 <div style={mobileAccountToolsStyle}>
                   {accountLabel ? (
-                    <span style={accountPillStyle}>
+                    <span style={mobileAccountPillStyle}>
                       {profilePhotoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={profilePhotoUrl} alt="" style={accountPhotoStyle} />
@@ -732,6 +732,14 @@ const accountPillStyle = {
   textOverflow: 'ellipsis',
 } as const
 
+const mobileAccountPillStyle = {
+  ...accountPillStyle,
+  justifyContent: 'flex-start',
+  flex: '1 1 0',
+  minWidth: 0,
+  maxWidth: 'min(100%, 220px)',
+} as const
+
 const messageLinkWrapStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -898,7 +906,7 @@ const mobileSectionLabelStyle = {
 const mobilePanelTopStyle = {
   display: 'flex',
   justifyContent: 'space-between',
-  alignItems: 'center',
+  alignItems: 'flex-start',
   gap: '10px',
   paddingBottom: '2px',
   flexWrap: 'wrap' as const,
@@ -910,6 +918,7 @@ const mobileAccountToolsStyle = {
   alignItems: 'center',
   justifyContent: 'flex-end',
   gap: 8,
-  flex: '1 1 220px',
+  flex: '1 1 240px',
   minWidth: 0,
+  maxWidth: '100%',
 }
