@@ -196,7 +196,8 @@ export async function recognizeDataAssistTeamSummaryScreenshotsWithTesseract(
     const orderedImages = [...images].sort((a, b) => a.uploadOrder - b.uploadOrder)
 
     for (const [imageIndex, image] of orderedImages.entries()) {
-      const result = await worker.recognize(image.imageBuffer)
+      const ocrBuffer = await prepareTeamSummaryOcrBuffer(image)
+      const result = await worker.recognize(ocrBuffer)
       const fullText = normalizeOcrBlock(result.data.text)
       const structuredRosterText = shouldUseDesktopTeamSummaryRosterRead(image, imageIndex)
         ? await recognizeDesktopTeamSummaryRoster(worker, image, PSM.SINGLE_BLOCK)
@@ -316,6 +317,23 @@ function getWritableTesseractCachePath() {
 
 function normalizeOcrBlock(value: string) {
   return value.replace(/\r/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+async function prepareTeamSummaryOcrBuffer(image: DataAssistTesseractImageInput) {
+  if (image.imageWidth <= 950) return image.imageBuffer
+
+  try {
+    const sharp = (await import('sharp')).default
+    return sharp(image.imageBuffer)
+      .rotate()
+      .resize({ width: 900, withoutEnlargement: true })
+      .grayscale()
+      .normalise()
+      .png({ compressionLevel: 3 })
+      .toBuffer()
+  } catch {
+    return image.imageBuffer
+  }
 }
 
 async function recognizeTennisLinkScheduleScreenshot(
