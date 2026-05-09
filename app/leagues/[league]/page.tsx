@@ -430,7 +430,7 @@ export default function LeagueDetailPage() {
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
     padding: isMobile ? '28px 18px 22px' : '34px 28px 24px',
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(300px, 1.05fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(min(100%, 300px), 1.05fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
@@ -469,7 +469,7 @@ export default function LeagueDetailPage() {
 
   const dynamicTeamGrid: CSSProperties = {
     ...teamGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
   }
 
   const dynamicTeamTop: CSSProperties = {
@@ -784,7 +784,7 @@ export default function LeagueDetailPage() {
               {topPerformers.length > 0 ? (
                 <section style={{ marginBottom: 24 }}>
                   <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 14 }}>Top performers</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 200px), 1fr))', gap: 10 }}>
                     {topPerformers.map((p, i) => {
                       const winPct = p.appearances > 0 ? Math.round((p.wins / p.appearances) * 100) : 0
                       return (
@@ -1117,7 +1117,7 @@ const heroTitle: CSSProperties = {
   margin: '16px 0 0',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  letterSpacing: '-0.045em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -1205,7 +1205,7 @@ const seasonToolsValue: CSSProperties = {
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const seasonToolsText: CSSProperties = {
@@ -1315,7 +1315,7 @@ const signalValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.28rem',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const signalNoteStyle: CSSProperties = {
@@ -1354,7 +1354,7 @@ const metricValue: CSSProperties = {
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const panelCard: CSSProperties = {
@@ -1375,7 +1375,7 @@ const leagueDiscoveryPanelStyle: CSSProperties = {
 
 const leagueDiscoveryHeaderStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: '14px',
   alignItems: 'end',
 }
@@ -1498,7 +1498,7 @@ const sectionTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const sectionSub: CSSProperties = {
@@ -1567,7 +1567,7 @@ const teamName: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const teamRecord: CSSProperties = {
@@ -1591,7 +1591,7 @@ const primaryButton: CSSProperties = {
   fontSize: '13px',
   letterSpacing: '0.01em',
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
 }
 
@@ -1608,7 +1608,7 @@ const tableActionLink: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const miniGrid: CSSProperties = {
@@ -1708,7 +1708,7 @@ const matchTitle: CSSProperties = {
   fontSize: '20px',
   lineHeight: 1.25,
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 }
 
 const matchMeta: CSSProperties = {
@@ -1733,7 +1733,7 @@ const winnerPill: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: '0.02em',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const matchBottom: CSSProperties = {

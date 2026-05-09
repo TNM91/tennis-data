@@ -19,7 +19,7 @@ export default function NotFound() {
             fontSize: '5rem',
             fontWeight: 900,
             lineHeight: 1,
-            letterSpacing: '-0.06em',
+            letterSpacing: 0,
             color: 'var(--foreground-strong)',
             opacity: 0.18,
           }}
@@ -31,7 +31,7 @@ export default function NotFound() {
             margin: 0,
             fontSize: 'clamp(1.6rem, 3vw, 2.2rem)',
             fontWeight: 850,
-            letterSpacing: '-0.04em',
+            letterSpacing: 0,
             color: 'var(--foreground-strong)',
           }}
         >

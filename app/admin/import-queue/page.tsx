@@ -149,11 +149,11 @@ export default function AdminImportQueuePage() {
       <AdminGate>
         <section style={pageWrapStyle}>
           <section className="hero-panel" style={{ marginBottom: 18 }}>
-            <div className="section-kicker">Import review</div>
-            <h1 className="page-title">Automated Import Queue</h1>
+            <div className="section-kicker">Upload review</div>
+            <h1 className="page-title">Upload Review Queue</h1>
             <p className="page-subtitle" style={{ maxWidth: 760 }}>
-              Payloads land here only when the automated pipeline cannot safely commit them.
-              Open an item in the import center to review, fix, and commit through the existing fallback workflow.
+              Captured uploads land here only when they cannot safely become trusted data without admin confirmation.
+              Open an item in the admin import center to review, fix, and commit through the fallback workflow.
             </p>
           </section>
 

@@ -21,24 +21,24 @@ type AdminTool = {
 
 const adminTools: AdminTool[] = [
   {
-    title: 'Unified Import Center',
+    title: 'Admin Import Center',
     href: '/admin/import',
     description:
-      'Upload or paste schedule and scorecard JSON in one place, preview normalized rows, review warnings, and commit through the shared TenAceIQ ingestion pipeline.',
-    badge: 'Primary',
+      'Admin-only fallback for reviewed schedule, roster, and scorecard files when Data Assist needs a manual correction path.',
+    badge: 'Fallback',
     accent: 'green',
-    highlights: ['Schedule ingest', 'Scorecard ingest', 'File upload + paste', 'Preview + commit'],
+    highlights: ['Reviewed files', 'Manual paste', 'Preview warnings', 'Commit control'],
     statLabel: 'Best for',
-    statValue: 'All imports',
+    statValue: 'Corrections',
   },
   {
-    title: 'Automated Import Queue',
+    title: 'Upload Review Queue',
     href: '/admin/import-queue',
     description:
-      'Review payloads that the extension captured but the automated pipeline could not safely commit without human confirmation.',
+      'Review captured payloads that need human confirmation before they can become trusted TenAceIQ records.',
     badge: 'Review',
     accent: 'blue',
-    highlights: ['Pending payloads', 'Review handoff', 'Reject + process states', 'Fallback workflow'],
+    highlights: ['Pending uploads', 'Review handoff', 'Reject + process states', 'Fallback workflow'],
     statLabel: 'Best for',
     statValue: 'Needs review',
   },
@@ -46,10 +46,10 @@ const adminTools: AdminTool[] = [
     title: 'Data Assist Review',
     href: '/admin/data-assist',
     description:
-      'Review community TennisLink screenshot batches, confirm layout confidence, and hold imports behind OCR verification before anything can affect trusted data.',
+      'Review player, captain, and coordinator TennisLink uploads, confirm confidence, and keep imports locked behind verification before anything can affect trusted data.',
     badge: 'Data Assist',
     accent: 'green',
-    highlights: ['Screenshot batches', 'Layout confidence', 'OCR boundary', 'Import lock'],
+    highlights: ['Upload batches', 'Layout confidence', 'Review boundary', 'Import lock'],
     statLabel: 'Best for',
     statValue: 'Community uploads',
   },
@@ -57,7 +57,7 @@ const adminTools: AdminTool[] = [
     title: 'Missing Scorecards',
     href: '/admin/missing-scorecards',
     description:
-      'Track which scheduled matches still need scorecards, filter by league and team, and jump directly into import or match review.',
+      'Track which scheduled matches still need scorecard uploads, filter by league and team, and jump directly into Data Assist or match review.',
     badge: 'Operations',
     accent: 'green',
     highlights: ['Past due queue', 'League + team filters', 'Import handoff'],
@@ -112,10 +112,10 @@ const adminTools: AdminTool[] = [
     title: 'Upgrade Requests',
     href: '/admin/upgrade-requests',
     description:
-      'Review paid-plan requests, follow up with leads, and activate Player, Captain, or TIQ League access once an account is linked.',
+      'Review paid-plan requests, open internal support follow-up, and activate Player, Captain, or TIQ League access once an account is linked.',
     badge: 'Leads',
     accent: 'green',
-    highlights: ['Plan intent', 'Email follow-up', 'Account activation', 'Request status'],
+    highlights: ['Plan intent', 'Support follow-up', 'Account activation', 'Request status'],
     statLabel: 'Best for',
     statValue: 'Upgrade ops',
   },
@@ -265,15 +265,15 @@ export default function AdminDashboardPage() {
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div className="metric-grid">
               <MetricCard label="Admin Tools" value={String(adminTools.length)} helper="Includes access control and upgrade requests" />
-              <MetricCard label="Primary Import Path" value="1" helper="Use /admin/import first" />
-              <MetricCard label="Data Control" value="6" helper="Imports, availability, match, player, access, and lead ops" />
-              <MetricCard label="Recommended Flow" value="Preview -> Commit" helper="Validate before writing" />
+              <MetricCard label="Upload Review Path" value="1" helper="Use Data Assist first" />
+              <MetricCard label="Data Control" value="6" helper="Uploads, availability, match, player, access, and lead ops" />
+              <MetricCard label="Recommended Flow" value="Upload -> Review" helper="Confirm before writing" />
             </div>
 
             <div className="card-grid three" style={{ marginTop: 18 }}>
               <MiniPanel
-                title="Unified Import"
-                text="Use the import center first so schedule and scorecard data always flow through the same ingestion path."
+                title="Data Assist First"
+                text="Use reviewed uploads for scorecards, schedules, and rosters before falling back to admin-only correction tools."
                 tone="green"
               />
               <MiniPanel
@@ -299,7 +299,7 @@ export default function AdminDashboardPage() {
           <SectionHeader
             kicker="Imports"
             title="Bring data into the system and manage weekly result flow"
-            subtitle="Start with the unified import center, use missing scorecards to track what is still outstanding, and use lineup availability when weekly readiness needs admin support."
+            subtitle="Start with Data Assist uploads, use missing scorecards to track what is still outstanding, and use lineup availability when weekly readiness needs admin support."
           />
           <div className="card-grid three" style={{ marginTop: 14 }}>
             {importTools.map((tool) => (
@@ -353,13 +353,13 @@ export default function AdminDashboardPage() {
                   Recommended admin route structure
                 </h2>
                 <p className="subtle-text" style={{ marginTop: 8, maxWidth: 700 }}>
-                  Keep this page as the hub. Route all future schedule and scorecard imports through
-                  the unified import center so you avoid the legacy split pipeline problem.
+                  Keep this page as the hub. Route future schedule, roster, and scorecard refreshes through
+                  Data Assist first, with the admin import center reserved for reviewed corrections.
                 </p>
               </div>
 
               <div className="badge badge-green" style={{ minHeight: 42 }}>
-                Unified import live
+                Data Assist upload review live
               </div>
             </div>
 
@@ -380,18 +380,18 @@ export default function AdminDashboardPage() {
                   </tr>
                   <tr>
                     <td>/admin/import</td>
-                    <td>Unified schedule + scorecard ingest</td>
-                    <td>Main import route going forward</td>
+                    <td>Admin fallback for reviewed files</td>
+                    <td>Use Data Assist first, then this route for manual corrections</td>
                   </tr>
                   <tr>
                     <td>/admin/import-queue</td>
-                    <td>Automated import review queue</td>
-                    <td>Use only when the extension says a capture needs review</td>
+                    <td>Upload review queue</td>
+                    <td>Use only when a captured payload needs admin confirmation</td>
                   </tr>
                   <tr>
                     <td>/admin/data-assist</td>
-                    <td>Community TennisLink screenshot review queue</td>
-                    <td>Confirm supported layouts and keep OCR/import locked behind review</td>
+                    <td>Data Assist upload review queue</td>
+                    <td>Confirm supported uploads and keep import locked behind review</td>
                   </tr>
                   <tr>
                     <td>/admin/missing-scorecards</td>
@@ -474,8 +474,8 @@ export default function AdminDashboardPage() {
               >
                 <WorkflowStep
                   number="01"
-                  title="Import through one pipeline"
-                  text="Start with the unified import center so both schedule and scorecard data go through the same preview and commit workflow."
+                  title="Start with Data Assist"
+                  text="Use Data Assist as the upload path for scorecards, schedules, and rosters so user-submitted data is reviewed before it shapes the platform."
                 />
                 <WorkflowStep
                   number="02"
@@ -485,12 +485,12 @@ export default function AdminDashboardPage() {
                 <WorkflowStep
                   number="03"
                   title="Validate and support the week"
-                  text="Preview normalized rows, check warnings, and use lineup availability when roster readiness needs admin help."
+                  text="Review warnings, check uploaded context, and use lineup availability when roster readiness needs admin help."
                 />
                 <WorkflowStep
                   number="04"
                   title="Clean up records"
-                  text="Use Manage Matches and Manage Players to tighten data quality after imports or manual entry."
+                  text="Use Manage Matches and Manage Players to tighten data quality after reviewed uploads or manual entry."
                 />
                 <WorkflowStep
                   number="05"
@@ -530,9 +530,9 @@ export default function AdminDashboardPage() {
                   marginTop: 14,
                 }}
               >
-                <QuickAction href="/admin/import" label="Open Unified Import Center" />
-                <QuickAction href="/admin/import-queue" label="Open Automated Import Queue" />
                 <QuickAction href="/admin/data-assist" label="Open Data Assist Review" />
+                <QuickAction href="/admin/import" label="Open Admin Import Center" />
+                <QuickAction href="/admin/import-queue" label="Open Upload Review Queue" />
                 <QuickAction href="/admin/missing-scorecards" label="Open Missing Scorecards" />
                 <QuickAction href="/admin/lineup-availability" label="Open Lineup Availability" />
                 <QuickAction href="/admin/add-match" label="Open Add Match" />
@@ -596,12 +596,12 @@ function DataQualityPanel() {
   const linkedPct = getCoveragePercent(stats.matchesWithPlayers, stats.totalMatches)
 
   return (
-    <section style={{ marginTop: 18, padding: '18px 20px', borderRadius: 20, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(116,190,255,0.03)' }}>
-      <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>Operating health</div>
+    <section style={{ marginTop: 18, padding: '18px 20px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+      <div style={{ color: 'var(--muted-strong)', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>Operating health</div>
       {loading ? (
-        <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 13 }}>Loading health metrics…</div>
+        <div className="subtle-text" style={{ fontSize: 13 }}>Loading health metrics…</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
           {[
             { label: 'Total matches', value: stats.totalMatches?.toLocaleString() ?? '—' },
             { label: 'Scores entered', value: scorePct != null ? `${scorePct}%` : '—', flag: scorePct != null && scorePct < 80 },
@@ -618,14 +618,14 @@ function DataQualityPanel() {
             const cardStyle = {
               padding: '10px 14px',
               borderRadius: 14,
-              background: 'rgba(255,255,255,0.03)',
-              border: `1px solid ${item.flag ? 'rgba(251,146,60,0.22)' : 'rgba(255,255,255,0.07)'}`,
+              background: 'var(--surface-soft)',
+              border: `1px solid ${item.flag ? 'rgba(251,146,60,0.32)' : 'var(--card-border-soft)'}`,
               textDecoration: 'none',
             }
             const content = (
               <>
-                <div style={{ color: 'rgba(190,210,240,0.5)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{item.label}</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: item.flag ? '#fed7aa' : 'var(--foreground)', letterSpacing: '-0.02em' }}>{item.value}</div>
+                <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>{item.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: item.flag ? '#b45309' : 'var(--foreground)', letterSpacing: 0 }}>{item.value}</div>
               </>
             )
 
@@ -689,7 +689,7 @@ function HeroSection() {
           }}
         >
           <a href="#imports" className="button-primary" style={{ textDecoration: 'none' }}>
-            Start with Imports
+            Start with Data Assist
           </a>
           <a href="#management" className="button-secondary" style={{ textDecoration: 'none' }}>
             Open Management Tools
@@ -705,8 +705,8 @@ function HeroSection() {
           }}
         >
           <span className="badge badge-blue">Premium shell aligned</span>
-          <span className="badge badge-green">Unified import centered</span>
-          <span className="badge badge-slate">Legacy overlap reduced</span>
+          <span className="badge badge-green">Data Assist centered</span>
+          <span className="badge badge-slate">Admin fallback clarified</span>
         </div>
       </div>
     </section>
@@ -787,7 +787,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
             fontWeight: 800,
             fontSize: '1.08rem',
             lineHeight: 1.2,
-            letterSpacing: '-0.02em',
+            letterSpacing: 0,
           }}
         >
           {tool.title}
@@ -850,7 +850,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
                 color: accent.chipText,
                 fontSize: '0.76rem',
                 fontWeight: 700,
-                letterSpacing: '-0.01em',
+                letterSpacing: 0,
               }}
             >
               {item}

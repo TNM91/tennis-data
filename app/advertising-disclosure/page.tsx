@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 
@@ -46,7 +47,10 @@ export default function AdvertisingDisclosurePage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Questions about ads</h2>
           <p>
-            For questions about advertising on the site, contact <a href="mailto:hello@tenaceiq.com">hello@tenaceiq.com</a>.
+            For questions about advertising on the site, open a{' '}
+            <Link href="/messages?compose=support&category=general&subject=Advertising%20question">
+              TenAceIQ support thread
+            </Link>.
           </p>
         </div>
       </InfoPage>

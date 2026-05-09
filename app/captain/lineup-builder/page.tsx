@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -3295,7 +3295,7 @@ const heroTextStyle: CSSProperties = {
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
   marginTop: 18,
 }
@@ -3490,13 +3490,13 @@ const labelStyle: CSSProperties = {
 
 const filtersGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 14,
 }
 
 const contextSummaryGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
 }
 
@@ -3630,13 +3630,13 @@ const ghostButtonSmallButton: CSSProperties = {
 
 const actionRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
 }
 
 const actionRowStyleWrap: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 14,
 }
@@ -3797,7 +3797,7 @@ const decisionBoardTitleStyle: CSSProperties = {
 
 const decisionBoardGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 }
 
@@ -3989,7 +3989,7 @@ const scenarioDeckTextStyle: CSSProperties = {
 
 const scenarioDeckButtonRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 14,
 }
@@ -4085,7 +4085,7 @@ const lockPanelStyle: CSSProperties = {
 
 const lockGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
 }
 
@@ -4183,11 +4183,11 @@ function getLineupRatingStatus(player: { overall_rating: number | null; overall_
 
 function getLineupStatusStyle(status: LineupRatingStatus): CSSProperties {
   switch (status) {
-    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.14)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.26)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
-    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
-    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
-    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
-    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'nowrap' as const }
+    case 'Bump Up Pace': return { background: 'rgba(155,225,29,0.14)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.26)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'normal' as const }
+    case 'Trending Up':  return { background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'normal' as const }
+    case 'Holding':      return { background: 'rgba(63,167,255,0.10)', color: '#bfdbfe', border: '1px solid rgba(63,167,255,0.20)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'normal' as const }
+    case 'At Risk':      return { background: 'rgba(251,146,60,0.12)', color: '#fed7aa', border: '1px solid rgba(251,146,60,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'normal' as const }
+    case 'Drop Watch':   return { background: 'rgba(239,68,68,0.12)', color: '#fecaca', border: '1px solid rgba(239,68,68,0.22)', borderRadius: 999, padding: '3px 8px', fontSize: 10, fontWeight: 800, letterSpacing: '0.03em', whiteSpace: 'normal' as const }
   }
 }
 

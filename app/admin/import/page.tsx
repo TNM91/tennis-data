@@ -1575,7 +1575,7 @@ export default function AdminImportPage() {
                   {normalizedRowCount} {importType === 'schedule' ? 'matches' : importType === 'team_summary' ? 'players in roster' : 'scorecards'} loaded · run Preview to check readiness
                 </span>
               ) : (
-                <span style={{ color: '#7A96B5' }}>Drop or paste a JSON capture to get started</span>
+                <span className="subtle-text">Drop or paste a reviewed JSON capture to get started</span>
               )}
             </div>
           </div>

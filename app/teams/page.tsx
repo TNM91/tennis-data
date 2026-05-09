@@ -11,6 +11,7 @@ import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 
 type MatchRow = {
   id: string
@@ -631,8 +632,11 @@ export default function TeamsPage() {
               <div style={sectionKicker}>Directory reset</div>
               <div style={emptyTitle}>Teams are not available yet</div>
               <p style={emptyText}>
-                Try widening your filters, clearing the search box, or importing more season data if this league and flight should already exist.
+                Try widening your filters, clearing the search box, or using Data Assist if this league and flight should already exist.
               </p>
+              <Link href={DATA_ASSIST_STORY.href} style={ghostButton}>
+                {DATA_ASSIST_STORY.cta}
+              </Link>
             </section>
           ) : (
             <section style={cardsGrid(isTablet, isMobile)}>
@@ -773,7 +777,8 @@ const contentWrap: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '0 20px',
+  padding: '0 clamp(14px, 3vw, 20px)',
+  minWidth: 0,
 }
 
 const heroSection: CSSProperties = {
@@ -788,6 +793,7 @@ const heroCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(9,20,38,0.96) 0%, rgba(8,18,34,0.92) 100%)',
   boxShadow: '0 30px 70px rgba(0,0,0,0.32)',
   padding: '28px',
+  minWidth: 0,
 }
 
 const heroEyebrow: CSSProperties = {
@@ -802,8 +808,9 @@ const heroTitle: CSSProperties = {
   margin: '10px 0 0',
   fontSize: 'clamp(30px, 5vw, 48px)',
   lineHeight: 1.02,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -854,7 +861,7 @@ const statValue: CSSProperties = {
   color: '#ffffff',
   fontSize: '28px',
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const statLabel: CSSProperties = {
@@ -872,6 +879,7 @@ const filtersCard: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
   boxShadow: '0 22px 60px rgba(0,0,0,0.24)',
   padding: '22px',
+  minWidth: 0,
 }
 
 const sectionHeader: CSSProperties = {
@@ -896,7 +904,7 @@ const sectionTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '28px',
   lineHeight: 1.08,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   fontWeight: 900,
 }
 
@@ -934,7 +942,7 @@ const editorialPanel: CSSProperties = {
 const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
 }
 
 const filtersActionRow: CSSProperties = {
@@ -1032,14 +1040,14 @@ const emptyTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '22px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const errorTitle: CSSProperties = {
   color: '#ffb4b4',
   fontSize: '22px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const emptyText: CSSProperties = {
@@ -1054,6 +1062,7 @@ const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
   gap: '16px',
   marginTop: '18px',
+  minWidth: 0,
 })
 
 const teamCardLink: CSSProperties = {
@@ -1068,6 +1077,7 @@ const teamCard: CSSProperties = {
   boxShadow: '0 20px 55px rgba(0,0,0,0.22)',
   padding: '20px',
   transition: 'transform 140ms ease, border-color 140ms ease',
+  minWidth: 0,
 }
 
 const teamCardTop: CSSProperties = {
@@ -1075,14 +1085,16 @@ const teamCardTop: CSSProperties = {
   alignItems: 'flex-start',
   justifyContent: 'space-between',
   gap: '12px',
+  flexWrap: 'wrap',
 }
 
 const teamName: CSSProperties = {
   color: '#f8fbff',
   fontSize: '23px',
   lineHeight: 1.08,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const metaRow: CSSProperties = {
@@ -1117,7 +1129,7 @@ const metaPillGreen: CSSProperties = {
 }
 
 const viewPill: CSSProperties = {
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   padding: '8px 10px',
   borderRadius: '999px',
   background: 'rgba(8,17,31,0.82)',
@@ -1131,7 +1143,7 @@ const viewPill: CSSProperties = {
 
 const metricsGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 84px), 1fr))',
   gap: '10px',
   marginTop: '18px',
 }
@@ -1141,13 +1153,14 @@ const metricCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(6, 13, 25, 0.8)',
   padding: '14px 12px',
+  minWidth: 0,
 }
 
 const metricValue: CSSProperties = {
   color: '#ffffff',
   fontSize: '18px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const metricLabel: CSSProperties = {

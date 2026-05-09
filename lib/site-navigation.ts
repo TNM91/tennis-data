@@ -55,6 +55,7 @@ export const CAPTAIN_QUICK_NAV_ITEMS: NavItem[] = [
   { href: '/captain/lineup-builder', label: 'Lineup' },
   { href: '/captain/messaging', label: 'Message' },
   { href: '/captain/weekly-brief', label: 'Brief' },
+  { href: '/data-assist', label: 'Data Assist' },
 ]
 
 export const COORDINATOR_NAV_ITEMS: NavItem[] = [
@@ -62,6 +63,7 @@ export const COORDINATOR_NAV_ITEMS: NavItem[] = [
   { href: '/league-coordinator#league-setup-form', label: 'Setup' },
   { href: '/league-coordinator/results', label: 'Team Results' },
   { href: '/league-coordinator/individual-results', label: 'Player Results' },
+  { href: '/data-assist', label: 'Data Assist' },
   { href: '/compete/leagues', label: 'My Leagues' },
   { href: '/explore/leagues', label: 'Browse' },
   { href: '/pricing#league', label: 'Plan' },
@@ -106,6 +108,7 @@ export const FOOTER_NAV_SECTIONS: NavSection[] = [
     title: 'Coordinate',
     items: [
       { href: '/league-coordinator', label: 'League Coordinator' },
+      { href: '/data-assist', label: 'Data Assist' },
       { href: '/compete/leagues', label: 'My Leagues' },
       { href: '/compete/results', label: 'Results' },
       { href: '/pricing#league', label: 'Coordinator Plan' },

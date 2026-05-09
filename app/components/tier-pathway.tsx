@@ -197,13 +197,13 @@ const introStyle: CSSProperties = {
 
 const gridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 }
 
 const compactGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
 }
 
@@ -330,13 +330,13 @@ const secondaryCtaStyle: CSSProperties = {
 
 const stripStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
 }
 
 const stripCompactStyle: CSSProperties = {
   ...stripStyle,
-  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
 }
 
 const stripItemStyle: CSSProperties = {

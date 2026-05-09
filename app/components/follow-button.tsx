@@ -152,7 +152,7 @@ export default function FollowButton({
         padding: '0 16px',
         borderRadius: '18px',
         fontWeight: 800,
-        letterSpacing: '-0.01em',
+        letterSpacing: 0,
         border: isFollowing
           ? `1px solid ${hovered ? 'rgba(248,113,113,0.36)' : 'rgba(116,190,255,0.18)'}`
           : '1px solid rgba(155,225,29,0.35)',

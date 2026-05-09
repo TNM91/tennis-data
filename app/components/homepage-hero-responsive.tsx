@@ -32,7 +32,7 @@ const actionLinkBase = {
   textDecoration: 'none',
   fontSize: '15px',
   fontWeight: 900,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
   transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
 } as const
 
@@ -46,7 +46,7 @@ export default function HomePageHeroResponsive() {
   const heroPadding = isMobile ? '18px' : isTablet ? '22px' : '30px'
   const headlineSize = isMobile ? '42px' : isTablet ? '58px' : '76px'
   const bodySize = isMobile ? '16px' : '18px'
-  const heroGrid = isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(380px, 540px)'
+  const heroGrid = isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(min(100%, 380px), 540px)'
   const statGrid = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
   const featureGrid = isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))'
 
@@ -170,7 +170,7 @@ export default function HomePageHeroResponsive() {
                 margin: '18px 0 0',
                 fontSize: headlineSize,
                 lineHeight: 0.95,
-                letterSpacing: '-0.06em',
+                letterSpacing: 0,
                 fontWeight: 900,
                 color: '#f8fbff',
                 maxWidth: '780px',
@@ -289,7 +289,7 @@ export default function HomePageHeroResponsive() {
                     color: '#f8fbff',
                     fontSize: '20px',
                     fontWeight: 900,
-                    letterSpacing: '-0.03em',
+                    letterSpacing: 0,
                   }}
                 >
                   See trajectory
@@ -324,7 +324,7 @@ export default function HomePageHeroResponsive() {
                     color: '#f8fbff',
                     fontSize: '20px',
                     fontWeight: 900,
-                    letterSpacing: '-0.03em',
+                    letterSpacing: 0,
                   }}
                 >
                   Read edges faster
@@ -359,7 +359,7 @@ export default function HomePageHeroResponsive() {
                     color: '#f8fbff',
                     fontSize: '20px',
                     fontWeight: 900,
-                    letterSpacing: '-0.03em',
+                    letterSpacing: 0,
                   }}
                 >
                   Build smarter lineups
@@ -472,7 +472,7 @@ export default function HomePageHeroResponsive() {
                       color: '#f7fbff',
                       fontSize: '13px',
                       fontWeight: 900,
-                      letterSpacing: '-0.02em',
+                      letterSpacing: 0,
                     }}
                   >
                     {title}
@@ -540,7 +540,7 @@ export default function HomePageHeroResponsive() {
                   fontSize: '22px',
                   lineHeight: 1.12,
                   fontWeight: 900,
-                  letterSpacing: '-0.04em',
+                  letterSpacing: 0,
                 }}
               >
                 {feature.title}

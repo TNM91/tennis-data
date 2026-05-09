@@ -538,7 +538,7 @@ export default function AdminAccessPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                 gap: 16,
               }}
             >
@@ -557,7 +557,7 @@ export default function AdminAccessPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
                 gap: 16,
                 marginTop: 18,
               }}
@@ -1386,7 +1386,7 @@ const supportDetailTextStyle = {
 
 const supportDetailGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 10,
 } as const
 
@@ -1421,7 +1421,7 @@ const supportEventPanelStyle = {
 
 const supportEventGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
 } as const
 

@@ -837,7 +837,7 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicHeroGrid: CSSProperties = {
     ...heroGrid,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(320px, 0.92fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(min(100%, 320px), 0.92fr)',
     gap: isMobile ? '16px' : '20px',
   }
   const dynamicHeroTitle: CSSProperties = {
@@ -3545,7 +3545,7 @@ export default function TiqLeagueDetailPage() {
                                 ) : lines.length === 0 ? (
                                   <p style={listMeta}>No lines recorded yet.</p>
                                 ) : (
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 10 }}>
                                     {lines.map((line) => (
                                       <div key={line.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 12px', border: '1px solid rgba(255,255,255,0.06)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
@@ -3631,7 +3631,7 @@ const heroCard: CSSProperties = {
 
 const heroGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.08fr) minmax(320px, 0.92fr)',
+  gridTemplateColumns: 'minmax(0, 1.08fr) minmax(min(100%, 320px), 0.92fr)',
   gap: '20px',
 }
 
@@ -3648,7 +3648,7 @@ const heroTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '56px',
   lineHeight: 0.98,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const heroText: CSSProperties = {
@@ -3759,7 +3759,7 @@ const sideValue: CSSProperties = {
   fontSize: '28px',
   lineHeight: 1.08,
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sideText: CSSProperties = {
@@ -3883,7 +3883,7 @@ const leagueHubScoreStyle: CSSProperties = {
 
 const hubNavStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
   gap: '10px',
 }
 
@@ -3902,7 +3902,7 @@ const hubNavItemStyle: CSSProperties = {
 
 const seasonPulseGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
 }
 
@@ -3962,7 +3962,7 @@ const schedulePanelStyle: CSSProperties = {
 
 const scheduleMetaGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: '10px',
 }
 
@@ -4032,7 +4032,7 @@ const scheduleViewToggleActiveStyle: CSSProperties = {
 
 const scheduleCalendarGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: '12px',
 }
 
@@ -4126,7 +4126,7 @@ const requestPreviewStyle: CSSProperties = {
 
 const requestPreviewGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: '10px',
 }
 
@@ -4142,13 +4142,13 @@ const requestPreviewCardStyle: CSSProperties = {
 
 const resultBookGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: '12px',
 }
 
 const resultCuePanelStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: '14px',
   alignItems: 'start',
   padding: '16px',
@@ -4189,7 +4189,7 @@ const resultCueActionRowStyle: CSSProperties = {
 
 const resultCueGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: '8px',
 }
 
@@ -4282,7 +4282,7 @@ const sectionTitle: CSSProperties = {
   color: '#f8fbff',
   fontSize: '28px',
   lineHeight: 1.08,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const sectionText: CSSProperties = {
@@ -4418,7 +4418,7 @@ const standingRank: CSSProperties = {
   color: '#f8fbff',
   fontSize: '20px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const standingBody: CSSProperties = {

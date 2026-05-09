@@ -824,7 +824,7 @@ function normalizeStructuredPlayerName(value: string) {
 function normalizeStructuredRosterName(value: string) {
   return value
     .replace(/\bPlayer\b|\bNTRP\b/gi, ' ')
-    .replace(/['"â€˜â€™Â°~Â©\[\]]/g, ' ')
+    .replace(/['"\u2018\u2019\u00b0~\u00a9\[\]]/g, ' ')
     .replace(/[^A-Za-z'. -]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

@@ -1475,7 +1475,7 @@ function navStyleResponsive(isTablet: boolean): CSSProperties {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.15fr) minmax(280px, 360px)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.15fr) minmax(min(100%, 280px), 360px)',
     gap: isMobile ? '18px' : '24px',
     padding: isMobile ? '26px 18px' : '34px 26px',
   }
@@ -1737,7 +1737,7 @@ const heroTextStyle: CSSProperties = {
 
 const heroButtonRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
   marginTop: 22,
 }
@@ -2232,7 +2232,7 @@ const listMetaStyle: CSSProperties = {
   fontSize: '0.88rem',
   lineHeight: 1.3,
   fontWeight: 800,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const pairNoteInlineStyle: CSSProperties = {
@@ -2338,7 +2338,7 @@ const footerBottom: CSSProperties = {
   color: 'rgba(190,205,224,0.74)',
   fontSize: '13px',
   fontWeight: 600,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {

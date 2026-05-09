@@ -52,6 +52,15 @@ export default function HowItWorksPage() {
             the season takes less manual effort to manage.
           </p>
         </div>
+
+        <div>
+          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>5. Data Assist refreshes records</h2>
+          <p>
+            When rosters, schedules, or scorecards need to be updated, players, captains, coordinators,
+            and admins can use <Link href="/data-assist">Data Assist</Link> to upload TennisLink exports.
+            Uploads are reviewed before they shape ratings, standings, matchup context, or team tools.
+          </p>
+        </div>
       </InfoPage>
     </SiteShell>
   )

@@ -396,6 +396,6 @@ const prepLinkStyle = {
   fontSize: '12px',
   fontWeight: 850,
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   transition: 'transform 160ms ease, border-color 160ms ease, color 160ms ease',
 } as const

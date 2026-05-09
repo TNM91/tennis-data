@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(360px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.05fr) minmax(min(100%, 360px), 0.95fr)',
     padding: isMobile ? '26px 18px' : '34px 26px',
     gap: isMobile ? '18px' : '24px',
   }

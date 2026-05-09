@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -1447,7 +1447,7 @@ function navStyleResponsive(isTablet: boolean): CSSProperties {
 function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSProperties {
   return {
     ...heroShell,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(300px, 0.95fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.45fr) minmax(min(100%, 300px), 0.95fr)',
     gap: isMobile ? '18px' : '24px',
     padding: isMobile ? '26px 18px' : '34px 26px',
   }
@@ -1859,7 +1859,7 @@ function getAvailRatingStatus(player: RosterPlayer): AvailRatingStatus | null {
 }
 
 function getAvailStatusStyle(status: AvailRatingStatus): CSSProperties {
-  const base: CSSProperties = { borderRadius: 999, padding: '3px 9px', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' as const }
+  const base: CSSProperties = { borderRadius: 999, padding: '3px 9px', fontSize: 11, fontWeight: 800, letterSpacing: '0.03em', display: 'inline-flex', alignItems: 'center', whiteSpace: 'normal' as const }
   switch (status) {
     case 'Bump Up Pace': return { ...base, background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.24)' }
     case 'Trending Up':  return { ...base, background: 'rgba(52,211,153,0.12)', color: '#a7f3d0', border: '1px solid rgba(52,211,153,0.22)' }
@@ -2164,7 +2164,7 @@ const footerBottom: CSSProperties = {
   color: 'rgba(190,205,224,0.74)',
   fontSize: '13px',
   fontWeight: 600,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 function PrimaryBtn({

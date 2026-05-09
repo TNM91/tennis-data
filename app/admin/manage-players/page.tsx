@@ -362,7 +362,7 @@ export default function ManagePlayersPage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                   gap: '16px',
                   flex: 1,
                   minWidth: '320px',
@@ -671,7 +671,7 @@ export default function ManagePlayersPage() {
                             const diff = usta - base
                             const status = diff >= 0.15 ? 'Bump Up Pace' : diff >= 0.07 ? 'Trending Up' : diff > -0.07 ? 'Holding' : diff > -0.15 ? 'At Risk' : 'Drop Watch'
                             const color = diff >= 0.07 ? '#d9f84a' : diff <= -0.07 ? '#fca5a5' : '#bfdbfe'
-                            return <span style={{ fontSize: 11, fontWeight: 800, color, whiteSpace: 'nowrap' as const }}>{status}</span>
+                            return <span style={{ fontSize: 11, fontWeight: 800, color, whiteSpace: 'normal' as const }}>{status}</span>
                           })()}
                         </td>
 

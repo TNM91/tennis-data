@@ -848,7 +848,7 @@ const statusButtonRow: CSSProperties = {
 
 const briefBoardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
   gap: 18,
   alignItems: 'center',
   padding: 20,
@@ -894,7 +894,7 @@ const briefMetaRowStyle: CSSProperties = {
 
 const briefSignalGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 14,
 }
 
@@ -1055,7 +1055,7 @@ const noteText: CSSProperties = {
 
 const eventGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
 }
 
@@ -1085,7 +1085,7 @@ const infoValue: CSSProperties = {
 
 const lineupGrid = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 14,
 })
 
@@ -1123,7 +1123,7 @@ const lineupPlayers: CSSProperties = {
 
 const readinessGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 12,
 }
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TierPathway from '@/app/components/tier-pathway'
@@ -25,7 +26,8 @@ export default function AboutPage() {
           <p>
             TenAceIQ brings player profiles, rankings, teams, leagues, matchup context, Captain
             tools, and League Coordinator tools into one place so each user can move from search
-            to the next useful decision.
+            to the next useful decision. Data Assist keeps tennis context current through reviewed
+            uploads instead of relying on a direct feed.
           </p>
         </div>
 
@@ -52,8 +54,9 @@ export default function AboutPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How content is approached</h2>
           <p>
-            TenAceIQ keeps tennis information clear, useful, and easy to act on. Policies and
-            contact details are available for anyone who needs them.
+            TenAceIQ keeps tennis information clear, useful, and easy to act on. Policies and{' '}
+            <Link href="/messages?compose=support">support threads</Link> are available for anyone
+            who needs them.
           </p>
         </div>
       </InfoPage>

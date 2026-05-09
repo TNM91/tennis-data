@@ -300,7 +300,7 @@ const title: React.CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: '32px',
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const subtitle: React.CSSProperties = {
@@ -324,7 +324,7 @@ const actionButton: React.CSSProperties = {
   fontWeight: 800,
   fontSize: '14px',
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const successBanner: React.CSSProperties = {
@@ -441,5 +441,5 @@ const mergeButton: React.CSSProperties = {
   fontWeight: 700,
   fontSize: '13px',
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }

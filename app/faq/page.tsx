@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TierPathway from '@/app/components/tier-pathway'
@@ -38,7 +39,8 @@ export default function FaqPage() {
           <p>
             The site works with player, team, league, ranking, matchup, and scorecard-related
             context so users can understand performance, roster options, lineup tradeoffs, and
-            season shape.
+            season shape. When information needs to refresh, TenAceIQ uses reviewed uploads through{' '}
+            <Link href="/data-assist">Data Assist</Link> rather than assuming a direct USTA API feed.
           </p>
         </div>
 
@@ -54,8 +56,10 @@ export default function FaqPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How should I report a data issue?</h2>
           <p>
-            Use the contact page and include the affected league, team, date, player, or match
-            reference. Exact examples help the platform trace import issues much faster.
+            Open a <Link href="/messages?compose=support&category=data">TenAceIQ support thread</Link>{' '}
+            and include the affected league, team, date, player, or match reference. If you have the
+            source record, upload it through <Link href="/data-assist">Data Assist</Link> so the fix
+            can be reviewed before it changes platform data.
           </p>
         </div>
       </InfoPage>

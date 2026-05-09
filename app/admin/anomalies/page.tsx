@@ -320,7 +320,7 @@ const title: React.CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 900,
   fontSize: 32,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
 }
 
 const subtitle: React.CSSProperties = {
@@ -343,7 +343,7 @@ const refreshBtn: React.CSSProperties = {
   fontWeight: 800,
   fontSize: 14,
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const errorBanner: React.CSSProperties = {
@@ -435,7 +435,7 @@ const th: React.CSSProperties = {
   textTransform: 'uppercase',
   borderBottom: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const td: React.CSSProperties = {
@@ -454,5 +454,5 @@ const badge: React.CSSProperties = {
   borderRadius: 999,
   fontSize: 12,
   fontWeight: 800,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }

@@ -5,7 +5,7 @@ import { CSSProperties, ReactNode, useState } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -33,7 +33,7 @@ const FEATURE_CARDS = [
     href: '/explore/leagues',
     eyebrow: 'Find',
     title: 'Find a league',
-    text: 'Browse USTA and TIQ league pages from one place.',
+    text: 'Browse USTA-style and TIQ league context from one place.',
     cta: 'Find leagues',
     accent: 'blue' as const,
     icon: 'trophy',
@@ -83,8 +83,14 @@ const DISCOVERY_PATHS = [
   {
     label: 'I know the league',
     title: 'Browse leagues',
-    text: 'Separate USTA and TIQ league context before drilling into teams or players.',
+    text: 'Separate imported TennisLink context from TIQ league play before drilling into teams or players.',
     href: '/explore/leagues',
+  },
+  {
+    label: 'I have exports',
+    title: 'Refresh with Data Assist',
+    text: DATA_ASSIST_STORY.shortCue,
+    href: DATA_ASSIST_STORY.href,
   },
   {
     label: 'I need the field',
@@ -118,7 +124,7 @@ export default function ExplorePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.94fr) minmax(420px, 1fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.94fr) minmax(min(100%, 420px), 1fr)',
     gap: isMobile ? '20px' : '30px',
   }
 
@@ -170,18 +176,18 @@ export default function ExplorePage() {
 
   const dynamicActionGrid: CSSProperties = {
     ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(220px, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
     gap: isMobile ? '14px' : '16px',
   }
 
   const dynamicDiscoveryPathGrid: CSSProperties = {
     ...discoveryPathGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   }
 
   const dynamicDiscoveryPathHeader: CSSProperties = {
     ...discoveryPathHeader,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.72fr) minmax(260px, 0.55fr)',
+    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.72fr) minmax(min(100%, 260px), 0.55fr)',
   }
 
   return (
@@ -375,6 +381,7 @@ const heroShell: CSSProperties = {
   boxShadow: 'var(--shadow-card)',
   overflow: 'hidden',
   position: 'relative',
+  minWidth: 0,
 }
 
 const heroNoise: CSSProperties = {
@@ -405,6 +412,7 @@ const heroContent: CSSProperties = {
   marginBottom: '18px',
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroLeft: CSSProperties = {
@@ -412,6 +420,7 @@ const heroLeft: CSSProperties = {
   flexDirection: 'column',
   justifyContent: 'flex-start',
   gap: '16px',
+  minWidth: 0,
 }
 
 const eyebrow: CSSProperties = {
@@ -434,7 +443,8 @@ const heroTitle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  letterSpacing: '-0.05em',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -497,7 +507,7 @@ const featurePanelLabel: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 800,
-  letterSpacing: '-0.02em',
+  letterSpacing: 0,
 }
 
 const featurePanelHint: CSSProperties = {
@@ -521,6 +531,7 @@ const startStepCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const startStepNumber: CSSProperties = {
@@ -549,7 +560,7 @@ const startStepTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 900,
-  letterSpacing: '-0.03em',
+  letterSpacing: 0,
 }
 
 const startStepText: CSSProperties = {
@@ -588,11 +599,12 @@ const discoveryPathPanel: CSSProperties = {
   background: 'color-mix(in srgb, var(--surface-strong) 82%, transparent)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const discoveryPathHeader: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 0.72fr) minmax(260px, 0.55fr)',
+  gridTemplateColumns: 'minmax(0, 0.72fr) minmax(min(100%, 260px), 0.55fr)',
   gap: '16px',
   alignItems: 'end',
 }
@@ -638,6 +650,7 @@ const discoveryPathCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--card-border-soft)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  minWidth: 0,
 }
 
 const discoveryPathLabel: CSSProperties = {
@@ -682,6 +695,7 @@ const actionCard: CSSProperties = {
   border: '1px solid var(--card-border-soft)',
   boxShadow: '0 18px 44px rgba(7,18,40,0.10), inset 0 1px 0 rgba(255,255,255,0.03)',
   transition: 'transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease',
+  minWidth: 0,
 }
 
 const actionCardHover: CSSProperties = {
@@ -740,7 +754,7 @@ const actionTitle: CSSProperties = {
   fontSize: '27px',
   lineHeight: 1,
   fontWeight: 900,
-  letterSpacing: '-0.04em',
+  letterSpacing: 0,
   color: 'var(--foreground-strong)',
 }
 

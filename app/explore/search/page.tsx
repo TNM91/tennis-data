@@ -413,7 +413,7 @@ export default function ExploreSearchPage() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'minmax(172px, 196px) minmax(0, 1fr) auto',
+              gridTemplateColumns: isMobile ? '1fr' : isTablet ? '1fr' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) auto',
               gap: 10,
               alignItems: isMobile ? 'stretch' : 'end',
             }}
@@ -483,7 +483,7 @@ export default function ExploreSearchPage() {
           ) : null}
 
           {leagues.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(150px, 1fr))', gap: 10, marginTop: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 12 }}>
               <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} theme={theme} />
               <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} theme={theme} />
               <FilterSelect label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={leagueGenders} theme={theme} />
@@ -515,7 +515,7 @@ export default function ExploreSearchPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.16fr) minmax(280px, 0.84fr)',
+              gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.16fr) minmax(min(100%, 280px), 0.84fr)',
               gap: 16,
               alignItems: 'stretch',
             }}
@@ -596,7 +596,7 @@ export default function ExploreSearchPage() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(280px, 0.74fr)',
+                  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) minmax(min(100%, 280px), 0.74fr)',
                   gap: 16,
                 }}
               >

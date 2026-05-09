@@ -35,7 +35,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { MY_LAB_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -2132,6 +2132,18 @@ function MyLabPageInner() {
               My Lab should turn a paid account into a clear tennis routine: connect the record, read the signal, choose the next move.
             </p>
           </div>
+          <div style={dataAssistProofStyle}>
+            <div>
+              <span style={miniActionPillStyle}>Data Assist</span>
+              <p style={dataAssistProofTitleStyle}>{DATA_ASSIST_STORY.shortCue}</p>
+              <p style={dataAssistProofTextStyle}>
+                Upload match history once, then use reviewed results across My Lab, Matchup, Captain, and Coordinator tools without depending on a direct USTA feed.
+              </p>
+            </div>
+            <Link href="/data-assist" style={secondaryButtonStyle}>
+              Open Data Assist
+            </Link>
+          </div>
           <div style={paidWorkspaceProofGridStyle(isTablet)}>
             {MY_LAB_STORY.workspaceProof.map((item) => (
               <div key={item.label} style={paidWorkspaceProofCardStyle}>
@@ -2790,7 +2802,7 @@ function MyLabPageInner() {
                     ))
                   ) : (
                     <div style={emptyStateStyle}>
-                      {isProfileConfirmed ? 'Match history will appear as imported results connect to your player record.' : 'Set up your profile to unlock your personal match history.'}
+                      {isProfileConfirmed ? `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.` : 'Set up your profile to unlock your personal match history.'}
                     </div>
                   )}
                 </div>
@@ -2855,7 +2867,7 @@ function MyLabPageInner() {
                           {s.tiq != null ? <div style={compactSignalMetaStyle}>TIQ {s.tiq.toFixed(2)}</div> : null}
                         </div>
                         {s.status ? (
-                          <span style={{ ...pillStyle, display: 'inline-flex', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'nowrap' as const }}>{s.status}</span>
+                          <span style={{ ...pillStyle, display: 'inline-flex', padding: '3px 8px', borderRadius: 999, fontSize: 10, fontWeight: 800, whiteSpace: 'normal' as const }}>{s.status}</span>
                         ) : null}
                       </div>
                     )
@@ -3167,7 +3179,8 @@ const pageStyle: CSSProperties = {
   width: '100%',
   maxWidth: '1280px',
   margin: '0 auto',
-  padding: '20px 24px 0',
+  padding: '20px clamp(14px, 4vw, 24px) 0',
+  minWidth: 0,
 }
 
 const secondaryButtonStyle: CSSProperties = {
@@ -3182,6 +3195,9 @@ const secondaryButtonStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground-strong)',
   border: '1px solid var(--shell-panel-border)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const profileLinkSectionStyle: CSSProperties = {
@@ -3192,10 +3208,13 @@ const paidWorkspaceProofStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
   margin: '0 0 18px',
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  padding: 'clamp(16px, 3vw, 22px)',
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-lime) 14%, transparent) 0%, transparent 34%), linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%) 0%, color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%) 100%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const paidWorkspaceIntroStyle: CSSProperties = {
@@ -3209,11 +3228,14 @@ const paidWorkspaceTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.35rem, 2.4vw, 2rem)',
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const paidWorkspaceProofGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })
 
@@ -3230,10 +3252,41 @@ const paidWorkspaceProofCardStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 750,
+  minWidth: 0,
 }
 
 const paidWorkspaceProofBodyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
+}
+
+const dataAssistProofStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
+}
+
+const dataAssistProofTitleStyle: CSSProperties = {
+  margin: '10px 0 4px',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.05rem',
+  fontWeight: 950,
+  lineHeight: 1.2,
+}
+
+const dataAssistProofTextStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: 760,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 750,
 }
 
 const warningNoteStyle: CSSProperties = {
@@ -3248,13 +3301,15 @@ const warningNoteStyle: CSSProperties = {
 }
 
 const profileLinkCardStyle: CSSProperties = {
-  borderRadius: 28,
+  borderRadius: 24,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg-strong)',
+  background:
+    'radial-gradient(circle at top right, color-mix(in srgb, var(--brand-blue-2) 8%, transparent) 0%, transparent 34%), var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
-  padding: '24px',
+  padding: 'clamp(16px, 3vw, 24px)',
   display: 'grid',
   gap: 18,
+  minWidth: 0,
 }
 
 const personalHomeTitleStyle: CSSProperties = {
@@ -3293,7 +3348,9 @@ const personalReadTitleStyle: CSSProperties = {
 
 const personalReadGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'
+    : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
 })
 
@@ -3333,7 +3390,9 @@ const labPlaybookPanelStyle: CSSProperties = {
 
 const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: 10,
 })
 
@@ -3353,6 +3412,7 @@ const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   padding: 14,
   color: 'inherit',
   textDecoration: 'none',
+  minWidth: 0,
 })
 
 const labPlaybookStepStyle = (complete: boolean): CSSProperties => ({
@@ -3487,7 +3547,9 @@ const quickProfileTitleStyle: CSSProperties = {
 
 const quickProfileGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
 })
 
@@ -3524,6 +3586,7 @@ const setupHeroStyle: CSSProperties = {
   display: 'flex',
   gap: 14,
   alignItems: 'center',
+  flexWrap: 'wrap',
 }
 
 const setupTitleStyle: CSSProperties = {
@@ -3536,7 +3599,9 @@ const setupTitleStyle: CSSProperties = {
 
 const setupStepGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })
 
@@ -3583,7 +3648,9 @@ const todayReadPanelStyle: CSSProperties = {
 
 const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
+    : 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 10,
 })
 
@@ -3643,6 +3710,9 @@ const matchupPrimaryLinkStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
   textDecoration: 'none',
   fontWeight: 950,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const matchupMeterStyle: CSSProperties = {
@@ -3670,7 +3740,9 @@ const matchupFillStyle = (value: number): CSSProperties => ({
 
 const matchupPreviewGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
   gap: 10,
 })
 
@@ -3682,11 +3754,14 @@ const matchupPreviewCardStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
   minHeight: 104,
+  minWidth: 0,
 }
 
 const matchupQueueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: 10,
 })
 
@@ -3705,6 +3780,7 @@ const matchupQueueCardStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   overflow: 'hidden',
+  minWidth: 0,
 }
 
 const matchupQueueRankStyle: CSSProperties = {
@@ -3726,7 +3802,7 @@ const matchupQueueNameStyle: CSSProperties = {
   lineHeight: 1.15,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const matchupQueueMetaStyle: CSSProperties = {
@@ -3736,7 +3812,7 @@ const matchupQueueMetaStyle: CSSProperties = {
   fontWeight: 800,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const matchupQueueFitStyle: CSSProperties = {
@@ -3785,7 +3861,9 @@ const matchPlanPanelStyle: CSSProperties = {
 
 const matchPlanGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })
 
@@ -3812,7 +3890,9 @@ const matchPlanTextStyle: CSSProperties = {
 
 const performanceGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'
+    : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
 })
 
@@ -3860,7 +3940,9 @@ const trophyRoomPanelStyle: CSSProperties = {
 
 const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
+    : 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 12,
 })
 
@@ -3884,7 +3966,9 @@ const trophyValueStyle: CSSProperties = {
 
 const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
 })
 
@@ -3911,7 +3995,9 @@ const tiqActionRailStyle: CSSProperties = {
 
 const tiqActionGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
 })
 
@@ -3937,7 +4023,7 @@ const tiqActionLabelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: 11,
   fontWeight: 950,
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -3945,7 +4031,7 @@ const tiqActionMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 11,
   fontWeight: 850,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const tiqActionTitleStyle: CSSProperties = {
@@ -3975,7 +4061,7 @@ const smallInlineLinkStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   textDecoration: 'none',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const teamPrepRailStyle: CSSProperties = {
@@ -3989,7 +4075,9 @@ const teamPrepRailStyle: CSSProperties = {
 
 const teamPrepGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
 })
 
@@ -4046,7 +4134,9 @@ const compactSectionTitleStyle: CSSProperties = {
 
 const goalSummaryGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(5, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))'
+    : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
 })
 
@@ -4093,7 +4183,7 @@ const goalReadinessScoreStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1.35rem',
   lineHeight: 1,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const goalReadinessTrackStyle: CSSProperties = {
@@ -4224,7 +4314,7 @@ const goalWorkspaceStyle: CSSProperties = {
 
 const goalListStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
 }
 
@@ -4294,7 +4384,7 @@ const miniActionLinkStyle: CSSProperties = {
 
 const workshopGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.1fr) minmax(280px, 0.9fr)',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.1fr) minmax(min(100%, 280px), 0.9fr)',
   gap: 12,
 })
 
@@ -4327,6 +4417,7 @@ const workshopMatchRowStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
+  minWidth: 0,
 }
 
 const matchReflectButtonStyle: CSSProperties = {
@@ -4339,7 +4430,8 @@ const matchReflectButtonStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   cursor: 'pointer',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const workshopContextRowStyle: CSSProperties = {
@@ -4347,6 +4439,7 @@ const workshopContextRowStyle: CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   gap: 10,
+  flexWrap: 'wrap',
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -4360,7 +4453,7 @@ const workshopRowTitleStyle: CSSProperties = {
   fontWeight: 900,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const workshopRowMetaStyle: CSSProperties = {
@@ -4370,7 +4463,7 @@ const workshopRowMetaStyle: CSSProperties = {
   fontWeight: 700,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const nextActionCardStyle: CSSProperties = {
@@ -4383,6 +4476,7 @@ const nextActionCardStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: 14,
   minHeight: 112,
+  minWidth: 0,
 }
 
 const miniActionPillStyle: CSSProperties = {
@@ -4398,6 +4492,9 @@ const miniActionPillStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
 }
 
 const notebookFooterStyle: CSSProperties = {
@@ -4424,7 +4521,9 @@ const saveNotebookButtonStyle: CSSProperties = {
 
 const goalFieldGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
 })
 
@@ -4444,7 +4543,7 @@ const metricNoteStyle: CSSProperties = {
 
 const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.4fr) minmax(320px, 0.9fr)',
+  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.4fr) minmax(min(100%, 320px), 0.9fr)',
   gap: 18,
   marginTop: 18,
 })
@@ -4482,7 +4581,7 @@ const optionalContextCountStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 900,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const compactSignalsPanelStyle: CSSProperties = {
@@ -4503,12 +4602,12 @@ const compactSignalsHeaderStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
 }
 
 const compactSignalsGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
 }
 
@@ -4529,7 +4628,7 @@ const compactSignalNameStyle: CSSProperties = {
   fontSize: 13,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const compactSignalMetaStyle: CSSProperties = {
@@ -4582,6 +4681,7 @@ const sectionTitleClusterStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 14,
   minWidth: 0,
+  flexWrap: 'wrap',
 }
 
 const sectionKickerStyle: CSSProperties = {
@@ -4589,7 +4689,7 @@ const sectionKickerStyle: CSSProperties = {
   fontWeight: 800,
   fontSize: 13,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   margin: 0,
 }
 
@@ -4597,9 +4697,10 @@ const sectionTitleStyle: CSSProperties = {
   margin: '8px 0',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
-  fontSize: 28,
-  letterSpacing: '-0.04em',
+  fontSize: 'clamp(1.45rem, 3vw, 1.75rem)',
+  letterSpacing: 0,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTextStyle: CSSProperties = {
@@ -4623,7 +4724,7 @@ const labelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: 13,
   fontWeight: 800,
-  letterSpacing: '0.05em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -4687,6 +4788,7 @@ const searchResultItemStyle: CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   gap: 12,
+  flexWrap: 'wrap',
   padding: 14,
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
@@ -4713,6 +4815,8 @@ const primaryMiniButtonStyle: CSSProperties = {
   color: 'var(--text-dark)',
   fontWeight: 800,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
 }
 
 const ghostMiniButtonStyle: CSSProperties = {
@@ -4724,6 +4828,8 @@ const ghostMiniButtonStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
 }
 
 const emptyInlineStyle: CSSProperties = {
@@ -4738,6 +4844,9 @@ const emptyStateStyle: CSSProperties = {
   padding: 18,
   borderRadius: 18,
   border: '1px dashed var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, transparent)',
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const errorStateStyle: CSSProperties = {
@@ -4866,7 +4975,7 @@ function badgeForAccent(accent: FeedItem['accent']): CSSProperties {
 
 const summaryGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 12,
 }
 
