@@ -166,21 +166,22 @@ function DataAssistWorkspace() {
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
-    if (files.length > 1) {
-      setError('Choose one TennisLink Excel export at a time. Import scorecards, schedules, and team summaries as separate uploads.')
+    setSelectedFileCount(files.length)
+    setPreparing(true)
+    setSavedBatchId('')
+    setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
+    setError('')
+
+    const detected = await detectDataAssistExportType(files, importType)
+    if (files.length > 1 && detected.importType !== 'scorecard') {
+      setError('Choose one schedule or team summary export at a time. You can select several scorecard exports when catching up on match results.')
+      setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
       return
     }
-    setSelectedFileCount(files.length)
-    setPreparing(true)
-    setSavedBatchId('')
-    setMessage('Checking TennisLink export...')
-    setError('')
-
-    const detected = await detectDataAssistExportType(files, importType)
     if (detected.mixed) {
-      setError('These look like different TennisLink export types. Upload scorecards, schedules, and team summaries one at a time.')
+      setError('These look like different TennisLink export types. Upload scorecards together, but keep schedules and team summaries separate.')
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
@@ -195,6 +196,12 @@ function DataAssistWorkspace() {
     }
     const changedType = detected.importType !== importType
     setImportType(detected.importType)
+    if (files.length > 1) {
+      setPreparing(false)
+      event.target.value = ''
+      await importScorecardExports(files)
+      return
+    }
     setMessage(`Preparing ${getShortImportTypeLabel(detected.importType)} export...`)
 
     try {
@@ -223,6 +230,82 @@ function DataAssistWorkspace() {
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
+    }
+  }
+
+  async function importScorecardExports(files: File[]) {
+    if (!userId) {
+      setSelectedFileCount(0)
+      setMessage(`${files.length} scorecard exports selected. Sign in to import them.`)
+      return
+    }
+
+    const scanRunId = scanRunRef.current + 1
+    scanRunRef.current = scanRunId
+    setSaving(true)
+    setSummary(null)
+    setLatestScan(null)
+    setSavedBatchId('')
+    setError('')
+
+    let importedCount = 0
+    let duplicateCount = 0
+    let reviewCount = 0
+    let failedCount = 0
+
+    try {
+      for (let index = 0; index < files.length; index += 1) {
+        if (scanRunRef.current !== scanRunId) return
+        const file = files[index]
+        setMessage(`Importing scorecard ${index + 1} of ${files.length}...`)
+        try {
+          const preparedSummary = await prepareDataAssistBatch([file], 'scorecard')
+          const nextSummary = summarizeDataAssistBatch('scorecard', preparedSummary.screenshots)
+          if (nextSummary.status === 'rejected') {
+            failedCount += 1
+            continue
+          }
+
+          const saved = await withTimeout(
+            saveDataAssistDraftBatch(nextSummary),
+            30_000,
+            'Saving a scorecard export is taking longer than expected. Check your connection and try again.',
+          )
+          const ocrResult = await withTimeout(
+            queueDataAssistOcrVerification({
+              batchId: saved.batchId,
+              draftId: saved.draftId,
+            }),
+            DATA_ASSIST_OCR_TIMEOUT_MS,
+            'Scorecard reading is taking longer than expected. The upload was saved; try it again from history in a moment.',
+          )
+
+          if (ocrResult.autoImport?.ok) {
+            importedCount += 1
+          } else if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
+            duplicateCount += 1
+          } else {
+            reviewCount += 1
+          }
+        } catch {
+          failedCount += 1
+        }
+      }
+
+      if (scanRunRef.current !== scanRunId) return
+      setMessage(buildBulkScorecardMessage({
+        total: files.length,
+        importedCount,
+        duplicateCount,
+        reviewCount,
+        failedCount,
+      }))
+      await refreshSubmissions()
+    } finally {
+      if (scanRunRef.current === scanRunId) {
+        setSaving(false)
+        setSelectedFileCount(0)
+      }
     }
   }
 
@@ -504,12 +587,13 @@ function DataAssistWorkspace() {
             <label style={dropzoneStyle(summary?.status || '')}>
               <input
                 type="file"
+                multiple={importType === 'scorecard'}
                 accept=".xls,.html,application/vnd.ms-excel,text/html"
                 onChange={(event) => void handleFiles(event)}
                 style={fileInputStyle}
               />
               <span style={dropzoneKickerStyle}>TennisLink Excel exports only</span>
-              <strong>{preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose .xls export'}</strong>
+              <strong>{preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
               <small>{getUploadHint(importType)} Standard filenames are detected automatically.</small>
             </label>
 
@@ -542,13 +626,14 @@ function DataAssistWorkspace() {
         <label style={compactDropzoneStyle}>
           <input
             type="file"
+            multiple={summary?.requestedImportType === 'scorecard'}
             accept=".xls,.html,application/vnd.ms-excel,text/html"
             onChange={(event) => void handleFiles(event)}
             style={fileInputStyle}
           />
           <span style={dropzoneKickerStyle}>Replace export</span>
           <strong>{preparing ? 'Preparing...' : 'Choose a different .xls export'}</strong>
-          <small>Use a separate upload for each scorecard, schedule, or roster export.</small>
+          <small>{summary?.requestedImportType === 'scorecard' ? 'You can also choose several scorecard exports to catch up.' : 'Use a separate upload for each schedule or roster export.'}</small>
         </label>
 
         {summary?.screenshots.length ? (
@@ -737,10 +822,37 @@ function getAutoAssessmentMessage(
   return 'TenAceIQ could not safely read this scorecard export. Upload the TennisLink Score Card Excel file again.'
 }
 
+function buildBulkScorecardMessage({
+  total,
+  importedCount,
+  duplicateCount,
+  reviewCount,
+  failedCount,
+}: {
+  total: number
+  importedCount: number
+  duplicateCount: number
+  reviewCount: number
+  failedCount: number
+}) {
+  const parts = [
+    importedCount ? `${importedCount} imported` : '',
+    duplicateCount ? `${duplicateCount} already in TenAceIQ` : '',
+    reviewCount ? `${reviewCount} saved for review` : '',
+    failedCount ? `${failedCount} need another try` : '',
+  ].filter(Boolean)
+  return `Scorecard batch complete: ${parts.join(', ') || `${total} processed`}.`
+}
+
 function getUploadHint(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'Use Match Schedule, then Send To Excel.'
   if (importType === 'team_summary') return 'Use Team Summary, then Send To Excel.'
-  return 'Use Score Card, then Send To Excel.'
+  return 'Use Score Card, then Send To Excel. You can select several scorecards.'
+}
+
+function getDropzoneTitle(importType: DataAssistImportType) {
+  if (importType === 'scorecard') return 'Tap to choose scorecard .xls exports'
+  return 'Tap to choose .xls export'
 }
 
 function getShortImportTypeLabel(importType: DataAssistImportType) {
@@ -827,17 +939,17 @@ function UploadIssueNotice({
   message: string
   onStartOver: () => void
 }) {
-  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries/i.test(message)
+  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries|schedules and team summaries/i.test(message)
   return (
     <div style={uploadIssueStyle}>
       <div>
         <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
         <p style={uploadIssueCopyStyle}>
           {mixedExportIssue
-            ? 'Choose one TennisLink Excel export for this import. Start a new upload for the next scorecard, schedule, or team summary.'
+            ? 'Scorecards can be selected together. Schedules and team summaries should be uploaded one at a time.'
             : message}
         </p>
-        {mixedExportIssue ? <small style={hintStyle}>This keeps each import easy to verify and prevents merged reads.</small> : null}
+        {mixedExportIssue ? <small style={hintStyle}>This keeps season setup clean while still supporting scorecard catch-up batches.</small> : null}
       </div>
       {mixedExportIssue ? (
         <button type="button" onClick={onStartOver} style={secondaryButtonStyle}>
