@@ -21,6 +21,8 @@ function parsedDraft(overrides: Partial<DataAssistScorecardParsedDraft> = {}): D
         awayPlayers: ['Ralf Nosic'],
         score: '6-2 6-1',
         winner: 'home',
+        winnerSource: 'dom_marker',
+        scoreEventType: 'standard',
         confidenceScore: 0.92,
       },
       {
@@ -56,7 +58,10 @@ describe('Data Assist import transformer', () => {
       sideAPlayers: ['Kevin Chen'],
       sideBPlayers: ['Ralf Nosic'],
       winnerSide: 'A',
+      winnerSource: 'dom_marker',
+      scoreEventType: 'standard',
     })
+    expect(preview.row.totalTeamScore).toEqual({ home: 1, away: 0 })
     expect(preview.row.lines[1].winnerSide).toBeNull()
     expect(preview.unresolvedWinnerCount).toBe(1)
     expect(collectDataAssistImportPlayerNames(preview.row)).toContain('Cyrus Mevorach')

@@ -1,6 +1,6 @@
 import { parseDataAssistScorecardText } from './data-assist-scorecard-parser'
 
-export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'tesseract' | 'future_ocr'
+export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'tesseract' | 'tennislink_export' | 'future_ocr'
 
 export type DataAssistOcrStatus = 'not_started' | 'queued' | 'processed' | 'failed' | 'disabled'
 
@@ -39,7 +39,17 @@ export type DataAssistScorecardParsedLine = {
   awayPlayers: string[]
   score: string
   winner: string
+  winnerSource?: 'dom_marker' | 'winner_column' | 'set_math' | 'unknown'
   confidenceScore: number
+  sets?: Array<{
+    homeGames: number
+    awayGames: number
+    tiebreak?: number
+    isMatchTiebreak?: boolean
+  }>
+  setWinnerSide?: 'home' | 'away' | null
+  scoreEventType?: 'standard' | 'third_set_match_tiebreak' | 'timed_match'
+  parseNotes?: string[]
 }
 
 export type DataAssistScorecardParsedDraft = DataAssistScorecardDraftFields & {
@@ -98,7 +108,7 @@ export function getDataAssistOcrReadiness(env: Record<string, string | undefined
       provider,
       status: 'queued',
       canRun: true,
-      reason: 'Free Tesseract OCR is enabled for trusted TennisLink scorecard drafts.',
+      reason: 'Scorecard reading is enabled for trusted TennisLink scorecard drafts.',
     }
   }
 
@@ -117,7 +127,7 @@ export function getServerDataAssistOcrReadiness(env: Record<string, string | und
       provider,
       status: 'queued',
       canRun: true,
-      reason: 'Free Tesseract OCR is enabled for trusted scorecard drafts.',
+      reason: 'Scorecard reading is enabled for trusted scorecard drafts.',
     }
   }
 
@@ -125,7 +135,7 @@ export function getServerDataAssistOcrReadiness(env: Record<string, string | und
     provider: DATA_ASSIST_OCR_PROVIDER,
     status: 'disabled',
     canRun: false,
-    reason: 'Set DATA_ASSIST_OCR_PROVIDER=tesseract to enable free server-side OCR.',
+    reason: 'Set DATA_ASSIST_OCR_PROVIDER=tesseract to enable server-side scorecard reading.',
   }
 }
 

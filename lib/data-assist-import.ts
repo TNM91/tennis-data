@@ -14,6 +14,13 @@ export type DataAssistImportPreview = {
   row: ScorecardImportRow
   unresolvedWinnerCount: number
   playerMappings: DataAssistImportPlayerMapping[]
+  duplicateMatch?: {
+    externalMatchId: string
+    status: string
+    matchDate: string
+    homeTeam: string
+    awayTeam: string
+  }
 }
 
 export function buildDataAssistScorecardImportRow(
@@ -86,6 +93,10 @@ export function applyDataAssistPlayerMappingsToRow(
 
 function toScorecardImportLine(line: DataAssistScorecardParsedLine, index: number) {
   const lineMeta = parseLineLabel(line.lineLabel, index)
+  const winnerSource = line.winner === 'unknown' ? 'unknown' : line.winnerSource || 'set_math'
+  const parseNotes = line.winner === 'unknown'
+    ? uniqueStrings([...(line.parseNotes || []), 'Winner could not be determined from OCR.'])
+    : line.parseNotes || []
   return {
     lineNumber: lineMeta.lineNumber,
     matchType: lineMeta.matchType,
@@ -95,9 +106,9 @@ function toScorecardImportLine(line: DataAssistScorecardParsedLine, index: numbe
     score: line.score || null,
     rawScoreText: line.score || null,
     captureConfidence: line.confidenceScore,
-    winnerSource: line.winner === 'unknown' ? 'unknown' : 'set_math',
-    scoreEventType: 'standard',
-    parseNotes: line.winner === 'unknown' ? ['Winner could not be determined from OCR.'] : [],
+    winnerSource,
+    scoreEventType: line.scoreEventType || 'standard',
+    parseNotes,
   } satisfies ScorecardImportRow['lines'][number]
 }
 

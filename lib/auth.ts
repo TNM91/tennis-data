@@ -45,7 +45,11 @@ export async function getClientAuthState(): Promise<AuthState> {
   const userId = user.id
 
   const [entitlements, profileResult] = await Promise.all([
-    getClientEntitlementSnapshot(userId),
+    withTimeout(
+      getClientEntitlementSnapshot(userId),
+      AUTH_TIMEOUT_MS,
+      null,
+    ),
     withTimeout(
       Promise.resolve(
         supabase

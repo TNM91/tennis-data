@@ -7,7 +7,9 @@ import {
   type DataAssistImportPreview,
 } from './data-assist-import'
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
-import { runScorecardImport, type RunImportSuccess } from './ingestion/runImport'
+import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
+import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
 
 export type DataAssistScorecardImportAction = 'preview' | 'commit'
@@ -31,6 +33,237 @@ type StatsBatchRow = {
   reviewed_at?: string | null
 }
 
+export type DataAssistScheduleImportActionResult = {
+  ok: boolean
+  action: DataAssistScorecardImportAction
+  message: string
+  importResult?: Extract<RunImportSuccess, { kind: 'schedule' }>
+}
+
+export type DataAssistTeamSummaryImportActionResult = {
+  ok: boolean
+  action: DataAssistScorecardImportAction
+  message: string
+  importResult?: Extract<RunImportSuccess, { kind: 'team_summary' }>
+}
+
+type ExistingMatchRow = {
+  external_match_id?: string | null
+  status?: string | null
+  match_date?: string | null
+  home_team?: string | null
+  away_team?: string | null
+  line_number?: number | null
+}
+
+export async function runDataAssistScheduleImportAction(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistScheduleParsedDraft
+  batchId: string
+  draftId: string
+  reviewedBy: string
+  action: DataAssistScorecardImportAction
+  validationSummary?: Record<string, unknown> | null
+}): Promise<DataAssistScheduleImportActionResult> {
+  const payload = buildDataAssistSchedulePayload(input.parsedDraft, input.batchId)
+  const importResult = await runScheduleImport(input.supabase, payload, input.action === 'preview' ? 'preview' : 'commit')
+
+  if (!importResult.ok || importResult.kind !== 'schedule') {
+    return {
+      ok: false,
+      action: input.action,
+      message: importResult.ok ? 'Schedule import returned an unexpected result.' : importResult.error,
+    }
+  }
+
+  if (input.action === 'commit') {
+    if (importResult.result.failedCount > 0) {
+      return {
+        ok: false,
+        action: input.action,
+        message: importResult.result.errors[0]?.message || 'Schedule import did not commit.',
+        importResult,
+      }
+    }
+
+    const importedAt = new Date().toISOString()
+    const validationSummary = {
+      ...(input.validationSummary || {}),
+      importSummary: {
+        importedAt,
+        importResult,
+        scheduleMatches: input.parsedDraft.matches,
+      },
+    }
+    const message = buildScheduleImportedReviewNote(importResult)
+    const [batchUpdate, draftUpdate] = await Promise.all([
+      input.supabase
+        .from('data_assist_batches')
+        .update({
+          status: 'imported',
+          review_note: message,
+          reviewed_by_user_id: input.reviewedBy,
+          reviewed_at: importedAt,
+        })
+        .eq('id', input.batchId),
+      input.supabase
+        .from('data_assist_drafts')
+        .update({
+          status: 'imported',
+          validation_summary: validationSummary,
+          reviewed_by_user_id: input.reviewedBy,
+          reviewed_at: importedAt,
+        })
+        .eq('id', input.draftId),
+    ])
+
+    if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importResult }
+    if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importResult }
+    await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+  }
+
+  return {
+    ok: true,
+    action: input.action,
+    importResult,
+    message: input.action === 'commit'
+      ? buildScheduleImportedReviewNote(importResult)
+      : `Schedule preview ready. ${importResult.result.successCount} match${importResult.result.successCount === 1 ? '' : 'es'} validated.`,
+  }
+}
+
+function buildDataAssistSchedulePayload(parsedDraft: DataAssistScheduleParsedDraft, batchId: string) {
+  return {
+    pageType: 'season_schedule',
+    seasonSchedule: {
+      teamName: parsedDraft.teamName,
+      leagueName: parsedDraft.leagueName,
+      flight: parsedDraft.flight,
+      ustaSection: parsedDraft.ustaSection,
+      districtArea: parsedDraft.districtArea,
+      matches: parsedDraft.matches.map((match) => ({
+        matchId: match.externalMatchId,
+        externalMatchId: match.externalMatchId,
+        scheduleDate: match.matchDate,
+        scheduleTime: match.matchTime,
+        scheduleTimeDisplay: match.matchTime,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        facility: match.facility,
+        sourceBatchId: batchId,
+      })),
+    },
+  }
+}
+
+function buildScheduleImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'schedule' }>) {
+  const imported = importResult.result.successCount
+  const updated = importResult.result.updatedCount
+  const total = imported + updated
+  if (updated && imported) return `Data Assist schedule imported ${total} matches: ${imported} new, ${updated} updated.`
+  if (updated) return `Data Assist schedule updated ${updated} scheduled match${updated === 1 ? '' : 'es'}.`
+  return `Data Assist schedule imported ${imported} scheduled match${imported === 1 ? '' : 'es'}.`
+}
+
+export async function runDataAssistTeamSummaryImportAction(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  batchId: string
+  draftId: string
+  reviewedBy: string
+  action: DataAssistScorecardImportAction
+  validationSummary?: Record<string, unknown> | null
+}): Promise<DataAssistTeamSummaryImportActionResult> {
+  const payload = buildDataAssistTeamSummaryPayload(input.parsedDraft, input.batchId)
+  const importResult = await runTeamSummaryImport(input.supabase, payload, input.action === 'preview' ? 'preview' : 'commit', {
+    hasNormalizedPlayerNameColumn: true,
+  })
+
+  if (!importResult.ok || importResult.kind !== 'team_summary') {
+    return {
+      ok: false,
+      action: input.action,
+      message: importResult.ok ? 'Team summary import returned an unexpected result.' : importResult.error,
+    }
+  }
+
+  if (input.action === 'commit') {
+    if (importResult.result.failedCount > 0 || importResult.result.totalPlayers === 0) {
+      return {
+        ok: false,
+        action: input.action,
+        message: importResult.result.errors[0]?.message || 'Team summary import did not commit.',
+        importResult,
+      }
+    }
+
+    const importedAt = new Date().toISOString()
+    const validationSummary = {
+      ...(input.validationSummary || {}),
+      importSummary: {
+        importedAt,
+        importResult,
+        rosterPlayers: input.parsedDraft.players,
+      },
+    }
+    const message = buildTeamSummaryImportedReviewNote(importResult)
+    const [batchUpdate, draftUpdate] = await Promise.all([
+      input.supabase
+        .from('data_assist_batches')
+        .update({
+          status: 'imported',
+          review_note: message,
+          reviewed_by_user_id: input.reviewedBy,
+          reviewed_at: importedAt,
+        })
+        .eq('id', input.batchId),
+      input.supabase
+        .from('data_assist_drafts')
+        .update({
+          status: 'imported',
+          validation_summary: validationSummary,
+          reviewed_by_user_id: input.reviewedBy,
+          reviewed_at: importedAt,
+        })
+        .eq('id', input.draftId),
+    ])
+
+    if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importResult }
+    if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importResult }
+    await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+  }
+
+  return {
+    ok: true,
+    action: input.action,
+    importResult,
+    message: input.action === 'commit'
+      ? buildTeamSummaryImportedReviewNote(importResult)
+      : `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated.`,
+  }
+}
+
+function buildDataAssistTeamSummaryPayload(parsedDraft: DataAssistTeamSummaryParsedDraft, batchId: string) {
+  return {
+    pageType: 'team_summary',
+    teamSummary: {
+      rosterTeamName: parsedDraft.rosterTeamName,
+      leagueName: parsedDraft.leagueName,
+      flight: parsedDraft.flight,
+      ustaSection: parsedDraft.ustaSection,
+      districtArea: parsedDraft.districtArea,
+      teams: parsedDraft.teams,
+      players: parsedDraft.players,
+      sourceBatchId: batchId,
+      source: 'tennislink_team_summary',
+    },
+  }
+}
+
+function buildTeamSummaryImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'team_summary' }>) {
+  return `Data Assist roster imported ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'}: ${importResult.result.createdCount} new, ${importResult.result.updatedCount} updated.`
+}
+
 export async function runDataAssistScorecardImportAction(input: {
   supabase: SupabaseClient
   parsedDraft: DataAssistScorecardParsedDraft
@@ -52,6 +285,55 @@ export async function runDataAssistScorecardImportAction(input: {
       ok: false,
       action: input.action,
       message: 'Resolve line winners before committing this Data Assist scorecard.',
+      importPreview,
+    }
+  }
+
+  if (importPreview.duplicateMatch?.status === 'completed') {
+    if (input.action === 'commit') {
+      const importedAt = new Date().toISOString()
+      const message = `Already imported: match ${importPreview.row.externalMatchId} is already in TenAceIQ.`
+      const validationSummary = {
+        ...(input.validationSummary || {}),
+        importSummary: {
+          importedAt,
+          duplicate: true,
+          message,
+          playerMappings: importPreview.playerMappings,
+        },
+      }
+      const [batchUpdate, draftUpdate] = await Promise.all([
+        input.supabase
+          .from('data_assist_batches')
+          .update({
+            status: 'imported',
+            review_note: message,
+            reviewed_by_user_id: input.reviewedBy,
+            reviewed_at: importedAt,
+          })
+          .eq('id', input.batchId),
+        input.supabase
+          .from('data_assist_drafts')
+          .update({
+            status: 'imported',
+            validation_summary: validationSummary,
+            reviewed_by_user_id: input.reviewedBy,
+            reviewed_at: importedAt,
+          })
+          .eq('id', input.draftId),
+      ])
+
+      if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importPreview }
+      if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importPreview }
+      await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+    }
+
+    return {
+      ok: true,
+      action: input.action,
+      message: input.action === 'commit'
+        ? `Already imported: match ${importPreview.row.externalMatchId} is already in TenAceIQ.`
+        : `Duplicate found: match ${importPreview.row.externalMatchId} is already in TenAceIQ.`,
       importPreview,
     }
   }
@@ -156,11 +438,34 @@ async function buildDataAssistImportPreview(input: {
     sourceBatchId: input.batchId,
   })
   const playerMappings = await buildPlayerMappings(input.supabase, collectDataAssistImportPlayerNames(importPreview.row))
+  const duplicateMatch = await findExistingCompletedMatch(input.supabase, importPreview.row.externalMatchId)
 
   importPreview.playerMappings = playerMappings
+  if (duplicateMatch) importPreview.duplicateMatch = duplicateMatch
   importPreview.row = applyDataAssistPlayerMappingsToRow(importPreview.row, playerMappings)
 
   return importPreview
+}
+
+async function findExistingCompletedMatch(supabase: SupabaseClient, externalMatchId: string) {
+  const cleanExternalMatchId = cleanText(externalMatchId)
+  if (!cleanExternalMatchId) return null
+
+  const { data } = await supabase
+    .from('matches')
+    .select('external_match_id, status, match_date, home_team, away_team, line_number')
+    .eq('external_match_id', cleanExternalMatchId)
+    .maybeSingle()
+
+  const row = data as ExistingMatchRow | null
+  if (!row || cleanText(row.status) !== 'completed') return null
+  return {
+    externalMatchId: cleanText(row.external_match_id),
+    status: cleanText(row.status),
+    matchDate: cleanText(row.match_date),
+    homeTeam: cleanText(row.home_team),
+    awayTeam: cleanText(row.away_team),
+  }
 }
 
 async function buildPlayerMappings(
@@ -279,7 +584,7 @@ function buildPreviewMessage(importPreview: DataAssistImportPreview) {
 function buildImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'scorecard' }>) {
   const createdPlayers = importResult.result.createdPlayersCount
   const linkedPlayers = importResult.result.linkedPlayersCount
-  return `Data Assist scorecard imported to TenAceIQ. ${linkedPlayers} player link${linkedPlayers === 1 ? '' : 's'} refreshed${createdPlayers ? `; ${createdPlayers} new player${createdPlayers === 1 ? '' : 's'} created` : ''}.`
+  return `Scorecard imported. ${linkedPlayers} player link${linkedPlayers === 1 ? '' : 's'} refreshed${createdPlayers ? `; ${createdPlayers} new player${createdPlayers === 1 ? '' : 's'} created` : ''}. Schedule and roster uploads can be added later, but this result is ready now.`
 }
 
 function getContributorBadges(verifiedImportCount: number, accuracyScore: number) {

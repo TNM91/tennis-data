@@ -15,6 +15,7 @@ import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 
 const DEFAULT_POST_LOGIN_ROUTE = '/mylab'
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'captain', 'league']
+const LOGIN_AUTH_TIMEOUT_MS = 8000
 
 const LOGIN_INTENT_COPY: Record<MembershipTierId, {
   eyebrow: string
@@ -73,11 +74,24 @@ async function getDefaultPostLoginRoute(
   if (access.currentPlanId === 'league') return '/league-coordinator'
   if (access.currentPlanId === 'captain') return '/captain'
   if (access.canUseAdvancedPlayerInsights) {
-    const profileRes = await loadUserProfileLink(userId)
+    const profileRes = await withLoginTimeout(
+      loadUserProfileLink(userId),
+      LOGIN_AUTH_TIMEOUT_MS,
+      { data: null, error: null, source: 'none', cloudSchemaReady: false },
+    )
     const hasLinkedPlayer = Boolean(profileRes.data?.linked_player_id || profileRes.data?.linked_player_name)
     if (!hasLinkedPlayer) return '/profile'
   }
   return DEFAULT_POST_LOGIN_ROUTE
+}
+
+async function withLoginTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      window.setTimeout(() => resolve(fallback), timeoutMs)
+    }),
+  ])
 }
 
 async function resolvePostLoginRoute(
@@ -104,7 +118,7 @@ export default function LoginPage() {
   const router = useRouter()
 
   const [role, setRole] = useState<UserRole>('public')
-  const [authLoading, setAuthLoading] = useState(true)
+  const [, setAuthLoading] = useState(false)
   const [redirecting, setRedirecting] = useState(false)
 
   const [email, setEmail] = useState('')
@@ -113,6 +127,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
+  const [authNote, setAuthNote] = useState('')
 
   const hasRedirectedRef = useRef(false)
 
@@ -232,23 +247,60 @@ export default function LoginPage() {
     setSubmitting(true)
     setRedirecting(false)
     setError('')
+    setAuthNote('')
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: trimmedEmail,
-        password,
-      })
+      const signInResult = await withLoginTimeout<
+        | { timedOut: false; result: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>> }
+        | { timedOut: true }
+      >(
+        supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        }).then((result) => ({ timedOut: false as const, result })),
+        LOGIN_AUTH_TIMEOUT_MS,
+        { timedOut: true as const },
+      )
+      if (signInResult.timedOut) {
+        throw new Error('Sign in timed out. Check your connection and try again.')
+      }
+
+      const { data: signInData, error: signInError } = signInResult.result
 
       if (signInError) throw new Error(signInError.message)
+      if (!signInData.session?.access_token || !signInData.session.refresh_token) {
+        throw new Error('Sign in did not return an active session. Please check the account credentials and try again.')
+      }
 
-      const authState = await getClientAuthState()
+      await supabase.auth.setSession({
+        access_token: signInData.session.access_token,
+        refresh_token: signInData.session.refresh_token,
+      })
+      setAuthNote(canUseBrowserStorage() ? 'Session accepted. Opening Data Assist...' : 'Session accepted for this tab. Browser storage looks blocked on this device.')
+
+      const authState = await withLoginTimeout(
+        getClientAuthState(),
+        LOGIN_AUTH_TIMEOUT_MS,
+        {
+          user: null,
+          role: 'member',
+          entitlements: null,
+          loading: false,
+        },
+      )
       const nextRole = authState.role === 'public' ? 'member' : authState.role
 
       hasRedirectedRef.current = true
       setRedirecting(true)
       setRole(nextRole)
       setAuthLoading(false)
-      router.replace(await getPostLoginRoute(nextRole, authState.entitlements, authState.user?.id))
+      const nextRoute = await getPostLoginRoute(
+        nextRole,
+        authState.entitlements,
+        authState.user?.id ?? signInData.session.user.id,
+      )
+      router.replace(nextRoute)
+      router.refresh()
     } catch (err) {
       hasRedirectedRef.current = false
       setRedirecting(false)
@@ -257,6 +309,19 @@ export default function LoginPage() {
       setSubmitting(false)
     }
   }
+
+function canUseBrowserStorage() {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const key = '__tenaceiq_auth_storage_check__'
+    window.localStorage.setItem(key, '1')
+    window.localStorage.removeItem(key)
+    return true
+  } catch {
+    return false
+  }
+}
 
   const heroShellResponsive: CSSProperties = {
     ...heroShell,
@@ -280,19 +345,6 @@ export default function LoginPage() {
   const loginPanelInnerResponsive: CSSProperties = {
     ...loginPanelInner,
     padding: isMobile ? 0 : '22px',
-  }
-
-  if (authLoading) {
-    return (
-      <SiteShell active="login">
-        <section style={loadingShell}>
-          <div style={loadingCard}>
-            <span style={spinnerStyle} />
-            Checking sign-in status...
-          </div>
-        </section>
-      </SiteShell>
-    )
   }
 
   if (role !== 'public' || redirecting) {
@@ -439,6 +491,7 @@ export default function LoginPage() {
               </button>
 
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
+              {!error && authNote ? <div role="status" aria-live="polite" style={successBanner}>{authNote}</div> : null}
 
               <div style={helperRow}>
                 <Link href="/join" style={inlineLink}>
@@ -842,6 +895,13 @@ const errorBanner: CSSProperties = {
   color: '#ffd7d7',
   fontWeight: 700,
   fontSize: '14px',
+}
+
+const successBanner: CSSProperties = {
+  ...errorBanner,
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  color: 'var(--foreground-strong)',
 }
 
 const helperRow: CSSProperties = {

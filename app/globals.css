@@ -25,6 +25,34 @@
   transform-origin: 50% 50%;
 }
 
+.tiq-tennis-ball {
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 22%),
+    radial-gradient(circle at 56% 55%, #d9ff45 0%, #b7f12b 58%, #9be11d 100%);
+  box-shadow:
+    inset -1px -2px 3px rgba(31, 69, 12, 0.35),
+    0 0 10px rgba(155, 225, 29, 0.42);
+  overflow: hidden;
+}
+
+.tiq-tennis-ball::before,
+.tiq-tennis-ball::after {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.tiq-tennis-ball::before {
+  transform: translateX(-42%) rotate(18deg);
+}
+
+.tiq-tennis-ball::after {
+  transform: translateX(42%) rotate(18deg);
+}
+
 @keyframes tiq-loader-orbit {
   from {
     transform: translate(-50%, -50%) rotate(0deg) translateY(calc(-1 * var(--tiq-loader-orbit-radius, 44px))) rotate(0deg);

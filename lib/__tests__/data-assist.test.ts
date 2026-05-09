@@ -44,7 +44,7 @@ describe('Data Assist foundation helpers', () => {
   it('rejects unsupported batch file types', () => {
     const file = { type: 'application/pdf', size: 1200 } as File
 
-    expect(validateDataAssistFiles([file])).toContain('screenshots')
+    expect(validateDataAssistFiles([file])).toContain('Excel exports')
   })
 
   it('summarizes a supported scorecard batch for layout review', () => {

@@ -212,13 +212,9 @@ export default function SiteHeader({ active }: { active?: string }) {
   const [unreadMessages, setUnreadMessages] = useState(0)
   const [unreadAlerts, setUnreadAlerts] = useState(0)
 
-  // Close mobile menu whenever the route changes (back/forward navigation)
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setMenuOpen(false)
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    const timeout = window.setTimeout(() => setMenuOpen(false), 0)
+    return () => window.clearTimeout(timeout)
   }, [pathname])
 
   useEffect(() => {
@@ -305,6 +301,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   const firstName = linkedPlayerName.split(' ')[0] || ''
   const accountLabel = firstName ? `Hi, ${firstName}` : roleLabel
   const canUseCaptainTools = access.canUseCaptainWorkflow
+  const signInHref = `/login?next=${encodeURIComponent(pathname || '/')}`
 
   return (
     <header
@@ -312,7 +309,7 @@ export default function SiteHeader({ active }: { active?: string }) {
         position: 'sticky',
         top: 0,
         zIndex: 40,
-        overflow: 'clip',
+        overflow: 'visible',
         padding: `max(0px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left))`,
         background: 'transparent',
         backdropFilter: 'blur(20px)',
@@ -472,13 +469,14 @@ export default function SiteHeader({ active }: { active?: string }) {
           </div>
         </div>
 
-        {useCompactHeader ? (
+        {useCompactHeader && menuOpen ? (
           <div
             style={{
-              maxHeight: menuOpen ? '760px' : '0px',
-              opacity: menuOpen ? 1 : 0,
-              overflow: 'hidden',
-              transition: 'max-height 220ms ease, opacity 180ms ease',
+              position: 'relative',
+              zIndex: 2,
+              maxHeight: 'calc(100dvh - 120px)',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
             }}
           >
             <div
@@ -610,7 +608,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </>
               ) : (
                 <>
-                  <Link href="/login" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
+                  <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <span>Sign in</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>

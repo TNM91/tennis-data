@@ -1,6 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
-import { runDataAssistScorecardImportAction, type DataAssistScorecardImportActionResult } from '@/lib/data-assist-import-runner'
+import {
+  runDataAssistScheduleImportAction,
+  runDataAssistScorecardImportAction,
+  runDataAssistTeamSummaryImportAction,
+  type DataAssistScheduleImportActionResult,
+  type DataAssistScorecardImportActionResult,
+  type DataAssistTeamSummaryImportActionResult,
+} from '@/lib/data-assist-import-runner'
 import {
   assessDataAssistScorecardDraft,
   buildDataAssistOcrQualitySummary,
@@ -8,10 +15,18 @@ import {
   getServerDataAssistOcrReadiness,
   type DataAssistOcrScreenshotInput,
 } from '@/lib/data-assist-ocr'
-import { recognizeDataAssistScreenshotsWithTesseract, type DataAssistTesseractImageInput } from '@/lib/data-assist-tesseract'
+import { buildScheduleOcrDraftFromText } from '@/lib/data-assist-schedule-parser'
+import { buildTeamSummaryOcrDraftFromText } from '@/lib/data-assist-team-summary-parser'
+import { isTennisLinkExportFile, parseTennisLinkExportFiles } from '@/lib/data-assist-export-parser'
+import {
+  recognizeDataAssistScheduleScreenshotsWithTesseract,
+  recognizeDataAssistScreenshotsWithTesseract,
+  recognizeDataAssistTeamSummaryScreenshotsWithTesseract,
+  type DataAssistTesseractImageInput,
+} from '@/lib/data-assist-tesseract'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 120
 
 const DATA_ASSIST_SCREENSHOT_BUCKET = 'data-assist-screenshots'
 
@@ -115,18 +130,323 @@ export async function POST(request: Request) {
   if (!requesterCheck.isAdmin && cleanText(batch.submitted_by_user_id) !== requesterCheck.userId) {
     return Response.json({ ok: false, message: 'You can only OCR your own Data Assist uploads.' }, { status: 403 })
   }
-  if (batch?.requested_import_type !== 'scorecard') {
+  if (batch?.requested_import_type !== 'scorecard' && batch?.requested_import_type !== 'schedule' && batch?.requested_import_type !== 'team_summary') {
     return Response.json(
-      { ok: false, message: 'Free OCR is currently scoped to TennisLink scorecard batches.' },
+      { ok: false, message: 'Free OCR is currently scoped to TennisLink scorecard and schedule batches.' },
       { status: 400 },
     )
   }
 
   const screenshots = ((screenshotResult.data || []) as ScreenshotRow[]).map(toScreenshotInput)
-  let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScreenshotsWithTesseract>>
+  let imageInputs: DataAssistTesseractImageInput[]
   try {
-    const imageInputs = await downloadScreenshotImages(supabase, screenshots)
-    ocrResult = await recognizeDataAssistScreenshotsWithTesseract(imageInputs)
+  imageInputs = await downloadScreenshotImages(supabase, screenshots)
+  } catch (error) {
+    return Response.json(
+      { ok: false, message: error instanceof Error ? error.message : 'Could not download the stored screenshots.' },
+      { status: 500 },
+    )
+  }
+  const exportInputs = imageInputs
+    .map((input) => ({ ...input, fileBuffer: input.imageBuffer }))
+    .filter(isTennisLinkExportFile)
+
+  if (batch.requested_import_type === 'schedule') {
+    let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScheduleScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
+    try {
+      ocrResult = exportInputs.length
+        ? parseTennisLinkExportFiles(exportInputs)
+        : await recognizeDataAssistScheduleScreenshotsWithTesseract(imageInputs)
+    } catch (error) {
+      return Response.json(
+        { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these schedule screenshots.' },
+        { status: 500 },
+      )
+    }
+
+    const parsedDraftBase = buildScheduleOcrDraftFromText(ocrResult.rawText, screenshots, ocrResult.provider)
+    const parsedDraft = {
+      ...parsedDraftBase,
+      parserWarnings: uniqueText([...ocrResult.warnings, ...parsedDraftBase.parserWarnings]),
+      confidenceScore: Math.max(parsedDraftBase.confidenceScore, ocrResult.confidenceScore),
+    }
+    const confidenceScore = roundConfidence(parsedDraft.confidenceScore)
+    const processedAt = new Date().toISOString()
+    const { data: job, error: jobError } = await supabase
+      .from('data_assist_ocr_jobs')
+      .insert({
+        batch_id: batchId,
+        draft_id: draftId,
+        requested_by_user_id: requesterCheck.userId,
+        provider: parsedDraft.provider,
+        status: 'completed',
+        screenshot_count: screenshots.length,
+        confidence_score: confidenceScore,
+        warnings: parsedDraft.parserWarnings,
+        result_payload: parsedDraft,
+        processed_at: processedAt,
+      })
+      .select('id')
+      .single()
+
+    if (jobError) return Response.json({ ok: false, message: jobError.message }, { status: 500 })
+    const jobId = cleanText((job as { id?: string | null } | null)?.id)
+    if (!jobId) return Response.json({ ok: false, message: 'OCR verification job could not be created.' }, { status: 500 })
+
+    const draftUpdate = await supabase
+      .from('data_assist_drafts')
+      .update({
+        status: parsedDraft.matches.length ? 'ready_for_verification' : 'blocked',
+        confidence_score: confidenceScore,
+        ocr_status: 'processed',
+        ocr_job_id: jobId,
+        ocr_provider: parsedDraft.provider,
+        ocr_processed_at: processedAt,
+        parsed_payload: parsedDraft,
+        external_match_id: parsedDraft.matches[0]?.externalMatchId || '',
+        home_team: parsedDraft.matches[0]?.homeTeam || '',
+        away_team: parsedDraft.matches[0]?.awayTeam || '',
+        match_date: parsedDraft.matches[0]?.matchDate || '',
+        line_count: parsedDraft.matchCount,
+        parser_warnings: parsedDraft.parserWarnings,
+        validation_summary: {
+          message: parsedDraft.matches.length
+            ? 'Team schedule read complete. Review the schedule rows before importing.'
+            : 'TenAceIQ could not safely read this team schedule.',
+          importLocked: true,
+          sourceScreenshotCount: screenshots.length,
+          ocrConfidenceScore: ocrResult.confidenceScore,
+        },
+      })
+      .eq('id', draftId)
+
+    if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+
+    const batchUpdate = await supabase
+      .from('data_assist_batches')
+      .update({
+        status: parsedDraft.matches.length ? 'ready_to_import' : 'rejected',
+        review_note: parsedDraft.parserWarnings.join(' '),
+        reviewed_by_user_id: null,
+        reviewed_at: null,
+      })
+      .eq('id', batchId)
+
+    if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
+
+    let autoImport: DataAssistScheduleImportActionResult | undefined
+    const scheduleReady = parsedDraft.matches.length > 0 && parsedDraft.matches.every((match) => match.reviewNotes.length === 0)
+    if (scheduleReady) {
+      try {
+        autoImport = await runDataAssistScheduleImportAction({
+          supabase,
+          parsedDraft,
+          batchId,
+          draftId,
+          reviewedBy: requesterCheck.userId,
+          action: 'commit',
+          validationSummary: {
+            message: 'Team schedule read passed auto-checks.',
+            importLocked: false,
+            sourceScreenshotCount: screenshots.length,
+            ocrConfidenceScore: ocrResult.confidenceScore,
+          },
+        })
+      } catch (error) {
+        autoImport = {
+          ok: false,
+          action: 'commit',
+          message: error instanceof Error ? error.message : 'Automatic schedule import failed.',
+        }
+      }
+
+      if (!autoImport.ok) {
+        const exceptionNote = `Auto-import paused: ${autoImport.message}`
+        await Promise.all([
+          supabase
+            .from('data_assist_batches')
+            .update({
+              status: 'needs_review',
+              review_note: exceptionNote,
+              reviewed_by_user_id: null,
+              reviewed_at: null,
+            })
+            .eq('id', batchId),
+          supabase
+            .from('data_assist_drafts')
+            .update({
+              status: 'ready_for_verification',
+              validation_summary: {
+                message: exceptionNote,
+                autoImport,
+                importLocked: true,
+                sourceScreenshotCount: screenshots.length,
+                ocrConfidenceScore: ocrResult.confidenceScore,
+              },
+            })
+            .eq('id', draftId),
+        ])
+      }
+    }
+
+    return Response.json({
+      ok: true,
+      jobId,
+      parsedDraft,
+      autoAssessment: undefined,
+      autoImport,
+    })
+  }
+
+  if (batch.requested_import_type === 'team_summary') {
+    let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistTeamSummaryScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
+    try {
+      ocrResult = exportInputs.length
+        ? parseTennisLinkExportFiles(exportInputs)
+        : await recognizeDataAssistTeamSummaryScreenshotsWithTesseract(imageInputs)
+    } catch (error) {
+      return Response.json(
+        { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these team summary screenshots.' },
+        { status: 500 },
+      )
+    }
+
+    const parsedDraftBase = buildTeamSummaryOcrDraftFromText(ocrResult.rawText, screenshots, ocrResult.provider)
+    const parsedDraft = {
+      ...parsedDraftBase,
+      parserWarnings: uniqueText([...ocrResult.warnings, ...parsedDraftBase.parserWarnings]),
+      confidenceScore: Math.max(parsedDraftBase.confidenceScore, ocrResult.confidenceScore),
+    }
+    const confidenceScore = roundConfidence(parsedDraft.confidenceScore)
+    const processedAt = new Date().toISOString()
+    const { data: job, error: jobError } = await supabase
+      .from('data_assist_ocr_jobs')
+      .insert({
+        batch_id: batchId,
+        draft_id: draftId,
+        requested_by_user_id: requesterCheck.userId,
+        provider: parsedDraft.provider,
+        status: 'completed',
+        screenshot_count: screenshots.length,
+        confidence_score: confidenceScore,
+        warnings: parsedDraft.parserWarnings,
+        result_payload: parsedDraft,
+        processed_at: processedAt,
+      })
+      .select('id')
+      .single()
+
+    if (jobError) return Response.json({ ok: false, message: jobError.message }, { status: 500 })
+    const jobId = cleanText((job as { id?: string | null } | null)?.id)
+    if (!jobId) return Response.json({ ok: false, message: 'OCR verification job could not be created.' }, { status: 500 })
+
+    const draftUpdate = await supabase
+      .from('data_assist_drafts')
+      .update({
+        status: parsedDraft.players.length ? 'ready_for_verification' : 'blocked',
+        confidence_score: confidenceScore,
+        ocr_status: 'processed',
+        ocr_job_id: jobId,
+        ocr_provider: parsedDraft.provider,
+        ocr_processed_at: processedAt,
+        parsed_payload: parsedDraft,
+        home_team: parsedDraft.rosterTeamName,
+        line_count: parsedDraft.playerCount,
+        parser_warnings: parsedDraft.parserWarnings,
+        validation_summary: {
+          message: parsedDraft.players.length
+            ? 'Team summary read complete. Review the roster before importing.'
+            : 'TenAceIQ could not safely read this team summary.',
+          importLocked: true,
+          sourceScreenshotCount: screenshots.length,
+          ocrConfidenceScore: ocrResult.confidenceScore,
+        },
+      })
+      .eq('id', draftId)
+
+    if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+
+    const batchUpdate = await supabase
+      .from('data_assist_batches')
+      .update({
+        status: parsedDraft.players.length ? 'ready_to_import' : 'rejected',
+        review_note: parsedDraft.parserWarnings.join(' '),
+        reviewed_by_user_id: null,
+        reviewed_at: null,
+      })
+      .eq('id', batchId)
+
+    if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
+
+    let autoImport: DataAssistTeamSummaryImportActionResult | undefined
+    const teamSummaryReady = parsedDraft.players.length > 0 && parsedDraft.players.every((player) => player.name && player.ntrp !== null)
+    if (teamSummaryReady) {
+      try {
+        autoImport = await runDataAssistTeamSummaryImportAction({
+          supabase,
+          parsedDraft,
+          batchId,
+          draftId,
+          reviewedBy: requesterCheck.userId,
+          action: 'commit',
+          validationSummary: {
+            message: 'Team summary read passed auto-checks.',
+            importLocked: false,
+            sourceScreenshotCount: screenshots.length,
+            ocrConfidenceScore: ocrResult.confidenceScore,
+          },
+        })
+      } catch (error) {
+        autoImport = {
+          ok: false,
+          action: 'commit',
+          message: error instanceof Error ? error.message : 'Automatic roster import failed.',
+        }
+      }
+
+      if (!autoImport.ok) {
+        const exceptionNote = `Auto-import paused: ${autoImport.message}`
+        await Promise.all([
+          supabase
+            .from('data_assist_batches')
+            .update({
+              status: 'needs_review',
+              review_note: exceptionNote,
+              reviewed_by_user_id: null,
+              reviewed_at: null,
+            })
+            .eq('id', batchId),
+          supabase
+            .from('data_assist_drafts')
+            .update({
+              status: 'ready_for_verification',
+              validation_summary: {
+                message: exceptionNote,
+                autoImport,
+                importLocked: true,
+                sourceScreenshotCount: screenshots.length,
+                ocrConfidenceScore: ocrResult.confidenceScore,
+              },
+            })
+            .eq('id', draftId),
+        ])
+      }
+    }
+
+    return Response.json({
+      ok: true,
+      jobId,
+      parsedDraft,
+      autoAssessment: undefined,
+      autoImport,
+    })
+  }
+
+  let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
+  try {
+    ocrResult = exportInputs.length
+      ? parseTennisLinkExportFiles(exportInputs)
+      : await recognizeDataAssistScreenshotsWithTesseract(imageInputs)
   } catch (error) {
     return Response.json(
       { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these screenshots.' },

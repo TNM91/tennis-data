@@ -47,7 +47,7 @@ export default function TiqLoader({
         </svg>
 
         <div
-          className={`tiq-loader-dot absolute left-1/2 top-1/2 ${dotClass} rounded-full bg-[#9BE11D]`}
+          className={`tiq-loader-dot tiq-tennis-ball absolute left-1/2 top-1/2 ${dotClass} rounded-full`}
         />
       </div>
 

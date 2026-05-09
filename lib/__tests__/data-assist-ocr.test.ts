@@ -19,14 +19,14 @@ describe('Data Assist OCR boundary', () => {
     expect(readiness.reason).toContain('disabled')
   })
 
-  it('can expose the free Tesseract provider when explicitly enabled', () => {
+  it('can expose the Tesseract provider when explicitly enabled', () => {
     const readiness = getDataAssistOcrReadiness({
       NEXT_PUBLIC_DATA_ASSIST_OCR_PROVIDER: 'tesseract',
     })
 
     expect(readiness.provider).toBe('tesseract')
     expect(readiness.canRun).toBe(true)
-    expect(readiness.reason).toContain('Free Tesseract OCR')
+    expect(readiness.reason).toContain('Scorecard reading')
   })
 
   it('creates an empty scorecard draft that cannot be imported', () => {

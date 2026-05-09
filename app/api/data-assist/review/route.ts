@@ -1,7 +1,16 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
-import { runDataAssistScorecardImportAction, type DataAssistScorecardImportActionResult } from '@/lib/data-assist-import-runner'
+import {
+  runDataAssistScheduleImportAction,
+  runDataAssistScorecardImportAction,
+  runDataAssistTeamSummaryImportAction,
+  type DataAssistScheduleImportActionResult,
+  type DataAssistScorecardImportActionResult,
+  type DataAssistTeamSummaryImportActionResult,
+} from '@/lib/data-assist-import-runner'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
+import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
+import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -103,7 +112,7 @@ export async function POST(request: Request) {
   if (decision === 'confirmed') {
     const parsedDraft = toParsedDraft(draft.parsed_payload)
     if (!parsedDraft) {
-      return Response.json({ ok: false, message: 'This OCR draft does not have a complete scorecard payload to import.' }, { status: 400 })
+      return Response.json({ ok: false, message: 'This OCR draft does not have a complete parsed payload to import.' }, { status: 400 })
     }
 
     const verifiedNote = 'Uploader confirmed the OCR scorecard read.'
@@ -180,7 +189,7 @@ export async function POST(request: Request) {
       autoImport,
       message: autoImport.ok
         ? autoImport.message
-        : `Scorecard confirmed, but TenAceIQ needs one exception check before import: ${autoImport.message}`,
+        : `Read confirmed, but TenAceIQ needs one exception check before import: ${autoImport.message}`,
     })
   }
 
@@ -220,13 +229,43 @@ export async function POST(request: Request) {
 
 async function runConfirmedReviewImport(input: {
   supabase: SupabaseClient
-  parsedDraft: DataAssistScorecardParsedDraft
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
   batchId: string
   draftId: string
   reviewedBy: string
   validationSummary?: Record<string, unknown> | null
-}): Promise<DataAssistScorecardImportActionResult> {
+}): Promise<DataAssistScorecardImportActionResult | DataAssistScheduleImportActionResult | DataAssistTeamSummaryImportActionResult> {
   try {
+    if (isTeamSummaryParsedDraft(input.parsedDraft)) {
+      return await runDataAssistTeamSummaryImportAction({
+        supabase: input.supabase,
+        parsedDraft: input.parsedDraft,
+        batchId: input.batchId,
+        draftId: input.draftId,
+        reviewedBy: input.reviewedBy,
+        action: 'commit',
+        validationSummary: {
+          ...(input.validationSummary || {}),
+          memberConfirmedAt: new Date().toISOString(),
+        },
+      })
+    }
+
+    if (isScheduleParsedDraft(input.parsedDraft)) {
+      return await runDataAssistScheduleImportAction({
+        supabase: input.supabase,
+        parsedDraft: input.parsedDraft,
+        batchId: input.batchId,
+        draftId: input.draftId,
+        reviewedBy: input.reviewedBy,
+        action: 'commit',
+        validationSummary: {
+          ...(input.validationSummary || {}),
+          memberConfirmedAt: new Date().toISOString(),
+        },
+      })
+    }
+
     return await runDataAssistScorecardImportAction({
       supabase: input.supabase,
       parsedDraft: input.parsedDraft,
@@ -343,8 +382,10 @@ function latestReviewedAt(rows: DataAssistStatsBatchRow[]) {
     .at(-1) || null
 }
 
-function toParsedDraft(value: unknown): DataAssistScorecardParsedDraft | null {
+function toParsedDraft(value: unknown): DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft | null {
   if (!value || typeof value !== 'object') return null
+  if (isTeamSummaryParsedDraft(value)) return value
+  if (isScheduleParsedDraft(value)) return value
   const draft = value as Partial<DataAssistScorecardParsedDraft>
   if (!draft.externalMatchId || !draft.matchDate || !draft.homeTeam || !draft.awayTeam || !Array.isArray(draft.lines)) return null
   return draft as DataAssistScorecardParsedDraft
@@ -352,9 +393,19 @@ function toParsedDraft(value: unknown): DataAssistScorecardParsedDraft | null {
 
 function getParsedLineCount(value: unknown) {
   if (!value || typeof value !== 'object') return 0
+  if (isTeamSummaryParsedDraft(value)) return value.players.length
+  if (isScheduleParsedDraft(value)) return value.matches.length
   const draft = value as { lineCount?: unknown; lines?: unknown }
   if (typeof draft.lineCount === 'number' && Number.isFinite(draft.lineCount)) return draft.lineCount
   return Array.isArray(draft.lines) ? draft.lines.length : 0
+}
+
+function isScheduleParsedDraft(value: unknown): value is DataAssistScheduleParsedDraft {
+  return Boolean(value && typeof value === 'object' && Array.isArray((value as Partial<DataAssistScheduleParsedDraft>).matches))
+}
+
+function isTeamSummaryParsedDraft(value: unknown): value is DataAssistTeamSummaryParsedDraft {
+  return Boolean(value && typeof value === 'object' && Array.isArray((value as Partial<DataAssistTeamSummaryParsedDraft>).players))
 }
 
 function getBearerToken(request: Request) {
