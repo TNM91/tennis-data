@@ -244,6 +244,8 @@ function parseTennisLinkTableLine(lineLabel: string, value: string, score: strin
 }
 
 function extractWinnerMarkerSide(value: string): 'home' | 'away' | null {
+  if (/\bimgHomePlayer\b/i.test(value)) return 'home'
+  if (/\bimgVisitorPlayer\b/i.test(value)) return 'away'
   const marker = value.match(/\bwinner\s+marker\s*:\s*(home|away)\b/i)?.[1]?.toLowerCase()
   if (marker === 'home' || marker === 'away') return marker
   return null

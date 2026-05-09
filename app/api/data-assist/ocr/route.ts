@@ -17,6 +17,7 @@ import {
 } from '@/lib/data-assist-ocr'
 import { buildScheduleOcrDraftFromText } from '@/lib/data-assist-schedule-parser'
 import { buildTeamSummaryOcrDraftFromText } from '@/lib/data-assist-team-summary-parser'
+import { isTennisLinkExportFile, parseTennisLinkExportFiles } from '@/lib/data-assist-export-parser'
 import {
   recognizeDataAssistScheduleScreenshotsWithTesseract,
   recognizeDataAssistScreenshotsWithTesseract,
@@ -139,18 +140,23 @@ export async function POST(request: Request) {
   const screenshots = ((screenshotResult.data || []) as ScreenshotRow[]).map(toScreenshotInput)
   let imageInputs: DataAssistTesseractImageInput[]
   try {
-    imageInputs = await downloadScreenshotImages(supabase, screenshots)
+  imageInputs = await downloadScreenshotImages(supabase, screenshots)
   } catch (error) {
     return Response.json(
       { ok: false, message: error instanceof Error ? error.message : 'Could not download the stored screenshots.' },
       { status: 500 },
     )
   }
+  const exportInputs = imageInputs
+    .map((input) => ({ ...input, fileBuffer: input.imageBuffer }))
+    .filter(isTennisLinkExportFile)
 
   if (batch.requested_import_type === 'schedule') {
-    let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScheduleScreenshotsWithTesseract>>
+    let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScheduleScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
     try {
-      ocrResult = await recognizeDataAssistScheduleScreenshotsWithTesseract(imageInputs)
+      ocrResult = exportInputs.length
+        ? parseTennisLinkExportFiles(exportInputs)
+        : await recognizeDataAssistScheduleScreenshotsWithTesseract(imageInputs)
     } catch (error) {
       return Response.json(
         { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these schedule screenshots.' },
@@ -293,9 +299,11 @@ export async function POST(request: Request) {
   }
 
   if (batch.requested_import_type === 'team_summary') {
-    let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistTeamSummaryScreenshotsWithTesseract>>
+    let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistTeamSummaryScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
     try {
-      ocrResult = await recognizeDataAssistTeamSummaryScreenshotsWithTesseract(imageInputs)
+      ocrResult = exportInputs.length
+        ? parseTennisLinkExportFiles(exportInputs)
+        : await recognizeDataAssistTeamSummaryScreenshotsWithTesseract(imageInputs)
     } catch (error) {
       return Response.json(
         { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these team summary screenshots.' },
@@ -434,9 +442,11 @@ export async function POST(request: Request) {
     })
   }
 
-  let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScreenshotsWithTesseract>>
+  let ocrResult: Awaited<ReturnType<typeof recognizeDataAssistScreenshotsWithTesseract>> | ReturnType<typeof parseTennisLinkExportFiles>
   try {
-    ocrResult = await recognizeDataAssistScreenshotsWithTesseract(imageInputs)
+    ocrResult = exportInputs.length
+      ? parseTennisLinkExportFiles(exportInputs)
+      : await recognizeDataAssistScreenshotsWithTesseract(imageInputs)
   } catch (error) {
     return Response.json(
       { ok: false, message: error instanceof Error ? error.message : 'Free OCR could not process these screenshots.' },

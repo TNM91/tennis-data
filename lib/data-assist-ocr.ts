@@ -1,6 +1,6 @@
 import { parseDataAssistScorecardText } from './data-assist-scorecard-parser'
 
-export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'tesseract' | 'future_ocr'
+export type DataAssistOcrProvider = 'disabled' | 'manual_review' | 'mock_review' | 'tesseract' | 'tennislink_export' | 'future_ocr'
 
 export type DataAssistOcrStatus = 'not_started' | 'queued' | 'processed' | 'failed' | 'disabled'
 

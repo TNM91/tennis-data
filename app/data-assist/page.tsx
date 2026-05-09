@@ -95,7 +95,7 @@ function DataAssistWorkspace() {
   const scanRunRef = useRef(0)
 
   const confidenceLabel = useMemo(() => {
-    if (!summary) return 'Waiting for screenshots'
+    if (!summary) return 'Waiting for TennisLink export'
     if (summary.status === 'layout_detected') return 'Ready for review'
     if (summary.status === 'needs_review') return 'Review recommended'
     return 'Not supported'
@@ -158,7 +158,7 @@ function DataAssistWorkspace() {
     setSelectedFileCount(files.length)
     setPreparing(true)
     setSavedBatchId('')
-    setMessage(`Preparing ${files.length} screenshot${files.length === 1 ? '' : 's'}...`)
+    setMessage(`Preparing ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
     setError('')
 
     try {
@@ -176,18 +176,14 @@ function DataAssistWorkspace() {
       setSummary(nextSummary)
       if (nextSummary.status === 'rejected') {
         setError(nextSummary.rejectionReason)
-      } else if (nextSummary.requestedImportType === 'team_summary') {
-        const screenshotLabel = `${nextSummary.screenshots.length} roster screenshot${nextSummary.screenshots.length === 1 ? '' : 's'}`
+      } else {
+        const exportLabel = `${nextSummary.screenshots.length} TennisLink export${nextSummary.screenshots.length === 1 ? '' : 's'}`
         if (userId) {
-          setMessage(`${screenshotLabel} ready. TenAceIQ is importing players and ratings now.`)
+          setMessage(`${exportLabel} ready. TenAceIQ is importing from the table data now.`)
           window.setTimeout(() => void saveDraft(nextSummary), 0)
         } else {
-          setMessage(`${screenshotLabel} ready. Sign in to import players and ratings.`)
+          setMessage(`${exportLabel} ready. Sign in to import it.`)
         }
-      } else if (nextSummary.status === 'needs_review') {
-        setMessage(`${nextSummary.screenshots.length} screenshot${nextSummary.screenshots.length === 1 ? '' : 's'} staged. Add more if needed, then scan when the order looks right.`)
-      } else {
-        setMessage(`${nextSummary.screenshots.length} TennisLink screenshot${nextSummary.screenshots.length === 1 ? '' : 's'} staged. Add more if needed, then scan when ready.`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Screenshots could not be prepared.')
@@ -230,7 +226,7 @@ function DataAssistWorkspace() {
       const result = await withTimeout(
         saveDataAssistDraftBatch(draftSummary),
         30_000,
-        'Saving the screenshot is taking longer than expected. Check your connection and try scanning again.',
+        'Saving the export is taking longer than expected. Check your connection and try again.',
       )
       setSavedBatchId(result.batchId)
       if (draftSummary.requestedImportType === 'scorecard' || draftSummary.requestedImportType === 'schedule' || draftSummary.requestedImportType === 'team_summary') {
@@ -239,7 +235,7 @@ function DataAssistWorkspace() {
           : draftSummary.requestedImportType === 'team_summary'
             ? 'team roster'
             : 'scorecard'
-        setMessage(`Draft saved with ${result.screenshotCount} screenshot${result.screenshotCount === 1 ? '' : 's'}. TenAceIQ is reading the ${readingLabel} now.`)
+        setMessage(`Draft saved with ${result.screenshotCount} export${result.screenshotCount === 1 ? '' : 's'}. TenAceIQ is reading the ${readingLabel} now.`)
         const ocrResult = await withTimeout(
           queueDataAssistOcrVerification({
             batchId: result.batchId,
@@ -411,7 +407,7 @@ function DataAssistWorkspace() {
           <div className="section-kicker">TenAceIQ Data Assist</div>
           <h1 style={titleStyle(isSmallMobile)}>Import from your phone.</h1>
           <p style={heroTextStyle}>
-            A scorecard screenshot is enough to start. Add schedule or roster screenshots later only when they are easy to capture.
+            Upload TennisLink Excel exports from Send To Excel. TenAceIQ reads the table data directly and imports clean records.
           </p>
           <div style={heroActionRowStyle}>
             <a href="#upload" style={primaryButtonStyle}>Start upload</a>
@@ -461,20 +457,20 @@ function DataAssistWorkspace() {
             </div>
 
             <div style={stepDividerStyle}>
-              <StepBadge step={2} label="Add screenshots" />
-              <strong>Add one or more screenshots</strong>
+              <StepBadge step={2} label="Upload export" />
+              <strong>Upload a TennisLink Excel export</strong>
             </div>
 
             <label style={dropzoneStyle(summary?.status || '')}>
               <input
                 type="file"
                 multiple
-                accept="image/*"
+                accept=".xls,.html,application/vnd.ms-excel,text/html"
                 onChange={(event) => void handleFiles(event)}
                 style={fileInputStyle}
               />
-              <span style={dropzoneKickerStyle}>TennisLink screenshots only</span>
-              <strong>{preparing ? `Preparing ${selectedFileCount || ''} screenshot${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose screenshots'}</strong>
+              <span style={dropzoneKickerStyle}>TennisLink Excel exports only</span>
+              <strong>{preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : 'Tap to choose .xls export'}</strong>
               <small>{getUploadHint(importType)}</small>
             </label>
 
@@ -498,22 +494,22 @@ function DataAssistWorkspace() {
           <div>
             <StepBadge step={3} label="Scan setup" />
             <h2 style={sectionTitleStyle}>Ready to scan.</h2>
-            <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length) : 'Screenshots are staged.'}</p>
+            <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length) : 'TennisLink exports are ready.'}</p>
           </div>
-          {summary ? <span style={pillStyle}>{summary.screenshots.length} screenshot{summary.screenshots.length === 1 ? '' : 's'}</span> : null}
+          {summary ? <span style={pillStyle}>{summary.screenshots.length} export{summary.screenshots.length === 1 ? '' : 's'}</span> : null}
         </div>
 
         <label style={compactDropzoneStyle}>
           <input
             type="file"
             multiple
-            accept="image/*"
+            accept=".xls,.html,application/vnd.ms-excel,text/html"
             onChange={(event) => void handleFiles(event)}
             style={fileInputStyle}
           />
-          <span style={dropzoneKickerStyle}>Add screenshots</span>
+          <span style={dropzoneKickerStyle}>Add exports</span>
           <strong>{preparing ? `Preparing ${selectedFileCount || ''}...` : 'Add another or select several'}</strong>
-          <small>Use this when a phone screenshot only captures part of the TennisLink table.</small>
+          <small>Use this when importing schedule, roster, and scorecard exports together.</small>
         </label>
 
         {summary?.screenshots.length ? (
@@ -531,7 +527,7 @@ function DataAssistWorkspace() {
           </div>
         ) : (
           <div style={emptyStateStyle}>
-            Upload TennisLink screenshots to build a draft. The future parser will merge ordered screenshots into one logical page.
+            Upload a TennisLink Excel export from the page you want TenAceIQ to import.
           </div>
         )}
 
@@ -555,7 +551,7 @@ function DataAssistWorkspace() {
           <div style={scanLoadingStyle}>
             <TiqLoader label="Preparing review" size="sm" />
             <p style={scanLoadingCopyStyle}>
-              TenAceIQ is reading the screenshot and building a draft for review.
+              TenAceIQ is reading the export and importing table data.
             </p>
           </div>
         ) : null}
@@ -573,7 +569,7 @@ function DataAssistWorkspace() {
           <div style={scanLoadingStyle}>
             <TiqLoader label="Preparing review" size="sm" />
             <p style={scanLoadingCopyStyle}>
-              TenAceIQ is reading the screenshot and building a draft for review.
+              TenAceIQ is reading the export and importing table data.
             </p>
           </div>
         </section>
@@ -703,32 +699,32 @@ function getAutoAssessmentMessage(
 }
 
 function getUploadHint(importType: DataAssistImportType) {
-  if (importType === 'schedule') return 'Optional. Use this only if the Match Schedule tab is easy to capture.'
-  if (importType === 'team_summary') return 'Optional. Use this only if the roster section is visible.'
-  return 'Use the Score Card tab. One clear table screenshot is enough when the full match is visible.'
+  if (importType === 'schedule') return 'Use Match Schedule, then Send To Excel.'
+  if (importType === 'team_summary') return 'Use Team Summary, then Send To Excel.'
+  return 'Use Score Card, then Send To Excel.'
 }
 
 function getUploadHelpTitle(importType: DataAssistImportType) {
-  if (importType === 'schedule') return 'Best schedule screenshot'
-  if (importType === 'team_summary') return 'Best roster screenshot'
-  return 'Best scorecard screenshot'
+  if (importType === 'schedule') return 'Flight or team schedule export'
+  if (importType === 'team_summary') return 'Team summary export'
+  return 'Scorecard export'
 }
 
 function getUploadHelpText(importType: DataAssistImportType) {
   if (importType === 'schedule') {
-    return 'Many phones make this hard. Skip it unless dates, teams, and sites are visible in one or two screenshots.'
+    return 'Open the Match Schedule tab and choose Send To Excel. TenAceIQ imports match IDs, dates, teams, times, and sites.'
   }
   if (importType === 'team_summary') {
-    return 'Helpful for full rosters, but not required. Scorecards still create match and player records.'
+    return 'Open Team Summary and choose Send To Excel. TenAceIQ imports roster players and base ratings.'
   }
-  return 'Capture the match header, all lines, scores, and winner check marks. If the table is tall, add screenshots from top to bottom.'
+  return 'Open the Score Card tab and choose Send To Excel. TenAceIQ imports players, scores, winners, and team score.'
 }
 
 function getScanSetupText(importType: DataAssistImportType, screenshotCount: number) {
-  const plural = screenshotCount === 1 ? 'screenshot' : 'screenshots'
-  if (importType === 'schedule') return `${screenshotCount} ${plural} staged. TenAceIQ will read the visible schedule rows.`
-  if (importType === 'team_summary') return `${screenshotCount} ${plural} staged. TenAceIQ will read roster names and ratings.`
-  return `${screenshotCount} ${plural} staged. TenAceIQ will read the match result, line players, scores, and winners.`
+  const plural = screenshotCount === 1 ? 'export' : 'exports'
+  if (importType === 'schedule') return `${screenshotCount} ${plural} ready. TenAceIQ will import schedule rows from the table.`
+  if (importType === 'team_summary') return `${screenshotCount} ${plural} ready. TenAceIQ will import roster names and ratings.`
+  return `${screenshotCount} ${plural} ready. TenAceIQ will import the match result, line players, scores, and winners.`
 }
 
 function getLatestReadStepLabel(scan: {
@@ -799,8 +795,12 @@ function ScreenshotCard({
   return (
     <article style={screenshotCardStyle}>
       <div style={thumbnailWrapStyle}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={screenshot.previewUrl} alt={`Screenshot ${screenshot.uploadOrder}`} style={thumbnailStyle} />
+        {screenshot.previewUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={screenshot.previewUrl} alt={`Export ${screenshot.uploadOrder}`} style={thumbnailStyle} />
+        ) : (
+          <div style={exportFilePreviewStyle}>XLS</div>
+        )}
         <span style={orderBadgeStyle}>{screenshot.uploadOrder}</span>
       </div>
       <div style={screenshotBodyStyle}>
@@ -811,7 +811,8 @@ function ScreenshotCard({
           </span>
         </div>
         <p style={copyStyle}>
-          {screenshot.imageWidth} x {screenshot.imageHeight} - {(screenshot.fileSizeBytes / 1024 / 1024).toFixed(1)} MB
+          {screenshot.imageWidth && screenshot.imageHeight ? `${screenshot.imageWidth} x ${screenshot.imageHeight} - ` : ''}
+          {(screenshot.fileSizeBytes / 1024 / 1024).toFixed(1)} MB
         </p>
         {screenshot.rejectionReason ? <p style={warningStyle}>{screenshot.rejectionReason}</p> : null}
         <div style={signalListStyle}>
@@ -2493,6 +2494,18 @@ const thumbnailStyle: CSSProperties = {
   height: '100%',
   objectFit: 'cover',
   display: 'block',
+}
+
+const exportFilePreviewStyle: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  minHeight: 190,
+  display: 'grid',
+  placeItems: 'center',
+  color: 'var(--brand-green)',
+  fontSize: 28,
+  fontWeight: 950,
+  letterSpacing: 0,
 }
 
 const orderBadgeStyle: CSSProperties = {

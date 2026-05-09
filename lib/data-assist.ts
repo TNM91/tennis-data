@@ -326,7 +326,11 @@ const MAX_PREPARED_SCREENSHOT_HEIGHT = 2000
 const MAX_PREPARED_TEAM_SUMMARY_WIDTH = 760
 const MAX_PREPARED_TEAM_SUMMARY_HEIGHT = 1520
 const PREPARED_SCREENSHOT_QUALITY = 0.82
-const ALLOWED_SCREENSHOT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const ALLOWED_EXPORT_TYPES = new Set([
+  'application/vnd.ms-excel',
+  'application/octet-stream',
+  'text/html',
+])
 
 const IMPORT_TYPE_LAYOUT: Record<DataAssistImportType, DataAssistLayout> = {
   scorecard: 'tennislink_scorecard',
@@ -550,14 +554,14 @@ export function getDataAssistContributionValue(importType: DataAssistImportType)
 }
 
 export function validateDataAssistFiles(files: File[]) {
-  if (!files.length) return 'Choose at least one TennisLink screenshot.'
-  if (files.length > MAX_BATCH_SIZE) return `Upload ${MAX_BATCH_SIZE} screenshots or fewer in one batch.`
+  if (!files.length) return 'Choose a TennisLink Excel export.'
+  if (files.length > MAX_BATCH_SIZE) return `Upload ${MAX_BATCH_SIZE} TennisLink exports or fewer in one batch.`
 
-  const unsupported = files.find((file) => !ALLOWED_SCREENSHOT_TYPES.has(file.type))
-  if (unsupported) return 'Data Assist only accepts TennisLink screenshots as JPG, PNG, or WebP images.'
+  const unsupported = files.find((file) => !isSupportedTennisLinkExport(file))
+  if (unsupported) return 'Data Assist now accepts TennisLink Excel exports only. Use Send To Excel, then upload the .xls file.'
 
   const tooLarge = files.find((file) => file.size > MAX_SCREENSHOT_BYTES)
-  if (tooLarge) return 'Each TennisLink screenshot needs to be 10 MB or smaller.'
+  if (tooLarge) return 'Each TennisLink export needs to be 10 MB or smaller.'
 
   return ''
 }
@@ -1324,6 +1328,28 @@ async function prepareDataAssistScreenshot(
   uploadOrder: number,
   requestedImportType: DataAssistImportType,
 ): Promise<DataAssistPreparedScreenshot> {
+  if (isSupportedTennisLinkExport(file)) {
+    const visualSignals = ['TennisLink Excel export', 'HTML table export']
+    const layoutSignals = detectLayoutSignals(file, requestedImportType)
+    return {
+      id: `${file.name}-${file.size}-${file.lastModified}-${uploadOrder}`,
+      file,
+      previewUrl: '',
+      uploadOrder,
+      fileName: file.name,
+      mimeType: file.type || 'application/vnd.ms-excel',
+      fileSizeBytes: file.size,
+      imageWidth: 0,
+      imageHeight: 0,
+      clientFingerprint: await buildFileFingerprint(file),
+      detectionStatus: 'supported',
+      detectedLayout: IMPORT_TYPE_LAYOUT[requestedImportType],
+      confidenceScore: 0.98,
+      visualSignals: [...visualSignals, ...layoutSignals],
+      rejectionReason: '',
+    }
+  }
+
   const prepared = await prepareScreenshotForUpload(file, requestedImportType).catch(async () => {
     const previewUrl = URL.createObjectURL(file)
     const dimensions = await readImageDimensions(previewUrl).catch(() => ({ width: 0, height: 0 }))
@@ -1450,6 +1476,11 @@ function detectVisualSignals(file: File, dimensions: { width: number; height: nu
   return signals
 }
 
+function isSupportedTennisLinkExport(file: File) {
+  const lowerName = (file.name || '').toLowerCase()
+  return lowerName.endsWith('.xls') || lowerName.endsWith('.html') || ALLOWED_EXPORT_TYPES.has(file.type)
+}
+
 function detectLayoutSignals(file: File, requestedImportType: DataAssistImportType) {
   const lowerName = file.name.toLowerCase()
   const signals = FILE_HINTS[requestedImportType]
@@ -1469,8 +1500,8 @@ export function isTrustedTennisLinkFilename(fileName: string) {
 }
 
 function buildScreenshotRejectionReason(file: File, dimensions: { width: number; height: number }) {
-  if (!ALLOWED_SCREENSHOT_TYPES.has(file.type)) return 'Only JPG, PNG, or WebP TennisLink screenshots are supported.'
-  if (file.size > MAX_SCREENSHOT_BYTES) return 'This screenshot is over 10 MB.'
+  if (!isSupportedTennisLinkExport(file)) return 'Upload the TennisLink Excel export for this page.'
+  if (file.size > MAX_SCREENSHOT_BYTES) return 'This export is over 10 MB.'
   if (!dimensions.width || !dimensions.height) return 'This image could not be read as a screenshot.'
   if (dimensions.width < 280 || dimensions.height < 280) return 'This image is too small to safely review.'
   return ''
@@ -1503,7 +1534,9 @@ async function buildFileFingerprint(file: File) {
 
 function getScreenshotExtension(file: File) {
   const fromName = file.name.split('.').pop()?.toLowerCase() || ''
-  if (['jpg', 'jpeg', 'png', 'webp'].includes(fromName)) return fromName
+  if (['xls', 'html', 'jpg', 'jpeg', 'png', 'webp'].includes(fromName)) return fromName
+  if (file.type === 'application/vnd.ms-excel') return 'xls'
+  if (file.type === 'text/html') return 'html'
   if (file.type === 'image/png') return 'png'
   if (file.type === 'image/webp') return 'webp'
   return 'jpg'
