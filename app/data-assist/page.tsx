@@ -25,7 +25,7 @@ import {
   type DataAssistPreparedScreenshot,
   type DataAssistSubmission,
 } from '@/lib/data-assist'
-import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
+import { type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
@@ -223,8 +223,7 @@ function DataAssistWorkspace() {
         'Saving the screenshot is taking longer than expected. Check your connection and try scanning again.',
       )
       setSavedBatchId(result.batchId)
-      const readiness = getDataAssistOcrReadiness()
-      if ((draftSummary.requestedImportType === 'scorecard' || draftSummary.requestedImportType === 'schedule' || draftSummary.requestedImportType === 'team_summary') && readiness.canRun && readiness.provider === 'tesseract') {
+      if (draftSummary.requestedImportType === 'scorecard' || draftSummary.requestedImportType === 'schedule' || draftSummary.requestedImportType === 'team_summary') {
         const readingLabel = draftSummary.requestedImportType === 'schedule'
           ? 'team schedule'
           : draftSummary.requestedImportType === 'team_summary'

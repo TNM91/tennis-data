@@ -1024,7 +1024,7 @@ export async function queueDataAssistOcrVerification(input: {
   draftId: string
   rawOcrText?: string
 }): Promise<DataAssistOcrVerificationResult> {
-  if (!input.rawOcrText && getDataAssistOcrReadiness().provider === 'tesseract') {
+  if (!input.rawOcrText) {
     return queueDataAssistFreeOcrVerification(input)
   }
 
