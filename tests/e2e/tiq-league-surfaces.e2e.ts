@@ -69,7 +69,7 @@ test.describe('TIQ league surfaces', () => {
     })
   }
 
-  for (const path of ['/captain', '/compete/leagues', '/compete/results', '/data-assist', '/matchup', '/mylab', '/pricing']) {
+  for (const path of ['/captain', '/compete/leagues', '/compete/results', '/data-assist', '/explore', '/explore/rankings', '/matchup', '/mylab', '/pricing']) {
     test(`${path} keeps light mode renderable without horizontal overflow`, async ({ page }) => {
       await setTheme(page, 'light')
       await expectSurfaceLoads(page, path)
@@ -95,5 +95,17 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByText('A weekly tennis routine, not another dashboard.')).toBeVisible()
     await expect(page.getByText('Use reviewed uploads')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Data Assist' })).toBeVisible()
+  })
+
+  test('Explore start and rankings actions stay readable on mobile light mode', async ({ page }) => {
+    await setTheme(page, 'light')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expectSurfaceLoads(page, '/explore')
+    await expect(page.getByText('Start here')).toBeVisible()
+    await expect(page.getByText('Refresh with Data Assist')).toBeVisible()
+
+    await expectSurfaceLoads(page, '/explore/rankings')
+    await expect(page.getByText('Full rankings')).toBeVisible()
+    await expect(page.getByText('Run Matchup')).toBeVisible()
   })
 })
