@@ -208,7 +208,7 @@ export default function UpgradePage({ searchParams }: UpgradePageProps) {
       setRequestLinkStatus('Your upgrade request is linked to this account.')
       window.localStorage.removeItem(LAST_REMOTE_UPGRADE_REQUEST_KEY)
     } catch {
-      // Keep the page quiet. Admin can still follow up by email.
+      // Keep the page quiet. Admin can still follow up inside TenAceIQ support.
     }
   }
 

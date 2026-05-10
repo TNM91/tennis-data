@@ -2,11 +2,23 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
+import { buildSupportMessageHref } from '@/lib/message-links'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'TenAceIQ privacy policy.',
 }
+
+const privacySupportHref = buildSupportMessageHref({
+  category: 'account',
+  subject: 'Privacy or data handling question',
+  body: [
+    'I have a privacy or data handling question.',
+    'Account email:',
+    'Question:',
+  ].join('\n'),
+  entityType: 'privacy',
+})
 
 export default function PrivacyPage() {
   return (
@@ -52,8 +64,9 @@ export default function PrivacyPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>3. Data sources</h2>
           <p>
-            Information on TenAceIQ may come from user-submitted data, publicly available
-            data, and third-party data sources where permitted.
+            Information on TenAceIQ may come from user-submitted data, reviewed Data Assist
+            uploads, publicly available data, administrator-reviewed corrections, and third-party
+            data sources where permitted.
           </p>
         </div>
 
@@ -130,7 +143,7 @@ export default function PrivacyPage() {
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>11. Contact</h2>
           <p>
-            For privacy or data handling questions, open a <Link href="/messages?compose=support">TenAceIQ support thread</Link>.
+            For privacy or data handling questions, open a <Link href={privacySupportHref}>TenAceIQ support thread</Link>.
           </p>
         </div>
       </LegalPage>
