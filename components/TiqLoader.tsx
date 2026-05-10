@@ -54,7 +54,10 @@ export default function TiqLoader({
         role="status"
         aria-label={label || "Loading"}
       >
-        <div className={`absolute inset-0 rounded-full border-white ${config.ring}`} />
+        <div
+          className={`absolute inset-0 rounded-full ${config.ring}`}
+          style={{ borderColor: 'color-mix(in srgb, var(--foreground-strong) 28%, transparent 72%)' }}
+        />
 
         <svg
           viewBox="0 0 100 100"
@@ -76,7 +79,10 @@ export default function TiqLoader({
       </div>
 
       {label ? (
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
+        <p
+          className="text-center text-xs font-semibold uppercase"
+          style={{ color: 'var(--shell-copy-muted)', letterSpacing: '0.18em' }}
+        >
           {label}
         </p>
       ) : null}
