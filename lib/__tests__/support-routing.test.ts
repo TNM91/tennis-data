@@ -4,17 +4,23 @@ import { BILLING_SUPPORT_PATH } from '../billing-policy'
 
 const SUPPORT_SURFACE_FILES = [
   'app/contact/page.tsx',
+  'app/data-assist/page.tsx',
   'app/legal/billing/page.tsx',
+  'app/legal/data-policy/page.tsx',
   'app/legal/privacy/page.tsx',
   'app/legal/terms/page.tsx',
-  'app/legal/data-policy/page.tsx',
   'app/pricing/page.tsx',
   'app/profile/page.tsx',
+  'app/upgrade/page.tsx',
 ]
 
 describe('internal support routing', () => {
   it('keeps billing support inside TenAceIQ messages', () => {
-    expect(BILLING_SUPPORT_PATH).toBe('/messages?compose=support')
+    const url = new URL(BILLING_SUPPORT_PATH, 'https://tenaceiq.test')
+    expect(url.pathname).toBe('/messages')
+    expect(url.searchParams.get('compose')).toBe('support')
+    expect(url.searchParams.get('category')).toBe('billing')
+    expect(url.searchParams.get('subject')).toBe('Billing or refund question')
     expect(BILLING_SUPPORT_PATH).not.toContain('mailto:')
   })
 
@@ -24,5 +30,16 @@ describe('internal support routing', () => {
       expect(source, filePath).not.toMatch(/mailto:/i)
       expect(source, filePath).not.toMatch(/\b(?:support|help|billing)@/i)
     }
+  })
+
+  it('keeps contact and legal data requests routed to categorized support threads', () => {
+    const contactSource = readFileSync('app/contact/page.tsx', 'utf8')
+    const dataPolicySource = readFileSync('app/legal/data-policy/page.tsx', 'utf8')
+    const privacySource = readFileSync('app/legal/privacy/page.tsx', 'utf8')
+
+    expect(contactSource).toContain('Data Assist or data quality question')
+    expect(dataPolicySource).toContain('Data correction or takedown request')
+    expect(privacySource).toContain('Privacy or data handling question')
+    expect(`${contactSource}\n${dataPolicySource}\n${privacySource}`).toContain('buildSupportMessageHref')
   })
 })

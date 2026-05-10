@@ -1,4 +1,16 @@
-export const BILLING_SUPPORT_PATH = '/messages?compose=support'
+import { buildSupportMessageHref } from './message-links'
+
+export const BILLING_SUPPORT_PATH = buildSupportMessageHref({
+  category: 'billing',
+  subject: 'Billing or refund question',
+  body: [
+    'I have a billing or refund question.',
+    'Plan:',
+    'Charge date:',
+    'Issue:',
+  ].join('\n'),
+  entityType: 'billing',
+})
 
 export const MONTHLY_SUBSCRIPTION_POLICY = {
   title: 'Player and Captain monthly subscriptions',
