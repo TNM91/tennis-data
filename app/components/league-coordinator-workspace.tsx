@@ -1023,6 +1023,15 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const responsiveFieldGrid = isMobile ? singleColumnGrid : fieldGrid
   const responsiveOutcomeInfoGrid = isMobile ? singleColumnGrid : outcomeInfoGrid
   const responsiveDetailsSummary = isMobile ? { ...detailsSummary, ...mobileDetailsSummary } : detailsSummary
+  const responsiveHeroActionRowStyle = isMobile ? { ...heroActionRow, ...mobileStackedActionRowStyle } : heroActionRow
+  const responsiveButtonRowStyle = isMobile ? { ...buttonRow, ...mobileStackedActionRowStyle } : buttonRow
+  const responsiveParticipantBuilderStyle = isMobile
+    ? { ...participantBuilderStyle, ...mobileParticipantBuilderStyle }
+    : participantBuilderStyle
+  const responsiveNextActionCardStyle = isMobile ? { ...nextActionCardStyle, ...mobileNextActionCardStyle } : nextActionCardStyle
+  const responsiveNextActionButtonRowStyle = isMobile
+    ? { ...nextActionButtonRowStyle, ...mobileStackedActionRowStyle, justifyContent: 'stretch' }
+    : nextActionButtonRowStyle
   const responsiveStartScoreStyle = isMobile ? { ...startScoreStyle, ...mobileScoreStyle } : startScoreStyle
   const responsiveLeagueOpsScoreStyle = isMobile ? { ...leagueOpsScoreStyle, ...mobileScoreStyle } : leagueOpsScoreStyle
   const responsiveStartActionRowStyle = isMobile ? { ...startActionRowStyle, ...mobileActionRowStyle } : startActionRowStyle
@@ -1066,7 +1075,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
           {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
           {!access.canUseLeagueTools ? <div style={noteBanner}>{access.leagueTierMessage}</div> : null}
 
-          <div style={heroActionRow}>
+          <div style={responsiveHeroActionRowStyle}>
             <GhostLink href={resultEntryHref}>Record results</GhostLink>
             <GhostLink href="/data-assist">Upload data</GhostLink>
             <GhostLink href="/compete/leagues">My leagues</GhostLink>
@@ -1154,7 +1163,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <span style={commandText}>{latestRecord ? formatDateTime(latestRecord.updatedAt) : 'Start with setup'}</span>
             </div>
           </div>
-          <div style={heroActionRow}>
+          <div style={responsiveHeroActionRowStyle}>
             {hasResultReadyLeague ? (
               <>
                 {latestTeamLeague ? <GhostLink href={teamResultEntryHref}>Team results</GhostLink> : null}
@@ -1308,7 +1317,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       .join(' | ')
                   : 'Create a team league to start match review'}
               </div>
-              <div style={buttonRow}>
+              <div style={responsiveButtonRowStyle}>
                 {teamLeagues.length > 0 ? (
                   <GhostLink href={teamResultEntryHref}>Review team results</GhostLink>
                 ) : (
@@ -1343,7 +1352,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                       .join(' | ')
                   : 'Create an individual league to start player review'}
               </div>
-              <div style={buttonRow}>
+              <div style={responsiveButtonRowStyle}>
                 {individualLeagues.length > 0 ? (
                   <GhostLink href={individualResultEntryHref}>Review player results</GhostLink>
                 ) : (
@@ -1368,7 +1377,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <div style={registryText}>
                 Corrections stay visible here so a coordinator can double-check standings after edited scores.
               </div>
-              <div style={buttonRow}>
+              <div style={responsiveButtonRowStyle}>
                 <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : resultEntryHref}>
                   Open review
                 </GhostLink>
@@ -1451,7 +1460,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 </div>
               ))}
             </div>
-            <div style={heroActionRow}>
+            <div style={responsiveHeroActionRowStyle}>
               <GhostLink href={teamResultEntryHref}>Review all team results</GhostLink>
             </div>
           </section>
@@ -1516,7 +1525,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 </div>
               ))}
             </div>
-            <div style={heroActionRow}>
+            <div style={responsiveHeroActionRowStyle}>
               <GhostLink href={individualResultEntryHref}>Review all player results</GhostLink>
             </div>
           </section>
@@ -1555,7 +1564,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </Link>
             ))}
           </div>
-          <div style={heroActionRow}>
+          <div style={responsiveHeroActionRowStyle}>
             <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
             {latestTeamLeague ? <GhostLink href={teamResultEntryHref}>Team results</GhostLink> : null}
             {latestIndividualLeague ? <GhostLink href={individualResultEntryHref}>Individual results</GhostLink> : null}
@@ -2118,7 +2127,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
             <label style={fieldLabel}>
               <span>{draft.leagueFormat === 'team' ? 'Teams' : 'Players'}</span>
-              <div style={participantBuilderStyle}>
+              <div style={responsiveParticipantBuilderStyle}>
                 <input
                   list={participantDatalistId}
                   value={participantQuickAddInput}
@@ -2188,7 +2197,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
 
             {status ? <div style={statusBanner}>{status}</div> : null}
             {lastSavedRecord ? (
-              <div style={nextActionCardStyle}>
+              <div style={responsiveNextActionCardStyle}>
                 <div>
                   <div style={nextActionTitleStyle}>
                     Next: review {lastSavedRecord.leagueName}
@@ -2197,7 +2206,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     Use the saved setup for {lastSavedRecord.leagueFormat === 'team' ? 'team match results' : 'player results'}, or check the public league page before sharing.
                   </div>
                 </div>
-                <div style={nextActionButtonRowStyle}>
+                <div style={responsiveNextActionButtonRowStyle}>
                   <GhostLink href={buildLeagueResultEntryHref(lastSavedRecord)}>
                     {getLeagueResultEntryLabel(lastSavedRecord)}
                   </GhostLink>
@@ -2208,7 +2217,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </div>
             ) : null}
 
-            <div style={buttonRow}>
+            <div style={responsiveButtonRowStyle}>
               <PrimaryBtn onClick={persistDraft} disabled={!canSaveCurrentDraft}>
                 {editingId ? 'Update league' : 'Save league'}
               </PrimaryBtn>
@@ -2279,7 +2288,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                           <div style={registryText}>{league.leagueName}</div>
                           {detail ? <div style={registryNotes}>{detail}</div> : null}
                         </div>
-                        <div style={buttonRow}>
+                        <div style={responsiveButtonRowStyle}>
                           <PrimaryBtn onClick={() => void handleEntryRequestAction(league, entryName, 'active')}>
                             Approve
                           </PrimaryBtn>
@@ -2419,8 +2428,11 @@ function LeagueActionRow({
   onCopyShare: (record: TiqLeagueRecord) => void | Promise<void>
   children?: ReactNode
 }) {
+  const { isMobile } = useViewportBreakpoints()
+  const responsiveLeagueActionRowStyle = isMobile ? { ...buttonRow, ...mobileStackedActionRowStyle } : buttonRow
+
   return (
-    <div style={buttonRow}>
+    <div style={responsiveLeagueActionRowStyle}>
       <GhostLink href={buildTiqLeaguePageHref(league)}>{publicLabel}</GhostLink>
       <GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>
       <GhostLink href={resultHref}>{resultLabel}</GhostLink>
@@ -2622,6 +2634,13 @@ const heroActionRow: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+}
+
+const mobileStackedActionRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  alignItems: 'stretch',
+  justifyItems: 'stretch',
 }
 
 const singleColumnGrid: CSSProperties = {
@@ -3279,6 +3298,11 @@ const participantBuilderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const mobileParticipantBuilderStyle: CSSProperties = {
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  alignItems: 'stretch',
+}
+
 const inputStyle: CSSProperties = {
   width: '100%',
   minHeight: '48px',
@@ -3294,6 +3318,7 @@ const inputStyle: CSSProperties = {
 const photoUploadBox: CSSProperties = {
   display: 'grid',
   gap: '10px',
+  minWidth: 0,
 }
 
 const photoPreviewWrap: CSSProperties = {
@@ -3340,6 +3365,7 @@ const textareaStyle: CSSProperties = {
   padding: '14px',
   outline: 'none',
   resize: 'vertical',
+  minWidth: 0,
 }
 
 const statusBanner: CSSProperties = {
@@ -3349,6 +3375,7 @@ const statusBanner: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   color: 'var(--foreground)',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const noteBanner: CSSProperties = {
@@ -3368,6 +3395,12 @@ const nextActionCardStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-lime) 22%, var(--shell-panel-border) 78%)',
   background: 'color-mix(in srgb, var(--brand-lime) 9%, var(--shell-chip-bg) 91%)',
   minWidth: 0,
+}
+
+const mobileNextActionCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  alignItems: 'stretch',
 }
 
 const nextActionTitleStyle: CSSProperties = {
