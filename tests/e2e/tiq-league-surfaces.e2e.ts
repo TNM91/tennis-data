@@ -46,6 +46,7 @@ test.describe('TIQ league surfaces', () => {
     '/league-coordinator',
     '/league-coordinator/results',
     '/league-coordinator/individual-results',
+    '/mylab',
   ]) {
     test(`${path} loads without browser errors`, async ({ page }) => {
       await expectSurfaceLoads(page, path)
