@@ -113,8 +113,6 @@ test.describe('TIQ league surfaces', () => {
     await setTheme(page, 'light')
     await expectSurfaceLoads(page, '/matchup?type=singles&playerA=deleted-player-a&playerB=deleted-player-b')
 
-    await expect(page.getByText(/Matchup cleared those slots/i)).toBeVisible()
-    await expect(page.getByText(/Data Assist after review/i)).toBeVisible()
     await expect
       .poll(
         () =>
@@ -125,5 +123,7 @@ test.describe('TIQ league surfaces', () => {
         { message: 'stale matchup player params should be removed from the URL' },
       )
       .toBe(true)
+    await expect(page.getByText(/Matchup cleared those slots/i)).toBeVisible()
+    await expect(page.getByText(/Data Assist after review/i)).toBeVisible()
   })
 })
