@@ -610,7 +610,7 @@ export default function ExploreSearchPage() {
                   {filteredPlayers.map((player) => (
                     <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle(theme)}>
                       <div style={resultHeaderStyle}>
-                        <div>
+                        <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{player.name}</div>
                           <div style={resultMetaStyle}>{cleanText(player.location) || 'Player profile'}</div>
                         </div>
@@ -682,7 +682,7 @@ export default function ExploreSearchPage() {
                       style={getResultCardStyle(theme)}
                     >
                       <div style={resultHeaderStyle}>
-                        <div>
+                        <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{team.team}</div>
                           <div style={resultMetaStyle}>
                             {[team.league, team.flight, `${team.matchCount} matches`].filter(Boolean).join(' • ')}
@@ -704,7 +704,7 @@ export default function ExploreSearchPage() {
                   {showLeagueResults ? filteredLeagues.map((league) => (
                     <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle(theme)}>
                       <div style={resultHeaderStyle}>
-                        <div>
+                        <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{league.leagueName}</div>
                           <div style={resultMetaStyle}>
                             {[league.flight, league.ustaSection, league.districtArea].filter(Boolean).join(' • ') || 'League context'}
@@ -926,15 +926,15 @@ function ResultGroup({
   children: ReactNode
 }) {
   return (
-    <section style={{ ...surfaceCard, padding: 18, display: 'grid', gap: 14 }}>
+    <section style={{ ...surfaceCard, minWidth: 0, padding: 18, display: 'grid', gap: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={sectionKicker}>{title}</div>
           <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, lineHeight: 1.04 }}>
             {count} {title.toLowerCase()} found
           </div>
         </div>
-        <Link href={ctaHref} style={buttonGhost}>
+        <Link href={ctaHref} style={{ ...buttonGhost, maxWidth: '100%', textAlign: 'center' }}>
           {ctaLabel}
         </Link>
       </div>
@@ -942,7 +942,7 @@ function ResultGroup({
       {count === 0 ? (
         <div style={{ color: 'var(--muted-strong)', fontSize: 13, lineHeight: 1.65 }}>{emptyMessage}</div>
       ) : (
-        <div style={{ display: 'grid', gap: 10 }}>{children}</div>
+        <div style={{ display: 'grid', gap: 10, minWidth: 0 }}>{children}</div>
       )}
     </section>
   )
@@ -1070,6 +1070,8 @@ const exampleSearchButtonStyle: CSSProperties = {
 function getResultCardStyle(theme: ThemeMode): CSSProperties {
   return {
     ...surfaceCard,
+    minWidth: 0,
+    maxWidth: '100%',
     padding: '14px 16px',
     display: 'grid',
     gap: 8,
@@ -1087,6 +1089,12 @@ const resultHeaderStyle: CSSProperties = {
   gap: 12,
   alignItems: 'start',
   flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const resultPrimaryStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '100%',
 }
 
 const resultTitleStyle: CSSProperties = {
@@ -1094,12 +1102,14 @@ const resultTitleStyle: CSSProperties = {
   fontSize: 16,
   fontWeight: 900,
   lineHeight: 1.08,
+  overflowWrap: 'anywhere',
 }
 
 const resultMetaStyle: CSSProperties = {
   color: colors.mutedStrong,
   fontSize: 13,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const resultBadgeWrapStyle: CSSProperties = {
@@ -1107,6 +1117,7 @@ const resultBadgeWrapStyle: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
+  maxWidth: '100%',
 }
 
 const miniBadgeBlue: CSSProperties = {
@@ -1114,6 +1125,8 @@ const miniBadgeBlue: CSSProperties = {
   minHeight: 28,
   padding: '0 10px',
   fontSize: 11,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const miniBadgeGreen: CSSProperties = {
@@ -1121,6 +1134,8 @@ const miniBadgeGreen: CSSProperties = {
   minHeight: 28,
   padding: '0 10px',
   fontSize: 11,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const matchedLabelStyle: CSSProperties = {
