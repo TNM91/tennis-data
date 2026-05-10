@@ -503,6 +503,8 @@ const featurePanelHeader: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   marginBottom: '8px',
+  minWidth: 0,
+  flexWrap: 'wrap',
 }
 
 const featurePanelLabel: CSSProperties = {
@@ -534,6 +536,8 @@ const startStepCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
+  boxSizing: 'border-box',
+  overflow: 'hidden',
 }
 
 const startStepNumber: CSSProperties = {
@@ -563,6 +567,7 @@ const startStepTitle: CSSProperties = {
   fontSize: '16px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const startStepText: CSSProperties = {
@@ -570,6 +575,7 @@ const startStepText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const discoveryBoardGlow: CSSProperties = {
@@ -653,6 +659,7 @@ const discoveryPathCard: CSSProperties = {
   border: '1px solid var(--card-border-soft)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
   minWidth: 0,
+  boxSizing: 'border-box',
 }
 
 const discoveryPathLabel: CSSProperties = {
@@ -668,6 +675,7 @@ const discoveryPathCardTitle: CSSProperties = {
   fontSize: '19px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const discoveryPathCardText: CSSProperties = {

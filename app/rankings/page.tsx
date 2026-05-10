@@ -1583,10 +1583,10 @@ function RankingCompactCard({
         </div>
       </div>
       <div style={compactActionRowStyle}>
-        <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={rowActionPrimaryStyle}>
+        <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={compactActionPrimaryStyle}>
           View profile
         </Link>
-        <Link href={compareHref} aria-label={`Compare ${player.name} in Matchup`} style={rowActionSecondaryStyle}>
+        <Link href={compareHref} aria-label={`Compare ${player.name} in Matchup`} style={compactActionSecondaryStyle}>
           Compare
         </Link>
       </div>
@@ -2521,14 +2521,20 @@ const compactPlayerMetaStyle: CSSProperties = {
 }
 
 const compactRatingStackStyle: CSSProperties = {
-  display: 'grid',
-  justifyItems: 'start',
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
   gap: '3px',
+  padding: '10px 12px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 950,
   lineHeight: 1,
-  gridColumn: '2 / -1',
+  gridColumn: '1 / -1',
   minWidth: 0,
 }
 
@@ -2552,6 +2558,30 @@ const compactActionRowStyle: CSSProperties = {
   gap: '9px',
   paddingTop: '2px',
   minWidth: 0,
+}
+
+const compactActionPrimaryStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: '1 1 130px',
+  minHeight: '40px',
+  padding: '0 11px',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-lime) 15%, var(--shell-chip-bg) 85%)',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
+  whiteSpace: 'normal',
+}
+
+const compactActionSecondaryStyle: CSSProperties = {
+  ...compactActionPrimaryStyle,
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const compactMiniLabelStyle: CSSProperties = {
