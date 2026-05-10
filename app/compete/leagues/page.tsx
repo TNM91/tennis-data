@@ -24,7 +24,7 @@ import {
   getTiqIndividualCompetitionFormatPreview,
 } from '@/lib/tiq-individual-format'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
-import { LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { type TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 
@@ -82,7 +82,13 @@ export default function CompeteLeaguesPage() {
           href="/explore/leagues"
           meta="Explore"
           title="Browse League Layers"
-          text="Review the combined browse surface for USTA leagues, TIQ team leagues, and TIQ individual leagues."
+          text="Review uploaded USTA-style history, TIQ team leagues, and TIQ individual leagues from one browse surface."
+        />
+        <CompeteCard
+          href={DATA_ASSIST_STORY.href}
+          meta="Refresh context"
+          title="Data Assist Uploads"
+          text={DATA_ASSIST_STORY.shortCue}
         />
         <CompeteCard
           href="/captain"
