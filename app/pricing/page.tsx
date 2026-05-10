@@ -649,6 +649,7 @@ const pricingFinalActionStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   justifyContent: 'flex-end',
+  minWidth: 0,
 }
 
 const fitMatrixShellStyle: CSSProperties = {
