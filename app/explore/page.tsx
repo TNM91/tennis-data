@@ -144,7 +144,7 @@ export default function ExplorePage() {
   const dynamicArtPanelStyle: CSSProperties = {
     ...featurePanel,
     position: 'relative',
-    minHeight: isSmallMobile ? '320px' : isMobile ? '360px' : isTablet ? '420px' : '342px',
+    minHeight: isMobile ? 'auto' : isTablet ? '420px' : '342px',
     padding: 0,
     overflow: 'hidden',
     background: 'var(--shell-panel-bg)',
@@ -163,15 +163,17 @@ export default function ExplorePage() {
   }
 
   const dynamicArtOverlayStyle: CSSProperties = {
-    position: 'absolute',
-    top: isMobile ? '16px' : '16px',
-    left: isMobile ? '16px' : '20px',
-    right: isMobile ? '16px' : '20px',
-    bottom: isMobile ? '16px' : '16px',
+    position: isMobile ? 'relative' : 'absolute',
+    top: isMobile ? 'auto' : '16px',
+    left: isMobile ? 'auto' : '20px',
+    right: isMobile ? 'auto' : '20px',
+    bottom: isMobile ? 'auto' : '16px',
     display: 'grid',
     gap: '12px',
     alignContent: 'start',
     zIndex: 2,
+    padding: isMobile ? '16px' : 0,
+    boxSizing: 'border-box',
   }
 
   const dynamicActionGrid: CSSProperties = {
