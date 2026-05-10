@@ -14,7 +14,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
-import { normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -298,11 +298,7 @@ export default function MatchupPage() {
     setHeadToHead(null)
     setFormScores({ left: null, right: null })
     setTrajectories({ left: [], right: [] })
-    setSelectionNotice(
-      staleIds.length === 1
-        ? 'One selected player is no longer available, so Matchup cleared that slot.'
-        : 'Some selected players are no longer available, so Matchup cleared those slots.',
-    )
+    setSelectionNotice(getMatchupStaleSelectionNotice(staleIds.length))
   }, [loading, players, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
   useEffect(() => {
@@ -1740,7 +1736,8 @@ export default function MatchupPage() {
           ) : null}
 
           {error ? (
-            <div style={errorBanner}>
+            <div role="alert" aria-live="polite" style={errorBanner}>
+              <strong style={errorTitleStyle}>Matchup needs a fresh player list.</strong>
               <div>{error}</div>
               <div style={errorActionRowStyle}>
                 <button type="button" onClick={() => void loadPlayers()} style={retryButtonStyle}>
@@ -1754,7 +1751,7 @@ export default function MatchupPage() {
           ) : null}
 
           {selectionNotice ? (
-            <div style={noticeBannerStyle}>
+            <div role="status" aria-live="polite" style={noticeBannerStyle}>
               <span>{selectionNotice}</span>
               <button type="button" onClick={() => setSelectionNotice('')} style={noticeDismissButtonStyle}>
                 Dismiss
@@ -2404,16 +2401,25 @@ function SelectField({
   options: Player[]
   disabled: boolean
 }) {
+  const hasActiveSelection = !value || options.some((player) => player.id === value)
+  const selectedValue = hasActiveSelection ? value : ''
+  const placeholder = options.length
+    ? hasActiveSelection
+      ? 'Select player'
+      : 'Selected player unavailable'
+    : 'No active players'
+
   return (
     <div>
       <label style={inputLabel}>{label}</label>
       <select
-        value={value}
+        value={selectedValue}
         onChange={(e) => onChange(e.target.value)}
         style={selectStyle}
+        aria-invalid={!hasActiveSelection}
         disabled={disabled}
       >
-        <option value="">{options.length ? 'Select player' : 'No active players'}</option>
+        <option value="">{placeholder}</option>
         {options.map((player) => (
           <option key={player.id} value={player.id}>
             {player.name}
@@ -2982,6 +2988,8 @@ const selectStyle: CSSProperties = {
 }
 
 const errorBanner: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
   marginBottom: '16px',
   borderRadius: '16px',
   padding: '12px 14px',
@@ -2993,12 +3001,19 @@ const errorBanner: CSSProperties = {
   lineHeight: 1.55,
 }
 
+const errorTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  fontWeight: 900,
+  letterSpacing: 0,
+}
+
 const errorActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
   alignItems: 'center',
-  marginTop: 12,
+  marginTop: 2,
 }
 
 const noticeBannerStyle: CSSProperties = {
