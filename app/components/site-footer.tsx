@@ -5,7 +5,12 @@ import BrandWordmark from '@/app/components/brand-wordmark'
 import NavLockIcon from '@/app/components/nav-lock-icon'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { getPrimaryNavTarget, PRIMARY_NAV_VISUALS } from '@/lib/primary-nav-access'
+import {
+  getPrimaryNavLockedLabel,
+  getPrimaryNavLockedTitle,
+  getPrimaryNavTarget,
+  PRIMARY_NAV_VISUALS,
+} from '@/lib/primary-nav-access'
 import { FOOTER_NAV_SECTIONS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -85,12 +90,14 @@ export default function SiteFooter() {
           {PRIMARY_NAV_ITEMS.map((item) => {
             const visual = FOOTER_JOURNEY[item.href] || { step: '•', intent: item.label, note: '' }
             const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
+            const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
+            const lockedTitle = getPrimaryNavLockedTitle(item.label, navTarget.requiredPlan)
             return (
               <Link
                 key={item.href}
                 href={navTarget.href}
-                aria-label={navTarget.locked ? `${item.label} locked. Unlock to open.` : item.label}
-                title={navTarget.locked ? `${item.label} locked` : undefined}
+                aria-label={navTarget.locked ? lockedLabel : item.label}
+                title={navTarget.locked ? lockedTitle : undefined}
                 style={footerJourneyCardStyle(isMobile)}
               >
                 <span style={navTarget.locked ? footerJourneyLockStyle(isMobile) : footerJourneyStepStyle(isMobile)}>
