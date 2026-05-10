@@ -47,9 +47,12 @@ import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import {
+  getTiqLeagueScoringSystemDescription,
   getTiqLeagueScoringSystemLabel,
   getTiqLeagueSchedulingModeDescription,
   getTiqLeagueSchedulingModeLabel,
+  getTiqLeagueThirdSetRuleDescription,
+  getTiqLeagueThirdSetRuleLabel,
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
 import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
@@ -628,7 +631,10 @@ export default function TiqLeagueDetailPage() {
   const scoringRulesText =
     league?.scoringSystem === 'dynamic_points'
       ? getDynamicPointsRulesSummary()
-      : 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
+      : getTiqLeagueScoringSystemDescription('standard')
+  const thirdSetRulesText = league
+    ? getTiqLeagueThirdSetRuleDescription(league.thirdSetRule)
+    : ''
   const scheduleRulesText = league
     ? [
         getTiqLeagueSchedulingModeDescription(league.schedulingMode),
@@ -2140,6 +2146,7 @@ export default function TiqLeagueDetailPage() {
                     ) : null}
                     <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(league.schedulingMode)}</span>
                     <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(league.scoringSystem)}</span>
+                    <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(league.thirdSetRule)}</span>
                     <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
                       {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
                     </span>
@@ -2360,7 +2367,9 @@ export default function TiqLeagueDetailPage() {
               <div style={formatCalloutTitle}>
                 Scoring: {getTiqLeagueScoringSystemLabel(league.scoringSystem)}
               </div>
-              <div style={formatCalloutText}>{scoringRulesText}</div>
+              <div style={formatCalloutText}>
+                {scoringRulesText} Third set rule: {thirdSetRulesText}
+              </div>
             </section>
 
             <section id="league-schedule" style={schedulePanelStyle}>
