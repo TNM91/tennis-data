@@ -1,7 +1,12 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const THEME_STORAGE_KEY = 'tenaceiq-theme-mode'
-const LOCKED_LABELS = ['My Lab', 'Captain', 'Coordinator']
+const LOCKED_PRIMARY_NAV = [
+  { label: 'My Lab', plan: 'Player' },
+  { label: 'Matchup', plan: 'Player' },
+  { label: 'Captain', plan: 'Captain' },
+  { label: 'Coordinator', plan: 'TIQ League Coordinator' },
+] as const
 const LOCK_COLOR = 'rgb(8, 17, 29)'
 
 async function setTheme(page: Page, theme: 'dark' | 'light') {
@@ -20,14 +25,27 @@ async function expectLockedNavIcons(page: Page, theme: 'dark' | 'light') {
 
   const viewportWidth = page.viewportSize()?.width ?? 1280
   if (viewportWidth < 980) {
-    const menuButton = page.getByRole('button', { name: 'Open menu' }).first()
+    const header = page.locator('header').first()
+    const menuButton = header.getByRole('button', { name: 'Open menu' }).first()
+    const closeButton = header.getByRole('button', { name: 'Close menu' }).first()
+
     await expect(menuButton).toBeVisible()
-    await menuButton.click()
-    await expect(page.getByRole('button', { name: 'Close menu' })).toBeVisible()
+    await expect
+      .poll(
+        async () => {
+          if (await closeButton.isVisible().catch(() => false)) return true
+          if (await menuButton.isVisible().catch(() => false)) {
+            await menuButton.click()
+          }
+          return closeButton.isVisible().catch(() => false)
+        },
+        { message: 'mobile header menu should open after hydration' },
+      )
+      .toBe(true)
   }
 
-  for (const label of LOCKED_LABELS) {
-    const accessibleLabel = `${label} locked. Unlock to open.`
+  for (const { label, plan } of LOCKED_PRIMARY_NAV) {
+    const accessibleLabel = `${label} requires ${plan}. Create a free account first, then activate ${plan}.`
     const headerLink = page.locator(`header a[aria-label="${accessibleLabel}"]`).first()
     const footerLink = page.locator(`footer a[aria-label="${accessibleLabel}"]`).first()
 

@@ -10,7 +10,12 @@ import { useTheme } from '@/app/components/theme-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { countUnreadInternalNotifications } from '@/lib/internal-notifications'
 import { countUnreadInternalConversations, getInternalIdentity } from '@/lib/internal-messages'
-import { getPrimaryNavTarget, PRIMARY_NAV_VISUALS } from '@/lib/primary-nav-access'
+import {
+  getPrimaryNavLockedLabel,
+  getPrimaryNavLockedTitle,
+  getPrimaryNavTarget,
+  PRIMARY_NAV_VISUALS,
+} from '@/lib/primary-nav-access'
 import { ACCOUNT_NAV_ITEMS, CAPTAIN_QUICK_NAV_ITEMS, PRIMARY_NAV_ITEMS } from '@/lib/site-navigation'
 import { shouldUseCompactSiteHeader } from '@/lib/site-header-responsive'
 import { supabase } from '@/lib/supabase'
@@ -126,12 +131,16 @@ function HeaderNavLink({
   label,
   activeNow,
   locked = false,
+  lockedLabel,
+  lockedTitle,
 }: {
   href: string
   visualHref: string
   label: string
   activeNow: boolean
   locked?: boolean
+  lockedLabel?: string
+  lockedTitle?: string
 }) {
   const [hovered, setHovered] = useState(false)
   const visual = PRIMARY_NAV_VISUALS[visualHref]
@@ -140,8 +149,8 @@ function HeaderNavLink({
     <Link
       href={href}
       aria-current={activeNow ? 'page' : undefined}
-      aria-label={locked ? `${label} locked. Unlock to open.` : label}
-      title={locked ? `${label} locked` : undefined}
+      aria-label={locked ? lockedLabel || label : label}
+      title={locked ? lockedTitle : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -392,6 +401,8 @@ export default function SiteHeader({ active }: { active?: string }) {
               {PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
                 const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
+                const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
+                const lockedTitle = getPrimaryNavLockedTitle(item.label, navTarget.requiredPlan)
                 return (
                   <HeaderNavLink
                     key={item.href}
@@ -400,6 +411,8 @@ export default function SiteHeader({ active }: { active?: string }) {
                     label={item.label}
                     activeNow={activeNow}
                     locked={navTarget.locked}
+                    lockedLabel={lockedLabel}
+                    lockedTitle={lockedTitle}
                   />
                 )
               })}
@@ -515,12 +528,13 @@ export default function SiteHeader({ active }: { active?: string }) {
                 const activeNow = isActiveLink(active, pathname, item.href)
                 const visual = PRIMARY_NAV_VISUALS[item.href]
                 const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
+                const lockedLabel = getPrimaryNavLockedLabel(item.label, navTarget.requiredPlan)
                 return (
                   <Link
                     key={item.href}
                     href={navTarget.href}
                     aria-current={activeNow ? 'page' : undefined}
-                    aria-label={navTarget.locked ? `${item.label} locked. Unlock to open.` : item.label}
+                    aria-label={navTarget.locked ? lockedLabel : item.label}
                     onClick={() => setMenuOpen(false)}
                     style={{
                       ...mobileItemStyle,
