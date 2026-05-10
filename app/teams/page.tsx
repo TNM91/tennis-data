@@ -1086,6 +1086,7 @@ const teamCardTop: CSSProperties = {
   justifyContent: 'space-between',
   gap: '12px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const teamName: CSSProperties = {
@@ -1114,6 +1115,8 @@ const metaPillBlue: CSSProperties = {
   color: '#cde1ff',
   fontSize: '12px',
   fontWeight: 700,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const metaPillGreen: CSSProperties = {
@@ -1129,7 +1132,11 @@ const metaPillGreen: CSSProperties = {
 }
 
 const viewPill: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   whiteSpace: 'normal',
+  textAlign: 'center',
   padding: '8px 10px',
   borderRadius: '999px',
   background: 'rgba(8,17,31,0.82)',
@@ -1139,6 +1146,7 @@ const viewPill: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
 }
 
 const metricsGrid: CSSProperties = {
