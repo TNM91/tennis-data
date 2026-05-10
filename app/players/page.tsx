@@ -1533,12 +1533,14 @@ const playerCardFooter: CSSProperties = {
   alignItems: 'center',
   flexWrap: 'wrap',
   color: '#dfe9fb',
-  gap: '12px',
+  gap: '10px',
+  minWidth: 0,
 }
 
 const profileLinkText: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
@@ -1548,6 +1550,10 @@ const profileLinkText: CSSProperties = {
   fontSize: '13px',
   letterSpacing: '0.01em',
   boxShadow: '0 12px 30px rgba(43, 195, 104, 0.20), inset 0 1px 0 rgba(255,255,255,0.26)',
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
+  maxWidth: '100%',
 }
 
 const arrowText: CSSProperties = {
@@ -1567,6 +1573,7 @@ const arrowText: CSSProperties = {
 const compareLinkText: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: '40px',
   padding: '0 14px',
   borderRadius: '999px',
@@ -1576,6 +1583,9 @@ const compareLinkText: CSSProperties = {
   fontWeight: 900,
   fontSize: '13px',
   textDecoration: 'none',
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  maxWidth: '100%',
 }
 
 const iconSvgStyle: CSSProperties = {
@@ -1589,6 +1599,8 @@ const followButtonWrap: CSSProperties = {
   marginBottom: '16px',
   display: 'flex',
   alignItems: 'center',
+  maxWidth: '100%',
+  minWidth: 0,
 }
 
 const signalRow: CSSProperties = {
@@ -1598,6 +1610,7 @@ const signalRow: CSSProperties = {
   gap: '8px',
   marginBottom: '14px',
   zIndex: 2,
+  minWidth: 0,
 }
 
 const signalStatusPill: CSSProperties = {
@@ -1642,7 +1655,7 @@ const signalConfidencePill: CSSProperties = {
 const deltaRow: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
   gap: '10px',
   marginTop: '12px',
   zIndex: 2,
