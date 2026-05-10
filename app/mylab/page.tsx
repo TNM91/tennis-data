@@ -184,6 +184,24 @@ const LOCAL_NOTEBOOK_KEY = 'tenaceiq-my-lab-notebook-v1'
 const LOCAL_GOAL_STATE_KEY = 'tenaceiq-my-lab-goal-state-v1'
 const LOCAL_GOALS_KEY = 'tenaceiq-my-lab-goals-v2'
 
+const MY_LAB_ROUTINE_STEPS = [
+  {
+    label: 'Connect',
+    title: 'Link the player record',
+    body: 'Tie My Lab to the profile that should power ratings, teams, match history, and follows.',
+  },
+  {
+    label: 'Refresh',
+    title: 'Use reviewed uploads',
+    body: DATA_ASSIST_STORY.shortCue,
+  },
+  {
+    label: 'Act',
+    title: 'Choose the next tennis move',
+    body: 'Turn the read into a matchup, goal, follow, or captain handoff before the next court time.',
+  },
+] as const
+
 const EMPTY_LAB_GOAL: LabGoalState = {
   id: 'goal-1',
   goal: '',
@@ -2123,6 +2141,30 @@ function MyLabPageInner() {
         />
       ) : null}
 
+      <section style={labRoutinePreviewStyle} aria-label="My Lab routine">
+        <div style={labRoutineHeaderStyle}>
+          <div>
+            <p style={sectionKickerStyle}>{MY_LAB_STORY.eyebrow}</p>
+            <h2 style={labRoutineTitleStyle}>A weekly tennis routine, not another dashboard.</h2>
+          </div>
+          <Link href="/data-assist" style={secondaryButtonStyle}>
+            {DATA_ASSIST_STORY.cta}
+          </Link>
+        </div>
+        <div style={labRoutineGridStyle(isTablet)}>
+          {MY_LAB_ROUTINE_STEPS.map((step, index) => (
+            <div key={step.label} style={labRoutineStepStyle}>
+              <span style={labRoutineNumberStyle}>{index + 1}</span>
+              <div style={{ minWidth: 0 }}>
+                <span style={miniActionPillStyle}>{step.label}</span>
+                <strong style={labRoutineStepTitleStyle}>{step.title}</strong>
+                <span style={labRoutineStepBodyStyle}>{step.body}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {access.canUseAdvancedPlayerInsights ? (
         <section style={paidWorkspaceProofStyle} aria-label="Player workspace value">
           <div style={paidWorkspaceIntroStyle}>
@@ -3202,6 +3244,90 @@ const secondaryButtonStyle: CSSProperties = {
 
 const profileLinkSectionStyle: CSSProperties = {
   margin: '0 0 18px',
+}
+
+const labRoutinePreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  margin: '0 0 18px',
+  padding: 'clamp(16px, 3vw, 22px)',
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 9%, var(--shell-panel-bg-strong) 91%) 0%, var(--shell-panel-bg-strong) 58%, color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%) 100%)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const labRoutineHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+}
+
+const labRoutineTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.2vw, 1.9rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const labRoutineGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const labRoutineStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 12,
+  minHeight: 144,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--shell-panel-bg-strong) 8%)',
+  color: 'var(--foreground)',
+  minWidth: 0,
+}
+
+const labRoutineNumberStyle: CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: 14,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',
+  color: 'var(--text-dark)',
+  fontSize: 14,
+  fontWeight: 950,
+}
+
+const labRoutineStepTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 10,
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const labRoutineStepBodyStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 6,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const paidWorkspaceProofStyle: CSSProperties = {

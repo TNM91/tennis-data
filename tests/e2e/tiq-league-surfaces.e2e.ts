@@ -88,4 +88,12 @@ test.describe('TIQ league surfaces', () => {
       '/league-coordinator/results?leagueId=test-league&scheduleItemId=test-schedule&teamA=Team%20A&teamB=Team%20B&matchDate=2026-01-15&facility=Court%201#team-match-entry',
     )
   })
+
+  test('My Lab keeps the premium routine and Data Assist refresh path visible', async ({ page }) => {
+    await setTheme(page, 'light')
+    await expectSurfaceLoads(page, '/mylab')
+    await expect(page.getByText('A weekly tennis routine, not another dashboard.')).toBeVisible()
+    await expect(page.getByText('Use reviewed uploads')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Data Assist' })).toBeVisible()
+  })
 })
