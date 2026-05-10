@@ -17,6 +17,15 @@ import {
   readCaptainResumeState,
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
+import {
+  addCaptainTeamScope,
+  buildCaptainTeamScopeKey as buildTeamOptionKey,
+  captainTeamOptionMatchesScopes,
+  chooseCaptainTeamOption,
+  getCaptainTeamScopeSource,
+  getCaptainTeamScopeSourceLabel,
+  type CaptainTeamScope,
+} from '@/lib/captain-team-scope'
 import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import {
@@ -123,12 +132,6 @@ type TeamOptionMatchRow = {
 
 type CaptainProfileLinkRow = UserProfileLink
 
-type CaptainTeamScope = {
-  team: string
-  league: string
-  flight: string
-}
-
 type CaptainRosterScopeRow = {
   team_name: string | null
   league_name: string | null
@@ -214,46 +217,6 @@ function normalizePlayerRelation(player: PlayerRelation) {
   return Array.isArray(player) ? player[0] ?? null : player
 }
 
-function buildTeamOptionKey(option: Pick<TeamOption, 'team' | 'league' | 'flight'>) {
-  return `${safeText(option.team)}__${safeText(option.league)}__${safeText(option.flight)}`
-}
-
-function addCaptainTeamScope(
-  scopes: Map<string, CaptainTeamScope>,
-  input: {
-    team?: string | null
-    league?: string | null
-    flight?: string | null
-  },
-) {
-  const team = safeText(input.team, '')
-  if (!team) return
-
-  const scope = {
-    team,
-    league: safeText(input.league, ''),
-    flight: safeText(input.flight, ''),
-  }
-
-  scopes.set(buildTeamOptionKey(scope), scope)
-}
-
-function teamOptionMatchesCaptainScopes(option: TeamOption, scopes: CaptainTeamScope[]) {
-  if (!scopes.length) return false
-
-  const optionTeam = safeText(option.team).toLowerCase()
-  const optionLeague = safeText(option.league, '').toLowerCase()
-  const optionFlight = safeText(option.flight, '').toLowerCase()
-
-  return scopes.some((scope) => {
-    if (scope.team.toLowerCase() !== optionTeam) return false
-    if (scope.league && scope.league.toLowerCase() !== optionLeague) return false
-    if (scope.flight && scope.flight.toLowerCase() !== optionFlight) return false
-    return true
-  })
-}
-
-
 export default function CaptainHubPage() {
   const router = useRouter()
   const { theme } = useTheme()
@@ -338,6 +301,7 @@ export default function CaptainHubPage() {
         team: profile?.linked_team_name,
         league: profile?.linked_league_name,
         flight: profile?.linked_flight,
+        source: 'profile',
       })
 
       const [rosterResult, tiqEntryResult] = await Promise.all([
@@ -361,6 +325,7 @@ export default function CaptainHubPage() {
           team: row.team_name,
           league: row.league_name,
           flight: row.flight,
+          source: 'roster',
         })
       }
 
@@ -369,6 +334,7 @@ export default function CaptainHubPage() {
           team: row.team_name,
           league: row.source_league_name,
           flight: row.source_flight,
+          source: 'tiq',
         })
       }
 
@@ -426,10 +392,13 @@ export default function CaptainHubPage() {
       const allOptions = [...map.values()]
       const next =
         isMember(role) && role !== 'admin'
-          ? allOptions.filter((option) => teamOptionMatchesCaptainScopes(option, captainTeamScopes))
+          ? allOptions.filter((option) => captainTeamOptionMatchesScopes(option, captainTeamScopes))
           : allOptions
 
       next.sort((a, b) => {
+        const chosen = chooseCaptainTeamOption({ options: [a, b], scopes: captainTeamScopes })
+        if (chosen === a) return -1
+        if (chosen === b) return 1
         if (b.matches !== a.matches) return b.matches - a.matches
         return a.team.localeCompare(b.team)
       })
@@ -437,14 +406,15 @@ export default function CaptainHubPage() {
       setTeamOptions(next)
 
       if (next.length > 0) {
-        const fallback = next[0]
-        const current =
-          next.find(
-            (option) =>
-              option.team === selectedTeam &&
-              option.league === selectedLeague &&
-              option.flight === selectedFlight,
-          ) || fallback
+        const current = chooseCaptainTeamOption({
+          options: next,
+          current: {
+            team: selectedTeam,
+            league: selectedLeague,
+            flight: selectedFlight,
+          },
+          scopes: captainTeamScopes,
+        }) || next[0]
 
         setSelectedTeam(current.team)
         setSelectedLeague(current.league)
@@ -673,9 +643,14 @@ export default function CaptainHubPage() {
     [filteredTeamOptions, selectedFlight, selectedLeague, selectedTeam],
   )
   const selectedFromCaptainScope = useMemo(
-    () => Boolean(selectedTeamOption && captainTeamScopes.some((scope) => teamOptionMatchesCaptainScopes(selectedTeamOption, [scope]))),
+    () => Boolean(selectedTeamOption && captainTeamScopes.some((scope) => captainTeamOptionMatchesScopes(selectedTeamOption, [scope]))),
     [captainTeamScopes, selectedTeamOption],
   )
+  const selectedCaptainScopeSource = useMemo(
+    () => getCaptainTeamScopeSource(selectedTeamOption, captainTeamScopes),
+    [captainTeamScopes, selectedTeamOption],
+  )
+  const selectedCaptainScopeSourceLabel = getCaptainTeamScopeSourceLabel(selectedCaptainScopeSource)
   const selectedTeamOptionKey = buildTeamOptionKey({
     team: selectedTeam,
     league: selectedLeague,
@@ -1114,8 +1089,8 @@ export default function CaptainHubPage() {
       ? `Link your player profile in My Lab, or ${DATA_ASSIST_STORY.shortCue.toLowerCase()}`
     : !filteredTeamOptions.length
       ? 'No active team history matches your linked player, team, TIQ captain entries, or reviewed Data Assist uploads yet.'
-      : selectedFromCaptainScope
-        ? `Auto-loaded from your profile/team entries: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
+    : selectedFromCaptainScope
+        ? `Auto-loaded from ${selectedCaptainScopeSourceLabel}: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
       : hasTeamScope
         ? `Active scope: ${selectedTeam} - ${selectedLeague} - ${selectedFlight}`
         : 'Choose a team, league, and flight to start planning.'
@@ -1761,7 +1736,9 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={captainDataAssistCueStyle}>
                 <div>
                   <strong>Team scope is set.</strong>
-                  <span>Roster, schedule, and scorecard uploads can keep this captain workspace current.</span>
+                  <span>
+                    Captain started from {selectedCaptainScopeSourceLabel}; roster, schedule, and scorecard uploads can keep this workspace current.
+                  </span>
                 </div>
                 <Link href="/data-assist" style={captainDataAssistLinkStyle}>
                   Refresh with Data Assist
