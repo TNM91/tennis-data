@@ -69,7 +69,7 @@ test.describe('TIQ league surfaces', () => {
     })
   }
 
-  for (const path of ['/captain', '/compete/leagues', '/compete/results', '/data-assist', '/explore', '/explore/rankings', '/matchup', '/mylab', '/pricing']) {
+  for (const path of ['/captain', '/compete/leagues', '/compete/results', '/data-assist', '/explore', '/explore/rankings', '/league-coordinator', '/matchup', '/mylab', '/pricing']) {
     test(`${path} keeps light mode renderable without horizontal overflow`, async ({ page }) => {
       await setTheme(page, 'light')
       await expectSurfaceLoads(page, path)
@@ -107,6 +107,14 @@ test.describe('TIQ league surfaces', () => {
     await expectSurfaceLoads(page, '/explore/rankings')
     await expect(page.getByText('Full rankings')).toBeVisible()
     await expect(page.getByText('Run Matchup')).toBeVisible()
+  })
+
+  test('Coordinator setup stays readable on mobile light mode', async ({ page }) => {
+    await setTheme(page, 'light')
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expectSurfaceLoads(page, '/league-coordinator')
+    await expect(page.getByText('Use uploads as the coordinator refresh path.')).toBeVisible()
+    await expect(page.getByText('Add a league')).toBeVisible()
   })
 
   test('Matchup clears stale player query params into a Data Assist-aware notice', async ({ page }) => {
