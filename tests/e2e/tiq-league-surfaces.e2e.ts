@@ -42,6 +42,7 @@ test.describe('TIQ league surfaces', () => {
     '/explore/rankings',
     '/explore/search',
     '/explore/teams',
+    '/captain',
     '/data-assist',
     '/league-coordinator',
     '/league-coordinator/results',
