@@ -1,5 +1,16 @@
 import { expect, test, type Page } from '@playwright/test'
 
+const THEME_STORAGE_KEY = 'tenaceiq-theme-mode'
+
+async function setTheme(page: Page, theme: 'dark' | 'light') {
+  await page.addInitScript(
+    ({ key, value }) => {
+      window.localStorage.setItem(key, value)
+    },
+    { key: THEME_STORAGE_KEY, value: theme },
+  )
+}
+
 async function expectSurfaceLoads(page: Page, path: string) {
   const pageErrors: string[] = []
   page.on('pageerror', (error) => {
@@ -53,6 +64,14 @@ test.describe('TIQ league surfaces', () => {
   ]) {
     test(`${path} loads without browser errors`, async ({ page }) => {
       await expectSurfaceLoads(page, path)
+    })
+  }
+
+  for (const path of ['/captain', '/data-assist', '/matchup', '/mylab', '/pricing']) {
+    test(`${path} keeps light mode renderable without horizontal overflow`, async ({ page }) => {
+      await setTheme(page, 'light')
+      await expectSurfaceLoads(page, path)
+      await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
     })
   }
 
