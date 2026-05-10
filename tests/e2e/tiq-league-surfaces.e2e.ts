@@ -108,4 +108,22 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByText('Full rankings')).toBeVisible()
     await expect(page.getByText('Run Matchup')).toBeVisible()
   })
+
+  test('Matchup clears stale player query params into a Data Assist-aware notice', async ({ page }) => {
+    await setTheme(page, 'light')
+    await expectSurfaceLoads(page, '/matchup?type=singles&playerA=deleted-player-a&playerB=deleted-player-b')
+
+    await expect(page.getByText(/Matchup cleared those slots/i)).toBeVisible()
+    await expect(page.getByText(/Data Assist after review/i)).toBeVisible()
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const params = new URLSearchParams(window.location.search)
+            return !params.has('playerA') && !params.has('playerB')
+          }),
+        { message: 'stale matchup player params should be removed from the URL' },
+      )
+      .toBe(true)
+  })
 })
