@@ -412,6 +412,8 @@ export default function SiteHeader({ active }: { active?: string }) {
               alignItems: 'center',
               justifyContent: 'flex-end',
               gap: isMobile ? '7px' : isTablet ? '8px' : '9px',
+              minWidth: 0,
+              maxWidth: '100%',
             }}
           >
             {useCompactHeader ? null : <ThemeToggle onClick={toggleTheme} theme={theme} />}
@@ -651,6 +653,9 @@ const utilityLinkStyle = {
   textDecoration: 'none',
   background: 'transparent',
   whiteSpace: 'nowrap' as const,
+  maxWidth: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 } as const
 
 const navLinkStyle = {
@@ -667,6 +672,7 @@ const navLinkStyle = {
   textDecoration: 'none',
   whiteSpace: 'nowrap' as const,
   transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
+  minWidth: 0,
 } as const
 
 const navStepStyle = {
@@ -834,6 +840,7 @@ const mobileItemStyle = {
   minWidth: 0,
   minHeight: '58px',
   padding: '8px 14px',
+  boxSizing: 'border-box',
   borderRadius: '15px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -845,6 +852,8 @@ const mobileItemStyle = {
   fontWeight: 700,
   textDecoration: 'none',
   overflowWrap: 'anywhere',
+  gap: '12px',
+  textAlign: 'left' as const,
 } as const
 
 const mobileItemMainStyle = {
@@ -852,6 +861,7 @@ const mobileItemMainStyle = {
   alignItems: 'center',
   gap: '10px',
   minWidth: 0,
+  flex: '1 1 auto',
 } as const
 
 const mobileItemTextStyle = {
@@ -859,12 +869,14 @@ const mobileItemTextStyle = {
   gap: '3px',
   lineHeight: 1,
   minWidth: 0,
+  overflowWrap: 'anywhere',
 } as const
 
 const mobileItemLabelStyle = {
   color: 'var(--foreground-strong)',
   fontSize: '14px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 } as const
 
 const mobileItemIntentStyle = {
@@ -873,6 +885,7 @@ const mobileItemIntentStyle = {
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase' as const,
+  overflowWrap: 'anywhere',
 } as const
 
 const mobileStepStyle = {
