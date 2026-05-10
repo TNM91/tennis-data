@@ -20,6 +20,7 @@ import { getDynamicPointsRulesSummary } from './tiq-scoring'
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
 export type TiqLeagueScoringSystem = 'standard' | 'dynamic_points'
+export type TiqLeagueThirdSetRule = 'either' | 'full_set' | 'match_tiebreak_10'
 export type TiqLeagueSchedulingMode = 'coordinator_fixed' | 'player_arranged'
 export type TiqLeagueVisibility = 'public' | 'private'
 
@@ -29,6 +30,7 @@ export type TiqLeagueRecord = {
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
   scoringSystem: TiqLeagueScoringSystem
+  thirdSetRule: TiqLeagueThirdSetRule
   leagueName: string
   seasonLabel: string
   seasonStatus: TiqLeagueSeasonStatus
@@ -58,6 +60,7 @@ export type TiqLeagueDraft = {
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
   scoringSystem: TiqLeagueScoringSystem
+  thirdSetRule: TiqLeagueThirdSetRule
   leagueName: string
   seasonLabel: string
   seasonStatus: TiqLeagueSeasonStatus
@@ -103,6 +106,13 @@ export function normalizeTiqLeagueScoringSystem(
   value: string | null | undefined,
 ): TiqLeagueScoringSystem {
   return value === 'dynamic_points' ? 'dynamic_points' : 'standard'
+}
+
+export function normalizeTiqLeagueThirdSetRule(
+  value: string | null | undefined,
+): TiqLeagueThirdSetRule {
+  if (value === 'full_set' || value === 'match_tiebreak_10') return value
+  return 'either'
 }
 
 export function normalizeTiqLeagueSchedulingMode(
@@ -156,6 +166,24 @@ export function getTiqLeagueScoringSystemDescription(system: TiqLeagueScoringSys
   return 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
 }
 
+export function getTiqLeagueThirdSetRuleLabel(rule: TiqLeagueThirdSetRule) {
+  if (rule === 'full_set') return 'Full third set'
+  if (rule === 'match_tiebreak_10') return '10-point match tiebreak'
+  return 'Full set or 10-point tiebreak'
+}
+
+export function getTiqLeagueThirdSetRuleDescription(rule: TiqLeagueThirdSetRule) {
+  if (rule === 'full_set') {
+    return 'Third sets are played out as regular tennis sets and entered as completed set scores.'
+  }
+
+  if (rule === 'match_tiebreak_10') {
+    return 'Deciding third sets use a 10-point match tiebreak and can be entered as 1-0 or the tiebreak score.'
+  }
+
+  return 'Coordinators may accept either a played-out third set or a 10-point match tiebreak based on local league rules.'
+}
+
 function safeJsonParse<T>(raw: string | null): T | null {
   if (!raw) return null
 
@@ -185,6 +213,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
+    thirdSetRule: normalizeTiqLeagueThirdSetRule(input.thirdSetRule),
     leagueName: cleanText(input.leagueName),
     seasonLabel: normalizeSeasonLabel(input.seasonLabel),
     seasonStatus: normalizeTiqLeagueSeasonStatus(input.seasonStatus),
@@ -226,6 +255,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
       scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
+      thirdSetRule: normalizeTiqLeagueThirdSetRule(record.thirdSetRule),
       leagueName: cleanText(record.leagueName),
       seasonLabel: normalizeSeasonLabel(record.seasonLabel),
       seasonStatus: normalizeTiqLeagueSeasonStatus(record.seasonStatus),
@@ -283,6 +313,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     leagueFormat: normalized.leagueFormat,
     individualCompetitionFormat: normalized.individualCompetitionFormat,
     scoringSystem: normalized.scoringSystem,
+    thirdSetRule: normalized.thirdSetRule,
     leagueName: normalized.leagueName,
     seasonLabel: normalized.seasonLabel,
     seasonStatus: normalized.seasonStatus,

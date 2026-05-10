@@ -4,11 +4,14 @@ import {
   getTiqLeagueSchedulingModeLabel,
   getTiqLeagueScoringSystemDescription,
   getTiqLeagueScoringSystemLabel,
+  getTiqLeagueThirdSetRuleDescription,
+  getTiqLeagueThirdSetRuleLabel,
   getTiqLeagueVisibilityDescription,
   getTiqLeagueVisibilityLabel,
   normalizeTiqLeagueScheduleTimeZone,
   normalizeTiqLeagueSchedulingMode,
   normalizeTiqLeagueScoringSystem,
+  normalizeTiqLeagueThirdSetRule,
   normalizeTiqLeagueVisibility,
   parseRegistryListInput,
 } from '../tiq-league-registry'
@@ -17,6 +20,10 @@ describe('TIQ league registry helpers', () => {
   it('normalizes league setup defaults for coordinator-created leagues', () => {
     expect(normalizeTiqLeagueScoringSystem(null)).toBe('standard')
     expect(normalizeTiqLeagueScoringSystem('dynamic_points')).toBe('dynamic_points')
+    expect(normalizeTiqLeagueThirdSetRule(null)).toBe('either')
+    expect(normalizeTiqLeagueThirdSetRule('full_set')).toBe('full_set')
+    expect(normalizeTiqLeagueThirdSetRule('match_tiebreak_10')).toBe('match_tiebreak_10')
+    expect(normalizeTiqLeagueThirdSetRule('superbreaker')).toBe('either')
     expect(normalizeTiqLeagueSchedulingMode('player_arranged')).toBe('player_arranged')
     expect(normalizeTiqLeagueSchedulingMode('legacy')).toBe('coordinator_fixed')
     expect(normalizeTiqLeagueScheduleTimeZone('')).toBe('America/Chicago')
@@ -43,6 +50,15 @@ describe('TIQ league registry helpers', () => {
     expect(getTiqLeagueScoringSystemDescription('standard')).toContain('10-point match tiebreak')
     expect(getTiqLeagueScoringSystemLabel('dynamic_points')).toBe('Dynamic points')
     expect(getTiqLeagueScoringSystemDescription('dynamic_points')).toContain('Straight-set winner 14')
+  })
+
+  it('labels explicit third-set rules for coordinator setup', () => {
+    expect(getTiqLeagueThirdSetRuleLabel('either')).toBe('Full set or 10-point tiebreak')
+    expect(getTiqLeagueThirdSetRuleDescription('either')).toContain('local league rules')
+    expect(getTiqLeagueThirdSetRuleLabel('full_set')).toBe('Full third set')
+    expect(getTiqLeagueThirdSetRuleDescription('full_set')).toContain('regular tennis sets')
+    expect(getTiqLeagueThirdSetRuleLabel('match_tiebreak_10')).toBe('10-point match tiebreak')
+    expect(getTiqLeagueThirdSetRuleDescription('match_tiebreak_10')).toContain('1-0')
   })
 
   it('states league visibility without implying open access', () => {

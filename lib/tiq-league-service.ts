@@ -6,6 +6,7 @@ import {
   deleteTiqLeagueRecord,
   normalizeTiqLeagueSchedulingMode,
   normalizeTiqLeagueScheduleTimeZone,
+  normalizeTiqLeagueThirdSetRule,
   normalizeTiqLeagueVisibility,
   readTiqLeagueRegistry,
   type TiqLeagueDraft,
@@ -84,6 +85,7 @@ type TiqLeagueRow = {
   league_format?: string | null
   individual_competition_format?: string | null
   scoring_system?: string | null
+  third_set_rule?: string | null
   league_name?: string | null
   season_label?: string | null
   season_status?: string | null
@@ -134,6 +136,7 @@ type TiqLeagueRemotePayload = {
   league_format: 'team' | 'individual'
   individual_competition_format: 'standard' | 'ladder' | 'round_robin' | 'challenge'
   scoring_system: 'standard' | 'dynamic_points'
+  third_set_rule: 'either' | 'full_set' | 'match_tiebreak_10'
   league_name: string
   season_label: string
   season_status: TiqLeagueSeasonStatus
@@ -211,6 +214,7 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     leagueFormat: row.league_format === 'individual' ? 'individual' : 'team',
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(row.individual_competition_format),
     scoringSystem: normalizeTiqLeagueScoringSystem(row.scoring_system),
+    thirdSetRule: normalizeTiqLeagueThirdSetRule(row.third_set_rule),
     leagueName: cleanText(row.league_name),
     seasonLabel: normalizeSeasonLabel(row.season_label),
     seasonStatus: normalizeTiqLeagueSeasonStatus(row.season_status),
@@ -309,6 +313,7 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     league_format: record.leagueFormat,
     individual_competition_format: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
     scoring_system: normalizeTiqLeagueScoringSystem(record.scoringSystem),
+    third_set_rule: normalizeTiqLeagueThirdSetRule(record.thirdSetRule),
     league_name: record.leagueName,
     season_label: record.seasonLabel,
     season_status: record.seasonStatus,

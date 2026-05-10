@@ -36,6 +36,8 @@ import {
   getTiqLeagueScoringSystemLabel,
   getTiqLeagueSchedulingModeDescription,
   getTiqLeagueSchedulingModeLabel,
+  getTiqLeagueThirdSetRuleDescription,
+  getTiqLeagueThirdSetRuleLabel,
   getTiqLeagueVisibilityDescription,
   getTiqLeagueVisibilityLabel,
   parseRegistryListInput,
@@ -81,6 +83,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   leagueFormat: 'team',
   individualCompetitionFormat: 'standard',
   scoringSystem: 'standard',
+  thirdSetRule: 'either',
   leagueName: '',
   seasonLabel: '',
   seasonStatus: 'draft',
@@ -896,6 +899,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
       leagueFormat: record.leagueFormat,
       individualCompetitionFormat: record.individualCompetitionFormat,
       scoringSystem: record.scoringSystem,
+      thirdSetRule: record.thirdSetRule,
       leagueName: record.leagueName,
       seasonLabel: normalizedSeason,
       seasonStatus: record.seasonStatus,
@@ -2028,6 +2032,32 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   {getTiqLeagueScoringSystemDescription(draft.scoringSystem)}
                 </span>
               </label>
+
+              <label style={fieldLabel}>
+                <span>Third set rule</span>
+                <select
+                  value={draft.thirdSetRule}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      thirdSetRule:
+                        event.target.value === 'full_set'
+                          ? 'full_set'
+                          : event.target.value === 'match_tiebreak_10'
+                            ? 'match_tiebreak_10'
+                            : 'either',
+                    }))
+                  }
+                  style={inputStyle}
+                >
+                  <option value="either">Full set or 10-point tiebreak</option>
+                  <option value="full_set">Full third set</option>
+                  <option value="match_tiebreak_10">10-point match tiebreak</option>
+                </select>
+                <span style={fieldHelpText}>
+                  {getTiqLeagueThirdSetRuleDescription(draft.thirdSetRule)}
+                </span>
+              </label>
             </div>
 
             <div style={responsiveOutcomeInfoGrid}>
@@ -2037,7 +2067,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   {draft.scoringSystem === 'dynamic_points' ? 'Dynamic still uses tennis scores' : 'Standard records wins first'}
                 </strong>
                 <p style={infoCardText}>
-                  Enter scores as best 2 of 3 sets: 6-4, 7-6, or 6-4, 4-6, 1-0. The third set may be played out or entered as a 10-point match tiebreak.
+                  Enter scores as best 2 of 3 sets: 6-4, 7-6, or 6-4, 4-6, 1-0. Third set rule: {getTiqLeagueThirdSetRuleLabel(draft.thirdSetRule)}.
                 </p>
               </div>
               <div style={infoCard}>
@@ -2301,6 +2331,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                         <span style={pillSlate}>{getTiqLeagueSeasonSummary(record)}</span>
                         <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(record.schedulingMode)}</span>
                         <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
+                        <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(record.thirdSetRule)}</span>
                       </div>
 
                       <div style={registryTitle}>{record.leagueName}</div>
