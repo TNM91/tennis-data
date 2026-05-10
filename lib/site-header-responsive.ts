@@ -1,9 +1,9 @@
 import type { UserRole } from './roles'
 
 export function getSiteHeaderCompactBreakpoint(role: UserRole, authenticated: boolean) {
-  if (role === 'admin') return 1540
-  if (authenticated) return 1380
-  return 1180
+  if (role === 'admin') return 1680
+  if (authenticated) return 1480
+  return 1200
 }
 
 export function shouldUseCompactSiteHeader(input: {
