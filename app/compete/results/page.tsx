@@ -10,6 +10,7 @@ import CompetePageFrame, {
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import {
   listTiqIndividualLeagueResults,
   type TiqIndividualLeagueResultRecord,
@@ -41,7 +42,7 @@ export default function CompeteResultsPage() {
     <CompetePageFrame
       eyebrow="Results"
       title="Results belong in the weekly loop, not just the archive."
-      description="This route now surfaces recent TIQ individual-league outcomes so completed play feeds straight back into standings, player context, and next-match decisions."
+      description="This route surfaces recent TIQ individual-league outcomes and keeps Data Assist close when scorecards need to be uploaded before they shape standings, player context, and next-match decisions."
     >
       <CompeteResultsContent />
     </CompetePageFrame>
@@ -110,6 +111,12 @@ function CompeteResultsContent() {
           title="Player Profiles"
           text="Jump into player-level context when a TIQ result changes how you should think about form or future matchups."
         />
+        <CompeteCard
+          href={DATA_ASSIST_STORY.href}
+          meta="Refresh results"
+          title="Upload Scorecards"
+          text={DATA_ASSIST_STORY.shortCue}
+        />
       </CompeteGrid>
 
       {!access.canUseCaptainWorkflow ? (
@@ -136,7 +143,9 @@ function CompeteResultsContent() {
         </div>
 
         {results.length === 0 ? (
-          <div style={emptyStyle}>No TIQ individual results have been logged yet.</div>
+          <div style={emptyStyle}>
+            No TIQ individual results have been logged yet. Upload reviewed scorecards through Data Assist when match play is ready to refresh this view.
+          </div>
         ) : (
           <>
             <div style={statGridStyle}>

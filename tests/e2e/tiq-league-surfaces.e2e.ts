@@ -48,6 +48,8 @@ async function expectLoginNextPreservesHandoff(page: Page, path: string) {
 test.describe('TIQ league surfaces', () => {
   for (const path of [
     '/explore',
+    '/compete/leagues',
+    '/compete/results',
     '/explore/leagues',
     '/explore/players',
     '/explore/rankings',
@@ -67,7 +69,7 @@ test.describe('TIQ league surfaces', () => {
     })
   }
 
-  for (const path of ['/captain', '/data-assist', '/matchup', '/mylab', '/pricing']) {
+  for (const path of ['/captain', '/compete/leagues', '/compete/results', '/data-assist', '/matchup', '/mylab', '/pricing']) {
     test(`${path} keeps light mode renderable without horizontal overflow`, async ({ page }) => {
       await setTheme(page, 'light')
       await expectSurfaceLoads(page, path)
