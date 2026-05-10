@@ -2133,7 +2133,7 @@ function MyLabPageInner() {
             </p>
           </div>
           <div style={dataAssistProofStyle}>
-            <div>
+            <div style={dataAssistProofCopyStyle}>
               <span style={miniActionPillStyle}>Data Assist</span>
               <p style={dataAssistProofTitleStyle}>{DATA_ASSIST_STORY.shortCue}</p>
               <p style={dataAssistProofTextStyle}>
@@ -2219,7 +2219,7 @@ function MyLabPageInner() {
                     <div style={labPlaybookValueStyle}>{card.value}</div>
                     <div style={metricNoteStyle}>{card.note}</div>
                   </div>
-                  <span style={miniActionPillStyle}>{card.cta}</span>
+                  <span style={labPlaybookCtaStyle}>{card.cta}</span>
                 </Link>
               ))}
             </div>
@@ -3272,12 +3272,18 @@ const dataAssistProofStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const dataAssistProofCopyStyle: CSSProperties = {
+  flex: '1 1 260px',
+  minWidth: 0,
+}
+
 const dataAssistProofTitleStyle: CSSProperties = {
   margin: '10px 0 4px',
   color: 'var(--foreground-strong)',
   fontSize: '1.05rem',
   fontWeight: 950,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const dataAssistProofTextStyle: CSSProperties = {
@@ -3287,6 +3293,7 @@ const dataAssistProofTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const warningNoteStyle: CSSProperties = {
@@ -3398,7 +3405,7 @@ const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
   minHeight: 132,
@@ -4495,6 +4502,12 @@ const miniActionPillStyle: CSSProperties = {
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+}
+
+const labPlaybookCtaStyle: CSSProperties = {
+  ...miniActionPillStyle,
+  gridColumn: '1 / -1',
+  justifySelf: 'start',
 }
 
 const notebookFooterStyle: CSSProperties = {
