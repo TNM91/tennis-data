@@ -1150,8 +1150,10 @@ const dynamicHeroRightCard: CSSProperties = {
 
   const dynamicHeroControlRow: CSSProperties = {
     ...heroControlRow,
+    display: isMobile ? 'grid' : heroControlRow.display,
+    gridTemplateColumns: isMobile ? '1fr' : undefined,
     flexDirection: isSmallMobile ? 'column' : 'row',
-    alignItems: isSmallMobile ? 'stretch' : 'center',
+    alignItems: isMobile ? 'stretch' : 'center',
   }
 
   const dynamicNextActionShell: CSSProperties = {
@@ -2797,6 +2799,7 @@ const pageWrap: CSSProperties = {
   display: 'grid',
   gap: 24,
   padding: '32px 0 72px',
+  minWidth: 0,
 }
 
 const loadingWrap: CSSProperties = {
@@ -2902,6 +2905,7 @@ const heroControlRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: 12,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const selectStyle: CSSProperties = {
@@ -2916,6 +2920,7 @@ const selectStyle: CSSProperties = {
   outline: 'none',
   fontSize: 14,
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.02)',
+  overflowWrap: 'anywhere',
 }
 
 const primaryButton: CSSProperties = {
