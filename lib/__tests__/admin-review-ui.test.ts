@@ -9,6 +9,7 @@ const productEventsSource = readFileSync(join(process.cwd(), 'app/admin/product-
 const missingScorecardsSource = readFileSync(join(process.cwd(), 'app/admin/missing-scorecards/page.tsx'), 'utf8')
 const importQueueSource = readFileSync(join(process.cwd(), 'app/admin/import-queue/page.tsx'), 'utf8')
 const upgradeRequestsSource = readFileSync(join(process.cwd(), 'app/admin/upgrade-requests/page.tsx'), 'utf8')
+const accessSource = readFileSync(join(process.cwd(), 'app/admin/access/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -65,5 +66,17 @@ describe('admin review UI system', () => {
     expect(upgradeRequestsSource).toContain('<AdminStatusPanel')
     expect(upgradeRequestsSource).toContain('<AdminEmptyState')
     expect(upgradeRequestsSource).toContain('className="metric-card"')
+  })
+
+  it('keeps Access Control on the shared admin review shell', () => {
+    expect(accessSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(accessSource).toContain('<AdminReviewFrame>')
+    expect(accessSource).toContain('<AdminReviewHero')
+    expect(accessSource).toContain('<AdminReviewPanel')
+    expect(accessSource).toContain('<AdminStatusPanel')
+    expect(accessSource).toContain('<AdminEmptyState')
+    expect(accessSource).toContain('className="metric-card"')
+    expect(accessSource).not.toContain("color: '#f8fbff'")
+    expect(accessSource).not.toContain("color: '#e2e8f0'")
   })
 })
