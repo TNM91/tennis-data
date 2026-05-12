@@ -17,6 +17,7 @@ const addMatchSource = readFileSync(join(process.cwd(), 'app/admin/add-match/pag
 const deduplicateSource = readFileSync(join(process.cwd(), 'app/admin/deduplicate/page.tsx'), 'utf8')
 const anomaliesSource = readFileSync(join(process.cwd(), 'app/admin/anomalies/page.tsx'), 'utf8')
 const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/admin/lineup-availability/page.tsx'), 'utf8')
+const tiqTeamMatchesSource = readFileSync(join(process.cwd(), 'app/admin/tiq-team-matches/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -161,5 +162,16 @@ describe('admin review UI system', () => {
     expect(lineupAvailabilitySource).not.toContain('className="page-shell"')
     expect(lineupAvailabilitySource).not.toContain("background: '#f8fafc'")
     expect(lineupAvailabilitySource).not.toContain('Â·')
+  })
+  it('keeps TIQ Team Matches on the shared admin review shell', () => {
+    expect(tiqTeamMatchesSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(tiqTeamMatchesSource).toContain('<AdminReviewFrame>')
+    expect(tiqTeamMatchesSource).toContain('<AdminReviewHero')
+    expect(tiqTeamMatchesSource).toContain('<AdminReviewPanel')
+    expect(tiqTeamMatchesSource).toContain('<AdminStatusPanel')
+    expect(tiqTeamMatchesSource).toContain('<AdminEmptyState')
+    expect(tiqTeamMatchesSource).not.toContain('const pageWrap')
+    expect(tiqTeamMatchesSource).not.toContain('const heading')
+    expect(tiqTeamMatchesSource).not.toContain("color: '#94a3b8'")
   })
 })

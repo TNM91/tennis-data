@@ -4,6 +4,13 @@ export const dynamic = 'force-dynamic'
 
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -37,35 +44,32 @@ type MatchLineSummary = {
 }
 
 
-const pageWrap: CSSProperties = { maxWidth: 1100, margin: '0 auto', padding: '32px 16px' }
-const heading: CSSProperties = { fontSize: 26, fontWeight: 700, marginBottom: 6 }
-const subheading: CSSProperties = { color: '#94a3b8', fontSize: 14, marginBottom: 32 }
-const sectionTitle: CSSProperties = { fontSize: 17, fontWeight: 700, marginBottom: 14, marginTop: 32 }
+const sectionTitle: CSSProperties = { fontSize: 17, fontWeight: 800, marginBottom: 14, marginTop: 32, color: 'var(--foreground-strong)' }
 const card: CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'var(--shell-panel-bg)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: 12,
   padding: '20px 22px',
   marginBottom: 16,
 }
 const row: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 10 }
 const fieldWrap: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4, flex: '1 1 180px' }
-const label: CSSProperties = { fontSize: 12, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.04em' }
-const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.06)', color: '#f1f5f9', fontSize: 14 }
+const label: CSSProperties = { fontSize: 12, color: 'var(--shell-copy-muted)', fontWeight: 800, letterSpacing: 0 }
+const inputStyle: CSSProperties = { width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontSize: 14 }
 const selectStyle: CSSProperties = { ...inputStyle }
-const scoreHelpStyle: CSSProperties = { color: '#94a3b8', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
+const scoreHelpStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.4, fontWeight: 600 }
 const btnPrimary: CSSProperties = { padding: '9px 18px', borderRadius: 8, background: '#9be11d', color: '#0a0a0a', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', whiteSpace: 'normal' }
 const btnDanger: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 600, fontSize: 13, border: '1px solid rgba(239,68,68,0.25)', cursor: 'pointer' }
-const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, fontSize: 13, border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer' }
+const btnSecondary: CSSProperties = { padding: '7px 12px', borderRadius: 8, background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', fontWeight: 600, fontSize: 13, border: '1px solid var(--shell-panel-border)', cursor: 'pointer' }
 const msgOk: CSSProperties = { color: '#9be11d', fontSize: 13, marginTop: 6 }
 const msgErr: CSSProperties = { color: '#f87171', fontSize: 13, marginTop: 6 }
-const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', fontSize: 12, color: '#94a3b8' }
+const pill: CSSProperties = { display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: 'var(--shell-chip-bg)', fontSize: 12, color: 'var(--shell-copy-muted)' }
 const pillGreen: CSSProperties = { ...pill, background: 'rgba(155,225,29,0.12)', color: '#9be11d' }
-const divider: CSSProperties = { borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 16, paddingTop: 16 }
+const divider: CSSProperties = { borderTop: '1px solid var(--shell-panel-border)', marginTop: 16, paddingTop: 16 }
 const lineGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 12, marginTop: 14 }
 const lineCard: CSSProperties = {
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   borderRadius: 10,
   padding: '14px 16px',
 }
@@ -285,7 +289,7 @@ function LineForm({
       </div>
 
       {scoringSystem === 'dynamic_points' ? (
-        <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 8 }}>
+        <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45, marginBottom: 8 }}>
           {getDynamicPointsRulesSummary()}
         </div>
       ) : null}
@@ -414,9 +418,9 @@ function EventCard({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>
-            {event.teamAName} <span style={{ color: '#64748b' }}>vs</span> {event.teamBName}
+            {event.teamAName} <span style={{ color: 'var(--shell-copy-muted)' }}>vs</span> {event.teamBName}
           </div>
-          <div style={{ fontSize: 13, color: '#94a3b8' }}>
+          <div style={{ fontSize: 13, color: 'var(--shell-copy-muted)' }}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
           </div>
           {displayTotalLines > 0 && (
@@ -457,14 +461,14 @@ function EventCard({
       {expanded && (
         <div style={divider}>
           {showDynamicPoints && (
-            <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.45, marginBottom: 12 }}>
+            <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45, marginBottom: 12 }}>
               {getDynamicPointsRulesSummary()}
             </div>
           )}
           {!linesLoaded ? (
-            <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading lines...</p>
+            <p style={{ color: 'var(--shell-copy-muted)', fontSize: 13 }}>Loading lines...</p>
           ) : lines.length === 0 ? (
-            <p style={{ color: '#94a3b8', fontSize: 13 }}>No lines yet.</p>
+            <p style={{ color: 'var(--shell-copy-muted)', fontSize: 13 }}>No lines yet.</p>
           ) : (
             <div style={lineGrid}>
               {lines.map((line) => (
@@ -493,12 +497,12 @@ function EventCard({
                       </div>
                     </div>
 
-                    <div style={{ fontSize: 13, color: '#cbd5e1', marginBottom: 4 }}>
+                    <div style={{ fontSize: 13, color: 'var(--foreground-strong)', marginBottom: 4 }}>
                       <div>A: {line.sideAPlayer1Name}{line.sideAPlayer2Name ? ` / ${line.sideAPlayer2Name}` : ''}</div>
                       <div>B: {line.sideBPlayer1Name}{line.sideBPlayer2Name ? ` / ${line.sideBPlayer2Name}` : ''}</div>
                     </div>
 
-                    {line.score && <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 8 }}>{line.score}</div>}
+                    {line.score && <div style={{ fontSize: 13, color: 'var(--shell-copy-muted)', marginBottom: 8 }}>{line.score}</div>}
                     {showDynamicPoints && line.winnerSide && line.score && (
                       <DynamicPointsLine line={line} />
                     )}
@@ -520,7 +524,7 @@ function EventCard({
           )}
 
           {!addingLine && !editingLine && !defaultLineNumber && (
-            <p style={{ color: '#94a3b8', fontSize: 13, marginTop: 14 }}>All 20 line slots are filled.</p>
+            <p style={{ color: 'var(--shell-copy-muted)', fontSize: 13, marginTop: 14 }}>All 20 line slots are filled.</p>
           )}
 
           {addingLine && (
@@ -837,14 +841,15 @@ export default function TiqTeamMatchesPage() {
   const leagueScoringMap = Object.fromEntries(leagues.map((l) => [l.id, l.scoringSystem]))
 
   return (
-    <SiteShell>
+    <SiteShell active="/admin">
       <AdminGate>
-        <div style={pageWrap}>
-          <div style={heading}>League results</div>
-          <div style={subheading}>Create team matches, enter the lines, and keep TIQ ratings current.</div>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Admin Tool" title="League Results">
+            Create team matches, enter the lines, and keep TIQ ratings current.
+          </AdminReviewHero>
 
-          {error ? <p style={msgErr}>{error}</p> : null}
-
+          <AdminReviewPanel style={{ marginTop: 18 }}>
+          {error ? <AdminStatusPanel tone="error" text={error} /> : null}
           <NewEventForm leagues={leagues} onCreated={handleEventCreated} />
 
           <div style={sectionTitle}>Recorded matches</div>
@@ -863,9 +868,9 @@ export default function TiqTeamMatchesPage() {
           </div>
 
           {loading ? (
-            <p style={{ color: '#94a3b8' }}>Loading...</p>
+            <AdminEmptyState text="Loading team matches..." />
           ) : events.length === 0 ? (
-            <p style={{ color: '#94a3b8' }}>No recorded matches yet. Create one above.</p>
+            <AdminEmptyState text="No recorded matches yet. Create one above." />
           ) : (
             events.map((event) => (
               <EventCard
@@ -878,7 +883,8 @@ export default function TiqTeamMatchesPage() {
               />
             ))
           )}
-        </div>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
