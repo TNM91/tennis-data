@@ -10,6 +10,7 @@ const teamDetailSource = readFileSync(join(process.cwd(), 'app/teams/[team]/page
 const leaguesSource = readFileSync(join(process.cwd(), 'app/leagues/page.tsx'), 'utf8')
 const leagueDetailSource = readFileSync(join(process.cwd(), 'app/leagues/[league]/page.tsx'), 'utf8')
 const exploreLeaguesSource = readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8')
+const ustaExploreLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/usta/[league]/page.tsx'), 'utf8')
 const tiqLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
 
 describe('Explore responsive surfaces', () => {
@@ -67,12 +68,20 @@ describe('Explore responsive surfaces', () => {
     expect(leagueDetailSource).toContain('reviewed match rows')
     expect(leagueDetailSource).toContain('DATA_ASSIST_STORY.cta')
     expect(leagueDetailSource).toContain('Use reviewed Data Assist uploads')
+    expect(leagueDetailSource).toContain('const standingsTableScrollStyle: CSSProperties')
+    expect(leagueDetailSource).toContain("overscrollBehaviorX: 'contain'")
+    expect(leagueDetailSource).toContain("minWidth: 700")
     expect(leagueDetailSource).toContain("background: 'var(--shell-panel-bg)'")
     expect(leagueDetailSource).toContain("background: 'var(--shell-chip-bg)'")
     expect(leagueDetailSource).toContain("color: 'var(--foreground-strong)'")
     expect(leagueDetailSource).toContain("color: 'var(--shell-copy-muted)'")
     expect(leagueDetailSource).toContain("colorScheme: 'normal'")
     expect(leagueDetailSource).toContain("overflowWrap: 'anywhere'")
+    expect(leagueDetailSource).toContain("subtitle={subtitleParts.join(' | ')}")
+    expect(leagueDetailSource).toContain("row.score ?? '-'")
+    expect(leagueDetailSource).not.toContain("<Link href={teamHref} style={{ color: '#93c5fd'")
+    expect(leagueDetailSource).not.toContain("row.score ?? '—'")
+    expect(ustaExploreLeagueDetailSource).toContain("export { default } from '@/app/leagues/[league]/page'")
   })
 
   it('keeps team detail pages Data Assist aware and light-mode readable', () => {

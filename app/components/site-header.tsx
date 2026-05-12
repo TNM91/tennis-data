@@ -293,6 +293,7 @@ export default function SiteHeader({ active }: { active?: string }) {
   }
 
   const authenticated = Boolean(userId) || role !== 'public'
+  const authPending = !authResolved
   const resolvedRole = authResolved || !userId ? role : 'member'
   const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
   const useCompactBrand = useCompactHeader
@@ -389,7 +390,11 @@ export default function SiteHeader({ active }: { active?: string }) {
             <BrandWordmark top={!useCompactBrand} compact={useCompactBrand} />
           </Link>
 
-          {useCompactHeader ? null : (
+          {useCompactHeader ? null : authPending ? (
+            <div aria-live="polite" style={navPendingStyle}>
+              Checking access
+            </div>
+          ) : (
             <nav
               aria-label="Primary"
               style={{
@@ -434,7 +439,9 @@ export default function SiteHeader({ active }: { active?: string }) {
           >
             {useCompactHeader ? null : <ThemeToggle onClick={toggleTheme} theme={theme} />}
 
-            {useCompactHeader ? null : authenticated ? (
+            {useCompactHeader ? null : authPending ? (
+              <span aria-live="polite" style={accountPillStyle}>Checking access</span>
+            ) : authenticated ? (
               <>
                 {accountLabel ? (
                   <span style={accountPillStyle}>
@@ -512,9 +519,11 @@ export default function SiteHeader({ active }: { active?: string }) {
               }}
             >
               <div style={mobilePanelTopStyle}>
-                <div style={mobileSectionLabelStyle}>{roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
+                <div style={mobileSectionLabelStyle}>{authPending ? 'Checking access' : roleLabel ? `${roleLabel} navigation` : 'Navigation'}</div>
                 <div style={mobileAccountToolsStyle}>
-                  {accountLabel ? (
+                  {authPending ? (
+                    <span aria-live="polite" style={mobileAccountPillStyle}>Checking access</span>
+                  ) : accountLabel ? (
                     <span style={mobileAccountPillStyle}>
                       {profilePhotoUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -527,7 +536,11 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </div>
               </div>
 
-              {PRIMARY_NAV_ITEMS.map((item) => {
+              {authPending ? (
+                <div aria-live="polite" style={mobileItemStyle}>
+                  <span style={mobilePlainItemTextStyle}>Checking access</span>
+                </div>
+              ) : PRIMARY_NAV_ITEMS.map((item) => {
                 const activeNow = isActiveLink(active, pathname, item.href)
                 const visual = PRIMARY_NAV_VISUALS[item.href]
                 const navTarget = getPrimaryNavTarget(item.href, access, authenticated)
@@ -588,7 +601,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                 </>
               ) : null}
 
-              {authenticated ? (
+              {authPending ? null : authenticated ? (
                 <>
                   <Link href={ACCOUNT_NAV_ITEMS[0].href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
                     <span style={mobilePlainItemTextStyle}>Manage profile</span>
@@ -690,6 +703,22 @@ const navLinkStyle = {
   whiteSpace: 'nowrap' as const,
   transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
   minWidth: 0,
+} as const
+
+const navPendingStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '42px',
+  padding: '0 14px',
+  borderRadius: '999px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '12px',
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase' as const,
 } as const
 
 const navStepStyle = {
