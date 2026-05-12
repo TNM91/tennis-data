@@ -13,6 +13,10 @@ import {
   type ChangeEvent,
 } from 'react'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
+import {
+  AdminReviewFrame,
+  AdminReviewHero,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import ScorecardReviewPanel from '@/app/admin/import/_components/scorecard-review-panel'
@@ -121,13 +125,6 @@ const IMPORT_TYPE_STORAGE_KEY = 'tenaceiq-admin-import-type-v1'
 const IMPORT_LEAGUE_OVERRIDE_STORAGE_KEY = 'tenaceiq-admin-import-league-override-v1'
 const LAST_ADMIN_IMPORT_ROUTE_STORAGE_KEY = 'tenaceiq-last-admin-import-route-v1'
 const TRANSIENT_IMPORT_QUERY_KEYS = ['autopaste', 'autopreview', 'autocommit', 'source', 'focus']
-
-const pageWrapStyle: CSSProperties = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  padding: '18px 24px 40px',
-}
 
 const glassCardStyle: CSSProperties = {
   position: 'relative',
@@ -1519,47 +1516,9 @@ export default function AdminImportPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section style={pageWrapStyle}>
-
-        {/* ── HEADER ── */}
-        <section
-          style={{
-            ...glassCardStyle,
-            padding: '24px',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: '-90px',
-              right: '-54px',
-              width: 220,
-              height: 220,
-              borderRadius: 999,
-              background: 'radial-gradient(circle, rgba(74,163,255,0.16) 0%, transparent 72%)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-110px',
-              left: '-70px',
-              width: 240,
-              height: 240,
-              borderRadius: 999,
-              background: 'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div style={{ position: 'relative', zIndex: 1 }}>
-            <div style={pillBlueStyle}>Unified ingest</div>
-            <h1 className="page-title" style={{ marginTop: 10 }}>
-              Admin Import Center
-            </h1>
-
-            <div style={{ marginTop: 14, fontSize: '1.06rem', fontWeight: 700 }}>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Unified ingest" title="Admin Import Center">
+            <span>
               {importType === 'scorecard' && scorecardReviewPreviews.length > 0 ? (
                 <span>
                   <span style={{ color: '#C8F56B' }}>{scorecardBatchStatus.clean} clean</span>
@@ -1577,9 +1536,8 @@ export default function AdminImportPage() {
               ) : (
                 <span className="subtle-text">Drop or paste a reviewed JSON capture to get started</span>
               )}
-            </div>
-          </div>
-        </section>
+            </span>
+          </AdminReviewHero>
 
         {/* ── ACTION HERO ── */}
         {importType === 'scorecard' && scorecardReviewPreviews.length > 0 ? (
@@ -2672,7 +2630,7 @@ export default function AdminImportPage() {
           </section>
         </details>
 
-        </section>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
