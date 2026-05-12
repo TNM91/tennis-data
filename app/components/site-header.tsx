@@ -588,18 +588,18 @@ export default function SiteHeader({ active }: { active?: string }) {
               {authenticated ? (
                 <>
                   <Link href={ACCOUNT_NAV_ITEMS[0].href} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span>{ACCOUNT_NAV_ITEMS[0].label}</span>
+                    <span style={mobilePlainItemTextStyle}>Manage profile</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link href="/messages" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span style={messageLinkWrapStyle}>
+                    <span style={mobileMessageLinkWrapStyle}>
                       Messages
                       {unreadMessages ? <span style={messageBadgeStyle}>{unreadMessages > 9 ? '9+' : unreadMessages}</span> : null}
                     </span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link href="/messages#alerts" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span style={messageLinkWrapStyle}>
+                    <span style={mobileMessageLinkWrapStyle}>
                       Alerts
                       {unreadAlerts ? <span style={messageBadgeStyle}>{unreadAlerts > 9 ? '9+' : unreadAlerts}</span> : null}
                     </span>
@@ -755,15 +755,24 @@ const accountPillStyle = {
 const mobileAccountPillStyle = {
   ...accountPillStyle,
   justifyContent: 'flex-start',
-  flex: '1 1 0',
+  flex: '1 1 auto',
   minWidth: 0,
-  maxWidth: 'min(100%, 220px)',
+  maxWidth: '100%',
+  width: '100%',
 } as const
 
 const messageLinkWrapStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
+} as const
+
+const mobileMessageLinkWrapStyle = {
+  ...messageLinkWrapStyle,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+  flexWrap: 'wrap' as const,
 } as const
 
 const messageBadgeStyle = {
@@ -870,6 +879,13 @@ const mobileItemStyle = {
   textAlign: 'left' as const,
 } as const
 
+const mobilePlainItemTextStyle = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+} as const
+
 const mobileItemMainStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -931,21 +947,19 @@ const mobileSectionLabelStyle = {
 } as const
 
 const mobilePanelTopStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: '10px',
   paddingBottom: '2px',
-  flexWrap: 'wrap' as const,
   minWidth: 0,
 }
 
 const mobileAccountToolsStyle = {
-  display: 'inline-flex',
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'center',
-  justifyContent: 'flex-end',
   gap: 8,
-  flex: '1 1 240px',
+  width: '100%',
   minWidth: 0,
   maxWidth: '100%',
 }
