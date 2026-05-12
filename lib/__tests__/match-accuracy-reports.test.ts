@@ -28,6 +28,8 @@ describe('match accuracy reporting foundation', () => {
     expect(apiSource).toContain('source_uploader_user_id')
     expect(apiSource).toContain('uploaderCanUploadScorecards')
     expect(apiSource).toContain("from('data_assist_contributor_stats')")
+    expect(apiSource).toContain('loadUploaderTrusts')
+    expect(apiSource).toContain('can_upload_scorecards, upload_suspension_reason')
   })
 
   it('exposes an admin action queue and Data Assist enforcement copy', () => {
@@ -36,6 +38,15 @@ describe('match accuracy reporting foundation', () => {
     expect(adminSource).toContain('Restore uploader scorecards')
     expect(dataAssistSource).toContain('scorecardUploadsPaused')
     expect(dataAssistSource).toContain('Scorecard uploads are paused while admins review recent match accuracy reports.')
+  })
+
+  it('shows uploader report history and trust state for admin review', () => {
+    expect(helperSource).toContain('export type DataAssistUploaderTrustMap')
+    expect(helperSource).toContain('uploaderTrusts: toUploaderTrustMap')
+    expect(adminSource).toContain('selectedUploaderReports')
+    expect(adminSource).toContain('selectedUploaderStats')
+    expect(adminSource).toContain('Uploader trust')
+    expect(adminSource).toContain('Uploads paused')
   })
 
   it('labels report states and uploader trust plainly', () => {

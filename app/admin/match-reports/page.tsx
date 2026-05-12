@@ -6,8 +6,10 @@ import SiteShell from '@/app/components/site-shell'
 import {
   getIssueTypeLabel,
   getReportStatusLabel,
+  getUploaderTrustLabel,
   listMatchAccuracyReportsForAdmin,
   reviewMatchAccuracyReport,
+  type DataAssistUploaderTrustMap,
   type MatchAccuracyReport,
   type MatchAccuracyReportStatus,
 } from '@/lib/match-accuracy-reports'
@@ -35,6 +37,7 @@ export default function AdminMatchReportsPage() {
 
 function MatchReportQueue() {
   const [reports, setReports] = useState<MatchAccuracyReport[]>([])
+  const [uploaderTrusts, setUploaderTrusts] = useState<DataAssistUploaderTrustMap>({})
   const [selectedId, setSelectedId] = useState('')
   const [filter, setFilter] = useState<ReportFilter>('open')
   const [statusDraft, setStatusDraft] = useState<MatchAccuracyReportStatus>('reviewing')
@@ -47,6 +50,23 @@ function MatchReportQueue() {
   const [error, setError] = useState('')
 
   const selectedReport = reports.find((report) => report.id === selectedId) || reports[0] || null
+  const selectedUploaderTrust = selectedReport?.sourceUploaderUserId
+    ? uploaderTrusts[selectedReport.sourceUploaderUserId] || null
+    : null
+
+  const selectedUploaderReports = useMemo(() => {
+    if (!selectedReport?.sourceUploaderUserId) return []
+    return reports.filter((report) => report.sourceUploaderUserId === selectedReport.sourceUploaderUserId)
+  }, [reports, selectedReport?.sourceUploaderUserId])
+
+  const selectedUploaderStats = useMemo(() => {
+    return {
+      total: selectedUploaderReports.length,
+      open: selectedUploaderReports.filter((report) => report.status === 'pending' || report.status === 'reviewing').length,
+      resolved: selectedUploaderReports.filter((report) => report.status === 'resolved').length,
+      rejected: selectedUploaderReports.filter((report) => report.status === 'rejected').length,
+    }
+  }, [selectedUploaderReports])
 
   const filteredReports = useMemo(() => {
     return reports.filter((report) => {
@@ -69,9 +89,10 @@ function MatchReportQueue() {
     setLoading(true)
     setError('')
     try {
-      const nextReports = await listMatchAccuracyReportsForAdmin()
-      setReports(nextReports)
-      setSelectedId(nextSelectedId || nextReports[0]?.id || '')
+      const result = await listMatchAccuracyReportsForAdmin()
+      setReports(result.reports)
+      setUploaderTrusts(result.uploaderTrusts)
+      setSelectedId(nextSelectedId || result.reports[0]?.id || '')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load match accuracy reports.')
     } finally {
@@ -229,6 +250,63 @@ function MatchReportQueue() {
                 <Fact label="Uploader" value={selectedReport.sourceUploaderUserId ? selectedReport.sourceUploaderUserId.slice(0, 8) : 'Not linked'} />
               </div>
 
+              <section style={uploaderContextStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div>
+                    <div className="section-kicker">Uploader trust</div>
+                    <h3 className="section-title" style={{ marginTop: 6, fontSize: '1.15rem' }}>
+                      {selectedReport.sourceUploaderUserId
+                        ? selectedUploaderTrust
+                          ? getUploaderTrustLabel(selectedUploaderTrust)
+                          : 'Scorecard uploads enabled'
+                        : 'No uploader linked'}
+                    </h3>
+                  </div>
+                  {selectedReport.sourceUploaderUserId ? (
+                    <span className={selectedUploaderTrust?.canUploadScorecards === false ? 'badge badge-slate' : 'badge badge-green'}>
+                      {selectedUploaderTrust?.canUploadScorecards === false ? 'Uploads paused' : 'Uploads enabled'}
+                    </span>
+                  ) : null}
+                </div>
+                {selectedReport.sourceUploaderUserId ? (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))', gap: 10, marginTop: 12 }}>
+                      <Fact label="Uploader reports" value={String(selectedUploaderStats.total)} />
+                      <Fact label="Open" value={String(selectedUploaderStats.open)} />
+                      <Fact label="Resolved" value={String(selectedUploaderStats.resolved)} />
+                      <Fact label="Rejected" value={String(selectedUploaderStats.rejected)} />
+                    </div>
+                    {selectedUploaderTrust?.uploadSuspensionReason ? (
+                      <p style={{ color: 'var(--shell-copy-muted)', lineHeight: 1.6, margin: '12px 0 0' }}>
+                        {selectedUploaderTrust.uploadSuspensionReason}
+                      </p>
+                    ) : null}
+                    {selectedUploaderReports.length > 1 ? (
+                      <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+                        {selectedUploaderReports
+                          .filter((report) => report.id !== selectedReport.id)
+                          .slice(0, 3)
+                          .map((report) => (
+                            <button
+                              key={report.id}
+                              type="button"
+                              onClick={() => setSelectedId(report.id)}
+                              style={relatedReportButtonStyle}
+                            >
+                              <span>{getIssueTypeLabel(report.issueType)}</span>
+                              <span className="badge badge-blue">{getReportStatusLabel(report.status)}</span>
+                            </button>
+                          ))}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p style={{ color: 'var(--shell-copy-muted)', lineHeight: 1.6, margin: '10px 0 0' }}>
+                    This report is not tied to a Data Assist scorecard uploader yet. Use the match snapshot to trace the source manually.
+                  </p>
+                )}
+              </section>
+
               <details style={{ color: 'var(--shell-copy-muted)' }}>
                 <summary style={{ cursor: 'pointer', color: 'var(--foreground-strong)', fontWeight: 800 }}>Match snapshot</summary>
                 <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', marginTop: 10, fontSize: 12 }}>
@@ -350,6 +428,28 @@ function EmptyState({ text }: { text: string }) {
       {text}
     </div>
   )
+}
+
+const uploaderContextStyle = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  borderRadius: 16,
+  padding: 14,
+}
+
+const relatedReportButtonStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 10,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  borderRadius: 12,
+  padding: '9px 10px',
+  cursor: 'pointer',
+  fontWeight: 800,
+  textAlign: 'left' as const,
 }
 
 const fieldLabelStyle = {

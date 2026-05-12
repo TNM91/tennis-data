@@ -73,7 +73,13 @@ export async function GET(request: Request) {
     .limit(100)
 
   if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
-  return Response.json({ ok: true, reports: data || [] })
+  let uploaderTrusts: Record<string, unknown> = {}
+  try {
+    uploaderTrusts = await loadUploaderTrusts(service, data || [])
+  } catch (trustError) {
+    return Response.json({ ok: false, message: trustError instanceof Error ? trustError.message : 'Could not load uploader trust history.' }, { status: 500 })
+  }
+  return Response.json({ ok: true, reports: data || [], uploaderTrusts })
 }
 
 export async function POST(request: Request) {
@@ -235,6 +241,32 @@ async function loadSourceUpload(service: SupabaseClient, externalMatchId: string
         submitted_by_user_id: cleanText(data.submitted_by_user_id),
       }
     : null
+}
+
+async function loadUploaderTrusts(service: SupabaseClient, reports: unknown[]) {
+  const uploaderIds = [
+    ...new Set(
+      reports
+        .map((report) => isRecord(report) ? cleanText(report.source_uploader_user_id) : '')
+        .filter(Boolean),
+    ),
+  ]
+  if (!uploaderIds.length) return {}
+
+  const { data, error } = await service
+    .from('data_assist_contributor_stats')
+    .select('profile_id, can_upload_scorecards, upload_suspension_reason, upload_suspended_by_user_id, upload_suspended_at')
+    .in('profile_id', uploaderIds)
+
+  if (error) throw new Error(error.message)
+  const map: Record<string, unknown> = {}
+  for (const row of data || []) {
+    if (!isRecord(row)) continue
+    const profileId = cleanText(row.profile_id)
+    if (!profileId) continue
+    map[profileId] = row
+  }
+  return map
 }
 
 async function getAuthenticatedUser(supabase: SupabaseClient) {
