@@ -10,6 +10,12 @@ import { useAuth } from '@/app/components/auth-provider'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
+  getIssueTypeLabel,
+  getReportStatusLabel,
+  listMyMatchAccuracyReports,
+  type MatchAccuracyReport,
+} from '@/lib/match-accuracy-reports'
+import {
   inferCompetitionLayerFromValues,
   type CompetitionLayer,
 } from '@/lib/competition-layers'
@@ -597,6 +603,9 @@ function MyLabPageInner() {
   const [tiqLeagues, setTiqLeagues] = useState<TiqLeagueRecord[]>([])
   const [tiqPlayerParticipations, setTiqPlayerParticipations] = useState<TiqPlayerParticipationRecord[]>([])
   const [tiqPlayerParticipationWarning, setTiqPlayerParticipationWarning] = useState<string | null>(null)
+  const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
+  const [myMatchReportsLoading, setMyMatchReportsLoading] = useState(false)
+  const [myMatchReportsError, setMyMatchReportsError] = useState('')
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
@@ -820,6 +829,29 @@ function MyLabPageInner() {
     if (!authResolved) return
     void refreshMyLab()
   }, [authResolved, refreshMyLab, refreshTick])
+
+  const refreshMyMatchReports = useCallback(async () => {
+    if (!userId) {
+      setMyMatchReports([])
+      setMyMatchReportsError('')
+      return
+    }
+
+    setMyMatchReportsLoading(true)
+    setMyMatchReportsError('')
+    try {
+      setMyMatchReports(await listMyMatchAccuracyReports())
+    } catch (err) {
+      setMyMatchReportsError(err instanceof Error ? err.message : 'Could not load your match reports.')
+    } finally {
+      setMyMatchReportsLoading(false)
+    }
+  }, [userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+    void refreshMyMatchReports()
+  }, [authResolved, refreshMyMatchReports])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
 
@@ -2918,6 +2950,48 @@ function MyLabPageInner() {
                 </div>
               </div>
 
+              <div id="match-report-status" style={workshopPanelStyle}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <div style={sectionKickerStyle}>Report status</div>
+                    <h3 style={compactSectionTitleStyle}>Match issues you sent</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void refreshMyMatchReports()}
+                    disabled={myMatchReportsLoading}
+                    style={smallGhostButtonStyle}
+                  >
+                    Refresh
+                  </button>
+                </div>
+                <div style={workshopListStyle}>
+                  {myMatchReportsLoading ? (
+                    <div style={emptyStateStyle}>Loading your match reports.</div>
+                  ) : myMatchReportsError ? (
+                    <div style={errorStateStyle}>{myMatchReportsError}</div>
+                  ) : myMatchReports.length ? (
+                    myMatchReports.slice(0, 4).map((report) => (
+                      <article key={report.id} style={reportStatusCardStyle}>
+                        <div style={reportStatusHeaderStyle}>
+                          <span style={report.status === 'resolved' ? pillGreenStyle : report.status === 'rejected' ? pillRedStyle : report.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
+                            {getReportStatusLabel(report.status)}
+                          </span>
+                          <span style={workshopRowMetaStyle}>{safeDate(report.createdAt)}</span>
+                        </div>
+                        <div style={workshopRowTitleStyle}>{getIssueTypeLabel(report.issueType)}</div>
+                        <p style={reportStatusTextStyle}>{report.actionSummary || report.description}</p>
+                        <div style={workshopRowMetaStyle}>
+                          Match {report.externalMatchId || report.matchId || 'reported'}
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div style={emptyStateStyle}>No match issues submitted yet.</div>
+                  )}
+                </div>
+              </div>
+
               <div style={workshopPanelStyle}>
                 <div style={sectionKickerStyle}>Next action</div>
                 <div style={nextActionCardStyle}>
@@ -4687,6 +4761,31 @@ const workshopMatchRowStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
   minWidth: 0,
+}
+
+const reportStatusCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  padding: '10px 12px',
+  minWidth: 0,
+}
+
+const reportStatusHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+}
+
+const reportStatusTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
 }
 
 const matchReflectButtonStyle: CSSProperties = {

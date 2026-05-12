@@ -41,15 +41,29 @@ export async function GET(request: Request) {
   const auth = createAuthedClient(token)
   const user = await getAuthenticatedUser(auth)
   if (!user.userId) {
-    return Response.json({ ok: false, message: 'Sign in as an admin to review match reports.' }, { status: 401 })
-  }
-  if (!(await isAdmin(auth, user.userId))) {
-    return Response.json({ ok: false, message: 'Admin access is required.' }, { status: 403 })
+    return Response.json({ ok: false, message: 'Sign in to review match reports.' }, { status: 401 })
   }
 
   const service = createServiceClient()
   if (!service) {
     return Response.json({ ok: false, message: 'Match report review is not configured.' }, { status: 500 })
+  }
+
+  const url = new URL(request.url)
+  if (url.searchParams.get('scope') === 'mine') {
+    const { data, error } = await service
+      .from('match_accuracy_reports')
+      .select(REPORT_SELECT)
+      .eq('reporter_user_id', user.userId)
+      .order('created_at', { ascending: false })
+      .limit(25)
+
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return Response.json({ ok: true, reports: data || [] })
+  }
+
+  if (!(await isAdmin(auth, user.userId))) {
+    return Response.json({ ok: false, message: 'Admin access is required.' }, { status: 403 })
   }
 
   const { data, error } = await service

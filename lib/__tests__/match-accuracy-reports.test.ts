@@ -11,6 +11,8 @@ const apiSource = readFileSync(join(process.cwd(), 'app/api/match-accuracy-repor
 const adminSource = readFileSync(join(process.cwd(), 'app/admin/match-reports/page.tsx'), 'utf8')
 const dataAssistSource = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
 const adminHomeSource = readFileSync(join(process.cwd(), 'app/admin/page.tsx'), 'utf8')
+const helperSource = readFileSync(join(process.cwd(), 'lib/match-accuracy-reports.ts'), 'utf8')
+const myLabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 
 describe('match accuracy reporting foundation', () => {
   it('creates a report queue tied to source uploader trust', () => {
@@ -41,5 +43,15 @@ describe('match accuracy reporting foundation', () => {
     expect(getReportStatusLabel('reviewing')).toBe('Reviewing')
     expect(getUploaderTrustLabel({ canUploadScorecards: true, uploadSuspensionReason: '' })).toBe('Scorecard uploads enabled')
     expect(getUploaderTrustLabel({ canUploadScorecards: false, uploadSuspensionReason: 'Too many bad scorecards' })).toBe('Too many bad scorecards')
+  })
+
+  it('lets players see their submitted report status in My Lab', () => {
+    expect(apiSource).toContain("url.searchParams.get('scope') === 'mine'")
+    expect(apiSource).toContain(".eq('reporter_user_id', user.userId)")
+    expect(helperSource).toContain('export async function listMyMatchAccuracyReports')
+    expect(helperSource).toContain('/api/match-accuracy-reports?scope=mine')
+    expect(myLabSource).toContain('id="match-report-status"')
+    expect(myLabSource).toContain('Match issues you sent')
+    expect(myLabSource).toContain('getReportStatusLabel(report.status)')
   })
 })
