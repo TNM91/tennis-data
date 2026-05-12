@@ -36,4 +36,13 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
     expect(source).toContain("overflowWrap: 'anywhere'")
   })
+
+  it('keeps scheduling and scoring rules explicit in setup', () => {
+    expect(source).toContain('Standard Score')
+    expect(source).toContain('Season guardrails')
+    expect(source).toContain('League duration is capped')
+    expect(source).toContain('TenAceIQ calculates the end date')
+    expect(source).toContain('Full set or 10-point tiebreak')
+    expect(source).toContain('10-point match tiebreak')
+  })
 })

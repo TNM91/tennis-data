@@ -2069,7 +2069,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   }
                   style={inputStyle}
                 >
-                  <option value="standard">Standard wins</option>
+                  <option value="standard">Standard Score</option>
                   <option value="dynamic_points">Dynamic points</option>
                 </select>
                 <span style={fieldHelpText}>
@@ -2108,10 +2108,19 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <div style={infoCard}>
                 <div style={sectionEyebrow}>Score format</div>
                 <strong style={infoCardTitle}>
-                  {draft.scoringSystem === 'dynamic_points' ? 'Dynamic still uses tennis scores' : 'Standard records wins first'}
+                  {draft.scoringSystem === 'dynamic_points' ? 'Dynamic still uses tennis scores' : 'Standard Score records wins first'}
                 </strong>
                 <p style={infoCardText}>
                   Enter scores as best 2 of 3 sets: 6-4, 7-6, or 6-4, 4-6, 1-0. Third set rule: {getTiqLeagueThirdSetRuleLabel(draft.thirdSetRule)}.
+                </p>
+              </div>
+              <div style={infoCard}>
+                <div style={sectionEyebrow}>Season guardrails</div>
+                <strong style={infoCardTitle}>
+                  {draft.maxWeeks} weeks, ending {calculatedEndsOn || 'after start date'}
+                </strong>
+                <p style={infoCardText}>
+                  League duration is capped at {MAX_TIQ_LEAGUE_WEEKS} weeks. Choose the start date and weeks; TenAceIQ calculates the end date and checks the {MAX_TIQ_LEAGUE_MATCH_EVENTS} match-event cap.
                 </p>
               </div>
               <div style={infoCard}>

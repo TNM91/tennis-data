@@ -44,8 +44,9 @@ describe('TIQ league registry helpers', () => {
     )
   })
 
-  it('explains Standard wins without hiding third-set options', () => {
-    expect(getTiqLeagueScoringSystemLabel('standard')).toBe('Standard wins')
+  it('explains Standard Score without hiding third-set options', () => {
+    expect(getTiqLeagueScoringSystemLabel('standard')).toBe('Standard Score')
+    expect(getTiqLeagueScoringSystemDescription('standard')).toContain('Standard Score records match wins first')
     expect(getTiqLeagueScoringSystemDescription('standard')).toContain('Best 2 of 3 sets')
     expect(getTiqLeagueScoringSystemDescription('standard')).toContain('10-point match tiebreak')
     expect(getTiqLeagueScoringSystemLabel('dynamic_points')).toBe('Dynamic points')

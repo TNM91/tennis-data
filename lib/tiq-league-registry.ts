@@ -155,7 +155,7 @@ export function getTiqLeagueSchedulingModeDescription(mode: TiqLeagueSchedulingM
 
 export function getTiqLeagueScoringSystemLabel(system: TiqLeagueScoringSystem) {
   if (system === 'dynamic_points') return 'Dynamic points'
-  return 'Standard wins'
+  return 'Standard Score'
 }
 
 export function getTiqLeagueScoringSystemDescription(system: TiqLeagueScoringSystem) {
@@ -163,7 +163,7 @@ export function getTiqLeagueScoringSystemDescription(system: TiqLeagueScoringSys
     return getDynamicPointsRulesSummary()
   }
 
-  return 'Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
+  return 'Standard Score records match wins first. Best 2 of 3 sets. The third set may be played out or entered as a 10-point match tiebreak, such as 1-0 or 10-8. Standings use match wins, losses, ties, and line wins.'
 }
 
 export function getTiqLeagueThirdSetRuleLabel(rule: TiqLeagueThirdSetRule) {
