@@ -750,6 +750,7 @@ const actionCardIconHover: CSSProperties = {
 const actionBody: CSSProperties = {
   display: 'grid',
   gap: '10px',
+  minWidth: 0,
 }
 
 const actionEyebrow: CSSProperties = {
@@ -766,18 +767,23 @@ const actionTitle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: 0,
   color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
 }
 
 const actionText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.7,
   color: 'var(--foreground)',
+  overflowWrap: 'anywhere',
 }
 
 const actionFooterRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
+  gap: '10px',
+  minWidth: 0,
+  flexWrap: 'wrap',
   marginTop: 'auto',
 }
 
