@@ -3988,10 +3988,12 @@ const setupStepNumberStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',
-  color: 'var(--text-dark)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 950,
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const setupActionRowStyle: CSSProperties = {

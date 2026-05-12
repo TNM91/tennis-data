@@ -21,4 +21,11 @@ describe('site header mobile account drawer', () => {
     expect(source).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain("flexWrap: 'wrap' as const")
   })
+
+  it('does not label a signed-in unresolved account as Free before role loads', () => {
+    expect(source).toContain('const authenticated = Boolean(userId) || role !== \'public\'')
+    expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
+    expect(source).toContain("? 'Account'")
+    expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
+  })
 })
