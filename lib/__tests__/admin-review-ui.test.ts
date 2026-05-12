@@ -8,6 +8,7 @@ const matchReportsSource = readFileSync(join(process.cwd(), 'app/admin/match-rep
 const productEventsSource = readFileSync(join(process.cwd(), 'app/admin/product-events/page.tsx'), 'utf8')
 const missingScorecardsSource = readFileSync(join(process.cwd(), 'app/admin/missing-scorecards/page.tsx'), 'utf8')
 const importQueueSource = readFileSync(join(process.cwd(), 'app/admin/import-queue/page.tsx'), 'utf8')
+const upgradeRequestsSource = readFileSync(join(process.cwd(), 'app/admin/upgrade-requests/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -54,5 +55,15 @@ describe('admin review UI system', () => {
     expect(importQueueSource).toContain('<AdminStatusPanel')
     expect(importQueueSource).toContain('<AdminEmptyState')
     expect(importQueueSource).toContain('adminSubPanelStyle')
+  })
+
+  it('keeps Upgrade Requests on the shared admin review shell', () => {
+    expect(upgradeRequestsSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(upgradeRequestsSource).toContain('<AdminReviewFrame>')
+    expect(upgradeRequestsSource).toContain('<AdminReviewHero')
+    expect(upgradeRequestsSource).toContain('<AdminReviewPanel')
+    expect(upgradeRequestsSource).toContain('<AdminStatusPanel')
+    expect(upgradeRequestsSource).toContain('<AdminEmptyState')
+    expect(upgradeRequestsSource).toContain('className="metric-card"')
   })
 })
