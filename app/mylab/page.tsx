@@ -202,6 +202,24 @@ const MY_LAB_ROUTINE_STEPS = [
   },
 ] as const
 
+const MY_LAB_PREMIUM_SIGNALS = [
+  {
+    label: 'Personal scorecard',
+    value: 'One linked record',
+    body: 'Ratings, teams, results, follows, and goals stay organized around the player you choose.',
+  },
+  {
+    label: 'Match prep',
+    value: 'Next court move',
+    body: 'Turn the read into a matchup check, focus note, or captain handoff before you play.',
+  },
+  {
+    label: 'Reviewed uploads',
+    value: 'Data Assist refresh',
+    body: 'Use reviewed uploads for scorecards, schedules, and rosters when your tennis context changes.',
+  },
+] as const
+
 const EMPTY_LAB_GOAL: LabGoalState = {
   id: 'goal-1',
   goal: '',
@@ -2151,6 +2169,15 @@ function MyLabPageInner() {
             {DATA_ASSIST_STORY.cta}
           </Link>
         </div>
+        <div style={labPremiumSignalGridStyle(isTablet)}>
+          {MY_LAB_PREMIUM_SIGNALS.map((signal) => (
+            <div key={signal.label} style={labPremiumSignalCardStyle}>
+              <span style={miniActionPillStyle}>{signal.label}</span>
+              <strong style={labPremiumSignalValueStyle}>{signal.value}</strong>
+              <span style={labPremiumSignalBodyStyle}>{signal.body}</span>
+            </div>
+          ))}
+        </div>
         <div style={labRoutineGridStyle(isTablet)}>
           {MY_LAB_ROUTINE_STEPS.map((step, index) => (
             <div key={step.label} style={labRoutineStepStyle}>
@@ -3273,6 +3300,42 @@ const labRoutineTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.35rem, 2.2vw, 1.9rem)',
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const labPremiumSignalGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(3, minmax(0, 1fr))',
+  gap: 12,
+})
+
+const labPremiumSignalCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'start',
+  minHeight: 132,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-lime) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
+}
+
+const labPremiumSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1.15rem',
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const labPremiumSignalBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 
