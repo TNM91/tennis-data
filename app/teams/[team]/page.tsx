@@ -24,6 +24,11 @@ import FollowButton from '@/app/components/follow-button'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
 import { getClientAuthState } from '@/lib/auth'
+import {
+  getReportStatusLabel,
+  listMyMatchAccuracyReports,
+  type MatchAccuracyReport,
+} from '@/lib/match-accuracy-reports'
 import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
@@ -268,6 +273,7 @@ export default function TeamPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
+  const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
@@ -288,6 +294,7 @@ export default function TeamPage() {
     if (!currentUserId) {
       setLinkedPlayerId(null)
       setLinkedPlayerName('')
+      setMyMatchReports([])
       return
     }
 
@@ -304,6 +311,23 @@ export default function TeamPage() {
       active = false
     }
   }, [currentUserId])
+
+  const refreshMyMatchReports = useCallback(async () => {
+    if (!currentUserId) {
+      setMyMatchReports([])
+      return
+    }
+
+    try {
+      setMyMatchReports(await listMyMatchAccuracyReports())
+    } catch {
+      setMyMatchReports([])
+    }
+  }, [currentUserId])
+
+  useEffect(() => {
+    void refreshMyMatchReports()
+  }, [refreshMyMatchReports])
 
   const loadTeamPage = useCallback(async () => {
     setLoading(true)
@@ -1017,6 +1041,15 @@ export default function TeamPage() {
       .sort((a, b) => b.total - a.total)
   }, [matches, team])
 
+  const myMatchReportByMatchId = useMemo(() => {
+    const map = new Map<string, MatchAccuracyReport>()
+    for (const report of myMatchReports) {
+      if (!report.matchId || map.has(report.matchId)) continue
+      map.set(report.matchId, report)
+    }
+    return map
+  }, [myMatchReports])
+
   const matchCards = useMemo<MatchCard[]>(() => {
     const parentMatchIdsWithLinkedPlayer = new Set<string>()
     const parentExternalIdsWithLinkedPlayer = new Set<string>()
@@ -1684,7 +1717,9 @@ export default function TeamPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCards.map((match) => (
+                  {filteredCards.map((match) => {
+                    const existingReport = myMatchReportByMatchId.get(match.id) || null
+                    return (
                     <tr key={match.id}>
                       <td style={tableCell}>{formatDate(match.match_date)}</td>
                       <td style={tableCell}>{match.opponent ?? '—'}</td>
@@ -1695,7 +1730,11 @@ export default function TeamPage() {
                       <td style={tableCell}>
                         <div style={scoreCellStackStyle}>
                           <span>{match.score ?? '—'}</span>
-                          {match.linkedPlayerAppears ? (
+                          {existingReport ? (
+                            <span style={reportStatusBadgeStyle(existingReport.status)}>
+                              {getReportStatusLabel(existingReport.status)}
+                            </span>
+                          ) : match.linkedPlayerAppears ? (
                             <MatchAccuracyReportButton
                               matchId={match.id}
                               reporterPlayerName={linkedPlayerName}
@@ -1713,6 +1752,7 @@ export default function TeamPage() {
                                 reportSource: match.linkedPlayerReportSource,
                                 externalMatchId: match.external_match_id,
                               }}
+                              onSubmitted={() => void refreshMyMatchReports()}
                             />
                           ) : null}
                         </div>
@@ -1723,7 +1763,8 @@ export default function TeamPage() {
                         </span>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2717,6 +2758,32 @@ const scoreCellStackStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 8,
   minWidth: 112,
+}
+
+const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSProperties => {
+  const resolved = status === 'resolved'
+  const rejected = status === 'rejected'
+  const reviewing = status === 'reviewing'
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 'fit-content',
+    borderRadius: 999,
+    border: `1px solid ${resolved ? 'rgba(155,225,29,0.20)' : rejected ? 'rgba(239,68,68,0.18)' : reviewing ? 'rgba(116,190,255,0.18)' : 'var(--shell-panel-border)'}`,
+    background: resolved
+      ? 'rgba(155,225,29,0.10)'
+      : rejected
+        ? 'rgba(239,68,68,0.10)'
+        : reviewing
+          ? 'rgba(116,190,255,0.10)'
+          : 'rgba(148,163,184,0.10)',
+    color: resolved ? '#d9f84a' : rejected ? '#fca5a5' : reviewing ? '#93c5fd' : 'var(--shell-copy-muted)',
+    padding: '4px 9px',
+    fontSize: 12,
+    fontWeight: 900,
+    whiteSpace: 'normal',
+  }
 }
 
 const playerLink: CSSProperties = {
