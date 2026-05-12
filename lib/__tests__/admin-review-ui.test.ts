@@ -6,6 +6,7 @@ const sharedSource = readFileSync(join(process.cwd(), 'app/admin/_components/adm
 const dataAssistSource = readFileSync(join(process.cwd(), 'app/admin/data-assist/page.tsx'), 'utf8')
 const matchReportsSource = readFileSync(join(process.cwd(), 'app/admin/match-reports/page.tsx'), 'utf8')
 const productEventsSource = readFileSync(join(process.cwd(), 'app/admin/product-events/page.tsx'), 'utf8')
+const missingScorecardsSource = readFileSync(join(process.cwd(), 'app/admin/missing-scorecards/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -33,5 +34,14 @@ describe('admin review UI system', () => {
     expect(productEventsSource).toContain('<AdminReviewHero')
     expect(productEventsSource).toContain('<AdminReviewPanel>')
     expect(productEventsSource).toContain('<AdminEmptyState')
+  })
+
+  it('keeps Missing Scorecards on the shared admin review shell', () => {
+    expect(missingScorecardsSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(missingScorecardsSource).toContain('<AdminReviewFrame>')
+    expect(missingScorecardsSource).toContain('<AdminReviewHero')
+    expect(missingScorecardsSource).toContain('<AdminReviewPanel')
+    expect(missingScorecardsSource).toContain('<AdminEmptyState')
+    expect(missingScorecardsSource).toContain('className="metric-card"')
   })
 })

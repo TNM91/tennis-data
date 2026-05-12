@@ -5,6 +5,15 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { type ReactNode, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import {
+  AdminActionRow,
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+  adminReviewHeaderRowStyle,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { formatDate, cleanText } from '@/lib/captain-formatters'
@@ -369,35 +378,22 @@ export default function MissingScorecardsPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section
-          style={{
-            width: '100%',
-            maxWidth: '1280px',
-            margin: '0 auto',
-            padding: '18px 24px 0',
-          }}
-        >
-          <section className="hero-panel">
-            <div className="hero-inner">
-              <div className="section-kicker">Admin Tool</div>
-              <h1 className="page-title">Missing Scorecards</h1>
-              <p className="page-subtitle">
-                See every uploaded schedule across leagues, use today ({formatTodayLabel()}) to know which
-                match dates have passed, and pull only the scorecards that are ready.
-              </p>
-            </div>
-          </section>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Admin Tool" title="Missing Scorecards">
+            See every uploaded schedule across leagues, use today ({formatTodayLabel()}) to know which
+            match dates have passed, and pull only the scorecards that are ready.
+          </AdminReviewHero>
 
-          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+          <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div className="metric-grid">
               <MetricCard label="Ready to pull" value={String(metrics.ready)} helper="Scheduled matches on or before today without scorecards." />
               <MetricCard label="Overdue" value={String(metrics.overdue)} helper="Ready matches with dates before today." />
               <MetricCard label="Upcoming" value={String(metrics.upcoming)} helper="Future scheduled matches not due yet." />
               <MetricCard label="Completed" value={String(metrics.completed)} helper="Parent matches with score or imported scorecard lines." />
             </div>
-          </section>
+          </AdminReviewPanel>
 
-          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+          <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div className="section-kicker">Action lanes</div>
             <h2 className="section-title" style={{ marginTop: 6 }}>Jump straight into the work queue that needs attention</h2>
             <div
@@ -480,9 +476,9 @@ export default function MissingScorecardsPage() {
                 <span>{metrics.ready}</span>
               </button>
             </div>
-          </section>
+          </AdminReviewPanel>
 
-          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+          <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div
               style={{
                 display: 'grid',
@@ -537,7 +533,7 @@ export default function MissingScorecardsPage() {
               </Field>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
+            <AdminActionRow>
               <button type="button" onClick={() => void loadLedger()} className="button-ghost">
                 {loading ? 'Refreshing dashboard...' : 'Refresh dashboard'}
               </button>
@@ -560,11 +556,11 @@ export default function MissingScorecardsPage() {
               <Link href="/admin/import?kind=scorecard" className="button-primary">
                 Open Scorecard Import
               </Link>
-            </div>
-          </section>
+            </AdminActionRow>
+          </AdminReviewPanel>
 
           {!loading && !error && backlogSummaries.leagues.length > 0 ? (
-            <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+            <AdminReviewPanel compact style={{ marginTop: 18 }}>
               <div
                 style={{
                   display: 'grid',
@@ -618,17 +614,15 @@ export default function MissingScorecardsPage() {
                   </div>
                 </div>
               </div>
-            </section>
+            </AdminReviewPanel>
           ) : null}
 
-          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+          <AdminReviewPanel style={{ marginTop: 18 }}>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'space-between',
+                ...adminReviewHeaderRowStyle,
                 alignItems: 'flex-start',
                 gap: 16,
-                flexWrap: 'wrap',
               }}
             >
               <div>
@@ -650,36 +644,11 @@ export default function MissingScorecardsPage() {
             </div>
 
             {loading ? (
-              <div className="subtle-text" style={{ marginTop: 16 }}>Loading missing scorecard dashboard...</div>
+              <AdminEmptyState text="Loading missing scorecard dashboard..." />
             ) : error ? (
-              <div
-                className="badge"
-                style={{
-                  marginTop: 18,
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.10)',
-                  color: '#991b1b',
-                  border: '1px solid rgba(220,38,38,0.18)',
-                }}
-              >
-                {error}
-              </div>
+              <AdminStatusPanel tone="error" text={error} />
             ) : filteredRows.length === 0 ? (
-              <div
-                style={{
-                  marginTop: 18,
-                  padding: 18,
-                  borderRadius: 16,
-                  background: 'var(--shell-chip-bg)',
-                  border: '1px dashed var(--shell-panel-border)',
-                  color: 'var(--shell-copy-muted)',
-                }}
-              >
-                No matches are currently visible for this filter set. Try widening the status, league, team, or search scope.
-              </div>
+              <AdminEmptyState text="No matches are currently visible for this filter set. Try widening the status, league, team, or search scope." />
             ) : (
               <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
                 {filteredRows.map((row) => {
@@ -755,8 +724,8 @@ export default function MissingScorecardsPage() {
                 })}
               </div>
             )}
-          </section>
-        </section>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
@@ -772,9 +741,9 @@ function MetricCard({
   helper: string
 }) {
   return (
-    <div className="surface-card" style={{ padding: 18 }}>
-      <div className="section-kicker">{label}</div>
-      <div style={{ color: '#F8FBFF', fontWeight: 900, fontSize: '2rem', marginTop: 8 }}>{value}</div>
+    <div className="metric-card">
+      <div className="metric-label">{label}</div>
+      <div className="metric-value">{value}</div>
       <div className="subtle-text" style={{ marginTop: 8 }}>{helper}</div>
     </div>
   )
