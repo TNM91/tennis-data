@@ -125,6 +125,7 @@ test.describe('TIQ league surfaces', () => {
     await page.setViewportSize({ width: 390, height: 844 })
     await expectSurfaceLoads(page, '/league-coordinator')
     await expect(page.getByText('Use uploads as the coordinator refresh path.')).toBeVisible()
+    await expect(page.getByText('Team Results handles team match events and line scores')).toBeVisible()
     await expect(page.getByText('Add a league')).toBeVisible()
   })
 
