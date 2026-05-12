@@ -3,6 +3,14 @@
 export const dynamic = 'force-dynamic'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+  adminReviewHeaderRowStyle,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
@@ -68,20 +76,13 @@ export default function AdminProductEventsPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section style={pageWrapStyle}>
-          <section className="hero-panel">
-            <div className="hero-inner">
-              <div className="section-kicker">Product Events</div>
-              <h1 className="page-title">Paid usage signals</h1>
-              <p className="page-subtitle" style={{ maxWidth: 860 }}>
-                Track the first-party actions that show whether Player and Captain users are
-                reaching the paid workflows after checkout.
-              </p>
-            </div>
-          </section>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Product Events" title="Paid usage signals">
+            Track the first-party actions that show whether Player and Captain users are reaching the paid workflows after checkout.
+          </AdminReviewHero>
 
-          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
-            <div style={metricGridStyle}>
+          <AdminReviewPanel>
+            <div className="metric-grid">
               <MetricCard label="Events" value={events.length} />
               <MetricCard label="Users" value={uniqueUsers} />
               <MetricCard label="Billing" value={billingEvents} />
@@ -89,39 +90,41 @@ export default function AdminProductEventsPage() {
               <MetricCard label="Captain" value={captainEvents} />
             </div>
 
-            <div style={toolbarStyle}>
-              <label className="label" htmlFor="product-event-filter">
-                Surface
-              </label>
-              <select
-                id="product-event-filter"
-                className="select"
-                value={filter}
-                onChange={(event) => setFilter(event.target.value as EventFilter)}
-              >
-                <option value="all">All surfaces</option>
-                <option value="billing">Billing</option>
-                <option value="profile">Profile</option>
-                <option value="mylab">My Lab</option>
-                <option value="captain">Captain</option>
-                <option value="upgrade">Upgrade</option>
-              </select>
-              <button type="button" className="button-secondary" onClick={() => void loadEvents()}>
-                Refresh events
-              </button>
-              {latestEvent ? (
-                <span className="badge badge-blue">Latest {formatEventTime(latestEvent.created_at)}</span>
-              ) : null}
+            <div style={adminReviewHeaderRowStyle}>
+              <div style={toolbarStyle}>
+                <label className="label" htmlFor="product-event-filter">
+                  Surface
+                </label>
+                <select
+                  id="product-event-filter"
+                  className="select"
+                  value={filter}
+                  onChange={(event) => setFilter(event.target.value as EventFilter)}
+                >
+                  <option value="all">All surfaces</option>
+                  <option value="billing">Billing</option>
+                  <option value="profile">Profile</option>
+                  <option value="mylab">My Lab</option>
+                  <option value="captain">Captain</option>
+                  <option value="upgrade">Upgrade</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button type="button" className="button-secondary" onClick={() => void loadEvents()}>
+                  Refresh events
+                </button>
+                {latestEvent ? (
+                  <span className="badge badge-blue">Latest {formatEventTime(latestEvent.created_at)}</span>
+                ) : null}
+              </div>
             </div>
 
-            {error ? <div style={errorStyle}>{error}</div> : null}
+            {error ? <AdminStatusPanel tone="error" text={error} /> : null}
 
             {loading ? (
               <p className="subtle-text" style={{ marginTop: 18 }}>Loading product events...</p>
             ) : filteredEvents.length === 0 ? (
-              <div style={emptyStateStyle}>
-                No product usage events match this filter yet.
-              </div>
+              <AdminEmptyState text="No product usage events match this filter yet." />
             ) : (
               <div className="table-wrap" style={{ marginTop: 18 }}>
                 <table className="data-table" style={{ minWidth: 1120 }}>
@@ -156,8 +159,8 @@ export default function AdminProductEventsPage() {
                 </table>
               </div>
             )}
-          </section>
-        </section>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
@@ -206,46 +209,12 @@ function formatEventTime(value: string) {
   }
 }
 
-const pageWrapStyle = {
-  width: '100%',
-  maxWidth: '1280px',
-  margin: '0 auto',
-  padding: '18px 24px 0',
-} as const
-
-const metricGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: 16,
-} as const
-
 const toolbarStyle = {
   display: 'flex',
   alignItems: 'end',
   flexWrap: 'wrap',
   gap: 12,
   marginTop: 18,
-} as const
-
-const errorStyle = {
-  marginTop: 16,
-  minHeight: 44,
-  padding: '10px 14px',
-  borderRadius: 14,
-  background: 'rgba(220,38,38,0.10)',
-  color: '#fca5a5',
-  border: '1px solid rgba(220,38,38,0.18)',
-  fontWeight: 800,
-} as const
-
-const emptyStateStyle = {
-  marginTop: 18,
-  borderRadius: 18,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: '18px 20px',
-  color: 'var(--shell-copy-muted)',
-  fontWeight: 800,
 } as const
 
 const eventNameStyle = {
