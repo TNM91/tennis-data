@@ -7,6 +7,7 @@ import React from 'react'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
   inferCompetitionLayerFromValues,
@@ -2893,6 +2894,20 @@ function MyLabPageInner() {
                         >
                           Reflect
                         </button>
+                        <MatchAccuracyReportButton
+                          matchId={match.id}
+                          reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                          matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
+                          context={{
+                            surface: 'mylab_recent_matches',
+                            linkedPlayerId: profileLink?.linked_player_id || '',
+                            leagueName: match.leagueName || '',
+                            matchType: match.matchType || '',
+                            matchDate: match.date || '',
+                            opponent: match.opponent,
+                            result: match.result,
+                          }}
+                        />
                       </div>
                     ))
                   ) : (
