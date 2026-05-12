@@ -17,7 +17,7 @@ import {
   type LeagueFormat,
 } from '@/lib/competition-layers'
 import { formatDate, cleanText } from '@/lib/captain-formatters'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type LeagueMatchRow = {
@@ -536,7 +536,7 @@ export default function LeagueDetailPage() {
       value: getCompetitionLayerLabel(competitionLayer),
       note:
         competitionLayer === 'usta'
-          ? 'Find your league, track your team, and see which results are in.'
+          ? 'Find your reviewed league upload, track your team, and see which results are in.'
           : 'Prepare for your next match with team context, lineup tools, and results in one place.',
     },
     {
@@ -665,7 +665,7 @@ export default function LeagueDetailPage() {
             </div>
             <div style={seasonToolsText}>
               {competitionLayer === 'usta'
-                ? 'Find your league, track your team, and see which scorecards are still missing.'
+                ? 'Use reviewed Data Assist uploads to track your league, your team, and any scorecards still missing.'
                 : 'Use this league context to build lineups, compare options, and message your team.'}
             </div>
 
@@ -751,7 +751,7 @@ export default function LeagueDetailPage() {
             <div style={stateBox}>
               Match data is not available for this league segment yet.
               <div style={stateHelperText}>
-                This usually means the season scope exists, but imported match rows do not yet include both team names
+                This usually means the season scope exists, but reviewed match rows do not yet include both team names
                 for this exact league, flight, or district slice.
               </div>
               {nearbyScopeDiagnostic ? (
@@ -775,6 +775,7 @@ export default function LeagueDetailPage() {
                 </div>
               ) : null}
               <div style={dynamicStateActionRow}>
+                <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
                 <GhostLink href="/leagues">Back to leagues</GhostLink>
                 <GhostLink href="/teams">Browse teams</GhostLink>
               </div>
@@ -793,7 +794,7 @@ export default function LeagueDetailPage() {
                             <span style={{ color: 'rgba(190,210,240,0.4)', fontSize: 11, fontWeight: 800 }}>#{i + 1}</span>
                             <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.04)', color: winPct >= 60 ? '#d9f84a' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.18)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
                           </div>
-                          <div style={{ color: '#f8fbff', fontWeight: 800, fontSize: 14 }}>{p.name}</div>
+                          <div style={{ color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, overflowWrap: 'anywhere' }}>{p.name}</div>
                           <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12 }}>{p.wins}W–{p.losses}L · {p.appearances} matches</div>
                         </Link>
                       )
@@ -1104,9 +1105,9 @@ const eyebrow: CSSProperties = {
   alignItems: 'center',
   padding: '7px 11px',
   borderRadius: '999px',
-  color: '#d6e9ff',
-  background: 'rgba(74,123,211,0.18)',
-  border: '1px solid rgba(130,178,255,0.18)',
+  color: 'var(--brand-blue-2)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -1147,8 +1148,8 @@ const heroMetaBluePill: CSSProperties = {
   minHeight: '30px',
   padding: '0 12px',
   borderRadius: '999px',
-  background: 'rgba(74,163,255,0.14)',
-  color: '#e2efff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.06em',
@@ -1157,12 +1158,13 @@ const heroMetaBluePill: CSSProperties = {
 
 const heroMetaGreenPill: CSSProperties = {
   ...heroMetaBluePill,
-  background: 'rgba(155,225,29,0.14)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
 }
 
 const heroMetaSlatePill: CSSProperties = {
   ...heroMetaBluePill,
-  background: 'rgba(142, 161, 189, 0.14)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
 }
 
 const heroHintPill: CSSProperties = {
@@ -1278,8 +1280,8 @@ const miniPillSlate: CSSProperties = {
 
 const miniPillGreen: CSSProperties = {
   ...miniPillBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  color: 'var(--foreground-strong)',
 }
 
 const metricGrid: CSSProperties = {
@@ -1335,8 +1337,8 @@ const metricCard: CSSProperties = {
 }
 
 const metricCardAccent: CSSProperties = {
-  border: '1px solid rgba(111, 236, 168, 0.34)',
-  boxShadow: '0 16px 34px rgba(43, 195, 104, 0.14), inset 0 1px 0 rgba(255,255,255,0.08)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const metricLabel: CSSProperties = {
@@ -1442,12 +1444,12 @@ const stateBox: CSSProperties = {
   padding: '18px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 600,
   textAlign: 'center',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const errorBox: CSSProperties = {
@@ -1519,9 +1521,9 @@ const teamCard: CSSProperties = {
   overflow: 'hidden',
   borderRadius: '28px',
   padding: '20px',
-  border: '1px solid rgba(140,184,255,0.18)',
-  background: 'linear-gradient(180deg, rgba(65,112,194,0.32) 0%, rgba(28,49,95,0.46) 100%)',
-  boxShadow: '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   minWidth: 0,
 }
 
@@ -1553,7 +1555,7 @@ const teamCardActionRow: CSSProperties = {
 }
 
 const teamRank: CSSProperties = {
-  color: '#8ec5ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   lineHeight: 1,
   fontWeight: 900,
@@ -1563,16 +1565,17 @@ const teamRank: CSSProperties = {
 }
 
 const teamName: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const teamRecord: CSSProperties = {
   marginTop: '8px',
-  color: '#8ec5ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '15px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -1619,20 +1622,20 @@ const miniGrid: CSSProperties = {
 const miniStatCard: CSSProperties = {
   borderRadius: '18px',
   padding: '14px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.08)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   minWidth: 0,
 }
 
 const miniStatLabel: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: '6px',
 }
 
 const miniStatValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   lineHeight: 1.35,
   fontWeight: 800,
@@ -1665,6 +1668,7 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
+  colorScheme: 'normal',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -1675,9 +1679,9 @@ const clearFilterButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e6eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
 }
@@ -1691,9 +1695,9 @@ const matchList: CSSProperties = {
 const matchCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
-  border: '1px solid rgba(140,184,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(39,67,118,0.34) 0%, rgba(20,36,71,0.46) 100%)',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const matchTop: CSSProperties = {
@@ -1704,15 +1708,16 @@ const matchTop: CSSProperties = {
 }
 
 const matchTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '20px',
   lineHeight: 1.25,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const matchMeta: CSSProperties = {
-  color: '#c0d5f5',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
@@ -1726,9 +1731,9 @@ const winnerPill: CSSProperties = {
   justifyContent: 'center',
   padding: '10px 12px',
   borderRadius: '999px',
-  background: 'rgba(34, 197, 94, 0.14)',
-  border: '1px solid rgba(34, 197, 94, 0.22)',
-  color: '#bbf7d0',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   lineHeight: 1,
   fontWeight: 900,
@@ -1743,18 +1748,18 @@ const matchBottom: CSSProperties = {
   alignItems: 'center',
   marginTop: '14px',
   paddingTop: '14px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
+  borderTop: '1px solid var(--shell-panel-border)',
 }
 
 const scoreText: CSSProperties = {
-  color: '#8ec5ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '18px',
   lineHeight: 1.2,
   fontWeight: 900,
 }
 
 const subMeta: CSSProperties = {
-  color: '#c0d5f5',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.5,
   fontWeight: 500,
@@ -1765,7 +1770,7 @@ function GhostLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link
       href={href}
-      style={{ ...ghostButton, ...(hovered ? { background: 'rgba(255,255,255,0.12)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}) }}
+      style={{ ...ghostButton, ...(hovered ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: 'var(--shadow-soft)' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
