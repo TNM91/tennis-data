@@ -651,7 +651,7 @@ export default function LeagueDetailPage() {
                 entityType="league"
                 entityId={stableLeagueFollowId}
                 entityName={leagueInfo.leagueName || leagueFromRoute || 'League'}
-                subtitle={subtitleParts.join(' · ')}
+                subtitle={subtitleParts.join(' | ')}
               />
               <GhostLink href="/leagues">Back to Leagues</GhostLink>
               <GhostLink href={competeHref}>Open Compete</GhostLink>
@@ -795,7 +795,7 @@ export default function LeagueDetailPage() {
                             <span style={{ fontSize: 12, fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : 'rgba(255,255,255,0.04)', color: winPct >= 60 ? '#d9f84a' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.18)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
                           </div>
                           <div style={{ color: 'var(--foreground-strong)', fontWeight: 800, fontSize: 14, overflowWrap: 'anywhere' }}>{p.name}</div>
-                          <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12 }}>{p.wins}W–{p.losses}L · {p.appearances} matches</div>
+                          <div style={topPerformerMetaStyle}>{p.wins}W-{p.losses}L | {p.appearances} matches</div>
                         </Link>
                       )
                     })}
@@ -827,12 +827,12 @@ export default function LeagueDetailPage() {
                 </div>
 
                 {standingsView === 'table' ? (
-                  <div style={{ overflowX: 'auto', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)', marginTop: 16 }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' as const, minWidth: 520 }}>
+                  <div style={standingsTableScrollStyle}>
+                    <table style={standingsTableStyle}>
                       <thead>
                         <tr>
                           {['#', 'Team', 'W', 'L', 'Win %', 'Completed', 'Scheduled', 'Missing scorecards', 'Last match', 'Actions'].map((h) => (
-                            <th key={h} style={{ padding: '12px 14px', textAlign: 'left' as const, color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.06em', borderBottom: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', whiteSpace: 'nowrap' as const }}>{h}</th>
+                            <th key={h} style={standingsTableHeaderCellStyle}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -840,7 +840,6 @@ export default function LeagueDetailPage() {
                         {teamSummaries.map((team, index) => {
                           const winPct = Math.round(team.winPct * 100)
                           const isLeader = team.name === leagueLeader?.name
-                          const tdStyle = { padding: '13px 14px', color: 'var(--foreground)', fontSize: 14, fontWeight: 600, borderTop: '1px solid var(--shell-panel-border)' }
                           const teamHref = buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)
                           const teamLineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
                             competitionLayer,
@@ -850,23 +849,23 @@ export default function LeagueDetailPage() {
                           })
                           return (
                             <tr key={team.name} style={{ background: index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.016)' }}>
-                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontWeight: 700 }}>#{index + 1}</td>
-                              <td style={tdStyle}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <Link href={teamHref} style={{ color: '#93c5fd', fontWeight: 800, fontSize: 14, textDecoration: 'none' }}>{team.name}</Link>
+                              <td style={standingsTableMutedCellStyle}>#{index + 1}</td>
+                              <td style={standingsTableCellStyle}>
+                                <div style={standingsTeamCellContentStyle}>
+                                  <Link href={teamHref} style={standingsTeamLinkStyle}>{team.name}</Link>
                                   {isLeader && team.wins > 0 ? <span style={{ padding: '2px 7px', borderRadius: 999, background: 'rgba(155,225,29,0.10)', border: '1px solid rgba(155,225,29,0.20)', color: '#d9f84a', fontSize: 10, fontWeight: 800 }}>Leader</span> : null}
                                 </div>
                               </td>
-                              <td style={{ ...tdStyle, color: '#86efac', fontWeight: 800 }}>{team.wins}</td>
-                              <td style={{ ...tdStyle, color: '#fca5a5', fontWeight: 800 }}>{team.losses}</td>
-                              <td style={tdStyle}>
+                              <td style={standingsTableWinCellStyle}>{team.wins}</td>
+                              <td style={standingsTableLossCellStyle}>{team.losses}</td>
+                              <td style={standingsTableCellStyle}>
                                 <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: 12, fontWeight: 800, background: winPct >= 60 ? 'rgba(155,225,29,0.10)' : winPct < 40 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.05)', color: winPct >= 60 ? '#d9f84a' : winPct < 40 ? '#fca5a5' : 'var(--shell-copy-muted)', border: `1px solid ${winPct >= 60 ? 'rgba(155,225,29,0.20)' : winPct < 40 ? 'rgba(239,68,68,0.16)' : 'rgba(255,255,255,0.08)'}` }}>{winPct}%</span>
                               </td>
-                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.completedMatches}</td>
-                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)' }}>{team.scheduledMatches}</td>
-                              <td style={{ ...tdStyle, color: team.missingScorecards > 0 ? '#fca5a5' : 'var(--shell-copy-muted)' }}>{team.missingScorecards}</td>
-                              <td style={{ ...tdStyle, color: 'var(--shell-copy-muted)', fontSize: 13 }}>{formatDate(team.latestMatchDate)}</td>
-                              <td style={tdStyle}>
+                              <td style={standingsTableMutedCellStyle}>{team.completedMatches}</td>
+                              <td style={standingsTableMutedCellStyle}>{team.scheduledMatches}</td>
+                              <td style={team.missingScorecards > 0 ? standingsTableLossCellStyle : standingsTableMutedCellStyle}>{team.missingScorecards}</td>
+                              <td style={standingsTableDateCellStyle}>{formatDate(team.latestMatchDate)}</td>
+                              <td style={standingsTableCellStyle}>
                                 <Link href={teamLineupHref} style={tableActionLink}>
                                   Lineup
                                 </Link>
@@ -905,7 +904,7 @@ export default function LeagueDetailPage() {
                           <div style={teamName}>{team.name}</div>
                           <div style={teamRecord}>
                             {team.wins}-{team.losses} record
-                            {team.completedMatches > 0 ? ` · ${winPct}% win` : ' · no completed scorecards'}
+                            {team.completedMatches > 0 ? ` | ${winPct}% win` : ' | no completed scorecards'}
                           </div>
                         </div>
 
@@ -1003,7 +1002,7 @@ export default function LeagueDetailPage() {
                         ? home
                         : row.winner_side === 'B'
                           ? away
-                          : '—'
+                          : '-'
 
                     return (
                       <div key={row.id} style={matchCard}>
@@ -1014,7 +1013,7 @@ export default function LeagueDetailPage() {
                             </div>
                             <div style={matchMeta}>
                               {formatDate(row.match_date)}
-                              {row.match_type ? ` · ${row.match_type}` : ''}
+                              {row.match_type ? ` | ${row.match_type}` : ''}
                             </div>
                           </div>
 
@@ -1022,9 +1021,9 @@ export default function LeagueDetailPage() {
                         </div>
 
                         <div style={dynamicMatchBottom}>
-                          <div style={scoreText}>{row.score ?? '—'}</div>
+                          <div style={scoreText}>{row.score ?? '-'}</div>
                           <div style={subMeta}>
-                            {[leagueInfo.flight, leagueInfo.district].filter(Boolean).join(' · ')}
+                            {[leagueInfo.flight, leagueInfo.district].filter(Boolean).join(' | ')}
                           </div>
                         </div>
                       </div>
@@ -1579,6 +1578,87 @@ const teamRecord: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const topPerformerMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  overflowWrap: 'anywhere',
+}
+
+const standingsTableScrollStyle: CSSProperties = {
+  overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+  borderRadius: 20,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  marginTop: 16,
+  maxWidth: '100%',
+}
+
+const standingsTableStyle: CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+  minWidth: 700,
+}
+
+const standingsTableHeaderCellStyle: CSSProperties = {
+  padding: '12px 14px',
+  textAlign: 'left',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  borderBottom: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  whiteSpace: 'nowrap',
+}
+
+const standingsTableCellStyle: CSSProperties = {
+  padding: '13px 14px',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  fontWeight: 600,
+  borderTop: '1px solid var(--shell-panel-border)',
+}
+
+const standingsTableMutedCellStyle: CSSProperties = {
+  ...standingsTableCellStyle,
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 700,
+}
+
+const standingsTableWinCellStyle: CSSProperties = {
+  ...standingsTableCellStyle,
+  color: 'color-mix(in srgb, var(--brand-green) 70%, var(--foreground-strong) 30%)',
+  fontWeight: 800,
+}
+
+const standingsTableLossCellStyle: CSSProperties = {
+  ...standingsTableCellStyle,
+  color: 'color-mix(in srgb, #ef4444 70%, var(--foreground-strong) 30%)',
+  fontWeight: 800,
+}
+
+const standingsTableDateCellStyle: CSSProperties = {
+  ...standingsTableMutedCellStyle,
+  fontSize: 13,
+}
+
+const standingsTeamCellContentStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const standingsTeamLinkStyle: CSSProperties = {
+  color: 'color-mix(in srgb, var(--brand-blue-2) 76%, var(--foreground-strong) 24%)',
+  fontWeight: 800,
+  fontSize: 14,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const primaryButton: CSSProperties = {
