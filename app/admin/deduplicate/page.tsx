@@ -2,12 +2,19 @@
 
 export const dynamic = 'force-dynamic'
 
-
+import type { CSSProperties } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
-import { supabase } from '@/lib/supabase'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
+import { supabase } from '@/lib/supabase'
 
 type PlayerRow = {
   id: string
@@ -29,14 +36,16 @@ function editDistance(a: string, b: string): number {
   const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
     Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
   )
+
   for (let i = 1; i <= m; i += 1) {
     for (let j = 1; j <= n; j += 1) {
       dp[i][j] =
         a[i - 1] === b[j - 1]
           ? dp[i - 1][j - 1]
-          : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+          : 1 + Math.min(dp[i][j - 1], dp[i - 1][j], dp[i - 1][j - 1])
     }
   }
+
   return dp[m][n]
 }
 
@@ -65,13 +74,24 @@ function findDuplicateGroups(players: PlayerRow[]): DuplicateGroup[] {
 
   for (const [root, members] of grouped) {
     if (visited.has(root)) continue
-    for (const m of members) visited.add(m)
+    for (const member of members) visited.add(member)
     groups.push({
       players: [...members].map((idx) => players[idx]),
     })
   }
 
   return groups.sort((a, b) => b.players.length - a.players.length)
+}
+
+const phaseLabels: Record<string, string> = {
+  'fetching-players': 'Loading players...',
+  'fetching-matches': 'Loading matches...',
+  'fetching-participants': 'Loading participants...',
+  processing: 'Processing matches...',
+  'applying-decay': 'Applying inactivity decay...',
+  'saving-ratings': 'Saving ratings...',
+  'saving-snapshots': 'Saving snapshots...',
+  done: 'Done',
 }
 
 export default function DeduplicatePage() {
@@ -155,18 +175,7 @@ export default function DeduplicatePage() {
 
     setMergedIds((prev) => new Set([...prev, duplicateId]))
     setMerging(false)
-    setMessage(`Merged. Run recalculate when done to refresh all ratings.`)
-  }
-
-  const phaseLabels: Record<string, string> = {
-    'fetching-players': 'Loading players…',
-    'fetching-matches': 'Loading matches…',
-    'fetching-participants': 'Loading participants…',
-    'processing': 'Processing matches…',
-    'applying-decay': 'Applying inactivity decay…',
-    'saving-ratings': 'Saving ratings…',
-    'saving-snapshots': 'Saving snapshots…',
-    'done': 'Done',
+    setMessage('Merged. Run recalculate when done to refresh all ratings.')
   }
 
   async function handleRecalculate() {
@@ -189,129 +198,91 @@ export default function DeduplicatePage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <div style={shell}>
-          <div style={header}>
-            <div>
-              <div style={kicker}>Admin tool</div>
-              <h1 style={title}>Duplicate player detection</h1>
-              <p style={subtitle}>
-                Players whose names are within 2 edits of each other after normalization. Pick which
-                record to keep — the duplicate&apos;s matches are reassigned before deletion.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column' as const, alignItems: 'flex-end', gap: 6 }}>
-              <button
-                type="button"
-                onClick={() => void handleRecalculate()}
-                disabled={recalculating}
-                style={actionButton}
-              >
-                {recalculating ? 'Recalculating…' : 'Recalculate ratings'}
-              </button>
-              {recalculating && recalcPhase ? (
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#93c5fd', textAlign: 'right' as const }}>{recalcPhase}</div>
-              ) : null}
-            </div>
-          </div>
-
-          {message ? <div style={successBanner}>{message}</div> : null}
-          {error ? <div style={errorBanner}>{error}</div> : null}
-
-          {loading ? (
-            <div style={emptyState}>Loading players…</div>
-          ) : groups.length === 0 ? (
-            <div style={emptyState}>
-              No potential duplicates found across {players.length} players.
-            </div>
-          ) : (
-            <div style={groupList}>
-              <div style={summary}>
-                {groups.length} potential duplicate {groups.length === 1 ? 'group' : 'groups'} across{' '}
-                {players.length} players
-              </div>
-
-              {groups.map((group) => (
-                <div key={group.players.map((p) => p.id).join('-')} style={groupCard}>
-                  <div style={groupTitle}>Similar names</div>
-                  <div style={playerGrid}>
-                    {group.players.map((player) => (
-                      <div key={player.id} style={playerRow}>
-                        <div style={playerInfo}>
-                          <div style={playerName}>{player.name}</div>
-                          <div style={playerMeta}>{player.matchCount} matches · id: {player.id.slice(0, 8)}…</div>
-                        </div>
-
-                        <div style={mergeButtons}>
-                          {group.players
-                            .filter((other) => other.id !== player.id)
-                            .map((other) => (
-                              <button
-                                key={other.id}
-                                type="button"
-                                disabled={merging}
-                                onClick={() => void handleMerge(player.id, other.id)}
-                                style={mergeButton}
-                                title={`Keep "${player.name}", absorb matches from "${other.name}", delete "${other.name}"`}
-                              >
-                                {merging ? '…' : `Keep this, remove "${other.name}"`}
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    ))}
+        <AdminReviewFrame>
+          <AdminReviewHero
+            kicker="Admin Tool"
+            title="Duplicate Player Detection"
+            actions={
+              <div style={{ display: 'grid', justifyItems: 'start', gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => void handleRecalculate()}
+                  disabled={recalculating}
+                  style={actionButton}
+                >
+                  {recalculating ? 'Recalculating...' : 'Recalculate ratings'}
+                </button>
+                {recalculating && recalcPhase ? (
+                  <div className="subtle-text" style={{ fontSize: 12, fontWeight: 800 }}>
+                    {recalcPhase}
                   </div>
+                ) : null}
+              </div>
+            }
+          >
+            Review likely duplicate player records, choose the canonical player to keep, reassign
+            the duplicate&apos;s matches, then recalculate ratings when cleanup is complete.
+          </AdminReviewHero>
+
+          <AdminReviewPanel style={{ marginTop: 18 }}>
+            {message ? <AdminStatusPanel tone="success" text={message} /> : null}
+            {error ? <AdminStatusPanel tone="error" text={error} /> : null}
+
+            {loading ? (
+              <AdminEmptyState text="Loading players..." />
+            ) : groups.length === 0 ? (
+              <AdminEmptyState text={`No potential duplicates found across ${players.length} players.`} />
+            ) : (
+              <div style={groupList}>
+                <div style={summary}>
+                  {groups.length} potential duplicate {groups.length === 1 ? 'group' : 'groups'} across{' '}
+                  {players.length} players
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                {groups.map((group) => (
+                  <div key={group.players.map((p) => p.id).join('-')} style={groupCard}>
+                    <div style={groupTitle}>Similar names</div>
+                    <div style={playerGrid}>
+                      {group.players.map((player) => (
+                        <div key={player.id} style={playerRow}>
+                          <div style={playerInfo}>
+                            <div style={playerName}>{player.name}</div>
+                            <div style={playerMeta}>
+                              {player.matchCount} matches | id: {player.id.slice(0, 8)}...
+                            </div>
+                          </div>
+
+                          <div style={mergeButtons}>
+                            {group.players
+                              .filter((other) => other.id !== player.id)
+                              .map((other) => (
+                                <button
+                                  key={other.id}
+                                  type="button"
+                                  disabled={merging}
+                                  onClick={() => void handleMerge(player.id, other.id)}
+                                  style={mergeButton}
+                                  title={`Keep "${player.name}", absorb matches from "${other.name}", delete "${other.name}"`}
+                                >
+                                  {merging ? '...' : `Keep this, remove "${other.name}"`}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
 }
 
-const shell: React.CSSProperties = {
-  maxWidth: '960px',
-  margin: '0 auto',
-  padding: '32px 20px 64px',
-}
-
-const header: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '20px',
-  flexWrap: 'wrap',
-  marginBottom: '28px',
-}
-
-const kicker: React.CSSProperties = {
-  color: '#93c5fd',
-  fontWeight: 800,
-  fontSize: '13px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  marginBottom: '8px',
-}
-
-const title: React.CSSProperties = {
-  margin: '0 0 8px',
-  color: 'var(--foreground)',
-  fontWeight: 900,
-  fontSize: '32px',
-  letterSpacing: 0,
-}
-
-const subtitle: React.CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: '15px',
-  lineHeight: 1.6,
-  maxWidth: '560px',
-}
-
-const actionButton: React.CSSProperties = {
+const actionButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -320,79 +291,46 @@ const actionButton: React.CSSProperties = {
   borderRadius: '999px',
   background: 'rgba(116,190,255,0.10)',
   border: '1px solid rgba(116,190,255,0.22)',
-  color: '#bfdbfe',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: '14px',
   cursor: 'pointer',
   whiteSpace: 'normal',
 }
 
-const successBanner: React.CSSProperties = {
-  padding: '14px 18px',
-  borderRadius: '16px',
-  background: 'rgba(155,225,29,0.08)',
-  border: '1px solid rgba(155,225,29,0.20)',
-  color: '#d9f84a',
-  fontWeight: 700,
-  fontSize: '14px',
-  marginBottom: '20px',
-}
-
-const errorBanner: React.CSSProperties = {
-  padding: '14px 18px',
-  borderRadius: '16px',
-  background: 'rgba(239,68,68,0.08)',
-  border: '1px solid rgba(239,68,68,0.18)',
-  color: '#fca5a5',
-  fontWeight: 700,
-  fontSize: '14px',
-  marginBottom: '20px',
-}
-
-const emptyState: React.CSSProperties = {
-  padding: '32px',
-  borderRadius: '20px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  color: 'var(--shell-copy-muted)',
-  fontWeight: 600,
-  fontSize: '15px',
-  textAlign: 'center',
-}
-
-const groupList: React.CSSProperties = {
+const groupList: CSSProperties = {
   display: 'grid',
   gap: '16px',
 }
 
-const summary: React.CSSProperties = {
+const summary: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
-  fontWeight: 600,
+  fontWeight: 700,
 }
 
-const groupCard: React.CSSProperties = {
-  borderRadius: '20px',
+const groupCard: CSSProperties = {
+  borderRadius: '16px',
   border: '1px solid rgba(251,146,60,0.22)',
-  background: 'rgba(251,146,60,0.04)',
+  background: 'var(--shell-chip-bg)',
   padding: '18px',
 }
 
-const groupTitle: React.CSSProperties = {
-  color: '#fed7aa',
+const groupTitle: CSSProperties = {
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: '12px',
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: 0,
   marginBottom: '14px',
 }
 
-const playerGrid: React.CSSProperties = {
+const playerGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
 }
 
-const playerRow: React.CSSProperties = {
+const playerRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
@@ -404,31 +342,32 @@ const playerRow: React.CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
 }
 
-const playerInfo: React.CSSProperties = {
+const playerInfo: CSSProperties = {
   display: 'grid',
   gap: '4px',
   minWidth: 0,
 }
 
-const playerName: React.CSSProperties = {
-  color: 'var(--foreground)',
+const playerName: CSSProperties = {
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   fontSize: '16px',
 }
 
-const playerMeta: React.CSSProperties = {
+const playerMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
-const mergeButtons: React.CSSProperties = {
+const mergeButtons: CSSProperties = {
   display: 'flex',
   gap: '8px',
   flexWrap: 'wrap',
 }
 
-const mergeButton: React.CSSProperties = {
+const mergeButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -437,7 +376,7 @@ const mergeButton: React.CSSProperties = {
   borderRadius: '999px',
   background: 'rgba(239,68,68,0.08)',
   border: '1px solid rgba(239,68,68,0.22)',
-  color: '#fca5a5',
+  color: '#fecaca',
   fontWeight: 700,
   fontSize: '13px',
   cursor: 'pointer',
