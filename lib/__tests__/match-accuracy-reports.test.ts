@@ -53,6 +53,16 @@ describe('match accuracy reporting foundation', () => {
     expect(adminSource).toContain('Uploads paused')
   })
 
+  it('requires action summaries before final report decisions', () => {
+    expect(apiSource).toContain("status === 'resolved' || status === 'rejected'")
+    expect(apiSource).toContain('actionSummary.length < 8')
+    expect(apiSource).toContain('Add an action summary before resolving or rejecting this report.')
+    expect(adminSource).toContain('resolutionNeedsSummary')
+    expect(adminSource).toContain('actionSummary.trim().length >= 8')
+    expect(adminSource).toContain('Players see this in My Lab.')
+    expect(adminSource).toContain('disabled={saveDisabled}')
+  })
+
   it('labels report states and uploader trust plainly', () => {
     expect(getIssueTypeLabel('wrong_score')).toBe('Wrong score')
     expect(getReportStatusLabel('reviewing')).toBe('Reviewing')

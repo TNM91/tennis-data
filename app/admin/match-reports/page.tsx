@@ -84,6 +84,9 @@ function MatchReportQueue() {
       uploaderLinked: reports.filter((report) => report.sourceUploaderUserId).length,
     }
   }, [reports])
+  const resolutionNeedsSummary = statusDraft === 'resolved' || statusDraft === 'rejected'
+  const actionSummaryReady = actionSummary.trim().length >= 8
+  const saveDisabled = saving || (resolutionNeedsSummary && !actionSummaryReady)
 
   async function refreshReports(nextSelectedId = selectedId) {
     setLoading(true)
@@ -115,6 +118,10 @@ function MatchReportQueue() {
 
   async function saveReport(uploaderCanUploadScorecards?: boolean) {
     if (!selectedReport) return
+    if (resolutionNeedsSummary && !actionSummaryReady) {
+      setError('Add an action summary before resolving or rejecting this report. Players see this in My Lab.')
+      return
+    }
     setSaving(true)
     setError('')
     setMessage('')
@@ -346,6 +353,11 @@ function MatchReportQueue() {
                 style={textAreaStyle}
                 placeholder="What changed, or why was it rejected?"
               />
+              {resolutionNeedsSummary && !actionSummaryReady ? (
+                <p style={{ color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.5, margin: '-8px 0 0' }}>
+                  Add at least 8 characters before resolving or rejecting. Players see this in My Lab.
+                </p>
+              ) : null}
 
               {selectedReport.sourceUploaderUserId ? (
                 <>
@@ -362,15 +374,15 @@ function MatchReportQueue() {
               ) : null}
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button type="button" className="button-primary" onClick={() => void saveReport()} disabled={saving}>
+                <button type="button" className="button-primary" onClick={() => void saveReport()} disabled={saveDisabled}>
                   {saving ? 'Saving...' : 'Save review'}
                 </button>
                 {selectedReport.sourceUploaderUserId ? (
                   <>
-                    <button type="button" className="button-secondary" onClick={() => void saveReport(false)} disabled={saving}>
+                    <button type="button" className="button-secondary" onClick={() => void saveReport(false)} disabled={saveDisabled}>
                       Pause uploader scorecards
                     </button>
-                    <button type="button" className="button-secondary" onClick={() => void saveReport(true)} disabled={saving}>
+                    <button type="button" className="button-secondary" onClick={() => void saveReport(true)} disabled={saveDisabled}>
                       Restore uploader scorecards
                     </button>
                   </>
