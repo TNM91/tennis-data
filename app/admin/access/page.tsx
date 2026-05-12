@@ -4,6 +4,14 @@ export const dynamic = 'force-dynamic'
 
 
 import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  AdminActionRow,
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import {
@@ -502,39 +510,24 @@ export default function AdminAccessPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section
-          style={{
-            width: '100%',
-            maxWidth: '1280px',
-            margin: '0 auto',
-            padding: '18px 24px 0',
-          }}
-        >
-          <section className="hero-panel">
-            <div className="hero-inner">
-              <div className="section-kicker">Admin Access</div>
-              <h1 className="page-title">Player, Captain, and Coordinator entitlements</h1>
-              <p className="page-subtitle" style={{ maxWidth: 860 }}>
-                Control who has the {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain workflow and who
-                can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL} without
-                forcing Player or Captain access.
-              </p>
-              <div
-                style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: 10,
-                  marginTop: 18,
-                }}
-              >
+        <AdminReviewFrame>
+          <AdminReviewHero
+            kicker="Admin Access"
+            title="Player, Captain, and Coordinator entitlements"
+            actions={
+              <>
                 <span className="badge badge-green">Captain subscription control</span>
                 <span className="badge badge-blue">Team coordinator access</span>
                 <span className="badge badge-slate">Individual coordinator access</span>
-              </div>
-            </div>
-          </section>
+              </>
+            }
+          >
+            Control who has the {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain workflow and who
+            can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL} without
+            forcing Player or Captain access.
+          </AdminReviewHero>
 
-          <section className="surface-card panel-pad section" style={{ marginTop: 18 }}>
+          <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div
               style={{
                 display: 'grid',
@@ -553,7 +546,9 @@ export default function AdminAccessPage() {
               <MetricCard label="Webhook Errors" value={webhookErrorCount} />
               <MetricCard label="Audit Flags" value={auditWarningCount} />
             </div>
+          </AdminReviewPanel>
 
+          <AdminReviewPanel style={{ marginTop: 18 }}>
             <div
               style={{
                 display: 'grid',
@@ -611,14 +606,7 @@ export default function AdminAccessPage() {
               </Field>
             </div>
 
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                flexWrap: 'wrap',
-                marginTop: 16,
-              }}
-            >
+            <AdminActionRow>
               <button
                 type="button"
                 onClick={() => void loadProfiles(true)}
@@ -632,7 +620,7 @@ export default function AdminAccessPage() {
               >
                 {refreshing ? 'Refreshing...' : 'Refresh profiles'}
               </button>
-            </div>
+            </AdminActionRow>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
               This page is the monetization control point for TenAceIQ. Coordinator access can be
@@ -689,60 +677,17 @@ export default function AdminAccessPage() {
             ) : null}
 
             {message ? (
-              <div
-                className="badge badge-green"
-                style={{
-                  marginTop: 16,
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                }}
-              >
-                {message}
-              </div>
+              <AdminStatusPanel tone="success" text={message} />
             ) : null}
 
             {error ? (
-              <div
-                className="badge"
-                style={{
-                  marginTop: 16,
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.10)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(220,38,38,0.18)',
-                }}
-              >
-                {error}
-              </div>
+              <AdminStatusPanel tone="error" text={error} />
             ) : null}
 
             {loading ? (
-              <p className="subtle-text" style={{ marginTop: 18 }}>
-                Loading profile entitlements...
-              </p>
+              <AdminEmptyState text="Loading profile entitlements..." />
             ) : filteredProfiles.length === 0 ? (
-              <div
-                style={{
-                  marginTop: 18,
-                  borderRadius: 20,
-                  border: '1px solid var(--shell-panel-border)',
-                  background: 'var(--shell-chip-bg)',
-                  padding: '18px 20px',
-                }}
-              >
-                <div className="section-title" style={{ fontSize: '1.05rem' }}>
-                  No profiles match the current filters
-                </div>
-                <p className="subtle-text" style={{ marginTop: 8 }}>
-                  Clear the search or broaden the role filter to bring more entitlement rows back
-                  into scope.
-                </p>
-              </div>
+              <AdminEmptyState text="No profiles match the current filters. Clear the search or broaden the role filter to bring more entitlement rows back into scope." />
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
                 <table className="data-table" style={{ minWidth: 1920 }}>
@@ -779,7 +724,7 @@ export default function AdminAccessPage() {
                         <Fragment key={profile.id}>
                         <tr>
                           <td>
-                            <div style={{ color: '#f8fbff', fontWeight: 800 }}>
+                            <div style={{ color: 'var(--foreground-strong)', fontWeight: 800 }}>
                               {compactUserId(profile.id)}
                             </div>
                             <div className="subtle-text" style={{ marginTop: 4 }}>
@@ -1003,8 +948,8 @@ export default function AdminAccessPage() {
                 </table>
               </div>
             )}
-          </section>
-        </section>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
@@ -1496,6 +1441,6 @@ const toggleWrap = {
   display: 'inline-flex',
   gap: 8,
   alignItems: 'center',
-  color: '#e2e8f0',
+  color: 'var(--foreground)',
   fontWeight: 700,
 } as const
