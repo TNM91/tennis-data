@@ -217,6 +217,12 @@ const CAPTAIN_TEAM_SCOPE_HANDOFF = [
   },
 ] as const
 
+const CAPTAIN_EMPTY_STATE_ACTIONS = [
+  'Link your player identity in My Lab so Captain can find your profile team.',
+  'Upload a reviewed team summary or schedule through Data Assist when roster or match history is missing.',
+  'Refresh Captain after the upload review connects teams, schedules, and scorecards.',
+] as const
+
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
@@ -1780,11 +1786,21 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               <div style={captainDataAssistCueStyle}>
                 <div>
                   <strong>Need team history here?</strong>
-                  <span>{DATA_ASSIST_STORY.shortCue}</span>
+                  <span>Captain needs a linked profile team, roster history, or reviewed Data Assist upload before it can load a team scope.</span>
+                  <ul style={captainEmptyActionListStyle}>
+                    {CAPTAIN_EMPTY_STATE_ACTIONS.map((action) => (
+                      <li key={action}>{action}</li>
+                    ))}
+                  </ul>
                 </div>
-                <Link href="/data-assist" style={captainDataAssistLinkStyle}>
-                  {DATA_ASSIST_STORY.cta}
-                </Link>
+                <div style={captainEmptyActionRowStyle}>
+                  <Link href="/mylab#player-workshop" style={captainDataAssistLinkStyle}>
+                    Link in My Lab
+                  </Link>
+                  <Link href="/data-assist" style={captainDataAssistLinkStyle}>
+                    {DATA_ASSIST_STORY.cta}
+                  </Link>
+                </div>
               </div>
             ) : selectedFromCaptainScope ? (
               <div style={captainDataAssistCueStyle}>
@@ -2613,9 +2629,25 @@ const captainHeroVisualMaskStyle: CSSProperties = {
 
           <div style={rosterTableWrap}>
             {!hasTeamScope ? (
-              <div style={emptyLine}>Choose a team scope to see roster usage and match mix. Missing team context usually means the profile/team link or reviewed roster upload is not connected yet.</div>
+              <div style={emptyLine}>
+                <strong>Choose or connect a team scope.</strong>
+                <span>Captain shows roster usage and match mix after My Lab links your profile team or Data Assist review connects roster history.</span>
+                <div style={captainEmptyActionRowStyle}>
+                  <Link href="/mylab#player-workshop" style={inlineEmptyLinkStyle}>Link profile</Link>
+                  <Link href="/data-assist" style={inlineEmptyLinkStyle}>Upload team data</Link>
+                </div>
+              </div>
             ) : roster.length === 0 ? (
-              <div style={emptyLine}>No roster players are available for this team selection yet. Refresh rosters through Data Assist, then review the imported names.</div>
+              <div style={emptyLine}>
+                <strong>No roster players are available yet.</strong>
+                <span>Refresh rosters through Data Assist, then review the imported names before using lineup tools.</span>
+                <div style={captainEmptyActionRowStyle}>
+                  <Link href="/data-assist" style={inlineEmptyLinkStyle}>Open Data Assist</Link>
+                  <button type="button" onClick={() => setRefreshTick((current) => current + 1)} style={inlineEmptyButtonStyle}>
+                    Refresh Captain
+                  </button>
+                </div>
+              </div>
             ) : (
               <div style={rosterList}>
                 {sortedRoster.map((player) => (
@@ -3664,6 +3696,19 @@ const captainDataAssistLinkStyle: CSSProperties = {
   textAlign: 'center',
 }
 
+const captainEmptyActionListStyle: CSSProperties = {
+  margin: '8px 0 0',
+  paddingLeft: 18,
+}
+
+const captainEmptyActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  maxWidth: '100%',
+}
+
 const glanceGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
@@ -3997,11 +4042,38 @@ const pairMetricWrap: CSSProperties = {
 }
 
 const emptyLine: CSSProperties = {
+  display: 'grid',
+  gap: 9,
   padding: 16,
   borderRadius: 16,
   color: 'var(--shell-copy-muted)',
   border: '1px dashed rgba(116,190,255,0.18)',
   background: 'var(--shell-chip-bg)',
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const inlineEmptyLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 900,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+}
+
+const inlineEmptyButtonStyle: CSSProperties = {
+  ...inlineEmptyLinkStyle,
+  cursor: 'pointer',
 }
 
 const summaryGrid: CSSProperties = {
