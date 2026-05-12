@@ -25,4 +25,15 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('paste reviewed roster names from Data Assist')
     expect(source).not.toContain('USTA API')
   })
+
+  it('keeps first-screen workflow guidance progressive and mobile-safe', () => {
+    expect(source).toContain('COORDINATOR_OPERATING_FLOW')
+    expect(source).toContain('Set structure')
+    expect(source).toContain('Approve participants')
+    expect(source).toContain('Publish schedule')
+    expect(source).toContain('Review uploads and results')
+    expect(source).toContain('operatingFlowGridStyle')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(source).toContain("overflowWrap: 'anywhere'")
+  })
 })
