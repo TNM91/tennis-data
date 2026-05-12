@@ -43,9 +43,24 @@ export function AdminReviewGrid({ children }: { children: ReactNode }) {
   )
 }
 
-export function AdminReviewPanel({ children }: { children: ReactNode }) {
+export function AdminReviewPanel({
+  children,
+  compact = false,
+  style,
+}: {
+  children: ReactNode
+  compact?: boolean
+  style?: CSSProperties
+}) {
   return (
-    <section className="surface-card" style={adminReviewPanelStyle}>
+    <section
+      className="surface-card"
+      style={{
+        ...adminReviewPanelStyle,
+        ...(compact ? { minHeight: 0 } : null),
+        ...style,
+      }}
+    >
       {children}
     </section>
   )
