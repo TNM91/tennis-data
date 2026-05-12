@@ -4,6 +4,7 @@ import {
   buildTiqLeagueSeasonCalendarRows,
   buildTiqLeagueSchedulingPlanRows,
   getFirstScheduledDate,
+  getTiqLeagueSchedulingHandoffSummary,
 } from '../tiq-league-calendar'
 
 describe('TIQ league calendar helpers', () => {
@@ -70,10 +71,28 @@ describe('TIQ league calendar helpers', () => {
     expect(rows[0]).toMatchObject({
       mode: 'player_arranged',
       label: '2026-05-04 to 2026-05-10',
-      meta: 'Pairings open for player scheduling. Players record agreed date, time, and site.',
-      action: 'Players schedule',
+      meta: 'Pairing window opens. Players propose and confirm date, time, and site.',
+      action: 'Players confirm',
       windowStart: '2026-05-04',
       windowEnd: '2026-05-10',
     })
+  })
+
+  it('explains scheduling handoff after league setup', () => {
+    expect(getTiqLeagueSchedulingHandoffSummary({
+      startsOn: '2026-05-04',
+      maxWeeks: 3,
+      schedulingMode: 'coordinator_fixed',
+      scheduleTimeZone: 'America/Chicago',
+    })).toContain('coordinator publishes the default match day, time, and site')
+
+    expect(getTiqLeagueSchedulingHandoffSummary({
+      startsOn: '2026-05-04',
+      maxWeeks: 3,
+      schedulingMode: 'player_arranged',
+      scheduleTimeZone: 'America/Chicago',
+    })).toContain('players propose and confirm the exact date, time, and site')
+
+    expect(getTiqLeagueSchedulingHandoffSummary({ startsOn: '', maxWeeks: 3 })).toContain('Choose a start date')
   })
 })

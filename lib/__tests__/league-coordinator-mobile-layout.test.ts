@@ -45,4 +45,12 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('Full set or 10-point tiebreak')
     expect(source).toContain('10-point match tiebreak')
   })
+
+  it('keeps coordinator and player scheduling handoff visible', () => {
+    expect(source).toContain('getTiqLeagueSchedulingHandoffSummary')
+    expect(source).toContain('Player-arranged scheduling preview')
+    expect(source).toContain('Coordinator-published schedule preview')
+    expect(source).toContain('Players confirm details before the result is logged')
+    expect(source).toContain('Data Assist uploads can refresh changes after review')
+  })
 })
