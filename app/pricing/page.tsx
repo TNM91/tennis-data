@@ -137,6 +137,28 @@ const UNLOCK_PATHS: Array<{
   },
 ]
 
+const ENTITLEMENT_CLARITY_STEPS: Array<{
+  title: string
+  cue: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    title: 'Free starts exploration',
+    cue: 'Creating an account opens Free access for public tennis intelligence and Data Assist contributions.',
+    icon: 'opponentScouting',
+  },
+  {
+    title: 'Paid tools need activation',
+    cue: 'My Lab, Matchup insight, Captain, and Coordinator tools open only after the matching plan is active.',
+    icon: 'accountSecurity',
+  },
+  {
+    title: 'Uploads refresh the platform',
+    cue: 'New scorecards, rosters, schedules, and corrections move through Data Assist review before they shape TenAceIQ.',
+    icon: 'reports',
+  },
+]
+
 const PLAN_FIT_ROWS: Array<{
   job: string
   free: string
@@ -221,6 +243,27 @@ export default function PricingPage() {
               <span key={point} style={proofPillStyle}>
                 {point}
               </span>
+            ))}
+          </div>
+        </section>
+
+        <section style={entitlementClarityBandStyle} aria-label="Account and plan access">
+          <div style={entitlementClarityIntroStyle}>
+            <div style={sectionEyebrowStyle}>Access clarity</div>
+            <h2 style={entitlementClarityTitleStyle}>A free account is the starting line, not a paid unlock.</h2>
+            <p style={entitlementClarityTextStyle}>
+              Start with Free to explore. Activate Player, Captain, or Coordinator when the job needs private tools, role workflows, or league operations.
+            </p>
+          </div>
+          <div style={entitlementClarityGridStyle}>
+            {ENTITLEMENT_CLARITY_STEPS.map((step) => (
+              <article key={step.title} style={entitlementClarityCardStyle}>
+                <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
+                <span style={entitlementClarityCopyStyle}>
+                  <strong>{step.title}</strong>
+                  <em>{step.cue}</em>
+                </span>
+              </article>
             ))}
           </div>
         </section>
@@ -594,9 +637,9 @@ function PricingFinalCta() {
     <section style={pricingFinalCtaStyle}>
       <div style={{ display: 'grid', gap: 7, maxWidth: 760 }}>
         <div style={sectionEyebrowStyle}>Make the next move</div>
-        <h2 style={pricingFinalTitleStyle}>Start with Free, or jump straight into the tier that saves time.</h2>
+        <h2 style={pricingFinalTitleStyle}>Start with Free, or activate the tier that saves time.</h2>
         <p style={pricingFinalTextStyle}>
-          Search the landscape first, then create the account with the tier path you are most likely to need.
+          Search the landscape first, then choose the plan that should unlock your personal, captain, or league workspace.
         </p>
       </div>
       <div style={pricingFinalActionStyle}>
@@ -969,6 +1012,74 @@ const proofPillStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: 13,
   fontWeight: 800,
+}
+
+const entitlementClarityBandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+  gap: 14,
+  alignItems: 'stretch',
+  padding: 18,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg) 92%, var(--brand-green) 8%) 0%, color-mix(in srgb, var(--shell-panel-bg) 94%, var(--brand-blue-2) 6%) 100%)',
+  boxShadow: '0 16px 38px rgba(2, 10, 24, 0.10)',
+  minWidth: 0,
+}
+
+const entitlementClarityIntroStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'center',
+  gap: 8,
+  minWidth: 0,
+}
+
+const entitlementClarityTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2vw, 1.9rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const entitlementClarityTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.65,
+  fontWeight: 750,
+}
+
+const entitlementClarityGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const entitlementClarityCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  padding: 13,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const entitlementClarityCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--foreground)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 900,
 }
 
 const decisionPathStyle: CSSProperties = {

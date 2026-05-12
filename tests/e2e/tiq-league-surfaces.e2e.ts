@@ -99,6 +99,15 @@ test.describe('TIQ league surfaces', () => {
     await expect(page.getByRole('link', { name: 'Open Data Assist' })).toBeVisible()
   })
 
+  test('Pricing separates free account access from paid plan activation', async ({ page }) => {
+    await setTheme(page, 'light')
+    await expectSurfaceLoads(page, '/pricing')
+    await expect(page.getByText('A free account is the starting line, not a paid unlock.')).toBeVisible()
+    await expect(page.getByText('Paid tools need activation')).toBeVisible()
+    await expect(page.getByText(/matching plan is active/i)).toBeVisible()
+    await expect(page.getByText(/Data Assist review before they shape TenAceIQ/i)).toBeVisible()
+  })
+
   test('Explore start and rankings actions stay readable on mobile light mode', async ({ page }) => {
     await setTheme(page, 'light')
     await page.setViewportSize({ width: 390, height: 844 })
