@@ -16,6 +16,8 @@ import {
 } from '@/lib/pricing-plans'
 import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanSignupHref } from '@/lib/plan-intent'
+import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
+import { SUPPORT_THREAD_ASSURANCE } from '@/lib/message-links'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -458,12 +460,17 @@ export default function PricingPage() {
             <h2 style={billingPolicyTitleStyle}>Monthly plans renew until canceled. League covers one season.</h2>
             <p style={billingPolicyTextStyle}>
               Player and Captain are monthly subscriptions. TIQ League Coordinator is a season fee with standard season limits.
-              Refunds are reviewed under the posted billing policy.
+              Refunds are reviewed under the posted billing policy. {SUPPORT_THREAD_ASSURANCE}
             </p>
           </div>
-          <Link href="/legal/billing" style={ctaStyle}>
-            Billing and refunds
-          </Link>
+          <div style={billingPolicyActionRowStyle}>
+            <Link href="/legal/billing" style={ctaStyle}>
+              Billing and refunds
+            </Link>
+            <Link href={BILLING_SUPPORT_PATH} style={ctaStyle}>
+              Open support thread
+            </Link>
+          </div>
         </section>
 
         <section style={supportGridStyle}>
@@ -1509,6 +1516,13 @@ const billingPolicyTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   fontWeight: 750,
+}
+
+const billingPolicyActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  maxWidth: '100%',
 }
 
 const supportGridStyle: CSSProperties = {

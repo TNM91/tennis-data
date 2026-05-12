@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
-import { buildSupportMessageHref } from '@/lib/message-links'
+import { SUPPORT_THREAD_ASSURANCE, buildSupportMessageHref } from '@/lib/message-links'
 
 export const metadata: Metadata = {
   title: 'Contact',
@@ -45,7 +45,7 @@ export default function ContactPage() {
       <InfoPage
         kicker="Contact"
         title="Questions, support, or data issues."
-        intro="If you need help with an account, want to report a data problem, or have a partnership or product question, this page is the best place to start. Clear support paths help both users and platform reviewers understand who runs the site and how to reach them."
+        intro={`If you need help with an account, want to report a data problem, or have a partnership or product question, this page is the best place to start. ${SUPPORT_THREAD_ASSURANCE}`}
       >
         <div>
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>General support</h2>

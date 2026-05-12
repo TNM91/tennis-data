@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { BILLING_SUPPORT_PATH } from '../billing-policy'
+import { SUPPORT_THREAD_ASSURANCE } from '../message-links'
 
 const SUPPORT_SURFACE_FILES = [
   'app/contact/page.tsx',
@@ -30,6 +31,18 @@ describe('internal support routing', () => {
       expect(source, filePath).not.toMatch(/mailto:/i)
       expect(source, filePath).not.toMatch(/\b(?:support|help|billing)@/i)
     }
+  })
+
+  it('keeps public support entry points tied to in-platform Messages', () => {
+    const contactSource = readFileSync('app/contact/page.tsx', 'utf8')
+    const billingSource = readFileSync('app/legal/billing/page.tsx', 'utf8')
+    const pricingSource = readFileSync('app/pricing/page.tsx', 'utf8')
+
+    expect(SUPPORT_THREAD_ASSURANCE).toContain('inside TenAceIQ Messages')
+    expect(`${contactSource}\n${billingSource}\n${pricingSource}`).toContain('SUPPORT_THREAD_ASSURANCE')
+    expect(pricingSource).toContain('BILLING_SUPPORT_PATH')
+    expect(pricingSource).toContain('Open support thread')
+    expect(pricingSource).toContain('billingPolicyActionRowStyle')
   })
 
   it('keeps contact and legal data requests routed to categorized support threads', () => {
