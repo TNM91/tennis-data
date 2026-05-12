@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const componentSource = readFileSync(join(process.cwd(), 'app/components/match-accuracy-report-button.tsx'), 'utf8')
 const mylabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+const playerProfileSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
 
 describe('match accuracy report button', () => {
   it('submits signed-in reports through the shared match accuracy helper', () => {
@@ -20,5 +21,14 @@ describe('match accuracy report button', () => {
     expect(mylabSource).toContain("surface: 'mylab_recent_matches'")
     expect(mylabSource).toContain("linkedPlayerId: profileLink?.linked_player_id || ''")
     expect(mylabSource).toContain('reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || \'\'}')
+  })
+
+  it('appears on the signed-in player profile match history without widening the table', () => {
+    expect(playerProfileSource).toContain("import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'")
+    expect(playerProfileSource).toContain('{isOwnProfile ? (')
+    expect(playerProfileSource).toContain('<MatchAccuracyReportButton')
+    expect(playerProfileSource).toContain("surface: 'player_profile_match_history'")
+    expect(playerProfileSource).toContain("linkedPlayerId: linkedPlayerId || ''")
+    expect(playerProfileSource).toContain('const scoreCellStackStyle')
   })
 })
