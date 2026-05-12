@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const sharedSource = readFileSync(join(process.cwd(), 'app/admin/_components/admin-review-ui.tsx'), 'utf8')
 const dataAssistSource = readFileSync(join(process.cwd(), 'app/admin/data-assist/page.tsx'), 'utf8')
 const matchReportsSource = readFileSync(join(process.cwd(), 'app/admin/match-reports/page.tsx'), 'utf8')
+const productEventsSource = readFileSync(join(process.cwd(), 'app/admin/product-events/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -24,5 +25,13 @@ describe('admin review UI system', () => {
     expect(matchReportsSource).toContain('<AdminReviewHero')
     expect(dataAssistSource).toContain('<AdminReviewGrid>')
     expect(matchReportsSource).toContain('<AdminReviewGrid>')
+  })
+
+  it('keeps Product Events on the shared admin review shell', () => {
+    expect(productEventsSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(productEventsSource).toContain('<AdminReviewFrame>')
+    expect(productEventsSource).toContain('<AdminReviewHero')
+    expect(productEventsSource).toContain('<AdminReviewPanel>')
+    expect(productEventsSource).toContain('<AdminEmptyState')
   })
 })
