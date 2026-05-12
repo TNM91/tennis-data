@@ -632,11 +632,25 @@ export default function TeamsPage() {
               <div style={sectionKicker}>Directory reset</div>
               <div style={emptyTitle}>Teams are not available yet</div>
               <p style={emptyText}>
-                Try widening your filters, clearing the search box, or using Data Assist if this league and flight should already exist.
+                Public discovery only shows reviewed team context. Try widening your filters, clearing the search box, or use Data Assist if this league and flight should already exist.
               </p>
-              <Link href={DATA_ASSIST_STORY.href} style={ghostButton}>
-                {DATA_ASSIST_STORY.cta}
-              </Link>
+              <div style={emptyActionRow}>
+                <button
+                  type="button"
+                  style={ghostButton}
+                  onClick={() => {
+                    setSearch('')
+                    setLeagueFilter('')
+                    setFlightFilter('')
+                    setSortBy('matches')
+                  }}
+                >
+                  Reset team filters
+                </button>
+                <Link href={DATA_ASSIST_STORY.href} style={ghostButton}>
+                  {DATA_ASSIST_STORY.cta}
+                </Link>
+              </div>
             </section>
           ) : (
             <section style={cardsGrid(isTablet, isMobile)}>
@@ -1055,6 +1069,14 @@ const emptyText: CSSProperties = {
   color: 'rgba(210,225,244,0.72)',
   fontSize: '14px',
   lineHeight: 1.7,
+}
+
+const emptyActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '12px',
+  maxWidth: '100%',
 }
 
 const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
