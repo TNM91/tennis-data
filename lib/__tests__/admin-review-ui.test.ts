@@ -12,6 +12,7 @@ const upgradeRequestsSource = readFileSync(join(process.cwd(), 'app/admin/upgrad
 const accessSource = readFileSync(join(process.cwd(), 'app/admin/access/page.tsx'), 'utf8')
 const manageMatchesSource = readFileSync(join(process.cwd(), 'app/admin/manage-matches/page.tsx'), 'utf8')
 const managePlayersSource = readFileSync(join(process.cwd(), 'app/admin/manage-players/page.tsx'), 'utf8')
+const adminImportSource = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -104,5 +105,12 @@ describe('admin review UI system', () => {
     expect(managePlayersSource).not.toContain('radial-gradient')
     expect(managePlayersSource).not.toContain("'â€”'")
     expect(managePlayersSource).not.toContain("color: '#666'")
+  })
+  it('keeps Admin Import on the shared admin review shell', () => {
+    expect(adminImportSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(adminImportSource).toContain('<AdminReviewFrame>')
+    expect(adminImportSource).toContain('<AdminReviewHero')
+    expect(adminImportSource).toContain('title="Admin Import Center"')
+    expect(adminImportSource).not.toContain('pageWrapStyle')
   })
 })
