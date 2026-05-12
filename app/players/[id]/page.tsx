@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { getClientAuthState } from '@/lib/auth'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
@@ -2062,7 +2063,31 @@ export default function PlayerProfilePage() {
                             match.opponent
                           )}
                         </td>
-                        <td style={tableCell}>{match.score}</td>
+                        <td style={tableCell}>
+                          <div style={scoreCellStackStyle}>
+                            <span>{match.score}</span>
+                            {isOwnProfile ? (
+                              <MatchAccuracyReportButton
+                                matchId={match.id}
+                                reporterPlayerName={player?.name || ''}
+                                matchLabel={`${player?.name || 'Player'} vs ${match.opponent || 'opponent'} - ${match.score || 'No score'}`}
+                                context={{
+                                  surface: 'player_profile_match_history',
+                                  linkedPlayerId: linkedPlayerId || '',
+                                  viewedPlayerId: playerId,
+                                  leagueName: match.leagueName,
+                                  matchType: match.matchType,
+                                  matchDate: match.date,
+                                  opponent: match.opponent,
+                                  result: match.result,
+                                  source: match.source,
+                                  sideA: match.sideA,
+                                  sideB: match.sideB,
+                                }}
+                              />
+                            ) : null}
+                          </div>
+                        </td>
                         <td style={tableCell}>
                           {(() => {
                             const q = getMatchScoreQuality(match.score)
@@ -3813,6 +3838,14 @@ const tableCell: CSSProperties = {
   fontWeight: 600,
   borderTop: '1px solid var(--shell-panel-border)',
   verticalAlign: 'top',
+}
+
+const scoreCellStackStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: 8,
+  minWidth: 112,
 }
 
 const resultPill: CSSProperties = {
