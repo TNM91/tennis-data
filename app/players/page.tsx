@@ -682,11 +682,25 @@ export default function PlayersPage() {
             <div style={sectionKicker}>Directory reset</div>
             <div style={emptyStateTitle}>No players matched the current directory view.</div>
             <p style={emptyStateText}>
-              Try a broader name or location search, reset the filters, or refresh roster and scorecard context through Data Assist.
+              Public discovery only shows reviewed player context. Try a broader name or location search, reset the filters, or refresh roster and scorecard context through Data Assist.
             </p>
-            <Link href={DATA_ASSIST_STORY.href} style={secondaryLink}>
-              {DATA_ASSIST_STORY.cta}
-            </Link>
+            <div style={emptyStateActionRow}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch('')
+                  setSortBy('overall')
+                  setFilterBy('all')
+                  setFlightFilter('all')
+                }}
+                style={emptyStateButton}
+              >
+                Reset filters
+              </button>
+              <Link href={DATA_ASSIST_STORY.href} style={secondaryLink}>
+                {DATA_ASSIST_STORY.cta}
+              </Link>
+            </div>
           </div>
         ) : (
           <div style={dynamicCardGrid}>
@@ -1360,6 +1374,19 @@ const emptyStateText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.65,
   fontWeight: 500,
+}
+
+const emptyStateActionRow: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  marginTop: 14,
+  maxWidth: '100%',
+}
+
+const emptyStateButton: CSSProperties = {
+  ...secondaryLink,
+  cursor: 'pointer',
 }
 
 const cardGrid: CSSProperties = {
