@@ -11,6 +11,7 @@ const importQueueSource = readFileSync(join(process.cwd(), 'app/admin/import-que
 const upgradeRequestsSource = readFileSync(join(process.cwd(), 'app/admin/upgrade-requests/page.tsx'), 'utf8')
 const accessSource = readFileSync(join(process.cwd(), 'app/admin/access/page.tsx'), 'utf8')
 const manageMatchesSource = readFileSync(join(process.cwd(), 'app/admin/manage-matches/page.tsx'), 'utf8')
+const managePlayersSource = readFileSync(join(process.cwd(), 'app/admin/manage-players/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -91,5 +92,17 @@ describe('admin review UI system', () => {
     expect(manageMatchesSource).toContain('className="metric-card"')
     expect(manageMatchesSource).not.toContain('radial-gradient')
     expect(manageMatchesSource).not.toContain("'—'")
+  })
+  it('keeps Manage Players on the shared admin review shell', () => {
+    expect(managePlayersSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(managePlayersSource).toContain('<AdminReviewFrame>')
+    expect(managePlayersSource).toContain('<AdminReviewHero')
+    expect(managePlayersSource).toContain('<AdminReviewPanel')
+    expect(managePlayersSource).toContain('<AdminStatusPanel')
+    expect(managePlayersSource).toContain('<AdminEmptyState')
+    expect(managePlayersSource).toContain('className="metric-card"')
+    expect(managePlayersSource).not.toContain('radial-gradient')
+    expect(managePlayersSource).not.toContain("'â€”'")
+    expect(managePlayersSource).not.toContain("color: '#666'")
   })
 })
