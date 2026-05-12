@@ -4,6 +4,14 @@ export const dynamic = 'force-dynamic'
 
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import {
+  AdminActionRow,
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
@@ -296,60 +304,13 @@ export default function ManagePlayersPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section
-        style={{
-          width: '100%',
-          maxWidth: '1280px',
-          margin: '0 auto',
-          padding: '18px 24px 0',
-        }}
-      >
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <div className="section-kicker">Admin Tool</div>
-            <h1 className="page-title">Manage Players</h1>
-            <p className="page-subtitle">
-              View, search, edit, and delete players using the singles, doubles, and overall
-              ratings structure.
-            </p>
-          </div>
-        </section>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Admin Tool" title="Manage Players">
+            View, search, edit, and delete players using the singles, doubles, and overall
+            ratings structure.
+          </AdminReviewHero>
 
-        <section
-          className="surface-card panel-pad section"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              top: '-90px',
-              right: '-70px',
-              width: '240px',
-              height: '240px',
-              borderRadius: '999px',
-              background:
-                'radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-120px',
-              left: '-60px',
-              width: '220px',
-              height: '220px',
-              borderRadius: '999px',
-              background:
-                'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div style={{ position: 'relative', zIndex: 1 }}>
+          <AdminReviewPanel style={{ marginTop: 18 }}>
             <div
               style={{
                 display: 'flex',
@@ -411,13 +372,7 @@ export default function ManagePlayersPage() {
                 </Field>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '12px',
-                  flexWrap: 'wrap',
-                }}
-              >
+              <AdminActionRow>
                 <button
                   onClick={() => loadPlayers(true)}
                   className="button-ghost"
@@ -460,7 +415,7 @@ export default function ManagePlayersPage() {
                     Reset Filters
                   </button>
                 ) : null}
-              </div>
+              </AdminActionRow>
             </div>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 760 }}>
@@ -468,39 +423,11 @@ export default function ManagePlayersPage() {
             </p>
 
             {message && (
-              <div
-                role="status"
-                aria-live="polite"
-                className="badge badge-green"
-                style={{
-                  marginTop: '16px',
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                }}
-              >
-                {message}
-              </div>
+              <AdminStatusPanel tone="success" text={message} />
             )}
 
             {error && (
-              <div
-                role="alert"
-                className="badge"
-                style={{
-                  marginTop: '16px',
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                  background: 'rgba(220,38,38,0.10)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(220,38,38,0.18)',
-                }}
-              >
-                {error}
-                <div style={{ marginTop: 10 }}>
+              <AdminStatusPanel tone="error" text={error}>
                   <button
                     type="button"
                     onClick={() => void loadPlayers(true)}
@@ -513,8 +440,7 @@ export default function ManagePlayersPage() {
                   >
                     Retry player load
                   </button>
-                </div>
-              </div>
+              </AdminStatusPanel>
             )}
 
             <div className="metric-grid" style={{ marginTop: '20px' }}>
@@ -532,27 +458,15 @@ export default function ManagePlayersPage() {
             </p>
 
             {loading ? (
-              <p style={{ marginTop: '20px' }} className="subtle-text">
-                Loading players...
-              </p>
+              <AdminEmptyState text="Loading players..." />
             ) : filteredPlayers.length === 0 ? (
-              <div
-                style={{
-                  marginTop: '20px',
-                  borderRadius: 20,
-                  border: '1px solid var(--shell-panel-border)',
-                  background: 'var(--shell-chip-bg)',
-                  padding: '18px 20px',
-                }}
+              <AdminEmptyState
+                text={
+                  players.length === 0
+                    ? 'No players loaded yet. Import player data or create records first, then this editor will show up here.'
+                    : 'No players match the current filters. Broaden the search or return the sort to the default view to bring rows back into scope.'
+                }
               >
-                <div className="section-title" style={{ fontSize: '1.05rem' }}>
-                  {players.length === 0 ? 'No players loaded yet' : 'No players match the current filters'}
-                </div>
-                <p className="subtle-text" style={{ marginTop: 8 }}>
-                  {players.length === 0
-                    ? 'Import player data or create records first, then this editor will show up here.'
-                    : 'Broaden the search or return the sort to the default view to bring rows back into scope.'}
-                </p>
                 {hasActiveFilters ? (
                   <button
                     type="button"
@@ -568,7 +482,7 @@ export default function ManagePlayersPage() {
                     Reset Filters
                   </button>
                 ) : null}
-              </div>
+              </AdminEmptyState>
             ) : (
               <div className="table-wrap" style={{ marginTop: '20px' }}>
                 <table className="data-table" style={{ minWidth: 1250 }}>
@@ -667,7 +581,7 @@ export default function ManagePlayersPage() {
                           {(() => {
                             const base = player.overall_rating
                             const usta = player.overall_usta_dynamic_rating
-                            if (base == null || usta == null) return <span style={{ color: '#666', fontSize: 12 }}>—</span>
+                            if (base == null || usta == null) return <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12 }}>-</span>
                             const diff = usta - base
                             const status = diff >= 0.15 ? 'Bump Up Pace' : diff >= 0.07 ? 'Trending Up' : diff > -0.07 ? 'Holding' : diff > -0.15 ? 'At Risk' : 'Drop Watch'
                             const color = diff >= 0.07 ? '#d9f84a' : diff <= -0.07 ? '#fca5a5' : '#bfdbfe'
@@ -732,9 +646,8 @@ export default function ManagePlayersPage() {
                 </table>
               </div>
             )}
-          </div>
-        </section>
-        </section>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
