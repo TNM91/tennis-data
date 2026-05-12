@@ -188,7 +188,7 @@ const CAPTAIN_ONBOARDING_STEPS = [
   {
     label: '1',
     title: 'Choose scope',
-    detail: 'Start from your linked profile team, roster history, TIQ entries, or reviewed Data Assist uploads.',
+    detail: 'Captain starts with your linked profile team when available, then falls back to roster history or TIQ entries.',
   },
   {
     label: '2',
@@ -199,6 +199,21 @@ const CAPTAIN_ONBOARDING_STEPS = [
     label: '3',
     title: 'Send the plan',
     detail: 'Move from lineup to team note once the week is ready.',
+  },
+] as const
+
+const CAPTAIN_TEAM_SCOPE_HANDOFF = [
+  {
+    label: 'Profile first',
+    text: 'Link your player identity in My Lab so Captain can auto-select the team tied to your profile.',
+  },
+  {
+    label: 'Roster history',
+    text: 'If no profile team is available, Captain looks for active roster history and TIQ captain entries.',
+  },
+  {
+    label: 'Data refresh',
+    text: 'Use reviewed Data Assist uploads when schedules, rosters, or scorecards need to refresh the scope.',
   },
 ] as const
 
@@ -1738,6 +1753,15 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               }}
             >
               {scopeStatusText}
+            </div>
+
+            <div style={captainScopeHandoffGridStyle(isSmallMobile)} aria-label="Captain team scope handoff">
+              {CAPTAIN_TEAM_SCOPE_HANDOFF.map((item) => (
+                <div key={item.label} style={captainScopeHandoffCardStyle}>
+                  <strong>{item.label}</strong>
+                  <span>{item.text}</span>
+                </div>
+              ))}
             </div>
 
             <div style={captainOnboardingStripStyle(isSmallMobile)} aria-label="Captain first steps">
@@ -3579,6 +3603,30 @@ const captainOnboardingTextStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const captainScopeHandoffGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  maxWidth: 940,
+  minWidth: 0,
+})
+
+const captainScopeHandoffCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minHeight: 96,
+  padding: '12px 13px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 750,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
