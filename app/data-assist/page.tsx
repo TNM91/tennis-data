@@ -129,6 +129,9 @@ function DataAssistWorkspace() {
   const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
   const scorecardImportType = importTypes.find((item) => item.id === 'scorecard') || importTypes[0]
   const seasonSetupImportTypes = importTypes.filter((item) => item.id !== 'scorecard')
+  const scorecardUploadsPaused = contributorStats?.canUploadScorecards === false
+  const scorecardUploadPausedMessage =
+    contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
 
   function resetUploadFlow() {
     scanRunRef.current += 1
@@ -194,6 +197,13 @@ function DataAssistWorkspace() {
     setBulkScorecardResults([])
 
     const detected = await detectDataAssistExportType(files, importType)
+    if (detected.importType === 'scorecard' && scorecardUploadsPaused) {
+      setError(scorecardUploadPausedMessage)
+      setPreparing(false)
+      setSelectedFileCount(0)
+      event.target.value = ''
+      return
+    }
     if (files.length > 1 && detected.importType !== 'scorecard') {
       setError('Choose one schedule or team summary export at a time. You can select several scorecard exports when catching up on match results.')
       setPreparing(false)
@@ -262,6 +272,11 @@ function DataAssistWorkspace() {
   }
 
   async function importScorecardExports(files: File[]) {
+    if (scorecardUploadsPaused) {
+      setSelectedFileCount(0)
+      setError(scorecardUploadPausedMessage)
+      return
+    }
     if (!userId) {
       setSelectedFileCount(0)
       setMessage(`${files.length} scorecard exports selected. Sign in to import them.`)
@@ -1320,7 +1335,6 @@ function MySubmissionsPanel({
   const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>('all')
   const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
-  const rejectedCount = contributorStats?.rejectedImportCount ?? submissions.filter((submission) => submission.status === 'rejected').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
   const removableCount = submissions.filter((submission) => submission.status !== 'imported').length
   const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
@@ -1369,8 +1383,13 @@ function MySubmissionsPanel({
             <SubmissionStat label="Pending review" value={pendingCount} />
             <SubmissionStat label="Verified quality" value={verifiedCount} />
             <SubmissionStat label="Accuracy score" value={`${accuracyScore}%`} />
-            <SubmissionStat label="Rejected" value={rejectedCount} />
+            <SubmissionStat label="Scorecard uploads" value={contributorStats?.canUploadScorecards === false ? 'Paused' : 'Enabled'} />
           </div>
+          {contributorStats?.canUploadScorecards === false ? (
+            <div style={noticeStyle}>
+              {contributorStats.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'}
+            </div>
+          ) : null}
           <HistoryFilterTabs
             activeFilter={historyFilter}
             submissions={submissions}

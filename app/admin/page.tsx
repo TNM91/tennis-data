@@ -54,6 +54,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Community uploads',
   },
   {
+    title: 'Match Accuracy Reports',
+    href: '/admin/match-reports',
+    description:
+      'Review player-reported match inaccuracies, action data corrections, and pause scorecard uploads for linked contributors when trust issues repeat.',
+    badge: 'Data Quality',
+    accent: 'blue',
+    highlights: ['Player reports', 'Admin action queue', 'Uploader trust switch', 'Correction notes'],
+    statLabel: 'Best for',
+    statValue: 'Accuracy',
+  },
+  {
     title: 'Missing Scorecards',
     href: '/admin/missing-scorecards',
     description:
