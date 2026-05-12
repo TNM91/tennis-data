@@ -21,9 +21,12 @@ import {
 } from '@/lib/tiq-league-service'
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
+import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { getClientAuthState } from '@/lib/auth'
 import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { loadUserProfileLink } from '@/lib/user-profile'
 
 type TeamMatch = {
   id: string
@@ -115,6 +118,8 @@ type MatchCard = TeamMatch & {
   won: boolean | null
   opponent: string | null
   venueLabel: string
+  linkedPlayerAppears: boolean
+  linkedPlayerReportSource: 'parent_match' | 'line_match' | null
 }
 
 function normalizePlayer(player: PlayerRelation): Player | null {
@@ -260,7 +265,45 @@ export default function TeamPage() {
   const [tiqParticipations, setTiqParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [tiqParticipationSource, setTiqParticipationSource] = useState<TiqLeagueStorageSource>('local')
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
+  const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+
+  useEffect(() => {
+    let active = true
+
+    void (async () => {
+      const authState = await getClientAuthState()
+      if (!active) return
+      setCurrentUserId(authState.user?.id || null)
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setLinkedPlayerId(null)
+      setLinkedPlayerName('')
+      return
+    }
+
+    let active = true
+
+    void (async () => {
+      const result = await loadUserProfileLink(currentUserId)
+      if (!active) return
+      setLinkedPlayerId(result.data?.linked_player_id || null)
+      setLinkedPlayerName(result.data?.linked_player_name || '')
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [currentUserId])
 
   const loadTeamPage = useCallback(async () => {
     setLoading(true)
@@ -975,19 +1018,45 @@ export default function TeamPage() {
   }, [matches, team])
 
   const matchCards = useMemo<MatchCard[]>(() => {
+    const parentMatchIdsWithLinkedPlayer = new Set<string>()
+    const parentExternalIdsWithLinkedPlayer = new Set<string>()
+    const lineMatchById = new Map(lineMatches.map((lineMatch) => [lineMatch.id, lineMatch]))
+
+    if (linkedPlayerId) {
+      for (const entry of players) {
+        if (entry.player_id === linkedPlayerId) {
+          parentMatchIdsWithLinkedPlayer.add(entry.match_id)
+        }
+      }
+
+      for (const entry of linePlayers) {
+        if (entry.player_id !== linkedPlayerId) continue
+        const lineMatch = lineMatchById.get(entry.match_id)
+        const externalId = cleanText(lineMatch?.external_match_id)
+        if (!externalId) continue
+        const parentExternalId = externalId.split('::line:')[0] ?? ''
+        if (parentExternalId) parentExternalIdsWithLinkedPlayer.add(parentExternalId)
+      }
+    }
+
     return matches.map((match) => {
       const won = didTeamWin(match, team)
       const opponent = getOpponent(match, team)
       const isHome = cleanText(match.home_team) === team
+      const externalId = cleanText(match.external_match_id)
+      const directParentMatch = parentMatchIdsWithLinkedPlayer.has(match.id)
+      const lineMatch = externalId ? parentExternalIdsWithLinkedPlayer.has(externalId) : false
 
       return {
         ...match,
         won,
         opponent,
         venueLabel: isHome ? 'Home' : 'Away',
+        linkedPlayerAppears: directParentMatch || lineMatch,
+        linkedPlayerReportSource: directParentMatch ? 'parent_match' : lineMatch ? 'line_match' : null,
       }
     })
-  }, [matches, team])
+  }, [lineMatches, linePlayers, linkedPlayerId, matches, players, team])
 
   const captainLinks = [
     {
@@ -1623,7 +1692,31 @@ export default function TeamPage() {
                       <td style={tableCell}>
                         {match.match_type ? match.match_type[0].toUpperCase() + match.match_type.slice(1) : '—'}
                       </td>
-                      <td style={tableCell}>{match.score ?? '—'}</td>
+                      <td style={tableCell}>
+                        <div style={scoreCellStackStyle}>
+                          <span>{match.score ?? '—'}</span>
+                          {match.linkedPlayerAppears ? (
+                            <MatchAccuracyReportButton
+                              matchId={match.id}
+                              reporterPlayerName={linkedPlayerName}
+                              matchLabel={`${team} vs ${match.opponent ?? 'opponent'} - ${match.score ?? 'No score'}`}
+                              context={{
+                                surface: 'team_match_history',
+                                linkedPlayerId: linkedPlayerId || '',
+                                teamName: team,
+                                opponent: match.opponent,
+                                leagueName: match.league_name,
+                                flight: match.flight,
+                                matchType: match.match_type,
+                                matchDate: match.match_date,
+                                result: match.won === true ? 'W' : match.won === false ? 'L' : null,
+                                reportSource: match.linkedPlayerReportSource,
+                                externalMatchId: match.external_match_id,
+                              }}
+                            />
+                          ) : null}
+                        </div>
+                      </td>
                       <td style={tableCell}>
                         <span style={match.won === true ? badgeGreen : match.won === false ? badgeBlue : badgeSlate}>
                           {match.won === true ? 'Win' : match.won === false ? 'Loss' : '—'}
@@ -2616,6 +2709,14 @@ const tableCell: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
   color: 'var(--foreground)',
   verticalAlign: 'top',
+}
+
+const scoreCellStackStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: 8,
+  minWidth: 112,
 }
 
 const playerLink: CSSProperties = {
