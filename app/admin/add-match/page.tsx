@@ -4,6 +4,13 @@ export const dynamic = 'force-dynamic'
 
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  AdminActionRow,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '../../../lib/supabase'
@@ -236,63 +243,15 @@ export default function AddMatchPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section
-        style={{
-          width: '100%',
-          maxWidth: '1280px',
-          margin: '0 auto',
-          padding: '18px 24px 0',
-        }}
-      >
-        <section className="hero-panel">
-          <div className="hero-inner">
-            <div className="section-kicker">Admin Tool</div>
-            <h1 className="page-title">Add Match</h1>
-            <p className="page-subtitle">
-              Add a singles or doubles result into the matches and match_players structure,
-              create missing players when needed, and recalculate ratings.
-            </p>
-          </div>
-        </section>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Admin Tool" title="Add Match">
+            Add a singles or doubles result into the matches and match_players structure,
+            create missing players when needed, and recalculate ratings.
+          </AdminReviewHero>
 
-        <section
-          className="surface-card panel-pad section"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
+          <AdminReviewPanel style={{ marginTop: 18 }}>
           <div
             style={{
-              position: 'absolute',
-              top: '-90px',
-              right: '-70px',
-              width: '240px',
-              height: '240px',
-              borderRadius: '999px',
-              background:
-                'radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '-120px',
-              left: '-60px',
-              width: '220px',
-              height: '220px',
-              borderRadius: '999px',
-              background:
-                'radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)',
-              pointerEvents: 'none',
-            }}
-          />
-
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 1,
               display: 'flex',
               flexWrap: 'wrap',
               justifyContent: 'space-between',
@@ -341,12 +300,12 @@ export default function AddMatchPage() {
           </div>
 
           {playersLoading ? (
-            <div className="subtle-text" style={{ marginTop: 16, position: 'relative', zIndex: 1 }}>
+            <div className="subtle-text" style={{ marginTop: 16 }}>
               Loading the player directory for autocomplete and validation.
             </div>
           ) : null}
 
-          <form onSubmit={handleSubmit} style={{ marginTop: 24, position: 'relative', zIndex: 1 }}>
+          <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
             <div className="card-grid two">
               <Field label="Match Type">
                 <select
@@ -591,38 +550,11 @@ export default function AddMatchPage() {
             </section>
 
             {message && (
-              <div
-                className="badge badge-green"
-                style={{
-                  marginTop: 18,
-                  minHeight: 44,
-                  padding: '10px 14px',
-                  justifyContent: 'flex-start',
-                  width: '100%',
-                }}
-              >
-                {message}
-              </div>
+              <AdminStatusPanel tone="success" text={message} />
             )}
 
             {error && (
-              <div
-                className="badge"
-                style={{
-                  marginTop: 18,
-                  minHeight: 44,
-                  padding: '10px 14px',
-                  justifyContent: 'flex-start',
-                  width: '100%',
-                  background: 'rgba(220,38,38,0.10)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(248,113,113,0.18)',
-                  display: 'grid',
-                  gap: 10,
-                  justifyItems: 'start',
-                }}
-              >
-                <div>{error}</div>
+              <AdminStatusPanel tone="error" text={error}>
                 <button
                   type="button"
                   onClick={() => void loadPlayers()}
@@ -638,17 +570,10 @@ export default function AddMatchPage() {
                 >
                   {playersLoading ? 'Refreshing players...' : 'Retry player load'}
                 </button>
-              </div>
+              </AdminStatusPanel>
             )}
 
-            <div
-              style={{
-                marginTop: 22,
-                display: 'flex',
-                gap: 12,
-                flexWrap: 'wrap',
-              }}
-            >
+            <AdminActionRow>
               <button
                 type="submit"
                 className="button-primary"
@@ -673,10 +598,10 @@ export default function AddMatchPage() {
               >
                 Clear
               </button>
-            </div>
+            </AdminActionRow>
           </form>
-        </section>
-        </section>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
