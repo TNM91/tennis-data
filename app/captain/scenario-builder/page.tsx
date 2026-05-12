@@ -8,14 +8,13 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
-import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
+import { useAuth } from '@/app/components/auth-provider'
 import { useTheme } from '@/app/components/theme-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -358,13 +357,18 @@ function readInitialScenarioBuilderContext() {
 }
 
 export default function ScenarioComparisonPage() {
+  return (
+    <SiteShell active="/captain">
+      <ScenarioComparisonContent />
+    </SiteShell>
+  )
+}
+
+function ScenarioComparisonContent() {
   const router = useRouter()
+  const { role, entitlements, authResolved } = useAuth()
   const { theme } = useTheme()
   const initialContext = readInitialScenarioBuilderContext()
-
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
 
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [players, setPlayers] = useState<PlayerRow[]>([])
@@ -386,43 +390,11 @@ export default function ScenarioComparisonPage() {
     : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadRole() {
-      try {
-        const authState = await getClientAuthState()
-        const user = authState.user
-
-        if (!user) {
-          if (mounted) {
-            setRole('public')
-            setAuthLoading(false)
-          }
-          router.replace('/login?next=/captain/scenario-builder')
-          return
-        }
-
-        if (!mounted) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
+    if (!authResolved || role !== 'public') {
+      return
     }
-
-    void loadRole()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadRole()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [router])
+    router.replace('/login?next=/captain/scenario-builder')
+  }, [authResolved, role, router])
 
   useEffect(() => {
     writeCaptainResumeState({
@@ -486,9 +458,12 @@ export default function ScenarioComparisonPage() {
   }, [])
 
   useEffect(() => {
-    if (authLoading || role === 'public') return
-    void refreshScenarioData()
-  }, [authLoading, refreshScenarioData, role, refreshTick])
+    if (!authResolved || role === 'public') return
+    const timeoutId = window.setTimeout(() => {
+      void refreshScenarioData()
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [authResolved, refreshScenarioData, role, refreshTick])
 
   const leagueOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.league_name)), [scenarios])
   const flightOptions = useMemo(() => uniqueSorted(scenarios.map((scenario) => scenario.flight)), [scenarios])
@@ -505,6 +480,7 @@ export default function ScenarioComparisonPage() {
   }, [scenarios, leagueFilter, flightFilter, teamFilter, dateFilter])
 
   useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
     if (!filteredScenarios.length) {
       setLeftId('')
       setRightId('')
@@ -525,15 +501,18 @@ export default function ScenarioComparisonPage() {
         ''
       setRightId(nextRight)
     }
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [filteredScenarios, leftId, rightId])
 
   const leftScenario = filteredScenarios.find((scenario) => scenario.id === leftId) ?? null
   const rightScenario = filteredScenarios.find((scenario) => scenario.id === rightId) ?? null
 
-  const leftTeamSlots = normalizeSlots(leftScenario?.slots_json)
-  const rightTeamSlots = normalizeSlots(rightScenario?.slots_json)
-  const leftOpponentSlots = normalizeSlots(leftScenario?.opponent_slots_json)
-  const rightOpponentSlots = normalizeSlots(rightScenario?.opponent_slots_json)
+  const leftTeamSlots = useMemo(() => normalizeSlots(leftScenario?.slots_json), [leftScenario?.slots_json])
+  const rightTeamSlots = useMemo(() => normalizeSlots(rightScenario?.slots_json), [rightScenario?.slots_json])
+  const leftOpponentSlots = useMemo(() => normalizeSlots(leftScenario?.opponent_slots_json), [leftScenario?.opponent_slots_json])
+  const rightOpponentSlots = useMemo(() => normalizeSlots(rightScenario?.opponent_slots_json), [rightScenario?.opponent_slots_json])
 
   const yourComparison = useMemo(
     () => compareSlots(leftTeamSlots, rightTeamSlots, players),
@@ -636,15 +615,13 @@ export default function ScenarioComparisonPage() {
       ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
       : (rightScenario ? builderHref(rightScenario.id) : '/captain/lineup-builder')
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
-      <SiteShell active="/captain">
-        <section style={pageContentStyle}>
-          <section style={surfaceCard}>
-            <p style={mutedTextStyle}>Loading scenario builder...</p>
-          </section>
+      <section style={pageContentStyle}>
+        <section style={surfaceCard}>
+          <p style={mutedTextStyle}>Loading scenario builder...</p>
         </section>
-      </SiteShell>
+      </section>
     )
   }
 
@@ -665,8 +642,7 @@ export default function ScenarioComparisonPage() {
   }
 
   return (
-    <SiteShell active="/captain">
-      <section style={pageContentStyle}>
+    <section style={pageContentStyle}>
          <section style={heroShellResponsive(isTablet, isMobile)}>
             <div>
               <TiqFeatureIcon name="scenarioBuilder" size="lg" variant="surface" />
@@ -1521,8 +1497,7 @@ export default function ScenarioComparisonPage() {
             </>
           )}
         </section>
-      </section>
-    </SiteShell>
+    </section>
   )
 }
 

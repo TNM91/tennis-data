@@ -7,14 +7,13 @@ import Link from 'next/link'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { formatDate, formatRating, normalizeTeamName, safeText } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
@@ -225,12 +224,17 @@ function readInitialLineupProjectionContext() {
 }
 
 export default function LineupProjectionPage() {
-  const router = useRouter()
-  const initialContext = readInitialLineupProjectionContext()
+  return (
+    <AuthProvider>
+      <LineupProjectionContent />
+    </AuthProvider>
+  )
+}
 
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+function LineupProjectionContent() {
+  const router = useRouter()
+  const { role, entitlements, authResolved } = useAuth()
+  const initialContext = readInitialLineupProjectionContext()
 
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -248,48 +252,17 @@ export default function LineupProjectionPage() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadRole() {
-      try {
-        const authState = await getClientAuthState()
-
-        if (!authState.user) {
-          if (mounted) {
-            setRole('public')
-            setAuthLoading(false)
-          }
-          router.replace('/login?next=/captain/lineup-projection')
-          return
-        }
-
-        if (!mounted) return
-        setRole(authState.role)
-        setEntitlements(authState.entitlements)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
+    if (!authResolved || role !== 'public') {
+      return
     }
-
-    void loadRole()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadRole()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [router])
+    router.replace('/login?next=/captain/lineup-projection')
+  }, [authResolved, role, router])
 
   useEffect(() => {
-    if (authLoading || role === 'public') return
+    if (!authResolved || role === 'public') return
     void loadLeaguesAndTeams()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, role, refreshTick])
+  }, [authResolved, role, refreshTick])
 
   useEffect(() => {
     if (!selectedLeagueKey || !selectedTeam) {
@@ -297,10 +270,10 @@ export default function LineupProjectionPage() {
       return
     }
 
-    if (authLoading || role === 'public') return
+    if (!authResolved || role === 'public') return
     void loadTeamRoster()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLeagueKey, selectedTeam, selectedDate, authLoading, role])
+  }, [selectedLeagueKey, selectedTeam, selectedDate, authResolved, role])
 
   useEffect(() => {
     const [leagueName = '', flight = ''] = selectedLeagueKey.split('___')
@@ -811,7 +784,7 @@ export default function LineupProjectionPage() {
     return query ? `/captain/lineup-builder?${query}` : '/captain/lineup-builder'
   }, [competitionLayer, opponentTeam, selectedLeagueKey, selectedTeam, selectedDate])
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
       <main style={pageStyle}>
         <div style={orbOne} />
