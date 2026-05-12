@@ -7,6 +7,7 @@ const rankingsSource = readFileSync(join(process.cwd(), 'app/rankings/page.tsx')
 const playersSource = readFileSync(join(process.cwd(), 'app/players/page.tsx'), 'utf8')
 const teamsSource = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
 const leaguesSource = readFileSync(join(process.cwd(), 'app/leagues/page.tsx'), 'utf8')
+const leagueDetailSource = readFileSync(join(process.cwd(), 'app/leagues/[league]/page.tsx'), 'utf8')
 const exploreLeaguesSource = readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8')
 
 describe('Explore responsive surfaces', () => {
@@ -58,6 +59,18 @@ describe('Explore responsive surfaces', () => {
     expect(leaguesSource).toContain("color: 'var(--shell-copy-muted)'")
     expect(leaguesSource).toContain("colorScheme: 'normal'")
     expect(leaguesSource).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('keeps league detail pages Data Assist aware and light-mode readable', () => {
+    expect(leagueDetailSource).toContain('reviewed match rows')
+    expect(leagueDetailSource).toContain('DATA_ASSIST_STORY.cta')
+    expect(leagueDetailSource).toContain('Use reviewed Data Assist uploads')
+    expect(leagueDetailSource).toContain("background: 'var(--shell-panel-bg)'")
+    expect(leagueDetailSource).toContain("background: 'var(--shell-chip-bg)'")
+    expect(leagueDetailSource).toContain("color: 'var(--foreground-strong)'")
+    expect(leagueDetailSource).toContain("color: 'var(--shell-copy-muted)'")
+    expect(leagueDetailSource).toContain("colorScheme: 'normal'")
+    expect(leagueDetailSource).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps Explore Leagues empty lanes separated by source and workflow', () => {
