@@ -160,8 +160,13 @@ export async function PATCH(request: Request) {
 
   const reportId = cleanText(body.reportId)
   const status = normalizeStatus(body.status)
+  const adminNotes = cleanText(body.adminNotes, 2000)
+  const actionSummary = cleanText(body.actionSummary, 2000)
   if (!reportId) {
     return Response.json({ ok: false, message: 'Missing report id.' }, { status: 400 })
+  }
+  if ((status === 'resolved' || status === 'rejected') && actionSummary.length < 8) {
+    return Response.json({ ok: false, message: 'Add an action summary before resolving or rejecting this report.' }, { status: 400 })
   }
 
   const service = createServiceClient()
@@ -183,8 +188,8 @@ export async function PATCH(request: Request) {
     .from('match_accuracy_reports')
     .update({
       status,
-      admin_notes: cleanText(body.adminNotes, 2000),
-      action_summary: cleanText(body.actionSummary, 2000),
+      admin_notes: adminNotes,
+      action_summary: actionSummary,
       resolved_by_user_id: status === 'resolved' || status === 'rejected' ? user.userId : null,
       resolved_at: status === 'resolved' || status === 'rejected' ? now : null,
     })
