@@ -469,6 +469,11 @@ export default function RankingsPage() {
     padding: isSmallMobile ? 14 : isMobile ? 16 : 20,
   }
 
+  const dynamicLeaderboardActionGrid: CSSProperties = {
+    ...leaderboardActionGrid,
+    gridTemplateColumns: isSmallMobile ? '1fr' : leaderboardActionGrid.gridTemplateColumns,
+  }
+
   const activeCount = Math.max(rankedPlayers.length - inactiveCount, 0)
   const topPlayer = topThree[0] ?? null
   const topRival = topThree[1] ?? null
@@ -928,7 +933,7 @@ export default function RankingsPage() {
             </div>
           </div>
 
-          <div style={leaderboardActionGrid}>
+          <div style={dynamicLeaderboardActionGrid}>
             <Link href="/explore/players" style={leaderboardActionCard}>
               <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
               <div style={leaderboardActionBody}>
@@ -2416,6 +2421,7 @@ const leaderboardActionCard: CSSProperties = {
   textDecoration: 'none',
   cursor: 'pointer',
   transition: 'transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease',
+  overflow: 'hidden',
 }
 
 const leaderboardActionBody: CSSProperties = {
@@ -2436,6 +2442,8 @@ const leaderboardActionTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 900,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
 }
 
 const leaderboardActionText: CSSProperties = {
@@ -2443,6 +2451,7 @@ const leaderboardActionText: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.45,
   fontWeight: 650,
+  overflowWrap: 'anywhere',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -2490,6 +2499,8 @@ const compactRankingCardStyle: CSSProperties = {
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 7%, transparent), transparent 62%), var(--shell-chip-bg)',
   textDecoration: 'none',
   color: 'inherit',
+  minWidth: 0,
+  overflow: 'hidden',
 }
 
 const compactRankingTopStyle: CSSProperties = {
@@ -2539,10 +2550,11 @@ const compactRatingStackStyle: CSSProperties = {
 }
 
 const compactSignalRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 112px), 1fr))',
   gap: '8px',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const compactBottomGridStyle: CSSProperties = {
@@ -2553,8 +2565,8 @@ const compactBottomGridStyle: CSSProperties = {
 }
 
 const compactActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
   gap: '9px',
   paddingTop: '2px',
   minWidth: 0,
@@ -2576,6 +2588,8 @@ const compactActionPrimaryStyle: CSSProperties = {
   textDecoration: 'none',
   textAlign: 'center',
   whiteSpace: 'normal',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const compactActionSecondaryStyle: CSSProperties = {
@@ -2938,6 +2952,9 @@ const statusPill: CSSProperties = {
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
   whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+  minWidth: 0,
 }
 
 const trendPill: CSSProperties = {
@@ -2950,6 +2967,9 @@ const trendPill: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
   whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+  minWidth: 0,
 }
 
 const confidencePill: CSSProperties = {
@@ -2965,6 +2985,9 @@ const confidencePill: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
   whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+  minWidth: 0,
 }
 
 const tierDividerCell: CSSProperties = {
