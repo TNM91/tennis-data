@@ -197,6 +197,10 @@ export type DataAssistContributorBadge = {
 
 export type DataAssistContributorStats = {
   profileId: string
+  canUploadScorecards: boolean
+  uploadSuspensionReason: string
+  uploadSuspendedByUserId: string
+  uploadSuspendedAt: string
   verifiedImportCount: number
   rejectedImportCount: number
   pendingReviewCount: number
@@ -228,6 +232,10 @@ type DataAssistBatchRow = {
 
 type DataAssistContributorStatsRow = {
   profile_id?: string | null
+  can_upload_scorecards?: boolean | null
+  upload_suspension_reason?: string | null
+  upload_suspended_by_user_id?: string | null
+  upload_suspended_at?: string | null
   verified_import_count?: number | null
   rejected_import_count?: number | null
   pending_review_count?: number | null
@@ -527,6 +535,10 @@ function toContributorStats(row: DataAssistContributorStatsRow): DataAssistContr
 
   return {
     profileId,
+    canUploadScorecards: row.can_upload_scorecards !== false,
+    uploadSuspensionReason: cleanText(row.upload_suspension_reason),
+    uploadSuspendedByUserId: cleanText(row.upload_suspended_by_user_id),
+    uploadSuspendedAt: cleanText(row.upload_suspended_at),
     verifiedImportCount: row.verified_import_count ?? 0,
     rejectedImportCount: row.rejected_import_count ?? 0,
     pendingReviewCount: row.pending_review_count ?? 0,
@@ -908,7 +920,7 @@ export async function getMyDataAssistContributorStats() {
 
   const { data, error } = await supabase
     .from('data_assist_contributor_stats')
-    .select('profile_id, verified_import_count, rejected_import_count, pending_review_count, contribution_accuracy_score, captain_verified_imports, admin_verified_imports, badges, last_verified_at, last_rejected_at, updated_at')
+    .select('profile_id, can_upload_scorecards, upload_suspension_reason, upload_suspended_by_user_id, upload_suspended_at, verified_import_count, rejected_import_count, pending_review_count, contribution_accuracy_score, captain_verified_imports, admin_verified_imports, badges, last_verified_at, last_rejected_at, updated_at')
     .eq('profile_id', userId)
     .maybeSingle()
 
@@ -1294,6 +1306,10 @@ function latestReviewedAt(rows: DataAssistStatsBatchRow[]) {
 function buildEmptyContributorStats(profileId: string): DataAssistContributorStats {
   return {
     profileId,
+    canUploadScorecards: true,
+    uploadSuspensionReason: '',
+    uploadSuspendedByUserId: '',
+    uploadSuspendedAt: '',
     verifiedImportCount: 0,
     rejectedImportCount: 0,
     pendingReviewCount: 0,
