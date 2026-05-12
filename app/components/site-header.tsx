@@ -292,12 +292,15 @@ export default function SiteHeader({ active }: { active?: string }) {
     router.refresh()
   }
 
-  const authenticated = role !== 'public'
-  const useCompactHeader = shouldUseCompactSiteHeader({ role, authenticated, screenWidth })
+  const authenticated = Boolean(userId) || role !== 'public'
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const useCompactHeader = shouldUseCompactSiteHeader({ role: resolvedRole, authenticated, screenWidth })
   const useCompactBrand = useCompactHeader
-  const access = buildProductAccessState(role, entitlements)
+  const access = buildProductAccessState(resolvedRole, entitlements)
   const roleLabel =
-    role === 'admin'
+    !authResolved && authenticated
+      ? 'Account'
+      : role === 'admin'
       ? 'Admin'
       : authenticated
         ? access.currentPlanId === 'league'

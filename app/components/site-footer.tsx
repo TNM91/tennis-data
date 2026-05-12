@@ -26,9 +26,10 @@ const FOOTER_JOURNEY = PRIMARY_NAV_VISUALS
 
 export default function SiteFooter() {
   const { isTablet, isMobile } = useViewportBreakpoints()
-  const { role, entitlements } = useAuth()
-  const authenticated = role !== 'public'
-  const access = buildProductAccessState(role, entitlements)
+  const { role, userId, entitlements, authResolved } = useAuth()
+  const authenticated = Boolean(userId) || role !== 'public'
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = buildProductAccessState(resolvedRole, entitlements)
 
   return (
     <footer

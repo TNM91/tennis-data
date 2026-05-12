@@ -27,4 +27,11 @@ describe('My Lab premium surface', () => {
     expect(source).toContain('labReadabilityCueGridStyle(isTablet)')
     expect(source).toContain('overflowWrap: \'anywhere\'')
   })
+
+  it('uses theme-safe setup step number contrast', () => {
+    expect(source).toContain('setupStepNumberStyle')
+    expect(source).toContain("color: 'var(--foreground-strong)'")
+    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-chip-bg) 84%)'")
+    expect(source).not.toContain("const setupStepNumberStyle: CSSProperties = {\n  width: 32,\n  height: 32,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
+  })
 })
