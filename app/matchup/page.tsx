@@ -1906,7 +1906,7 @@ export default function MatchupPage() {
                     <div style={formCellValue(formScores.left)}>
                       {formScores.left !== null
                         ? `${formScores.left > 0 ? '+' : ''}${formScores.left.toFixed(2)} form`
-                        : '—'}
+                        : '-'}
                     </div>
                     <div style={formCellMeta}>Last 5 rating delta</div>
                   </div>
@@ -1920,7 +1920,7 @@ export default function MatchupPage() {
                     <div style={formCellValue(formScores.right)}>
                       {formScores.right !== null
                         ? `${formScores.right > 0 ? '+' : ''}${formScores.right.toFixed(2)} form`
-                        : '—'}
+                        : '-'}
                     </div>
                     <div style={formCellMeta}>Last 5 rating delta</div>
                   </div>
@@ -1959,7 +1959,7 @@ export default function MatchupPage() {
                     <div>
                       <div style={calloutTitle}>{projection.expectedOutcome}</div>
                       <div style={calloutSub}>
-                        Favorite: <strong>{projection.favoriteLabel}</strong> · Underdog:{' '}
+                        Favorite: <strong>{projection.favoriteLabel}</strong> | Underdog:{' '}
                         <strong>{projection.underdogLabel}</strong>
                       </div>
                     </div>
@@ -2068,7 +2068,7 @@ export default function MatchupPage() {
                       return (
                         <div style={{ marginTop: 18 }}>
                           <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginBottom: 10 }}>
-                            Head-to-head dominance{leaderLabel ? ` · ${leaderLabel} leads` : ' · Even'}
+                            Head-to-head dominance{leaderLabel ? ` | ${leaderLabel} leads` : ' | Even'}
                           </div>
                           <div style={{ display: 'flex', borderRadius: 999, overflow: 'hidden', height: 12, background: 'rgba(255,255,255,0.06)' }}>
                             <div style={{ width: `${pctA}%`, background: 'linear-gradient(90deg, #9be11d, #4ade80)', transition: 'width 500ms ease', minWidth: pctA > 0 ? 4 : 0 }} />
@@ -2111,7 +2111,7 @@ export default function MatchupPage() {
                             >
                               <span style={{ color: 'rgba(190,210,240,0.6)', fontSize: 12, fontWeight: 700 }}>{formatDate(m.matchDate)}</span>
                               <span style={{ color: 'rgba(190,210,240,0.5)', fontSize: 12 }}>{capitalize(m.matchType)}</span>
-                              <span style={{ color: '#f8fbff', fontWeight: 700, fontSize: 13 }}>{m.score || '—'}</span>
+                              <span style={headToHeadScoreText}>{m.score || '-'}</span>
                               {quality ? (
                                 <span style={{ padding: '2px 8px', borderRadius: 999, background: 'rgba(116,190,255,0.10)', border: '1px solid rgba(116,190,255,0.18)', color: '#93c5fd', fontSize: 11, fontWeight: 800 }}>{quality}</span>
                               ) : null}
@@ -2123,9 +2123,9 @@ export default function MatchupPage() {
                       )
                     })() : headToHead.lastMatch ? (
                       <p style={{ ...paragraph, marginTop: '16px' }}>
-                        <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} ·{' '}
-                        {capitalize(headToHead.lastMatch.matchType)} ·{' '}
-                        {headToHead.lastMatch.score || 'No score entered'} · Winner:{' '}
+                        <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} |{' '}
+                        {capitalize(headToHead.lastMatch.matchType)} |{' '}
+                        {headToHead.lastMatch.score || 'No score entered'} | Winner:{' '}
                         {headToHead.lastMatch.winner === 'A'
                           ? comparison.leftLabel
                           : comparison.rightLabel}
@@ -2603,7 +2603,7 @@ function formatPercent(value: number) {
 }
 
 function formatNullablePercent(value: number | null) {
-  if (value === null) return '—'
+  if (value === null) return '-'
   return formatPercent(value)
 }
 
@@ -3613,7 +3613,7 @@ const compareHead: CSSProperties = {
 }
 
 const compareTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.15,
   fontWeight: 900,
@@ -3834,7 +3834,7 @@ const summaryCard: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: 0,
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '22px',
   lineHeight: 1.2,
   fontWeight: 900,
@@ -3980,7 +3980,7 @@ const emptyHeadToHeadCard: CSSProperties = {
 }
 
 const emptyHeadToHeadTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '22px',
   lineHeight: 1.15,
   fontWeight: 900,
@@ -3993,6 +3993,13 @@ const emptyHeadToHeadText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
+}
+
+const headToHeadScoreText: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 800,
+  fontSize: 13,
+  overflowWrap: 'anywhere',
 }
 
 const emptyHeadToHeadActions: CSSProperties = {
