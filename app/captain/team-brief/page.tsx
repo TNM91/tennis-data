@@ -8,7 +8,7 @@ import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
-import { getClientAuthState } from '@/lib/auth'
+import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import {
   buildCaptainWeekStatusKey,
@@ -17,8 +17,7 @@ import {
   type CaptainWeekStatus,
 } from '@/lib/captain-week-status'
 import { supabase } from '@/lib/supabase'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   formatWeekdayDate as formatDate,
@@ -86,12 +85,18 @@ function readInitialContext() {
 }
 
 export default function CaptainTeamBriefPage() {
+  return (
+    <SiteShell active="/captain">
+      <CaptainTeamBriefContent />
+    </SiteShell>
+  )
+}
+
+function CaptainTeamBriefContent() {
+  const { role, entitlements, authResolved } = useAuth()
   const { isTablet, isSmallMobile } = useViewportBreakpoints()
   const initialContext = readInitialContext()
 
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [copyStatus, setCopyStatus] = useState('')
@@ -112,38 +117,15 @@ export default function CaptainTeamBriefPage() {
   const [matches, setMatches] = useState<MatchRow[]>([])
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadRole() {
-      const authState = await getClientAuthState()
-      if (!mounted) return
-
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-      setAuthLoading(false)
-
-      if (authState.role === 'public' && typeof window !== 'undefined') {
-        const next = encodeURIComponent('/captain/team-brief')
-        window.location.href = `/login?next=${next}`
-      }
+    if (!authResolved || role !== 'public' || typeof window === 'undefined') {
+      return
     }
-
-    void loadRole()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadRole()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+    const next = encodeURIComponent('/captain/team-brief')
+    window.location.href = `/login?next=${next}`
+  }, [authResolved, role])
 
   useEffect(() => {
-    if (authLoading || role === 'public') return
+    if (!authResolved || role === 'public') return
     if (!team || !league || !flight) return
 
     let active = true
@@ -197,7 +179,7 @@ export default function CaptainTeamBriefPage() {
     return () => {
       active = false
     }
-  }, [authLoading, eventDate, flight, league, opponentTeam, role, team])
+  }, [authResolved, eventDate, flight, league, opponentTeam, role, team])
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
@@ -372,14 +354,12 @@ export default function CaptainTeamBriefPage() {
     }
   }
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
       <main style={pageStyle}>
-        <SiteShell>
-          <section style={surfaceCard}>
-            <p style={mutedTextStyle}>Checking team brief access...</p>
-          </section>
-        </SiteShell>
+        <section style={surfaceCard}>
+          <p style={mutedTextStyle}>Checking team brief access...</p>
+        </section>
       </main>
     )
   }
@@ -400,8 +380,7 @@ export default function CaptainTeamBriefPage() {
 
   return (
     <main style={pageStyle}>
-      <SiteShell>
-        <div style={contentStyle}>
+      <div style={contentStyle}>
           <section style={heroCard}>
             <div style={heroTopRow}>
               <div>
@@ -624,7 +603,6 @@ export default function CaptainTeamBriefPage() {
             footnote="Best for captains who want cleaner weekly prep, less scrambling, and clearer decisions before match day."
           />
         ) : null}
-      </SiteShell>
     </main>
   )
 }
