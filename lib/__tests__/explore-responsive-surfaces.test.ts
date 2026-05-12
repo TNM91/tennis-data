@@ -10,6 +10,7 @@ const teamDetailSource = readFileSync(join(process.cwd(), 'app/teams/[team]/page
 const leaguesSource = readFileSync(join(process.cwd(), 'app/leagues/page.tsx'), 'utf8')
 const leagueDetailSource = readFileSync(join(process.cwd(), 'app/leagues/[league]/page.tsx'), 'utf8')
 const exploreLeaguesSource = readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8')
+const tiqLeagueDetailSource = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
 
 describe('Explore responsive surfaces', () => {
   it('keeps Explore action cards protected from narrow mobile overflow', () => {
@@ -96,5 +97,19 @@ describe('Explore responsive surfaces', () => {
     expect(exploreLeaguesSource).toContain("emptyKind=\"tiq-individual\"")
     expect(exploreLeaguesSource).toContain('TIQ individual leagues are coordinator-created player-vs-player seasons')
     expect(exploreLeaguesSource).toContain('Create individual league')
+  })
+
+  it('keeps TIQ league standings and team results theme-aware on mobile', () => {
+    expect(tiqLeagueDetailSource).toContain('const teamStandingsScrollStyle: CSSProperties')
+    expect(tiqLeagueDetailSource).toContain("overscrollBehaviorX: 'contain'")
+    expect(tiqLeagueDetailSource).toContain("minWidth: '620px'")
+    expect(tiqLeagueDetailSource).toContain("color: 'var(--foreground-strong)'")
+    expect(tiqLeagueDetailSource).toContain("color: 'var(--shell-copy-muted)'")
+    expect(tiqLeagueDetailSource).toContain("border: '1px solid var(--shell-panel-border)'")
+    expect(tiqLeagueDetailSource).toContain("overflowWrap: 'anywhere'")
+    expect(tiqLeagueDetailSource).toContain("join(' | ')")
+    expect(tiqLeagueDetailSource).not.toContain("color: '#94a3b8'")
+    expect(tiqLeagueDetailSource).not.toContain("color: '#64748b'")
+    expect(tiqLeagueDetailSource).not.toContain("color: '#cbd5e1'")
   })
 })

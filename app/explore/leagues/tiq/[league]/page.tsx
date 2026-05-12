@@ -3404,8 +3404,8 @@ export default function TiqLeagueDetailPage() {
                     Standings will appear after the first team match result is entered and reviewed.
                   </div>
                 ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <div style={teamStandingsScrollStyle}>
+                  <table style={teamStandingsTableStyle}>
                     <thead>
                       <tr>
                         {[
@@ -3419,7 +3419,7 @@ export default function TiqLeagueDetailPage() {
                           'Line L',
                           'Line %',
                         ].map((h) => (
-                          <th key={h} style={{ textAlign: h === 'Team' ? 'left' : 'center', padding: '8px 10px', color: '#64748b', fontWeight: 700, fontSize: 12, letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.07)', whiteSpace: 'nowrap' }}>{h}</th>
+                          <th key={h} style={{ ...teamStandingsHeaderCellStyle, textAlign: h === 'Team' ? 'left' : 'center' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -3430,17 +3430,17 @@ export default function TiqLeagueDetailPage() {
                         const isLeader = i === 0
                         return (
                           <tr key={row.teamName} style={{ background: isLeader ? 'rgba(155,225,29,0.04)' : undefined }}>
-                            <td style={{ padding: '10px', textAlign: 'center', color: '#64748b', fontWeight: 700 }}>{i + 1}</td>
-                            <td style={{ padding: '10px', fontWeight: isLeader ? 700 : 500, color: isLeader ? '#9be11d' : '#e2e8f0' }}>{row.teamName}</td>
+                            <td style={teamStandingsRankCellStyle}>{i + 1}</td>
+                            <td style={isLeader ? teamStandingsLeaderNameCellStyle : teamStandingsTeamNameCellStyle}>{row.teamName}</td>
                             {league.scoringSystem === 'dynamic_points' ? (
-                              <td style={{ padding: '10px', textAlign: 'center', fontWeight: 800, color: '#9be11d' }}>{row.points}</td>
+                              <td style={teamStandingsAccentCellStyle}>{row.points}</td>
                             ) : null}
-                            <td style={{ padding: '10px', textAlign: 'center', fontWeight: 700, color: '#9be11d' }}>{row.wins}</td>
-                            <td style={{ padding: '10px', textAlign: 'center', color: '#94a3b8' }}>{row.losses}</td>
-                            <td style={{ padding: '10px', textAlign: 'center', color: '#64748b' }}>{row.ties}</td>
-                            <td style={{ padding: '10px', textAlign: 'center', color: '#93c5fd' }}>{row.lineWins}</td>
-                            <td style={{ padding: '10px', textAlign: 'center', color: '#94a3b8' }}>{row.lineLosses}</td>
-                            <td style={{ padding: '10px', textAlign: 'center', color: linePct !== null && linePct >= 50 ? '#9be11d' : '#94a3b8' }}>
+                            <td style={teamStandingsAccentCellStyle}>{row.wins}</td>
+                            <td style={teamStandingsMutedCellStyle}>{row.losses}</td>
+                            <td style={teamStandingsSubtleCellStyle}>{row.ties}</td>
+                            <td style={teamStandingsBlueCellStyle}>{row.lineWins}</td>
+                            <td style={teamStandingsMutedCellStyle}>{row.lineLosses}</td>
+                            <td style={linePct !== null && linePct >= 50 ? teamStandingsAccentCellStyle : teamStandingsMutedCellStyle}>
                               {linePct !== null ? `${linePct}%` : '-'}
                             </td>
                           </tr>
@@ -3493,7 +3493,7 @@ export default function TiqLeagueDetailPage() {
                 </div>
 
                 {teamMatchEventsLoading ? (
-                  <div style={emptyCard}>Loading match events…</div>
+                  <div style={emptyCard}>Loading match events...</div>
                 ) : teamMatchEvents.length === 0 ? (
                   <div style={emptyCard}>No team match events have been logged for this league yet.</div>
                 ) : (
@@ -3511,12 +3511,12 @@ export default function TiqLeagueDetailPage() {
                         <div key={event.id} style={dynamicListCard}>
                           <div style={{ width: '100%' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-                              <div>
+                              <div style={{ minWidth: 0 }}>
                                 <div style={listTitle}>
-                                  {event.teamAName} <span style={{ color: '#64748b', fontWeight: 400 }}>vs</span> {event.teamBName}
+                                  {event.teamAName} <span style={versusTextStyle}>vs</span> {event.teamBName}
                                 </div>
                                 <div style={listMeta}>
-                                  {[formatDateTime(event.matchDate), event.facility].filter(Boolean).join(' · ')}
+                                  {[formatDateTime(event.matchDate), event.facility].filter(Boolean).join(' | ')}
                                 </div>
                                 {linesLoaded && publicSummary.total > 0 && (
                                   <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -3550,13 +3550,13 @@ export default function TiqLeagueDetailPage() {
                             {isExpanded && (
                               <div style={{ marginTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 14 }}>
                                 {linesLoading ? (
-                                  <p style={listMeta}>Loading lines…</p>
+                                  <p style={listMeta}>Loading lines...</p>
                                 ) : lines.length === 0 ? (
                                   <p style={listMeta}>No lines recorded yet.</p>
                                 ) : (
                                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 10 }}>
                                     {lines.map((line) => (
-                                      <div key={line.id} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 8, padding: '10px 12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                      <div key={line.id} style={teamLineCardStyle}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                                           <span style={{ fontWeight: 700, fontSize: 13 }}>Line {line.lineNumber}</span>
                                           <div style={{ display: 'flex', gap: 4 }}>
@@ -3570,10 +3570,10 @@ export default function TiqLeagueDetailPage() {
                                             )}
                                           </div>
                                         </div>
-                                        <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                                        <div style={teamLinePlayerTextStyle}>
                                           <div>A: {line.sideAPlayer1Name}{line.sideAPlayer2Name ? ` / ${line.sideAPlayer2Name}` : ''}</div>
                                           <div>B: {line.sideBPlayer1Name}{line.sideBPlayer2Name ? ` / ${line.sideBPlayer2Name}` : ''}</div>
-                                          {line.score && <div style={{ marginTop: 3, color: '#cbd5e1' }}>{line.score}</div>}
+                                          {line.score && <div style={teamLineScoreTextStyle}>{line.score}</div>}
                                         </div>
                                       </div>
                                     ))}
@@ -4529,21 +4529,120 @@ const opportunityText: CSSProperties = {
 }
 
 const listTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '18px',
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const listMeta: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(214,228,246,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const metaPill: CSSProperties = {
   ...pillSlate,
   minHeight: '30px',
+}
+
+const versusTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 500,
+}
+
+const teamStandingsScrollStyle: CSSProperties = {
+  width: '100%',
+  maxWidth: '100%',
+  overflowX: 'auto',
+  overscrollBehaviorX: 'contain',
+}
+
+const teamStandingsTableStyle: CSSProperties = {
+  width: '100%',
+  minWidth: '620px',
+  borderCollapse: 'collapse',
+  fontSize: 14,
+}
+
+const teamStandingsHeaderCellStyle: CSSProperties = {
+  padding: '8px 10px',
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 800,
+  fontSize: 12,
+  letterSpacing: '0.05em',
+  borderBottom: '1px solid var(--shell-panel-border)',
+  whiteSpace: 'nowrap',
+}
+
+const teamStandingsCellBaseStyle: CSSProperties = {
+  padding: '10px',
+  textAlign: 'center',
+  color: 'var(--foreground-strong)',
+  fontWeight: 700,
+}
+
+const teamStandingsRankCellStyle: CSSProperties = {
+  ...teamStandingsCellBaseStyle,
+  color: 'var(--shell-copy-muted)',
+}
+
+const teamStandingsTeamNameCellStyle: CSSProperties = {
+  ...teamStandingsCellBaseStyle,
+  textAlign: 'left',
+  minWidth: '160px',
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const teamStandingsLeaderNameCellStyle: CSSProperties = {
+  ...teamStandingsTeamNameCellStyle,
+  color: 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)',
+  fontWeight: 800,
+}
+
+const teamStandingsAccentCellStyle: CSSProperties = {
+  ...teamStandingsCellBaseStyle,
+  color: 'color-mix(in srgb, var(--brand-green) 76%, var(--foreground-strong) 24%)',
+  fontWeight: 800,
+}
+
+const teamStandingsBlueCellStyle: CSSProperties = {
+  ...teamStandingsCellBaseStyle,
+  color: 'color-mix(in srgb, var(--brand-blue-2) 74%, var(--foreground-strong) 26%)',
+}
+
+const teamStandingsMutedCellStyle: CSSProperties = {
+  ...teamStandingsCellBaseStyle,
+  color: 'var(--shell-copy-muted)',
+}
+
+const teamStandingsSubtleCellStyle: CSSProperties = {
+  ...teamStandingsCellBaseStyle,
+  color: 'color-mix(in srgb, var(--shell-copy-muted) 72%, transparent)',
+}
+
+const teamLineCardStyle: CSSProperties = {
+  background: 'var(--shell-chip-bg)',
+  borderRadius: 8,
+  padding: '10px 12px',
+  border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
+}
+
+const teamLinePlayerTextStyle: CSSProperties = {
+  fontSize: 12,
+  color: 'var(--shell-copy-muted)',
+  overflowWrap: 'anywhere',
+}
+
+const teamLineScoreTextStyle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const quickGrid: CSSProperties = {
