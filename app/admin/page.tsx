@@ -2,6 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import {
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
@@ -178,7 +183,7 @@ const adminTools: AdminTool[] = [
     title: 'Anomaly Scanner',
     href: '/admin/anomalies',
     description:
-      'Scan all matches for suspicious data — extreme rating gaps, missing scores, and possible duplicate entries — so bad records get caught before they corrupt ratings.',
+      'Scan all matches for suspicious data: extreme rating gaps, missing scores, and possible duplicate entries before bad records corrupt ratings.',
     badge: 'Data quality',
     accent: 'slate',
     highlights: ['Extreme mismatches', 'Missing scores', 'Duplicate detection'],
@@ -198,41 +203,38 @@ const managementTools = adminTools.filter((tool) =>
 function accentStyles(accent: Accent) {
   if (accent === 'green') {
     return {
-      glow: 'radial-gradient(circle, rgba(155,225,29,0.18) 0%, transparent 72%)',
       border: 'rgba(155,225,29,0.18)',
       softBorder: 'rgba(155,225,29,0.12)',
       badgeClass: 'badge badge-green',
       chipBg: 'rgba(155,225,29,0.10)',
       chipBorder: 'rgba(155,225,29,0.15)',
       chipText: '#C8F56B',
-      icon: '▲',
+      icon: '+',
       shadow: '0 28px 60px rgba(31, 58, 18, 0.20)',
     }
   }
 
   if (accent === 'slate') {
     return {
-      glow: 'radial-gradient(circle, rgba(148,163,184,0.18) 0%, transparent 72%)',
       border: 'rgba(148,163,184,0.18)',
       softBorder: 'rgba(148,163,184,0.12)',
       badgeClass: 'badge badge-slate',
       chipBg: 'rgba(148,163,184,0.10)',
       chipBorder: 'rgba(148,163,184,0.16)',
       chipText: '#D7E2F2',
-      icon: '◼',
+      icon: 'v',
       shadow: '0 28px 60px rgba(15, 23, 42, 0.24)',
     }
   }
 
   return {
-    glow: 'radial-gradient(circle, rgba(74,163,255,0.20) 0%, transparent 72%)',
     border: 'rgba(116,190,255,0.18)',
     softBorder: 'rgba(116,190,255,0.12)',
     badgeClass: 'badge badge-blue',
     chipBg: 'rgba(74,163,255,0.10)',
     chipBorder: 'rgba(74,163,255,0.16)',
     chipText: '#BFE1FF',
-    icon: '●',
+    icon: 'o',
     shadow: '0 28px 60px rgba(17, 53, 88, 0.22)',
   }
 }
@@ -241,39 +243,28 @@ export default function AdminDashboardPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <section
-        style={{
-          width: '100%',
-          maxWidth: '1280px',
-          margin: '0 auto',
-          padding: '18px 24px 0',
-        }}
-      >
-        <HeroSection />
+        <AdminReviewFrame>
+        <AdminReviewHero
+          kicker="Admin Command"
+          title="Elite Admin Dashboard"
+          actions={
+            <>
+              <a href="#imports" className="button-primary" style={{ textDecoration: 'none' }}>
+                Start with Data Assist
+              </a>
+              <a href="#management" className="button-secondary" style={{ textDecoration: 'none' }}>
+                Open Management Tools
+              </a>
+            </>
+          }
+        >
+          Centralize imports, manual entry, match cleanup, and player maintenance in one premium
+          control surface that matches the rest of the TenAceIQ experience.
+        </AdminReviewHero>
         <DataQualityPanel />
 
-        <section
-          className="surface-card panel-pad section"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            marginTop: 18,
-          }}
-        >
-          <GlowOrb
-            top="-90px"
-            right="-72px"
-            size={250}
-            background="radial-gradient(circle, rgba(74,163,255,0.14) 0%, transparent 72%)"
-          />
-          <GlowOrb
-            bottom="-100px"
-            left="-58px"
-            size={230}
-            background="radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)"
-          />
-
-          <div style={{ position: 'relative', zIndex: 1 }}>
+        <AdminReviewPanel style={{ marginTop: 18 }}>
+          <div>
             <div className="metric-grid">
               <MetricCard label="Admin Tools" value={String(adminTools.length)} helper="Includes access control and upgrade requests" />
               <MetricCard label="Upload Review Path" value="1" helper="Use Data Assist first" />
@@ -304,7 +295,7 @@ export default function AdminDashboardPage() {
               />
             </div>
           </div>
-        </section>
+        </AdminReviewPanel>
 
         <section id="imports" style={{ marginTop: 26 }}>
           <SectionHeader
@@ -332,23 +323,8 @@ export default function AdminDashboardPage() {
           </div>
         </section>
 
-        <section
-          className="surface-card section"
-          style={{
-            marginTop: 30,
-            padding: 18,
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <GlowOrb
-            top="-70px"
-            right="-50px"
-            size={180}
-            background="radial-gradient(circle, rgba(74,163,255,0.12) 0%, transparent 72%)"
-          />
-
-          <div style={{ position: 'relative', zIndex: 1 }}>
+        <AdminReviewPanel style={{ marginTop: 30 }}>
+          <div>
             <div
               style={{
                 display: 'flex',
@@ -453,17 +429,9 @@ export default function AdminDashboardPage() {
               </table>
             </div>
           </div>
-        </section>
+        </AdminReviewPanel>
 
-        <section
-          className="surface-card section"
-          style={{
-            marginTop: 30,
-            padding: 18,
-            background: 'var(--shell-panel-bg-strong)',
-            border: '1px solid var(--shell-panel-border)',
-          }}
-        >
+        <AdminReviewPanel style={{ marginTop: 30 }}>
           <div
             style={{
               display: 'grid',
@@ -555,8 +523,8 @@ export default function AdminDashboardPage() {
               </div>
             </div>
           </div>
-        </section>
-        </section>
+        </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
@@ -610,17 +578,17 @@ function DataQualityPanel() {
     <section style={{ marginTop: 18, padding: '18px 20px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
       <div style={{ color: 'var(--muted-strong)', fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>Operating health</div>
       {loading ? (
-        <div className="subtle-text" style={{ fontSize: 13 }}>Loading health metrics…</div>
+        <div className="subtle-text" style={{ fontSize: 13 }}>Loading health metrics...</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
           {[
-            { label: 'Total matches', value: stats.totalMatches?.toLocaleString() ?? '—' },
-            { label: 'Scores entered', value: scorePct != null ? `${scorePct}%` : '—', flag: scorePct != null && scorePct < 80 },
-            { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%` : '—', flag: linkedPct != null && linkedPct < 80 },
-            { label: 'Total players', value: stats.totalPlayers?.toLocaleString() ?? '—' },
+            { label: 'Total matches', value: stats.totalMatches?.toLocaleString() ?? '-' },
+            { label: 'Scores entered', value: scorePct != null ? `${scorePct}%` : '-', flag: scorePct != null && scorePct < 80 },
+            { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%` : '-', flag: linkedPct != null && linkedPct < 80 },
+            { label: 'Total players', value: stats.totalPlayers?.toLocaleString() ?? '-' },
             {
               label: 'Pending upgrades',
-              value: stats.pendingUpgradeRequests?.toLocaleString() ?? '—',
+              value: stats.pendingUpgradeRequests?.toLocaleString() ?? '-',
               flag: Boolean(stats.pendingUpgradeRequests),
               href: '/admin/upgrade-requests',
             },
@@ -661,69 +629,6 @@ function getCoveragePercent(value: number | null, total: number | null) {
   return Math.min(100, Math.max(0, Math.round((value / total) * 100)))
 }
 
-function HeroSection() {
-  return (
-    <section
-      className="hero-panel"
-      style={{
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      <GlowOrb
-        top="-110px"
-        left="-70px"
-        size={270}
-        background="radial-gradient(circle, rgba(74,163,255,0.16) 0%, transparent 72%)"
-      />
-      <GlowOrb
-        bottom="-120px"
-        right="-90px"
-        size={260}
-        background="radial-gradient(circle, rgba(155,225,29,0.10) 0%, transparent 74%)"
-      />
-
-      <div className="hero-inner" style={{ position: 'relative', zIndex: 1 }}>
-        <div className="section-kicker">Admin Command</div>
-        <h1 className="page-title">Elite Admin Dashboard</h1>
-        <p className="page-subtitle" style={{ maxWidth: 860 }}>
-          Centralize imports, manual entry, match cleanup, and player maintenance in one premium
-          control surface that matches the rest of the TenAceIQ experience.
-        </p>
-
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 12,
-            marginTop: 18,
-          }}
-        >
-          <a href="#imports" className="button-primary" style={{ textDecoration: 'none' }}>
-            Start with Data Assist
-          </a>
-          <a href="#management" className="button-secondary" style={{ textDecoration: 'none' }}>
-            Open Management Tools
-          </a>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 10,
-            marginTop: 18,
-          }}
-        >
-          <span className="badge badge-blue">Premium shell aligned</span>
-          <span className="badge badge-green">Data Assist centered</span>
-          <span className="badge badge-slate">Admin fallback clarified</span>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 function AdminToolCard({ tool }: { tool: AdminTool }) {
   const [hovered, setHovered] = useState(false)
   const accent = accentStyles(tool.accent)
@@ -752,21 +657,6 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
         boxShadow: hovered ? accent.shadow : '0 18px 44px rgba(2, 6, 23, 0.20)',
       }}
     >
-      <div
-        style={{
-          position: 'absolute',
-          top: '-58px',
-          right: '-44px',
-          width: 170,
-          height: 170,
-          borderRadius: '999px',
-          background: accent.glow,
-          pointerEvents: 'none',
-          opacity: hovered ? 1 : 0.82,
-          transition: 'opacity 180ms ease',
-        }}
-      />
-
       <div style={{ position: 'relative', zIndex: 1 }}>
         <div
           style={{
@@ -880,7 +770,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
             fontSize: '0.92rem',
           }}
         >
-          Open tool <span aria-hidden="true">{hovered ? '↗' : '→'}</span>
+          Open tool <span aria-hidden="true">{hovered ? 'up' : '->'}</span>
         </div>
       </div>
     </Link>
@@ -1049,8 +939,8 @@ function RecalculateRatingsAction() {
         className="button-secondary"
         style={{ width: '100%', justifyContent: 'space-between', opacity: status === 'running' ? 0.7 : 1 }}
       >
-        <span>{status === 'running' ? 'Recalculating…' : 'Recalculate All Ratings'}</span>
-        <span aria-hidden="true">⟳</span>
+        <span>{status === 'running' ? 'Recalculating...' : 'Recalculate All Ratings'}</span>
+        <span aria-hidden="true">refresh</span>
       </button>
       {message ? (
         <div style={{ marginTop: 6, fontSize: 12, color: status === 'error' ? '#f87171' : '#9be11d' }}>
@@ -1073,7 +963,7 @@ function QuickAction({ href, label }: { href: string; label: string }) {
       }}
     >
       <span>{label}</span>
-      <span aria-hidden="true">→</span>
+      <span aria-hidden="true">-&gt;</span>
     </Link>
   )
 }
@@ -1100,35 +990,3 @@ function MetricCard({
   )
 }
 
-function GlowOrb({
-  top,
-  right,
-  bottom,
-  left,
-  size,
-  background,
-}: {
-  top?: string
-  right?: string
-  bottom?: string
-  left?: string
-  size: number
-  background: string
-}) {
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top,
-        right,
-        bottom,
-        left,
-        width: size,
-        height: size,
-        borderRadius: '999px',
-        background,
-        pointerEvents: 'none',
-      }}
-    />
-  )
-}

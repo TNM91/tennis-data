@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sharedSource = readFileSync(join(process.cwd(), 'app/admin/_components/admin-review-ui.tsx'), 'utf8')
+const adminDashboardSource = readFileSync(join(process.cwd(), 'app/admin/page.tsx'), 'utf8')
 const dataAssistSource = readFileSync(join(process.cwd(), 'app/admin/data-assist/page.tsx'), 'utf8')
 const matchReportsSource = readFileSync(join(process.cwd(), 'app/admin/match-reports/page.tsx'), 'utf8')
 const productEventsSource = readFileSync(join(process.cwd(), 'app/admin/product-events/page.tsx'), 'utf8')
@@ -28,6 +29,16 @@ describe('admin review UI system', () => {
     expect(sharedSource).toContain('export function AdminStatusPanel')
     expect(sharedSource).toContain('export function AdminEmptyState')
     expect(sharedSource).toContain('export function AdminFact')
+  })
+
+  it('keeps the Admin dashboard on the shared admin review shell', () => {
+    expect(adminDashboardSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(adminDashboardSource).toContain('<AdminReviewFrame>')
+    expect(adminDashboardSource).toContain('<AdminReviewHero')
+    expect(adminDashboardSource).toContain('<AdminReviewPanel')
+    expect(adminDashboardSource).not.toContain('<HeroSection')
+    expect(adminDashboardSource).not.toContain('className="hero-panel"')
+    expect(adminDashboardSource).not.toContain('radial-gradient')
   })
 
   it('keeps Data Assist and Match Reports on the shared admin review shell', () => {
