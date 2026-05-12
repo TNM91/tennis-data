@@ -42,6 +42,8 @@ export type DataAssistUploaderTrust = {
   uploadSuspendedAt: string
 }
 
+export type DataAssistUploaderTrustMap = Record<string, DataAssistUploaderTrust>
+
 export type SubmitMatchAccuracyReportInput = {
   matchId: string
   reporterPlayerName?: string
@@ -78,6 +80,14 @@ type MatchAccuracyReportRow = {
   resolved_at?: string | null
   created_at?: string | null
   updated_at?: string | null
+}
+
+type DataAssistUploaderTrustRow = {
+  profile_id?: string | null
+  can_upload_scorecards?: boolean | null
+  upload_suspension_reason?: string | null
+  upload_suspended_by_user_id?: string | null
+  upload_suspended_at?: string | null
 }
 
 const ISSUE_TYPES: MatchAccuracyIssueType[] = [
@@ -120,6 +130,7 @@ export async function listMatchAccuracyReportsForAdmin() {
   const result = (await response.json().catch(() => null)) as {
     ok?: boolean
     reports?: MatchAccuracyReportRow[]
+    uploaderTrusts?: Record<string, DataAssistUploaderTrustRow>
     message?: string
   } | null
 
@@ -127,7 +138,10 @@ export async function listMatchAccuracyReportsForAdmin() {
     throw new Error(result?.message || 'Could not load match reports.')
   }
 
-  return (result.reports || []).map(toMatchAccuracyReport).filter((report): report is MatchAccuracyReport => Boolean(report))
+  return {
+    reports: (result.reports || []).map(toMatchAccuracyReport).filter((report): report is MatchAccuracyReport => Boolean(report)),
+    uploaderTrusts: toUploaderTrustMap(result.uploaderTrusts || {}),
+  }
 }
 
 export async function listMyMatchAccuracyReports() {
@@ -227,6 +241,22 @@ function toMatchAccuracyReport(row: MatchAccuracyReportRow): MatchAccuracyReport
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
   }
+}
+
+function toUploaderTrustMap(rowsByProfileId: Record<string, DataAssistUploaderTrustRow>): DataAssistUploaderTrustMap {
+  const map: DataAssistUploaderTrustMap = {}
+  for (const [profileId, row] of Object.entries(rowsByProfileId)) {
+    const normalizedProfileId = cleanText(row.profile_id) || cleanText(profileId)
+    if (!normalizedProfileId) continue
+    map[normalizedProfileId] = {
+      profileId: normalizedProfileId,
+      canUploadScorecards: row.can_upload_scorecards !== false,
+      uploadSuspensionReason: cleanText(row.upload_suspension_reason),
+      uploadSuspendedByUserId: cleanText(row.upload_suspended_by_user_id),
+      uploadSuspendedAt: cleanText(row.upload_suspended_at),
+    }
+  }
+  return map
 }
 
 async function readReportResponse(response: Response, fallbackMessage: string) {
