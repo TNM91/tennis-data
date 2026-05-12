@@ -1,5 +1,8 @@
 export type SupportMessageCategory = 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
 
+export const SUPPORT_THREAD_ASSURANCE =
+  'Support threads stay inside TenAceIQ Messages so billing, data, league, and account questions can be tracked by admins without relying on external email.'
+
 function addParam(params: URLSearchParams, key: string, value: string | null | undefined) {
   const cleanValue = (value || '').trim()
   if (cleanValue) params.set(key, cleanValue)

@@ -9,6 +9,7 @@ import {
   LEAGUE_SEASON_POLICY,
   MONTHLY_SUBSCRIPTION_POLICY,
 } from '@/lib/billing-policy'
+import { SUPPORT_THREAD_ASSURANCE } from '@/lib/message-links'
 
 export const metadata: Metadata = {
   title: 'Billing and Refund Policy',
@@ -40,6 +41,7 @@ export default function BillingPolicyPage() {
             account email, plan, charge date, and a short description of the issue. We review refund
             and credit requests case by case.
           </p>
+          <p>{SUPPORT_THREAD_ASSURANCE}</p>
         </PolicySection>
 
         <PolicySection title="Additional notes">
