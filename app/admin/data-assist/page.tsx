@@ -2,6 +2,17 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  AdminEmptyState,
+  AdminFact,
+  AdminReviewFrame,
+  AdminReviewGrid,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+  adminActionRowStyle,
+  adminReviewHeaderRowStyle,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import {
@@ -194,26 +205,12 @@ function DataAssistReviewQueue() {
   const ocrButtonLabel = ocrReadiness.provider === 'tesseract' ? 'Run free OCR' : 'Queue OCR verification'
 
   return (
-    <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: '18px 24px 36px' }}>
-      <div
-        className="hero-panel"
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          padding: '24px',
-          borderRadius: 22,
-        }}
-      >
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div className="section-kicker">Data Assist Review</div>
-          <h1 className="page-title" style={{ marginTop: 8 }}>
-            Data Assist upload queue
-          </h1>
-          <p className="page-subtitle" style={{ maxWidth: 860 }}>
-            Monitor player, captain, and coordinator TennisLink uploads, resolve exceptions, and keep imports behind trusted review checks.
-          </p>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 18 }}>
+    <AdminReviewFrame>
+      <AdminReviewHero
+        kicker="Data Assist Review"
+        title="Data Assist upload queue"
+        actions={(
+          <>
             <Link href="/data-assist" className="button-secondary" style={{ textDecoration: 'none' }}>
               Open Upload Flow
             </Link>
@@ -225,9 +222,11 @@ function DataAssistReviewQueue() {
             <Link href="/admin" className="button-secondary" style={{ textDecoration: 'none' }}>
               Back to Admin
             </Link>
-          </div>
-        </div>
-      </div>
+          </>
+        )}
+      >
+        Monitor player, captain, and coordinator TennisLink uploads, resolve exceptions, and keep imports behind trusted review checks.
+      </AdminReviewHero>
 
       <div className="metric-grid" style={{ marginTop: 18 }}>
         <QueueMetric label="Needs review" value={stats.needsReview} />
@@ -236,20 +235,12 @@ function DataAssistReviewQueue() {
         <QueueMetric label="Rejected" value={stats.rejected} />
       </div>
 
-      {message ? <StatusPanel tone="success" text={message} /> : null}
-      {error ? <StatusPanel tone="error" text={error} /> : null}
+      {message ? <AdminStatusPanel tone="success" text={message} /> : null}
+      {error ? <AdminStatusPanel tone="error" text={error} /> : null}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
-          gap: 18,
-          marginTop: 18,
-          alignItems: 'start',
-        }}
-      >
-        <section className="surface-card" style={{ padding: 18, minHeight: 520 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <AdminReviewGrid>
+        <AdminReviewPanel>
+          <div style={adminReviewHeaderRowStyle}>
             <div>
               <div className="section-kicker">Queue</div>
               <h2 className="section-title" style={{ marginTop: 6, fontSize: '1.4rem' }}>
@@ -277,7 +268,7 @@ function DataAssistReviewQueue() {
 
           <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
             {loading ? (
-              <EmptyState text="Loading Data Assist batches..." />
+              <AdminEmptyState text="Loading Data Assist batches..." />
             ) : filteredBatches.length ? (
               filteredBatches.map((batch) => (
                 <button
@@ -308,14 +299,14 @@ function DataAssistReviewQueue() {
                 </button>
               ))
             ) : (
-              <EmptyState text="No batches match this filter yet." />
+              <AdminEmptyState text="No batches match this filter yet." />
             )}
           </div>
-        </section>
+        </AdminReviewPanel>
 
-        <section className="surface-card" style={{ padding: 18, minHeight: 520 }}>
+        <AdminReviewPanel>
           {!selectedBatch ? (
-            <EmptyState text="Select a batch to review its upload files and draft boundary." />
+            <AdminEmptyState text="Select a batch to review its upload files and draft boundary." />
           ) : (
             <div>
               <BatchHeader batch={selectedBatch} />
@@ -336,7 +327,7 @@ function DataAssistReviewQueue() {
               </div>
 
               {detailLoading ? (
-                <EmptyState text="Loading upload files and draft detail..." />
+                <AdminEmptyState text="Loading upload files and draft detail..." />
               ) : (
                 <>
                   <ScorecardBoundary draft={selectedDraft} />
@@ -369,7 +360,7 @@ function DataAssistReviewQueue() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+              <div style={adminActionRowStyle}>
                 <button
                   type="button"
                   className="button-primary"
@@ -406,9 +397,9 @@ function DataAssistReviewQueue() {
               </div>
             </div>
           )}
-        </section>
-      </div>
-    </section>
+        </AdminReviewPanel>
+      </AdminReviewGrid>
+    </AdminReviewFrame>
   )
 }
 
@@ -454,10 +445,7 @@ function ScorecardBoundary({ draft }: { draft: DataAssistAdminDraft | null }) {
       <div className="section-kicker">Scorecard boundary</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 10 }}>
         {fields.map(([label, value]) => (
-          <div key={label} style={{ padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
-            <div className="metric-label">{label}</div>
-            <div style={{ color: 'var(--foreground)', fontWeight: 900, marginTop: 5 }}>{value}</div>
-          </div>
+          <AdminFact key={label} label={label} value={value} />
         ))}
       </div>
       <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
@@ -539,10 +527,10 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
 
           {latestJob ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10, marginTop: 12 }}>
-              <MiniFact label="Job" value={latestJob.id.slice(0, 8).toUpperCase()} />
-              <MiniFact label="Provider" value={latestJob.provider} />
-              <MiniFact label="Upload files" value={String(latestJob.screenshotCount)} />
-              <MiniFact label="Processed" value={formatDate(latestJob.processedAt || latestJob.createdAt)} />
+              <AdminFact label="Job" value={latestJob.id.slice(0, 8).toUpperCase()} />
+              <AdminFact label="Provider" value={latestJob.provider} />
+              <AdminFact label="Upload files" value={String(latestJob.screenshotCount)} />
+              <AdminFact label="Processed" value={formatDate(latestJob.processedAt || latestJob.createdAt)} />
             </div>
           ) : null}
         </div>
@@ -581,13 +569,13 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
               </div>
             ) : null}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: 10, marginTop: 12 }}>
-              <MiniFact label="OCR confidence" value={formatPercent(ocrQuality.ocrConfidenceScore)} />
-              <MiniFact label="Parser confidence" value={formatPercent(ocrQuality.parserConfidenceScore ?? parsedPayload.confidenceScore)} />
-              <MiniFact label="Parsed lines" value={String(ocrQuality.parsedLineCount ?? parsedPayload.lines?.length ?? 0)} />
-              <MiniFact label="Text lines" value={String(ocrQuality.nonEmptyLineCount ?? 0)} />
-              <MiniFact label="Text chars" value={(ocrQuality.textLength ?? 0).toLocaleString()} />
-              <MiniFact label="Duplicates removed" value={String(ocrQuality.duplicateLineCount ?? 0)} />
-              <MiniFact label="Warnings" value={String(ocrQuality.parserWarningCount ?? draft.parserWarnings.length)} />
+              <AdminFact label="OCR confidence" value={formatPercent(ocrQuality.ocrConfidenceScore)} />
+              <AdminFact label="Parser confidence" value={formatPercent(ocrQuality.parserConfidenceScore ?? parsedPayload.confidenceScore)} />
+              <AdminFact label="Parsed lines" value={String(ocrQuality.parsedLineCount ?? parsedPayload.lines?.length ?? 0)} />
+              <AdminFact label="Text lines" value={String(ocrQuality.nonEmptyLineCount ?? 0)} />
+              <AdminFact label="Text chars" value={(ocrQuality.textLength ?? 0).toLocaleString()} />
+              <AdminFact label="Duplicates removed" value={String(ocrQuality.duplicateLineCount ?? 0)} />
+              <AdminFact label="Warnings" value={String(ocrQuality.parserWarningCount ?? draft.parserWarnings.length)} />
             </div>
             {ocrQuality.screenshotSummaries?.length ? (
               <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
@@ -647,18 +635,9 @@ function OcrJobPanel({ draft, jobs }: { draft: DataAssistAdminDraft | null; jobs
             ))}
           </div>
         ) : (
-          <EmptyState text="No scorecard lines have been extracted yet. Run free OCR or keep this in manual review." />
+          <AdminEmptyState text="No scorecard lines have been extracted yet. Run free OCR or keep this in manual review." />
         )}
       </div>
-    </div>
-  )
-}
-
-function MiniFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ padding: 10, borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg-strong)' }}>
-      <div className="metric-label">{label}</div>
-      <div style={{ color: 'var(--foreground)', fontWeight: 900, marginTop: 5 }}>{value || 'None'}</div>
     </div>
   )
 }
@@ -712,7 +691,7 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
             </div>
           ))
         ) : (
-          <EmptyState text="No upload metadata found for this batch." />
+          <AdminEmptyState text="No upload metadata found for this batch." />
         )}
       </div>
     </div>
@@ -720,7 +699,7 @@ function ScreenshotGrid({ screenshots }: { screenshots: DataAssistAdminScreensho
 }
 
 function DraftSummary({ draft }: { draft: DataAssistAdminDraft | null }) {
-  if (!draft) return <EmptyState text="No draft row found for this batch." />
+  if (!draft) return <AdminEmptyState text="No draft row found for this batch." />
 
   return (
     <div style={{ marginTop: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 12 }}>
@@ -783,32 +762,6 @@ function getOcrReviewPriorityCopy(priority: string | undefined) {
 function formatPercent(value: number | undefined) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '0%'
   return `${Math.round(value * 100)}%`
-}
-
-function StatusPanel({ tone, text }: { tone: 'success' | 'error'; text: string }) {
-  return (
-    <div
-      style={{
-        marginTop: 14,
-        padding: '12px 14px',
-        borderRadius: 16,
-        border: tone === 'success' ? '1px solid rgba(155,225,29,0.24)' : '1px solid rgba(248,113,113,0.24)',
-        background: tone === 'success' ? 'rgba(155,225,29,0.08)' : 'rgba(248,113,113,0.08)',
-        color: tone === 'success' ? '#d9ff87' : '#fecaca',
-        fontWeight: 800,
-      }}
-    >
-      {text}
-    </div>
-  )
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div style={{ padding: 16, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
-      <div className="subtle-text">{text}</div>
-    </div>
-  )
 }
 
 function formatDate(value: string) {
