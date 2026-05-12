@@ -130,6 +130,28 @@ export async function listMatchAccuracyReportsForAdmin() {
   return (result.reports || []).map(toMatchAccuracyReport).filter((report): report is MatchAccuracyReport => Boolean(report))
 }
 
+export async function listMyMatchAccuracyReports() {
+  const token = await getAccessToken()
+  if (!token) throw new Error('Sign in to review your match reports.')
+
+  const response = await fetch('/api/match-accuracy-reports?scope=mine', {
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  })
+  const result = (await response.json().catch(() => null)) as {
+    ok?: boolean
+    reports?: MatchAccuracyReportRow[]
+    message?: string
+  } | null
+
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.message || 'Could not load your match reports.')
+  }
+
+  return (result.reports || []).map(toMatchAccuracyReport).filter((report): report is MatchAccuracyReport => Boolean(report))
+}
+
 export async function reviewMatchAccuracyReport(input: ReviewMatchAccuracyReportInput) {
   const token = await getAccessToken()
   if (!token) throw new Error('Sign in as an admin to review match reports.')
