@@ -7,6 +7,7 @@ const dataAssistSource = readFileSync(join(process.cwd(), 'app/admin/data-assist
 const matchReportsSource = readFileSync(join(process.cwd(), 'app/admin/match-reports/page.tsx'), 'utf8')
 const productEventsSource = readFileSync(join(process.cwd(), 'app/admin/product-events/page.tsx'), 'utf8')
 const missingScorecardsSource = readFileSync(join(process.cwd(), 'app/admin/missing-scorecards/page.tsx'), 'utf8')
+const importQueueSource = readFileSync(join(process.cwd(), 'app/admin/import-queue/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -43,5 +44,15 @@ describe('admin review UI system', () => {
     expect(missingScorecardsSource).toContain('<AdminReviewPanel')
     expect(missingScorecardsSource).toContain('<AdminEmptyState')
     expect(missingScorecardsSource).toContain('className="metric-card"')
+  })
+
+  it('keeps Import Queue on the shared admin review shell', () => {
+    expect(importQueueSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(importQueueSource).toContain('<AdminReviewFrame>')
+    expect(importQueueSource).toContain('<AdminReviewHero')
+    expect(importQueueSource).toContain('<AdminReviewPanel')
+    expect(importQueueSource).toContain('<AdminStatusPanel')
+    expect(importQueueSource).toContain('<AdminEmptyState')
+    expect(importQueueSource).toContain('adminSubPanelStyle')
   })
 })
