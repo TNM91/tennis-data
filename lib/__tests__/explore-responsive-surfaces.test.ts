@@ -38,6 +38,16 @@ describe('Explore responsive surfaces', () => {
     expect(teamsSource).toContain('DATA_ASSIST_STORY.cta')
   })
 
+  it('keeps Teams directory readable in light mode with shell tokens', () => {
+    expect(teamsSource).toContain('var(--background)')
+    expect(teamsSource).toContain("color: 'var(--foreground)'")
+    expect(teamsSource).toContain("background: 'var(--shell-panel-bg)'")
+    expect(teamsSource).toContain("color: 'var(--foreground-strong)'")
+    expect(teamsSource).toContain("color: 'var(--shell-copy-muted)'")
+    expect(teamsSource).toContain("colorScheme: 'normal'")
+    expect(teamsSource).not.toContain("colorScheme: 'dark'")
+  })
+
   it('keeps Explore Leagues empty lanes separated by source and workflow', () => {
     expect(exploreLeaguesSource).toContain("emptyKind=\"usta\"")
     expect(exploreLeaguesSource).toContain('USTA league lanes come from reviewed TennisLink exports')

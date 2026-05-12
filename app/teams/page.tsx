@@ -782,8 +782,8 @@ function Metric({ label, value }: { label: string; value: string }) {
 const pageWrap: CSSProperties = {
   minHeight: '100vh',
   background:
-    'radial-gradient(circle at top, rgba(37,91,227,0.18) 0%, rgba(15,22,50,0) 28%), linear-gradient(180deg, #07111f 0%, #091525 100%)',
-  color: '#f8fbff',
+    'radial-gradient(circle at top, color-mix(in srgb, var(--brand-blue-2) 13%, transparent) 0%, transparent 30%), var(--background)',
+  color: 'var(--foreground)',
   paddingBottom: '56px',
 }
 
@@ -803,15 +803,16 @@ const heroCard: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   borderRadius: '28px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'linear-gradient(180deg, rgba(9,20,38,0.96) 0%, rgba(8,18,34,0.92) 100%)',
-  boxShadow: '0 30px 70px rgba(0,0,0,0.32)',
+  border: '1px solid var(--shell-panel-border)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg-strong) 92%) 0%, var(--shell-panel-bg) 100%)',
+  boxShadow: 'var(--shadow-soft)',
   padding: '28px',
   minWidth: 0,
 }
 
 const heroEyebrow: CSSProperties = {
-  color: '#8fb8ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.12em',
@@ -830,7 +831,7 @@ const heroTitle: CSSProperties = {
 const heroText: CSSProperties = {
   margin: '14px 0 0',
   maxWidth: '760px',
-  color: 'rgba(214,228,245,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.75,
 }
@@ -849,9 +850,9 @@ const exploreNavLink: CSSProperties = {
   minHeight: '36px',
   padding: '0 13px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: '13px',
   fontWeight: 800,
@@ -866,13 +867,13 @@ const heroStatsGrid = (isSmallMobile: boolean): CSSProperties => ({
 
 const statPill: CSSProperties = {
   borderRadius: '20px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(8, 17, 31, 0.78)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   padding: '16px 18px',
 }
 
 const statValue: CSSProperties = {
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   fontWeight: 900,
   letterSpacing: 0,
@@ -880,7 +881,7 @@ const statValue: CSSProperties = {
 
 const statLabel: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(210,225,244,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   letterSpacing: '0.08em',
@@ -889,9 +890,9 @@ const statLabel: CSSProperties = {
 
 const filtersCard: CSSProperties = {
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
-  boxShadow: '0 22px 60px rgba(0,0,0,0.24)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   padding: '22px',
   minWidth: 0,
 }
@@ -906,7 +907,7 @@ const sectionHeader: CSSProperties = {
 
 const sectionKicker: CSSProperties = {
   margin: 0,
-  color: '#8fb8ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.1em',
@@ -915,7 +916,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0 0',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.08,
   letterSpacing: 0,
@@ -925,16 +926,16 @@ const sectionTitle: CSSProperties = {
 const sectionText: CSSProperties = {
   margin: '10px 0 0',
   maxWidth: '760px',
-  color: 'rgba(210,225,244,0.74)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.7,
 }
 
 const resetButton: CSSProperties = {
   appearance: 'none',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(8, 17, 31, 0.82)',
-  color: '#d6e5f5',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '10px 14px',
   borderRadius: '14px',
   cursor: 'pointer',
@@ -948,9 +949,10 @@ const editorialPanel: CSSProperties = {
   marginBottom: '18px',
   padding: '24px',
   borderRadius: '26px',
-  background: 'linear-gradient(180deg, rgba(19,38,70,0.74) 0%, rgba(9,19,36,0.96) 100%)',
-  border: '1px solid rgba(116,190,255,0.14)',
-  boxShadow: '0 18px 44px rgba(7,18,40,0.18), inset 0 1px 0 rgba(255,255,255,0.03)',
+  background:
+    'linear-gradient(180deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%) 0%, var(--shell-panel-bg) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const editorialGrid: CSSProperties = {
@@ -973,9 +975,9 @@ const clearFilterButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e6eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
 }
@@ -988,9 +990,9 @@ const ghostButton: CSSProperties = {
   marginTop: '12px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.06)',
-  color: '#e7eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontWeight: 800,
   fontSize: '13px',
@@ -1003,7 +1005,7 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactN
     <button
       type="button"
       onClick={onClick}
-      style={{ ...ghostButton, ...(hovered ? { background: 'rgba(255,255,255,0.12)', transform: 'translateY(-2px)', boxShadow: '0 6px 18px rgba(2,10,24,0.28)' } : {}) }}
+      style={{ ...ghostButton, ...(hovered ? { background: 'var(--shell-chip-bg-strong)', transform: 'translateY(-2px)', boxShadow: 'var(--shadow-soft)' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -1022,7 +1024,7 @@ const filtersGrid = (isMobile: boolean): CSSProperties => ({
 const labelStyle: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: '#cfe0f5',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 700,
   letterSpacing: '0.06em',
@@ -1033,25 +1035,25 @@ const inputStyle: CSSProperties = {
   width: '100%',
   height: '46px',
   borderRadius: '14px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(5, 12, 24, 0.88)',
-  color: '#f8fbff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   padding: '0 14px',
   fontSize: '14px',
   outline: 'none',
-  colorScheme: 'dark',
+  colorScheme: 'normal',
 }
 
 const surfaceCard: CSSProperties = {
   marginTop: '18px',
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
   padding: '28px',
 }
 
 const emptyTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
@@ -1066,7 +1068,7 @@ const errorTitle: CSSProperties = {
 
 const emptyText: CSSProperties = {
   marginTop: '8px',
-  color: 'rgba(210,225,244,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.7,
 }
@@ -1094,9 +1096,9 @@ const teamCardLink: CSSProperties = {
 const teamCard: CSSProperties = {
   height: '100%',
   borderRadius: '24px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'linear-gradient(180deg, rgba(10,20,36,0.96) 0%, rgba(8,17,31,0.92) 100%)',
-  boxShadow: '0 20px 55px rgba(0,0,0,0.22)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
   padding: '20px',
   transition: 'transform 140ms ease, border-color 140ms ease',
   minWidth: 0,
@@ -1112,7 +1114,7 @@ const teamCardTop: CSSProperties = {
 }
 
 const teamName: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '23px',
   lineHeight: 1.08,
   letterSpacing: 0,
