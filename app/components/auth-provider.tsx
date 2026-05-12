@@ -26,6 +26,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 const AUTH_PROVIDER_TIMEOUT_MS = 8000
+const AUTH_SESSION_TIMEOUT = { timedOut: true } as const
 
 async function fetchProfileRole(userId: string | null | undefined): Promise<UserRole> {
   if (!userId) return 'public'
@@ -44,13 +45,17 @@ async function fetchProfileRole(userId: string | null | undefined): Promise<User
   }
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
-  return await Promise.race([
+async function withTimeout<T, F>(promise: Promise<T>, timeoutMs: number, fallback: F): Promise<T | F> {
+  return await Promise.race<T | F>([
     promise,
-    new Promise<T>((resolve) => {
+    new Promise<F>((resolve) => {
       window.setTimeout(() => resolve(fallback), timeoutMs)
     }),
   ])
+}
+
+function isAuthSessionTimeout(value: unknown): value is typeof AUTH_SESSION_TIMEOUT {
+  return value === AUTH_SESSION_TIMEOUT
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -62,14 +67,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mountedRef = useRef(true)
 
   const loadAuth = useCallback(async () => {
+    let resolvedAuthState = false
+
     try {
-      const {
-        data: { session: nextSession },
-      } = await withTimeout(
+      const sessionResult = await withTimeout(
         supabase.auth.getSession(),
         AUTH_PROVIDER_TIMEOUT_MS,
-        { data: { session: null }, error: null },
+        AUTH_SESSION_TIMEOUT,
       )
+
+      if (isAuthSessionTimeout(sessionResult)) {
+        return
+      }
+
+      const {
+        data: { session: nextSession },
+      } = sessionResult
 
       if (!mountedRef.current) return
       setSession(nextSession ?? null)
@@ -77,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!nextSession?.user?.id) {
         setRole('public')
         setEntitlements(null)
+        resolvedAuthState = true
         return
       }
 
@@ -96,13 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mountedRef.current) return
       setRole(nextRole)
       setEntitlements(nextEntitlements)
+      resolvedAuthState = true
     } catch {
-      if (!mountedRef.current) return
-      setSession(null)
-      setRole('public')
-      setEntitlements(null)
+      return
     } finally {
-      if (mountedRef.current) {
+      if (mountedRef.current && resolvedAuthState) {
         setAuthResolved(true)
       }
     }
@@ -125,6 +137,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthResolved(true)
         return
       }
+
+      setAuthResolved(false)
 
       const [nextRole, nextEntitlements] = await Promise.all([
         withTimeout(
