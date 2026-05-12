@@ -2,6 +2,19 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import {
+  AdminActionRow,
+  AdminEmptyState,
+  AdminFact,
+  AdminReviewFrame,
+  AdminReviewGrid,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+  adminFactGridStyle,
+  adminReviewHeaderRowStyle,
+  adminSubPanelStyle,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import {
@@ -158,14 +171,10 @@ function MatchReportQueue() {
   }
 
   return (
-    <section style={{ width: '100%', maxWidth: 1280, margin: '0 auto', padding: '18px 24px 36px' }}>
-      <div className="hero-panel" style={{ padding: 24, borderRadius: 22 }}>
-        <div className="section-kicker">Match Accuracy Reports</div>
-        <h1 className="page-title" style={{ marginTop: 8 }}>Player-reported data issues</h1>
-        <p className="page-subtitle" style={{ maxWidth: 860 }}>
-          Review matches players flag as inaccurate, action the correction path, and pause scorecard uploads for linked contributors when reports show a trust pattern.
-        </p>
-      </div>
+    <AdminReviewFrame>
+      <AdminReviewHero kicker="Match Accuracy Reports" title="Player-reported data issues">
+        Review matches players flag as inaccurate, action the correction path, and pause scorecard uploads for linked contributors when reports show a trust pattern.
+      </AdminReviewHero>
 
       <div className="metric-grid" style={{ marginTop: 18 }}>
         <QueueMetric label="Pending" value={stats.pending} />
@@ -174,20 +183,12 @@ function MatchReportQueue() {
         <QueueMetric label="Uploader linked" value={stats.uploaderLinked} />
       </div>
 
-      {message ? <StatusPanel tone="success" text={message} /> : null}
-      {error ? <StatusPanel tone="error" text={error} /> : null}
+      {message ? <AdminStatusPanel tone="success" text={message} /> : null}
+      {error ? <AdminStatusPanel tone="error" text={error} /> : null}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))',
-          gap: 18,
-          marginTop: 18,
-          alignItems: 'start',
-        }}
-      >
-        <section className="surface-card" style={{ padding: 18, minHeight: 520 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <AdminReviewGrid>
+        <AdminReviewPanel>
+          <div style={adminReviewHeaderRowStyle}>
             <div>
               <div className="section-kicker">Queue</div>
               <h2 className="section-title" style={{ marginTop: 6, fontSize: '1.4rem' }}>Action items</h2>
@@ -213,7 +214,7 @@ function MatchReportQueue() {
 
           <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
             {loading ? (
-              <EmptyState text="Loading match reports..." />
+              <AdminEmptyState text="Loading match reports..." />
             ) : filteredReports.length ? (
               filteredReports.map((report) => (
                 <button
@@ -243,12 +244,12 @@ function MatchReportQueue() {
                 </button>
               ))
             ) : (
-              <EmptyState text="No match reports in this view." />
+              <AdminEmptyState text="No match reports in this view." />
             )}
           </div>
-        </section>
+        </AdminReviewPanel>
 
-        <section className="surface-card" style={{ padding: 18, minHeight: 520 }}>
+        <AdminReviewPanel>
           {selectedReport ? (
             <div style={{ display: 'grid', gap: 16 }}>
               <div>
@@ -259,10 +260,10 @@ function MatchReportQueue() {
                 <p className="page-subtitle" style={{ marginTop: 8 }}>{selectedReport.description}</p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 10 }}>
-                <Fact label="Match" value={selectedReport.externalMatchId || selectedReport.matchId} />
-                <Fact label="Reporter" value={selectedReport.reporterPlayerName || selectedReport.reporterUserId.slice(0, 8)} />
-                <Fact label="Uploader" value={selectedReport.sourceUploaderUserId ? selectedReport.sourceUploaderUserId.slice(0, 8) : 'Not linked'} />
+              <div style={adminFactGridStyle}>
+                <AdminFact label="Match" value={selectedReport.externalMatchId || selectedReport.matchId} />
+                <AdminFact label="Reporter" value={selectedReport.reporterPlayerName || selectedReport.reporterUserId.slice(0, 8)} />
+                <AdminFact label="Uploader" value={selectedReport.sourceUploaderUserId ? selectedReport.sourceUploaderUserId.slice(0, 8) : 'Not linked'} />
               </div>
 
               <section style={correctionPathStyle}>
@@ -309,11 +310,11 @@ function MatchReportQueue() {
                 </div>
                 {selectedReport.sourceUploaderUserId ? (
                   <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 110px), 1fr))', gap: 10, marginTop: 12 }}>
-                      <Fact label="Uploader reports" value={String(selectedUploaderStats.total)} />
-                      <Fact label="Open" value={String(selectedUploaderStats.open)} />
-                      <Fact label="Resolved" value={String(selectedUploaderStats.resolved)} />
-                      <Fact label="Rejected" value={String(selectedUploaderStats.rejected)} />
+                    <div style={{ ...adminFactGridStyle, marginTop: 12 }}>
+                      <AdminFact label="Uploader reports" value={String(selectedUploaderStats.total)} />
+                      <AdminFact label="Open" value={String(selectedUploaderStats.open)} />
+                      <AdminFact label="Resolved" value={String(selectedUploaderStats.resolved)} />
+                      <AdminFact label="Rejected" value={String(selectedUploaderStats.rejected)} />
                     </div>
                     {selectedUploaderTrust?.uploadSuspensionReason ? (
                       <p style={{ color: 'var(--shell-copy-muted)', lineHeight: 1.6, margin: '12px 0 0' }}>
@@ -405,7 +406,7 @@ function MatchReportQueue() {
                 </>
               ) : null}
 
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <AdminActionRow>
                 <button type="button" className="button-primary" onClick={() => void saveReport()} disabled={saveDisabled}>
                   {saving ? 'Saving...' : 'Save review'}
                 </button>
@@ -419,14 +420,14 @@ function MatchReportQueue() {
                     </button>
                   </>
                 ) : null}
-              </div>
+              </AdminActionRow>
             </div>
           ) : (
-            <EmptyState text="Select a report to review." />
+            <AdminEmptyState text="Select a report to review." />
           )}
-        </section>
-      </div>
-    </section>
+        </AdminReviewPanel>
+      </AdminReviewGrid>
+    </AdminReviewFrame>
   )
 }
 
@@ -435,41 +436,6 @@ function QueueMetric({ label, value }: { label: string; value: number }) {
     <div className="metric-card">
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
-  )
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', borderRadius: 14, padding: 12 }}>
-      <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ color: 'var(--foreground-strong)', fontWeight: 900, marginTop: 5, overflowWrap: 'anywhere' }}>{value || '-'}</div>
-    </div>
-  )
-}
-
-function StatusPanel({ tone, text }: { tone: 'success' | 'error'; text: string }) {
-  return (
-    <div
-      style={{
-        marginTop: 16,
-        borderRadius: 16,
-        padding: '12px 14px',
-        border: tone === 'success' ? '1px solid rgba(155,225,29,0.24)' : '1px solid rgba(248,113,113,0.24)',
-        background: tone === 'success' ? 'rgba(155,225,29,0.10)' : 'rgba(239,68,68,0.10)',
-        color: 'var(--foreground-strong)',
-        fontWeight: 800,
-      }}
-    >
-      {text}
-    </div>
-  )
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div style={{ border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', borderRadius: 16, padding: 16, color: 'var(--shell-copy-muted)', lineHeight: 1.6 }}>
-      {text}
     </div>
   )
 }
@@ -498,10 +464,7 @@ const correctionPathStyle = {
 }
 
 const uploaderContextStyle = {
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  borderRadius: 16,
-  padding: 14,
+  ...adminSubPanelStyle,
 }
 
 const relatedReportButtonStyle = {
