@@ -14,6 +14,7 @@ const manageMatchesSource = readFileSync(join(process.cwd(), 'app/admin/manage-m
 const managePlayersSource = readFileSync(join(process.cwd(), 'app/admin/manage-players/page.tsx'), 'utf8')
 const adminImportSource = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
 const addMatchSource = readFileSync(join(process.cwd(), 'app/admin/add-match/page.tsx'), 'utf8')
+const deduplicateSource = readFileSync(join(process.cwd(), 'app/admin/deduplicate/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -123,5 +124,17 @@ describe('admin review UI system', () => {
     expect(addMatchSource).toContain('<AdminStatusPanel')
     expect(addMatchSource).not.toContain('radial-gradient')
     expect(addMatchSource).not.toContain('className="hero-panel"')
+  })
+
+  it('keeps Deduplicate on the shared admin review shell', () => {
+    expect(deduplicateSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(deduplicateSource).toContain('<AdminReviewFrame>')
+    expect(deduplicateSource).toContain('<AdminReviewHero')
+    expect(deduplicateSource).toContain('<AdminReviewPanel')
+    expect(deduplicateSource).toContain('<AdminStatusPanel')
+    expect(deduplicateSource).toContain('<AdminEmptyState')
+    expect(deduplicateSource).not.toContain('const shell')
+    expect(deduplicateSource).not.toContain('successBanner')
+    expect(deduplicateSource).not.toContain('errorBanner')
   })
 })
