@@ -132,6 +132,8 @@ function DataAssistWorkspace() {
   const scorecardUploadsPaused = contributorStats?.canUploadScorecards === false
   const scorecardUploadPausedMessage =
     contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
+  const scorecardUploadBlocked = importType === 'scorecard' && scorecardUploadsPaused
+  const summaryScorecardUploadBlocked = summary?.requestedImportType === 'scorecard' && scorecardUploadsPaused
 
   function resetUploadFlow() {
     scanRunRef.current += 1
@@ -665,11 +667,14 @@ function DataAssistWorkspace() {
               >
                 <span style={typeButtonHeaderStyle}>
                   <strong>{scorecardImportType.label}</strong>
-                  {scorecardImportType.badge ? <small style={typeRecommendedBadgeStyle}>{scorecardImportType.badge}</small> : null}
+                  <span style={typeBadgeRowStyle}>
+                    {scorecardUploadsPaused ? <small style={typePausedBadgeStyle}>Paused</small> : null}
+                    {scorecardImportType.badge ? <small style={typeRecommendedBadgeStyle}>{scorecardImportType.badge}</small> : null}
+                  </span>
                 </span>
                 <span>{scorecardImportType.detail}</span>
                 <small>{scorecardImportType.updates}</small>
-                <em style={typeCadenceStyle}>{scorecardImportType.cadence}</em>
+                <em style={typeCadenceStyle}>{scorecardUploadsPaused ? 'Scorecard uploads are temporarily paused for this account.' : scorecardImportType.cadence}</em>
               </button>
 
               <div style={seasonSetupGroupStyle}>
@@ -715,17 +720,22 @@ function DataAssistWorkspace() {
               </div>
             ) : null}
 
-            <label style={dropzoneStyle(summary?.status || '')}>
+            {scorecardUploadBlocked ? (
+              <ScorecardUploadPausedPanel message={scorecardUploadPausedMessage} />
+            ) : null}
+
+            <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '')}>
               <input
                 type="file"
                 multiple={importType === 'scorecard'}
                 accept=".xls,.html,application/vnd.ms-excel,text/html"
                 onChange={(event) => void handleFiles(event)}
+                disabled={scorecardUploadBlocked}
                 style={fileInputStyle}
               />
               <span style={dropzoneKickerStyle}>Supported Excel exports</span>
-              <strong>{preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
-              <small>{getUploadHint(importType)} Standard filenames are detected automatically.</small>
+              <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
+              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded while admins review scorecard access.' : `${getUploadHint(importType)} Standard filenames are detected automatically.`}</small>
             </label>
 
             {!hasPreparedScreenshots ? (
@@ -760,11 +770,12 @@ function DataAssistWorkspace() {
             multiple={summary?.requestedImportType === 'scorecard'}
             accept=".xls,.html,application/vnd.ms-excel,text/html"
             onChange={(event) => void handleFiles(event)}
+            disabled={summaryScorecardUploadBlocked}
             style={fileInputStyle}
           />
           <span style={dropzoneKickerStyle}>Replace export</span>
-          <strong>{preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
-          <small>{summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
+          <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
+          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Team summary, or wait for admins to restore scorecard upload access.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
         </label>
 
         {summary?.screenshots.length ? (
@@ -1120,6 +1131,21 @@ function UploadIssueNotice({
           Start fresh
         </button>
       ) : null}
+    </div>
+  )
+}
+
+function ScorecardUploadPausedPanel({ message }: { message: string }) {
+  return (
+    <div style={scorecardPausedPanelStyle}>
+      <div>
+        <strong>Scorecard uploads are paused</strong>
+        <p style={uploadIssueCopyStyle}>{message}</p>
+        <small style={hintStyle}>Schedule and team summary uploads still work. Admins can restore scorecard upload access after review.</small>
+      </div>
+      <Link href="/messages?compose=support&category=data&subject=Scorecard%20upload%20access" style={secondaryButtonStyle}>
+        Contact support
+      </Link>
     </div>
   )
 }
@@ -2640,6 +2666,13 @@ const typeButtonHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const typeBadgeRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  flexWrap: 'wrap',
+}
+
 const typeRecommendedBadgeStyle: CSSProperties = {
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
@@ -2650,20 +2683,30 @@ const typeRecommendedBadgeStyle: CSSProperties = {
   fontWeight: 950,
 }
 
+const typePausedBadgeStyle: CSSProperties = {
+  ...typeRecommendedBadgeStyle,
+  border: '1px solid rgba(248,113,113,0.26)',
+  background: 'rgba(239,68,68,0.10)',
+  color: '#fecaca',
+}
+
 const dropzoneStyle = (status: string): CSSProperties => ({
   minHeight: 150,
   borderRadius: 16,
-  border: status === 'rejected'
+  border: status === 'rejected' || status === 'paused'
     ? '1px dashed rgba(248,113,113,0.55)'
     : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  background: status === 'paused'
+    ? 'rgba(239,68,68,0.08)'
+    : 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
   color: 'var(--foreground-strong)',
   padding: 18,
   display: 'grid',
   placeItems: 'center',
   textAlign: 'center',
   gap: 8,
-  cursor: 'pointer',
+  cursor: status === 'paused' ? 'not-allowed' : 'pointer',
+  opacity: status === 'paused' ? 0.82 : 1,
 })
 
 const compactDropzoneStyle: CSSProperties = {
@@ -3423,6 +3466,12 @@ const uploadIssueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 900,
+}
+
+const scorecardPausedPanelStyle: CSSProperties = {
+  ...uploadIssueStyle,
+  border: '1px solid rgba(248,113,113,0.28)',
+  background: 'linear-gradient(135deg, rgba(239,68,68,0.12), rgba(15,23,42,0.08))',
 }
 
 const uploadIssueCopyStyle: CSSProperties = {

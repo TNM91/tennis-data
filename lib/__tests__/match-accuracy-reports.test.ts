@@ -37,6 +37,10 @@ describe('match accuracy reporting foundation', () => {
     expect(adminSource).toContain('Pause uploader scorecards')
     expect(adminSource).toContain('Restore uploader scorecards')
     expect(dataAssistSource).toContain('scorecardUploadsPaused')
+    expect(dataAssistSource).toContain('scorecardUploadBlocked')
+    expect(dataAssistSource).toContain('ScorecardUploadPausedPanel')
+    expect(dataAssistSource).toContain('disabled={scorecardUploadBlocked}')
+    expect(dataAssistSource).toContain('Contact support')
     expect(dataAssistSource).toContain('Scorecard uploads are paused while admins review recent match accuracy reports.')
   })
 
