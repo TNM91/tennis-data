@@ -93,6 +93,8 @@ test.describe('TIQ league surfaces', () => {
     await setTheme(page, 'light')
     await expectSurfaceLoads(page, '/mylab')
     await expect(page.getByText('A weekly tennis routine, not another dashboard.')).toBeVisible()
+    await expect(page.getByText('Connect your player record, review what changed')).toBeVisible()
+    await expect(page.getByText('Scorecard review')).toBeVisible()
     await expect(page.getByText('Personal scorecard')).toBeVisible()
     await expect(page.getByText('Reviewed uploads', { exact: true })).toBeVisible()
     await expect(page.getByText('Use reviewed uploads', { exact: true })).toBeVisible()

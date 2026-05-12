@@ -220,6 +220,21 @@ const MY_LAB_PREMIUM_SIGNALS = [
   },
 ] as const
 
+const MY_LAB_READABILITY_CUES = [
+  {
+    label: 'Player identity',
+    text: 'Pick the record that should anchor ratings, results, teams, and follows.',
+  },
+  {
+    label: 'Scorecard review',
+    text: 'Use reviewed Data Assist uploads when scorecards or rosters need to refresh.',
+  },
+  {
+    label: 'Match-day action',
+    text: 'Open Matchup, update a goal, or follow the league that matters this week.',
+  },
+] as const
+
 const EMPTY_LAB_GOAL: LabGoalState = {
   id: 'goal-1',
   goal: '',
@@ -2164,10 +2179,21 @@ function MyLabPageInner() {
           <div>
             <p style={sectionKickerStyle}>{MY_LAB_STORY.eyebrow}</p>
             <h2 style={labRoutineTitleStyle}>A weekly tennis routine, not another dashboard.</h2>
+            <p style={labRoutineIntroStyle}>
+              Connect your player record, review what changed, and leave with one action for the next match.
+            </p>
           </div>
           <Link href="/data-assist" style={secondaryButtonStyle}>
             {DATA_ASSIST_STORY.cta}
           </Link>
+        </div>
+        <div style={labReadabilityCueGridStyle(isTablet)}>
+          {MY_LAB_READABILITY_CUES.map((cue) => (
+            <div key={cue.label} style={labReadabilityCueStyle}>
+              <strong>{cue.label}</strong>
+              <span>{cue.text}</span>
+            </div>
+          ))}
         </div>
         <div style={labPremiumSignalGridStyle(isTablet)}>
           {MY_LAB_PREMIUM_SIGNALS.map((signal) => (
@@ -3300,6 +3326,38 @@ const labRoutineTitleStyle: CSSProperties = {
   fontSize: 'clamp(1.35rem, 2.2vw, 1.9rem)',
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const labRoutineIntroStyle: CSSProperties = {
+  margin: '8px 0 0',
+  maxWidth: 720,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.6,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const labReadabilityCueGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? '1fr'
+    : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  padding: '12px 0',
+  borderTop: '1px solid var(--shell-panel-border)',
+  borderBottom: '1px solid var(--shell-panel-border)',
+})
+
+const labReadabilityCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 
