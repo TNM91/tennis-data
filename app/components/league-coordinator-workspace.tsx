@@ -132,6 +132,29 @@ const CUSTOM_SEASON_VALUE = '__custom_season__'
 
 const FLIGHT_OPTIONS = ['2.5', '3.0', '3.5', '4.0', '4.5', '5.0', 'Open', 'Advanced', 'Intermediate', 'Beginner']
 
+const COORDINATOR_OPERATING_FLOW = [
+  {
+    label: '1',
+    title: 'Set structure',
+    text: 'Choose format, dates, scoring, and season limits before anything goes public.',
+  },
+  {
+    label: '2',
+    title: 'Approve participants',
+    text: 'Add teams or players, then keep join requests in coordinator review.',
+  },
+  {
+    label: '3',
+    title: 'Publish schedule',
+    text: 'Use recurring day, time, and facility defaults to make the season visible.',
+  },
+  {
+    label: '4',
+    title: 'Review uploads and results',
+    text: 'Use Data Assist for reviewed schedules, rosters, and scorecards before standings move.',
+  },
+]
+
 function formatDateTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
@@ -1119,6 +1142,18 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <strong style={startActionTitleStyle}>{nextLeagueOpsStep.label}</strong>
             </div>
             <GhostLink href={nextLeagueOpsStep.href}>{nextLeagueOpsStep.cta}</GhostLink>
+          </div>
+
+          <div style={operatingFlowGridStyle} aria-label="Coordinator operating order">
+            {COORDINATOR_OPERATING_FLOW.map((step) => (
+              <div key={step.title} style={operatingFlowStepStyle}>
+                <span style={operatingFlowNumberStyle}>{step.label}</span>
+                <span style={operatingFlowCopyStyle}>
+                  <strong>{step.title}</strong>
+                  <em>{step.text}</em>
+                </span>
+              </div>
+            ))}
           </div>
 
           <div style={startCardGridStyle}>
@@ -3012,6 +3047,49 @@ const startActionTitleStyle: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.15,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const operatingFlowGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const operatingFlowStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: '10px',
+  alignItems: 'start',
+  padding: '12px',
+  borderRadius: '16px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-border) 84%)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 92%, var(--surface) 8%)',
+  minWidth: 0,
+}
+
+const operatingFlowNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '30px',
+  height: '30px',
+  borderRadius: '999px',
+  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-lime))',
+  color: 'var(--text-dark)',
+  fontSize: '12px',
+  fontWeight: 950,
+}
+
+const operatingFlowCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  lineHeight: 1.35,
+  fontWeight: 900,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
