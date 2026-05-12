@@ -22,7 +22,7 @@ import {
 import SiteShell from '@/app/components/site-shell'
 import FollowButton from '@/app/components/follow-button'
 import { formatDate, formatRating, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type TeamMatch = {
@@ -1072,7 +1072,7 @@ export default function TeamPage() {
       label: 'League type',
       value: getCompetitionLayerLabel(competitionLayer),
       note: competitionLayer === 'usta'
-        ? 'Official league, flight, and roster details stay together here.'
+        ? 'Reviewed league, flight, and roster details stay together here.'
         : 'TenAceIQ league play, roster, and results stay together here.',
     },
     {
@@ -1093,7 +1093,7 @@ export default function TeamPage() {
     {
       label: 'Read',
       title: 'Check roster and form',
-      text: `${roster.length} roster players, ${matches.length} imported scorecards, and ${record.wins}-${record.losses} tracked record give the public team read.`,
+      text: `${roster.length} roster players, ${matches.length} reviewed scorecards, and ${record.wins}-${record.losses} tracked record give the public team read.`,
       href: '#team-roster',
       cta: 'View roster',
     },
@@ -1195,7 +1195,7 @@ export default function TeamPage() {
             <div style={summaryMetricGrid}>
               <MetricCard label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses tracked" />
               <MetricCard label="Roster size" value={String(roster.length)} subtle="Players from team summary and match history" />
-              <MetricCard label="Imported scorecards" value={String(matches.length)} subtle="Completed team results loaded" />
+              <MetricCard label="Reviewed scorecards" value={String(matches.length)} subtle="Completed team results loaded" />
               <MetricCard
                 label="Latest match"
                 value={formatDate(recentMatch?.match_date)}
@@ -1279,12 +1279,13 @@ export default function TeamPage() {
 
         {!error && !matches.length ? (
           <section style={surfaceCard}>
-            <h2 style={sectionTitle}>No scorecards imported yet</h2>
+            <h2 style={sectionTitle}>No reviewed scorecards yet</h2>
             <p style={bodyText}>
-              This team can exist from a team summary import before results arrive. Use the roster and captain tools now,
-              then imported scorecards will enrich match history, records, and player usage.
+              This team can exist from a reviewed team summary before results arrive. Use the roster and captain tools now,
+              then reviewed Data Assist scorecards will enrich match history, records, and player usage.
             </p>
             <div style={dynamicHeroActions}>
+              <SecondaryLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</SecondaryLink>
               <SecondaryLink href="/teams">Browse all teams</SecondaryLink>
               <GhostLink href={captainLinks[0].href}>Open captain availability</GhostLink>
             </div>
@@ -1677,7 +1678,7 @@ export default function TeamPage() {
 
               <div style={rosterFilterHint}>
                 {rosterFilter === 'played'
-                  ? 'Players who have already appeared in imported scorecards.'
+                  ? 'Players who have already appeared in reviewed scorecards.'
                   : rosterFilter === 'roster-only'
                     ? 'Rostered players who have not played yet.'
                     : rosterFilter === 'singles'
@@ -1960,7 +1961,7 @@ const heroShell: CSSProperties = {
   borderRadius: '34px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
-  boxShadow: '0 28px 80px rgba(3,10,24,0.18)',
+  boxShadow: 'var(--shadow-card)',
   backdropFilter: 'blur(18px)',
   WebkitBackdropFilter: 'blur(18px)',
 }
@@ -1971,9 +1972,9 @@ const eyebrow: CSSProperties = {
   minHeight: '38px',
   padding: '8px 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.28)',
+  border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '14px',
   marginBottom: '18px',
@@ -1983,7 +1984,7 @@ const eyebrow: CSSProperties = {
 
 const heroTitle: CSSProperties = {
   margin: '0 0 12px',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   lineHeight: 0.98,
   letterSpacing: 0,
@@ -2037,7 +2038,7 @@ const buttonSecondary: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 800,
   background: 'var(--shell-chip-bg-strong)',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   border: '1px solid var(--shell-panel-border)',
 }
 
@@ -2063,20 +2064,20 @@ const badgeBase: CSSProperties = {
 
 const badgeBlue: CSSProperties = {
   ...badgeBase,
-  background: 'rgba(37, 91, 227, 0.12)',
-  color: 'var(--foreground)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const badgeGreen: CSSProperties = {
   ...badgeBase,
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  color: 'var(--foreground-strong)',
 }
 
 const badgeSlate: CSSProperties = {
   ...badgeBase,
   background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground)',
+  color: 'var(--shell-copy-muted)',
 }
 
 const badgeRed: CSSProperties = {
@@ -2128,11 +2129,11 @@ const summaryCard: CSSProperties = {
   flexDirection: 'column',
   justifyContent: 'space-between',
   minHeight: '100%',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const summaryTitle: CSSProperties = {
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '24px',
   letterSpacing: 0,
@@ -2160,7 +2161,7 @@ const summaryMetricLabel: CSSProperties = {
 }
 
 const summaryMetricValue: CSSProperties = {
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
@@ -2193,11 +2194,11 @@ const signalCardStyle: CSSProperties = {
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
-  boxShadow: '0 14px 34px rgba(7,18,40,0.10)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const signalLabelStyle: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '12px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -2206,7 +2207,7 @@ const signalLabelStyle: CSSProperties = {
 
 const signalValueStyle: CSSProperties = {
   marginTop: '10px',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontSize: '1.28rem',
   fontWeight: 900,
   letterSpacing: 0,
@@ -2229,7 +2230,7 @@ const metricCard: CSSProperties = {
   padding: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const metricLabel: CSSProperties = {
@@ -2241,7 +2242,7 @@ const metricLabel: CSSProperties = {
 }
 
 const metricValue: CSSProperties = {
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontSize: '1.8rem',
   fontWeight: 900,
   lineHeight: 1.1,
@@ -2266,7 +2267,7 @@ const surfaceCard: CSSProperties = {
   padding: '20px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.12)',
+  boxShadow: 'var(--shadow-soft)',
   backdropFilter: 'blur(14px)',
   WebkitBackdropFilter: 'blur(14px)',
 }
@@ -2356,7 +2357,7 @@ const sectionHeadingRow: CSSProperties = {
 }
 
 const sectionKicker: CSSProperties = {
-  color: '#8fb7ff',
+  color: 'var(--brand-blue-2)',
   fontWeight: 800,
   fontSize: '13px',
   textTransform: 'uppercase',
@@ -2366,7 +2367,7 @@ const sectionKicker: CSSProperties = {
 
 const sectionTitle: CSSProperties = {
   margin: '8px 0 0',
-  color: 'var(--foreground)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   fontSize: '28px',
   letterSpacing: 0,
@@ -2378,9 +2379,9 @@ const panelCountPill: CSSProperties = {
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(116,190,255,0.08)',
-  color: '#bfdbfe',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 900,
 }
@@ -2428,8 +2429,8 @@ const rosterFilterButton: CSSProperties = {
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.16)',
-  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
@@ -2438,9 +2439,9 @@ const rosterFilterButton: CSSProperties = {
 
 const rosterFilterButtonActive: CSSProperties = {
   ...rosterFilterButton,
-  border: '1px solid rgba(155,225,29,0.34)',
-  background: 'rgba(155,225,29,0.12)',
-  color: '#d9f84a',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  color: 'var(--foreground-strong)',
 }
 
 const rosterFilterCount: CSSProperties = {
@@ -2450,7 +2451,7 @@ const rosterFilterCount: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   borderRadius: '999px',
-  background: 'rgba(255,255,255,0.08)',
+  background: 'var(--shell-chip-bg-strong)',
   color: 'inherit',
   fontSize: '11px',
 }
@@ -2471,12 +2472,12 @@ const rosterCompareTray: CSSProperties = {
   margin: '0 0 14px',
   padding: '14px 16px',
   borderRadius: '18px',
-  border: '1px solid rgba(155,225,29,0.20)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.10) 0%, rgba(13,27,52,0.72) 100%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
 }
 
 const rosterCompareKicker: CSSProperties = {
-  color: '#d9f84a',
+  color: 'var(--brand-green)',
   fontSize: '11px',
   fontWeight: 900,
   textTransform: 'uppercase',
