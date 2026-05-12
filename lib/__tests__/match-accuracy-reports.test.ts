@@ -10,6 +10,7 @@ const migrationSource = readFileSync(
 const apiSource = readFileSync(join(process.cwd(), 'app/api/match-accuracy-reports/route.ts'), 'utf8')
 const adminSource = readFileSync(join(process.cwd(), 'app/admin/match-reports/page.tsx'), 'utf8')
 const dataAssistSource = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
+const adminDataAssistSource = readFileSync(join(process.cwd(), 'app/admin/data-assist/page.tsx'), 'utf8')
 const adminHomeSource = readFileSync(join(process.cwd(), 'app/admin/page.tsx'), 'utf8')
 const helperSource = readFileSync(join(process.cwd(), 'lib/match-accuracy-reports.ts'), 'utf8')
 const myLabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
@@ -61,6 +62,17 @@ describe('match accuracy reporting foundation', () => {
     expect(adminSource).toContain('actionSummary.trim().length >= 8')
     expect(adminSource).toContain('Players see this in My Lab.')
     expect(adminSource).toContain('disabled={saveDisabled}')
+  })
+
+  it('links admin reports into match correction and source upload review', () => {
+    expect(adminSource).toContain('Correction path')
+    expect(adminSource).toContain('/admin/manage-matches?search=')
+    expect(adminSource).toContain('/admin/data-assist?batch=')
+    expect(adminSource).toContain('Open source upload')
+    expect(adminDataAssistSource).toContain("params.get('batch')")
+    expect(adminDataAssistSource).toContain("params.get('draft')")
+    expect(adminDataAssistSource).toContain("if (batchId) setFilter('all')")
+    expect(adminDataAssistSource).toContain('loadDataAssistAdminBatch(nextSelectedId)')
   })
 
   it('labels report states and uploader trust plainly', () => {

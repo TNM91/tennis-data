@@ -942,6 +942,20 @@ export async function listDataAssistAdminBatches() {
     .filter((batch): batch is DataAssistAdminBatch => Boolean(batch))
 }
 
+export async function loadDataAssistAdminBatch(batchId: string) {
+  const normalizedBatchId = cleanText(batchId)
+  if (!normalizedBatchId) return null
+
+  const { data, error } = await supabase
+    .from('data_assist_batches')
+    .select('id, submitted_by_user_id, requested_import_type, detected_layout, status, screenshot_count, confidence_score, rejection_reason, contribution_value, review_note, reviewed_by_user_id, reviewed_at, created_at, updated_at')
+    .eq('id', normalizedBatchId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data ? toAdminBatch(data as DataAssistBatchRow) : null
+}
+
 export async function loadDataAssistAdminBatchDetail(batchId: string) {
   const normalizedBatchId = cleanText(batchId)
   if (!normalizedBatchId) return { screenshots: [], drafts: [], ocrJobs: [] }
