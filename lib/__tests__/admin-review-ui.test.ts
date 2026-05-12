@@ -13,6 +13,7 @@ const accessSource = readFileSync(join(process.cwd(), 'app/admin/access/page.tsx
 const manageMatchesSource = readFileSync(join(process.cwd(), 'app/admin/manage-matches/page.tsx'), 'utf8')
 const managePlayersSource = readFileSync(join(process.cwd(), 'app/admin/manage-players/page.tsx'), 'utf8')
 const adminImportSource = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
+const addMatchSource = readFileSync(join(process.cwd(), 'app/admin/add-match/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -112,5 +113,15 @@ describe('admin review UI system', () => {
     expect(adminImportSource).toContain('<AdminReviewHero')
     expect(adminImportSource).toContain('title="Admin Import Center"')
     expect(adminImportSource).not.toContain('pageWrapStyle')
+  })
+
+  it('keeps Add Match on the shared admin review shell', () => {
+    expect(addMatchSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(addMatchSource).toContain('<AdminReviewFrame>')
+    expect(addMatchSource).toContain('<AdminReviewHero')
+    expect(addMatchSource).toContain('<AdminReviewPanel')
+    expect(addMatchSource).toContain('<AdminStatusPanel')
+    expect(addMatchSource).not.toContain('radial-gradient')
+    expect(addMatchSource).not.toContain('className="hero-panel"')
   })
 })
