@@ -10,6 +10,7 @@ const missingScorecardsSource = readFileSync(join(process.cwd(), 'app/admin/miss
 const importQueueSource = readFileSync(join(process.cwd(), 'app/admin/import-queue/page.tsx'), 'utf8')
 const upgradeRequestsSource = readFileSync(join(process.cwd(), 'app/admin/upgrade-requests/page.tsx'), 'utf8')
 const accessSource = readFileSync(join(process.cwd(), 'app/admin/access/page.tsx'), 'utf8')
+const manageMatchesSource = readFileSync(join(process.cwd(), 'app/admin/manage-matches/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -78,5 +79,17 @@ describe('admin review UI system', () => {
     expect(accessSource).toContain('className="metric-card"')
     expect(accessSource).not.toContain("color: '#f8fbff'")
     expect(accessSource).not.toContain("color: '#e2e8f0'")
+  })
+
+  it('keeps Manage Matches on the shared admin review shell', () => {
+    expect(manageMatchesSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(manageMatchesSource).toContain('<AdminReviewFrame>')
+    expect(manageMatchesSource).toContain('<AdminReviewHero')
+    expect(manageMatchesSource).toContain('<AdminReviewPanel')
+    expect(manageMatchesSource).toContain('<AdminStatusPanel')
+    expect(manageMatchesSource).toContain('<AdminEmptyState')
+    expect(manageMatchesSource).toContain('className="metric-card"')
+    expect(manageMatchesSource).not.toContain('radial-gradient')
+    expect(manageMatchesSource).not.toContain("'—'")
   })
 })

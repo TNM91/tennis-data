@@ -70,7 +70,15 @@ export function AdminActionRow({ children }: { children: ReactNode }) {
   return <div style={adminActionRowStyle}>{children}</div>
 }
 
-export function AdminStatusPanel({ tone, text }: { tone: 'success' | 'error'; text: string }) {
+export function AdminStatusPanel({
+  tone,
+  text,
+  children,
+}: {
+  tone: 'success' | 'error'
+  text: string
+  children?: ReactNode
+}) {
   return (
     <div
       style={{
@@ -85,6 +93,7 @@ export function AdminStatusPanel({ tone, text }: { tone: 'success' | 'error'; te
       }}
     >
       {text}
+      {children ? <div style={{ marginTop: 10 }}>{children}</div> : null}
     </div>
   )
 }
