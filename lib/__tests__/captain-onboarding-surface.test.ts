@@ -17,6 +17,9 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('Roster history')
     expect(source).toContain('Data refresh')
     expect(source).toContain('reviewed Data Assist uploads')
+    expect(source).toContain('CAPTAIN_EMPTY_STATE_ACTIONS')
+    expect(source).toContain('Captain needs a linked profile team, roster history, or reviewed Data Assist upload')
+    expect(source).toContain('Link in My Lab')
   })
 
   it('keeps Captain onboarding compact on small mobile screens', () => {
@@ -27,5 +30,15 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('captainScopeHandoffGridStyle(isSmallMobile)')
     expect(source).toContain('captainScopeHandoffCardStyle')
     expect(source).toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+  })
+
+  it('keeps Captain empty states actionable for missing teams and rosters', () => {
+    expect(source).toContain('Choose or connect a team scope.')
+    expect(source).toContain('No roster players are available yet.')
+    expect(source).toContain('Upload team data')
+    expect(source).toContain('Refresh Captain')
+    expect(source).toContain('captainEmptyActionRowStyle')
+    expect(source).toContain('inlineEmptyLinkStyle')
+    expect(source).toContain('inlineEmptyButtonStyle')
   })
 })
