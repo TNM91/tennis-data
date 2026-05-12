@@ -53,4 +53,16 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('Players confirm details before the result is logged')
     expect(source).toContain('Data Assist uploads can refresh changes after review')
   })
+
+  it('keeps result-entry handoff clear and Data Assist-reviewed', () => {
+    expect(source).toContain('RESULT_ENTRY_HANDOFF_STEPS')
+    expect(source).toContain('Team Results handles team match events and line scores')
+    expect(source).toContain('Player Results handles individual league matches')
+    expect(source).toContain('Reviewed Data Assist scorecards can support updates before standings move.')
+    expect(source).toContain('Create a team league before opening Team Results')
+    expect(source).toContain('Create an individual league before opening Player Results')
+    expect(source).toContain('Use Data Assist scorecards only after review')
+    expect(source).toContain('resultHandoffGridStyle')
+    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
+  })
 })

@@ -155,6 +155,21 @@ const COORDINATOR_OPERATING_FLOW = [
   },
 ]
 
+const RESULT_ENTRY_HANDOFF_STEPS = [
+  {
+    title: 'Choose the book',
+    text: 'Team Results handles team match events and line scores. Player Results handles individual league matches.',
+  },
+  {
+    title: 'Check the scorecard',
+    text: 'Reviewed Data Assist scorecards can support updates before standings move.',
+  },
+  {
+    title: 'Confirm the fields',
+    text: 'Team entries need teams, match date, lines, winners, and scores. Player entries need two players, result date, winner, and score.',
+  },
+]
+
 function formatDateTime(value: string) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return value
@@ -668,12 +683,12 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
     : '#league-setup-form'
   const resultReadinessDetail =
     teamLeagues.length > 0 && individualLeagues.length > 0
-      ? 'Team and individual leagues are ready for result entry.'
+      ? 'Team Results handles team match events and line scores; Player Results handles individual league matches.'
       : teamLeagues.length > 0
-        ? 'Team leagues are ready for team match result entry.'
+        ? 'Team Results is ready for team match events, line winners, and score review.'
         : individualLeagues.length > 0
-          ? 'Individual leagues are ready for player result logging.'
-          : 'Save a team or individual league before logging results.'
+          ? 'Player Results is ready for one-on-one results, corrections, and standings updates.'
+          : 'Save a team or individual league first; result entry opens after setup has participants.'
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -1320,12 +1335,20 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               <div style={sectionEyebrow}>Result review queue</div>
               <h2 style={leagueOpsTitleStyle}>{resultQueueHeadline}</h2>
               <p style={leagueOpsTextStyle}>
-                See the result books that need line scores, fresh results, corrections, or first activity before opening a workspace.
+                Use the correct workspace: Team Results for team match events and line scores; Player Results for individual matches. Reviewed Data Assist scorecards can support updates before standings move.
               </p>
             </div>
             <span style={resultQueueItemCount > 0 ? pillSlate : pillGreen}>
               {resultQueueItemCount > 0 ? 'Review needed' : 'In shape'}
             </span>
+          </div>
+          <div style={resultHandoffGridStyle}>
+            {RESULT_ENTRY_HANDOFF_STEPS.map((step) => (
+              <div key={step.title} style={resultHandoffStepStyle}>
+                <strong>{step.title}</strong>
+                <span>{step.text}</span>
+              </div>
+            ))}
           </div>
           <div style={reviewQueueGridStyle}>
             <div style={reviewCueCardStyle}>
@@ -1351,7 +1374,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     ]
                       .filter(Boolean)
                       .join(' | ')
-                  : 'Create a team league to start match review'}
+                  : 'Create a team league before opening Team Results. Team result entry needs teams, match date, line winners, and scores.'}
               </div>
               <div style={responsiveButtonRowStyle}>
                 {teamLeagues.length > 0 ? (
@@ -1386,7 +1409,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     ]
                       .filter(Boolean)
                       .join(' | ')
-                  : 'Create an individual league to start player review'}
+                  : 'Create an individual league before opening Player Results. Player result entry needs two players, result date, winner, and score.'}
               </div>
               <div style={responsiveButtonRowStyle}>
                 {individualLeagues.length > 0 ? (
@@ -1411,7 +1434,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
               </div>
               <div style={reviewCueTitleStyle}>player result corrections</div>
               <div style={registryText}>
-                Corrections stay visible here so a coordinator can double-check standings after edited scores.
+                Manual edits and reviewed Data Assist scorecards stay visible here so a coordinator can double-check standings after edited scores.
               </div>
               <div style={responsiveButtonRowStyle}>
                 <GhostLink href={individualLeagues.length > 0 ? individualResultEntryHref : resultEntryHref}>
@@ -2247,7 +2270,9 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                     Next: review {lastSavedRecord.leagueName}
                   </div>
                   <div style={nextActionTextStyle}>
-                    Use the saved setup for {lastSavedRecord.leagueFormat === 'team' ? 'team match results' : 'player results'}, or check the public league page before sharing.
+                    {lastSavedRecord.leagueFormat === 'team'
+                      ? 'Next, open Team Results to add match date, teams, line winners, and scores. Use Data Assist scorecards only after review.'
+                      : 'Next, open Player Results to add players, result date, winner, and score. Use reviewed scorecards when available.'}
                   </div>
                 </div>
                 <div style={responsiveNextActionButtonRowStyle}>
@@ -2832,6 +2857,27 @@ const dataAssistOpsCardStyle: CSSProperties = {
   lineHeight: 1.55,
   fontWeight: 750,
   minWidth: 0,
+}
+
+const resultHandoffGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: '10px',
+}
+
+const resultHandoffStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: '6px',
+  padding: '13px',
+  borderRadius: '16px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.45,
+  fontWeight: 750,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const reviewQueueGridStyle: CSSProperties = {
