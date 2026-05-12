@@ -15,6 +15,7 @@ const managePlayersSource = readFileSync(join(process.cwd(), 'app/admin/manage-p
 const adminImportSource = readFileSync(join(process.cwd(), 'app/admin/import/page.tsx'), 'utf8')
 const addMatchSource = readFileSync(join(process.cwd(), 'app/admin/add-match/page.tsx'), 'utf8')
 const deduplicateSource = readFileSync(join(process.cwd(), 'app/admin/deduplicate/page.tsx'), 'utf8')
+const anomaliesSource = readFileSync(join(process.cwd(), 'app/admin/anomalies/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -136,5 +137,17 @@ describe('admin review UI system', () => {
     expect(deduplicateSource).not.toContain('const shell')
     expect(deduplicateSource).not.toContain('successBanner')
     expect(deduplicateSource).not.toContain('errorBanner')
+  })
+
+  it('keeps Anomalies on the shared admin review shell', () => {
+    expect(anomaliesSource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(anomaliesSource).toContain('<AdminReviewFrame>')
+    expect(anomaliesSource).toContain('<AdminReviewHero')
+    expect(anomaliesSource).toContain('<AdminReviewPanel')
+    expect(anomaliesSource).toContain('<AdminStatusPanel')
+    expect(anomaliesSource).toContain('<AdminEmptyState')
+    expect(anomaliesSource).not.toContain('const shell')
+    expect(anomaliesSource).not.toContain('errorBanner')
+    expect(anomaliesSource).not.toContain("'â€”'")
   })
 })
