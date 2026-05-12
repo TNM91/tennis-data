@@ -13,20 +13,19 @@ import {
 } from 'react'
 import { useRouter } from 'next/navigation'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
+import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useTheme } from '@/app/components/theme-provider'
-import { getClientAuthState } from '@/lib/auth'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
   writeCaptainResumeState,
 } from '@/lib/captain-memory'
 import { supabase } from '@/lib/supabase'
-import { normalizeUserRole, type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
 
@@ -149,6 +148,14 @@ function readInitialAvailabilityContext() {
 }
 
 export default function CaptainAvailabilityPage() {
+  return (
+    <SiteShell active="/captain">
+      <CaptainAvailabilityContent />
+    </SiteShell>
+  )
+}
+
+function CaptainAvailabilityContent() {
   const router = useRouter()
   const { theme } = useTheme()
   const initialContext = readInitialAvailabilityContext()
@@ -157,10 +164,6 @@ export default function CaptainAvailabilityPage() {
   const [competitionLayerParam] = useState(initialContext.competitionLayer)
   const [leagueParam] = useState(initialContext.league)
   const [flightParam] = useState(initialContext.flight)
-
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
 
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([])
   const [selectedTeam, setSelectedTeam] = useState(teamParam)
@@ -182,6 +185,7 @@ export default function CaptainAvailabilityPage() {
   const [requestSent, setRequestSent] = useState(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, entitlements, authResolved } = useAuth()
   const heroArtworkSrc = theme === 'dark'
     ? '/df190aef-4a8e-4587-bce8-7e2e22655646.png'
     : '/151c73b4-3ea5-4ef5-82df-470da3b99f27.png'
@@ -368,53 +372,20 @@ export default function CaptainAvailabilityPage() {
   }, [competitionLayerParam, preferredMatchDate, preferredOpponent, selectedFlight, selectedLeague, selectedTeam])
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadAuth() {
-      try {
-        const authState = await getClientAuthState()
-
-        if (!authState.user) {
-          if (mounted) {
-            setRole('public')
-            setAuthLoading(false)
-          }
-          router.replace('/login?next=/captain/availability')
-          return
-        }
-
-        const nextRole = normalizeUserRole(authState.role)
-
-        if (!mounted) return
-        setRole(nextRole)
-        setEntitlements(authState.entitlements)
-      } finally {
-        if (mounted) setAuthLoading(false)
-      }
-    }
-
-    void loadAuth()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadAuth()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [router])
+    if (!authResolved || role !== 'public') return
+    router.replace('/login?next=/captain/availability')
+  }, [authResolved, role, router])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
     void loadTeamOptions()
-  }, [loadTeamOptions])
+  }, [authResolved, loadTeamOptions, role])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
     if (!selectedTeam) return
     void loadRoster()
-  }, [loadRoster, selectedTeam])
+  }, [authResolved, loadRoster, role, selectedTeam])
 
   function updateStatus(playerId: string, status: AvailabilityStatus) {
     setPlayers((current) =>
@@ -558,13 +529,11 @@ export default function CaptainAvailabilityPage() {
     zIndex: 2,
   }
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
-      <SiteShell active="/captain">
-        <section style={loadingWrap}>
-          <div style={loadingCard}>Loading availability...</div>
-        </section>
-      </SiteShell>
+      <section style={loadingWrap}>
+        <div style={loadingCard}>Loading availability...</div>
+      </section>
     )
   }
 
@@ -585,8 +554,7 @@ export default function CaptainAvailabilityPage() {
   }
 
   return (
-    <SiteShell active="/captain">
-      <div style={pageWrap}>
+    <div style={pageWrap}>
         <section style={heroShellResponsive(isTablet, isMobile)}>
           <div>
             <div style={eyebrow}>Captain availability</div>
@@ -945,7 +913,6 @@ export default function CaptainAvailabilityPage() {
           </section>
         </section>
       </div>
-    </SiteShell>
   )
 }
 

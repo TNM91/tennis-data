@@ -5,15 +5,14 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/app/components/auth-provider'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
-import { getClientAuthState } from '@/lib/auth'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { formatDate, uniqueSorted, cleanText } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type PlayerRow = {
@@ -286,7 +285,15 @@ function readInitialCaptainAnalyticsContext() {
   }
 }
 
-export default function LineupBuilderPage() {
+export default function CaptainAnalyticsPage() {
+  return (
+    <SiteShell active="/captain">
+      <CaptainAnalyticsContent />
+    </SiteShell>
+  )
+}
+
+function CaptainAnalyticsContent() {
   const initialCaptainContext = readInitialCaptainAnalyticsContext()
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
@@ -294,9 +301,6 @@ export default function LineupBuilderPage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [authLoading, setAuthLoading] = useState(true)
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
   const [currentScenarioId, setCurrentScenarioId] = useState('')
@@ -320,40 +324,19 @@ export default function LineupBuilderPage() {
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(cloneSlots(DEFAULT_OPPONENT_SLOTS))
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, entitlements, authResolved } = useAuth()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
-  const isMemberPreview = !authLoading && role === 'member'
+  const isMemberPreview = authResolved && role === 'member'
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadRole() {
-      const authState = await getClientAuthState()
-      if (!mounted) return
-
-      setRole(authState.role)
-      setEntitlements(authState.entitlements)
-      setAuthLoading(false)
-
-      if (authState.role === 'public' && typeof window !== 'undefined') {
-        const next = encodeURIComponent('/captain/analytics')
-        window.location.href = `/login?next=${next}`
-      }
+    if (!authResolved || role !== 'public' || typeof window === 'undefined') {
+      return
     }
 
-    void loadRole()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadRole()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+    const next = encodeURIComponent('/captain/analytics')
+    window.location.href = `/login?next=${next}`
+  }, [authResolved, role])
 
   useEffect(() => {
     writeCaptainResumeState({
@@ -441,6 +424,8 @@ export default function LineupBuilderPage() {
   }, [])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
+
     let mounted = true
 
     async function loadData() {
@@ -522,7 +507,7 @@ export default function LineupBuilderPage() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [authResolved, role])
 
   const leagueOptions = useMemo(
     () =>
@@ -950,15 +935,13 @@ export default function LineupBuilderPage() {
           ? 'Save this version'
           : 'Adjust weakest line'
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
-      <SiteShell active="/captain">
-        <div style={pageWrap}>
-          <section style={surfaceCardStrong}>
-            <p style={mutedTextStyle}>Loading captain access...</p>
-          </section>
-        </div>
-      </SiteShell>
+      <div style={pageWrap}>
+        <section style={surfaceCardStrong}>
+          <p style={mutedTextStyle}>Loading captain access...</p>
+        </section>
+      </div>
     )
   }
 
@@ -979,9 +962,8 @@ export default function LineupBuilderPage() {
   }
 
   return (
-    <SiteShell active="/captain">
-      <div style={pageWrap}>
-        {authLoading ? (
+    <div style={pageWrap}>
+        {!authResolved ? (
           <section style={surfaceCardStrong}>
             <p style={mutedTextStyle}>Loading captain access...</p>
           </section>
@@ -997,7 +979,7 @@ export default function LineupBuilderPage() {
           </section>
         ) : null}
 
-        {!isCaptainAccess && !authLoading ? (
+        {!isCaptainAccess && authResolved ? (
           <UpgradePrompt
             planId="captain"
             compact
@@ -1468,7 +1450,6 @@ export default function LineupBuilderPage() {
         />
 
       </div>
-    </SiteShell>
   )
 }
 
