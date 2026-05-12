@@ -10,6 +10,11 @@ import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import { getClientAuthState } from '@/lib/auth'
+import {
+  getReportStatusLabel,
+  listMyMatchAccuracyReports,
+  type MatchAccuracyReport,
+} from '@/lib/match-accuracy-reports'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import {
@@ -157,6 +162,7 @@ export default function PlayerProfilePage() {
   const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
+  const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [chartWindow, setChartWindow] = useState<'all' | '90d' | '30d'>('all')
   const [historyMode, setHistoryMode] = useState<'chart' | 'table'>('chart')
@@ -186,6 +192,7 @@ export default function PlayerProfilePage() {
   useEffect(() => {
     if (!currentUserId) {
       setLinkedPlayerId(null)
+      setMyMatchReports([])
       return
     }
 
@@ -201,6 +208,23 @@ export default function PlayerProfilePage() {
       active = false
     }
   }, [currentUserId])
+
+  const refreshMyMatchReports = useCallback(async () => {
+    if (!currentUserId) {
+      setMyMatchReports([])
+      return
+    }
+
+    try {
+      setMyMatchReports(await listMyMatchAccuracyReports())
+    } catch {
+      setMyMatchReports([])
+    }
+  }, [currentUserId])
+
+  useEffect(() => {
+    void refreshMyMatchReports()
+  }, [refreshMyMatchReports])
 
   useEffect(() => {
     const tiq = player?.overall_dynamic_rating
@@ -580,6 +604,15 @@ export default function PlayerProfilePage() {
     }
     return map
   }, [snapshots])
+
+  const myMatchReportByMatchId = useMemo(() => {
+    const map = new Map<string, MatchAccuracyReport>()
+    for (const report of myMatchReports) {
+      if (!report.matchId || map.has(report.matchId)) continue
+      map.set(report.matchId, report)
+    }
+    return map
+  }, [myMatchReports])
 
   const stalenessLabel = useMemo(() => {
     if (daysSinceLastMatch === null || daysSinceLastMatch <= 90) return null
@@ -2031,16 +2064,18 @@ export default function PlayerProfilePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {mostRecentMatches.map((match) => (
-                      <tr
-                        key={match.id}
-                        onMouseEnter={() => setHoveredMatchRow(match.id)}
-                        onMouseLeave={() => setHoveredMatchRow(null)}
-                        style={{
-                          background: hoveredMatchRow === match.id ? 'rgba(116,190,255,0.05)' : undefined,
-                          transition: 'background 120ms ease',
-                        }}
-                      >
+                    {mostRecentMatches.map((match) => {
+                      const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      return (
+                        <tr
+                          key={match.id}
+                          onMouseEnter={() => setHoveredMatchRow(match.id)}
+                          onMouseLeave={() => setHoveredMatchRow(null)}
+                          style={{
+                            background: hoveredMatchRow === match.id ? 'rgba(116,190,255,0.05)' : undefined,
+                            transition: 'background 120ms ease',
+                          }}
+                        >
                         <td style={tableCell}>{formatDate(match.date)}</td>
                         <td style={tableCell}>{capitalize(match.matchType)}</td>
                         <td style={tableCell}>{match.partner || '—'}</td>
@@ -2066,7 +2101,11 @@ export default function PlayerProfilePage() {
                         <td style={tableCell}>
                           <div style={scoreCellStackStyle}>
                             <span>{match.score}</span>
-                            {isOwnProfile ? (
+                            {existingReport ? (
+                              <span style={reportStatusPillStyle(existingReport.status)}>
+                                {getReportStatusLabel(existingReport.status)}
+                              </span>
+                            ) : isOwnProfile ? (
                               <MatchAccuracyReportButton
                                 matchId={match.id}
                                 reporterPlayerName={player?.name || ''}
@@ -2084,6 +2123,7 @@ export default function PlayerProfilePage() {
                                   sideA: match.sideA,
                                   sideB: match.sideB,
                                 }}
+                                onSubmitted={() => void refreshMyMatchReports()}
                               />
                             ) : null}
                           </div>
@@ -2118,8 +2158,9 @@ export default function PlayerProfilePage() {
                           snap={snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`) ?? null}
                           result={match.result}
                         />
-                      </tr>
-                    ))}
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -3846,6 +3887,26 @@ const scoreCellStackStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 8,
   minWidth: 112,
+}
+
+const reportStatusPillStyle = (status: MatchAccuracyReport['status']): CSSProperties => {
+  const resolved = status === 'resolved'
+  const rejected = status === 'rejected'
+  const reviewing = status === 'reviewing'
+  return {
+    ...resultPill,
+    minWidth: 'auto',
+    padding: '0.3rem 0.65rem',
+    background: resolved
+      ? 'rgba(155,225,29,0.10)'
+      : rejected
+        ? 'rgba(239,68,68,0.10)'
+        : reviewing
+          ? 'rgba(116,190,255,0.10)'
+          : 'rgba(148,163,184,0.10)',
+    color: resolved ? '#d9f84a' : rejected ? '#fca5a5' : reviewing ? '#93c5fd' : 'var(--shell-copy-muted)',
+    border: `1px solid ${resolved ? 'rgba(155,225,29,0.20)' : rejected ? 'rgba(239,68,68,0.18)' : reviewing ? 'rgba(116,190,255,0.18)' : 'var(--shell-panel-border)'}`,
+  }
 }
 
 const resultPill: CSSProperties = {

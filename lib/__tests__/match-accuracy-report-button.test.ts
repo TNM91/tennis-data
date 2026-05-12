@@ -30,10 +30,13 @@ describe('match accuracy report button', () => {
 
   it('appears on the signed-in player profile match history without widening the table', () => {
     expect(playerProfileSource).toContain("import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'")
-    expect(playerProfileSource).toContain('{isOwnProfile ? (')
+    expect(playerProfileSource).toContain(') : isOwnProfile ? (')
     expect(playerProfileSource).toContain('<MatchAccuracyReportButton')
     expect(playerProfileSource).toContain("surface: 'player_profile_match_history'")
     expect(playerProfileSource).toContain("linkedPlayerId: linkedPlayerId || ''")
+    expect(playerProfileSource).toContain('myMatchReportByMatchId.get(match.id)')
+    expect(playerProfileSource).toContain('onSubmitted={() => void refreshMyMatchReports()}')
+    expect(playerProfileSource).toContain('reportStatusPillStyle(existingReport.status)')
     expect(playerProfileSource).toContain('const scoreCellStackStyle')
   })
 
@@ -44,5 +47,8 @@ describe('match accuracy report button', () => {
     expect(teamProfileSource).toContain('linkedPlayerAppears: directParentMatch || lineMatch')
     expect(teamProfileSource).toContain("surface: 'team_match_history'")
     expect(teamProfileSource).toContain('reportSource: match.linkedPlayerReportSource')
+    expect(teamProfileSource).toContain('myMatchReportByMatchId.get(match.id)')
+    expect(teamProfileSource).toContain('onSubmitted={() => void refreshMyMatchReports()}')
+    expect(teamProfileSource).toContain('reportStatusBadgeStyle(existingReport.status)')
   })
 })
