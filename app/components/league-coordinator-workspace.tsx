@@ -76,7 +76,7 @@ import {
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
-import { buildTiqLeagueSchedulingPlanRows } from '@/lib/tiq-league-calendar'
+import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const EMPTY_DRAFT: TiqLeagueDraft = {
@@ -1070,6 +1070,7 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
   const schedulingPlanRows = buildTiqLeagueSchedulingPlanRows(draft)
+  const schedulingHandoffSummary = getTiqLeagueSchedulingHandoffSummary(draft)
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
 
@@ -1874,6 +1875,11 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                 <span style={fieldHelpText}>
                   {getTiqLeagueSchedulingModeDescription(draft.schedulingMode)}
                 </span>
+                <span style={fieldHelpText}>
+                  {draft.schedulingMode === 'player_arranged'
+                    ? 'After setup, each week opens as a scheduling window. Players confirm details before the result is logged.'
+                    : 'After setup, the coordinator-published schedule is the source of truth. Data Assist uploads can refresh changes after review.'}
+                </span>
               </label>
 
               <label style={fieldLabel}>
@@ -2142,16 +2148,10 @@ export function LeagueCoordinatorWorkspace({ activeRoute = '/league-coordinator'
                   <div style={sectionEyebrow}>Season calendar</div>
                   <strong style={setupAssistTitleStyle}>
                     {draft.schedulingMode === 'player_arranged'
-                      ? 'Players arrange matches from the published pairing list.'
-                      : 'Coordinator schedule preview'}
+                      ? 'Player-arranged scheduling preview'
+                      : 'Coordinator-published schedule preview'}
                   </strong>
-                  <p style={setupAssistTextStyle}>
-                    {draft.startsOn
-                      ? draft.schedulingMode === 'player_arranged'
-                        ? `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Pairings publish by week; players agree on exact date, time, and site.`
-                        : `${draft.maxWeeks} week season in ${draft.scheduleTimeZone}. Save the league, then use Data Assist or the schedule workspace to keep exact matchups current.`
-                      : 'Choose a start date to preview the weekly season calendar.'}
-                  </p>
+                  <p style={setupAssistTextStyle}>{schedulingHandoffSummary}</p>
                 </div>
                 <span style={pillSlate}>{draft.scheduleTimeZone}</span>
               </div>

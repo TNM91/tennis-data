@@ -5,6 +5,7 @@ export type TiqLeagueCalendarInput = {
   defaultMatchTime?: string
   defaultFacility?: string
   schedulingMode?: 'coordinator_fixed' | 'player_arranged'
+  scheduleTimeZone?: string
 }
 
 export type TiqLeagueCalendarRow = {
@@ -21,6 +22,22 @@ export type TiqLeagueSchedulingPlanRow = TiqLeagueCalendarRow & {
   action: string
   windowStart: string
   windowEnd: string
+}
+
+export function getTiqLeagueSchedulingHandoffSummary(input: TiqLeagueCalendarInput) {
+  const mode = input.schedulingMode === 'player_arranged' ? 'player_arranged' : 'coordinator_fixed'
+  const weeks = Math.max(1, Math.min(Number(input.maxWeeks) || 1, 12))
+  const zone = input.scheduleTimeZone || 'local time'
+
+  if (!input.startsOn) {
+    return 'Choose a start date to preview the weekly season calendar and scheduling handoff.'
+  }
+
+  if (mode === 'player_arranged') {
+    return `${weeks} week season in ${zone}. TenAceIQ publishes weekly pairing windows; players propose and confirm the exact date, time, and site before results are recorded.`
+  }
+
+  return `${weeks} week season in ${zone}. The coordinator publishes the default match day, time, and site; Data Assist can refresh exact schedule changes after review.`
 }
 
 const MATCH_DAY_INDEX: Record<string, number> = {
@@ -80,9 +97,9 @@ export function buildTiqLeagueSchedulingPlanRows(input: TiqLeagueCalendarInput):
         site: '',
         label: row.date && windowEnd ? `${row.date} to ${windowEnd}` : 'Set start date',
         meta: row.date
-          ? 'Pairings open for player scheduling. Players record agreed date, time, and site.'
+          ? 'Pairing window opens. Players propose and confirm date, time, and site.'
           : 'Choose a start date to create weekly player scheduling windows.',
-        action: 'Players schedule',
+        action: 'Players confirm',
         windowStart: row.date,
         windowEnd,
       }
