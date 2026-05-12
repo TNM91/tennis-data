@@ -184,6 +184,24 @@ type CaptainCommandStep = {
   premium?: boolean
 }
 
+const CAPTAIN_ONBOARDING_STEPS = [
+  {
+    label: '1',
+    title: 'Choose scope',
+    detail: 'Start from your linked profile team, roster history, TIQ entries, or reviewed Data Assist uploads.',
+  },
+  {
+    label: '2',
+    title: 'Confirm availability',
+    detail: 'See who can play before you build courts or chase follow-ups.',
+  },
+  {
+    label: '3',
+    title: 'Send the plan',
+    detail: 'Move from lineup to team note once the week is ready.',
+  },
+] as const
+
 const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const WEEKLY_EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
 const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
@@ -1720,6 +1738,18 @@ const captainHeroVisualMaskStyle: CSSProperties = {
               }}
             >
               {scopeStatusText}
+            </div>
+
+            <div style={captainOnboardingStripStyle(isSmallMobile)} aria-label="Captain first steps">
+              {CAPTAIN_ONBOARDING_STEPS.map((step) => (
+                <div key={step.label} style={captainOnboardingStepStyle}>
+                  <span style={captainOnboardingNumberStyle}>{step.label}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={captainOnboardingTitleStyle}>{step.title}</strong>
+                    <span style={captainOnboardingTextStyle}>{step.detail}</span>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {!loadingOptions && !filteredTeamOptions.length ? (
@@ -3497,6 +3527,59 @@ const scopeBannerWarn: CSSProperties = {
   background: 'color-mix(in srgb, #f59e0b 12%, var(--shell-chip-bg) 88%)',
   border: '1px solid color-mix(in srgb, #f59e0b 22%, var(--shell-panel-border) 78%)',
   color: 'var(--foreground-strong)',
+}
+
+const captainOnboardingStripStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+  maxWidth: 940,
+})
+
+const captainOnboardingStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minHeight: 112,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
+}
+
+const captainOnboardingNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 30,
+  height: 30,
+  borderRadius: 12,
+  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',
+  color: 'var(--text-dark)',
+  fontSize: 13,
+  fontWeight: 950,
+}
+
+const captainOnboardingTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const captainOnboardingTextStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 5,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const captainDataAssistCueStyle: CSSProperties = {
