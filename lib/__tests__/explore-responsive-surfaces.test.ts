@@ -6,6 +6,7 @@ const exploreSource = readFileSync(join(process.cwd(), 'app/explore/page.tsx'), 
 const rankingsSource = readFileSync(join(process.cwd(), 'app/rankings/page.tsx'), 'utf8')
 const playersSource = readFileSync(join(process.cwd(), 'app/players/page.tsx'), 'utf8')
 const teamsSource = readFileSync(join(process.cwd(), 'app/teams/page.tsx'), 'utf8')
+const exploreLeaguesSource = readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8')
 
 describe('Explore responsive surfaces', () => {
   it('keeps Explore action cards protected from narrow mobile overflow', () => {
@@ -35,5 +36,17 @@ describe('Explore responsive surfaces', () => {
     expect(teamsSource).toContain('Reset team filters')
     expect(teamsSource).toContain('emptyActionRow')
     expect(teamsSource).toContain('DATA_ASSIST_STORY.cta')
+  })
+
+  it('keeps Explore Leagues empty lanes separated by source and workflow', () => {
+    expect(exploreLeaguesSource).toContain("emptyKind=\"usta\"")
+    expect(exploreLeaguesSource).toContain('USTA league lanes come from reviewed TennisLink exports')
+    expect(exploreLeaguesSource).toContain('Search leagues')
+    expect(exploreLeaguesSource).toContain("emptyKind=\"tiq-team\"")
+    expect(exploreLeaguesSource).toContain('TIQ team leagues are coordinator-created seasons')
+    expect(exploreLeaguesSource).toContain('Create team league')
+    expect(exploreLeaguesSource).toContain("emptyKind=\"tiq-individual\"")
+    expect(exploreLeaguesSource).toContain('TIQ individual leagues are coordinator-created player-vs-player seasons')
+    expect(exploreLeaguesSource).toContain('Create individual league')
   })
 })

@@ -347,8 +347,9 @@ export default function ExploreLeaguesPage() {
               eyebrow={getCompetitionLayerLabel('usta')}
               description={getCompetitionLayerDescription('usta')}
               leagues={ustaLeagues}
+              emptyKind="usta"
               emptyTitle="No imported TennisLink leagues matched this view."
-              emptyBody={`Try widening the search, switch back to all layers, or use Data Assist if this season should already be visible. ${DATA_ASSIST_STORY.shortCue}`}
+              emptyBody={`USTA league lanes come from reviewed TennisLink exports. Try widening the search, switch back to all layers, or upload through Data Assist if this season should already be visible. ${DATA_ASSIST_STORY.shortCue}`}
             />
 
             <LeagueSection
@@ -356,8 +357,9 @@ export default function ExploreLeaguesPage() {
               eyebrow="TIQ Team Competition"
               description="Internal team-based leagues for captains, availability, lineups, doubles strategy, and seasonal team operations."
               leagues={tiqTeamLeagues}
+              emptyKind="tiq-team"
               emptyTitle="No TIQ team leagues are visible yet."
-              emptyBody="This lane is now carved out in the product model so team-based TIQ league growth can land cleanly without being mixed into USTA browse flows."
+              emptyBody="TIQ team leagues are coordinator-created seasons for teams, schedules, standings, and Captain handoffs. Create one in League Coordinator when the season should run inside TenAceIQ."
             />
 
             <LeagueSection
@@ -366,8 +368,9 @@ export default function ExploreLeaguesPage() {
               description="Internal player-vs-player leagues for ladders, round robins, challenge formats, and standings without team or captain requirements."
               leagues={tiqIndividualLeagues}
               individualSummaries={individualLeagueSummaries}
+              emptyKind="tiq-individual"
               emptyTitle="No TIQ individual leagues are visible yet."
-              emptyBody="This route now has a dedicated lane for player-vs-player TIQ competition, which is the right structural home for ladders and individual seasonal formats."
+              emptyBody="TIQ individual leagues are coordinator-created player-vs-player seasons for ladders, round robins, challenge formats, standings, and results."
             />
           </>
         ) : null}
@@ -416,6 +419,7 @@ function LeagueSection({
   description,
   leagues,
   individualSummaries,
+  emptyKind,
   emptyTitle,
   emptyBody,
 }: {
@@ -430,6 +434,7 @@ function LeagueSection({
     }
   >
   individualSummaries?: Map<string, TiqIndividualLeagueSummary>
+  emptyKind: 'usta' | 'tiq-team' | 'tiq-individual'
   emptyTitle: string
   emptyBody: string
 }) {
@@ -448,9 +453,22 @@ function LeagueSection({
           <div style={emptyTitleStyle}>{emptyTitle}</div>
           <div style={emptyBodyStyle}>{emptyBody}</div>
           <div style={emptyActionRowStyle}>
-            <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
-            <GhostLink href="/compete">Open Compete</GhostLink>
-            <GhostLink href="/captain">Open Captain</GhostLink>
+            {emptyKind === 'usta' ? (
+              <>
+                <GhostLink href={DATA_ASSIST_STORY.href}>{DATA_ASSIST_STORY.cta}</GhostLink>
+                <GhostLink href="/explore/search?scope=leagues">Search leagues</GhostLink>
+              </>
+            ) : emptyKind === 'tiq-team' ? (
+              <>
+                <GhostLink href="/league-coordinator">Create team league</GhostLink>
+                <GhostLink href="/captain">Open Captain</GhostLink>
+              </>
+            ) : (
+              <>
+                <GhostLink href="/league-coordinator">Create individual league</GhostLink>
+                <GhostLink href="/compete/leagues">Open Compete</GhostLink>
+              </>
+            )}
           </div>
         </div>
       ) : (
