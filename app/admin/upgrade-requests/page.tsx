@@ -2,6 +2,13 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { getMembershipTier } from '@/lib/product-story'
@@ -202,22 +209,21 @@ export default function AdminUpgradeRequestsPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <main style={pageStyle}>
-          <section className="hero-panel" style={heroStyle}>
-            <div className="section-kicker">Upgrade requests</div>
-            <h1 className="page-title">Plan intent queue</h1>
-            <p className="page-subtitle" style={{ maxWidth: 760 }}>
-              Review paid-plan requests, follow up with leads, and activate access once an account is linked.
-            </p>
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Upgrade requests" title="Plan intent queue">
+            Review paid-plan requests, follow up with leads, and activate access once an account is linked.
+          </AdminReviewHero>
+
+          <AdminReviewPanel compact style={{ marginTop: 18 }}>
             <div style={metricGridStyle}>
               <Metric label="Total requests" value={String(requests.length)} />
               <Metric label="Captain" value={String(captainCount)} />
               <Metric label="League" value={String(leagueCount)} />
               <Metric label="Player" value={String(playerCount)} />
             </div>
-          </section>
+          </AdminReviewPanel>
 
-          <section className="surface-card" style={panelStyle}>
+          <AdminReviewPanel style={{ ...panelStyle, marginTop: 18 }}>
             {hasSetupIssue ? (
               <div style={setupPanelStyle}>
                 <div>
@@ -305,7 +311,7 @@ export default function AdminUpgradeRequestsPage() {
               </div>
             </div>
 
-            {status ? <div style={statusStyle}>{status}</div> : null}
+            {status ? <AdminStatusPanel tone="success" text={status} /> : null}
 
             {filteredRequests.length ? (
               <div style={requestGridStyle}>
@@ -378,19 +384,14 @@ export default function AdminUpgradeRequestsPage() {
                 ))}
               </div>
             ) : (
-              <div style={emptyStyle}>
-                <div className="section-kicker">No requests yet</div>
-                <h2 style={emptyTitleStyle}>Upgrade interest will appear here.</h2>
-                <p style={emptyTextStyle}>
-                  Submit a request from a paid upgrade page, then return here to review and activate it.
-                </p>
+              <AdminEmptyState text="No requests yet. Upgrade interest will appear here after someone submits from a paid upgrade page.">
                 <Link href="/pricing" className="button-primary">
                   Open pricing
                 </Link>
-              </div>
+              </AdminEmptyState>
             )}
-          </section>
-        </main>
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
@@ -592,19 +593,6 @@ function SetupCheck({
   )
 }
 
-const pageStyle: CSSProperties = {
-  width: 'min(1180px, calc(100% - 32px))',
-  margin: '0 auto',
-  padding: '18px 0 36px',
-  display: 'grid',
-  gap: 18,
-}
-
-const heroStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-}
-
 const metricGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
@@ -733,12 +721,6 @@ const dangerButtonStyle: CSSProperties = {
   ...filterButtonStyle,
   color: '#fecaca',
   borderColor: 'rgba(248, 113, 113, 0.28)',
-}
-
-const statusStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 800,
 }
 
 const requestGridStyle: CSSProperties = {
@@ -912,24 +894,6 @@ const activeSmallButtonStyle: CSSProperties = {
   ...smallButtonStyle,
   background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
   borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-}
-
-const emptyStyle: CSSProperties = {
-  display: 'grid',
-  justifyItems: 'start',
-  gap: 10,
-  padding: 24,
-  borderRadius: 18,
-  border: '1px dashed var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-}
-
-const emptyTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 24,
-  lineHeight: 1.1,
-  fontWeight: 950,
 }
 
 const emptyTextStyle: CSSProperties = {

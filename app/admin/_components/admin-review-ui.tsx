@@ -89,10 +89,11 @@ export function AdminStatusPanel({ tone, text }: { tone: 'success' | 'error'; te
   )
 }
 
-export function AdminEmptyState({ text }: { text: string }) {
+export function AdminEmptyState({ text, children }: { text: string; children?: ReactNode }) {
   return (
     <div style={adminEmptyStateStyle}>
       {text}
+      {children ? <div style={{ marginTop: 12 }}>{children}</div> : null}
     </div>
   )
 }
