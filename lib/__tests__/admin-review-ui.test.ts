@@ -16,6 +16,7 @@ const adminImportSource = readFileSync(join(process.cwd(), 'app/admin/import/pag
 const addMatchSource = readFileSync(join(process.cwd(), 'app/admin/add-match/page.tsx'), 'utf8')
 const deduplicateSource = readFileSync(join(process.cwd(), 'app/admin/deduplicate/page.tsx'), 'utf8')
 const anomaliesSource = readFileSync(join(process.cwd(), 'app/admin/anomalies/page.tsx'), 'utf8')
+const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/admin/lineup-availability/page.tsx'), 'utf8')
 
 describe('admin review UI system', () => {
   it('centralizes common review queue surfaces', () => {
@@ -149,5 +150,16 @@ describe('admin review UI system', () => {
     expect(anomaliesSource).not.toContain('const shell')
     expect(anomaliesSource).not.toContain('errorBanner')
     expect(anomaliesSource).not.toContain("'â€”'")
+  })
+  it('keeps Lineup Availability on the shared admin review shell', () => {
+    expect(lineupAvailabilitySource).toContain("from '@/app/admin/_components/admin-review-ui'")
+    expect(lineupAvailabilitySource).toContain('<AdminReviewFrame>')
+    expect(lineupAvailabilitySource).toContain('<AdminReviewHero')
+    expect(lineupAvailabilitySource).toContain('<AdminReviewPanel')
+    expect(lineupAvailabilitySource).toContain('<AdminStatusPanel')
+    expect(lineupAvailabilitySource).toContain('<AdminEmptyState')
+    expect(lineupAvailabilitySource).not.toContain('className="page-shell"')
+    expect(lineupAvailabilitySource).not.toContain("background: '#f8fafc'")
+    expect(lineupAvailabilitySource).not.toContain('Â·')
   })
 })

@@ -2,14 +2,22 @@
 
 export const dynamic = 'force-dynamic'
 
+import type { CSSProperties, ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../../lib/supabase'
-import { formatDate, formatRating, safeText } from '@/lib/captain-formatters'
-import { getClientAuthState } from '@/lib/auth'
-import { type UserRole } from '@/lib/roles'
+import {
+  AdminEmptyState,
+  AdminReviewFrame,
+  AdminReviewHero,
+  AdminReviewPanel,
+  AdminStatusPanel,
+} from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
+import { getClientAuthState } from '@/lib/auth'
+import { formatDate, formatRating, safeText } from '@/lib/captain-formatters'
+import { type UserRole } from '@/lib/roles'
+import { supabase } from '@/lib/supabase'
 
 type MatchRow = {
   id: string
@@ -21,34 +29,21 @@ type MatchRow = {
   line_number: string | null
 }
 
-type PlayerRelation =
-  | {
-      id: string
-      name: string
-      flight: string | null
-      preferred_role: string | null
-      lineup_notes: string | null
-      overall_dynamic_rating: number | null
-      overall_usta_dynamic_rating: number | null
-      singles_dynamic_rating: number | null
-      singles_usta_dynamic_rating: number | null
-      doubles_dynamic_rating: number | null
-      doubles_usta_dynamic_rating: number | null
-    }
-  | {
-      id: string
-      name: string
-      flight: string | null
-      preferred_role: string | null
-      lineup_notes: string | null
-      overall_dynamic_rating: number | null
-      overall_usta_dynamic_rating: number | null
-      singles_dynamic_rating: number | null
-      singles_usta_dynamic_rating: number | null
-      doubles_dynamic_rating: number | null
-      doubles_usta_dynamic_rating: number | null
-    }[]
-  | null
+type PlayerRecord = {
+  id: string
+  name: string
+  flight: string | null
+  preferred_role: string | null
+  lineup_notes: string | null
+  overall_dynamic_rating: number | null
+  overall_usta_dynamic_rating: number | null
+  singles_dynamic_rating: number | null
+  singles_usta_dynamic_rating: number | null
+  doubles_dynamic_rating: number | null
+  doubles_usta_dynamic_rating: number | null
+}
+
+type PlayerRelation = PlayerRecord | PlayerRecord[] | null
 
 type MatchPlayerRow = {
   match_id: string
@@ -106,6 +101,10 @@ function buildLeagueKey(leagueName: string, flight: string) {
 
 function formatLeagueScopeLabel(leagueName: string, flight: string) {
   return [leagueName, flight].filter(Boolean).join(' - ')
+}
+
+function formatAvailabilityStatus(status: AvailabilityStatus) {
+  return status.replaceAll('_', ' ')
 }
 
 const statusOptions: AvailabilityStatus[] = [
@@ -484,366 +483,202 @@ export default function LineupAvailabilityPage() {
   return (
     <SiteShell active="/admin">
       <AdminGate>
-        <main className="page-shell">
-      <section className="hero-panel">
-        <div className="hero-inner">
-          <div className="section-kicker">Admin Tool</div>
-          <h1 className="page-title">Lineup Availability</h1>
-          <p className="page-subtitle">
+        <AdminReviewFrame>
+          <AdminReviewHero kicker="Admin Tool" title="Lineup Availability">
             Set player availability for a team and match date so lineup suggestions can be built
             from realistic captain inputs.
-          </p>
-        </div>
-      </section>
+          </AdminReviewHero>
 
-      <section className="surface-card panel-pad section">
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-            gap: 16,
-            marginBottom: 18,
-          }}
-        >
-          <Field label="League / Flight">
-            <select
-              value={selectedLeagueKey}
-              onChange={(e) => {
-                setSelectedLeagueKey(e.target.value)
-                setSelectedTeam('')
-                setSelectedDate('')
-                setRoster([])
-                setAvailabilityMap({})
-              }}
-              className="select"
-            >
-              <option value="">Select league</option>
-              {leagueOptions.map((option) => {
-                const key = buildLeagueKey(option.leagueName, option.flight)
-                return (
-                  <option key={key} value={key}>
-                    {formatLeagueScopeLabel(option.leagueName, option.flight)}
-                  </option>
-                )
-              })}
-            </select>
-          </Field>
+          <AdminReviewPanel style={{ marginTop: 18 }}>
+            <div style={filtersGrid}>
+              <Field label="League / Flight">
+                <select
+                  value={selectedLeagueKey}
+                  onChange={(e) => {
+                    setSelectedLeagueKey(e.target.value)
+                    setSelectedTeam('')
+                    setSelectedDate('')
+                    setRoster([])
+                    setAvailabilityMap({})
+                  }}
+                  className="select"
+                >
+                  <option value="">Select league</option>
+                  {leagueOptions.map((option) => {
+                    const key = buildLeagueKey(option.leagueName, option.flight)
+                    return (
+                      <option key={key} value={key}>
+                        {formatLeagueScopeLabel(option.leagueName, option.flight)}
+                      </option>
+                    )
+                  })}
+                </select>
+              </Field>
 
-          <Field label="Team">
-            <select
-              value={selectedTeam}
-              onChange={(e) => {
-                setSelectedTeam(e.target.value)
-                setSelectedDate('')
-                setRoster([])
-                setAvailabilityMap({})
-              }}
-              className="select"
-              disabled={!selectedLeagueKey}
-            >
-              <option value="">Select team</option>
-              {teamsForLeague.map((team) => (
-                <option key={team} value={team}>
-                  {team}
-                </option>
-              ))}
-            </select>
-          </Field>
+              <Field label="Team">
+                <select
+                  value={selectedTeam}
+                  onChange={(e) => {
+                    setSelectedTeam(e.target.value)
+                    setSelectedDate('')
+                    setRoster([])
+                    setAvailabilityMap({})
+                  }}
+                  className="select"
+                  disabled={!selectedLeagueKey}
+                >
+                  <option value="">Select team</option>
+                  {teamsForLeague.map((team) => (
+                    <option key={team} value={team}>
+                      {team}
+                    </option>
+                  ))}
+                </select>
+              </Field>
 
-          <Field label="Match Date">
-            <select
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="select"
-              disabled={!selectedTeam}
-            >
-              <option value="">Select date</option>
-              {relevantDates.map((date) => (
-                <option key={date} value={date}>
-                  {formatDate(date)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+              <Field label="Match Date">
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="select"
+                  disabled={!selectedTeam}
+                >
+                  <option value="">Select date</option>
+                  {relevantDates.map((date) => (
+                    <option key={date} value={date}>
+                      {formatDate(date)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 16 }}>
-          <button
-            type="button"
-            onClick={() => setRefreshTick((current) => current + 1)}
-            className="button-ghost"
-            style={{
-              background: 'var(--shell-chip-bg)',
-              color: 'var(--foreground)',
-              border: '1px solid var(--shell-panel-border)',
-              opacity: loading || rosterLoading ? 0.7 : 1,
-              cursor: loading || rosterLoading ? 'not-allowed' : 'pointer',
-            }}
-            disabled={loading || rosterLoading}
-          >
-            {loading || rosterLoading ? 'Refreshing...' : 'Refresh availability data'}
-          </button>
-        </div>
-
-        {loading ? (
-          <div
-            style={{
-              marginTop: 18,
-              padding: 18,
-              borderRadius: 16,
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              color: '#475569',
-            }}
-          >
-            Loading...
-          </div>
-        ) : error ? (
-          <div
-            className="badge"
-            style={{
-              marginTop: 16,
-              minHeight: 44,
-              width: '100%',
-              justifyContent: 'flex-start',
-              padding: '10px 14px',
-              background: 'rgba(220,38,38,0.10)',
-              color: '#991b1b',
-              border: '1px solid rgba(220,38,38,0.18)',
-            }}
-          >
-            <div>{error}</div>
-            <div style={{ marginTop: 10 }}>
+            <div style={actionRow}>
               <button
                 type="button"
                 onClick={() => setRefreshTick((current) => current + 1)}
                 className="button-ghost"
-                style={{
-                  background: 'var(--shell-chip-bg)',
-                  color: 'var(--foreground)',
-                  border: '1px solid var(--shell-panel-border)',
-                }}
+                style={ghostButtonStyle}
+                disabled={loading || rosterLoading}
               >
-                Retry availability load
+                {loading || rosterLoading ? 'Refreshing...' : 'Refresh availability data'}
               </button>
             </div>
-          </div>
-        ) : !selectedLeagueKey || !selectedTeam ? (
-          <div
-            style={{
-              marginTop: 18,
-              padding: 18,
-              borderRadius: 16,
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              color: '#475569',
-            }}
-          >
-            Choose a league and team to manage availability.
-          </div>
-        ) : rosterLoading ? (
-          <div
-            style={{
-              marginTop: 18,
-              padding: 18,
-              borderRadius: 16,
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              color: '#475569',
-            }}
-          >
-            Loading roster...
-          </div>
-        ) : roster.length === 0 ? (
-          <div
-            style={{
-              marginTop: 18,
-              padding: 18,
-              borderRadius: 16,
-              background: '#f8fafc',
-              border: '1px dashed #cbd5e1',
-              color: '#475569',
-            }}
-          >
-            No roster usage found for this team yet.
-          </div>
-        ) : (
-          <>
-            <div
-              style={{
-                display: 'flex',
-                gap: 10,
-                flexWrap: 'wrap',
-                marginBottom: 18,
-              }}
-            >
-              <div className="badge badge-blue" style={{ minHeight: 38 }}>
-                <strong>{selectedTeam}</strong>
-              </div>
-              <div className="badge badge-slate" style={{ minHeight: 38 }}>
-                <strong>{selectedLeagueLabel}</strong>
-              </div>
-              <div className="badge badge-green" style={{ minHeight: 38 }}>
-                Match Date:&nbsp;
-                <strong>{selectedDate ? formatDate(selectedDate) : 'Not selected'}</strong>
-              </div>
-            </div>
 
-            {status ? (
-              <div
-                className="badge badge-green"
-                style={{
-                  marginBottom: 16,
-                  minHeight: 44,
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  padding: '10px 14px',
-                }}
-              >
-                {status}
-              </div>
-            ) : null}
+            {loading ? (
+              <AdminEmptyState text="Loading availability data..." />
+            ) : error ? (
+              <AdminStatusPanel tone="error" text={error}>
+                <button
+                  type="button"
+                  onClick={() => setRefreshTick((current) => current + 1)}
+                  className="button-ghost"
+                  style={ghostButtonStyle}
+                >
+                  Retry availability load
+                </button>
+              </AdminStatusPanel>
+            ) : !selectedLeagueKey || !selectedTeam ? (
+              <AdminEmptyState text="Choose a league and team to manage availability." />
+            ) : rosterLoading ? (
+              <AdminEmptyState text="Loading roster..." />
+            ) : roster.length === 0 ? (
+              <AdminEmptyState text="No roster usage found for this team yet." />
+            ) : (
+              <>
+                <div style={contextPills}>
+                  <div className="badge badge-blue" style={{ minHeight: 38 }}>
+                    <strong>{selectedTeam}</strong>
+                  </div>
+                  <div className="badge badge-slate" style={{ minHeight: 38 }}>
+                    <strong>{selectedLeagueLabel}</strong>
+                  </div>
+                  <div className="badge badge-green" style={{ minHeight: 38 }}>
+                    Match Date:&nbsp;
+                    <strong>{selectedDate ? formatDate(selectedDate) : 'Not selected'}</strong>
+                  </div>
+                </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
-                gap: 16,
-              }}
-            >
-              {roster.map((player) => {
-                const current = availabilityMap[player.id] || {
-                  status: 'available' as AvailabilityStatus,
-                  notes: '',
-                }
+                {status ? <AdminStatusPanel tone="success" text={status} /> : null}
 
-                return (
-                  <div
-                    key={player.id}
-                    className="surface-card"
+                <div style={rosterGrid}>
+                  {roster.map((player) => {
+                    const current = availabilityMap[player.id] || {
+                      status: 'available' as AvailabilityStatus,
+                      notes: '',
+                    }
+
+                    return (
+                      <div key={player.id} className="surface-card" style={playerCard}>
+                        <div style={playerHeader}>
+                          <div>
+                            <div style={playerName}>{player.name}</div>
+                            <div className="subtle-text" style={{ marginTop: 6, fontSize: 14 }}>
+                              {player.appearances} appearances | Preferred:{' '}
+                              <strong>{safeText(player.preferredRole, 'either')}</strong>
+                            </div>
+                          </div>
+
+                          <div className="badge badge-blue" style={ratingBadge}>
+                            TIQ S {formatRating(player.singlesDynamic)} | D{' '}
+                            {formatRating(player.doublesDynamic)} | USTA S{' '}
+                            {formatRating(player.singlesUstaDynamic)} | D{' '}
+                            {formatRating(player.doublesUstaDynamic)}
+                          </div>
+                        </div>
+
+                        <div style={statusGrid}>
+                          {statusOptions.map((statusOption) => {
+                            const active = current.status === statusOption
+                            return (
+                              <button
+                                key={statusOption}
+                                type="button"
+                                onClick={() => updatePlayerStatus(player.id, statusOption)}
+                                style={{
+                                  ...statusButton,
+                                  ...(active ? activeStatusButton : null),
+                                }}
+                              >
+                                {formatAvailabilityStatus(statusOption)}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        <div style={{ marginTop: 14 }}>
+                          <label className="label">Notes</label>
+                          <textarea
+                            value={current.notes}
+                            onChange={(e) => updatePlayerNotes(player.id, e.target.value)}
+                            placeholder="Optional notes like late arrival, can only play doubles, etc."
+                            className="textarea"
+                            style={{ minHeight: 88, fontSize: 14 }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div style={saveRow}>
+                  <button
+                    type="button"
+                    onClick={saveAvailability}
+                    disabled={saving || !selectedDate}
+                    className="button-primary"
                     style={{
-                      padding: 18,
-                      background: '#f8fafc',
+                      opacity: saving || !selectedDate ? 0.7 : 1,
+                      cursor: saving || !selectedDate ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        gap: 12,
-                        marginBottom: 14,
-                      }}
-                    >
-                      <div>
-                        <div
-                          style={{
-                            color: '#0f172a',
-                            fontSize: 22,
-                            fontWeight: 800,
-                          }}
-                        >
-                          {player.name}
-                        </div>
-                        <div
-                          className="subtle-text"
-                          style={{
-                            marginTop: 6,
-                            fontSize: 14,
-                          }}
-                        >
-                          {player.appearances} appearances · Preferred:{' '}
-                          <strong>{safeText(player.preferredRole, 'either')}</strong>
-                        </div>
-                      </div>
-
-                      <div className="badge badge-blue" style={{ whiteSpace: 'normal' }}>
-                        TIQ S {formatRating(player.singlesDynamic)} · D {formatRating(player.doublesDynamic)} | USTA S {formatRating(player.singlesUstaDynamic)} · D {formatRating(player.doublesUstaDynamic)}
-                      </div>
-                    </div>
-
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                        gap: 10,
-                      }}
-                    >
-                      {statusOptions.map((statusOption) => {
-                        const active = current.status === statusOption
-                        return (
-                          <button
-                            key={statusOption}
-                            type="button"
-                            onClick={() => updatePlayerStatus(player.id, statusOption)}
-                            style={{
-                              border: active
-                                ? '1px solid #2563eb'
-                                : '1px solid #cbd5e1',
-                              background: active ? '#2563eb' : '#ffffff',
-                              color: active ? '#ffffff' : '#334155',
-                              padding: '10px 12px',
-                              borderRadius: 12,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              textTransform: 'none',
-                            }}
-                          >
-                            {statusOption}
-                          </button>
-                        )
-                      })}
-                    </div>
-
-                    <div style={{ marginTop: 14 }}>
-                      <label
-                        style={{
-                          display: 'block',
-                          color: '#334155',
-                          fontWeight: 700,
-                          fontSize: 13,
-                          marginBottom: 8,
-                        }}
-                      >
-                        Notes
-                      </label>
-                      <textarea
-                        value={current.notes}
-                        onChange={(e) => updatePlayerNotes(player.id, e.target.value)}
-                        placeholder="Optional notes like late arrival, can only play doubles, etc."
-                        className="textarea"
-                        style={{ minHeight: 88, fontSize: 14 }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div
-              style={{
-                marginTop: 22,
-                display: 'flex',
-                justifyContent: 'flex-start',
-              }}
-            >
-              <button
-                type="button"
-                onClick={saveAvailability}
-                disabled={saving || !selectedDate}
-                className="button-primary"
-                style={{
-                  opacity: saving || !selectedDate ? 0.7 : 1,
-                  cursor: saving || !selectedDate ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {saving ? 'Saving...' : 'Save Availability'}
-              </button>
-            </div>
-          </>
-        )}
-      </section>
-        </main>
+                    {saving ? 'Saving...' : 'Save Availability'}
+                  </button>
+                </div>
+              </>
+            )}
+          </AdminReviewPanel>
+        </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
   )
@@ -854,7 +689,7 @@ function Field({
   children,
 }: {
   label: string
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <div>
@@ -862,4 +697,93 @@ function Field({
       {children}
     </div>
   )
+}
+
+const filtersGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 16,
+  marginBottom: 18,
+}
+
+const actionRow: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginTop: 16,
+}
+
+const ghostButtonStyle: CSSProperties = {
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const contextPills: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  marginBottom: 18,
+}
+
+const rosterGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+  gap: 16,
+}
+
+const playerCard: CSSProperties = {
+  padding: 18,
+  background: 'var(--shell-panel-bg)',
+}
+
+const playerHeader: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  marginBottom: 14,
+  flexWrap: 'wrap',
+}
+
+const playerName: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  fontWeight: 800,
+}
+
+const ratingBadge: CSSProperties = {
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  maxWidth: '100%',
+}
+
+const statusGrid: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 10,
+}
+
+const statusButton: CSSProperties = {
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  padding: '10px 12px',
+  borderRadius: 12,
+  fontWeight: 700,
+  cursor: 'pointer',
+  textTransform: 'none',
+  textAlign: 'center',
+}
+
+const activeStatusButton: CSSProperties = {
+  border: '1px solid rgba(116,190,255,0.36)',
+  background: 'rgba(116,190,255,0.16)',
+  color: 'var(--foreground-strong)',
+}
+
+const saveRow: CSSProperties = {
+  marginTop: 22,
+  display: 'flex',
+  justifyContent: 'flex-start',
 }
