@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const componentSource = readFileSync(join(process.cwd(), 'app/components/match-accuracy-report-button.tsx'), 'utf8')
 const mylabSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 const playerProfileSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
+const teamProfileSource = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
 
 describe('match accuracy report button', () => {
   it('submits signed-in reports through the shared match accuracy helper', () => {
@@ -30,5 +31,14 @@ describe('match accuracy report button', () => {
     expect(playerProfileSource).toContain("surface: 'player_profile_match_history'")
     expect(playerProfileSource).toContain("linkedPlayerId: linkedPlayerId || ''")
     expect(playerProfileSource).toContain('const scoreCellStackStyle')
+  })
+
+  it('appears on team match history when the linked player is in parent or line data', () => {
+    expect(teamProfileSource).toContain("import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'")
+    expect(teamProfileSource).toContain('parentMatchIdsWithLinkedPlayer')
+    expect(teamProfileSource).toContain('parentExternalIdsWithLinkedPlayer')
+    expect(teamProfileSource).toContain('linkedPlayerAppears: directParentMatch || lineMatch')
+    expect(teamProfileSource).toContain("surface: 'team_match_history'")
+    expect(teamProfileSource).toContain('reportSource: match.linkedPlayerReportSource')
   })
 })
