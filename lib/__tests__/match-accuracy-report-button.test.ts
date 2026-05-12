@@ -14,6 +14,7 @@ describe('match accuracy report button', () => {
     expect(componentSource).toContain('Details for admins')
     expect(componentSource).toContain('Send report')
     expect(componentSource).toContain("description.trim().length < 8")
+    expect(componentSource).toContain('onSubmitted?.()')
   })
 
   it('appears on My Lab linked-player recent matches with match context', () => {
@@ -22,6 +23,9 @@ describe('match accuracy report button', () => {
     expect(mylabSource).toContain("surface: 'mylab_recent_matches'")
     expect(mylabSource).toContain("linkedPlayerId: profileLink?.linked_player_id || ''")
     expect(mylabSource).toContain('reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || \'\'}')
+    expect(mylabSource).toContain('myMatchReportByMatchId.get(match.id)')
+    expect(mylabSource).toContain('onSubmitted={() => void refreshMyMatchReports()}')
+    expect(mylabSource).toContain('const matchActionStackStyle')
   })
 
   it('appears on the signed-in player profile match history without widening the table', () => {

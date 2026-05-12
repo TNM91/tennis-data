@@ -12,6 +12,7 @@ type MatchAccuracyReportButtonProps = {
   reporterPlayerName?: string
   matchLabel: string
   context?: Record<string, unknown>
+  onSubmitted?: () => void
 }
 
 const issueTypes: MatchAccuracyIssueType[] = [
@@ -29,6 +30,7 @@ export default function MatchAccuracyReportButton({
   reporterPlayerName = '',
   matchLabel,
   context = {},
+  onSubmitted,
 }: MatchAccuracyReportButtonProps) {
   const [open, setOpen] = useState(false)
   const [issueType, setIssueType] = useState<MatchAccuracyIssueType>('wrong_score')
@@ -55,6 +57,7 @@ export default function MatchAccuracyReportButton({
       })
       setMessage('Report sent to admins.')
       setDescription('')
+      onSubmitted?.()
       window.setTimeout(() => setOpen(false), 900)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send this report.')

@@ -853,6 +853,15 @@ function MyLabPageInner() {
     void refreshMyMatchReports()
   }, [authResolved, refreshMyMatchReports])
 
+  const myMatchReportByMatchId = useMemo(() => {
+    const map = new Map<string, MatchAccuracyReport>()
+    for (const report of myMatchReports) {
+      if (!report.matchId || map.has(report.matchId)) continue
+      map.set(report.matchId, report)
+    }
+    return map
+  }, [myMatchReports])
+
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
 
   const matchPlayersByMatch = useMemo(() => {
@@ -2908,40 +2917,52 @@ function MyLabPageInner() {
                 <div style={sectionKickerStyle}>Recent matches</div>
                 <div style={workshopListStyle}>
                   {personalMatches.length ? (
-                    personalMatches.slice(0, 5).map((match) => (
-                      <div key={match.id} style={workshopMatchRowStyle}>
-                        <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
-                          {match.result}
-                        </span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={workshopRowTitleStyle}>{match.opponent}</div>
-                          <div style={workshopRowMetaStyle}>
-                            {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
+                    personalMatches.slice(0, 5).map((match) => {
+                      const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      return (
+                        <div key={match.id} style={workshopMatchRowStyle}>
+                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
+                            {match.result}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={workshopRowTitleStyle}>{match.opponent}</div>
+                            <div style={workshopRowMetaStyle}>
+                              {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
+                            </div>
+                          </div>
+                          <div style={matchActionStackStyle}>
+                            {existingReport ? (
+                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
+                                {getReportStatusLabel(existingReport.status)}
+                              </span>
+                            ) : (
+                              <MatchAccuracyReportButton
+                                matchId={match.id}
+                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
+                                context={{
+                                  surface: 'mylab_recent_matches',
+                                  linkedPlayerId: profileLink?.linked_player_id || '',
+                                  leagueName: match.leagueName || '',
+                                  matchType: match.matchType || '',
+                                  matchDate: match.date || '',
+                                  opponent: match.opponent,
+                                  result: match.result,
+                                }}
+                                onSubmitted={() => void refreshMyMatchReports()}
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => reflectOnMatch(match)}
+                              style={matchReflectButtonStyle}
+                            >
+                              Reflect
+                            </button>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => reflectOnMatch(match)}
-                          style={matchReflectButtonStyle}
-                        >
-                          Reflect
-                        </button>
-                        <MatchAccuracyReportButton
-                          matchId={match.id}
-                          reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-                          matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
-                          context={{
-                            surface: 'mylab_recent_matches',
-                            linkedPlayerId: profileLink?.linked_player_id || '',
-                            leagueName: match.leagueName || '',
-                            matchType: match.matchType || '',
-                            matchDate: match.date || '',
-                            opponent: match.opponent,
-                            result: match.result,
-                          }}
-                        />
-                      </div>
-                    ))
+                      )
+                    })
                   ) : (
                     <div style={emptyStateStyle}>
                       {isProfileConfirmed ? `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.` : 'Set up your profile to unlock your personal match history.'}
@@ -4761,6 +4782,13 @@ const workshopMatchRowStyle: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   padding: '10px 12px',
   minWidth: 0,
+}
+
+const matchActionStackStyle: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-end',
+  gap: 8,
 }
 
 const reportStatusCardStyle: CSSProperties = {
