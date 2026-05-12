@@ -7,15 +7,14 @@ import Link from 'next/link'
 import CaptainSubnav from '@/app/components/captain-subnav'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
+import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { getClientAuthState } from '@/lib/auth'
 import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { buildTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '../../../lib/supabase'
 import { formatDate, formatRating, cleanText, normalizeTeamName, safeText } from '@/lib/captain-formatters'
-import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type MatchRow = {
@@ -197,11 +196,15 @@ function viabilityLabel(available: number, unavailable: number, limited: number)
 }
 
 export default function LineupAvailabilityPage() {
-  const router = useRouter()
+  return (
+    <AuthProvider>
+      <LineupAvailabilityContent />
+    </AuthProvider>
+  )
+}
 
-  const [role, setRole] = useState<UserRole>('public')
-  const [entitlements, setEntitlements] = useState<ProductEntitlementSnapshot | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+function LineupAvailabilityContent() {
+  const router = useRouter()
 
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -221,50 +224,12 @@ export default function LineupAvailabilityPage() {
     Record<string, { status: AvailabilityStatus; notes: string }>
   >({})
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { role, entitlements, authResolved } = useAuth()
 
   useEffect(() => {
-    let mounted = true
-
-    async function loadRole() {
-      try {
-        const authState = await getClientAuthState()
-
-        if (!authState.user) {
-          if (mounted) {
-            setRole('public')
-            setAuthLoading(false)
-          }
-          router.replace('/login?next=/captain/lineup-availability')
-          return
-        }
-
-        if (mounted) {
-          setRole(authState.role)
-          setEntitlements(authState.entitlements)
-          setAuthLoading(false)
-        }
-      } catch {
-        if (mounted) {
-          setRole('public')
-          setAuthLoading(false)
-        }
-        router.replace('/login?next=/captain/lineup-availability')
-      }
-    }
-
-    void loadRole()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadRole()
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [router])
+    if (!authResolved || role !== 'public') return
+    router.replace('/login?next=/captain/lineup-availability')
+  }, [authResolved, role, router])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -286,8 +251,9 @@ export default function LineupAvailabilityPage() {
   }, [])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
     void loadMatches()
-  }, [refreshTick])
+  }, [authResolved, refreshTick, role])
 
   async function loadMatches() {
     setLoading(true)
@@ -524,6 +490,7 @@ export default function LineupAvailabilityPage() {
   }, [selectedDate, selectedLeagueKey, selectedTeam])
 
   useEffect(() => {
+    if (!authResolved || role === 'public') return
     if (!selectedLeagueKey || !selectedTeam) {
       setRoster([])
       setAvailabilityMap({})
@@ -531,7 +498,7 @@ export default function LineupAvailabilityPage() {
     }
 
     void loadRosterAndAvailability()
-  }, [loadRosterAndAvailability, selectedLeagueKey, selectedTeam])
+  }, [authResolved, loadRosterAndAvailability, role, selectedLeagueKey, selectedTeam])
 
   useEffect(() => {
     const [leagueName = '', flight = ''] = selectedLeagueKey.split('___')
@@ -922,7 +889,7 @@ export default function LineupAvailabilityPage() {
     setStatus('Reset all players to Available.')
   }
 
-  if (authLoading) {
+  if (!authResolved) {
     return (
       <main style={pageStyle}>
         <div style={orbOne} />

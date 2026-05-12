@@ -8,6 +8,7 @@ const lineupProjectionSource = readFileSync(join(process.cwd(), 'app/captain/lin
 const scenarioBuilderSource = readFileSync(join(process.cwd(), 'app/captain/scenario-builder/page.tsx'), 'utf8')
 const analyticsSource = readFileSync(join(process.cwd(), 'app/captain/analytics/page.tsx'), 'utf8')
 const availabilitySource = readFileSync(join(process.cwd(), 'app/captain/availability/page.tsx'), 'utf8')
+const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/captain/lineup-availability/page.tsx'), 'utf8')
 
 describe('Captain shared auth access', () => {
   it('keeps weekly and team brief access on the shared auth provider', () => {
@@ -54,5 +55,16 @@ describe('Captain shared auth access', () => {
       expect(source).not.toContain("const [role, setRole] = useState<UserRole>('public')")
       expect(source).not.toContain('supabase.auth.onAuthStateChange')
     }
+  })
+
+  it('keeps custom captain availability tooling on shared auth without local role polling', () => {
+    expect(lineupAvailabilitySource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
+    expect(lineupAvailabilitySource).toContain('<AuthProvider>')
+    expect(lineupAvailabilitySource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(lineupAvailabilitySource).toContain("if (!authResolved || role === 'public') return")
+    expect(lineupAvailabilitySource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
+    expect(lineupAvailabilitySource).not.toContain('const [authLoading, setAuthLoading]')
+    expect(lineupAvailabilitySource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
+    expect(lineupAvailabilitySource).not.toContain('supabase.auth.onAuthStateChange')
   })
 })
