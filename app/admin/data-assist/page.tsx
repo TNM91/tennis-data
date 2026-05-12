@@ -7,6 +7,7 @@ import SiteShell from '@/app/components/site-shell'
 import {
   getDataAssistImportTypeLabel,
   listDataAssistAdminBatches,
+  loadDataAssistAdminBatch,
   loadDataAssistAdminBatchDetail,
   queueDataAssistOcrVerification,
   reviewDataAssistBatch,
@@ -48,6 +49,8 @@ function DataAssistReviewQueue() {
   const [drafts, setDrafts] = useState<DataAssistAdminDraft[]>([])
   const [ocrJobs, setOcrJobs] = useState<DataAssistOcrJob[]>([])
   const [filter, setFilter] = useState<QueueFilter>('exceptions')
+  const [requestedDraftId, setRequestedDraftId] = useState('')
+  const [deepLinkActive, setDeepLinkActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [reviewNote, setReviewNote] = useState('')
@@ -57,7 +60,7 @@ function DataAssistReviewQueue() {
   const [queueingOcr, setQueueingOcr] = useState(false)
 
   const selectedBatch = batches.find((batch) => batch.id === selectedId) ?? null
-  const selectedDraft = drafts[0] ?? null
+  const selectedDraft = drafts.find((draft) => draft.id === requestedDraftId) ?? drafts[0] ?? null
 
   const filteredBatches = useMemo(
     () => batches.filter((batch) => {
@@ -82,7 +85,12 @@ function DataAssistReviewQueue() {
     setError('')
     try {
       const nextBatches = await listDataAssistAdminBatches()
-      setBatches(nextBatches)
+      let visibleBatches = nextBatches
+      if (nextSelectedId && !nextBatches.some((batch) => batch.id === nextSelectedId)) {
+        const linkedBatch = await loadDataAssistAdminBatch(nextSelectedId)
+        if (linkedBatch) visibleBatches = [linkedBatch, ...nextBatches]
+      }
+      setBatches(visibleBatches)
       const nextId = nextSelectedId || nextBatches[0]?.id || ''
       setSelectedId(nextId)
     } catch (err) {
@@ -93,7 +101,18 @@ function DataAssistReviewQueue() {
   }
 
   useEffect(() => {
-    void refreshQueue()
+    if (typeof window === 'undefined') {
+      void refreshQueue()
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const batchId = params.get('batch')?.trim() || ''
+    const draftId = params.get('draft')?.trim() || ''
+    setDeepLinkActive(Boolean(batchId || draftId))
+    setRequestedDraftId(draftId)
+    if (batchId) setFilter('all')
+    void refreshQueue(batchId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -198,6 +217,11 @@ function DataAssistReviewQueue() {
             <Link href="/data-assist" className="button-secondary" style={{ textDecoration: 'none' }}>
               Open Upload Flow
             </Link>
+            {deepLinkActive ? (
+              <Link href="/admin/data-assist" className="button-secondary" style={{ textDecoration: 'none' }}>
+                Clear deep link
+              </Link>
+            ) : null}
             <Link href="/admin" className="button-secondary" style={{ textDecoration: 'none' }}>
               Back to Admin
             </Link>

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
@@ -87,6 +88,13 @@ function MatchReportQueue() {
   const resolutionNeedsSummary = statusDraft === 'resolved' || statusDraft === 'rejected'
   const actionSummaryReady = actionSummary.trim().length >= 8
   const saveDisabled = saving || (resolutionNeedsSummary && !actionSummaryReady)
+  const correctionSearch = selectedReport
+    ? selectedReport.externalMatchId || selectedReport.matchId || getSnapshotSearchSeed(selectedReport.matchSnapshot)
+    : ''
+  const matchCorrectionHref = `/admin/manage-matches?search=${encodeURIComponent(correctionSearch)}`
+  const sourceReviewHref = selectedReport?.sourceBatchId
+    ? `/admin/data-assist?batch=${encodeURIComponent(selectedReport.sourceBatchId)}${selectedReport.sourceDraftId ? `&draft=${encodeURIComponent(selectedReport.sourceDraftId)}` : ''}`
+    : ''
 
   async function refreshReports(nextSelectedId = selectedId) {
     setLoading(true)
@@ -256,6 +264,30 @@ function MatchReportQueue() {
                 <Fact label="Reporter" value={selectedReport.reporterPlayerName || selectedReport.reporterUserId.slice(0, 8)} />
                 <Fact label="Uploader" value={selectedReport.sourceUploaderUserId ? selectedReport.sourceUploaderUserId.slice(0, 8) : 'Not linked'} />
               </div>
+
+              <section style={correctionPathStyle}>
+                <div>
+                  <div className="section-kicker">Correction path</div>
+                  <h3 className="section-title" style={{ marginTop: 6, fontSize: '1.15rem' }}>
+                    Jump to the source before closing the report
+                  </h3>
+                  <p style={{ color: 'var(--shell-copy-muted)', lineHeight: 1.6, margin: '8px 0 0' }}>
+                    Use the match ledger to fix or remove the stored row. If this came from Data Assist, open the exact upload batch and draft that introduced it.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <Link href={matchCorrectionHref} className="button-primary" style={{ textDecoration: 'none' }}>
+                    Open match editor
+                  </Link>
+                  {sourceReviewHref ? (
+                    <Link href={sourceReviewHref} className="button-secondary" style={{ textDecoration: 'none' }}>
+                      Open source upload
+                    </Link>
+                  ) : (
+                    <span className="badge badge-slate">No Data Assist source linked</span>
+                  )}
+                </div>
+              </section>
 
               <section style={uploaderContextStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -440,6 +472,29 @@ function EmptyState({ text }: { text: string }) {
       {text}
     </div>
   )
+}
+
+function getSnapshotSearchSeed(snapshot: Record<string, unknown>) {
+  const externalMatchId = cleanSnapshotText(snapshot.external_match_id)
+  if (externalMatchId) return externalMatchId
+  return [
+    cleanSnapshotText(snapshot.match_date),
+    cleanSnapshotText(snapshot.home_team),
+    cleanSnapshotText(snapshot.away_team),
+  ].filter(Boolean).join(' ')
+}
+
+function cleanSnapshotText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+const correctionPathStyle = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
 }
 
 const uploaderContextStyle = {
