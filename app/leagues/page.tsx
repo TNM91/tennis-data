@@ -14,6 +14,7 @@ import {
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import type { LeagueCard, LeagueSummaryPayload } from '@/lib/league-summary'
 import { formatDate, cleanText as safeText } from '@/lib/captain-formatters'
+import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
@@ -246,16 +247,16 @@ export default function LeaguesPage() {
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <div style={eyebrow}>League Explorer</div>
-              <h1 style={dynamicHeroTitle}>Browse imported league seasons.</h1>
+              <h1 style={dynamicHeroTitle}>Browse uploaded league seasons.</h1>
               <p style={dynamicHeroText}>
-                Explore league groupings by league name, flight, section, and district.
+                Explore reviewed Data Assist league groupings by league name, flight, section, and district.
                 This is the foundation for season views, team pages, matchup prep, and future lineup
                 projections across TenAceIQ.
               </p>
 
               <div style={heroHintRow}>
                 <span style={heroHintPill}>{summary.totalLeagues} leagues</span>
-                <span style={heroHintPill}>{datasetTotalParentMatches} imported parent matches</span>
+                <span style={heroHintPill}>{datasetTotalParentMatches} reviewed parent matches</span>
                 <span style={heroHintPill}>Latest: {formatDate(summary.latestMatch)}</span>
               </div>
             </div>
@@ -264,7 +265,7 @@ export default function LeaguesPage() {
               <div style={coverageLabel}>Coverage snapshot</div>
               <div style={coverageValue}>{summary.totalFlights}</div>
               <div style={coverageText}>
-                Unique flights currently represented across matches with a real league name.
+                Unique flights currently represented across reviewed uploads with a real league name.
               </div>
             </div>
           </div>
@@ -277,7 +278,7 @@ export default function LeaguesPage() {
             <div style={sectionKicker}>Season context</div>
             <h2 style={panelTitle}>League cards are strongest when they explain structure, not just existence.</h2>
             <p style={editorialText}>
-              Use this board to understand how season data is grouped across league name, flight,
+              Use this board to understand how reviewed uploads are grouped across league name, flight,
               section, and district. It is the discovery layer for season browsing, and it becomes
               much more useful once you move from a league card into the underlying team and season view.
             </p>
@@ -288,9 +289,9 @@ export default function LeaguesPage() {
                 <div style={editorialCardText}>Named league groupings currently available to browse.</div>
               </div>
               <div style={editorialCard}>
-                <div style={editorialCardLabel}>Imported parent matches</div>
+                <div style={editorialCardLabel}>Reviewed parent matches</div>
                 <div style={editorialCardValue}>{datasetTotalParentMatches}</div>
-                <div style={editorialCardText}>The schedule-level season rows powering league discovery.</div>
+                <div style={editorialCardText}>The Data Assist-reviewed season rows powering league discovery.</div>
               </div>
               <div style={editorialCard}>
                 <div style={editorialCardLabel}>Best next step</div>
@@ -407,8 +408,15 @@ export default function LeaguesPage() {
               <div style={stateHelperTextStyle}>
                 {hasActiveFilters
                   ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
-                  : 'League cards only appear when imported matches include a real league name, so this usually means more season data still needs to be imported or normalized.'}
+                  : 'League cards only appear when reviewed uploads include a real league name, so this usually means more season data still needs to be uploaded through Data Assist or normalized.'}
               </div>
+              {!hasActiveFilters ? (
+                <div style={emptyActionRow}>
+                  <Link href={DATA_ASSIST_STORY.href} style={clearFilterButton}>
+                    {DATA_ASSIST_STORY.cta}
+                  </Link>
+                </div>
+              ) : null}
               {!hasActiveFilters && diagnostics.totalParentMatches > 0 ? (
                 <div style={diagnosticWrap}>
                   <div style={diagnosticTitle}>Import diagnostics</div>
@@ -451,7 +459,7 @@ export default function LeaguesPage() {
               {notice ? <div style={noticeBox}>{notice}</div> : null}
               {diagnostics.missingLeagueNameCount > 0 ? (
                 <div style={noticeBox}>
-                  {diagnostics.missingLeagueNameCount} imported parent matches are missing a visible league name, so they will not appear as league cards yet.
+                  {diagnostics.missingLeagueNameCount} reviewed parent matches are missing a visible league name, so they will not appear as league cards yet.
                 </div>
               ) : null}
 
@@ -537,11 +545,9 @@ function LeagueCardItem({
       onMouseLeave={() => setHovered(false)}
       style={{
         ...leagueCard,
-        borderColor: hovered ? 'rgba(140,184,255,0.34)' : 'rgba(140,184,255,0.18)',
+        borderColor: hovered ? 'var(--brand-blue-2)' : 'var(--shell-panel-border)',
         transform: hovered ? 'translateY(-3px)' : 'none',
-        boxShadow: hovered
-          ? '0 22px 50px rgba(9,25,54,0.22), inset 0 1px 0 rgba(255,255,255,0.07)'
-          : '0 14px 34px rgba(9,25,54,0.14), inset 0 1px 0 rgba(255,255,255,0.05)',
+        boxShadow: 'var(--shadow-soft)',
         transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
       }}
     >
@@ -747,15 +753,14 @@ const heroHintRow: CSSProperties = {
 }
 
 const heroHintPill: CSSProperties = {
-  border: '1px solid rgba(116,190,255,0.22)',
-  background:
-    'linear-gradient(180deg, rgba(54,108,198,0.22) 0%, rgba(29,63,121,0.18) 100%)',
-  color: '#eaf4ff',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   borderRadius: '999px',
   padding: '11px 16px',
   fontSize: '13px',
   fontWeight: 700,
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const coverageCard: CSSProperties = {
@@ -767,7 +772,7 @@ const coverageCard: CSSProperties = {
 }
 
 const coverageLabel: CSSProperties = {
-  color: 'rgba(217, 231, 255, 0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -777,7 +782,7 @@ const coverageLabel: CSSProperties = {
 
 const coverageValue: CSSProperties = {
   marginTop: '8px',
-  color: '#ffffff',
+  color: 'var(--foreground-strong)',
   fontSize: '34px',
   lineHeight: 1,
   fontWeight: 900,
@@ -786,7 +791,7 @@ const coverageValue: CSSProperties = {
 
 const coverageText: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(219, 234, 254, 0.88)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -813,7 +818,7 @@ const editorialPanel: CSSProperties = {
 
 const editorialText: CSSProperties = {
   margin: 0,
-  color: 'rgba(220,233,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
@@ -830,12 +835,12 @@ const editorialCard: CSSProperties = {
   gap: '8px',
   padding: '18px',
   borderRadius: '20px',
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.015) 100%)',
-  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
 }
 
 const editorialCardLabel: CSSProperties = {
-  color: 'rgba(188,208,232,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.11em',
@@ -843,7 +848,7 @@ const editorialCardLabel: CSSProperties = {
 }
 
 const editorialCardValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '24px',
   lineHeight: 1.04,
   fontWeight: 900,
@@ -851,7 +856,7 @@ const editorialCardValue: CSSProperties = {
 }
 
 const editorialCardText: CSSProperties = {
-  color: 'rgba(215,229,247,0.76)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.65,
 }
@@ -877,7 +882,7 @@ const metricCardAccent: CSSProperties = {
 }
 
 const metricLabel: CSSProperties = {
-  color: 'rgba(198,216,248,0.78)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.5,
   fontWeight: 750,
@@ -887,7 +892,7 @@ const metricLabel: CSSProperties = {
 
 const metricValue: CSSProperties = {
   marginTop: '8px',
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '32px',
   lineHeight: 1,
   fontWeight: 900,
@@ -940,7 +945,7 @@ const filterGrid: CSSProperties = {
 const inputLabel: CSSProperties = {
   display: 'block',
   marginBottom: '8px',
-  color: 'rgba(198,216,248,0.84)',
+  color: 'var(--foreground-strong)',
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.05em',
@@ -956,7 +961,7 @@ const searchIconWrap: CSSProperties = {
   left: '14px',
   top: '50%',
   transform: 'translateY(-50%)',
-  color: 'rgba(210,226,244,0.82)',
+  color: 'var(--shell-copy-muted)',
   pointerEvents: 'none',
 }
 
@@ -970,6 +975,7 @@ const searchInput: CSSProperties = {
   fontSize: '15px',
   outline: 'none',
   boxShadow: 'var(--home-control-shadow)',
+  colorScheme: 'normal',
 }
 
 const clearFilterButton: CSSProperties = {
@@ -979,11 +985,12 @@ const clearFilterButton: CSSProperties = {
   minHeight: '38px',
   padding: '0 14px',
   borderRadius: '999px',
-  border: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.05)',
-  color: '#e6eefb',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
+  textDecoration: 'none',
 }
 
 const selectStyle: CSSProperties = {
@@ -997,20 +1004,21 @@ const selectStyle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 700,
   outline: 'none',
+  colorScheme: 'normal',
 }
 
 const stateBox: CSSProperties = {
   marginTop: '8px',
   borderRadius: '18px',
   padding: '18px',
-  background: 'linear-gradient(180deg, rgba(38,67,118,0.46) 0%, rgba(22,40,78,0.58) 100%)',
-  border: '1px solid rgba(128,174,255,0.14)',
-  color: '#dbeafe',
+  background: 'var(--shell-chip-bg)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
   fontSize: '15px',
   lineHeight: 1.7,
   fontWeight: 600,
   textAlign: 'center',
-  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxShadow: 'var(--shadow-soft)',
 }
 
 const errorBox: CSSProperties = {
@@ -1029,9 +1037,9 @@ const noticeBox: CSSProperties = {
   marginBottom: '14px',
   borderRadius: '16px',
   padding: '12px 14px',
-  background: 'rgba(59, 130, 246, 0.10)',
-  border: '1px solid rgba(96, 165, 250, 0.22)',
-  color: '#dbeafe',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-panel-bg) 88%)',
+  border: '1px solid var(--shell-panel-border)',
+  color: 'var(--foreground-strong)',
   fontWeight: 600,
   fontSize: '14px',
   lineHeight: 1.6,
@@ -1039,7 +1047,7 @@ const noticeBox: CSSProperties = {
 
 const stateHelperTextStyle: CSSProperties = {
   marginTop: '10px',
-  color: 'rgba(219,234,254,0.82)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -1048,14 +1056,14 @@ const stateHelperTextStyle: CSSProperties = {
 const diagnosticWrap: CSSProperties = {
   marginTop: '16px',
   paddingTop: '16px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
+  borderTop: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: '10px',
   textAlign: 'left',
 }
 
 const diagnosticTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '14px',
   fontWeight: 800,
   textTransform: 'uppercase',
@@ -1063,7 +1071,7 @@ const diagnosticTitle: CSSProperties = {
 }
 
 const diagnosticText: CSSProperties = {
-  color: 'rgba(219,234,254,0.88)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
   fontWeight: 500,
@@ -1078,9 +1086,9 @@ const diagnosticChipRow: CSSProperties = {
 const diagnosticChip: CSSProperties = {
   borderRadius: '999px',
   padding: '8px 12px',
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(18,34,67,0.54)',
-  color: '#dbeafe',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 700,
 }
@@ -1093,12 +1101,12 @@ const diagnosticSampleList: CSSProperties = {
 const diagnosticSampleCard: CSSProperties = {
   borderRadius: '16px',
   padding: '12px 14px',
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(8,20,43,0.5)',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
 }
 
 const diagnosticSampleTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '14px',
   fontWeight: 700,
   lineHeight: 1.5,
@@ -1106,7 +1114,7 @@ const diagnosticSampleTitle: CSSProperties = {
 
 const diagnosticSampleMeta: CSSProperties = {
   marginTop: '4px',
-  color: 'rgba(219,234,254,0.8)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
 }
@@ -1117,6 +1125,14 @@ const summaryBadgeRow: CSSProperties = {
   gap: '10px',
   flexWrap: 'wrap',
   marginBottom: '16px',
+}
+
+const emptyActionRow: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  flexWrap: 'wrap',
+  gap: '10px',
+  marginTop: '14px',
 }
 
 const cardGrid: CSSProperties = {
@@ -1180,33 +1196,34 @@ const leagueMetaPillBase: CSSProperties = {
 
 const leagueMetaBluePill: CSSProperties = {
   ...leagueMetaPillBase,
-  background: 'rgba(74,163,255,0.14)',
-  color: '#dfeeff',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
 }
 
 const leagueMetaGreenPill: CSSProperties = {
   ...leagueMetaPillBase,
-  background: 'rgba(155,225,29,0.14)',
-  color: '#e7ffd1',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  color: 'var(--foreground-strong)',
 }
 
 const leagueMetaSlatePill: CSSProperties = {
   ...leagueMetaPillBase,
-  background: 'rgba(142, 161, 189, 0.14)',
-  color: '#dfe8f8',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
 }
 
 const leagueTitle: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '28px',
   lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leagueFlight: CSSProperties = {
   marginTop: '8px',
-  color: '#8ec5ff',
+  color: 'var(--brand-blue-2)',
   fontSize: '15px',
   lineHeight: 1.5,
   fontWeight: 800,
@@ -1255,14 +1272,14 @@ const detailCard: CSSProperties = {
 }
 
 const detailLabel: CSSProperties = {
-  color: 'rgba(224,234,247,0.72)',
+  color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
   marginBottom: '6px',
 }
 
 const detailValue: CSSProperties = {
-  color: '#f8fbff',
+  color: 'var(--foreground-strong)',
   fontSize: '16px',
   lineHeight: 1.45,
   fontWeight: 800,
@@ -1272,11 +1289,11 @@ const detailValue: CSSProperties = {
 const leagueBottom: CSSProperties = {
   marginTop: '16px',
   paddingTop: '16px',
-  borderTop: '1px solid rgba(255,255,255,0.08)',
+  borderTop: '1px solid var(--shell-panel-border)',
 }
 
 const leagueBottomMeta: CSSProperties = {
-  color: '#d5e5fb',
+  color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 600,
