@@ -948,6 +948,7 @@ function heroShellResponsive(isTablet: boolean, isMobile: boolean): CSSPropertie
     gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(min(100%, 330px), 0.84fr)',
     padding: isMobile ? '26px 18px' : '34px 26px',
     gap: isMobile ? '18px' : '22px',
+    minWidth: 0,
   }
 }
 
@@ -963,6 +964,7 @@ function selectorPanelResponsive(isSmallMobile: boolean): CSSProperties {
     ...selectorPanel,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isSmallMobile ? 'stretch' : 'center',
+    minWidth: 0,
   }
 }
 
@@ -970,6 +972,7 @@ function metricGridResponsive(isSmallMobile: boolean, isMobile: boolean): CSSPro
   return {
     ...metricGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    minWidth: 0,
   }
 }
 
@@ -977,6 +980,7 @@ function availabilityActionGridResponsive(isSmallMobile: boolean): CSSProperties
   return {
     ...availabilityActionGrid,
     gridTemplateColumns: isSmallMobile ? '1fr' : availabilityActionGrid.gridTemplateColumns,
+    minWidth: 0,
   }
 }
 
@@ -988,6 +992,7 @@ function sectionHeadResponsive(isTablet: boolean): CSSProperties {
     alignItems: isTablet ? 'flex-start' : 'flex-end',
     gap: '16px',
     flexDirection: isTablet ? 'column' : 'row',
+    minWidth: 0,
   }
 }
 
@@ -996,6 +1001,7 @@ function playerRowResponsive(isSmallMobile: boolean): CSSProperties {
     ...playerRow,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isSmallMobile ? 'flex-start' : 'center',
+    minWidth: 0,
   }
 }
 
@@ -1003,6 +1009,7 @@ function statusButtonRowResponsive(isSmallMobile: boolean): CSSProperties {
   return {
     ...statusButtonRow,
     width: isSmallMobile ? '100%' : 'auto',
+    minWidth: 0,
   }
 }
 
@@ -1014,6 +1021,7 @@ const pageWrap: CSSProperties = {
   padding: '14px 0 28px',
   position: 'relative',
   zIndex: 2,
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
@@ -1023,6 +1031,7 @@ const heroShell: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: 'var(--shadow-card)',
+  minWidth: 0,
 }
 
 const eyebrow: CSSProperties = {
@@ -1040,6 +1049,9 @@ const eyebrow: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
   marginBottom: '4px',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -1049,6 +1061,7 @@ const heroTitle: CSSProperties = {
   lineHeight: 0.98,
   letterSpacing: 0,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -1057,6 +1070,7 @@ const heroText: CSSProperties = {
   fontSize: '18px',
   lineHeight: 1.6,
   maxWidth: '760px',
+  overflowWrap: 'anywhere',
 }
 
 const selectorPanel: CSSProperties = {
@@ -1067,11 +1081,13 @@ const selectorPanel: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   maxWidth: '940px',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const selectStyle: CSSProperties = {
-  flex: 1,
-  minWidth: '220px',
+  flex: '1 1 min(100%, 220px)',
+  minWidth: 0,
   height: '52px',
   borderRadius: '16px',
   border: '1px solid var(--shell-panel-border)',
@@ -1102,6 +1118,11 @@ const primaryButton: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const disabledAction: CSSProperties = {
@@ -1115,6 +1136,7 @@ const heroBadgeRow: CSSProperties = {
   gap: '10px',
   flexWrap: 'wrap',
   marginTop: '14px',
+  minWidth: 0,
 }
 
 const badgeBase: CSSProperties = {
@@ -1128,6 +1150,11 @@ const badgeBase: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   border: '1px solid transparent',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const badgeBlue: CSSProperties = {
@@ -1165,6 +1192,7 @@ const quickStartCard: CSSProperties = {
   boxShadow: 'var(--shadow-soft)',
   padding: '22px',
   minHeight: '100%',
+  minWidth: 0,
 }
 
 const quickStartLabel: CSSProperties = {
@@ -1173,6 +1201,7 @@ const quickStartLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const quickStartTitle: CSSProperties = {
@@ -1182,6 +1211,7 @@ const quickStartTitle: CSSProperties = {
   lineHeight: 1.04,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const quickStartMeta: CSSProperties = {
@@ -1189,12 +1219,14 @@ const quickStartMeta: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.55,
   marginBottom: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const statusGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: '10px',
+  minWidth: 0,
 }
 
 const statusCard: CSSProperties = {
@@ -1203,6 +1235,7 @@ const statusCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   textAlign: 'center',
+  minWidth: 0,
 }
 
 const statusLabelGreen: CSSProperties = {
@@ -1211,6 +1244,7 @@ const statusLabelGreen: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  overflowWrap: 'anywhere',
 }
 
 const statusLabelBlue: CSSProperties = {
@@ -1219,6 +1253,7 @@ const statusLabelBlue: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  overflowWrap: 'anywhere',
 }
 
 const statusLabelSlate: CSSProperties = {
@@ -1227,6 +1262,7 @@ const statusLabelSlate: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.06em',
+  overflowWrap: 'anywhere',
 }
 
 const statusValue: CSSProperties = {
@@ -1235,6 +1271,7 @@ const statusValue: CSSProperties = {
   fontSize: '28px',
   fontWeight: 900,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const responseMeterShell: CSSProperties = {
@@ -1245,6 +1282,7 @@ const responseMeterShell: CSSProperties = {
   borderRadius: 18,
   background: 'color-mix(in srgb, var(--shell-panel-bg) 72%, var(--brand-blue-2) 10%)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const responseMeterTop: CSSProperties = {
@@ -1255,6 +1293,7 @@ const responseMeterTop: CSSProperties = {
   fontSize: 13,
   fontWeight: 900,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const responseTrack: CSSProperties = {
@@ -1278,6 +1317,7 @@ const responseMeterMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const successBanner: CSSProperties = {
@@ -1289,6 +1329,7 @@ const successBanner: CSSProperties = {
   color: '#e7ffd0',
   fontWeight: 700,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const helperBanner: CSSProperties = {
@@ -1300,16 +1341,19 @@ const helperBanner: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   fontSize: '14px',
+  overflowWrap: 'anywhere',
 }
 
 const contentWrap: CSSProperties = {
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const metricGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
+  minWidth: 0,
 }
 
 const decisionPanel: CSSProperties = {
@@ -1320,12 +1364,14 @@ const decisionPanel: CSSProperties = {
   background: 'var(--shell-panel-bg-strong)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const availabilityActionGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
   gap: '14px',
+  minWidth: 0,
 }
 
 const availabilityActionCard: CSSProperties = {
@@ -1338,6 +1384,7 @@ const availabilityActionCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const availabilityActionCardGreen: CSSProperties = {
@@ -1362,6 +1409,7 @@ const availabilityActionTop: CSSProperties = {
   alignItems: 'center',
   gap: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const availabilityActionLabel: CSSProperties = {
@@ -1370,6 +1418,7 @@ const availabilityActionLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const availabilityActionTitle: CSSProperties = {
@@ -1378,6 +1427,7 @@ const availabilityActionTitle: CSSProperties = {
   fontWeight: 900,
   lineHeight: 1.12,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const availabilityActionText: CSSProperties = {
@@ -1385,6 +1435,7 @@ const availabilityActionText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   fontSize: '.94rem',
+  overflowWrap: 'anywhere',
 }
 
 const metricCard: CSSProperties = {
@@ -1393,6 +1444,7 @@ const metricCard: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const metricCardGreen: CSSProperties = {
@@ -1415,6 +1467,7 @@ const metricLabel: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const metricValue: CSSProperties = {
@@ -1424,6 +1477,7 @@ const metricValue: CSSProperties = {
   lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionCard: CSSProperties = {
@@ -1432,10 +1486,12 @@ const sectionCard: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const sectionHead: CSSProperties = {
   marginBottom: '18px',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -1445,6 +1501,7 @@ const sectionKicker: CSSProperties = {
   textTransform: 'uppercase',
   letterSpacing: '0.11em',
   marginBottom: '8px',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -1454,6 +1511,7 @@ const sectionTitle: CSSProperties = {
   lineHeight: 1,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const sectionSub: CSSProperties = {
@@ -1461,12 +1519,14 @@ const sectionSub: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '14px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const sectionActions: CSSProperties = {
   display: 'flex',
   gap: '10px',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionChipRow: CSSProperties = {
@@ -1474,6 +1534,7 @@ const sectionChipRow: CSSProperties = {
   gap: 8,
   flexWrap: 'wrap',
   marginTop: 12,
+  minWidth: 0,
 }
 
 const sectionCtaPrimary: CSSProperties = {
@@ -1495,11 +1556,17 @@ const sectionCtaSecondary: CSSProperties = {
   color: 'var(--foreground-strong)',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const playerList: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const playerRow: CSSProperties = {
@@ -1510,6 +1577,8 @@ const playerRow: CSSProperties = {
   padding: '16px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const playerName: CSSProperties = {
@@ -1517,6 +1586,7 @@ const playerName: CSSProperties = {
   fontSize: '16px',
   fontWeight: 800,
   lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const playerMeta: CSSProperties = {
@@ -1524,6 +1594,7 @@ const playerMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const statusButtonRow: CSSProperties = {
@@ -1531,6 +1602,7 @@ const statusButtonRow: CSSProperties = {
   gap: '8px',
   flexWrap: 'wrap',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const statusButton: CSSProperties = {
@@ -1543,6 +1615,11 @@ const statusButton: CSSProperties = {
   fontWeight: 800,
   fontSize: '12px',
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const statusButtonIn: CSSProperties = {
@@ -1576,6 +1653,7 @@ const stateBox: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   color: 'var(--foreground)',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const errorCard: CSSProperties = {
@@ -1585,6 +1663,7 @@ const errorCard: CSSProperties = {
   border: '1px solid rgba(255, 122, 122, 0.26)',
   color: '#ffd7d7',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const loadingWrap: CSSProperties = {
@@ -1593,6 +1672,7 @@ const loadingWrap: CSSProperties = {
   padding: '40px 0',
   position: 'relative',
   zIndex: 2,
+  minWidth: 0,
 }
 
 const loadingCard: CSSProperties = {
@@ -1603,4 +1683,5 @@ const loadingCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.18)',
   fontSize: '15px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
