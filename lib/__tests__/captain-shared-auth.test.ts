@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const weeklyBriefSource = readFileSync(join(process.cwd(), 'app/captain/weekly-brief/page.tsx'), 'utf8')
 const teamBriefSource = readFileSync(join(process.cwd(), 'app/captain/team-brief/page.tsx'), 'utf8')
+const captainHubSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 const lineupProjectionSource = readFileSync(join(process.cwd(), 'app/captain/lineup-projection/page.tsx'), 'utf8')
 const scenarioBuilderSource = readFileSync(join(process.cwd(), 'app/captain/scenario-builder/page.tsx'), 'utf8')
 const analyticsSource = readFileSync(join(process.cwd(), 'app/captain/analytics/page.tsx'), 'utf8')
@@ -13,6 +14,18 @@ const messagingSource = readFileSync(join(process.cwd(), 'app/captain/messaging/
 const lineupBuilderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
 
 describe('Captain shared auth access', () => {
+  it('keeps the captain hub on shared auth before resolving team scope', () => {
+    expect(captainHubSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(captainHubSource).toContain('<SiteShell active="/captain">')
+    expect(captainHubSource).toContain('const { userId, role, entitlements, authResolved } = useAuth()')
+    expect(captainHubSource).toContain("if (!authResolved || role === 'public') return")
+    expect(captainHubSource).toContain('void loadCaptainTeamScopes(userId)')
+    expect(captainHubSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
+    expect(captainHubSource).not.toContain('const [authLoading, setAuthLoading]')
+    expect(captainHubSource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
+    expect(captainHubSource).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
   it('keeps weekly and team brief access on the shared auth provider', () => {
     for (const source of [weeklyBriefSource, teamBriefSource]) {
       expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
