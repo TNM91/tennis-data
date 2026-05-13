@@ -692,7 +692,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           <span style={pillStyle}>{identity.role === 'admin' ? 'Admin identity' : 'Messaging identity'}</span>
           <label style={fieldStyle}>
             <span style={labelStyle}>Shown as</span>
-            <div style={lookupRowStyle}>
+            <div style={lookupRowStyle(isMobile)}>
               <input
                 value={displayNameDraft}
                 onChange={(event) => setDisplayNameDraft(event.target.value)}
@@ -911,7 +911,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                 </div>
               </div>
 
-              <div style={rsvpSummaryStyle}>
+              <div style={rsvpSummaryStyle(isMobile)}>
                 {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
                   <div key={status} style={rsvpStatStyle}>
                     <strong>{scheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
@@ -951,7 +951,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     </button>
                   </div>
                   {scheduleEditOpen ? (
-                    <div style={scheduleEditGridStyle}>
+                    <div style={scheduleEditGridStyle(isMobile)}>
                       <label style={fieldStyle}>
                         <span style={labelStyle}>Date</span>
                         <input type="date" value={scheduleDraftDate} onChange={(event) => setScheduleDraftDate(event.target.value)} style={inputStyle} />
@@ -1089,7 +1089,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
           {composeMode === 'direct' ? (
             <label style={fieldStyle}>
               <span style={labelStyle}>Recipient</span>
-              <div style={lookupRowStyle}>
+              <div style={lookupRowStyle(isMobile)}>
                 <input
                   value={recipientInput}
                   onChange={(event) => {
@@ -1185,14 +1185,16 @@ const pageStyle: CSSProperties = {
   maxWidth: 1280,
   margin: '0 auto',
   padding: '18px 24px 30px',
+  minWidth: 0,
 }
 
 const heroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.2fr) minmax(min(100%, 320px), 0.8fr)',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(min(100%, 320px), 0.8fr)',
   gap: isMobile ? 14 : 18,
   alignItems: 'stretch',
   marginBottom: 18,
+  minWidth: 0,
 })
 
 const panelStyle: CSSProperties = {
@@ -1203,6 +1205,7 @@ const panelStyle: CSSProperties = {
   padding: 18,
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const titleStyle: CSSProperties = {
@@ -1232,10 +1235,11 @@ const copyStyle: CSSProperties = {
 const workspaceGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'minmax(min(100%, 250px), 0.8fr) minmax(0, 1.35fr) minmax(min(100%, 280px), 0.85fr)',
   gap: 16,
   alignItems: 'start',
+  minWidth: 0,
 })
 
 const identityPanelStyle: CSSProperties = {
@@ -1267,17 +1271,20 @@ const preferencePanelStyle: CSSProperties = {
 
 const preferenceGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
   gap: 8,
+  minWidth: 0,
 }
 
 const preferenceToggleStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
+  flexWrap: 'wrap',
   gap: 8,
   color: 'var(--foreground-strong)',
   fontSize: 12,
   fontWeight: 850,
+  minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -1285,6 +1292,8 @@ const sectionHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 12,
   alignItems: 'flex-start',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const pillStyle: CSSProperties = {
@@ -1322,6 +1331,7 @@ const threadButtonStyle = (active: boolean, unread = false): CSSProperties => ({
   gap: 7,
   textAlign: 'left',
   cursor: 'pointer',
+  minWidth: 0,
 })
 
 const unreadPillStyle: CSSProperties = {
@@ -1354,6 +1364,7 @@ const notificationButtonStyle = (unread: boolean): CSSProperties => ({
   padding: 12,
   textAlign: 'left',
   cursor: 'pointer',
+  minWidth: 0,
 })
 
 const notificationTopStyle: CSSProperties = {
@@ -1361,6 +1372,8 @@ const notificationTopStyle: CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const dividerStyle: CSSProperties = {
@@ -1374,6 +1387,8 @@ const threadTopStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 8,
   alignItems: 'center',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const threadPreviewStyle: CSSProperties = {
@@ -1404,6 +1419,7 @@ const messageListStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
   gap: 10,
+  minWidth: 0,
 }
 
 const contextPanelStyle: CSSProperties = {
@@ -1449,6 +1465,7 @@ const schedulePillStackStyle: CSSProperties = {
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
   gap: 8,
+  minWidth: 0,
 }
 
 const pillDangerStyle: CSSProperties = {
@@ -1466,11 +1483,12 @@ const scheduleTitleStyle: CSSProperties = {
   fontWeight: 950,
 }
 
-const rsvpSummaryStyle: CSSProperties = {
+const rsvpSummaryStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
   gap: 8,
-}
+  minWidth: 0,
+})
 
 const rsvpStatStyle: CSSProperties = {
   display: 'grid',
@@ -1489,6 +1507,7 @@ const rsvpActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 8,
+  minWidth: 0,
 }
 
 const scheduleManagePanelStyle: CSSProperties = {
@@ -1497,11 +1516,12 @@ const scheduleManagePanelStyle: CSSProperties = {
   paddingTop: 2,
 }
 
-const scheduleEditGridStyle: CSSProperties = {
+const scheduleEditGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   gap: 10,
-}
+  minWidth: 0,
+})
 
 const cancelBoxStyle: CSSProperties = {
   gridColumn: '1 / -1',
@@ -1535,6 +1555,7 @@ const rsvpButtonStyle = (active: boolean, status: InternalScheduleResponseStatus
 const messageBubbleWrapStyle = (mine: boolean): CSSProperties => ({
   display: 'flex',
   justifyContent: mine ? 'flex-end' : 'flex-start',
+  minWidth: 0,
 })
 
 const messageBubbleStyle = (mine: boolean): CSSProperties => ({
@@ -1550,6 +1571,8 @@ const messageBubbleStyle = (mine: boolean): CSSProperties => ({
   padding: '10px 12px',
   display: 'grid',
   gap: 7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 })
 
 const replyBoxStyle: CSSProperties = {
@@ -1565,6 +1588,7 @@ const segmentedStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const filterBarStyle: CSSProperties = {
@@ -1606,6 +1630,7 @@ const segmentStyle = (active: boolean): CSSProperties => ({
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
+  minWidth: 0,
 }
 
 const labelStyle: CSSProperties = {
@@ -1618,6 +1643,7 @@ const labelStyle: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
+  minWidth: 0,
   minHeight: 44,
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
@@ -1635,15 +1661,17 @@ const textareaStyle: CSSProperties = {
   lineHeight: 1.45,
 }
 
-const lookupRowStyle: CSSProperties = {
+const lookupRowStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
   gap: 8,
-}
+  minWidth: 0,
+})
 
 const recipientResultsStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const recipientResultButtonStyle: CSSProperties = {
@@ -1661,6 +1689,8 @@ const recipientResultButtonStyle: CSSProperties = {
   padding: '9px 11px',
   textAlign: 'left',
   cursor: 'pointer',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const primaryButtonStyle: CSSProperties = {
@@ -1678,6 +1708,11 @@ const primaryButtonStyle: CSSProperties = {
   textDecoration: 'none',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const ghostButtonStyle: CSSProperties = {
@@ -1692,6 +1727,11 @@ const ghostButtonStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   cursor: 'pointer',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const dangerButtonStyle: CSSProperties = {
