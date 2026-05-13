@@ -62,12 +62,15 @@ describe('Data Assist mobile layout guards', () => {
       'scheduleMatchRowStyle',
       'bulkResultRowStyle',
       'playerSidesGridStyle',
+      'screenshotGridStyle',
       'screenshotCardStyle',
       'screenshotBodyStyle',
     ]) {
       expect(styleBlock(styleName)).toMatch(/minWidth: 0|overflowWrap: 'anywhere'/)
     }
 
+    expect(source).not.toContain("? '1fr'")
+    expect(styleBlock('screenshotGridStyle')).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(styleBlock('parsedSideHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('showMoreButtonStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('scanLoadingStyle')).toContain("flexWrap: 'wrap'")
