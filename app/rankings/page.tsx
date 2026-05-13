@@ -2460,6 +2460,7 @@ const clearFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minWidth: 0,
   minHeight: '34px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -2468,6 +2469,10 @@ const clearFilterButton: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const tableWrap: CSSProperties = {
@@ -2475,11 +2480,15 @@ const tableWrap: CSSProperties = {
   borderRadius: '20px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  maxWidth: '100%',
+  WebkitOverflowScrolling: 'touch',
+  overscrollBehaviorX: 'contain',
 }
 
 const compactLeaderboardStyle: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const compactTierDividerStyle: CSSProperties = {
@@ -2489,6 +2498,7 @@ const compactTierDividerStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const compactRankingCardStyle: CSSProperties = {
@@ -2564,6 +2574,7 @@ const compactBottomGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 96px), 1fr))',
   gap: '10px',
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const compactActionRowStyle: CSSProperties = {
@@ -2608,12 +2619,14 @@ const compactMiniLabelStyle: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const compactMiniValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '15px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const dataTable: CSSProperties = {
@@ -2648,18 +2661,22 @@ const tableCell: CSSProperties = {
   fontWeight: 600,
   borderTop: '1px solid var(--shell-panel-border)',
   verticalAlign: 'top',
+  overflowWrap: 'anywhere',
 }
 
 const rowActionStackStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '8px',
+  minWidth: 0,
+  maxWidth: '100%',
 }
 
 const rowActionPrimaryStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minWidth: 0,
   minHeight: '32px',
   padding: '0 11px',
   borderRadius: 999,
@@ -2669,6 +2686,10 @@ const rowActionPrimaryStyle: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   textDecoration: 'none',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const rowActionSecondaryStyle: CSSProperties = {
@@ -2684,6 +2705,7 @@ const insightDetails: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
   overflow: 'hidden',
+  minWidth: 0,
 }
 
 const insightSummary: CSSProperties = {
@@ -2694,6 +2716,8 @@ const insightSummary: CSSProperties = {
   padding: '18px 20px',
   cursor: 'pointer',
   listStyle: 'none',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const insightSummaryTitle: CSSProperties = {
@@ -2704,6 +2728,7 @@ const insightSummaryTitle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const insightSummaryMeta: CSSProperties = {
@@ -2719,12 +2744,16 @@ const insightSummaryMeta: CSSProperties = {
   fontSize: '12px',
   fontWeight: 900,
   whiteSpace: 'normal',
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
 }
 
 const insightBody: CSSProperties = {
   display: 'grid',
   gap: '14px',
   padding: '0 20px 20px',
+  minWidth: 0,
 }
 
 const signalPanel: CSSProperties = {
@@ -2734,6 +2763,7 @@ const signalPanel: CSSProperties = {
   borderRadius: '20px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const signalPanelHead: CSSProperties = {
@@ -2741,6 +2771,8 @@ const signalPanelHead: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'space-between',
   gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const signalPanelTitle: CSSProperties = {
@@ -2749,18 +2781,21 @@ const signalPanelTitle: CSSProperties = {
   fontSize: '20px',
   lineHeight: 1.1,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const distributionGrid: CSSProperties = {
   display: 'grid',
   gap: '8px',
+  minWidth: 0,
 }
 
 const distributionRow: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '72px minmax(0, 1fr) 32px',
+  gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr) minmax(0, 32px)',
   alignItems: 'center',
   gap: '10px',
+  minWidth: 0,
 }
 
 const distributionLabel: CSSProperties = {
@@ -2768,6 +2803,7 @@ const distributionLabel: CSSProperties = {
   fontSize: '11px',
   fontWeight: 800,
   textAlign: 'right',
+  overflowWrap: 'anywhere',
 }
 
 const distributionTrack: CSSProperties = {
@@ -2788,12 +2824,14 @@ const distributionCount: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const signalGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: '12px',
+  minWidth: 0,
 }
 
 const signalListCard: CSSProperties = {
@@ -2810,11 +2848,13 @@ const signalListTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '16px',
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const signalListItems: CSSProperties = {
   display: 'grid',
   gap: '10px',
+  minWidth: 0,
 }
 
 const signalListItem: CSSProperties = {
@@ -2822,6 +2862,8 @@ const signalListItem: CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   gap: '12px',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const signalListLink: CSSProperties = {
@@ -2829,6 +2871,7 @@ const signalListLink: CSSProperties = {
   fontSize: '14px',
   fontWeight: 850,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const signalListMeta: CSSProperties = {
@@ -2836,18 +2879,21 @@ const signalListMeta: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '11px',
   fontWeight: 650,
+  overflowWrap: 'anywhere',
 }
 
 const signalListValue: CSSProperties = {
   flex: '0 0 auto',
   fontSize: '14px',
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const signalEmpty: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const emptyCell: CSSProperties = {
@@ -2855,6 +2901,7 @@ const emptyCell: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontWeight: 700,
   padding: '24px',
+  overflowWrap: 'anywhere',
 }
 
 const rankBadge: CSSProperties = {
@@ -2869,12 +2916,16 @@ const rankBadge: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1,
   fontWeight: 900,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const playerLink: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 800,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
 }
 
 const activeRatingCell: CSSProperties = {
@@ -2895,6 +2946,7 @@ const editorialPanel: CSSProperties = {
   background: 'var(--shell-panel-bg)',
   border: '1px solid var(--shell-panel-border)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const editorialText: CSSProperties = {
@@ -2903,12 +2955,14 @@ const editorialText: CSSProperties = {
   fontSize: '15px',
   lineHeight: 1.8,
   maxWidth: '860px',
+  overflowWrap: 'anywhere',
 }
 
 const editorialGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+  minWidth: 0,
 }
 
 const editorialCard: CSSProperties = {
@@ -2918,6 +2972,7 @@ const editorialCard: CSSProperties = {
   borderRadius: '20px',
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const editorialCardLabel: CSSProperties = {
@@ -2926,6 +2981,7 @@ const editorialCardLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.11em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const editorialCardValue: CSSProperties = {
@@ -2934,12 +2990,14 @@ const editorialCardValue: CSSProperties = {
   lineHeight: 1.04,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const editorialCardText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const statusPill: CSSProperties = {
