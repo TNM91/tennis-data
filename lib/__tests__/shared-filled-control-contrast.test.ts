@@ -27,6 +27,22 @@ const publicAccessControlFiles = [
   'app/pricing/page.tsx',
   'app/upgrade/page.tsx',
 ]
+const captainLeagueControlFiles = [
+  'app/captain/analytics/page.tsx',
+  'app/captain/availability/page.tsx',
+  'app/captain/lineup-availability/page.tsx',
+  'app/captain/lineup-projection/page.tsx',
+  'app/captain/messaging/page.tsx',
+  'app/captain/page.tsx',
+  'app/captain/scenario-builder/page.tsx',
+  'app/captain/team-brief/page.tsx',
+  'app/captain/weekly-brief/page.tsx',
+  'app/components/individual-league-results-workspace.tsx',
+  'app/components/league-coordinator-workspace.tsx',
+  'app/components/quick-message-composer.tsx',
+  'app/components/schedule-message-composer.tsx',
+  'app/components/team-league-results-workspace.tsx',
+]
 
 function collectTsxSources(directory: string): string[] {
   return readdirSync(directory).flatMap((entry) => {
@@ -75,6 +91,20 @@ describe('shared filled control contrast', () => {
       expect(source, file).not.toContain('#06111d')
       expect(source, file).not.toContain('#04121a')
       expect(source, file).not.toContain('#07121f')
+    }
+  })
+
+  it('keeps captain and league workflow controls shell-aware', () => {
+    for (const file of captainLeagueControlFiles) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(source, file).toContain("color: 'var(--foreground-strong)'")
+      expect(source, file).toContain('color-mix(in srgb, var(--brand-green)')
+      expect(source, file).not.toContain('linear-gradient(135deg, #9be11d')
+      expect(source, file).not.toContain('linear-gradient(135deg, #67f19a')
+      expect(source, file).not.toContain('#071425')
+      expect(source, file).not.toContain('#071622')
+      expect(source, file).not.toContain('#04121a')
+      expect(source, file).not.toContain('#08111d')
     }
   })
 

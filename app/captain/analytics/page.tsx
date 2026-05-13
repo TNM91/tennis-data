@@ -1972,10 +1972,10 @@ const primaryButton: CSSProperties = {
   borderRadius: '999px',
   textDecoration: 'none',
   fontWeight: 800,
-  background: 'linear-gradient(135deg, #67f19a, #28cd6e)',
-  color: '#071622',
-  border: '1px solid rgba(133, 171, 255, 0.18)',
-  boxShadow: '0 16px 32px rgba(26, 74, 196, 0.16)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
   cursor: 'pointer',
 }
 

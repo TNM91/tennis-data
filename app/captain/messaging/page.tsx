@@ -4049,8 +4049,9 @@ const workflowNumberStyle: CSSProperties = {
   justifyContent: 'center',
   fontWeight: 800,
   fontSize: '.92rem',
-  color: '#0f1632',
-  background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)',
+  color: 'var(--foreground-strong)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   flexShrink: 0,
 }
 const workflowTitleStyle: CSSProperties = { fontWeight: 700, color: 'var(--foreground)', marginBottom: 4 }
@@ -4332,7 +4333,7 @@ const composerBodyPreviewStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
 }
 
-const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'linear-gradient(135deg, #9be11d 0%, #4ade80 100%)', color: '#071622', border: '1px solid rgba(155,225,29,0.34)', boxShadow: '0 16px 32px rgba(74, 222, 128, 0.14)' }
+const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)' }
 const primaryButtonBlock: CSSProperties = { ...primaryButton, width: '100%', appearance: 'none', cursor: 'pointer' }
 const ghostButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 46, padding: '0 16px', borderRadius: 999, textDecoration: 'none', fontWeight: 800, background: 'var(--shell-chip-bg)', color: 'var(--foreground)', border: '1px solid var(--shell-panel-border)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)' }
 const ghostButtonSmallButton: CSSProperties = { ...ghostButton, minHeight: 42, cursor: 'pointer', appearance: 'none' }

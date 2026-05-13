@@ -1156,11 +1156,11 @@ const primaryButton: CSSProperties = {
   justifyContent: 'center',
   borderRadius: 999,
   padding: '12px 18px',
-  background: 'linear-gradient(135deg, #9be11d 0%, #45e3a1 100%)',
-  color: '#071425',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 900,
   textDecoration: 'none',
-  border: 'none',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   cursor: 'pointer',
 }
 
