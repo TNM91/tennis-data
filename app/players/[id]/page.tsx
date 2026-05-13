@@ -918,7 +918,7 @@ export default function PlayerProfilePage() {
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
     gridTemplateColumns: isTablet
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : 'minmax(0, 0.96fr) minmax(0, 1.04fr)',
     gap: isMobile ? '18px' : '22px',
   }
@@ -954,12 +954,12 @@ export default function PlayerProfilePage() {
 
   const dynamicSegmentWrap: CSSProperties = {
     ...segmentWrap,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   }
 
   const dynamicFocusMetrics: CSSProperties = {
     ...focusMetrics,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
 
   const dynamicFollowRow: CSSProperties = {
@@ -971,7 +971,7 @@ export default function PlayerProfilePage() {
   const dynamicStatsGrid: CSSProperties = {
     ...statsGrid,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isMobile
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(4, minmax(0, 1fr))',
@@ -979,7 +979,7 @@ export default function PlayerProfilePage() {
 
   const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
-    gridTemplateColumns: '1fr',
+    gridTemplateColumns: 'minmax(0, 1fr)',
   }
 
   const dynamicMeterFill: CSSProperties = {
@@ -3490,8 +3490,9 @@ const profileDiscoveryCopyStyle: CSSProperties = {
 
 const profileDiscoveryGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: '12px',
+  minWidth: 0,
 })
 
 const profileDiscoveryCardStyle: CSSProperties = {
@@ -3578,8 +3579,9 @@ const statCardAccentGreen: CSSProperties = {
 
 const signalGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: '14px',
+  minWidth: 0,
   marginBottom: '18px',
 })
 
@@ -3956,6 +3958,7 @@ const tableWrap: CSSProperties = {
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
   WebkitOverflowScrolling: 'touch',
+  minWidth: 0,
   borderRadius: '20px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -3965,7 +3968,7 @@ const tableWrap: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: '760px',
+  minWidth: 'min(100%, 760px)',
 }
 
 const tableHead: CSSProperties = {
