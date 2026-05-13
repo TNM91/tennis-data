@@ -3220,6 +3220,7 @@ const pageWrap: CSSProperties = {
   padding: '24px 24px 56px',
   display: 'grid',
   gap: 24,
+  minWidth: 0,
 }
 
 const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
@@ -3231,6 +3232,7 @@ const heroShellResponsive = (isTablet: boolean, isMobile: boolean): CSSPropertie
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 30px 70px rgba(2, 6, 23, 0.18)',
+  minWidth: 0,
 })
 
 const eyebrow: CSSProperties = {
@@ -3249,6 +3251,7 @@ const heroTitleResponsive = (isSmallMobile: boolean, isMobile: boolean): CSSProp
   lineHeight: 1.02,
   letterSpacing: 0,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 })
 
 const heroTextStyle: CSSProperties = {
@@ -3257,6 +3260,7 @@ const heroTextStyle: CSSProperties = {
   fontSize: 16,
   maxWidth: 760,
   marginTop: 14,
+  overflowWrap: 'anywhere',
 }
 
 const heroButtonRowStyle: CSSProperties = {
@@ -3264,6 +3268,7 @@ const heroButtonRowStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
   marginTop: 18,
+  minWidth: 0,
 }
 
 const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
@@ -3271,6 +3276,7 @@ const heroMetricGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   gridTemplateColumns: isSmallMobile ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
   gap: 12,
   marginTop: 22,
+  minWidth: 0,
 })
 
 const heroMetricCardStyle: CSSProperties = {
@@ -3279,6 +3285,7 @@ const heroMetricCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   border: '1px solid var(--shell-panel-border)',
   minHeight: 96,
+  minWidth: 0,
 }
 
 const metricLabelStyle: CSSProperties = {
@@ -3287,6 +3294,7 @@ const metricLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const metricValueStyleHero: CSSProperties = {
@@ -3294,6 +3302,7 @@ const metricValueStyleHero: CSSProperties = {
   fontSize: 28,
   fontWeight: 900,
   marginTop: 10,
+  overflowWrap: 'anywhere',
 }
 
 const quickStartCard: CSSProperties = {
@@ -3301,6 +3310,7 @@ const quickStartCard: CSSProperties = {
   padding: 22,
   background: 'var(--shell-panel-bg)',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const quickStartTitle: CSSProperties = {
@@ -3309,19 +3319,22 @@ const quickStartTitle: CSSProperties = {
   fontSize: 28,
   lineHeight: 1.1,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const workflowListStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   marginTop: 18,
+  minWidth: 0,
 }
 
 const workflowRowStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '42px 1fr',
+  gridTemplateColumns: '42px minmax(0, 1fr)',
   gap: 12,
   alignItems: 'start',
+  minWidth: 0,
 }
 
 const workflowNumberStyle: CSSProperties = {
@@ -3339,6 +3352,7 @@ const workflowTitleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: 15,
+  overflowWrap: 'anywhere',
 }
 
 const workflowTextStyle: CSSProperties = {
@@ -3346,18 +3360,21 @@ const workflowTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.55,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 
 const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet ? '1fr' : '1fr 1fr 1fr',
   gap: 22,
+  minWidth: 0,
 })
 
 const columnStyle: CSSProperties = {
   display: 'grid',
   gap: 22,
   alignContent: 'start',
+  minWidth: 0,
 }
 
 const surfaceCardStrong: CSSProperties = {
@@ -3366,6 +3383,7 @@ const surfaceCardStrong: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg-strong)',
   boxShadow: '0 18px 50px rgba(2, 6, 23, 0.14)',
+  minWidth: 0,
 }
 
 const surfaceCard: CSSProperties = {
@@ -3374,6 +3392,7 @@ const surfaceCard: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: '0 16px 42px rgba(2, 6, 23, 0.12)',
+  minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -3382,6 +3401,8 @@ const sectionHeaderStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 12,
   marginBottom: 18,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const sectionKicker: CSSProperties = {
@@ -3391,6 +3412,7 @@ const sectionKicker: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitle: CSSProperties = {
@@ -3399,6 +3421,7 @@ const sectionTitle: CSSProperties = {
   fontSize: 26,
   lineHeight: 1.08,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const sectionTitleSmall: CSSProperties = {
@@ -3407,6 +3430,7 @@ const sectionTitleSmall: CSSProperties = {
   fontSize: 20,
   lineHeight: 1.1,
   fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const sectionBodyTextStyle: CSSProperties = {
@@ -3414,6 +3438,7 @@ const sectionBodyTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const inputStyle: CSSProperties = {
@@ -3426,6 +3451,7 @@ const inputStyle: CSSProperties = {
   padding: '0 14px',
   outline: 'none',
   colorScheme: 'dark',
+  minWidth: 0,
 }
 
 const readOnlyInputStyle: CSSProperties = {
@@ -3444,6 +3470,7 @@ const textareaStyle: CSSProperties = {
   padding: '14px',
   outline: 'none',
   resize: 'vertical',
+  minWidth: 0,
 }
 
 const labelStyle: CSSProperties = {
@@ -3452,18 +3479,21 @@ const labelStyle: CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
   marginBottom: 8,
+  overflowWrap: 'anywhere',
 }
 
 const filtersGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 14,
+  minWidth: 0,
 }
 
 const contextSummaryGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const contextSummaryCardStyle: CSSProperties = {
@@ -3473,6 +3503,7 @@ const contextSummaryCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const contextSummaryLabelStyle: CSSProperties = {
@@ -3481,6 +3512,7 @@ const contextSummaryLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const contextSummaryValueStyle: CSSProperties = {
@@ -3489,6 +3521,7 @@ const contextSummaryValueStyle: CSSProperties = {
   lineHeight: 1.2,
   fontWeight: 800,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const contextSummaryInsightStyle: CSSProperties = {
@@ -3496,6 +3529,7 @@ const contextSummaryInsightStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const sharedNotesCardStyle: CSSProperties = {
@@ -3506,11 +3540,13 @@ const sharedNotesCardStyle: CSSProperties = {
   borderRadius: 20,
   border: '1px solid rgba(74, 222, 128, 0.16)',
   background: 'var(--shell-panel-bg)',
+  minWidth: 0,
 }
 
 const sharedNotesBlockStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const sharedNotesLabelStyle: CSSProperties = {
@@ -3519,6 +3555,7 @@ const sharedNotesLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const sharedNotesTextStyle: CSSProperties = {
@@ -3526,6 +3563,7 @@ const sharedNotesTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.7,
   whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
 }
 
 const toggleRowStyle: CSSProperties = {
@@ -3533,6 +3571,7 @@ const toggleRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 18,
   marginTop: 16,
+  minWidth: 0,
 }
 
 const checkLabelStyle: CSSProperties = {
@@ -3541,6 +3580,9 @@ const checkLabelStyle: CSSProperties = {
   gap: 8,
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const primaryButton: CSSProperties = {
@@ -3556,6 +3598,11 @@ const primaryButton: CSSProperties = {
   fontWeight: 800,
   textDecoration: 'none',
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const ghostButton: CSSProperties = {
@@ -3571,6 +3618,11 @@ const ghostButton: CSSProperties = {
   fontWeight: 800,
   textDecoration: 'none',
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const disabledLinkButtonStyle: CSSProperties = {
@@ -3592,12 +3644,18 @@ const ghostButtonSmallButton: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const actionRowStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
+  minWidth: 0,
 }
 
 const actionRowStyleWrap: CSSProperties = {
@@ -3605,16 +3663,19 @@ const actionRowStyleWrap: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 14,
+  minWidth: 0,
 }
 
 const stackStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const stackStyleCompact: CSSProperties = {
   display: 'grid',
   gap: 10,
+  minWidth: 0,
 }
 
 const listCardStyle: CSSProperties = {
@@ -3626,6 +3687,8 @@ const listCardStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 14,
   alignItems: 'center',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const listCardStyleCompact: CSSProperties = {
@@ -3637,12 +3700,15 @@ const listCardStyleCompact: CSSProperties = {
   justifyContent: 'space-between',
   gap: 14,
   alignItems: 'center',
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const listTitleStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 800,
   fontSize: 15,
+  overflowWrap: 'anywhere',
 }
 
 const listMetaStyle: CSSProperties = {
@@ -3650,6 +3716,7 @@ const listMetaStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 
 const listMetaStyleStrong: CSSProperties = {
@@ -3657,6 +3724,7 @@ const listMetaStyleStrong: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
   marginTop: 4,
+  overflowWrap: 'anywhere',
 }
 
 const tinyNoteStyle: CSSProperties = {
@@ -3664,6 +3732,7 @@ const tinyNoteStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   marginTop: 6,
+  overflowWrap: 'anywhere',
 }
 
 const slotCardStyle: CSSProperties = {
@@ -3671,6 +3740,7 @@ const slotCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   padding: 16,
+  minWidth: 0,
 }
 
 const slotHeaderStyle: CSSProperties = {
@@ -3679,6 +3749,8 @@ const slotHeaderStyle: CSSProperties = {
   alignItems: 'center',
   gap: 12,
   marginBottom: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const slotHeaderLeftStyle: CSSProperties = {
@@ -3686,6 +3758,7 @@ const slotHeaderLeftStyle: CSSProperties = {
   gap: 10,
   alignItems: 'center',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const slotLabelInputStyle: CSSProperties = {
@@ -3694,18 +3767,21 @@ const slotLabelInputStyle: CSSProperties = {
   background: 'var(--shell-chip-bg-strong)',
   color: 'var(--foreground)',
   padding: '8px 12px',
-  minWidth: 140,
+  width: 'min(100%, 180px)',
+  minWidth: 0,
   outline: 'none',
 }
 
 const slotPlayersGridStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const slotPlayerRowStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  minWidth: 0,
 }
 
 const tableHeaderStyle: CSSProperties = {
@@ -3714,6 +3790,8 @@ const tableHeaderStyle: CSSProperties = {
   gap: 12,
   alignItems: 'center',
   marginBottom: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const detailsSummaryStyle: CSSProperties = {
@@ -3724,6 +3802,8 @@ const detailsSummaryStyle: CSSProperties = {
   cursor: 'pointer',
   listStyle: 'none',
   marginBottom: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const decisionSnapshotGridStyle: CSSProperties = {
@@ -3731,6 +3811,7 @@ const decisionSnapshotGridStyle: CSSProperties = {
   gridTemplateColumns: '1fr',
   gap: 12,
   marginTop: 10,
+  minWidth: 0,
 }
 
 const decisionBoardShellStyle: CSSProperties = {
@@ -3742,6 +3823,7 @@ const decisionBoardShellStyle: CSSProperties = {
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--shell-panel-bg-strong) 92%, var(--brand-green) 8%), var(--shell-panel-bg))',
   boxShadow: '0 20px 52px rgba(2,10,24,0.18)',
+  minWidth: 0,
 }
 
 const decisionBoardHeaderStyle: CSSProperties = {
@@ -3750,6 +3832,7 @@ const decisionBoardHeaderStyle: CSSProperties = {
   alignItems: 'flex-start',
   gap: 16,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const decisionBoardTitleStyle: CSSProperties = {
@@ -3759,12 +3842,14 @@ const decisionBoardTitleStyle: CSSProperties = {
   lineHeight: 1.04,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const decisionBoardGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const decisionHeroCardStyle: CSSProperties = {
@@ -3774,6 +3859,7 @@ const decisionHeroCardStyle: CSSProperties = {
   gap: 8,
   background: 'linear-gradient(135deg, rgba(155, 225, 29, 0.16), rgba(59, 130, 246, 0.10))',
   border: '1px solid rgba(155, 225, 29, 0.24)',
+  minWidth: 0,
 }
 
 const decisionCompactCardStyle: CSSProperties = {
@@ -3783,6 +3869,7 @@ const decisionCompactCardStyle: CSSProperties = {
   gap: 8,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+  minWidth: 0,
 }
 
 const decisionHeroValueStyle: CSSProperties = {
@@ -3791,6 +3878,7 @@ const decisionHeroValueStyle: CSSProperties = {
   lineHeight: 0.95,
   fontWeight: 950,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const decisionProgressTrackStyle: CSSProperties = {
@@ -3814,6 +3902,7 @@ const decisionBoardActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const decisionCardBaseStyle: CSSProperties = {
@@ -3822,6 +3911,7 @@ const decisionCardBaseStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 }
 
 const decisionCardGoodStyle: CSSProperties = {
@@ -3847,6 +3937,7 @@ const decisionCardLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const decisionCardValueStyle: CSSProperties = {
@@ -3855,12 +3946,14 @@ const decisionCardValueStyle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const decisionCardTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.62,
+  overflowWrap: 'anywhere',
 }
 
 const actionPlanGridStyle: CSSProperties = {
@@ -3868,6 +3961,7 @@ const actionPlanGridStyle: CSSProperties = {
   gridTemplateColumns: '1fr',
   gap: 12,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const decisionQueueGridStyle: CSSProperties = {
@@ -3875,6 +3969,7 @@ const decisionQueueGridStyle: CSSProperties = {
   gridTemplateColumns: '1fr',
   gap: 10,
   marginTop: 12,
+  minWidth: 0,
 }
 
 const actionPlanCardStyle: CSSProperties = {
@@ -3884,6 +3979,7 @@ const actionPlanCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const actionPlanLabelStyle: CSSProperties = {
@@ -3892,6 +3988,7 @@ const actionPlanLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const actionPlanValueStyle: CSSProperties = {
@@ -3900,12 +3997,14 @@ const actionPlanValueStyle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const actionPlanTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.62,
+  overflowWrap: 'anywhere',
 }
 
 const actionPlanInsightStyle: CSSProperties = {
@@ -3913,6 +4012,7 @@ const actionPlanInsightStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.7,
+  overflowWrap: 'anywhere',
 }
 
 const scenarioDeckGridStyle: CSSProperties = {
@@ -3920,6 +4020,7 @@ const scenarioDeckGridStyle: CSSProperties = {
   gridTemplateColumns: '1fr',
   gap: 12,
   marginTop: 4,
+  minWidth: 0,
 }
 
 const scenarioDeckCardStyle: CSSProperties = {
@@ -3929,6 +4030,7 @@ const scenarioDeckCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const scenarioDeckLabelStyle: CSSProperties = {
@@ -3937,6 +4039,7 @@ const scenarioDeckLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const scenarioDeckValueStyle: CSSProperties = {
@@ -3945,12 +4048,14 @@ const scenarioDeckValueStyle: CSSProperties = {
   lineHeight: 1.08,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const scenarioDeckTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.62,
+  overflowWrap: 'anywhere',
 }
 
 const scenarioDeckButtonRowStyle: CSSProperties = {
@@ -3958,6 +4063,7 @@ const scenarioDeckButtonRowStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   marginTop: 14,
+  minWidth: 0,
 }
 
 const projectionHeroStyle: CSSProperties = {
@@ -3967,6 +4073,7 @@ const projectionHeroStyle: CSSProperties = {
   border: '1px solid rgba(59, 130, 246, 0.24)',
   marginTop: 14,
   marginBottom: 14,
+  minWidth: 0,
 }
 
 const projectionValueStyle: CSSProperties = {
@@ -3974,6 +4081,7 @@ const projectionValueStyle: CSSProperties = {
   fontSize: 44,
   lineHeight: 1,
   fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const projectionTierStyle: CSSProperties = {
@@ -3981,12 +4089,14 @@ const projectionTierStyle: CSSProperties = {
   fontWeight: 800,
   marginTop: 8,
   fontSize: 15,
+  overflowWrap: 'anywhere',
 }
 
 const pillRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 8,
+  minWidth: 0,
 }
 
 const miniPillStyle: CSSProperties = {
@@ -3999,6 +4109,11 @@ const miniPillStyle: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '12px',
   fontWeight: 800,
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const miniPillSlateStyle: CSSProperties = {
@@ -4037,6 +4152,7 @@ const heroBadgeRowStyleCompact: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   marginTop: 16,
+  minWidth: 0,
 }
 
 const lockPanelStyle: CSSProperties = {
@@ -4047,12 +4163,14 @@ const lockPanelStyle: CSSProperties = {
   border: '1px solid rgba(148, 163, 184, 0.16)',
   display: 'grid',
   gap: 14,
+  minWidth: 0,
 }
 
 const lockGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 12,
+  minWidth: 0,
 }
 
 const lockSummaryCardStyle: CSSProperties = {
@@ -4062,6 +4180,7 @@ const lockSummaryCardStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   display: 'grid',
   gap: 6,
+  minWidth: 0,
 }
 
 const lockSummaryLabelStyle: CSSProperties = {
@@ -4070,6 +4189,7 @@ const lockSummaryLabelStyle: CSSProperties = {
   fontWeight: 800,
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
+  overflowWrap: 'anywhere',
 }
 
 const lockSummaryValueStyle: CSSProperties = {
@@ -4077,18 +4197,21 @@ const lockSummaryValueStyle: CSSProperties = {
   fontSize: 28,
   fontWeight: 900,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const lockSummaryTextStyle: CSSProperties = {
   color: '#cbd5e1',
   fontSize: 13,
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
 }
 
 const lockInsightStyle: CSSProperties = {
   color: '#dbeafe',
   fontSize: 13,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const bannerBlueStyle: CSSProperties = {
@@ -4097,6 +4220,7 @@ const bannerBlueStyle: CSSProperties = {
   background: 'rgba(37, 99, 235, 0.16)',
   border: '1px solid rgba(37, 99, 235, 0.26)',
   color: '#dbeafe',
+  overflowWrap: 'anywhere',
 }
 
 const bannerGreenStyle: CSSProperties = {
@@ -4105,6 +4229,7 @@ const bannerGreenStyle: CSSProperties = {
   background: 'rgba(34, 197, 94, 0.14)',
   border: '1px solid rgba(34, 197, 94, 0.24)',
   color: '#dcfce7',
+  overflowWrap: 'anywhere',
 }
 
 const warningCardStyle: CSSProperties = {
@@ -4113,24 +4238,28 @@ const warningCardStyle: CSSProperties = {
   background: 'rgba(239, 68, 68, 0.14)',
   border: '1px solid rgba(239, 68, 68, 0.24)',
   color: '#fee2e2',
+  overflowWrap: 'anywhere',
 }
 
 const mutedTextStyle: CSSProperties = {
   color: '#94a3b8',
   fontSize: 14,
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const subtleHelperTextStyle: CSSProperties = {
   color: '#cbd5e1',
   fontSize: 13,
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
 }
 
 const rightPillStackStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
   justifyItems: 'end',
+  minWidth: 0,
 }
 
 type LineupRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
