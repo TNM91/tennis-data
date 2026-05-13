@@ -843,7 +843,7 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicHeroGrid: CSSProperties = {
     ...heroGrid,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.08fr) minmax(min(100%, 320px), 0.92fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.08fr) minmax(min(100%, 320px), 0.92fr)',
     gap: isMobile ? '16px' : '20px',
   }
   const dynamicHeroTitle: CSSProperties = {
@@ -853,7 +853,7 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
   }
   const dynamicPanelCard: CSSProperties = {
     ...panelCard,
@@ -866,7 +866,7 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicStandingCard: CSSProperties = {
     ...standingCard,
-    gridTemplateColumns: isSmallMobile ? '1fr' : '56px minmax(0, 1fr)',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : '56px minmax(0, 1fr)',
   }
   const dynamicStandingRank: CSSProperties = {
     ...standingRank,
@@ -882,15 +882,15 @@ export default function TiqLeagueDetailPage() {
   }
   const dynamicOpportunityGrid: CSSProperties = {
     ...opportunityGrid,
-    gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
   const dynamicResultFormGrid: CSSProperties = {
     ...resultFormGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
   const dynamicQuickGrid: CSSProperties = {
     ...quickGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
   }
   const competitionOpportunities = useMemo<CompetitionOpportunity[]>(() => {
     if (!league || league.leagueFormat !== 'individual' || individualStandings.length === 0) return []
@@ -3510,8 +3510,8 @@ export default function TiqLeagueDetailPage() {
                       return (
                         <div key={event.id} style={dynamicListCard}>
                           <div style={{ width: '100%' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
-                              <div style={{ minWidth: 0 }}>
+                            <div style={teamResultHeaderRowStyle}>
+                              <div style={teamResultHeaderCopyStyle}>
                                 <div style={listTitle}>
                                   {event.teamAName} <span style={versusTextStyle}>vs</span> {event.teamBName}
                                 </div>
@@ -3519,7 +3519,7 @@ export default function TiqLeagueDetailPage() {
                                   {[formatDateTime(event.matchDate), event.facility].filter(Boolean).join(' | ')}
                                 </div>
                                 {linesLoaded && publicSummary.total > 0 && (
-                                  <div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                  <div style={teamResultPillRowStyle}>
                                     <span style={metaPill}>{publicSummary.completed}/{publicSummary.total} lines complete</span>
                                     <span style={teamAWins > teamBWins ? pillGreen : metaPill}>{event.teamAName}: {publicSummary.teamAWins}</span>
                                     <span style={teamBWins > teamAWins ? pillGreen : metaPill}>{event.teamBName}: {publicSummary.teamBWins}</span>
@@ -3554,12 +3554,12 @@ export default function TiqLeagueDetailPage() {
                                 ) : lines.length === 0 ? (
                                   <p style={listMeta}>No lines recorded yet.</p>
                                 ) : (
-                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 10 }}>
+                                  <div style={teamLineGridStyle}>
                                     {lines.map((line) => (
                                       <div key={line.id} style={teamLineCardStyle}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                          <span style={{ fontWeight: 700, fontSize: 13 }}>Line {line.lineNumber}</span>
-                                          <div style={{ display: 'flex', gap: 4 }}>
+                                        <div style={teamLineHeaderStyle}>
+                                          <span style={teamLineTitleStyle}>Line {line.lineNumber}</span>
+                                          <div style={teamLinePillRowStyle}>
                                             <span style={metaPill}>{line.matchType}</span>
                                             {line.winnerSide ? (
                                               <span style={pillGreen}>
@@ -3626,6 +3626,7 @@ const pageWrap: CSSProperties = {
   padding: '18px 0 30px',
   display: 'grid',
   gap: '18px',
+  minWidth: 0,
 }
 
 const heroCard: CSSProperties = {
@@ -3636,12 +3637,14 @@ const heroCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'linear-gradient(180deg, rgba(16,38,70,0.78) 0%, rgba(8,19,38,0.94) 100%)',
   boxShadow: '0 28px 60px rgba(2,10,24,0.22)',
+  minWidth: 0,
 }
 
 const heroGrid: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1.08fr) minmax(min(100%, 320px), 0.92fr)',
   gap: '20px',
+  minWidth: 0,
 }
 
 const eyebrow: CSSProperties = {
@@ -3650,6 +3653,7 @@ const eyebrow: CSSProperties = {
   letterSpacing: '0.18em',
   textTransform: 'uppercase',
   color: '#93c5fd',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -3658,6 +3662,7 @@ const heroTitle: CSSProperties = {
   fontSize: '56px',
   lineHeight: 0.98,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -3665,6 +3670,7 @@ const heroText: CSSProperties = {
   color: 'rgba(229,238,251,0.78)',
   fontSize: '16px',
   lineHeight: 1.75,
+  overflowWrap: 'anywhere',
 }
 
 const pillRow: CSSProperties = {
@@ -3672,11 +3678,13 @@ const pillRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '14px',
+  minWidth: 0,
 }
 
 const pillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
+  justifyContent: 'center',
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
@@ -3684,6 +3692,11 @@ const pillBase: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
 }
 
 const pillGreen: CSSProperties = {
@@ -3728,6 +3741,7 @@ const heroHintRow: CSSProperties = {
   flexWrap: 'wrap',
   gap: '10px',
   marginTop: '18px',
+  minWidth: 0,
 }
 
 const sideCard: CSSProperties = {
@@ -4553,18 +4567,43 @@ const versusTextStyle: CSSProperties = {
   fontWeight: 500,
 }
 
+const teamResultHeaderRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamResultHeaderCopyStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamResultPillRowStyle: CSSProperties = {
+  marginTop: 4,
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
 const teamStandingsScrollStyle: CSSProperties = {
   width: '100%',
   maxWidth: '100%',
   overflowX: 'auto',
   overscrollBehaviorX: 'contain',
+  WebkitOverflowScrolling: 'touch',
+  minWidth: 0,
 }
 
 const teamStandingsTableStyle: CSSProperties = {
   width: '100%',
-  minWidth: '620px',
+  minWidth: 'min(100%, 560px)',
   borderCollapse: 'collapse',
   fontSize: 14,
+  tableLayout: 'auto',
 }
 
 const teamStandingsHeaderCellStyle: CSSProperties = {
@@ -4574,7 +4613,8 @@ const teamStandingsHeaderCellStyle: CSSProperties = {
   fontSize: 12,
   letterSpacing: '0.05em',
   borderBottom: '1px solid var(--shell-panel-border)',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const teamStandingsCellBaseStyle: CSSProperties = {
@@ -4582,6 +4622,7 @@ const teamStandingsCellBaseStyle: CSSProperties = {
   textAlign: 'center',
   color: 'var(--foreground-strong)',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const teamStandingsRankCellStyle: CSSProperties = {
@@ -4592,7 +4633,7 @@ const teamStandingsRankCellStyle: CSSProperties = {
 const teamStandingsTeamNameCellStyle: CSSProperties = {
   ...teamStandingsCellBaseStyle,
   textAlign: 'left',
-  minWidth: '160px',
+  minWidth: 0,
   fontWeight: 700,
   overflowWrap: 'anywhere',
 }
@@ -4624,11 +4665,42 @@ const teamStandingsSubtleCellStyle: CSSProperties = {
   color: 'color-mix(in srgb, var(--shell-copy-muted) 72%, transparent)',
 }
 
+const teamLineGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
 const teamLineCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   borderRadius: 8,
   padding: '10px 12px',
   border: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
+}
+
+const teamLineHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 8,
+  flexWrap: 'wrap',
+  marginBottom: 6,
+  minWidth: 0,
+}
+
+const teamLineTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 700,
+  fontSize: 13,
+  overflowWrap: 'anywhere',
+}
+
+const teamLinePillRowStyle: CSSProperties = {
+  display: 'flex',
+  gap: 4,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 

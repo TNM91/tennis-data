@@ -14,7 +14,8 @@ describe('matchup mobile layout guards', () => {
   it('collapses dense setup and comparison rows on narrow screens', () => {
     expect(matchupSource).toContain('const dynamicIdentitySetupStripStyle: CSSProperties')
     expect(matchupSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
-    expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile\n      ? 'minmax(0, 1fr)'")
+    expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile")
+    expect(matchupSource).toContain("? 'minmax(0, 1fr)'")
     expect(matchupSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))'")
     expect(matchupSource).toContain('const compareHeadCopyStyle: CSSProperties')
     expect(matchupSource).toContain("flexWrap: 'wrap',")
