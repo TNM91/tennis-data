@@ -101,8 +101,9 @@ export default function CompetePageFrame({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.06fr) minmax(min(100%, 360px), 0.94fr)',
+                gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.06fr) minmax(min(100%, 360px), 0.94fr)',
                 gap: isTablet ? '14px' : '0',
+                minWidth: 0,
                 minHeight: isTablet ? 'auto' : '560px',
               }}
             >
@@ -120,11 +121,12 @@ export default function CompetePageFrame({
                   display: 'grid',
                   alignContent: 'space-between',
                   gap: '24px',
+                  minWidth: 0,
                 }}
               >
                 <div style={eyebrowChipStyle}>{eyebrow}</div>
 
-                <div style={{ display: 'grid', gap: '18px', maxWidth: '640px' }}>
+                <div style={{ display: 'grid', gap: '18px', maxWidth: '640px', minWidth: 0 }}>
                   <h1
                     style={{
                       margin: 0,
@@ -133,6 +135,7 @@ export default function CompetePageFrame({
                       letterSpacing: 0,
                       fontWeight: 900,
                       color: 'var(--foreground-strong)',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {title}
@@ -145,6 +148,7 @@ export default function CompetePageFrame({
                       lineHeight: 1.78,
                       fontWeight: 500,
                       color: 'var(--shell-copy-muted)',
+                      overflowWrap: 'anywhere',
                     }}
                   >
                     {description}
@@ -154,8 +158,9 @@ export default function CompetePageFrame({
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
                     gap: '12px',
+                    minWidth: 0,
                     maxWidth: '760px',
                   }}
                 >
@@ -168,6 +173,7 @@ export default function CompetePageFrame({
               <div
                 style={{
                   position: 'relative',
+                  minWidth: 0,
                   minHeight: isSmallMobile ? '320px' : isMobile ? '360px' : isTablet ? '430px' : '560px',
                   borderLeft: isTablet ? 'none' : '1px solid rgba(116, 190, 255, 0.10)',
                   background: 'var(--shell-panel-bg)',
@@ -191,11 +197,12 @@ export default function CompetePageFrame({
                     display: 'grid',
                     alignContent: 'space-between',
                     gap: '18px',
+                    minWidth: 0,
                     minHeight: '100%',
                     padding: isSmallMobile ? '20px 14px 16px' : isMobile ? '24px 18px 18px' : '28px 24px 22px',
                   }}
                 >
-                  <div style={{ display: 'grid', gap: '6px', maxWidth: '420px' }}>
+                  <div style={{ display: 'grid', gap: '6px', maxWidth: '420px', minWidth: 0 }}>
                     <div
                       style={{
                         color: 'var(--brand-blue-2)',
@@ -203,6 +210,7 @@ export default function CompetePageFrame({
                         fontWeight: 800,
                         letterSpacing: '0.12em',
                         textTransform: 'uppercase',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       Workflow map
@@ -213,6 +221,7 @@ export default function CompetePageFrame({
                         fontSize: '15px',
                         lineHeight: 1.7,
                         fontWeight: 600,
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       Move through the week with one clean path from league context into team action.
@@ -223,13 +232,15 @@ export default function CompetePageFrame({
                     style={{
                       display: 'grid',
                       gap: '12px',
+                      minWidth: 0,
                     }}
                   >
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                        gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
                         gap: '10px',
+                        minWidth: 0,
                       }}
                     >
                       {WORKFLOW_PULSES.map((item) => (
@@ -305,6 +316,7 @@ function HeroSignal({
           fontSize: '13px',
           lineHeight: 1.7,
           fontWeight: 600,
+          overflowWrap: 'anywhere',
         }}
       >
         {text}
@@ -352,6 +364,7 @@ export function CompeteGrid({ children }: { children: ReactNode }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
         gap: '16px',
+        minWidth: 0,
       }}
     >
       {children}
@@ -375,6 +388,8 @@ function SubnavLink({ href, label }: { href: string; label: string }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: '12px',
+        minWidth: 0,
         padding: '0 18px',
         color: 'var(--foreground-strong)',
         fontSize: '17px',
@@ -384,8 +399,8 @@ function SubnavLink({ href, label }: { href: string; label: string }) {
         boxShadow: 'var(--shadow-soft)',
       }}
     >
-      <span>{label}</span>
-      <span style={{ opacity: 0.58 }}>{'\u2192'}</span>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>
+      <span style={{ opacity: 0.58, flexShrink: 0 }}>{'\u2192'}</span>
     </Link>
   )
 }
@@ -394,6 +409,7 @@ const eyebrowChipStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   width: 'fit-content',
+  maxWidth: '100%',
   minHeight: '40px',
   padding: '0 16px',
   borderRadius: '999px',
@@ -404,6 +420,7 @@ const eyebrowChipStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const workflowBoardGlow: CSSProperties = {
@@ -425,6 +442,7 @@ const workflowBoardGrid: CSSProperties = {
 }
 
 const workflowPulseCard: CSSProperties = {
+  minWidth: 0,
   borderRadius: '18px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
@@ -440,6 +458,7 @@ const workflowPulseLabel: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const workflowPulseTitle: CSSProperties = {
@@ -447,15 +466,18 @@ const workflowPulseTitle: CSSProperties = {
   fontSize: '14px',
   fontWeight: 800,
   lineHeight: 1.3,
+  overflowWrap: 'anywhere',
 }
 
 const workflowPulseText: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   lineHeight: 1.6,
+  overflowWrap: 'anywhere',
 }
 
 const cardStyle: CSSProperties = {
+  minWidth: 0,
   borderRadius: '24px',
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
@@ -473,6 +495,7 @@ const cardMetaStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const cardTitleStyle: CSSProperties = {
@@ -480,6 +503,7 @@ const cardTitleStyle: CSSProperties = {
   fontSize: '22px',
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const cardTextStyle: CSSProperties = {
@@ -487,6 +511,7 @@ const cardTextStyle: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.75,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const cardCtaStyle: CSSProperties = {
@@ -494,4 +519,5 @@ const cardCtaStyle: CSSProperties = {
   fontSize: '13px',
   fontWeight: 800,
   letterSpacing: '0.02em',
+  overflowWrap: 'anywhere',
 }
