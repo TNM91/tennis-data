@@ -22,6 +22,13 @@ describe('Explore responsive surfaces', () => {
     expect(exploreSource).toContain('minWidth: 0')
   })
 
+  it('keeps Explore start-step markers shell-aware across themes', () => {
+    expect(exploreSource).toContain('const startStepNumber: CSSProperties')
+    expect(exploreSource).toContain("background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'")
+    expect(exploreSource).toContain("color: 'var(--foreground-strong)'")
+    expect(exploreSource).not.toContain("color: 'var(--text-dark)',\n  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)'")
+  })
+
   it('keeps rankings compact cards single-column friendly on mobile', () => {
     expect(rankingsSource).toContain('dynamicLeaderboardActionGrid')
     expect(rankingsSource).toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
