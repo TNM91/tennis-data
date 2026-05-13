@@ -738,9 +738,10 @@ const navStepStyle = {
 
 const navLockStyle = {
   ...navStepStyle,
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  color: 'var(--text-dark)',
+  color: 'var(--foreground-strong)',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
 const navTextWrapStyle = {
@@ -815,8 +816,9 @@ const messageBadgeStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'var(--brand-green)',
-  color: 'var(--text-dark)',
+  background: 'color-mix(in srgb, var(--brand-green) 26%, var(--shell-chip-bg) 74%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 40%, var(--shell-panel-border) 60%)',
+  color: 'var(--foreground-strong)',
   fontSize: '10px',
   fontWeight: 950,
   lineHeight: 1,
@@ -867,14 +869,14 @@ const primaryCtaStyle = {
   minHeight: '44px',
   padding: '0 20px',
   borderRadius: '999px',
-  border: '1px solid rgba(155, 225, 29, 0.32)',
-  background: 'linear-gradient(135deg, #9BE11D 0%, #C7F36B 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontSize: '13.5px',
   fontWeight: 900,
   letterSpacing: 0,
   textDecoration: 'none',
-  boxShadow: '0 12px 24px rgba(155, 225, 29, 0.18), inset 0 1px 0 rgba(255,255,255,0.28)',
+  boxShadow: '0 12px 24px color-mix(in srgb, var(--brand-green) 14%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
 const menuButtonStyle = {
@@ -957,17 +959,18 @@ const mobileStepStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
-  color: 'var(--text-dark)',
+  background: 'color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg) 80%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  color: 'var(--foreground-strong)',
   fontSize: '12px',
   fontWeight: 950,
 } as const
 
 const mobileLockStyle = {
   ...mobileStepStyle,
-  background: 'linear-gradient(135deg, var(--brand-green), var(--brand-green-3))',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  color: 'var(--text-dark)',
+  color: 'var(--foreground-strong)',
 } as const
 
 const mobileSectionLabelStyle = {
