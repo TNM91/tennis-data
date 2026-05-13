@@ -1115,7 +1115,7 @@ function CaptainHubContent() {
 
   const dynamicHeroCard: CSSProperties = {
     ...heroCard,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.02fr) minmax(min(100%, 380px), 0.98fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.02fr) minmax(min(100%, 380px), 0.98fr)',
     gap: isMobile ? 18 : 22,
     padding: isSmallMobile ? 18 : isMobile ? 20 : 24,
   }
@@ -1144,48 +1144,48 @@ const dynamicHeroRightCard: CSSProperties = {
   const dynamicHeroControlRow: CSSProperties = {
     ...heroControlRow,
     display: isMobile ? 'grid' : heroControlRow.display,
-    gridTemplateColumns: isMobile ? '1fr' : undefined,
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : undefined,
     flexDirection: isSmallMobile ? 'column' : 'row',
     alignItems: isMobile ? 'stretch' : 'center',
   }
 
   const dynamicNextActionShell: CSSProperties = {
     ...nextActionShell,
-    gridTemplateColumns: isTablet ? '1fr' : nextActionShell.gridTemplateColumns,
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : nextActionShell.gridTemplateColumns,
     padding: isSmallMobile ? 18 : isMobile ? 20 : nextActionShell.padding,
   }
 
   const dynamicStatusStrip: CSSProperties = {
     ...statusStrip,
-    gridTemplateColumns: isSmallMobile ? '1fr' : statusStrip.gridTemplateColumns,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : statusStrip.gridTemplateColumns,
   }
 
   const dynamicCommandCenterGrid: CSSProperties = {
     ...commandCenterGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : commandCenterGrid.gridTemplateColumns,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : commandCenterGrid.gridTemplateColumns,
   }
 
   const dynamicNextActionButtonRow: CSSProperties = {
     ...nextActionButtonRow,
     display: isSmallMobile ? 'grid' : nextActionButtonRow.display,
-    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
   }
 
   const dynamicGlanceActionRow: CSSProperties = {
     ...glanceActionRow,
     display: isSmallMobile ? 'grid' : glanceActionRow.display,
-    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
   }
 
   const dynamicWeekStatusButtonRow: CSSProperties = {
     ...weekStatusButtonRow,
     display: isSmallMobile ? 'grid' : weekStatusButtonRow.display,
-    gridTemplateColumns: isSmallMobile ? '1fr' : undefined,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : undefined,
   }
 
   const dynamicInsightGrid: CSSProperties = {
     ...insightGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : insightGrid.gridTemplateColumns,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : insightGrid.gridTemplateColumns,
   }
 
   const dynamicSelectStyle: CSSProperties = {
@@ -3502,7 +3502,7 @@ const captainCloseoutPanelStyle: CSSProperties = {
 
 const captainCloseoutGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 12,
 })
 
@@ -3561,7 +3561,7 @@ const scopeBannerWarn: CSSProperties = {
 
 const captainOnboardingStripStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 10,
   minWidth: 0,
   maxWidth: 940,
@@ -3615,7 +3615,7 @@ const captainOnboardingTextStyle: CSSProperties = {
 
 const captainScopeHandoffGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 10,
   maxWidth: 940,
   minWidth: 0,
@@ -3994,7 +3994,8 @@ const pillStrong: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minWidth: 62,
+  minWidth: 'min(100%, 62px)',
+  maxWidth: '100%',
   padding: '8px 12px',
   borderRadius: 999,
   fontWeight: 900,
