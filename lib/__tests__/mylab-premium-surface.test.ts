@@ -4,6 +4,13 @@ import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 
+function styleBlock(styleName: string) {
+  const start = source.indexOf(`const ${styleName}`)
+  expect(start).toBeGreaterThanOrEqual(0)
+  const nextStyle = source.indexOf('\nconst ', start + 1)
+  return source.slice(start, nextStyle === -1 ? undefined : nextStyle)
+}
+
 describe('My Lab premium surface', () => {
   it('keeps the top routine tennis-specific and Data Assist aware', () => {
     expect(source).toContain('MY_LAB_PREMIUM_SIGNALS')
@@ -48,5 +55,48 @@ describe('My Lab premium surface', () => {
     expect(source).not.toContain("const labRoutineNumberStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: 14,\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-blue-2), var(--brand-green))',\n  color: 'var(--text-dark)'")
     expect(source).not.toContain("background: complete ? 'var(--brand-green)' : 'var(--shell-panel-bg)',\n  color: complete ? 'var(--text-dark)' : 'var(--foreground-strong)'")
     expect(source).not.toContain("const matchupQueueRankStyle: CSSProperties = {\n  width: 34,\n  height: 34,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
+  })
+
+  it('keeps My Lab premium and personal grids minmax-safe on mobile', () => {
+    expect(source).not.toContain("? '1fr'")
+
+    for (const styleName of [
+      'labReadabilityCueGridStyle',
+      'labPremiumSignalGridStyle',
+      'labRoutineGridStyle',
+      'paidWorkspaceProofGridStyle',
+      'labPlaybookGridStyle',
+      'levelUpPanelStyle',
+      'quickProfileGridStyle',
+      'setupStepGridStyle',
+      'matchupSpotlightHeroStyle',
+      'matchupPreviewGridStyle',
+      'matchupQueueGridStyle',
+      'matchPlanGridStyle',
+      'personalCommandGridStyle',
+      'tiqActionGridStyle',
+      'teamPrepGridStyle',
+      'workshopGridStyle',
+      'goalFieldGridStyle',
+      'contentGridStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain("minmax(0, 1fr)")
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+
+    for (const styleName of [
+      'personalReadPanelStyle',
+      'labPlaybookPanelStyle',
+      'quickProfileStyle',
+      'setupPanelStyle',
+      'matchupSpotlightStyle',
+      'performancePanelStyle',
+      'matchPlanPanelStyle',
+      'tiqActionRailStyle',
+      'teamPrepRailStyle',
+      'workshopPanelStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
   })
 })

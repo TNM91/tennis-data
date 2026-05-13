@@ -3428,6 +3428,7 @@ const labRoutineHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 14,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const labRoutineTitleStyle: CSSProperties = {
@@ -3452,12 +3453,13 @@ const labRoutineIntroStyle: CSSProperties = {
 const labReadabilityCueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(3, minmax(0, 1fr))',
   gap: 10,
   padding: '12px 0',
   borderTop: '1px solid var(--shell-panel-border)',
   borderBottom: '1px solid var(--shell-panel-border)',
+  minWidth: 0,
 })
 
 const labReadabilityCueStyle: CSSProperties = {
@@ -3474,9 +3476,10 @@ const labReadabilityCueStyle: CSSProperties = {
 const labPremiumSignalGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(3, minmax(0, 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const labPremiumSignalCardStyle: CSSProperties = {
@@ -3510,9 +3513,10 @@ const labPremiumSignalBodyStyle: CSSProperties = {
 const labRoutineGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(3, minmax(0, 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const labRoutineStepStyle: CSSProperties = {
@@ -3593,9 +3597,10 @@ const paidWorkspaceTitleStyle: CSSProperties = {
 const paidWorkspaceProofGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const paidWorkspaceProofCardStyle: CSSProperties = {
@@ -3683,6 +3688,7 @@ const personalHomeTitleStyle: CSSProperties = {
   fontSize: '1.08rem',
   fontWeight: 900,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
 }
 
 const personalReadPanelStyle: CSSProperties = {
@@ -3694,6 +3700,7 @@ const personalReadPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const personalReadHeaderStyle: CSSProperties = {
@@ -3702,6 +3709,7 @@ const personalReadHeaderStyle: CSSProperties = {
   justifyContent: 'space-between',
   gap: 14,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const personalReadTitleStyle: CSSProperties = {
@@ -3710,6 +3718,7 @@ const personalReadTitleStyle: CSSProperties = {
   fontSize: '1.35rem',
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const personalReadGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -3718,6 +3727,7 @@ const personalReadGridStyle = (isTablet: boolean): CSSProperties => ({
     ? 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))'
     : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const personalReadCardStyle: CSSProperties = {
@@ -3729,6 +3739,7 @@ const personalReadCardStyle: CSSProperties = {
   display: 'grid',
   gap: 7,
   alignContent: 'start',
+  minWidth: 0,
 }
 
 const personalReadCardLinkStyle: CSSProperties = {
@@ -3743,6 +3754,7 @@ const personalReadValueStyle: CSSProperties = {
   fontSize: '1.12rem',
   fontWeight: 950,
   lineHeight: 1.12,
+  overflowWrap: 'anywhere',
 }
 
 const labPlaybookPanelStyle: CSSProperties = {
@@ -3752,14 +3764,16 @@ const labPlaybookPanelStyle: CSSProperties = {
   padding: 16,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const labPlaybookGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const labPlaybookCardStyle = (complete: boolean): CSSProperties => ({
@@ -3805,13 +3819,15 @@ const labPlaybookValueStyle: CSSProperties = {
   fontSize: '1rem',
   lineHeight: 1.18,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const levelUpPanelStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
   gap: 18,
   alignItems: 'stretch',
+  minWidth: 0,
 })
 
 const levelMeterStyle: CSSProperties = {
@@ -3907,6 +3923,7 @@ const quickProfileStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const quickProfileTitleStyle: CSSProperties = {
@@ -3915,14 +3932,16 @@ const quickProfileTitleStyle: CSSProperties = {
   fontSize: '1.28rem',
   fontWeight: 950,
   lineHeight: 1.1,
+  overflowWrap: 'anywhere',
 }
 
 const quickProfileGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const quickProfileCardStyle: CSSProperties = {
@@ -3934,6 +3953,7 @@ const quickProfileCardStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'center',
   gap: 6,
+  minWidth: 0,
 }
 
 const quickProfileValueStyle: CSSProperties = {
@@ -3941,6 +3961,7 @@ const quickProfileValueStyle: CSSProperties = {
   fontSize: '1.35rem',
   fontWeight: 950,
   lineHeight: 1,
+  overflowWrap: 'anywhere',
 }
 
 const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
@@ -3952,6 +3973,7 @@ const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gap: 18,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 })
 
 const setupHeroStyle: CSSProperties = {
@@ -3959,6 +3981,7 @@ const setupHeroStyle: CSSProperties = {
   gap: 14,
   alignItems: 'center',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const setupTitleStyle: CSSProperties = {
@@ -3967,14 +3990,16 @@ const setupTitleStyle: CSSProperties = {
   fontSize: '1.55rem',
   lineHeight: 1.06,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const setupStepGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const setupStepCardStyle: CSSProperties = {
@@ -3987,6 +4012,7 @@ const setupStepCardStyle: CSSProperties = {
   minHeight: 138,
   alignContent: 'start',
   color: 'var(--foreground-strong)',
+  minWidth: 0,
 }
 
 const setupStepNumberStyle: CSSProperties = {
@@ -4008,6 +4034,7 @@ const setupActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
+  minWidth: 0,
 }
 
 const todayReadPanelStyle: CSSProperties = {
@@ -4055,13 +4082,15 @@ const matchupSpotlightStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const matchupSpotlightHeroStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1fr) auto',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
   alignItems: 'center',
   gap: 14,
+  minWidth: 0,
 })
 
 const matchupSpotlightTitleStyle: CSSProperties = {
@@ -4070,6 +4099,7 @@ const matchupSpotlightTitleStyle: CSSProperties = {
   fontSize: '1.35rem',
   lineHeight: 1.08,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const matchupPrimaryLinkStyle: CSSProperties = {
@@ -4116,9 +4146,10 @@ const matchupFillStyle = (value: number): CSSProperties => ({
 const matchupPreviewGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const matchupPreviewCardStyle: CSSProperties = {
@@ -4135,9 +4166,10 @@ const matchupPreviewCardStyle: CSSProperties = {
 const matchupQueueGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
   gap: 10,
+  minWidth: 0,
 })
 
 const matchupQueueCardStyle: CSSProperties = {
@@ -4225,6 +4257,7 @@ const performancePanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
 }
 
 const matchPlanPanelStyle: CSSProperties = {
@@ -4234,14 +4267,16 @@ const matchPlanPanelStyle: CSSProperties = {
   borderRadius: 22,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
+  minWidth: 0,
 }
 
 const matchPlanGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const matchPlanCardStyle: CSSProperties = {
@@ -4257,6 +4292,7 @@ const matchPlanCardStyle: CSSProperties = {
   textDecoration: 'none',
   lineHeight: 1.5,
   fontWeight: 800,
+  minWidth: 0,
 }
 
 const matchPlanTextStyle: CSSProperties = {
@@ -4344,9 +4380,10 @@ const trophyValueStyle: CSSProperties = {
 const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const personalCommandCardStyle: CSSProperties = {
@@ -4359,6 +4396,7 @@ const personalCommandCardStyle: CSSProperties = {
   textDecoration: 'none',
   minHeight: 160,
   alignContent: 'start',
+  minWidth: 0,
 }
 
 const tiqActionRailStyle: CSSProperties = {
@@ -4368,14 +4406,16 @@ const tiqActionRailStyle: CSSProperties = {
   padding: 16,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const tiqActionGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const tiqActionCardStyle: CSSProperties = {
@@ -4387,6 +4427,7 @@ const tiqActionCardStyle: CSSProperties = {
   gap: 8,
   minHeight: 172,
   alignContent: 'start',
+  minWidth: 0,
 }
 
 const tiqActionTopRowStyle: CSSProperties = {
@@ -4394,6 +4435,8 @@ const tiqActionTopRowStyle: CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const tiqActionLabelStyle: CSSProperties = {
@@ -4448,14 +4491,16 @@ const teamPrepRailStyle: CSSProperties = {
   padding: 16,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const teamPrepGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const teamPrepCardStyle: CSSProperties = {
@@ -4467,6 +4512,7 @@ const teamPrepCardStyle: CSSProperties = {
   gap: 12,
   minHeight: 132,
   alignContent: 'space-between',
+  minWidth: 0,
 }
 
 const teamPrepTitleStyle: CSSProperties = {
@@ -4490,6 +4536,7 @@ const teamPrepActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const goalProgressPanelStyle: CSSProperties = {
@@ -4761,8 +4808,9 @@ const miniActionLinkStyle: CSSProperties = {
 
 const workshopGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.1fr) minmax(min(100%, 280px), 0.9fr)',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.1fr) minmax(min(100%, 280px), 0.9fr)',
   gap: 12,
+  minWidth: 0,
 })
 
 const workshopPanelStyle: CSSProperties = {
@@ -4772,17 +4820,20 @@ const workshopPanelStyle: CSSProperties = {
   padding: 16,
   display: 'grid',
   gap: 12,
+  minWidth: 0,
 }
 
 const workshopListStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
+  minWidth: 0,
 }
 
 const goalEditorStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
+  minWidth: 0,
 }
 
 const workshopMatchRowStyle: CSSProperties = {
@@ -4802,6 +4853,7 @@ const matchActionStackStyle: CSSProperties = {
   flexDirection: 'column',
   alignItems: 'flex-end',
   gap: 8,
+  minWidth: 0,
 }
 
 const reportStatusCardStyle: CSSProperties = {
@@ -4820,6 +4872,7 @@ const reportStatusHeaderStyle: CSSProperties = {
   gap: 10,
   alignItems: 'center',
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 
 const reportStatusTextStyle: CSSProperties = {
@@ -4855,6 +4908,7 @@ const workshopContextRowStyle: CSSProperties = {
   padding: '10px 12px',
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
+  minWidth: 0,
 }
 
 const workshopRowTitleStyle: CSSProperties = {
@@ -4938,9 +4992,10 @@ const saveNotebookButtonStyle: CSSProperties = {
 const goalFieldGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
-    ? '1fr'
+    ? 'minmax(0, 1fr)'
     : 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
+  minWidth: 0,
 })
 
 const metricLabelStyle: CSSProperties = {
@@ -4959,9 +5014,10 @@ const metricNoteStyle: CSSProperties = {
 
 const contentGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 1.4fr) minmax(min(100%, 320px), 0.9fr)',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.4fr) minmax(min(100%, 320px), 0.9fr)',
   gap: 18,
   marginTop: 18,
+  minWidth: 0,
 })
 
 const optionalContextDetailsStyle: CSSProperties = {
