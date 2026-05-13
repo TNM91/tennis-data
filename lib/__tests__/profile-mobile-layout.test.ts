@@ -64,5 +64,8 @@ describe('Profile mobile layout guards', () => {
 
     expect(styleBlock('sectionHeaderStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('setupStepTopStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock('setupProgressStyle')).toContain("minWidth: 'min(100%, 96px)'")
+    expect(styleBlock('setupProgressStyle')).toContain("maxWidth: '100%'")
+    expect(source).not.toContain('minWidth: 96')
   })
 })
