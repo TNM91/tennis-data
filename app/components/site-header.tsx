@@ -593,7 +593,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                             : 'linear-gradient(180deg, color-mix(in srgb, var(--shell-chip-bg) 90%, var(--surface) 10%) 0%, var(--shell-chip-bg) 100%)',
                         }}
                       >
-                        <span>{item.label}</span>
+                        <span style={mobilePlainItemTextStyle}>{item.label}</span>
                         <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                       </Link>
                     )
@@ -623,7 +623,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                   </Link>
                   {role === 'admin' ? (
                     <Link href="/admin" onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                      <span>Admin dashboard</span>
+                      <span style={mobilePlainItemTextStyle}>Admin dashboard</span>
                       <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                     </Link>
                   ) : null}
@@ -635,14 +635,14 @@ export default function SiteHeader({ active }: { active?: string }) {
                       cursor: 'pointer',
                     }}
                   >
-                    <span>Logout</span>
+                    <span style={mobilePlainItemTextStyle}>Logout</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </button>
                 </>
               ) : (
                 <>
                   <Link href={signInHref} onClick={() => setMenuOpen(false)} style={mobileItemStyle}>
-                    <span>Sign in</span>
+                    <span style={mobilePlainItemTextStyle}>Sign in</span>
                     <span style={{ opacity: 0.44 }}>{'\u2192'}</span>
                   </Link>
                   <Link
@@ -655,7 +655,7 @@ export default function SiteHeader({ active }: { active?: string }) {
                       justifyContent: 'space-between',
                     }}
                   >
-                    <span>Start Free</span>
+                    <span style={mobilePlainItemTextStyle}>Start Free</span>
                     <span style={{ opacity: 0.62 }}>{'\u2192'}</span>
                   </Link>
                 </>
@@ -672,6 +672,7 @@ const utilityLinkStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minWidth: 0,
   minHeight: '42px',
   padding: '0 10px',
   borderRadius: '999px',
@@ -703,6 +704,8 @@ const navLinkStyle = {
   whiteSpace: 'nowrap' as const,
   transition: 'border-color 160ms ease, color 160ms ease, background 160ms ease',
   minWidth: 0,
+  maxWidth: '100%',
+  overflow: 'hidden',
 } as const
 
 const navPendingStyle = {
@@ -748,12 +751,16 @@ const navTextWrapStyle = {
   display: 'grid',
   gap: '0',
   lineHeight: 1.08,
+  minWidth: 0,
+  overflow: 'hidden',
 } as const
 
 const navLabelStyle = {
   color: 'inherit',
   fontSize: '12.5px',
   fontWeight: 900,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 } as const
 
 const navIntentStyle = {
@@ -762,6 +769,8 @@ const navIntentStyle = {
   fontWeight: 800,
   letterSpacing: '0.06em',
   textTransform: 'uppercase' as const,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 } as const
 
 const accountPillStyle = {
@@ -798,6 +807,7 @@ const messageLinkWrapStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: '6px',
+  minWidth: 0,
 } as const
 
 const mobileMessageLinkWrapStyle = {
@@ -860,12 +870,17 @@ const utilityButtonStyle = {
   letterSpacing: 0,
   cursor: 'pointer',
   whiteSpace: 'nowrap' as const,
+  maxWidth: '100%',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
 } as const
 
 const primaryCtaStyle = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  minWidth: 0,
+  maxWidth: '100%',
   minHeight: '44px',
   padding: '0 20px',
   borderRadius: '999px',
@@ -876,6 +891,7 @@ const primaryCtaStyle = {
   fontWeight: 900,
   letterSpacing: 0,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
   boxShadow: '0 12px 24px color-mix(in srgb, var(--brand-green) 14%, transparent), inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 } as const
 
