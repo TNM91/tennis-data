@@ -139,7 +139,7 @@ describe('Explore responsive surfaces', () => {
     expect(leaguesSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(leaguesSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
     expect(leaguesSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
-    expect(leaguesSource).toContain("gridTemplateColumns: isSmallMobile\n      ? 'minmax(0, 1fr)'")
+    expect(leaguesSource).toMatch(/gridTemplateColumns: isSmallMobile\s*\?\s*'minmax\(0, 1fr\)'/)
     expect(styleBlock(leaguesSource, 'heroContent')).toContain('minWidth: 0')
     expect(styleBlock(leaguesSource, 'summaryGrid')).toContain('minWidth: 0')
     expect(styleBlock(leaguesSource, 'filterGrid')).toContain('minWidth: 0')
