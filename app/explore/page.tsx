@@ -124,7 +124,7 @@ export default function ExplorePage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.94fr) minmax(min(100%, 420px), 1fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.94fr) minmax(min(100%, 420px), 1fr)',
     gap: isMobile ? '20px' : '30px',
   }
 
@@ -171,6 +171,7 @@ export default function ExplorePage() {
     display: 'grid',
     gap: '12px',
     alignContent: 'start',
+    minWidth: 0,
     zIndex: 2,
     padding: isMobile ? '16px' : 0,
     boxSizing: 'border-box',
@@ -178,18 +179,18 @@ export default function ExplorePage() {
 
   const dynamicActionGrid: CSSProperties = {
     ...actionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
     gap: isMobile ? '14px' : '16px',
   }
 
   const dynamicDiscoveryPathGrid: CSSProperties = {
     ...discoveryPathGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   }
 
   const dynamicDiscoveryPathHeader: CSSProperties = {
     ...discoveryPathHeader,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.72fr) minmax(min(100%, 260px), 0.55fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.72fr) minmax(min(100%, 260px), 0.55fr)',
   }
 
   return (
@@ -371,6 +372,7 @@ function ActionCard({
 const heroWrap: CSSProperties = {
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroShell: CSSProperties = {
@@ -428,6 +430,7 @@ const heroLeft: CSSProperties = {
 const eyebrow: CSSProperties = {
   display: 'inline-flex',
   width: 'fit-content',
+  maxWidth: '100%',
   alignItems: 'center',
   padding: '8px 14px',
   borderRadius: '999px',
@@ -439,6 +442,7 @@ const eyebrow: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const heroTitle: CSSProperties = {
@@ -454,12 +458,14 @@ const heroText: CSSProperties = {
   color: 'var(--foreground)',
   lineHeight: 1.7,
   fontWeight: 500,
+  overflowWrap: 'anywhere',
 }
 
 const explorePills: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: '10px',
+  minWidth: 0,
   marginTop: '4px',
 }
 
@@ -467,12 +473,14 @@ const pillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
+  maxWidth: '100%',
   minHeight: '32px',
   padding: '0 12px',
   borderRadius: '999px',
   fontSize: '12px',
   fontWeight: 800,
   letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
 }
 
 const pillBlue: CSSProperties = {
@@ -490,6 +498,7 @@ const pillGreen: CSSProperties = {
 }
 
 const featurePanel: CSSProperties = {
+  minWidth: 0,
   borderRadius: '24px',
   background: 'var(--shell-panel-bg)',
   border: '1px solid var(--shell-panel-border)',
@@ -512,12 +521,14 @@ const featurePanelLabel: CSSProperties = {
   fontSize: '16px',
   fontWeight: 800,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const featurePanelHint: CSSProperties = {
   color: 'var(--foreground)',
   fontSize: '13px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const startStepStack: CSSProperties = {
@@ -616,6 +627,7 @@ const discoveryPathHeader: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 0.72fr) minmax(min(100%, 260px), 0.55fr)',
   gap: '16px',
+  minWidth: 0,
   alignItems: 'end',
 }
 
@@ -625,6 +637,7 @@ const discoveryPathKicker: CSSProperties = {
   fontWeight: 900,
   letterSpacing: '0.12em',
   textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
 }
 
 const discoveryPathTitle: CSSProperties = {
@@ -634,6 +647,7 @@ const discoveryPathTitle: CSSProperties = {
   lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const discoveryPathCopy: CSSProperties = {
@@ -642,11 +656,13 @@ const discoveryPathCopy: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const discoveryPathGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const discoveryPathCard: CSSProperties = {
@@ -685,12 +701,14 @@ const discoveryPathCardText: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.55,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
 }
 
 const actionGrid: CSSProperties = {
   display: 'grid',
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const actionCard: CSSProperties = {

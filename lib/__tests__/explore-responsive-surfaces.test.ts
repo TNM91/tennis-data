@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const exploreSource = readFileSync(join(process.cwd(), 'app/explore/page.tsx'), 'utf8')
+const exploreSearchSource = readFileSync(join(process.cwd(), 'app/explore/search/page.tsx'), 'utf8')
 const rankingsSource = readFileSync(join(process.cwd(), 'app/rankings/page.tsx'), 'utf8')
 const playersSource = readFileSync(join(process.cwd(), 'app/players/page.tsx'), 'utf8')
 const playerDetailSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
@@ -25,9 +26,27 @@ describe('Explore responsive surfaces', () => {
   it('keeps Explore action cards protected from narrow mobile overflow', () => {
     expect(exploreSource).toContain('const actionBody: CSSProperties')
     expect(exploreSource).toContain('const actionFooterRow: CSSProperties')
+    expect(exploreSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(exploreSource).toContain("gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)'")
     expect(exploreSource).toContain("overflowWrap: 'anywhere'")
     expect(exploreSource).toContain("flexWrap: 'wrap'")
     expect(exploreSource).toContain('minWidth: 0')
+  })
+
+  it('keeps Explore Search grids and filter controls mobile-safe', () => {
+    expect(exploreSearchSource).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
+    expect(exploreSearchSource).not.toContain("gridTemplateColumns: isMobile ? '1fr'")
+    expect(exploreSearchSource).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
+    expect(exploreSearchSource).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+    expect(exploreSearchSource).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)'")
+    expect(exploreSearchSource).toContain('function FilterSelect')
+    expect(exploreSearchSource).toContain("style={{ display: 'grid', gap: 6, minWidth: 0 }}")
+    expect(exploreSearchSource).toContain("style={{ ...buttonGhost, maxWidth: '100%', textAlign: 'center', overflowWrap: 'anywhere' }}")
+    expect(styleBlock(exploreSearchSource, 'emptyStateStyle')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSearchSource, 'emptyTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSearchSource, 'exampleSearchButtonStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(exploreSearchSource, 'resultBadgeWrapStyle')).toContain('minWidth: 0')
+    expect(styleBlock(exploreSearchSource, 'filterJumpStyle')).toContain("overflowWrap: 'anywhere'")
   })
 
   it('keeps Explore start-step markers shell-aware across themes', () => {
