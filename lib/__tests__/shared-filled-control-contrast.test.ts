@@ -1,9 +1,32 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const followButtonSource = readFileSync(join(process.cwd(), 'app/components/follow-button.tsx'), 'utf8')
 const tierPathwaySource = readFileSync(join(process.cwd(), 'app/components/tier-pathway.tsx'), 'utf8')
+const shellAwareControlBackground = "background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'"
+const shellAwareControlColor = "color: 'var(--foreground-strong)'"
+const filledControlFiles = [
+  'app/captain/page.tsx',
+  'app/data-assist/page.tsx',
+  'app/messages/page.tsx',
+  'app/mylab/page.tsx',
+  'app/players/[id]/page.tsx',
+  'app/players/page.tsx',
+  'app/profile/page.tsx',
+  'app/rankings/page.tsx',
+  'app/reset-password/page.tsx',
+]
+
+function collectTsxSources(directory: string): string[] {
+  return readdirSync(directory).flatMap((entry) => {
+    const fullPath = join(directory, entry)
+    const stats = statSync(fullPath)
+    if (stats.isDirectory()) return collectTsxSources(fullPath)
+    if (entry.endsWith('.tsx')) return [readFileSync(fullPath, 'utf8')]
+    return []
+  })
+}
 
 describe('shared filled control contrast', () => {
   it('keeps Follow controls shell-aware when they are not already followed', () => {
@@ -18,8 +41,22 @@ describe('shared filled control contrast', () => {
 
   it('keeps tier pathway CTAs shell-aware', () => {
     expect(tierPathwaySource).toContain('const ctaStyle: CSSProperties')
-    expect(tierPathwaySource).toContain("background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'")
-    expect(tierPathwaySource).toContain("color: 'var(--foreground-strong)'")
+    expect(tierPathwaySource).toContain(shellAwareControlBackground)
+    expect(tierPathwaySource).toContain(shellAwareControlColor)
     expect(tierPathwaySource).not.toContain("background: 'linear-gradient(135deg, var(--brand-lime) 0%, #c7f36b 100%)',\n  color: 'var(--text-dark)'")
+  })
+
+  it('keeps remaining high-visibility filled controls shell-aware', () => {
+    for (const file of filledControlFiles) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(source, file).toContain(shellAwareControlBackground)
+      expect(source, file).toContain(shellAwareControlColor)
+    }
+  })
+
+  it('keeps app TSX surfaces free of old dark-text filled green controls', () => {
+    const appSource = collectTsxSources(join(process.cwd(), 'app')).join('\n')
+    expect(appSource).not.toContain('var(--text-dark)')
+    expect(appSource).not.toContain('#04121f')
   })
 })

@@ -4079,14 +4079,15 @@ const matchupPrimaryLinkStyle: CSSProperties = {
   minHeight: 44,
   padding: '0 16px',
   borderRadius: 999,
-  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',
-  color: 'var(--text-dark)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   textDecoration: 'none',
   fontWeight: 950,
   maxWidth: '100%',
   whiteSpace: 'normal',
   textAlign: 'center',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const matchupMeterStyle: CSSProperties = {
@@ -4923,14 +4924,15 @@ const notebookFooterStyle: CSSProperties = {
 }
 
 const saveNotebookButtonStyle: CSSProperties = {
-  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   borderRadius: 999,
   minHeight: 38,
   padding: '0 14px',
   fontWeight: 900,
   cursor: 'pointer',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const goalFieldGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -5224,13 +5226,14 @@ const primaryMiniButtonStyle: CSSProperties = {
   minHeight: 34,
   borderRadius: 999,
   padding: '0 12px',
-  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
-  background: 'linear-gradient(135deg, var(--brand-green) 0%, #4ade80 100%)',
-  color: 'var(--text-dark)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
   fontWeight: 800,
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
 
 const ghostMiniButtonStyle: CSSProperties = {
