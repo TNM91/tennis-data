@@ -640,7 +640,7 @@ const pageStyle: CSSProperties = {
   minHeight: '100vh',
   background: 'radial-gradient(circle at top, rgba(37,99,235,0.22), transparent 32%), linear-gradient(180deg, #081224 0%, #0b1730 100%)',
 }
-const contentStyle: CSSProperties = { display: 'grid', gap: 20 }
+const contentStyle: CSSProperties = { display: 'grid', gap: 20, minWidth: 0 }
 const heroCard: CSSProperties = {
   display: 'grid',
   gap: 18,
@@ -649,6 +649,7 @@ const heroCard: CSSProperties = {
   border: '1px solid rgba(74,222,128,0.16)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.86) 0%, rgba(16,38,70,0.78) 100%)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
 }
 const heroTopRow: CSSProperties = {
   display: 'flex',
@@ -656,6 +657,7 @@ const heroTopRow: CSSProperties = {
   alignItems: 'flex-start',
   gap: 16,
   flexWrap: 'wrap',
+  minWidth: 0,
 }
 const heroTitle: CSSProperties = {
   margin: '6px 0 0',
@@ -663,6 +665,7 @@ const heroTitle: CSSProperties = {
   fontSize: 34,
   lineHeight: 1.02,
   letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 const heroText: CSSProperties = {
   marginTop: 12,
@@ -670,19 +673,20 @@ const heroText: CSSProperties = {
   fontSize: 15,
   lineHeight: 1.7,
   maxWidth: 760,
+  overflowWrap: 'anywhere',
 }
-const heroButtonRow: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' }
-const metricGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14 }
-const signalGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14 }
-const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)', boxShadow: '0 14px 34px rgba(7,18,40,0.16)' }
-const signalLabelStyle: CSSProperties = { color: '#8fb7ff', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
-const signalValueStyle: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: '1.24rem', fontWeight: 900, letterSpacing: 0 }
-const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6 }
-const metricCard: CSSProperties = { padding: 16, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(15,23,42,0.52)' }
+const heroButtonRow: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', minWidth: 0 }
+const metricGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: 14, minWidth: 0 }
+const signalGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, minWidth: 0 }
+const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(28,56,101,0.22) 0%, rgba(10,22,44,0.86) 100%)', boxShadow: '0 14px 34px rgba(7,18,40,0.16)', minWidth: 0 }
+const signalLabelStyle: CSSProperties = { color: '#8fb7ff', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', overflowWrap: 'anywhere' }
+const signalValueStyle: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: '1.24rem', fontWeight: 900, letterSpacing: 0, overflowWrap: 'anywhere' }
+const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6, overflowWrap: 'anywhere' }
+const metricCard: CSSProperties = { padding: 16, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'rgba(15,23,42,0.52)', minWidth: 0 }
 const metricCardAccent: CSSProperties = { ...metricCard, border: '1px solid rgba(74,222,128,0.18)', boxShadow: '0 10px 24px rgba(74,222,128,0.08)' }
-const metricLabel: CSSProperties = { color: 'rgba(197,213,234,0.86)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }
-const metricValue: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: 24, fontWeight: 900 }
-const metricDetail: CSSProperties = { marginTop: 10, color: 'rgba(229,238,251,0.72)', fontSize: 13, lineHeight: 1.65 }
+const metricLabel: CSSProperties = { color: 'rgba(197,213,234,0.86)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, overflowWrap: 'anywhere' }
+const metricValue: CSSProperties = { marginTop: 10, color: '#f8fbff', fontSize: 24, fontWeight: 900, overflowWrap: 'anywhere' }
+const metricDetail: CSSProperties = { marginTop: 10, color: 'rgba(229,238,251,0.72)', fontSize: 13, lineHeight: 1.65, overflowWrap: 'anywhere' }
 const surfaceCard: CSSProperties = {
   display: 'grid',
   gap: 16,
@@ -691,39 +695,40 @@ const surfaceCard: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'linear-gradient(180deg, rgba(14,30,58,0.82) 0%, rgba(16,38,70,0.78) 100%)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
 }
 const flatPanelStyle: CSSProperties = { display: 'grid', gap: 16, minWidth: 0 }
-const sectionHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }
+const sectionHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', minWidth: 0 }
 const detailsSummaryStyle: CSSProperties = { cursor: 'pointer', listStyle: 'none' }
-const sectionKicker: CSSProperties = { fontSize: 12, color: 'rgba(197,213,234,0.86)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }
-const sectionTitle: CSSProperties = { margin: '6px 0 0', color: '#f8fbff', fontSize: 24, lineHeight: 1.08, letterSpacing: 0 }
-const pillStyle: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(37,91,227,0.16)', color: '#c7dbff', fontSize: 12, fontWeight: 800 }
-const statusShell: CSSProperties = { display: 'grid', gap: 14, padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)', marginTop: 18 }
-const statusValue: CSSProperties = { color: '#f8fbff', fontSize: 26, fontWeight: 900, lineHeight: 1.08, letterSpacing: 0, marginTop: 6 }
-const statusButtonRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
+const sectionKicker: CSSProperties = { fontSize: 12, color: 'rgba(197,213,234,0.86)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, overflowWrap: 'anywhere' }
+const sectionTitle: CSSProperties = { margin: '6px 0 0', color: '#f8fbff', fontSize: 24, lineHeight: 1.08, letterSpacing: 0, overflowWrap: 'anywhere' }
+const pillStyle: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(37,91,227,0.16)', color: '#c7dbff', fontSize: 12, fontWeight: 800, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
+const statusShell: CSSProperties = { display: 'grid', gap: 14, padding: 18, borderRadius: 22, border: '1px solid rgba(116,190,255,0.14)', background: 'linear-gradient(180deg, rgba(18,36,66,0.72) 0%, rgba(17,34,61,0.58) 100%)', marginTop: 18, minWidth: 0 }
+const statusValue: CSSProperties = { color: '#f8fbff', fontSize: 26, fontWeight: 900, lineHeight: 1.08, letterSpacing: 0, marginTop: 6, overflowWrap: 'anywhere' }
+const statusButtonRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10, minWidth: 0 }
 const twoColumnGrid = (isTablet: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isTablet ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 20 })
-const eventGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14 }
-const infoBlock: CSSProperties = { display: 'grid', gap: 8, padding: 14, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }
-const infoLabel: CSSProperties = { color: '#93c5fd', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em' }
-const infoValue: CSSProperties = { color: '#f8fbff', fontSize: 14, lineHeight: 1.65, whiteSpace: 'pre-wrap' }
-const noteCard: CSSProperties = { display: 'grid', gap: 8, padding: 16, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }
-const noteText: CSSProperties = { color: 'rgba(229,238,251,0.82)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }
+const eventGrid: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14, minWidth: 0 }
+const infoBlock: CSSProperties = { display: 'grid', gap: 8, padding: 14, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
+const infoLabel: CSSProperties = { color: '#93c5fd', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', overflowWrap: 'anywhere' }
+const infoValue: CSSProperties = { color: '#f8fbff', fontSize: 14, lineHeight: 1.65, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }
+const noteCard: CSSProperties = { display: 'grid', gap: 8, padding: 16, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
+const noteText: CSSProperties = { color: 'rgba(229,238,251,0.82)', fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }
 const lineupGrid = (isSmallMobile: boolean): CSSProperties => ({ display: 'grid', gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 14 })
-const lineupCard: CSSProperties = { display: 'grid', gap: 10, padding: 16, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }
-const lineupTop: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }
-const courtPill: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(155,225,29,0.14)', color: '#e7ffd1', fontSize: 12, fontWeight: 800 }
-const lineupPlayers: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 700, lineHeight: 1.6 }
-const alertStack: CSSProperties = { display: 'grid', gap: 12 }
-const alertCard: CSSProperties = { padding: 14, borderRadius: 18, border: '1px solid rgba(245,158,11,0.22)', background: 'rgba(92,40,10,0.32)', color: '#fde68a', lineHeight: 1.65, fontWeight: 700 }
-const messageCard: CSSProperties = { padding: 18, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)' }
-const messageText: CSSProperties = { margin: 0, color: '#f8fbff', fontSize: 14, lineHeight: 1.75, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }
-const statusPill: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(74,222,128,0.16)', color: '#dcfce7', fontSize: 12, fontWeight: 800, justifySelf: 'start' }
-const quickActionRow: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap' }
-const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, padding: '12px 18px', background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontWeight: 900, textDecoration: 'none', border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', cursor: 'pointer' }
-const secondaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, padding: '12px 18px', background: 'rgba(255,255,255,0.06)', color: '#f8fbff', fontWeight: 800, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }
-const mutedTextStyle: CSSProperties = { color: 'rgba(224,234,247,0.72)', margin: 0, lineHeight: 1.65 }
-const mutedCallout: CSSProperties = { padding: 16, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'rgba(229,238,251,0.78)', lineHeight: 1.7 }
-const errorCard: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(248,113,113,0.22)', background: 'rgba(60,16,24,0.76)', color: '#fecaca', fontWeight: 700 }
+const lineupCard: CSSProperties = { display: 'grid', gap: 10, padding: 16, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
+const lineupTop: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', minWidth: 0 }
+const courtPill: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(155,225,29,0.14)', color: '#e7ffd1', fontSize: 12, fontWeight: 800, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
+const lineupPlayers: CSSProperties = { color: '#f8fbff', fontSize: 15, fontWeight: 700, lineHeight: 1.6, overflowWrap: 'anywhere' }
+const alertStack: CSSProperties = { display: 'grid', gap: 12, minWidth: 0 }
+const alertCard: CSSProperties = { padding: 14, borderRadius: 18, border: '1px solid rgba(245,158,11,0.22)', background: 'rgba(92,40,10,0.32)', color: '#fde68a', lineHeight: 1.65, fontWeight: 700, minWidth: 0, overflowWrap: 'anywhere' }
+const messageCard: CSSProperties = { padding: 18, borderRadius: 20, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', minWidth: 0 }
+const messageText: CSSProperties = { margin: 0, color: '#f8fbff', fontSize: 14, lineHeight: 1.75, whiteSpace: 'pre-wrap', fontFamily: 'inherit', overflowWrap: 'anywhere' }
+const statusPill: CSSProperties = { borderRadius: 999, padding: '8px 12px', background: 'rgba(74,222,128,0.16)', color: '#dcfce7', fontSize: 12, fontWeight: 800, justifySelf: 'start', maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere' }
+const quickActionRow: CSSProperties = { display: 'flex', gap: 10, flexWrap: 'wrap', minWidth: 0 }
+const primaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, padding: '12px 18px', background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontWeight: 900, textDecoration: 'none', border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const secondaryButton: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 999, padding: '12px 18px', background: 'rgba(255,255,255,0.06)', color: '#f8fbff', fontWeight: 800, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const mutedTextStyle: CSSProperties = { color: 'rgba(224,234,247,0.72)', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
+const mutedCallout: CSSProperties = { padding: 16, borderRadius: 18, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: 'rgba(229,238,251,0.78)', lineHeight: 1.7, minWidth: 0, overflowWrap: 'anywhere' }
+const errorCard: CSSProperties = { padding: 18, borderRadius: 22, border: '1px solid rgba(248,113,113,0.22)', background: 'rgba(60,16,24,0.76)', color: '#fecaca', fontWeight: 700, minWidth: 0, overflowWrap: 'anywhere' }
 
 function PrimaryBtn({ onClick, children }: { onClick: () => void; children: ReactNode }) {
   const [hovered, setHovered] = useState(false)
