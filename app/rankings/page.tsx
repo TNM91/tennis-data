@@ -425,7 +425,7 @@ export default function RankingsPage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
@@ -456,12 +456,12 @@ export default function RankingsPage() {
 
   const dynamicControlsGrid: CSSProperties = {
     ...controlsGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1.25fr) minmax(min(100%, 220px), 0.75fr)',
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1.25fr) minmax(min(100%, 220px), 0.75fr)',
   }
 
   const dynamicPodiumGrid: CSSProperties = {
     ...podiumGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   }
 
   const dynamicTableCard: CSSProperties = {
@@ -471,7 +471,7 @@ export default function RankingsPage() {
 
   const dynamicLeaderboardActionGrid: CSSProperties = {
     ...leaderboardActionGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : leaderboardActionGrid.gridTemplateColumns,
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : leaderboardActionGrid.gridTemplateColumns,
   }
 
   const activeCount = Math.max(rankedPlayers.length - inactiveCount, 0)
@@ -796,7 +796,7 @@ export default function RankingsPage() {
               Based on the full snapshot history for the current rating view. Rising players have gained the most since their first recorded match; falling players have given back the most.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 20, marginTop: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))', gap: 20, marginTop: 20, minWidth: 0 }}>
               {risers.length > 0 ? (
                 <div>
                   <div style={{ color: '#9be11d', fontWeight: 800, fontSize: 13, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 }}>Rising</div>
@@ -1819,6 +1819,7 @@ const heroContent: CSSProperties = {
   alignItems: 'stretch',
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroLeft: CSSProperties = {
@@ -2158,6 +2159,7 @@ const controlsGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
   marginBottom: '14px',
+  minWidth: 0,
 }
 
 const inputLabel: CSSProperties = {
@@ -2278,6 +2280,7 @@ const podiumGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const podiumCard: CSSProperties = {
@@ -2481,6 +2484,7 @@ const tableWrap: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
   maxWidth: '100%',
+  minWidth: 0,
   WebkitOverflowScrolling: 'touch',
   overscrollBehaviorX: 'contain',
 }
@@ -2632,7 +2636,7 @@ const compactMiniValueStyle: CSSProperties = {
 const dataTable: CSSProperties = {
   width: '100%',
   borderCollapse: 'collapse',
-  minWidth: '760px',
+  minWidth: 'min(100%, 760px)',
 }
 
 const tableHead: CSSProperties = {

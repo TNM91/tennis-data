@@ -185,7 +185,7 @@ export default function LeaguesPage() {
 
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
-    gridTemplateColumns: isTablet ? '1fr' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
+    gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 0.95fr) minmax(0, 1.05fr)',
     gap: isMobile ? '18px' : '22px',
   }
 
@@ -211,7 +211,7 @@ export default function LeaguesPage() {
   const dynamicSummaryGrid: CSSProperties = {
     ...summaryGrid,
     gridTemplateColumns: isSmallMobile
-      ? '1fr'
+      ? 'minmax(0, 1fr)'
       : isMobile
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(4, minmax(0, 1fr))',
@@ -219,17 +219,17 @@ export default function LeaguesPage() {
 
   const dynamicFilterGrid: CSSProperties = {
     ...filterGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   }
 
   const dynamicCardGrid: CSSProperties = {
     ...cardGrid,
-    gridTemplateColumns: isSmallMobile ? '1fr' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+    gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
   }
 
   const dynamicLeagueDetailGrid: CSSProperties = {
     ...leagueDetailGrid,
-    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
   }
 
   const dynamicLeagueTop: CSSProperties = {
@@ -706,6 +706,7 @@ const heroContent: CSSProperties = {
   alignItems: 'stretch',
   position: 'relative',
   zIndex: 1,
+  minWidth: 0,
 }
 
 const heroLeft: CSSProperties = {
@@ -865,6 +866,7 @@ const summaryGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const metricCard: CSSProperties = {
@@ -940,6 +942,7 @@ const filterGrid: CSSProperties = {
   display: 'grid',
   gap: '14px',
   marginBottom: '16px',
+  minWidth: 0,
 }
 
 const inputLabel: CSSProperties = {
@@ -1138,6 +1141,7 @@ const emptyActionRow: CSSProperties = {
 const cardGrid: CSSProperties = {
   display: 'grid',
   gap: '16px',
+  minWidth: 0,
 }
 
 const leagueCard: CSSProperties = {
@@ -1262,6 +1266,7 @@ const primaryButton: CSSProperties = {
 const leagueDetailGrid: CSSProperties = {
   display: 'grid',
   gap: '12px',
+  minWidth: 0,
 }
 
 const detailCard: CSSProperties = {
